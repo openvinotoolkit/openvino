@@ -2051,6 +2051,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             const auto& interpMode = interpAttr.mode;
             if (interpMode == ngInterpMode::BILINEAR_PILLOW) {
                 interpAttrs.mode = InterpolateMode::bilinear_pillow;
+                interpAttrs.cubeCoeff = static_cast<float>(interpAttr.cube_coeff);  // fixed to be -0.5 for bilinear_pillow too
             } else if (interpMode == ngInterpMode::BICUBIC_PILLOW) {
                 interpAttrs.mode = InterpolateMode::bicubic_pillow;
                 interpAttrs.cubeCoeff = static_cast<float>(interpAttr.cube_coeff);  // fixed to be -0.5
@@ -2463,6 +2464,13 @@ void Interpolate::prepareParams() {
     if (isAxesSpecified) {
         auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
         CPU_NODE_ASSERT(axesMemPtr && axesMemPtr->isDefined(), "has undefined axes memory");
+        // Extract axes data from memory at runtime
+        const auto* axesData = axesMemPtr->getDataAs<const int>();
+        size_t axesSize = axesMemPtr->getStaticDims()[0];
+        axes.assign(axesData, axesData + axesSize);
+        
+        // Update interpAttrs with extracted axes
+        interpAttrs.axes = axes;
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
@@ -2531,7 +2539,7 @@ void Interpolate::prepareParams() {
         // Create the executor with current scales and dimensions
         // The new executors handle padding and table building internally
         try {
-            std::cerr << "[DEBUG] Creating ExecutorFactory for interpolate" << std::endl;
+//             std::cerr << "[DEBUG] Creating ExecutorFactory for interpolate" << std::endl;
             // Update the factory's attributes with the computed scales
             execFactory = std::make_shared<ExecutorFactory<InterpolateAttrs>>(
                 interpAttrs,
@@ -2539,15 +2547,15 @@ void Interpolate::prepareParams() {
                 descs,
                 filter);
             
-            std::cerr << "[DEBUG] About to create interpolate executor from factory" << std::endl;
+//             std::cerr << "[DEBUG] About to create interpolate executor from factory with shapeCalcMode=" << static_cast<int>(interpAttrs.shapeCalcMode) << std::endl;
             interpolateExecutor = execFactory->make(memoryArgs);
             if (interpolateExecutor) {
-                std::cerr << "[DEBUG] Successfully created interpolate executor with impl type: " << interpolateExecutor->implType() << std::endl;
+//                 std::cerr << "[DEBUG] Successfully created interpolate executor with impl type: " << interpolateExecutor->implType() << std::endl;
             } else {
-                std::cerr << "[DEBUG] Factory returned null executor" << std::endl;
+//                 std::cerr << "[DEBUG] Factory returned null executor" << std::endl;
             }
         } catch (const std::exception& e) {
-            std::cerr << "[DEBUG] Executor creation failed with exception: " << e.what() << std::endl;
+//             std::cerr << "[DEBUG] Executor creation failed with exception: " << e.what() << std::endl;
             // If creation fails, fall through to old implementation
             interpolateExecutor = nullptr;
         }
@@ -2564,38 +2572,9 @@ void Interpolate::prepareParams() {
 
     // Fallback to old implementation - this should be removed once migration is complete
     // For now, keeping it as a backup path
-    std::cerr << "[DEBUG OLD] Creating InterpolateKey with srcDims: [";
-    for (size_t i = 0; i < srcDims.size(); ++i) {
-        std::cerr << srcDims[i] << (i < srcDims.size()-1 ? "," : "");
-    }
-    std::cerr << "], dstDims: [";
-    for (size_t i = 0; i < dstDims.size(); ++i) {
-        std::cerr << dstDims[i] << (i < dstDims.size()-1 ? "," : "");
-    }
-    std::cerr << "], dataScales: [";
-    for (size_t i = 0; i < dataScales.size(); ++i) {
-        std::cerr << dataScales[i] << (i < dataScales.size()-1 ? "," : "");
-    }
-    std::cerr << "], padBegin: [";
-    for (size_t i = 0; i < interpAttrs.padBegin.size(); ++i) {
-        std::cerr << interpAttrs.padBegin[i] << (i < interpAttrs.padBegin.size()-1 ? "," : "");
-    }
-    std::cerr << "], padEnd: [";
-    for (size_t i = 0; i < interpAttrs.padEnd.size(); ++i) {
-        std::cerr << interpAttrs.padEnd[i] << (i < interpAttrs.padEnd.size()-1 ? "," : "");
-    }
-    std::cerr << "]" << std::endl;
-    std::cerr << "[DEBUG OLD] attrs_.mode=" << static_cast<int>(interpAttrs.mode) 
-              << ", attrs_.coordTransMode=" << static_cast<int>(interpAttrs.coordTransMode) 
-              << ", attrs_.layout=" << static_cast<int>(interpAttrs.layout) 
-              << ", attrs_.nearestMode=" << static_cast<int>(interpAttrs.nearestMode) 
-              << ", attrs_.antialias=" << interpAttrs.antialias
-              << ", attrs_.cubeCoeff=" << interpAttrs.cubeCoeff
-              << ", attrs_.shapeCalcMode=" << static_cast<int>(interpAttrs.shapeCalcMode)
-              << ", attrs_.inPrc=" << interpAttrs.inPrc.get_type_name() 
-              << ", attrs_.outPrc=" << interpAttrs.outPrc.get_type_name() << std::endl;
     InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, dnnl::primitive_attr()};
     setPostOps(key.attr, dstDims);
+    
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<OldInterpolateExecutorBase> {
         std::shared_ptr<OldInterpolateExecutorBase> executor;
@@ -2645,8 +2624,10 @@ void Interpolate::createPrimitive() {
         interpAttrs.layout = InterpolateLayoutType::by_channel;
     }
 
+    // Set precision BEFORE creating factory - this was the bug causing type system errors!
     interpAttrs.inPrc = srcMemPtr->getDesc().getPrecision();
     interpAttrs.outPrc = dstMemPtr->getDesc().getPrecision();
+    
 
     // Initialize the executor factory
     MemoryDescArgs descs;
@@ -2744,7 +2725,7 @@ std::vector<float> Interpolate::getScales(const VectorDims& srcDimPad, const Vec
 void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
     // Use new executor if available
     if (interpolateExecutor) {
-        std::cerr << "[DEBUG] Using new interpolate executor with impl type: " << interpolateExecutor->implType() << std::endl;
+//         std::cerr << "[DEBUG] Using new interpolate executor with impl type: " << interpolateExecutor->implType() << std::endl;
         try {
             MemoryArgs memoryArgs;
             for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -2752,19 +2733,19 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
             }
             memoryArgs[ARG_DST] = getDstMemoryAtPort(0);
             
-            std::cerr << "[DEBUG] About to execute new interpolate executor" << std::endl;
+//             std::cerr << "[DEBUG] About to execute new interpolate executor" << std::endl;
             interpolateExecutor->execute(memoryArgs);
-            std::cerr << "[DEBUG] New interpolate executor completed successfully" << std::endl;
+//             std::cerr << "[DEBUG] New interpolate executor completed successfully" << std::endl;
             return;
         } catch (const std::exception& e) {
-            std::cerr << "[DEBUG] New executor failed with exception: " << e.what() << std::endl;
+//             std::cerr << "[DEBUG] New executor failed with exception: " << e.what() << std::endl;
             // Fall through to old executor if new one fails
         } catch (...) {
-            std::cerr << "[DEBUG] New executor failed with unknown exception" << std::endl;
+//             std::cerr << "[DEBUG] New executor failed with unknown exception" << std::endl;
             // Fall through to old executor if new one fails
         }
     } else {
-        std::cerr << "[DEBUG] No new interpolate executor available, using old implementation" << std::endl;
+//         std::cerr << "[DEBUG] No new interpolate executor available, using old implementation" << std::endl;
     }
 
     // Fallback to old executor (temporary during migration)
@@ -2798,7 +2779,6 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
                 srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
                 auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
                 // Debug first iteration in old implementation
-                bool old_debugged = false;
                 parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
                     const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
                                                             inShapeBlock[3] * d + inShapeBlock[4] * h) *
@@ -2808,16 +2788,6 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
                                         inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4) *
                                            srcDataSize;
                     
-                    if (!old_debugged && n == 0 && c == 0 && d == 0 && h == 0) {
-                        size_t old_src_offset = (inShapeBlock[1] * n + inShapeBlock[2] * c + inShapeBlock[3] * d + inShapeBlock[4] * h);
-                        size_t old_dst_offset = (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[2] * (c + padB1) + inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4);
-                        std::cerr << "[DEBUG OLD Copy] First copy: n=" << n << " c=" << c << " d=" << d << " h=" << h 
-                                  << ", src_offset=" << old_src_offset << " dst_offset=" << old_dst_offset 
-                                  << ", copy_size=" << srcDim5d[4] << " elements" << std::endl;
-                        std::cerr << "[DEBUG OLD Copy] inShapeBlock: [" << inShapeBlock[0] << "," << inShapeBlock[1] << "," << inShapeBlock[2] << "," << inShapeBlock[3] << "," << inShapeBlock[4] << "]" << std::endl;
-                        std::cerr << "[DEBUG OLD Copy] inShapePadBlock: [" << inShapePadBlock[0] << "," << inShapePadBlock[1] << "," << inShapePadBlock[2] << "," << inShapePadBlock[3] << "," << inShapePadBlock[4] << "]" << std::endl;
-                        old_debugged = true;
-                    }
                     
                     cpu_memcpy(srcPad, src, srcDim5d[4] * srcDataSize);
                 });
@@ -2879,7 +2849,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
 
         // Debug: print first few source data values for old implementation
         const float* src_float_old = reinterpret_cast<const float*>(src_data);
-        std::cerr << "[DEBUG OLD] First 16 source values: ";
+//         std::cerr << "[DEBUG OLD] First 16 source values: ";
         for (int i = 0; i < std::min(16, 144); ++i) {
             std::cerr << src_float_old[i] << " ";
         }
@@ -3719,6 +3689,8 @@ void Interpolate::OldInterpolateExecutorBase::buildTblPillow(const VectorDims& s
                                                           const std::vector<float>& dataScales,
                                                           [[maybe_unused]] float cubicCoeff,
                                                           [[maybe_unused]] InterpolateLayoutType layout) {
+//     std::cerr << "[DEBUG PILLOW BUILD] Start buildTblPillow" << std::endl;
+    
     int dimSize = dataRank;
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
@@ -3726,6 +3698,7 @@ void Interpolate::OldInterpolateExecutorBase::buildTblPillow(const VectorDims& s
     int IW = srcDimPad5d[4];
     int OH = dstDim5d[3];
     int OW = dstDim5d[4];
+    
 
     struct filterArgs {
         float (*weightGen)(float m);
@@ -3737,14 +3710,18 @@ void Interpolate::OldInterpolateExecutorBase::buildTblPillow(const VectorDims& s
     // pillowScale: e.g. 2.0 means down sample 2 times
     auto generateArgs = [&](float pillowScale) -> filterArgs {
         float scaleClip = pillowScale < 1.0F ? 1.0F : pillowScale;
+        float filterRadius = (mode == InterpolateMode::bilinear_pillow) 
+            ? PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
+            : PILLOW_BICUBIC_WINDOW_SCALE * scaleClip;
+        float filterLen = static_cast<float>(static_cast<int>((std::ceil(filterRadius) * 2) + 1));
+        
         filterArgs args{
             (mode == InterpolateMode::bilinear_pillow)
                 ? ov::intel_cpu::node::Interpolate::OldInterpolateExecutorBase::getPillowBilinearCoeffs
                 : ov::intel_cpu::node::Interpolate::OldInterpolateExecutorBase::getPillowBicubicCoeffs,
             1.0F / scaleClip,
-            (mode == InterpolateMode::bilinear_pillow) ? PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
-                                                       : PILLOW_BICUBIC_WINDOW_SCALE * scaleClip,
-            static_cast<float>(static_cast<int>((std::ceil(args.filterRadius) * 2) + 1)),
+            filterRadius,
+            filterLen,
         };
         return args;
     };
@@ -3756,7 +3733,10 @@ void Interpolate::OldInterpolateExecutorBase::buildTblPillow(const VectorDims& s
     size_t weightLen =
         static_cast<size_t>(filterArgsX.filterLen) * OW + static_cast<size_t>(filterArgsY.filterLen) * OH;
     size_t boundLen = 2 * OW + 2 * OH;
-    auxTable.resize(2 + weightLen + boundLen);
+    size_t totalSize = 2 + weightLen + boundLen;
+    
+              
+    auxTable.resize(totalSize);
     size_t offset = 0;
     auxTable[offset] = static_cast<int>(filterArgsX.filterLen);
     auxTable[offset + 1] = static_cast<int>(filterArgsY.filterLen);
@@ -3770,6 +3750,8 @@ void Interpolate::OldInterpolateExecutorBase::buildTblPillow(const VectorDims& s
     auto* indexY = static_cast<int*>(&auxTable[offset]);
 
     auto generateTbl = [&](int inLen, int outLen, float fScale, filterArgs args, float* weightTbl, int* idxTbl) {
+        if (fScale < 0.2f) {
+        }
         int min = 0;
         int max = 0;
         for (int ox = 0; ox < outLen; ox++) {
@@ -3785,6 +3767,8 @@ void Interpolate::OldInterpolateExecutorBase::buildTblPillow(const VectorDims& s
             // use [min, max) range of input to get output
             // below let max become len
             max -= min;
+            
+            
             idxTbl[2 * ox] = min;
             idxTbl[2 * ox + 1] = max;
 
@@ -4301,9 +4285,14 @@ void Interpolate::OldInterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* 
                                                               int IW,
                                                               int OH,
                                                               int OW) {
+//     // Debug output removed
+              
     size_t offset = 0;
     int filterLenX = auxTable[offset];
     int filterLenY = auxTable[offset + 1];
+    
+//     // std::cerr << "[DEBUG PILLOW NCHW] filterLenX=" << filterLenX << " filterLenY=" << filterLenY << std::endl;
+    
     offset += 2;
     auto* weightX = reinterpret_cast<float*>(&auxTable[offset]);
     offset += filterLenX * OW;
@@ -4313,9 +4302,12 @@ void Interpolate::OldInterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* 
     offset += 2 * OW;
     auto* indexY = static_cast<int*>(&auxTable[offset]);
 
+    // std::cerr << "[DEBUG PILLOW NCHW] Pointers setup completed" << std::endl;
+    
     bool xPass = IW != OW;
     bool yPass = IH != OH;
-
+    
+// 
     auto b_loop = [&](size_t b) {
         const uint8_t* in_ptr_b = in_ptr_ + b * IH * IW * C * srcDataSize;
         uint8_t* out_ptr_b = out_ptr_ + b * OH * OW * C * dstDataSize;
@@ -4371,6 +4363,11 @@ void Interpolate::OldInterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* 
         }
 
         if (yPass) {
+            // Removed excessive debug output to prevent potential crashes
+            // std::cerr << "[DEBUG PILLOW NCHW] yPass: starting with inputPrec=" << inputPrec.get_type_name()
+            //           << " outputPrec=" << outputPrec.get_type_name()
+            //           << " srcDataSize=" << srcDataSize << " dstDataSize=" << dstDataSize << std::endl;
+                      
             for (size_t oh = 0; oh < static_cast<size_t>(OH); oh++) {
                 filterS = indexY[oh * 2];
                 filterL = indexY[oh * 2 + 1];
@@ -4379,15 +4376,18 @@ void Interpolate::OldInterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* 
                     for (size_t c = 0; c < static_cast<size_t>(C); c++) {
                         result = 0.F;
                         for (f = 0; f < filterL; f++) {
-                            float pixel =
-                                getValue(ypass_in_ptr_b, (((f + filterS) * OW + ow) * C + c) * srcDataSize, inputPrec);
+                            size_t pixelOffset = (((f + filterS) * OW + ow) * C + c) * srcDataSize;
+                            // Removed debug output for each pixel read
+                            float pixel = getValue(ypass_in_ptr_b, pixelOffset, inputPrec);
                             result += pixel * weight[f];
                         }
                         if (!isFloatCompatible(outputPrec)) {
                             result =
                                 static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5F : result - 0.5F));
                         }
-                        setValue(out_ptr_b, ((oh * OW + ow) * C + c) * dstDataSize, result, outputPrec);
+                        size_t outOffset = ((oh * OW + ow) * C + c) * dstDataSize;
+                        // Removed debug output for each pixel write
+                        setValue(out_ptr_b, outOffset, result, outputPrec);
                     }
                 }
             }
@@ -4571,6 +4571,8 @@ void Interpolate::OldInterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_
 void Interpolate::OldInterpolateRefExecutor::exec(const uint8_t* in_ptr_,
                                                uint8_t* out_ptr_,
                                                [[maybe_unused]] const void* post_ops_data_) {
+//     std::cerr << "[DEBUG REF EXEC] Start OldInterpolateRefExecutor::exec with mode=" << static_cast<int>(mode) << std::endl;
+    
     size_t N = srcDimPad5d[0];
     size_t C = srcDimPad5d[1];
     size_t ID = srcDimPad5d[2];
@@ -4579,6 +4581,7 @@ void Interpolate::OldInterpolateRefExecutor::exec(const uint8_t* in_ptr_,
     size_t OD = dstDim5d[2];
     size_t OH = dstDim5d[3];
     size_t OW = dstDim5d[4];
+    
 
     switch (mode) {
     case InterpolateMode::nearest: {

@@ -86,13 +86,23 @@ static bool isACLApplicable(const executor::Config<InterpolateAttrs>& config,
         return false;
     }
     
-    // ACL works with NHWC layout
-    if (attrs.layout != InterpolateLayoutType::by_channel &&
-        !attrs.NCHWAsNHWC) {
+    // Check memory descriptors to ensure both source and destination have compatible layouts
+    // Port 0 is the data input for interpolate
+    auto srcDesc = config.descs.count(0) ? config.descs.at(0) : nullptr;
+    auto dstDesc = config.descs.count(ARG_DST) ? config.descs.at(ARG_DST) : nullptr;
+    
+    if (!srcDesc || !dstDesc) {
         return false;
     }
     
-    return true;
+    // ACL works best with NHWC layout
+    bool isNHWC = srcDesc->hasLayoutType(LayoutType::nspc) && 
+                  dstDesc->hasLayoutType(LayoutType::nspc);
+    
+    // For NCHW layout, we need the NCHWAsNHWC flag to handle dimension swapping
+    bool canHandleNCHW = attrs.NCHWAsNHWC;
+    
+    return isNHWC || canHandleNCHW;
 #else
     return false;
 #endif
@@ -118,16 +128,21 @@ const std::vector<ExecutorImplementation<InterpolateAttrs>>& getImplementations<
 #if defined(OPENVINO_ARCH_X86_64)
                 auto executor = std::make_shared<JitInterpolateExecutor>(context);
                 
-                // Build memory descriptors
+                // Build memory descriptors - JIT expects only the data input
                 std::vector<MemoryDescPtr> srcDescs;
                 std::vector<MemoryDescPtr> dstDescs;
                 
-                for (const auto& [k, v] : memory) {
-                    if (k == ARG_DST || k == ARG_DST_0) {
-                        dstDescs.push_back(v->getDescPtr());
-                    } else {
-                        srcDescs.push_back(v->getDescPtr());
-                    }
+                // Port 0 is the data input for interpolate node
+                if (memory.count(0)) {
+                    srcDescs.push_back(memory.at(0)->getDescPtr());
+                } else {
+                    return nullptr;
+                }
+                
+                if (memory.count(ARG_DST)) {
+                    dstDescs.push_back(memory.at(ARG_DST)->getDescPtr());
+                } else {
+                    return nullptr;
                 }
                 
                 // Initialize the executor with config and memory descriptors
@@ -154,16 +169,32 @@ const std::vector<ExecutorImplementation<InterpolateAttrs>>& getImplementations<
 #if defined(OV_CPU_WITH_ACL)
                 auto executor = std::make_shared<ACLInterpolateExecutor>(context);
                 
-                // Build memory descriptors
+                // Build memory descriptors - ACL expects only the data input
                 std::vector<MemoryDescPtr> srcDescs;
                 std::vector<MemoryDescPtr> dstDescs;
                 
-                for (const auto& [k, v] : memory) {
-                    if (k == ARG_DST || k == ARG_DST_0) {
-                        dstDescs.push_back(v->getDescPtr());
-                    } else {
-                        srcDescs.push_back(v->getDescPtr());
-                    }
+                // Port 0 is the data input for interpolate node
+                if (memory.count(0)) {
+                    srcDescs.push_back(memory.at(0)->getDescPtr());
+                } else {
+                    return nullptr;
+                }
+                
+                if (memory.count(ARG_DST)) {
+                    dstDescs.push_back(memory.at(ARG_DST)->getDescPtr());
+                } else {
+                    return nullptr;
+                }
+                
+                // Validate that descriptors are appropriate for ACL
+                if (!srcDescs[0] || !dstDescs[0]) {
+                    return nullptr;
+                }
+                
+                // ACL expects 4D tensors
+                if (srcDescs[0]->getShape().getDims().size() != 4 ||
+                    dstDescs[0]->getShape().getDims().size() != 4) {
+                    return nullptr;
                 }
                 
                 // Initialize the executor with config and memory descriptors
@@ -193,16 +224,27 @@ const std::vector<ExecutorImplementation<InterpolateAttrs>>& getImplementations<
                 // Create new reference executor
                 auto executor = std::make_shared<NewRefInterpolateExecutor>(context);
                 
-                // Build memory descriptors
+                // Build memory descriptors - reference executor needs all inputs
                 std::vector<MemoryDescPtr> srcDescs;
                 std::vector<MemoryDescPtr> dstDescs;
                 
-                for (const auto& [k, v] : memory) {
-                    if (k == ARG_DST || k == ARG_DST_0) {
-                        dstDescs.push_back(v->getDescPtr());
+                // Collect all source descriptors in port order
+                for (size_t i = 0; i < 10; ++i) { // Check up to 10 ports
+                    if (memory.count(i)) {
+                        srcDescs.push_back(memory.at(i)->getDescPtr());
                     } else {
-                        srcDescs.push_back(v->getDescPtr());
+                        break; // Stop at first missing port
                     }
+                }
+                
+                if (memory.count(ARG_DST)) {
+                    dstDescs.push_back(memory.at(ARG_DST)->getDescPtr());
+                } else {
+                    return nullptr;
+                }
+                
+                if (srcDescs.empty() || dstDescs.empty()) {
+                    return nullptr;
                 }
                 
                 // Initialize the executor with config and memory descriptors
