@@ -48,6 +48,9 @@ find_package(OpenVINODeveloperScripts REQUIRED
 
 include(cmake/features.cmake)
 
+# Include Nix-specific packaging configuration
+include(cmake/nix_packaging.cmake)
+
 # These options are shared with 3rdparty plugins by means of developer package
 include(cmake/dependencies.cmake)
 

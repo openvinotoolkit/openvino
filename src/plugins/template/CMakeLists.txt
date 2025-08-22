@@ -21,8 +21,17 @@ if(ENABLE_TESTS)
     include(CTest)
     enable_testing()
 
-    if(ENABLE_FUNCTIONAL_TESTS)
+    # Check Nix-specific override for template functional tests
+    if(DEFINED ENABLE_TEMPLATE_FUNCTIONAL_TESTS_OVERRIDE)
+        set(TEMPLATE_FUNC_TESTS_ENABLED ${ENABLE_TEMPLATE_FUNCTIONAL_TESTS_OVERRIDE})
+    else()
+        set(TEMPLATE_FUNC_TESTS_ENABLED ${ENABLE_FUNCTIONAL_TESTS})
+    endif()
+
+    if(TEMPLATE_FUNC_TESTS_ENABLED)
         add_subdirectory(tests/functional)
+    else()
+        message(STATUS "Template functional tests disabled (Nix override or ENABLE_FUNCTIONAL_TESTS=OFF)")
     endif()
 endif()
 
