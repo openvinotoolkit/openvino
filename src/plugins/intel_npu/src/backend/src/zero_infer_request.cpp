@@ -117,27 +117,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
 
-    ze_device_external_memory_properties_t desc = {};
-    desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
-    auto res = zeDeviceGetExternalMemoryProperties(_initStructs->getDevice(), &desc);
-    if (res == ZE_RESULT_SUCCESS) {
-        if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
-#ifdef _WIN32
-            // Driver shall return STANDARD_ALLOCATION_FULL_SUPPORT as supported to go further here
-            if (_initStructs->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 11) &&
-                _initStructs->getGraphDdiTable().pfnCompilerIsOptionSupported(_initStructs->getDevice(),
-                                                                              ZE_NPU_DRIVER_OPTIONS,
-                                                                              "STANDARD_ALLOCATION_FULL_SUPPORT",
-                                                                              nullptr) == ZE_RESULT_SUCCESS) {
-                _externalMemoryStandardAllocationSupported = true;
-            }
-#else
-            _externalMemoryStandardAllocationSupported = true;
-
-#endif
-        }
-    }
-
     _outputAllocator = std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs);
     _inputAllocator =
         std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);

@@ -404,13 +404,14 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t bl
         flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
     }
 
-    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                              nullptr,
-                              ZE_GRAPH_FORMAT_NATIVE,
-                              blobSize,
-                              reinterpret_cast<const uint8_t*>(blobData),
-                              nullptr,
-                              flags};
+    ze_graph_desc_2_t desc = {
+        ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+        nullptr,
+        ZE_GRAPH_FORMAT_NATIVE,
+        blobSize,
+        npuMemory ? reinterpret_cast<const uint8_t*>(npuMemory) : reinterpret_cast<const uint8_t*>(blobData),
+        nullptr,
+        flags};
 
     _logger.debug("getGraphDescriptor - perform pfnCreate2");
 
