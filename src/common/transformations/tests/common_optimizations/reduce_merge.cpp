@@ -336,3 +336,57 @@ TEST_F(TransformationTestsF, ReduceMergeDifferentShapesAndTypes) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+TEST_F(TransformationTestsF, ReduceMergeReduceSumKeepDimsFalse) {
+    {
+        // Test case for the bug described in issue #31833
+        // Input shape: [1, 256, 64, 16]
+        // First ReduceSum on axis -1 (16) with keep_dims=false -> output shape: [1, 256, 64]
+        // Second ReduceSum on axis -1 (64) with keep_dims=false -> output shape: [1, 256]
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 256, 64, 16});
+        auto reduce1_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        auto reduce1 = std::make_shared<opset9::ReduceSum>(data, reduce1_axes, false);
+        auto reduce2_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        model = std::make_shared<Model>(OutputVector{std::make_shared<opset9::ReduceSum>(reduce1, reduce2_axes, false)},
+                                        ParameterVector{data});
+        manager.register_pass<ov::pass::ReduceMerge>();
+    }
+    {
+        // Expected result after fusion:
+        // Fused ReduceSum with axes [-1, -2] on original input shape [1, 256, 64, 16]
+        // This will reduce both the last two dimensions (16 and 64) to get output shape [1, 256]
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 256, 64, 16});
+        auto axes = op::v0::Constant::create(element::i64, Shape{2}, {-1, -2});
+        auto reduce = std::make_shared<opset9::ReduceSum>(data, axes, false);
+        model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, ReduceMergeReduceSumKeepDimsFalseComplex) {
+    {
+        // Test case with more complex axis combinations
+        // Input shape: [2, 3, 4, 5, 6]
+        // First ReduceSum on axes [0, 2] with keep_dims=false -> output shape: [3, 5, 6]
+        // Second ReduceSum on axis -1 (6) with keep_dims=false -> output shape: [3, 5]
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5, 6});
+        auto reduce1_axes = op::v0::Constant::create(element::i64, Shape{2}, {0, 2});
+        auto reduce1 = std::make_shared<opset9::ReduceSum>(data, reduce1_axes, false);
+        auto reduce2_axes = op::v0::Constant::create(element::i64, Shape{1}, {-1});
+        model = std::make_shared<Model>(OutputVector{std::make_shared<opset9::ReduceSum>(reduce1, reduce2_axes, false)},
+                                        ParameterVector{data});
+        manager.register_pass<ov::pass::ReduceMerge>();
+    }
+    {
+        // Expected result after fusion:
+        // Fused ReduceSum with axes [0, 2, 4] on original input shape [2, 3, 4, 5, 6]
+        // This will reduce dimensions 0, 2, and 4 to get output shape [3, 5]
+        auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4, 5, 6});
+        auto axes = op::v0::Constant::create(element::i64, Shape{3}, {0, 2, 4});
+        auto reduce = std::make_shared<opset9::ReduceSum>(data, axes, false);
+        model_ref = std::make_shared<Model>(OutputVector{reduce}, ParameterVector{data});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
