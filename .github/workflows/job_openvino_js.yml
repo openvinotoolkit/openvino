@@ -12,6 +12,11 @@ on:
         type: string
         required: false
         default: null
+      nodejs-version:
+        description: 'NodeJS version to setup. E.g., "22"'
+        type: string
+        required: false
+        default: "21"
 
 permissions: read-all
 
@@ -32,7 +37,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_JS_DIR: ${{ github.workspace }}/src/bindings/js/node
       OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/src/bindings/js/node/bin
-      NODE_VERSION: 21
+      NODE_VERSION: ${{ inputs.nodejs-version }}
       DISPLAY: ':99'
     steps:
       - name: Fetch OpenVINO JS sources
@@ -49,16 +54,15 @@ jobs:
       - name: Download OpenVINO artifacts (JS)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: openvino_js_package
-          path: ${{ env.OPENVINO_JS_LIBS_DIR }}
+          name: openvino_node_npm_package
+          path: ${{ env.OPENVINO_JS_DIR }}
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: pigz -dc openvino_js_package.tar.gz | tar -xf - -v
-        working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
+        run: pigz -dc openvino_node_npm_package.tar.gz | tar -xf - -v
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        if: runner.os != 'Linux' # Node is already installed in the Docker image
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}

@@ -32,6 +32,11 @@ RUN apt-get update && \
         python3.11-venv \
         python3.11-distutils \
         libhdf5-dev \
+        # JS API
+        xvfb \
+        libgtk-3-0 \
+        libgbm1 \
+        libnss3 \
         # For TF Models tests
         wget \
         # libGL for PyTorch Models tests
