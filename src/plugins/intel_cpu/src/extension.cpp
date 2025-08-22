@@ -24,6 +24,7 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/is_inf.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
@@ -247,6 +248,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<TypeRelaxedExtension<ov::op::v0::Unsqueeze>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v0::MVN>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v6::MVN>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v10::IsInf>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::Brgemm>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastLoad>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastMove>>(),
