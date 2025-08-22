@@ -157,10 +157,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
             for (size_t i = 0; i < max_size - 2; ++i) {
                 if (shape_b_aligned[i] == 1) {
                     shape_b_aligned[i] = shape_a_aligned[i];
-                } else if (!is_compressed_weight) {
+                } else if (!is_compressed_weight || !supports_immad) {
                     return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
-                } else if (!supports_immad) {
-                    OPENVINO_THROW("Compressed weight should be handled as FC, but it is not supported by ocl impl yet. (TBD)");
                 }
             }
             return std::make_tuple(true, std::move(shape_a_aligned), std::move(shape_b_aligned));
