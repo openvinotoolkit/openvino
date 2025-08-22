@@ -237,13 +237,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO artifacts (package)
-        uses: akashchi/download-artifact@a2a0b1bdc14dc771c4546e80a50ea47b0a905768
+        uses: akashchi/download-artifact@d8498bae4558f325eebf6e7be5f4a16589d52f09
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
       
       - name: Download OpenVINO artifacts (tests)
-        uses: akashchi/download-artifact@a2a0b1bdc14dc771c4546e80a50ea47b0a905768
+        uses: akashchi/download-artifact@d8498bae4558f325eebf6e7be5f4a16589d52f09
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
