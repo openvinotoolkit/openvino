@@ -393,7 +393,7 @@ public:
         Arguments args;
 
         const auto desc = params.typed_desc<paged_attention>();
-        const auto has_alibi = params.get_input_layout(11).count() > 0;
+        const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = params.output_layouts.size() > 1;
 
@@ -957,7 +957,7 @@ public:
     PagedAttentionSDPAOptGeneratorMultiToken() : SDPAOptGeneratorBase("sdpa_opt", "_multi_tokens", false) {}
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
         const auto desc = params.typed_desc<paged_attention>();
-        const auto has_alibi = params.get_input_layout(11).count() > 0;
+        const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = desc->has_scores_output();
         const auto has_score_aggregation = desc->has_score_aggregation;
@@ -1006,7 +1006,7 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::MULTI_TOKENS, false);
         const auto desc = params.typed_desc<paged_attention>();
-        const auto has_alibi = params.get_input_layout(11).count() > 0;
+        const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -1367,6 +1367,8 @@ public:
         bool can_use_micro_sdpa = stage == PagedAttentionStage::PREFILL;
 #ifdef ENABLE_ONEDNN_FOR_GPU
         can_use_micro_sdpa &= has_stage(pa_sdpa_micro);
+#else
+        can_use_micro_sdpa = false;
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
@@ -1436,8 +1438,9 @@ public:
             }
         }
 
-        if (!can_use_micro_sdpa) {
-            // GENERATE/MIXED stages and PREFILL stage without micro_sdpa
+        // PREFILL stage doesn't require additional buffers for softmax, exp_sums and max_logits.
+        // GENERATE/MIXED stages require additional buffers for softmax, exp_sums and max_logits.
+        if (!can_use_micro_sdpa && stage != PagedAttentionStage::PREFILL) {
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
             internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
