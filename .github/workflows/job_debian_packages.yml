@@ -29,16 +29,29 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       DEBIAN_PACKAGES_DIR: ${{ github.workspace }}/packages
+      GH_DEBUG: 1
     steps:
       - name: Set apt retries
         if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
+      - name: Install gh cli
+        run: |
+          apt-get update -y && apt-get install curl -y
+          if [[ ${{ runner.arch }} == "X64" ]]; then
+            curl -L https://github.com/cli/cli/releases/download/v2.76.2/gh_2.76.2_linux_amd64.tar.gz -o /tmp/gh.tar.gz
+          else
+            curl -L https://github.com/cli/cli/releases/download/v2.76.2/gh_2.76.2_linux_arm64.tar.gz -o /tmp/gh.tar.gz
+          fi
+          tar -xzf /tmp/gh.tar.gz -C /opt && \
+          mv /opt/gh_2.76.2_linux_* /opt/gh && \
+          rm /tmp/gh.tar.gz
+          echo "PATH=/opt/gh/bin:$PATH" >> $GITHUB_ENV
+
       - name: Download OpenVINO debian packages
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_debian_packages
-          path: ${{ env.DEBIAN_PACKAGES_DIR }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_debian_packages --dir ${{ env.DEBIAN_PACKAGES_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Install debian packages & check conflicts
         run: |

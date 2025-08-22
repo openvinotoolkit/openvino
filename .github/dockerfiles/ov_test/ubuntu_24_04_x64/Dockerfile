@@ -36,6 +36,14 @@ RUN chmod +x /install_openvino_dependencies.sh && \
     /install_openvino_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
+# `gh` cli - Download and install GitHub CLI
+RUN curl -L https://github.com/cli/cli/releases/download/v2.76.2/gh_2.76.2_linux_amd64.tar.gz -o /tmp/gh.tar.gz && \
+    tar -xzf /tmp/gh.tar.gz -C /opt && \
+    mv /opt/gh_2.76.2_linux_amd64 /opt/gh && \
+    rm /tmp/gh.tar.gz
+
+ENV PATH="/opt/gh/bin:$PATH"
+
 # Create a virtual environment for the system Python as Python in Ubuntu 24 complains about installing
 # packages into the system Python
 RUN python3 -m venv venv

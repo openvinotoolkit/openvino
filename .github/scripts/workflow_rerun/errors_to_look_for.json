@@ -138,5 +138,9 @@
     {
         "error_text": "OperationStopped:",
         "ticket": 171334
+    },
+    {
+        "error_text": "error writing zip archive",
+        "ticket": 172303
     }
 ]

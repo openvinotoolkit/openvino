@@ -108,3 +108,10 @@ RUN mkdir -p ${DOXYGEN_HOME} && cd ${DOXYGEN_HOME} && wget https://www.doxygen.n
     rm -f doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz
 ENV PATH="${DOXYGEN_HOME}/doxygen-$DOXYGEN_VERSION/bin:$PATH"
 
+# `gh` cli - Download and install GitHub CLI
+RUN curl -L https://github.com/cli/cli/releases/download/v2.76.2/gh_2.76.2_linux_amd64.tar.gz -o /tmp/gh.tar.gz && \
+    tar -xzf /tmp/gh.tar.gz -C /opt && \
+    mv /opt/gh_2.76.2_linux_amd64 /opt/gh && \
+    rm /tmp/gh.tar.gz
+
+ENV PATH="/opt/gh/bin:$PATH"
