@@ -179,16 +179,14 @@ KERNEL(eltwise)(
         // zero-padding the blocked format padded memory area since it might be used as input of onednn concatenation
         if(d4 + d3 + d2 + d1 == 0) {
             const uint b_size = OUTPUT_SIZES[3], f_size = OUTPUT_SIZES[2], y_size = OUTPUT_SIZES[1], x_size = OUTPUT_SIZES[0];
-            const uint BLOCK_F = FEATURE_BLOCK_SIZE;
 
-            #if BATCH_BLOCK_SIZE
-                const uint BLOCK_B = BATCH_BLOCK_SIZE;
+            #if BATCH_BLOCK_SIZE && FEATURE_BLOCK_SIZE
                 const uint padded_fs = (f_size + FEATURE_BLOCK_SIZE -1) / FEATURE_BLOCK_SIZE;
                 const uint padded_bs = (b_size + BATCH_BLOCK_SIZE -1) / BATCH_BLOCK_SIZE;
                 const uint z_size = 1;
 
-                const uint bsv_pitch = BLOCK_F;
-                const uint x_pitch = bsv_pitch * BLOCK_B;
+                const uint bsv_pitch = FEATURE_BLOCK_SIZE;
+                const uint x_pitch = bsv_pitch * BATCH_BLOCK_SIZE;
                 const uint y_pitch = x_pitch * x_size;
                 const uint z_pitch = y_pitch * y_size;
                 const uint fs_pitch = z_pitch * z_size;
@@ -202,10 +200,10 @@ KERNEL(eltwise)(
                         for (uint z = 0; z < z_size; ++z) {
                             for (uint y = 0; y < y_size; ++y) {
                                 for (uint x = 0; x < x_size; ++x) {
-                                    for (uint bsv = 0; bsv < BLOCK_B; ++bsv) {
-                                        for (uint fsv = 0; fsv < BLOCK_F; ++fsv) {
-                                            b = bs * BLOCK_B + bsv;
-                                            f = fs * BLOCK_F + fsv;
+                                    for (uint bsv = 0; bsv < BATCH_BLOCK_SIZE; ++bsv) {
+                                        for (uint fsv = 0; fsv < FEATURE_BLOCK_SIZE; ++fsv) {
+                                            b = bs * BATCH_BLOCK_SIZE + bsv;
+                                            f = fs * FEATURE_BLOCK_SIZE + fsv;
                                             if(b >= b_size || f >= f_size) {
                                                 offset = bs * bs_pitch + fs * fs_pitch + z * z_pitch +
                                                          y * y_pitch + x * x_pitch + bsv * bsv_pitch + fsv;
@@ -221,7 +219,7 @@ KERNEL(eltwise)(
             #elif FEATURE_BLOCK_SIZE
                 const uint padded_fs = (f_size + FEATURE_BLOCK_SIZE -1) / FEATURE_BLOCK_SIZE;
 
-                const uint x_pitch = BLOCK_F;
+                const uint x_pitch = FEATURE_BLOCK_SIZE;
                 const uint y_pitch = x_pitch * x_size;
                 const uint fs_pitch = y_pitch * y_size;
                 const uint b_pitch = fs_pitch * padded_fs;
@@ -232,8 +230,8 @@ KERNEL(eltwise)(
                     for (uint fs = padded_fs - 1; fs < padded_fs; ++fs) {
                         for (uint y = 0; y < y_size; ++y) {
                             for (uint x = 0; x < x_size; ++x) {
-                                for (uint fsv = 0; fsv < BLOCK_F; ++fsv) {
-                                    f = fs * BLOCK_F + fsv;
+                                for (uint fsv = 0; fsv < FEATURE_BLOCK_SIZE; ++fsv) {
+                                    f = fs * FEATURE_BLOCK_SIZE + fsv;
                                     if(f >= f_size) {
                                         offset = b * b_pitch + fs * fs_pitch + y * y_pitch + x * x_pitch + fsv;
                                         output[offset] = 0;
