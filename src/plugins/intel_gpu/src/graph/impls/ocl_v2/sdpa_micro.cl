@@ -482,12 +482,15 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #if HAS_SINK_INPUT
         const int head_idx = get_global_id(1) / sg_per_wg;
         const SINK_DATA_T sink_val = sink_ptr[head_idx];
-        const bool is_last_m_sg = last && (get_local_id(1) % ugemm_kq_sg_per_wg_m == (ugemm_kq_sg_per_wg_m - 1));
+        const sg_idx_m = get_local_id(1) % ugemm_kq_sg_per_wg_m;
+        const k_in_subgroup = sg_idx_m * ugemm_kq_sg_tile_m;
+        const bool is_last_m_sg = last && (k0 * ugemm_kq_wg_tile_m + k_in_subgroup == (k / ugemm_kq_wg_tile_m));
         if (is_last_m_sg) {
+            if (get_global_id(1) / 32 == 0)
+                    printf("is_last_m_sg ! gws:%d, %d, %d\n", get_global_id(0), get_global_id(1), get_global_id(2));
             // update max with sink_val
-            #define MAX(x,y) (x > y ? x : y)
-            #define max_sink(x) ((MAX(x, sink_val)))
-            tile_elementwise_s(S_max_tile, max_sink);
+            #define max_sink(x) (fmax(x, sink_val))
+            tile_elementwise(S_max_tile, max_sink);
             #undef MAX
             #undef max_sink
         }
@@ -572,12 +575,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_vreduce_add(S_tile, &S_sum_tile1);
 #ifdef HAS_SINK_INPUT
         if (is_last_m_sg){
-                s_sum_tile_type sink_minus_max_exp_scale;
-                tile_fill(sink_minus_max_exp_scale, convert_float(sink_val));
-                #define binary_exp_neg(x, y) native_vexp2(scale *((x) - (y)))
-                tile_binary(sink_minus_max_exp_scale, S_max_tile, binary_exp_neg);
-                tile_binary(S_sum_tile1, sink_minus_max_exp_scale, binary_add);
-                #undef binary_exp_neg
+            s_sum_tile_type sink_minus_max_exp_scale;
+            tile_fill(sink_minus_max_exp_scale, convert_float(sink_val));
+            #define binary_exp_neg(x, y) native_vexp2(scale *((x) - (y)))
+            tile_binary(sink_minus_max_exp_scale, S_max_tile, binary_exp_neg);
+            tile_binary(S_sum_tile1, sink_minus_max_exp_scale, binary_add);
+            #undef binary_exp_neg
         }
 #endif
 
