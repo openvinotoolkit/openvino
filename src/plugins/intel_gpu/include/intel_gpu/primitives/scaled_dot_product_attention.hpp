@@ -11,6 +11,18 @@ namespace cldnn {
 
 struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_attention> {
     CLDNN_DECLARE_PRIMITIVE(scaled_dot_product_attention)
+    enum ScaledDotProductAttentionInputIdx {
+        QUERY = 0,
+        KEY = 1,
+        VALUE = 2,
+        ATTN_MASK = 3,
+        SCALE = 4,
+        SINK = 5,
+        KEY_SCALES = 6,
+        KEY_ZP = 7,
+        VALUE_SCALES = 8,
+        VALUE_ZP = 9
+    };
 
     using QuantizationAttributes = ov::op::internal::DynamicQuantize::Attributes;
 
@@ -18,7 +30,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
 
     /// @brief Constructs scaled_dot_product_attention primitive.
     /// @param id This primitive id.
-    /// @param inputs Input data primitives id (query, keys, values, [attention_mask], [scale], [keys scales], [keys zp], [values scales], [values zp]).
+    /// @param inputs Input data primitives id (query, keys, values, [attention_mask], [scale], [sink], [keys scales], [keys zp], [values scales], [values zp]).
     /// @param is_causal If true, assumes causal attention masking. In this case attention_mask input is ignored.
     scaled_dot_product_attention(const primitive_id& id,
                                  const std::vector<cldnn::input_info> inputs,
@@ -50,10 +62,9 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                     quantization_attributes.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
                     data_inputs_num -= 2; // zp
             }
-            has_attn_mask_input = data_inputs_num > 3;
-            has_scale_input = data_inputs_num > 4;
-            has_sink_input = data_inputs_num > 5;
-            std::cout << "has_sink_input " << has_sink_input << std::endl;
+            has_attn_mask_input = data_inputs_num > ScaledDotProductAttentionInputIdx::ATTN_MASK;
+            has_scale_input = data_inputs_num > ScaledDotProductAttentionInputIdx::SCALE;
+            has_sink_input = data_inputs_num > ScaledDotProductAttentionInputIdx::SINK;
         }
 
     bool is_causal = false;

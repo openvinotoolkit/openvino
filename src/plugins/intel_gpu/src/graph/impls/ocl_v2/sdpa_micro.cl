@@ -152,8 +152,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_SCALE
         global SCALE_DATA_T *scale_ptr,
 #endif
-#if HAS_SINK_INPUT
-        global SINK_DATA_T *sink_ptr,
+#ifdef HAS_SINK_INPUT
+        const global SINK_DATA_T *sink_ptr,
 #endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
@@ -319,10 +319,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     float scale = native_recip(iscale);
 #endif
 #endif
-    scale *= 1.442695f; // log2(e)
-
+    const float log2_e = 1.442695f;
+#if !defined(HAS_SINK_INPUT)
+#define LOG_2_E_MUL_SCALE 1
+    scale *= log2_e;
+#endif
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
     float masked_scale = iscale * STATIC_SCALAR_ATTN_MASK_VALUE;
+#endif
+#ifdef HAS_SINK_INPUT
+    const float sink_val = convert_float(sink_ptr[b0]);
+    #define MULTI_TOKENS_PER_WI ((ugemm_kq_sg_tile_n/SUBGROUP_SIZE) > 1)
+    #if MULTI_TOKENS_PER_WI
+        #define VEC_SIZE (ugemm_kq_sg_tile_n / SUBGROUP_SIZE)
+        typedef float __attribute__((ext_vector_type(VEC_SIZE))) s_sink_vec_type;
+        s_sink_vec_type sink_val_vec = sink_val;
+    #endif
 #endif
 
 #ifdef PREFETCH_K0
@@ -454,10 +466,15 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #define mask_scale_op(x) ((x) + masked_scale)
         tile_elementwise(S_tile, mask_scale_op);
 #elif WITH_ATTN_MASK
-#define unscale(x) ((x)*iscale)
         mask_tile_type_float mask_tile_float;
         tile_copy(mask_tile, mask_tile_float);
+#ifdef LOG_2_E_MUL_SCALE
+#define unscale(x) ((x)*iscale)
         tile_elementwise(mask_tile_float, unscale);
+#else
+#define scale(x) ((x)* scale)
+        tile_elementwise(S_tile, scale);
+#endif // LOG_2_MUL_SCALE
         tile_binary(S_tile, mask_tile_float, binary_add);
 #endif
 
@@ -479,25 +496,26 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Compute our maxima and reduce across SLM */
         tile_vreduce_max(S_tile, &S_max_tile);
-        #if HAS_SINK_INPUT
-        const int head_idx = get_global_id(1) / sg_per_wg;
-        const SINK_DATA_T sink_val = sink_ptr[head_idx];
-        const sg_idx_m = get_local_id(1) % ugemm_kq_sg_per_wg_m;
-        const k_in_subgroup = sg_idx_m * ugemm_kq_sg_tile_m;
-        const bool is_last_m_sg = last && (k0 * ugemm_kq_wg_tile_m + k_in_subgroup == (k / ugemm_kq_wg_tile_m));
-        if (is_last_m_sg) {
-            if (get_global_id(1) / 32 == 0)
-                    printf("is_last_m_sg ! gws:%d, %d, %d\n", get_global_id(0), get_global_id(1), get_global_id(2));
-            // update max with sink_val
-            #define max_sink(x) (fmax(x, sink_val))
-            tile_elementwise(S_max_tile, max_sink);
-            #undef MAX
-            #undef max_sink
-        }
-        #endif
         tile_atomic_max_full(
                 S_max_tile, S_max_slm, ugemm_kq_wg_tile_n, sg_j0_kq, 0);
         intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
+
+        #ifdef HAS_SINK_INPUT
+        const int cur_k = k - k0 - 1;
+        const bool is_last_m_sg = last && (sg_i_kq == cur_k / ugemm_kq_sg_tile_m);
+        if (is_last_m_sg) {
+        #if MULTI_TOKENS_PER_WI
+            #define max_sink(x) (fmax(x, sink_val_vec))
+            tile_elementwise(S_max_tile, max_sink);
+            #undef max_sink
+        #else
+            #define max_sink(x) (MAX(x, sink_val))
+            tile_elementwise_s(S_max_tile, max_sink);
+            #undef max_sink
+        #endif
+        }
+        #endif
+
 
         int k_chunk = min(k - k0, ugemm_kq_wg_tile_m);
 #ifdef PREFETCH_V
@@ -551,9 +569,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
         tile_vbroadcast_sub(&S_tile, S_max_tile);
-
 /* Scale + exponentiate */
-#define scaled_exp(x) native_vexp2(x *scale)
+#ifdef LOG_2_E_MUL_SCALE
+#define scaled_exp(x) native_vexp2(x * scale)
+#else
+#define scaled_exp(x) native_vexp2(x * log2_e)
+#endif
         tile_elementwise(S_tile, scaled_exp);
 
 #ifdef ALT_MAX
@@ -570,16 +591,15 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Accumulate sums. S tile is transposed for easy summation. */
         s_sum_tile_type S_sum_tile1;
-
         tile_fill(S_sum_tile1, 0.0f);
         tile_vreduce_add(S_tile, &S_sum_tile1);
 #ifdef HAS_SINK_INPUT
         if (is_last_m_sg){
-            s_sum_tile_type sink_minus_max_exp_scale;
-            tile_fill(sink_minus_max_exp_scale, convert_float(sink_val));
-            #define binary_exp_neg(x, y) native_vexp2(scale *((x) - (y)))
-            tile_binary(sink_minus_max_exp_scale, S_max_tile, binary_exp_neg);
-            tile_binary(S_sum_tile1, sink_minus_max_exp_scale, binary_add);
+            s_sum_tile_type sink_minus_max_exp;
+            tile_fill(sink_minus_max_exp, convert_float(sink_val));
+            #define binary_exp_neg(x, y) native_vexp2(((x) - (y)) * log2_e)
+            tile_binary(sink_minus_max_exp, S_max_tile, binary_exp_neg);
+            tile_binary(S_sum_tile1, sink_minus_max_exp, binary_add);
             #undef binary_exp_neg
         }
 #endif
@@ -596,7 +616,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Rescale existing accumulator and sums to match new maxima */
         if (!first) {
+#ifdef LOG_2_E_MUL_SCALE
 #define binary_exp_sub(x, y) native_vexp2(scale *((x) - (y)))
+#else
+#define binary_exp_sub(x, y) native_vexp2(((x) - (y)) * log2_e)
+#endif
 #define binary_mul(x, y) ((x) * (y))
             tile_binary(S_max_tile_old, S_max_tile, binary_exp_sub);
             tile_binary(S_sum_tile, S_max_tile_old, binary_mul);
