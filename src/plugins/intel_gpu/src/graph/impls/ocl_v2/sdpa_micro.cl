@@ -486,11 +486,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         const k_in_subgroup = sg_idx_m * ugemm_kq_sg_tile_m;
         const bool is_last_m_sg = last && (k0 * ugemm_kq_wg_tile_m + k_in_subgroup == (k / ugemm_kq_wg_tile_m));
         if (is_last_m_sg) {
-            if (get_global_id(1) / 32 == 0)
-                    printf("is_last_m_sg ! gws:%d, %d, %d\n", get_global_id(0), get_global_id(1), get_global_id(2));
+//            if (get_global_id(1) / sg_per_wg == 0)
+//                    printf("is_last_m_sg ! gws:%d, %d, %d\n", get_global_id(0), get_global_id(1), get_global_id(2));
             // update max with sink_val
-            #define max_sink(x) (fmax(x, sink_val))
-            tile_elementwise(S_max_tile, max_sink);
+            #define max_sink(x) (MAX(x, sink_val))
+            tile_elementwise_s(S_max_tile, max_sink);
             #undef MAX
             #undef max_sink
         }
