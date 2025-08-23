@@ -122,7 +122,19 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     auto res = zeDeviceGetExternalMemoryProperties(_initStructs->getDevice(), &desc);
     if (res == ZE_RESULT_SUCCESS) {
         if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
+#ifdef _WIN32
+            // Driver shall return STANDARD_ALLOCATION_FULL_SUPPORT as supported to go further here
+            if (_initStructs->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 11) &&
+                _initStructs->getGraphDdiTable().pfnCompilerIsOptionSupported(_initStructs->getDevice(),
+                                                                              ZE_NPU_DRIVER_OPTIONS,
+                                                                              "STANDARD_ALLOCATION_FULL_SUPPORT",
+                                                                              nullptr) == ZE_RESULT_SUCCESS) {
+                _externalMemoryStandardAllocationSupported = true;
+            }
+#else
             _externalMemoryStandardAllocationSupported = true;
+
+#endif
         }
     }
 
