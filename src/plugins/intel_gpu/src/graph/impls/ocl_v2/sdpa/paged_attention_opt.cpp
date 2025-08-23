@@ -1438,9 +1438,9 @@ public:
             }
         }
 
-        // PREFILL stage doesn't require additional buffers for softmax, exp_sums and max_logits.
+        // PREFILL stage without scores_output doesn't require additional buffers for softmax, exp_sums and max_logits.
         // GENERATE/MIXED stages require additional buffers for softmax, exp_sums and max_logits.
-        if (!can_use_micro_sdpa && stage != PagedAttentionStage::PREFILL) {
+        if (!can_use_micro_sdpa && (stage != PagedAttentionStage::PREFILL || has_scores_output)) {
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
             internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
