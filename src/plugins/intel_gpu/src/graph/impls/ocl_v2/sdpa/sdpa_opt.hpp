@@ -39,7 +39,8 @@ struct SDPAOpt : public ImplementationManager {
             ov::element::f16,
             ov::element::i8,
         };
-
+        if (getenv("USE_REF") != nullptr)
+            return false;
         const auto& q_layout = node.get_input_layout(0);
         const auto& k_layout = node.get_input_layout(1);
         const auto& v_layout = node.get_input_layout(2);
