@@ -189,7 +189,11 @@ KernelsData DynamicQuantizeKernelOpt::GetKernelsData(const Params& params) const
 }
 
 KernelsPriority DynamicQuantizeKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_2;
+    // Check env variable DISABLE_DYN_QUAN_OPT and return DONT_USE priority if it is 1
+    if (getenv("DISABLE_DYN_QUAN_OPT") != nullptr && getenv("DISABLE_DYN_QUAN_OPT")[0] == '1') {
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    }
+    return FORCE_PRIORITY_1;
 }
 
 bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {

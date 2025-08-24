@@ -60,10 +60,10 @@ KERNEL(dynamic_quantize_gpu_ref)(
     half min_val = INPUT0_VAL_MAX;
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
     for (int f_off = 0; f_off < (GROUP_SIZE_DIM1 == 1 ? 1 : INPUT0_FEATURE_NUM); f_off++) {
-    for (int y_off = 0; y_off < (GROUP_SIZE_DIM2 == UINT64_MAX ? INPUT0_SIZE_Y : GROUP_SIZE_DIM2); y_off++) {
+    for (int y_off = 0; y_off < (INPUT0_SIZE_Y); y_off++) {
         // It is assumed that grouped quantization happens only for 3d input case where we don't have x axis
 #if GROUP_SIZE_DIM3 == 1
-        const uint offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
+        const uint offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y_off, x);
         half val = input[offset];
 #if ASYMMETRIC_QUANTIZATION
         max_val = fmax(max_val, val);
@@ -73,7 +73,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
         max_val = fmax(max_val, abs_val);
 #endif
 #else
-        const uint offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
+        const uint offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y_off, 0);
         int x;
         for (x = 0; x < INPUT0_SIZE_X / 8; x++) {
             half8 val = as_half8(vload8(0, (ushort*)input + offset + x * 8));
@@ -127,6 +127,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
 
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
     for (int f_off = 0; f_off < (GROUP_SIZE_DIM1 == 1 ? 1 : INPUT0_FEATURE_NUM); f_off++) {
+    // TO BE REMOVED: hack for fake grouped dyn quan
     for (int y_off = 0; y_off < (GROUP_SIZE_DIM2 == UINT64_MAX ? INPUT0_SIZE_Y : GROUP_SIZE_DIM2); y_off++) {
 #if GROUP_SIZE_DIM3 == 1
         const uint in_offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
