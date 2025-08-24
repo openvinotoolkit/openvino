@@ -479,13 +479,13 @@ public:
                 }
             }
         }
-        size_t threshold = 16;
+        size_t threshold = 128;
         const char* env_val = std::getenv("WRITE_TO_XML_THRESHOLD");
         if (env_val && *env_val != '\0') {
             try {
                 threshold = std::stoul(env_val);
             } catch (...) {
-                threshold = 16;
+                threshold = 128;
             }
         }
         if (!is_body_target) {
