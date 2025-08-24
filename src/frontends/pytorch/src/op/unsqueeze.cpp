@@ -15,8 +15,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_unsqueeze(const NodeContext& context) {
-    // aten::unsqueeze(Tensor(a) self, int dim) -> Tensor(a)
-    // num_inputs_check(context, 2, 2, true);
+    num_inputs_check(context, 2, 2, true);
     auto x = context.get_input(0);
     auto dim = context.get_input(1);
     
