@@ -365,29 +365,3 @@ ov::Output<ov::Node> ComplexTypeMark::exp(const NodeContext& context, const ov::
 
     return context.mark_node(make_shared<v0::Exp>(data));
 }
-
-ov::Output<ov::Node> ComplexTypeMark::unsqueeze(const NodeContext& context,
-                                                const ov::Output<ov::Node>& data,
-                                                const ov::Output<ov::Node>& axes) {
-    auto data_complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
-
-    if (data_complex) {
-        if (data_complex->get_data().get_node_shared_ptr()) {
-            // unsqueeze the complex data directly
-            auto unsqueezed_data = context.mark_node(make_shared<v0::Unsqueeze>(data_complex->get_data(), axes));
-            return context.mark_node(make_shared<ComplexTypeMark>(unsqueezed_data));
-        } else {
-            // unsqueeze real and imaginary parts separately
-            auto real = data_complex->get_real();
-            auto imag = data_complex->get_imag();
-            
-            auto unsqueezed_real = context.mark_node(make_shared<v0::Unsqueeze>(real, axes));
-            auto unsqueezed_imag = context.mark_node(make_shared<v0::Unsqueeze>(imag, axes));
-            
-            return context.mark_node(make_shared<ComplexTypeMark>(unsqueezed_real, unsqueezed_imag));
-        }
-    }
-
-    // data is real, apply unsqueeze directly
-    return context.mark_node(make_shared<v0::Unsqueeze>(data, axes));
-}
