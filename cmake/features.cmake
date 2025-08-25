@@ -123,6 +123,11 @@ ov_dependent_option (ENABLE_PLUGINS_XML "Generate plugins.xml configuration file
 
 ov_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
+# Nix-specific override for template functional tests
+if(OPENVINO_NIX_BUILD AND NOT ENABLE_NIX_TEMPLATE_TESTS)
+    set(ENABLE_TEMPLATE_FUNCTIONAL_TESTS_OVERRIDE OFF)
+endif()
+
 ov_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
 
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
