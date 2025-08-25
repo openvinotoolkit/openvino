@@ -26,11 +26,19 @@ std::vector<std::vector<InputShape>> inputShape_2D() {
 //   - The first element is the number of hidden layers in the MLP
 //   - The second element is a pair: {expected number of subgraphs, expected number of nodes}
 std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectations() {
+#if defined(OPENVINO_ARCH_ARM64)
+    return {
+        {1, {1, 1}},
+        {3, {1, 1}},
+        {5, {1, 1}},
+    };
+#else
     return {
         {1, {1, 1}},
         {3, {2, 2}},
         {5, {3, 3}},
     };
+#endif
 }
 
 std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectationsBf16() {
@@ -43,12 +51,21 @@ std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExp
 }
 
 std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectationsQuantized() {
+#if defined(OPENVINO_ARCH_ARM64)
+    return {
+        {1, {1, 1}},
+        {3, {1, 1}},
+        {5, {1, 1}},
+        {7, {1, 1}},
+    };
+#else
     return {
         {1, {1, 1}},
         {3, {1, 1}},
         {5, {1, 1}},
         {7, {2, 2}},
     };
+#endif
 }
 
 std::vector<size_t> hiddenMatmulSizes() {

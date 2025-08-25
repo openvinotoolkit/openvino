@@ -295,7 +295,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
 
         LayoutJitter k_jitter(updated_params.input_layouts[1], in_offsets_map.at(1));
-        jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
+        jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_k_transpose_order)));
 
         const auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
         const auto q_num_head = get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order);
