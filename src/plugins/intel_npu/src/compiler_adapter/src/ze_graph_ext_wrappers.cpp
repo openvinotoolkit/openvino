@@ -677,4 +677,30 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
     return false;
 }
 
+bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const {
+#ifdef _WIN32
+    // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
+    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                         ZE_NPU_DRIVER_OPTIONS,
+                                                                         "NO_THROW_ON_UNSUPPORTED_FEATURE",
+                                                                         nullptr) != ZE_RESULT_SUCCESS) {
+        if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 21)) {
+            return false;
+        }
+
+        return true;
+    }
+#endif
+
+    bool is_supported = false;
+    try {
+        is_supported = isOptionSupported("NPU_TURBO");
+    } catch (...) {
+        // mute it, not critical
+        is_supported = false;
+    }
+
+    return is_supported;
+}
+
 }  // namespace intel_npu
