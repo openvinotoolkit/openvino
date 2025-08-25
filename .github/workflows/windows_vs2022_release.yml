@@ -438,135 +438,59 @@ jobs:
         run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
-  Python_API_Tests_1:
-    name: OpenVINO Python API Tests_1
-    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
-    needs: [ Build, Smart_CI ]
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-    defaults:
-      run:
-        shell: pwsh
-    runs-on: aks-win-8-cores-16gb
-    env:
-      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
-      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
-      PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
-    steps:
-      - name: Download OpenVINO artifacts (tarballs)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+      - name: Fetch setup_python and install wheels actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+          sparse-checkout: |
+            .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
 
-      - name: Download OpenVINO artifacts (wheels)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: ./openvino/.github/actions/setup_python
         with:
-          name: openvino_wheels
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
+          version: ${{ matrix.python-version }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'true'
 
-      - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
-        working-directory: ${{ env.INSTALL_DIR }}
-
-  Python_API_Tests_2:
-    name: OpenVINO Python API Tests_2
-    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
-    needs: [ Build, Smart_CI ]
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-    defaults:
-      run:
-        shell: pwsh
-    runs-on: aks-win-8-cores-16gb
-    env:
-      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
-      INSTALL_DIR: "${{ github.workspace }}\\install"
-      INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
-      INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
-      PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
-    steps:
-      - name: Download OpenVINO artifacts (tarballs)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+      - name: Install OpenVINO Python wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
         with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino'
 
-      - name: Download OpenVINO artifacts (wheels)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+      - name: Install Python API tests dependencies
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+
+      - name: Python API Tests
+        shell: cmd
+        run: |
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }};%PYTHONPATH%
+          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
+
+      - name: Python API Tests -- numpy>=2.0.0
+        shell: cmd
+        run: |
+          python3 -m pip uninstall -y numpy
+          python3 -m pip install "numpy>=2.0.0,<2.1.0"
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
+          # for 'template' extension
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }};%PYTHONPATH%
+          set PATH=${{ env.INSTALL_TEST_DIR }};%PATH%
+          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph_new_numpy.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
         with:
-          name: openvino_wheels
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
-
-      - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
-        working-directory: ${{ env.INSTALL_DIR }}
-
-      # - name: Fetch setup_python and install wheels actions
-      #   uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      #   timeout-minutes: 15
-      #   with:
-      #     sparse-checkout: |
-      #       .github/actions/setup_python/action.yml
-      #       .github/actions/install_ov_wheels/action.yml
-      #     sparse-checkout-cone-mode: false
-      #     path: 'openvino'
-
-      # - name: Setup Python ${{ matrix.python-version }}
-      #   uses: ./openvino/.github/actions/setup_python
-      #   with:
-      #     version: ${{ matrix.python-version }}
-      #     pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-      #     should-setup-pip-paths: 'false'
-      #     self-hosted-runner: 'true'
-
-      # - name: Install OpenVINO Python wheels
-      #   uses: ./openvino/.github/actions/install_ov_wheels
-      #   with:
-      #     wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-      #     wheels-to-install: 'openvino'
-
-      # - name: Install Python API tests dependencies
-      #   run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
-
-      # - name: Python API Tests
-      #   shell: cmd
-      #   run: |
-      #     set PYTHONPATH=${{ env.INSTALL_TEST_DIR }};%PYTHONPATH%
-      #     python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino ${{ env.PYTHON_STATIC_ARGS }} --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
-
-      # - name: Python API Tests -- numpy>=2.0.0
-      #   shell: cmd
-      #   run: |
-      #     python3 -m pip uninstall -y numpy
-      #     python3 -m pip install "numpy>=2.0.0,<2.1.0"
-      #     python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/bindings/python/requirements_test.txt
-      #     # for 'template' extension
-      #     set PYTHONPATH=${{ env.INSTALL_TEST_DIR }};%PYTHONPATH%
-      #     set PATH=${{ env.INSTALL_TEST_DIR }};%PATH%
-      #     python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph_new_numpy.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
-
-      # - name: Upload Test Results
-      #   uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-      #   if: ${{ !cancelled() }}
-      #   with:
-      #     name: test-results-python-${{ matrix.python-version }}
-      #     path: |
-      #       ${{ env.INSTALL_TEST_DIR }}/TEST*.html
-      #       ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-      #     if-no-files-found: 'error'
+          name: test-results-python-${{ matrix.python-version }}
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
