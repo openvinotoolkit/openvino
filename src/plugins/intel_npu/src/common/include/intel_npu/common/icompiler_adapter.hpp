@@ -47,7 +47,7 @@ public:
         const Config& config,
         std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
         const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt,
-        std::optional<ov::Dimension> batchSize = std::nullopt) const = 0;
+        std::optional<int64_t> batchSize = std::nullopt) const = 0;
 
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
     virtual uint32_t get_version() const = 0;

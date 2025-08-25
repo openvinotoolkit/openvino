@@ -46,7 +46,7 @@ public:
     /**
      * @returns Batch size. Populated in case of plugin batching.
      */
-    virtual std::optional<ov::Dimension> get_batch_size() const = 0;
+    virtual std::optional<int64_t> get_batch_size() const = 0;
 
     virtual ~MetadataBase() = default;
 
@@ -216,7 +216,7 @@ public:
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
-    std::optional<ov::Dimension> get_batch_size() const override;
+    std::optional<int64_t> get_batch_size() const override;
 
     size_t get_metadata_size() const override;
 
@@ -250,7 +250,7 @@ public:
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
-    std::optional<ov::Dimension> get_batch_size() const override;
+    std::optional<int64_t> get_batch_size() const override;
 
     size_t get_metadata_size() const override;
 
@@ -268,7 +268,7 @@ public:
     Metadata(uint64_t blobSize,
              std::optional<OpenvinoVersion> ovVersion = std::nullopt,
              const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
-             const std::optional<ov::Dimension> batchSize = std::nullopt);
+             const std::optional<int64_t> batchSize = std::nullopt);
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are read in addition to the
@@ -284,10 +284,12 @@ public:
      */
     void write(std::ostream& stream) override;
 
-    std::optional<ov::Dimension> get_batch_size() const override;
+    std::optional<int64_t> get_batch_size() const override;
+
+    size_t get_metadata_size() const override;
 
 private:
-    std::optional<ov::Dimension> _batchSize;
+    std::optional<int64_t> _batchSize;
 };
 
 /**

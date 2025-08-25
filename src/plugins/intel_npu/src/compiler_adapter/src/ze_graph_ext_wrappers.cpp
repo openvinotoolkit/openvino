@@ -435,7 +435,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t bl
  */
 static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                                     const std::optional<ze_graph_argument_metadata_t>& metadata,
-                                    std::optional<ov::Dimension> batchSize) {
+                                    std::optional<int64_t> batchSize) {
     auto logger = Logger::global().clone("getIODescriptor");
     ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
     ov::Shape shapeFromCompiler;
@@ -453,7 +453,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
         shapeFromIRModel.reserve(metadata->shape_size);
         for (uint32_t id = 0; id < metadata->shape_size; id++) {
             if (batchSize.has_value() && id == utils::BATCH_AXIS) {
-                shapeFromIRModel.push_back(ov::Dimension(1, batchSize.value().get_max_length()));
+                shapeFromIRModel.push_back(ov::Dimension(1, batchSize.value()));
             } else if (metadata->shape[id] != dynamicDim) {
                 shapeFromIRModel.push_back(metadata->shape[id]);
             } else {
@@ -520,7 +520,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
                                      uint32_t index,
                                      std::vector<IODescriptor>& inputs,
                                      std::vector<IODescriptor>& outputs,
-                                     std::optional<ov::Dimension> batchSize) const {
+                                     std::optional<int64_t> batchSize) const {
     if (NotSupportArgumentMetadata(_graphExtVersion)) {
         ze_graph_argument_properties_3_t arg = {};
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
@@ -573,7 +573,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
     }
 }
 
-NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescriptor, std::optional<ov::Dimension> batchSize) const {
+NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescriptor, std::optional<int64_t> batchSize) const {
     ze_graph_properties_t graphProperties = {};
     graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
 
