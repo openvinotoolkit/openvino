@@ -45,7 +45,8 @@ public:
 
     GraphDescriptor getGraphDescriptor(void* data, size_t size) const;
 
-    NetworkMetadata getNetworkMeta(GraphDescriptor& graphDescriptor, std::optional<int64_t> batchSize = std::nullopt) const;
+    NetworkMetadata getNetworkMeta(GraphDescriptor& graphDescriptor,
+                                   std::optional<int64_t> batchSize = std::nullopt) const;
 
     void destroyGraph(GraphDescriptor& graphDescriptor);
 

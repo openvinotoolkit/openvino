@@ -573,7 +573,8 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
     }
 }
 
-NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescriptor, std::optional<int64_t> batchSize) const {
+NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescriptor,
+                                                   std::optional<int64_t> batchSize) const {
     ze_graph_properties_t graphProperties = {};
     graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
 

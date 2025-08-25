@@ -129,7 +129,7 @@ void Metadata<METADATA_VERSION_2_2>::read(std::istream& stream) {
     int64_t batchSize;
     stream.read(reinterpret_cast<char*>(&batchSize), sizeof(batchSize));
 
-    if (batchSize)  {
+    if (batchSize) {
         _batchSize = std::optional(batchSize);
     }
 }
@@ -137,13 +137,13 @@ void Metadata<METADATA_VERSION_2_2>::read(std::istream& stream) {
 void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
     Metadata<METADATA_VERSION_2_1>::read(tensor);
 
-    auto roiTensor = ov::Tensor(tensor,
-                                ov::Coordinate{sizeof(decltype(std::declval<OpenvinoVersion>().get_major())) +
-                                               sizeof(decltype(std::declval<OpenvinoVersion>().get_minor())) +
-                                               sizeof(decltype(std::declval<OpenvinoVersion>().get_patch())) +
-                                               sizeof(uint64_t) +
-                                               sizeof(uint64_t) * (get_init_sizes() ? get_init_sizes()->size() : 0)},
-                                ov::Coordinate{tensor.get_byte_size()});
+    auto roiTensor =
+        ov::Tensor(tensor,
+                   ov::Coordinate{sizeof(decltype(std::declval<OpenvinoVersion>().get_major())) +
+                                  sizeof(decltype(std::declval<OpenvinoVersion>().get_minor())) +
+                                  sizeof(decltype(std::declval<OpenvinoVersion>().get_patch())) + sizeof(uint64_t) +
+                                  sizeof(uint64_t) * (get_init_sizes() ? get_init_sizes()->size() : 0)},
+                   ov::Coordinate{tensor.get_byte_size()});
 
     int64_t batchSize;
     batchSize = *reinterpret_cast<const decltype(batchSize)*>(roiTensor.data<const char>());

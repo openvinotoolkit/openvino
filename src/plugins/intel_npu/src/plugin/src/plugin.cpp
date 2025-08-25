@@ -755,7 +755,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         auto metadata = graph->get_metadata();
         for (auto& in : metadata.inputs) {
             if (in.shapeFromIRModel.has_value() && in.shapeFromCompiler[intel_npu::utils::BATCH_AXIS] == 1) {
-                in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] = ov::Dimension(1, originalBatch.get_max_length());
+                in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] =
+                    ov::Dimension(1, originalBatch.get_max_length());
             }
         }
         graph->set_metadata(metadata);

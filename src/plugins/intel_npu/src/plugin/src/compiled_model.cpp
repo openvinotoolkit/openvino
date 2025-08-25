@@ -96,9 +96,9 @@ void CompiledModel::export_model(std::ostream& stream) const {
     auto inputMeta = metadata.inputs;
     for (auto in : inputMeta) {
         // Plugin batching applied, saving original batch value
-        if (in.shapeFromIRModel.has_value() &&
-            in.shapeFromCompiler[intel_npu::utils::BATCH_AXIS] == 1) {
-            originalBatchSize = std::optional(in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS].get_max_length());
+        if (in.shapeFromIRModel.has_value() && in.shapeFromCompiler[intel_npu::utils::BATCH_AXIS] == 1) {
+            originalBatchSize =
+                std::optional(in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS].get_max_length());
             break;
         }
     }
