@@ -188,9 +188,9 @@ KERNEL(eltwise)(
             const uint ls_x = get_local_size(0);
             const uint ls_y = get_local_size(1);
 
+            const uint b_size = OUTPUT_SIZES[3], f_size = OUTPUT_SIZES[2], y_size = OUTPUT_SIZES[1], x_size = OUTPUT_SIZES[0];
             const uint BLOCK_Y = y_size / ls_y;
             const uint BLOCK_X = x_size / ls_x;
-            const uint b_size = OUTPUT_SIZES[3], f_size = OUTPUT_SIZES[2], y_size = OUTPUT_SIZES[1], x_size = OUTPUT_SIZES[0];
 
             #if BATCH_BLOCK_SIZE && FEATURE_BLOCK_SIZE
                 const uint z_size = 1;
