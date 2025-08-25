@@ -50,7 +50,7 @@ static bool is_propagate_through_node(const std::shared_ptr<ov::Node>& node) {
            ov::is_type<ov::op::v1::StridedSlice>(node) ||
            ov::is_type<ov::op::v1::ReduceSum>(node) ||
            ov::is_type<ov::op::v1::ReduceMean>(node) ||
-           ov::is_type<ov::op::v8::Slice>(node) ||
+  //         ov::is_type<ov::op::v8::Slice>(node) ||
            ov::is_type<ov::op::v1::VariadicSplit>(node) ||
            ov::is_type<ov::op::v1::Split>(node) ||
            ov::is_type<ov::op::v0::Concat>(node) ||

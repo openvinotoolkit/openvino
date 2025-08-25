@@ -2343,6 +2343,11 @@ void primitive_inst::update_weights() {
     if (!_impl)
         return;
 
+    if (strcmp(get_node().id().c_str(), "convert:Convert_22842333") == 0) {
+        printf("!!! in here\n");
+    }
+
+
     bool weightable_node = get_node().is_type<fully_connected>() || get_node().is_type<convolution>() || get_node().is_type<deconvolution>();
     if (!weightable_node)
         return;
@@ -2525,6 +2530,10 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
+
+    if (strcmp(node.id().c_str(), "convert:Convert_22842333") == 0) {
+        printf("!!! in here\n");
+    }
 
     if (is_internal) {
         bool is_reorder_weights = node.is_type<reorder>() && node.as<reorder>().get_primitive()->weights_reorder_params;

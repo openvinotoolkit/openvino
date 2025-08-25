@@ -374,6 +374,11 @@ bool program_node::is_detached(bool whole_branch) {
 
 layout program_node::calc_output_layout() const {
     bool allow_new_shape_infer = get_program().is_new_shape_infer();
+
+    if (strcmp(id().c_str(), "convert:Convert_22842333") == 0) {
+        printf("!!! in here\n");
+    }
+
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty()) {

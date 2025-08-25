@@ -328,6 +328,7 @@ void prepare_quantization::handle_quantize_node(program& p, quantize_node& quant
 }
 
 void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& eltwise_node) {
+    //std::cout << "dequantization_merge for node=" << eltwise_node.id() << "\n";
     for (size_t i = 1; i < eltwise_node.get_dependencies().size(); i++) {
         if (!eltwise_node.get_dependency(i).is_type<data>()) {
             return;
@@ -346,6 +347,24 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
 
     auto& input = eltwise_node.input();
     const auto& stream = p.get_stream();
+    if (input.is_type<reorder>()) {
+	 // std::cout << "input name is=" << input.id() << "\n";
+	  if (eltwise_node.get_dependencies().size() > 0) {
+            program_node &reorder_node = eltwise_node.get_dependency(0);
+		if (reorder_node.get_dependencies().size() > 0) {
+           	    program_node &reorder_data = reorder_node.get_dependency(0);
+          	    if (reorder_data.get_output_layout().data_type == data_types::i4) {
+            	  //std::cout << "Remove reorder node " << reorder_node.id() << "\n";
+            	  reorder_node.can_be_optimized(true);
+            	  p.add_optimized_primitive_info(reorder_node.id());
+            	  p.extract_and_remove(reorder_node);
+   		    }
+            }       
+         }
+	  // temporary hack
+	  return;
+     }
+
 
     for (auto& user : input.get_users()) {
         if (user == &eltwise_node)
@@ -565,14 +584,19 @@ void prepare_quantization::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto &node = (*itr++);
-        if (node->is_type<quantize>()) {
+	//  std::cout << "prepare_quantization node=" << node->id() << "\n";
+       if (node->is_type<quantize>()) {
             handle_quantize_node(p, node->as<quantize>());
-        } else if (node->is_type<eltwise>()) {
+
+        }
+	  else if (node->is_type<eltwise>()) {
             prepare_dequantize_merge(p, node->as<eltwise>());
-        } else if (node->is_type<reorder>()) {
+        } 
+	  else if (node->is_type<reorder>()) {
             remove_fake_reorders(p, node->as<reorder>());
         } else if (node->is_type<fully_connected>()) {
             optimize_weights_decompression_parameters(node->as<fully_connected>(), p);
         }
+
     }
 }

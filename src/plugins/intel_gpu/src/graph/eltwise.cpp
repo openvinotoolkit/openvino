@@ -102,7 +102,8 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
 
     auto mode = desc->mode;
     // list of operations supported for integer types
-    if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
+    if (input_node_layout.data_type == data_types::i4 || input_node_layout.data_type == data_types::u4 ||
+        input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
         input_node_layout.data_type == data_types::i32 || input_node_layout.data_type == data_types::i64) {
         std::vector<eltwise_mode> eltwise_int_modes = {eltwise_mode::sum,
                                                        eltwise_mode::sub,

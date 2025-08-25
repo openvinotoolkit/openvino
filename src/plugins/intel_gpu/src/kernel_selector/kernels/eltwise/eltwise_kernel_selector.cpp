@@ -8,6 +8,7 @@
 #include "eltwise_kernel_mixed_byxf_and_fs_b_yx_fsv32.h"
 #include "eltwise_kernel_fs_b_yx_fsv32.h"
 #include "eltwise_kernel_blocked_opt.h"
+#include "eltwise_kernel_int4.h"
 
 
 namespace kernel_selector {
@@ -17,6 +18,7 @@ eltwise_kernel_selector::eltwise_kernel_selector() {
     Attach<EltwiseKernel_blocked_opt>();
     Attach<EltwiseKernel_fs_b_yx_fsv32>();
     Attach<EltwiseKernel_vload8>();
+    Attach<EltwiseKernel_int4>();
 }
 
 KernelsData eltwise_kernel_selector::GetBestKernels(const Params& params) const {
