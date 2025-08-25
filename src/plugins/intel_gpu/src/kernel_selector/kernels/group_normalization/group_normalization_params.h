@@ -1,0 +1,19 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "kernel_base_opencl.h"
+
+namespace kernel_selector {
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// quantize_fuse_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct group_normalization_fuse_params : fuse_params {
+    group_normalization_fuse_params()
+    : fuse_params(KernelType::GROUP_NORMALIZATION) {}
+};
+
+}  // namespace kernel_selector
