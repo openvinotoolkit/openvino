@@ -57,6 +57,13 @@
 #include "utils/ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 
+#if defined(OV_CPU_WITH_ACL)
+#    include <oneapi/dnnl/dnnl_config.h>
+#    if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#        include <common/dnnl_thread.hpp>
+#    endif
+#endif
+
 using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
@@ -822,11 +829,21 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
+#if defined(OV_CPU_WITH_ACL)
+#    if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+    dnnl::impl::threadpool_utils::activate_threadpool(context->getThreadPool().get());
+#    endif
+#endif
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {
         executeStatic(strm, numaId);
     }
+#if defined(OV_CPU_WITH_ACL)
+#    if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+    dnnl::impl::threadpool_utils::deactivate_threadpool();
+#    endif
+#endif
 }
 
 void Node::executeStatic(const dnnl::stream& strm, int numaId) {

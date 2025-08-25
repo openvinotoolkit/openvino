@@ -72,14 +72,9 @@
 #endif
 
 #if defined(OV_CPU_WITH_ACL)
-#    include <oneapi/dnnl/dnnl_config.h>
-
 #    include "cpu_memory.h"
 #    include "nodes/executors/executor.hpp"
 #    include "nodes/executors/reduce_list.hpp"
-#    if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
-#        include <common/dnnl_thread.hpp>
-#    endif
 #endif
 
 using namespace dnnl;
@@ -2517,13 +2512,7 @@ void Reduce::execute([[maybe_unused]] const dnnl::stream& strm) {
         std::vector<MemoryPtr> dstMemory;
         dstMemory.push_back(getDstMemoryAtPort(0));
 
-#    if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-        dnnl::impl::threadpool_utils::activate_threadpool(context->getThreadPool().get());
-#    endif
         aclExecPtr->exec(srcMemory, dstMemory, reinterpret_cast<const void*>(postOpsDataPtrs.data()));
-#    if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-        dnnl::impl::threadpool_utils::deactivate_threadpool();
-#    endif
 #endif
     } else {
         if (layout == ReduceLayoutType::reduce_ncsp) {
