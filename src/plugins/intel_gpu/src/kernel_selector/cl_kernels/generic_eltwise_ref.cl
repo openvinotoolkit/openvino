@@ -177,13 +177,26 @@ KERNEL(eltwise)(
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
 
         // zero-padding the blocked format padded memory area since it might be used as input of onednn concatenation
-        if(d4 + d3 + d2 + d1 == 0) {
+        const size_t g0 = get_group_id(0);
+        const size_t g1 = get_group_id(1);
+        const size_t g2 = get_group_id(2);
+        const uint l_z = get_local_id(2);
+
+        if(g0 + g1 + g2 + l_z == 0) {
+            const uint l_x = get_local_id(0);
+            const uint l_y = get_local_id(1);
+            const uint ls_x = get_local_size(0);
+            const uint ls_y = get_local_size(1);
+
+            const uint BLOCK_Y = y_size / ls_y;
+            const uint BLOCK_X = x_size / ls_x;
             const uint b_size = OUTPUT_SIZES[3], f_size = OUTPUT_SIZES[2], y_size = OUTPUT_SIZES[1], x_size = OUTPUT_SIZES[0];
 
             #if BATCH_BLOCK_SIZE && FEATURE_BLOCK_SIZE
+                const uint z_size = 1;
+
                 const uint padded_fs = (f_size + FEATURE_BLOCK_SIZE -1) / FEATURE_BLOCK_SIZE;
                 const uint padded_bs = (b_size + BATCH_BLOCK_SIZE -1) / BATCH_BLOCK_SIZE;
-                const uint z_size = 1;
 
                 const uint bsv_pitch = FEATURE_BLOCK_SIZE;
                 const uint x_pitch = bsv_pitch * BATCH_BLOCK_SIZE;
@@ -198,8 +211,8 @@ KERNEL(eltwise)(
                 for (uint bs = 0; bs < padded_bs; ++bs) {
                     for (uint fs = 0; fs < padded_fs; ++fs) {
                         for (uint z = 0; z < z_size; ++z) {
-                            for (uint y = 0; y < y_size; ++y) {
-                                for (uint x = 0; x < x_size; ++x) {
+                            for (uint y = l_y * BLOCK_Y; y < (l_y + 1) * BLOCK_Y; ++y) {
+                                for (uint x = l_x * BLOCK_X; x < (l_x + 1) * BLOCK_X; ++x) {
                                     for (uint bsv = 0; bsv < BATCH_BLOCK_SIZE; ++bsv) {
                                         for (uint fsv = 0; fsv < FEATURE_BLOCK_SIZE; ++fsv) {
                                             b = bs * BATCH_BLOCK_SIZE + bsv;
@@ -228,14 +241,12 @@ KERNEL(eltwise)(
                 uint offset = 0;
                 for (uint b = 0; b < b_size; ++b) {
                     for (uint fs = padded_fs - 1; fs < padded_fs; ++fs) {
-                        for (uint y = 0; y < y_size; ++y) {
-                            for (uint x = 0; x < x_size; ++x) {
-                                for (uint fsv = 0; fsv < FEATURE_BLOCK_SIZE; ++fsv) {
+                        for (uint y = l_y * BLOCK_Y; y < (l_y + 1) * BLOCK_Y; ++y) {
+                            for (uint x = l_x * BLOCK_X; x < (l_x + 1) * BLOCK_X; ++x) {
+                                for (uint fsv = f_size % FEATURE_BLOCK_SIZE; fsv < FEATURE_BLOCK_SIZE; ++fsv) {
                                     f = fs * FEATURE_BLOCK_SIZE + fsv;
-                                    if(f >= f_size) {
-                                        offset = b * b_pitch + fs * fs_pitch + y * y_pitch + x * x_pitch + fsv;
-                                        output[offset] = 0;
-                                    }
+                                    offset = b * b_pitch + fs * fs_pitch + y * y_pitch + x * x_pitch + fsv;
+                                    output[offset] = 0;
                                 }
                             }
                         }
