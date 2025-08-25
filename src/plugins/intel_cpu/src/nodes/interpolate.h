@@ -15,6 +15,8 @@
 
 #include "cpu_types.h"
 #include "executors/interpolate.hpp"
+#include "executors/interpolate_config.hpp"
+#include "executors/executor_factory.hpp"
 #include "graph_context.h"
 #include "node.h"
 #include "openvino/core/node.hpp"
@@ -102,20 +104,16 @@ public:
     inline int get_scale_id() const;
     inline int get_axis_id() const;
 
-private:
-    bool is_version11 = true;
-    InterpolateAttrs interpAttrs;
-    size_t dataRank = 0;
-
-    class InterpolateExecutorBase {
+public:
+    class OldInterpolateExecutorBase {
     public:
-        InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
+        OldInterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
                                 const VectorDims& srcDims,
                                 const VectorDims& dstDims,
                                 const std::vector<float>& dataScales);
 
         virtual void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) = 0;
-        virtual ~InterpolateExecutorBase() = default;
+        virtual ~OldInterpolateExecutorBase() = default;
         [[nodiscard]] VectorDims getSrcDimPad5d() const {
             return srcDimPad5d;
         }
@@ -174,11 +172,11 @@ private:
         std::vector<uint8_t> pillow_working_buf;
         size_t m_threads_num = 0LU;
     };
-    std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
+    std::shared_ptr<OldInterpolateExecutorBase> oldExecPtr = nullptr;
 
-    class InterpolateJitExecutor : public InterpolateExecutorBase {
+    class OldInterpolateJitExecutor : public OldInterpolateExecutorBase {
     public:
-        InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
+        OldInterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
                                const VectorDims& srcDims,
                                const VectorDims& dstDims,
                                const std::vector<float>& dataScales,
@@ -269,13 +267,13 @@ private:
         std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
     };
 
-    class InterpolateRefExecutor : public InterpolateExecutorBase {
+    class OldInterpolateRefExecutor : public OldInterpolateExecutorBase {
     public:
-        InterpolateRefExecutor(const InterpolateAttrs& interpAttrs,
+        OldInterpolateRefExecutor(const InterpolateAttrs& interpAttrs,
                                const VectorDims& srcDims,
                                const VectorDims& dstDims,
                                const std::vector<float>& _dataScales)
-            : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, _dataScales),
+            : OldInterpolateExecutorBase(interpAttrs, srcDims, dstDims, _dataScales),
               antialias(interpAttrs.antialias),
               dataScales(_dataScales),
               refInterpAttrs(interpAttrs) {}
@@ -323,6 +321,15 @@ private:
         std::vector<float> dataScales;
         InterpolateAttrs refInterpAttrs;
     };
+
+private:
+    bool is_version11 = true;
+    InterpolateAttrs interpAttrs;
+    size_t dataRank = 0;
+
+    // New executor factory pattern
+    ExecutorFactoryPtr<InterpolateAttrs> execFactory;
+    ExecutorPtr interpolateExecutor;
 
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims);
 

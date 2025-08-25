@@ -61,6 +61,19 @@ bool ov::intel_cpu::InterpolateExecutor::init(const InterpolateAttrs& interpolat
                       interpolateAttrs.layout);
         break;
     }
+    case InterpolateMode::bilinear_pillow: {
+        static constexpr int BILINEAR_KERNEL = 2;
+        buildTblLinear(srcDimPad5d, dstDim5d, interpAttrs.dataScales, BILINEAR_KERNEL, interpolateAttrs.antialias);
+        break;
+    }
+    case InterpolateMode::bicubic_pillow: {
+        buildTblCubic(srcDimPad5d,
+                      dstDim5d,
+                      interpAttrs.dataScales,
+                      interpolateAttrs.cubeCoeff,
+                      interpolateAttrs.layout);
+        break;
+    }
     default: {
         OPENVINO_THROW("Interpolate executor does not support interpolate mode: ", interpAttrs.mode);
         break;

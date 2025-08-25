@@ -1,0 +1,327 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/debug_messages.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_config.hpp"
+#include "nodes/executors/executor_implementation.hpp"
+#include "nodes/executors/implementation_utils.hpp"
+#include "nodes/executors/implementations.hpp"
+#include "nodes/executors/interpolate.hpp"
+#include "nodes/executors/interpolate_config.hpp"
+#include "nodes/executors/interpolate_ref.hpp"
+#include "memory_format_filter.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include "nodes/executors/x64/interpolate_jit.hpp"
+#endif
+
+#if defined(OV_CPU_WITH_ACL)
+#include "nodes/executors/acl/acl_interpolate.hpp"
+#endif
+
+namespace ov::intel_cpu {
+
+using namespace executor;
+using namespace ov::element;
+using namespace dnnl::impl::cpu;
+using ov::intel_cpu::any_of;
+
+static bool isACLApplicable(const executor::Config<InterpolateAttrs>& config,
+                            const MemoryFormatFilter& filter) {
+#if defined(OV_CPU_WITH_ACL)
+    const auto& attrs = config.attrs;
+    
+    // If NCHWAsNHWC flag is set, use reference executor instead (as in master)
+    // This avoids issues with ACL's handling of dimension swapping
+    if (attrs.NCHWAsNHWC) {
+        return false;
+    }
+    
+    // ACL supports limited modes
+    if (!any_of(attrs.mode, 
+                InterpolateMode::nearest,
+                InterpolateMode::linear,
+                InterpolateMode::linear_onnx)) {
+        return false;
+    }
+    
+    // Check memory descriptors
+    // Port 0 is the data input for interpolate
+    auto srcDesc = config.descs.count(0) ? config.descs.at(0) : nullptr;
+    auto dstDesc = config.descs.count(ARG_DST) ? config.descs.at(ARG_DST) : nullptr;
+    
+    if (!srcDesc || !dstDesc) {
+        return false;
+    }
+    
+    // ACL requires 4D tensors
+    if (srcDesc->getShape().getDims().size() != 4 ||
+        dstDesc->getShape().getDims().size() != 4) {
+        return false;
+    }
+    
+    // Check for unsupported features
+    const auto& pads_begin = attrs.padBegin;
+    const auto& pads_end = attrs.padEnd;
+    
+    if (!pads_begin.empty() && !std::all_of(pads_begin.begin(), pads_begin.end(), [](int i) { return i == 0; })) {
+        return false;
+    }
+    
+    if (!pads_end.empty() && !std::all_of(pads_end.begin(), pads_end.end(), [](int i) { return i == 0; })) {
+        return false;
+    }
+    
+    if (attrs.antialias ||
+        attrs.coordTransMode == InterpolateCoordTransMode::tf_half_pixel_for_nn ||
+        attrs.coordTransMode == InterpolateCoordTransMode::pytorch_half_pixel ||
+        attrs.nearestMode == InterpolateNearestMode::ceil) {
+        return false;
+    }
+    
+    if (attrs.mode == InterpolateMode::cubic || 
+        attrs.mode == InterpolateMode::bilinear_pillow ||
+        attrs.mode == InterpolateMode::bicubic_pillow) {
+        return false;
+    }
+    
+    // Check if it's a supported configuration based on ACL's isSupportedConfiguration logic
+    // ACL has very specific requirements for different mode combinations
+    if (attrs.mode == InterpolateMode::nearest) {
+        const auto& srcShape = srcDesc->getShape().getDims();
+        const auto& dstShape = dstDesc->getShape().getDims();
+        
+        // For 4D tensors, check height and width scaling
+        if (srcShape.size() == 4 && dstShape.size() == 4) {
+            static const size_t index_h = 2;
+            static const size_t index_w = 3;
+            float scale_h = static_cast<float>(dstShape[index_h]) / srcShape[index_h];
+            float scale_w = static_cast<float>(dstShape[index_w]) / srcShape[index_w];
+            
+            // ACL has issues with certain combinations of coord modes and scaling
+            // Especially with align_corners and asymmetric modes
+            if (attrs.coordTransMode == InterpolateCoordTransMode::align_corners) {
+                // align_corners with downsampling often produces incorrect results in ACL
+                if (scale_h < 1.0f || scale_w < 1.0f) {
+                    return false;
+                }
+                // Even for upsampling, floor and simple modes don't work correctly with align_corners
+                if (attrs.nearestMode == InterpolateNearestMode::floor ||
+                    attrs.nearestMode == InterpolateNearestMode::simple) {
+                    return false;
+                }
+            }
+            
+            // ACL has issues with half_pixel mode
+            if (attrs.coordTransMode == InterpolateCoordTransMode::half_pixel) {
+                // half_pixel + simple/round_prefer_ceil doesn't work
+                if (attrs.nearestMode == InterpolateNearestMode::simple ||
+                    attrs.nearestMode == InterpolateNearestMode::round_prefer_ceil) {
+                    return false;
+                }
+                // half_pixel + floor has issues regardless of scaling
+                if (attrs.nearestMode == InterpolateNearestMode::floor) {
+                    return false;
+                }
+                // half_pixel with downsampling has issues with round_prefer_floor
+                if (scale_h < 1.0f || scale_w < 1.0f) {
+                    if (attrs.nearestMode == InterpolateNearestMode::round_prefer_floor) {
+                        return false;
+                    }
+                }
+            }
+            
+            // ACL's asymmetric mode has issues with various nearest modes
+            if (attrs.coordTransMode == InterpolateCoordTransMode::asymmetric) {
+                // ACL only reliably works with asymmetric + simple/floor when upsampling
+                bool is_upsample = scale_h > 1 && scale_w > 1;
+                if (!is_upsample) {
+                    return false;  // Downsampling with asymmetric doesn't work well in ACL
+                }
+                // Even for upsampling, round_prefer modes don't work correctly
+                if (attrs.nearestMode == InterpolateNearestMode::round_prefer_floor ||
+                    attrs.nearestMode == InterpolateNearestMode::round_prefer_ceil) {
+                    return false;
+                }
+            }
+        }
+    }
+    
+    // ACL works best with NHWC layout
+    bool isNHWC = srcDesc->hasLayoutType(LayoutType::nspc) && 
+                  dstDesc->hasLayoutType(LayoutType::nspc);
+    
+    // For NCHW layout without NCHWAsNHWC, ACL can still work
+    return isNHWC || srcDesc->hasLayoutType(LayoutType::ncsp);
+#else
+    return false;
+#endif
+}
+
+
+// Factory function to get all implementations
+template <>
+const std::vector<ExecutorImplementation<InterpolateAttrs>>& getImplementations<InterpolateAttrs>() {
+    static const std::vector<ExecutorImplementation<InterpolateAttrs>> implementations = {
+        // Register implementations with priority (highest priority first)
+        
+#if defined(OPENVINO_ARCH_X86_64)
+        // JIT implementation using old JIT executor
+        ExecutorImplementation<InterpolateAttrs>(
+            "jit_interpolate",
+            ExecutorType::Jit,
+            OperationType::Interpolate,
+            isJitApplicable,
+            nullptr,  // createOptimalConfig
+            nullptr,  // acceptsShape
+            [](const InterpolateAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> ExecutorPtr {
+#if defined(OPENVINO_ARCH_X86_64)
+                auto executor = std::make_shared<JitInterpolateExecutor>(context);
+                
+                // Build memory descriptors - JIT expects only the data input
+                std::vector<MemoryDescPtr> srcDescs;
+                std::vector<MemoryDescPtr> dstDescs;
+                
+                // Port 0 is the data input for interpolate node
+                if (memory.count(0)) {
+                    srcDescs.push_back(memory.at(0)->getDescPtr());
+                } else {
+                    return nullptr;
+                }
+                
+                if (memory.count(ARG_DST)) {
+                    dstDescs.push_back(memory.at(ARG_DST)->getDescPtr());
+                } else {
+                    return nullptr;
+                }
+                
+                // Initialize the executor with config and memory descriptors
+                dnnl::primitive_attr attr;
+                if (executor->init(attrs, srcDescs, dstDescs, attr)) {
+                    return executor;
+                }
+#endif
+                return nullptr;
+            }
+        ),
+#endif
+        
+#if defined(OV_CPU_WITH_ACL)
+        // ACL implementation
+        ExecutorImplementation<InterpolateAttrs>(
+            "acl_interpolate",
+            ExecutorType::Acl,
+            OperationType::Interpolate,
+            isACLApplicable,
+            nullptr,  // createOptimalConfig
+            nullptr,  // acceptsShape
+            [](const InterpolateAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> ExecutorPtr {
+#if defined(OV_CPU_WITH_ACL)
+                auto executor = std::make_shared<ACLInterpolateExecutor>(context);
+                
+                // Build memory descriptors - ACL expects only the data input
+                std::vector<MemoryDescPtr> srcDescs;
+                std::vector<MemoryDescPtr> dstDescs;
+                
+                // Port 0 is the data input for interpolate node
+                if (memory.count(0)) {
+                    srcDescs.push_back(memory.at(0)->getDescPtr());
+                } else {
+                    return nullptr;
+                }
+                
+                if (memory.count(ARG_DST)) {
+                    dstDescs.push_back(memory.at(ARG_DST)->getDescPtr());
+                } else {
+                    return nullptr;
+                }
+                
+                // Validate that descriptors are appropriate for ACL
+                if (!srcDescs[0] || !dstDescs[0]) {
+                    return nullptr;
+                }
+                
+                // ACL expects 4D tensors
+                if (srcDescs[0]->getShape().getDims().size() != 4 ||
+                    dstDescs[0]->getShape().getDims().size() != 4) {
+                    return nullptr;
+                }
+                
+                // Initialize the executor with config and memory descriptors
+                dnnl::primitive_attr attr;
+                if (executor->init(attrs, srcDescs, dstDescs, attr)) {
+                    return executor;
+                }
+#endif
+                return nullptr;
+            }
+        ),
+#endif
+        
+        // Reference implementation using old reference executor (lowest priority)
+        ExecutorImplementation<InterpolateAttrs>(
+            "ref_interpolate",
+            ExecutorType::Reference,
+            OperationType::Interpolate,
+            [](const executor::Config<InterpolateAttrs>& config,
+               const MemoryFormatFilter& filter) -> bool {
+                // Reference implementation supports all cases
+                return true;
+            },
+            nullptr,  // createOptimalConfig
+            nullptr,  // acceptsShape
+            [](const InterpolateAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> ExecutorPtr {
+                // Create new reference executor
+                auto executor = std::make_shared<NewRefInterpolateExecutor>(context);
+                
+                // Build memory descriptors - reference executor needs all inputs
+                std::vector<MemoryDescPtr> srcDescs;
+                std::vector<MemoryDescPtr> dstDescs;
+                
+                // Collect all source descriptors in port order
+                for (size_t i = 0; i < 10; ++i) { // Check up to 10 ports
+                    if (memory.count(i)) {
+                        srcDescs.push_back(memory.at(i)->getDescPtr());
+                    } else {
+                        break; // Stop at first missing port
+                    }
+                }
+                
+                if (memory.count(ARG_DST)) {
+                    dstDescs.push_back(memory.at(ARG_DST)->getDescPtr());
+                } else {
+                    return nullptr;
+                }
+                
+                if (srcDescs.empty() || dstDescs.empty()) {
+                    return nullptr;
+                }
+                
+                // Initialize the executor with config and memory descriptors
+                dnnl::primitive_attr attr;
+                if (executor->init(attrs, srcDescs, dstDescs, attr)) {
+                    return executor;
+                }
+                
+                return nullptr;
+            }
+        )
+    };
+    
+    return implementations;
+}
+
+}  // namespace ov::intel_cpu
