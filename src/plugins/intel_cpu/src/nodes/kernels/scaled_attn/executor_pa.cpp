@@ -2249,7 +2249,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
             PlainTensor gathered_key_cache;
             std::cout << "VSHAMPOR: key cache shape is " << k_cache.shape() << std::endl;
-            gathered_key_cache.resize<DATA_TYPE>({q.m_dims[1], kv_len, k_cache.m_dims[3]}); // in GQA case, will duplicate the K head data for each group as necessary
+            gathered_key_cache.resize<DATA_TYPE>({q.m_dims[1], selector.pad_to_block(kv_len), k_cache.m_dims[3]}); // in GQA case, will duplicate the K head data for each group as necessary
             std::cout << "VSHAMPOR: gathered key cache shape is " << gathered_key_cache.shape() << std::endl;
 
             using KEY_TYPE = typename ov::element_type_traits<KEY_PREC>::value_type;
@@ -2258,7 +2258,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
             std::cout << "VSHAMPOR: query shape is " << q.shape() << std::endl;
             PlainTensor gathered_query;
-            gathered_query.resize<DATA_TYPE>({q.m_dims[1], subsequence_length, q.m_dims[3]});
+            gathered_query.resize<DATA_TYPE>({q.m_dims[1], selector.pad_to_block(subsequence_length), q.m_dims[3]});
             selector.cpu_gather_query(q.ptr<DATA_TYPE>(), q.shape(), gathered_query.ptr<DATA_TYPE>(), gathered_query.shape(), subsequence_begin, subsequence_length);
 
             std::cout << "VSHAMPOR: reshaped query shape is " << gathered_query.shape() << std::endl;
