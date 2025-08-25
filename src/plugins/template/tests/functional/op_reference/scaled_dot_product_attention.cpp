@@ -361,6 +361,7 @@ std::vector<SDPAParams> generateParamsWithSink() {
                                                     {1.0f},  // scaleValue
                                                     sink_shape,
                                                     sink_data));
+
     std::vector<T> out_data_t_with_sink_scale_custom = {
         -0.06069273129105568,   0.05785582587122917,   0.04412746801972389,   0.04279350861907005,
         0.018600624054670334,   -0.0470183789730072,   0.10387451946735382,   0.09196290373802185,
@@ -408,6 +409,31 @@ std::vector<SDPAParams> generateParamsWithSink() {
                                                     {0.2f},  // scaleValue
                                                     sink_shape,
                                                     sink_data));
+
+    std::vector<T> sink_data_to_broadcast = {1.989909291267395,
+                                             0.7182523012161255,
+                                             -0.4966665208339691,
+                                             1.3100289106369019,
+                                             0.39555686712265015,
+                                             0.08947940915822983};
+
+    PartialShape sink_shape_to_broadcast_4D{2, 3, 1, 1};
+    params.push_back(PrepareTestCaseParams<T, char>(q_shape,
+                                                    k_shape,
+                                                    v_shape,
+                                                    Shape{},
+                                                    output_shape,
+                                                    true,
+                                                    q_data,
+                                                    k_data,
+                                                    v_data,
+                                                    {0},
+                                                    out_data_t_with_sink_scale_custom,
+                                                    "with_sink_broadcast",
+                                                    {0.2f},  // scaleValue
+                                                    sink_shape_to_broadcast_4D,
+                                                    sink_data_to_broadcast));
+
     return params;
 }
 

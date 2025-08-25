@@ -126,14 +126,33 @@ void scaled_dot_product_attention(const T* query,
 
     auto gk_softmax_shape = qk_shape;
     if (sink) {
-        gk_softmax_shape[gk_softmax_shape.size() - 1] += sink_shape[sink_shape.size() - 1];
-        std::vector<T> qk_data_with_sink(qk_data.size() + shape_size(sink_shape), 0);
-        ov::reference::concat({reinterpret_cast<const char*>(qk_data.data()), reinterpret_cast<const char*>(sink)},
-                              reinterpret_cast<char*>(qk_data_with_sink.data()),
-                              {qk_shape, sink_shape},
-                              gk_softmax_shape,
-                              qk_shape.size() - 1,
-                              sizeof(T));
+        OPENVINO_ASSERT(qk_shape.size() == sink_shape.size());
+        auto* sink_data_ptr = sink;
+        const auto broadcast_axes_size = qk_shape.size() - 1;
+        auto target_sink_shape = Shape(qk_shape.begin(), qk_shape.begin() + broadcast_axes_size);
+        std::vector<T> broadcasted_sink_data;
+        if (shape_size(target_sink_shape) != shape_size(sink_shape) && broadcast_axes_size > 0) {
+            std::vector<size_t> broadcast_axes(broadcast_axes_size);
+            std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);
+            broadcasted_sink_data.resize(shape_size(target_sink_shape));
+            broadcast(reinterpret_cast<const char*>(sink_data_ptr),
+                      reinterpret_cast<char*>(broadcasted_sink_data.data()),
+                      Shape(sink_shape.begin(), sink_shape.begin() + broadcast_axes_size),
+                      target_sink_shape,
+                      broadcast_axes,
+                      sizeof(T));
+            sink_data_ptr = broadcasted_sink_data.data();
+        }
+        target_sink_shape.push_back(1);
+        gk_softmax_shape[gk_softmax_shape.size() - 1] += target_sink_shape.back();
+        std::vector<T> qk_data_with_sink(shape_size(gk_softmax_shape), 0);
+        ov::reference::concat(
+            {reinterpret_cast<const char*>(qk_data.data()), reinterpret_cast<const char*>(sink_data_ptr)},
+            reinterpret_cast<char*>(qk_data_with_sink.data()),
+            {qk_shape, target_sink_shape},
+            gk_softmax_shape,
+            qk_shape.size() - 1,
+            sizeof(T));
         qk_data = qk_data_with_sink;
     }
     std::vector<T> qk_data_softmax(qk_data.size(), 0);
