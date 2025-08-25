@@ -4,6 +4,8 @@
 
 #include "reduce.h"
 
+#include <oneapi/dnnl/dnnl_config.h>
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
