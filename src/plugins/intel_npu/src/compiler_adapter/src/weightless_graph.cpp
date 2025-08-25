@@ -597,7 +597,7 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex) {
-    if (_initsGraphDesc.at(initIndex)._data || _blobIsPersistent || _initBlobs == std::nullopt ||
+    if (_initsGraphDesc.at(initIndex)._memoryPersistent || _blobIsPersistent || _initBlobs == std::nullopt ||
         _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8)) {
         return;
     }
