@@ -16,7 +16,6 @@
 #include "openvino/op/op.hpp"
 
 namespace ov::snippets::op {
-
 /**
  * @interface LoopBase
  * @brief Base class for LoopBegin and LoopEnd
@@ -25,10 +24,20 @@ namespace ov::snippets::op {
 class LoopBase : public ov::op::Op {
 public:
     OPENVINO_OP("LoopBase", "SnippetsOpset");
-    explicit LoopBase(const std::vector<Output<Node>>& args);
+    explicit LoopBase(const OutputVector& args, bool is_parallel = false);
     LoopBase() = default;
 
+    bool get_is_parallel() const {
+        return m_is_parallel;
+    }
+    void set_is_parallel(bool is_parallel) {
+        m_is_parallel = is_parallel;
+    }
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 protected:
+    bool m_is_parallel = false;
 };
 class LoopEnd;
 /**
@@ -44,7 +53,7 @@ class LoopBegin : public LoopBase {
 
 public:
     OPENVINO_OP("LoopBegin", "SnippetsOpset", LoopBase);
-    LoopBegin();
+    explicit LoopBegin(bool is_parallel = false);
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
@@ -82,7 +91,8 @@ public:
             std::vector<int64_t> element_type_sizes,
             size_t input_num,
             size_t output_num,
-            size_t id);
+            size_t id,
+            bool is_parallel = false);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;

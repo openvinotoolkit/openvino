@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,45 +30,6 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
-
-namespace {
-class jit_aux_gpr_holder {
-public:
-    jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator_t* host,
-                       std::vector<size_t>& pool_gpr_idxs,
-                       const std::vector<size_t>& used_gpr_idxs)
-        : m_h(host),
-          m_pool_gpr_idxs(pool_gpr_idxs) {
-        // If the pool is empty, let's manualy allocate the gpr and push original vlaue on stack
-        if (m_pool_gpr_idxs.empty()) {
-            m_aux_gpr_idx = ov::intel_cpu::utils::get_aux_gpr(used_gpr_idxs);
-            m_is_preserved = true;
-            m_h->push(m_aux_gpr_idx);
-        } else {
-            m_aux_gpr_idx = Reg64(static_cast<int>(m_pool_gpr_idxs.back()));
-            m_pool_gpr_idxs.pop_back();
-        }
-    }
-
-    ~jit_aux_gpr_holder() {
-        if (m_is_preserved) {
-            m_h->pop(m_aux_gpr_idx);
-        } else {
-            m_pool_gpr_idxs.push_back(m_aux_gpr_idx.getIdx());
-        }
-    }
-
-    [[nodiscard]] const Reg64& get_reg() const {
-        return m_aux_gpr_idx;
-    }
-
-private:
-    dnnl::impl::cpu::x64::jit_generator_t* m_h;
-    std::vector<size_t>& m_pool_gpr_idxs;
-    Reg64 m_aux_gpr_idx;
-    bool m_is_preserved = false;
-};
-}  // namespace
 
 /* ================== jit_loop_begin_emitter ====================== */
 
@@ -117,7 +78,7 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
 
     auto reg_work_amount = Reg64(static_cast<int>(out.back()));
     if (is_work_amount_dynamic) {
-        jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);  // loop_begin has only output registers
+        utils::jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);  // loop_begin has only output registers
         Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
         const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
         h->mov(reg_loop_args_ptr, h->ptr[abi_param1 + GET_OFF(loop_args)]);
@@ -167,7 +128,6 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t
     are_final_offsets_dynamic = std::any_of(finalization_offsets.cbegin(),
                                             finalization_offsets.cend(),
                                             ov::snippets::utils::is_dynamic_value<int64_t>);
-    are_ptr_shifts_dynamic = are_ptr_increments_dynamic || are_final_offsets_dynamic;
 
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_emitter>(begin_expr->get_emitter());
@@ -254,7 +214,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
 
             const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
             if (use_runtime_args) {
-                jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);  // loop_end has only input registers
+                utils::jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);  // loop_end has only input registers
                 reg_increments = gpr_holder.get_reg();
                 h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
                 h->mov(reg_increments, h->ptr[reg_increments + id_offset + field_offset]);

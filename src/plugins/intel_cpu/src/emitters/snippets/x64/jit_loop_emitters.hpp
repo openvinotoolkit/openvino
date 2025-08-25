@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,7 +104,6 @@ protected:
     bool evaluate_once = false;
     bool are_ptr_increments_dynamic = false;
     bool are_final_offsets_dynamic = false;
-    bool are_ptr_shifts_dynamic = false;
 };
 
 /* ============================================================== */

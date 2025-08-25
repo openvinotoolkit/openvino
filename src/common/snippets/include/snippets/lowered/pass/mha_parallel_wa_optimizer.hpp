@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ public:
 
     bool run(const lowered::LinearIR& linear_ir) override;
     bool applicable() const override {
-        return !m_loops_to_split.empty();
+        return (std::getenv("USE_INTERNAL_PARALLEL_LOOPS") == nullptr) && !m_loops_to_split.empty();
     }
 
 private:

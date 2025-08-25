@@ -45,11 +45,13 @@ public:
     LoopInfo(size_t work_amount,
              size_t increment,
              const std::vector<LoopPort>& entries,
-             const std::vector<LoopPort>& exits);
+             const std::vector<LoopPort>& exits,
+             bool is_parallel = false);
     LoopInfo(size_t work_amount,
              size_t increment,
              const std::vector<ExpressionPort>& entries,
-             const std::vector<ExpressionPort>& exits);
+             const std::vector<ExpressionPort>& exits,
+             bool is_parallel = false);
     virtual ~LoopInfo() = default;
 
     /**
@@ -176,6 +178,13 @@ public:
      */
     const LoopPort& get_loop_port(const ExpressionPort& expr_port);
 
+    bool is_parallel() const {
+        return m_is_parallel;
+    }
+    void set_is_parallel(bool mode) {
+        m_is_parallel = mode;
+    }
+
 protected:
     /**
      * @brief Helper to clone Loop ports using `ExpressionMap`
@@ -201,6 +210,8 @@ protected:
     // Note: Scalars aren't input expressions but can be before first input expr in Linear IR
     std::vector<LoopPort> m_input_ports;
     std::vector<LoopPort> m_output_ports;
+    // If true, then the corresponding loop will be executed in parallel
+    bool m_is_parallel = false;
 };
 
 /**
@@ -248,18 +259,21 @@ public:
                     const std::vector<LoopPort>& exits,
                     const std::vector<LoopPortDesc>& in_descs,
                     const std::vector<LoopPortDesc>& out_descs,
-                    SpecificIterationHandlers handlers = SpecificIterationHandlers());
+                    SpecificIterationHandlers handlers = SpecificIterationHandlers(),
+                    bool is_parallel = false);
     UnifiedLoopInfo(size_t work_amount,
                     size_t increment,
                     const std::vector<LoopPort>& entries,
                     const std::vector<LoopPort>& exits,
-                    SpecificIterationHandlers handlers = SpecificIterationHandlers());
+                    SpecificIterationHandlers handlers = SpecificIterationHandlers(),
+                    bool is_parallel = false);
     UnifiedLoopInfo(size_t work_amount,
                     size_t increment,
                     const std::vector<ExpressionPort>& entries,
                     const std::vector<ExpressionPort>& exits,
 
-                    SpecificIterationHandlers handlers = SpecificIterationHandlers());
+                    SpecificIterationHandlers handlers = SpecificIterationHandlers(),
+                    bool is_parallel = false);
 
     /**
      * @brief Clone LoopInfo with new Expressions
@@ -439,7 +453,8 @@ public:
                                  const std::vector<LoopPortDesc>& in_descs,
                                  const std::vector<LoopPortDesc>& out_descs,
                                  const SpecificIterationHandlers& handlers,
-                                 LoopInfoPtr outer_splitted_loop_info);
+                                 LoopInfoPtr outer_splitted_loop_info,
+                                 bool is_parallel = false);
 
     /**
      * @brief Clone LoopInfo with new Expressions
@@ -505,7 +520,8 @@ public:
                      std::vector<int64_t> data_sizes,
                      SpecificLoopIterType type,
                      UnifiedLoopInfoPtr unified_loop_info,
-                     bool evaluate_once = false);
+                     bool evaluate_once = false,
+                     bool is_parallel = false);
     /**
      * @brief Clone LoopInfo with new Expressions
      * @param expr_map map of new and old expressions
