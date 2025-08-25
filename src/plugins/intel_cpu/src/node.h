@@ -124,8 +124,8 @@ public:
     }
 
     template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<ExecutorFactoryLegacy, T>, int> = 0>
+              typename = std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>>,
+              typename = std::enable_if_t<std::is_base_of_v<ExecutorFactoryLegacy, T>>>
     std::shared_ptr<T> getExecutorFactoryAs() {
         auto casted = std::dynamic_pointer_cast<T>(executorFactory);
         OPENVINO_ASSERT(casted, "Cannot dynamically cast ExecutorFactory");
@@ -484,8 +484,8 @@ public:
      * @return pointer to selected primitive descriptor with type T
      */
     template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
+              typename = std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>>,
+              typename = std::enable_if_t<std::is_base_of_v<MemoryDesc, T>>>
     std::shared_ptr<T> getInputMemDescAtPort(size_t portNum) const;
 
     /**
@@ -495,8 +495,8 @@ public:
      * @return pointer to selected primitive descriptor with type T
      */
     template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
+              typename = std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>>,
+              typename = std::enable_if_t<std::is_base_of_v<MemoryDesc, T>>>
     std::shared_ptr<T> getOutputMemDescAtPort(size_t portNum) const;
 
     void selectPrimitiveDescriptorByIndex(int index) {
