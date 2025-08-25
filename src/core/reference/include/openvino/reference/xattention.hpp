@@ -17,13 +17,13 @@
 
 namespace ov::reference {
 
-template<class T>
+using XAttentionBlockIndex = std::pair<size_t, size_t>; // .first is the *query* dimension block index, .second is *key*
+using XAttentionRetainedBlockIndices = std::set<XAttentionBlockIndex>;
+using XAttentionRetainedBlockIndicesForAllHeads = std::vector<XAttentionRetainedBlockIndices>;
+
+template<typename T>
 class XAttentionBlockSelector {
 public:
-    using BlockIndex = std::pair<size_t, size_t>; // .first is the *query* dimension block index, .second is *key*
-    using RetainedBlockIndices = std::set<BlockIndex>;
-    using RetainedBlockIndicesForEachHead = std::vector<RetainedBlockIndices>;
-
     XAttentionBlockSelector(double threshold, size_t block_size, size_t stride): m_threshold(threshold), m_block_size(block_size), m_stride(stride) {
         OPENVINO_ASSERT(m_block_size % m_stride == 0);
     }
@@ -112,13 +112,13 @@ public:
     }
 
 
-    RetainedBlockIndicesForEachHead get_block_indices_to_keep(const T* blocked_attention_scores_data, const Shape& blocked_attention_scores_shape) {
+    XAttentionRetainedBlockIndicesForAllHeads get_block_indices_to_keep(const T* blocked_attention_scores_data, const Shape& blocked_attention_scores_shape) {
         OPENVINO_ASSERT(blocked_attention_scores_shape.size() == 3);
 
-        auto retval = RetainedBlockIndicesForEachHead(blocked_attention_scores_shape[0]);
+        auto retval = XAttentionRetainedBlockIndicesForAllHeads(blocked_attention_scores_shape[0]);
 
         struct IndexAndScore {
-            BlockIndex idx;
+            XAttentionBlockIndex idx;
             T score;
             bool operator<(const IndexAndScore& rhs) const {
                 return score < rhs.score;
@@ -145,7 +145,7 @@ public:
         return retval;
     }
 
-    RetainedBlockIndicesForEachHead select_blocks(const T* query_data, const T* key_data, const Shape& query_shape, const Shape& key_shape) {
+    XAttentionRetainedBlockIndicesForAllHeads select_blocks(const T* query_data, const Shape& query_shape, const T* key_data, const Shape& key_shape) {
         OPENVINO_ASSERT(query_shape.size() == 3); // [num_heads, query_token_len, head_dim]
         OPENVINO_ASSERT(key_shape.size() == 3);   // [num_heads, key_token_len, head_dim]
 
@@ -187,10 +187,11 @@ public:
     }
 
     std::shared_ptr<T[]> allocate_buf(const Shape& shape) {
-        return std::shared_ptr<T[]>(ov::shape_size(shape));
+        return std::shared_ptr<T[]>(new T[ov::shape_size(shape)]);
     }
 
-    void gather_key_cache_blocks(const T* key_cache_data, const Shape& key_cache_shape, const T* out_data, const Shape& out_shape, std::vector<size_t> physical_block_indices, size_t key_length_in_tokens) {
+    template<typename KEY_TYPE>
+    void gather_key_cache_blocks(const KEY_TYPE* key_cache_data, const Shape& key_cache_shape, T* out_data, const Shape& out_shape, std::vector<size_t> physical_block_indices, size_t key_length_in_tokens) {
         OPENVINO_ASSERT(key_cache_shape.size() == 4); // [cache_size_in_blocks, num_heads, cb_block_size, head_dim]
         OPENVINO_ASSERT(out_shape.size() == 3); // [num_heads, key_token_len, head_dim]
 
@@ -218,7 +219,9 @@ public:
                     num_tokens_to_copy = key_length_in_tokens - num_tokens_processed;
                 }
                 size_t num_elts_to_copy = num_tokens_to_copy * key_cache_shape[3];
-                std::memcpy(out_data + out_head_offset + out_key_token_len_offset, key_cache_data + in_block_offset + in_head_offset, num_elts_to_copy * sizeof(T));
+                for (size_t elt_idx = 0; elt_idx < num_elts_to_copy; elt_idx++) {
+                    out_data[out_head_offset + out_key_token_len_offset] = static_cast<T>(key_cache_data[in_block_offset + in_head_offset]);
+                }
                 num_tokens_processed += num_tokens_to_copy;
                 out_key_token_len_offset += num_elts_to_copy;
             }
