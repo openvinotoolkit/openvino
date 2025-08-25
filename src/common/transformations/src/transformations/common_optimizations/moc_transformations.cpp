@@ -90,6 +90,7 @@
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
+#include "transformations/op_conversions/einsum_decomposition.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/smart_reshape/lstm_states_broadcast.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
@@ -163,6 +164,13 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, PushConstantToSubgraph)
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, Validate)
+
+    // EinsumDecomposition should be called after ConstantFolding
+    // for better performance and memory usage.
+    // ConstantFolding creates constant inputs to Einsum operations,
+    // which EinsumDecomposition can then decompose more efficiently with
+    // reduced memory consumption.
+    REGISTER_PASS(manager, EinsumDecomposition, true)
 
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
