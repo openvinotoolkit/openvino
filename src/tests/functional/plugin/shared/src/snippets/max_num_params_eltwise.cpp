@@ -10,7 +10,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string MaxNumParamsEltwise::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MaxNumParamsEltwiseParams> obj) {
+std::string MaxNumParamsEltwise::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MaxNumParamsEltwiseParams>& obj) {
     const auto& [inputShapes, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
