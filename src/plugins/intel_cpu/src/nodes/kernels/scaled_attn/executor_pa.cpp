@@ -16,6 +16,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/reference/xattention.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -2189,6 +2190,12 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
 
+
+        if (xattention_threshold) {
+            auto sparse_block_sets_per_sequence = get_xattention_sparse_block_sets(q, k_cache, past_lens, subsequence_begins, block_indices, block_indices_begins, xattention_threshold,
+                    xattention_block_size, xattention_stride);
+        }
+
         _kernel(q,
                 k_cache,
                 v_cache,
@@ -2201,6 +2208,75 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 block_indices_begins,
                 alibi_slopes,
                 score_aggregation_window);
+    }
+
+    std::vector<ov::reference::XAttentionRetainedBlockIndicesForAllHeads> get_xattention_sparse_block_sets(
+            PlainTensor& q,
+            PlainTensor& k_cache,
+            PlainTensor& past_lens,
+            PlainTensor& subsequence_begins,
+            PlainTensor& block_indices,
+            PlainTensor& block_indices_begins,
+            PlainTensor& xattention_threshold,
+            size_t xattention_block_size,
+            size_t xattention_stride) {
+
+        size_t num_seqs = past_lens.size(0);
+        std::vector<ov::reference::XAttentionRetainedBlockIndicesForAllHeads> retval(num_seqs);
+        for (size_t seq_idx = 0; seq_idx < num_seqs; seq_idx++) {
+            float seq_threshold = xattention_threshold.ptr<float>()[seq_idx];
+            if (seq_threshold == 0.0) {
+                std::cout << "VSHAMPOR: skipping seq " << seq_idx << " - threshold is zero" << std::endl;
+                continue;
+            }
+
+            ov::reference::XAttentionBlockSelector<DATA_TYPE> selector(seq_threshold, xattention_block_size, xattention_stride);
+
+            auto subsequence_begin = subsequence_begins.ptr<int32_t>()[seq_idx];
+            auto subsequence_length = subsequence_begins.ptr<int32_t>()[seq_idx + 1] - subsequence_begins.ptr<int32_t>()[seq_idx];
+            auto kv_len = past_lens.ptr<int32_t>()[seq_idx] + subsequence_length;
+
+            auto block_number_start = block_indices_begins.ptr<int32_t>()[seq_idx];
+            auto block_number_end = block_indices_begins.ptr<int32_t>()[seq_idx + 1];
+            OPENVINO_ASSERT(block_number_end >= block_number_start);
+            std::vector<size_t> physical_block_indices_for_this_seq;
+            physical_block_indices_for_this_seq.reserve(block_number_end - block_number_start);
+            for (auto block_idx = block_number_start; block_idx < block_number_end; block_idx++) {
+                physical_block_indices_for_this_seq.push_back(block_indices.ptr<int32_t>()[block_idx]);
+            }
+
+            OPENVINO_ASSERT((kv_len + _helper._block_size - 1) / _helper._block_size == physical_block_indices_for_this_seq.size());
+
+            PlainTensor gathered_key_cache;
+            std::cout << "VSHAMPOR: key cache shape is " << k_cache.shape() << std::endl;
+            gathered_key_cache.resize<DATA_TYPE>({q.m_dims[1], selector.pad_to_block(kv_len), k_cache.m_dims[3]}); // in GQA case, will duplicate the K head data for each group as necessary
+            std::cout << "VSHAMPOR: gathered key cache shape is " << gathered_key_cache.shape() << std::endl;
+
+            using KEY_TYPE = typename ov::element_type_traits<KEY_PREC>::value_type;
+            auto k_cache_data = k_cache.ptr<KEY_TYPE>();
+            selector.template cpu_gather_key_cache_blocks<KEY_TYPE>(k_cache_data, k_cache.shape(), gathered_key_cache.ptr<DATA_TYPE>(), gathered_key_cache.shape(), physical_block_indices_for_this_seq, kv_len);
+
+            std::cout << "VSHAMPOR: query shape is " << q.shape() << std::endl;
+            PlainTensor gathered_query;
+            gathered_query.resize<DATA_TYPE>({q.m_dims[1], selector.pad_to_block(subsequence_length), q.m_dims[3]});
+            selector.cpu_gather_query(q.ptr<DATA_TYPE>(), q.shape(), gathered_query.ptr<DATA_TYPE>(), gathered_query.shape(), subsequence_begin, subsequence_length);
+
+            std::cout << "VSHAMPOR: reshaped query shape is " << gathered_query.shape() << std::endl;
+            retval[seq_idx] = selector.select_blocks(gathered_query.ptr<DATA_TYPE>(), gathered_query.shape(), gathered_key_cache.ptr<DATA_TYPE>(), gathered_key_cache.shape());
+            size_t num_blocks_in_total = (gathered_query.m_dims[1] / xattention_block_size) * (gathered_key_cache.m_dims[1] / xattention_block_size);
+
+            std::cout << "VSHAMPOR: for seq_idx " << seq_idx << " selected blocks:" << std::endl;
+            for (size_t head_idx = 0; head_idx < retval[seq_idx].size(); head_idx++) {
+                auto head_blocks = retval[seq_idx][head_idx];
+                std::cout << "VSHAMPOR: for head " << head_idx << " keeping " << head_blocks.size() << "out of " << num_blocks_in_total << " (" << (head_blocks.size() + 0.0) / num_blocks_in_total * 100 << "%)" <<  std::endl;
+                for (auto block : head_blocks) {
+                    std::cout << "("  << block.first << ";" << block.second << "),  ";
+                }
+                std::cout << std::endl;
+            }
+        }
+
+        return retval;
     }
 };
 #endif
