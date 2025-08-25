@@ -308,9 +308,7 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
     if (!casual) {
         mask = attention_mask;
         if (mask.get_element_type() == element::boolean) {
-            atten_mask = std::make_shared<ov::op::v1::ConvertLike>(mask, scaled_atten);
-            const auto inv_mask = std::make_shared<ov::op::v1::LogicalNot>(mask);
-            atten_mask = std::make_shared<ov::op::v1::Select>(inv_mask, atten_mask, minus_inf);
+            atten_mask = std::make_shared<ov::op::v1::Select>(mask, zero_f, minus_inf);
         } else {
             atten_mask = mask;
         }

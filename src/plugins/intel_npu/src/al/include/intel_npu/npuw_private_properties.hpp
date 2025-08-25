@@ -458,6 +458,14 @@ static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENS
 
 /**
  * @brief
+ * Type: boolean
+ * Substitute part of the RoPE with compile-time precalculation in higher precision
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
+
+/**
+ * @brief
  * Type: uint64_t.
  * Prompt chunk size for chunk prefill.
  * The chunk size should be a power of two.

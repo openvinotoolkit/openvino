@@ -116,7 +116,7 @@ void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
     size_t metadataSize = get_metadata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
-    size_t size = utils::align_size_to_standarg_page_size(metadataSize);
+    size_t size = utils::align_size_to_standard_page_size(metadataSize);
     size_t paddingSize = size - metadataSize;
     if (paddingSize > 0) {
         std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
