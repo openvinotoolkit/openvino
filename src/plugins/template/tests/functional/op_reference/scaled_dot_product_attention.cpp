@@ -28,6 +28,7 @@ struct SDPAParams {
     reference_tests::Tensor vData;
     reference_tests::Tensor attentionMaskData;
     reference_tests::Tensor expectedOutputData;
+    std::vector<float> scaleValue;
     PartialShape sinkShape;
     reference_tests::Tensor sinkData;
 };
@@ -45,6 +46,7 @@ SDPAParams PrepareTestCaseParams(const PartialShape& qShape,
                                  const std::vector<TMask>& attentionMaskData,
                                  const std::vector<T>& expectedOutputData,
                                  const std::string& description,
+                                 const std::vector<float>& scaleValue = {},
                                  const PartialShape& sinkShape = {0},
                                  const std::vector<T>& sinkData = {}) {
     SDPAParams ret;
@@ -63,6 +65,7 @@ SDPAParams PrepareTestCaseParams(const PartialShape& qShape,
     ret.attentionMaskData =
         reference_tests::Tensor(element::from<TMask>(), attentionMaskShape.to_shape(), attentionMaskData);
     ret.expectedOutputData = reference_tests::Tensor(elementType, outputShape.to_shape(), expectedOutputData);
+    ret.scaleValue = scaleValue;
     ret.sinkShape = sinkShape;
     if (!sinkData.empty()) {
         ret.sinkData = reference_tests::Tensor(elementType, sinkShape.to_shape(), sinkData);
@@ -95,6 +98,9 @@ public:
         result << "_attentionMaskShape=" << param.attentionMaskShape;
         result << "_outputShape=" << param.outputShape;
         result << "_isCausal=" << param.isCausal;
+        if (!param.scaleValue.empty()) {
+            result << "_scale=" << param.scaleValue[0];
+        }
         if (param.sinkData.data) {
             result << "_sinkShape=" << param.sinkShape;
         }
@@ -124,12 +130,14 @@ private:
             inputs.push_back(attentionMask);
         }
 
-        if (shape_size(params.sinkShape.get_shape()) != 0) {
+        if (!params.scaleValue.empty()) {
             const auto scale = std::make_shared<ov::op::v0::Constant>(params.qData.data.get_element_type(),
                                                                       ov::Shape{},
-                                                                      std::vector<float>{1.0});
+                                                                      params.scaleValue[0]);
             inputs.push_back(scale);
+        }
 
+        if (shape_size(params.sinkShape.get_shape()) != 0) {
             const auto sink =
                 std::make_shared<op::v0::Parameter>(params.sinkData.data.get_element_type(), params.sinkShape);
             inputs.push_back(sink);
@@ -349,7 +357,55 @@ std::vector<SDPAParams> generateParamsWithSink() {
                                                     v_data,
                                                     {0},
                                                     out_data_t_with_sink_scale_one,
-                                                    "with_sink",
+                                                    "with_sink_scale_1.0",
+                                                    {1.0f},  // scaleValue
+                                                    sink_shape,
+                                                    sink_data));
+    std::vector<T> out_data_t_with_sink_scale_custom = {
+        -0.06069273129105568,   0.05785582587122917,   0.04412746801972389,   0.04279350861907005,
+        0.018600624054670334,   -0.0470183789730072,   0.10387451946735382,   0.09196290373802185,
+        -0.023563656955957413,  0.05878644064068794,   -0.12936662137508392,  0.3176364004611969,
+        0.11998864263296127,    -0.4186060428619385,   0.06529749184846878,   -0.1961163580417633,
+        0.3280660808086395,     -0.094425730407238,    -0.38547027111053467,  0.03979203850030899,
+        -0.1531520038843155,    0.14599336683750153,   0.11135123670101166,   0.10798511654138565,
+        0.04693680629134178,    0.003588348627090454,  0.28682994842529297,   0.2813684642314911,
+        -0.2812879681587219,    0.217011958360672,     -0.24685132503509521,  0.4304933249950409,
+        0.24815379083156586,    -0.25411680340766907,  0.13267168402671814,   0.02236872911453247,
+        0.6783848404884338,     -0.36514297127723694,  -0.8167968392372131,   0.5701109170913696,
+        -0.2974308431148529,    0.28352829813957214,   0.21625110507011414,   0.2097138911485672,
+        0.09115423262119293,    -0.05503465235233307,  0.42477408051490784,   0.40427881479263306,
+        -0.3187658190727234,    0.29664403200149536,   -0.6076429486274719,   0.6167400479316711,
+        -0.0010090619325637817, -0.5514510273933411,   -0.1371295005083084,   -0.5157628655433655,
+        0.7448815107345581,     -0.07199841737747192,  -0.9987921118736267,   -0.055561356246471405,
+        0.08635417371988297,    -0.028299007564783096, 0.10070591419935226,   -0.007333314977586269,
+        -0.10766353458166122,   -0.07884395867586136,  0.34500038623809814,   0.1447703242301941,
+        0.3017638027667999,     0.1491926610469818,    0.37593814730644226,   -0.08060011267662048,
+        -0.0032004714012145996, 0.1259659081697464,    0.0957479178905487,    0.19390913844108582,
+        -0.1818716675043106,    0.01571568101644516,   0.0961075946688652,    0.28955501317977905,
+        0.26782938838005066,    -0.0877700001001358,   0.3123416304588318,    -0.0227444376796484,
+        -0.33392083644866943,   0.1913018524646759,    0.1910492181777954,    0.41129082441329956,
+        0.2183394581079483,     -0.1980481892824173,   0.4324178695678711,    0.018276840448379517,
+        0.2048681378364563,     0.2158849984407425,    -0.020930297672748566, 0.48571550846099854,
+        -0.2236638218164444,    0.10307496786117554,   0.11739172041416168,   0.11604028195142746,
+        0.4704568088054657,     -0.15417274832725525,  0.5486449599266052,    -0.039951834827661514,
+        -0.5865499973297119,    0.18774694204330444,   0.2726062536239624,    0.46677061915397644,
+        0.2929643988609314,     -0.1807970106601715,   0.6146572828292847,    -0.1194060891866684,
+        0.4525294303894043,     0.10505322366952896,   -0.3701184093952179,   0.40908947587013245,
+        -0.4417523741722107,    0.09781522303819656,   -0.006620079278945923, 0.20164912939071655};
+
+    params.push_back(PrepareTestCaseParams<T, char>(q_shape,
+                                                    k_shape,
+                                                    v_shape,
+                                                    Shape{},
+                                                    output_shape,
+                                                    true,
+                                                    q_data,
+                                                    k_data,
+                                                    v_data,
+                                                    {0},
+                                                    out_data_t_with_sink_scale_custom,
+                                                    "with_sink_scale_custom",
+                                                    {0.2f},  // scaleValue
                                                     sink_shape,
                                                     sink_data));
     return params;
