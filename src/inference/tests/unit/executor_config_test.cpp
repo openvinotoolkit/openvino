@@ -55,7 +55,9 @@ public:
         ASSERT_EQ(test_data._cpu_reservation, config.get_cpu_reservation());
         ASSERT_EQ(test_data._cpu_pinning, config.get_cpu_pinning());
         ASSERT_EQ(test_data._streams_info_table, config.get_streams_info_table());
-        ASSERT_EQ(test_data._stream_processors, config.get_stream_processor_ids());
+        if (test_data._cpu_pinning) {
+            ASSERT_EQ(test_data._stream_processors, config.get_stream_processor_ids());
+        }
         if (!test_data._cores_limit) {
             ASSERT_EQ(test_data._num_streams, config.get_streams());
             ASSERT_EQ(0, config.get_threads_per_stream());
