@@ -407,7 +407,7 @@ macro(ov_cpack_settings)
     # Install latest symlink packages
     #
 
-    # NOTE: we expicitly don't add runtime latest packages
+    # NOTE: we explicitly don't add runtime latest packages
     # since a user needs to depend on specific VERSIONED runtime package
     # with fixed SONAMEs, while latest package can be updated multiple times
     # ov_rpm_add_latest_component(libraries)
