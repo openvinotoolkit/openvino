@@ -28,7 +28,7 @@ OV_ITT_DOMAIN(intel_cpu_LT);
 #elif defined(SELECTIVE_BUILD)
 #    define CPU_LPT_SCOPE(region)                                          \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(intel_cpu, _, region)) == 0) \
-        OPENVINO_THROW(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ov_op, _, region))), " is disabled!")
+        OPENVINO_THROW(std::string(OV_PP_TOSTRING(OV_PP_CAT3(ov_op_exec, _, region))), " is disabled!")
 #    define CPU_GRAPH_OPTIMIZER_SCOPE(region)                              \
         if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(intel_cpu, _, region)) == 0) \
         OPENVINO_THROW(std::string(OV_PP_TOSTRING(OV_PP_CAT3(intel_cpu, _, region))), " is disabled!")
