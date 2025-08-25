@@ -65,12 +65,11 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
         }
     }
 
-    const auto engine_type = cldnn::engine_types::ocl;
-    const auto runtime_type = cldnn::runtime_types::ocl;
+    auto rt_params = get_device_query_params();
     const auto initialize_devices = true;
 
     // Use actual runtime and engine types
-    cldnn::device_query device_query(engine_type, runtime_type, context_id, m_va_display, ctx_device_id, target_tile_id, initialize_devices);
+    cldnn::device_query device_query(rt_params.first, rt_params.second, context_id, m_va_display, ctx_device_id, target_tile_id, initialize_devices);
     auto device_map = device_query.get_available_devices();
 
     OPENVINO_ASSERT(device_map.size() == 1, "[GPU] Exactly one device expected in case of context sharing, but ", device_map.size(), " found");
@@ -102,6 +101,9 @@ void RemoteContextImpl::init_properties() {
     case ContextType::VA_SHARED:
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::VA_SHARED));
         properties.insert(ov::intel_gpu::va_device(m_va_display));
+        break;
+    case ContextType::ZE:
+        properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::ZE));
         break;
     default:
         OPENVINO_THROW("[GPU] Unsupported shared context type ", m_type);
@@ -243,15 +245,10 @@ void RemoteContextImpl::initialize() {
     std::call_once(m_initialize_flag, [this]() {
         GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_device->get_info().dev_name << ")" << std::endl;
 
-#ifdef OV_GPU_WITH_SYCL
-        const auto engine_type = cldnn::engine_types::sycl;
-#else
-        const auto engine_type = cldnn::engine_types::ocl;
-#endif
-        const auto runtime_type = cldnn::runtime_types::ocl;
+        auto rt_params = get_device_query_params();
 
         m_device->initialize();  // Initialize associated device before use
-        m_engine = cldnn::engine::create(engine_type, runtime_type, m_device);
+        m_engine = cldnn::engine::create(rt_params.first, rt_params.second, m_device);
 
         init_properties();
 

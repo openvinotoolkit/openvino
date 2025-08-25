@@ -16,7 +16,8 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<pooling>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-        OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::PoolingImplementationManager, shape_types::static_shape, [](const program_node& node) {
+        //FIXME: Disable for now as there is some issue when creating OneDNN descriptor - returns unimplemented
+        /*OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::PoolingImplementationManager, shape_types::static_shape, [](const program_node& node) {
             const auto& in_layout = node.get_input_layout(0);
             const auto& out_layout = node.get_output_layout(0);
             // Disable this case due to sporadic hang for the following case:
@@ -27,7 +28,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<pooli
             if (in_layout.format == format::byxf && out_layout.format == format::bfyx && ov::element::Type(in_layout.data_type).is_integral_number())
                 return false;
             return true;
-        })
+        })*/
         OV_GPU_GET_INSTANCE_OCL(pooling, shape_types::static_shape)
     };
 
