@@ -265,6 +265,21 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
     std::visit(apply_model_hint, model_hint);
     return import_compiled_model(plugin, context, cfg);
 }
+
+/**
+ * @brief Extracts model transform signature from config and removes it from the config
+ * @param config Reference to the config map that will be modified (signature entry will be removed)
+ * @return The extracted signature string, or empty string if not found
+ */
+std::string extract_model_transform_signature(ov::AnyMap& config) {
+    std::string signature;
+    auto transform_signature_it = config.find(ov::hint::model_transform_signature.name());
+    if (transform_signature_it != config.end()) {
+        signature = transform_signature_it->second.as<std::string>();
+        config.erase(ov::hint::model_transform_signature.name());
+    }
+    return signature;
+}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -836,7 +851,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         // hint::compiled_blob is set and imported skip compilation
     } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        auto compile_config = create_compile_config(plugin, parsed._config);
+        std::string signature = extract_model_transform_signature(parsed._config);
+        if (signature.length() > 0) {
+            cacheContent.blobId = ov::ModelCache::compute_hash(signature, compile_config);
+        }
+        else {
+            cacheContent.blobId = ov::ModelCache::compute_hash(model, compile_config);
+        }
         cacheContent.model = model;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
@@ -873,7 +895,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         // hint::compiled_blob is set and imported skip compilation
     } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        auto compile_config = create_compile_config(plugin, parsed._config);
+        // Check if model_transform_signature exists in config and use it for hash computation
+        std::string signature = extract_model_transform_signature(parsed._config);
+        if (signature.length() > 0) {
+            cacheContent.blobId = ov::ModelCache::compute_hash(signature, compile_config);
+        } else {
+            cacheContent.blobId = ov::ModelCache::compute_hash(model, compile_config);
+        }
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         cacheContent.model = model;
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
