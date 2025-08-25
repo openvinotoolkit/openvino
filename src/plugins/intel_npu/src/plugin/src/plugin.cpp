@@ -589,7 +589,7 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
         return false;
     }
 
-    auto node_info_printer = [&logger](const auto& ov_node, std::string_view nodeType) {
+    auto node_info_printer = [&logger](const auto& ov_node, std::string nodeType) {
         logger.info("%s: %s has shape value: %s",
                     nodeType,
                     ov_node.get_any_name(),
@@ -650,9 +650,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    auto updateBatchMode = [&localConfig](ov::intel_npu::BatchMode mode) {
+    auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
         std::stringstream strStream;
         strStream << mode;
+        _logger.info("Setting batching mode to %s.", strStream.str());
         localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
     };
 
@@ -676,7 +677,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             } catch (const std::exception& ex) {
                 _logger.info("Couldn't reshape the model. Batching will be handed by compiler.", ex.what());
             }
-            _logger.info("Setting batching mode to BatchMode::COMPILER.");
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         } else {
             _logger.info("Unable to manage batching on the plugin side, so the compiler will take care of it.");
@@ -754,8 +754,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (modelDeBached) {
         auto metadata = graph->get_metadata();
         for (auto& in : metadata.inputs) {
-            if (in.shapeFromIRModel.has_value() && originalBatch.get_max_length() != 1) {
-                in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] = originalBatch;
+            if (in.shapeFromIRModel.has_value() && in.shapeFromCompiler[intel_npu::utils::BATCH_AXIS] == 1) {
+                in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] = ov::Dimension(1, originalBatch.get_max_length());
             }
         }
         graph->set_metadata(metadata);
@@ -951,7 +951,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     uint64_t mainSize = tensorBig.get_byte_size();
     std::optional<std::vector<uint64_t>> initSizes;
-    std::optional<ov::Dimension> batchSize;
+    std::optional<int64_t> batchSize;
 
     if (metadata) {
         size_t accumulator = 0;
