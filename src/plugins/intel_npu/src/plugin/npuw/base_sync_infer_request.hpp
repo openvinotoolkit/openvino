@@ -16,11 +16,12 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
 #include "spatial.hpp"
+#include "util.hpp"
 
 namespace ov {
 namespace npuw {
 
-using TensorPtr = ov::SoPtr<ov::ITensor>;
+using namespace ov::npuw::util;
 
 class CompiledModel;
 
