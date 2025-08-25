@@ -4,8 +4,6 @@
 
 #include "reduce.h"
 
-#include <oneapi/dnnl/dnnl_config.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -26,9 +24,6 @@
 #include <set>
 #include <string>
 #include <vector>
-#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
-#    include <common/dnnl_thread.hpp>
-#endif
 
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_types.h"
@@ -77,9 +72,14 @@
 #endif
 
 #if defined(OV_CPU_WITH_ACL)
+#    include <oneapi/dnnl/dnnl_config.h>
+
 #    include "cpu_memory.h"
 #    include "nodes/executors/executor.hpp"
 #    include "nodes/executors/reduce_list.hpp"
+#    if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#        include <common/dnnl_thread.hpp>
+#    endif
 #endif
 
 using namespace dnnl;
