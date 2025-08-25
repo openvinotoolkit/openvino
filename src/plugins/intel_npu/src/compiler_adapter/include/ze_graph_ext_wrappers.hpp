@@ -52,6 +52,7 @@ public:
     std::string getCompilerSupportedOptions() const;
 
     bool isOptionSupported(std::string optname) const;
+    bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
 
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
                         std::vector<uint8_t>& blob,
