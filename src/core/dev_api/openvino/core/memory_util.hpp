@@ -12,6 +12,16 @@
 namespace ov::util {
 
 /**
+ * @brief Gets size of memory in bytes for N elements of given precision.
+ *
+ * @param type  Element precision.
+ * @param n     Number of elements.
+ *
+ * @return Elements size in bytes.
+ */
+OPENVINO_API size_t get_memory_size(const element::Type& type, const size_t n);
+
+/**
  * @brief Gets size of memory in bytes for N elements of given precision if there is no overflow.
  *
  * @param type  Element precision.

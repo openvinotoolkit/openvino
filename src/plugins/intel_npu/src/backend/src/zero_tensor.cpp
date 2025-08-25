@@ -6,7 +6,6 @@
 
 #include "intel_npu/config/options.hpp"
 #include "openvino/core/memory_util.hpp"
-#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -120,7 +119,7 @@ size_t ZeroTensor::get_capacity() const {
 }
 
 size_t ZeroTensor::get_bytes_capacity() const {
-    return ov::element::get_memory_size(get_element_type(), get_capacity());
+    return ov::util::get_memory_size(get_element_type(), get_capacity());
 }
 
 void ZeroTensor::destroy_elements(size_t begin_ind, size_t end_ind) {
