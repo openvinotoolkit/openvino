@@ -150,7 +150,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DENABLE_LTO=ON \
-            -DENABLE_PYTHON=OFF \
+            -DENABLE_PYTHON=ON \
             -DENABLE_TESTS=ON \
             -DENABLE_FASTER_BUILD=ON \
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
