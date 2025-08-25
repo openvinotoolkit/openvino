@@ -16,6 +16,7 @@ on:
       - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/riscv64/**'
       - 'src/plugins/intel_cpu/src/emitters/plugin/x64/**'
+      - 'src/plugins/intel_cpu/src/emitters/snippets/riscv64/**'
       - 'src/plugins/intel_cpu/src/nodes/executors/aarch64/**'
       - 'src/plugins/intel_cpu/src/nodes/executors/shl/**'
       - 'src/plugins/intel_cpu/src/nodes/kernels/riscv64/**'
