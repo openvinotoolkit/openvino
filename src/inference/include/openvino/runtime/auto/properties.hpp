@@ -30,6 +30,12 @@ static constexpr Property<bool> enable_startup_fallback{"ENABLE_STARTUP_FALLBACK
 static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK"};
 
 /**
+ * @brief auto device saves the hash id of the blob file for each device and its existence status
+ */
+static constexpr Property<std::map<std::string, std::pair<std::string, bool>>> devices_blob_hash_id{
+    "DEVICES_BLOB_HASH_ID"};
+
+/**
  * @brief Enum to define the policy of scheduling inference request to target device in cumulative throughput mode on
  * AUTO
  * @ingroup ov_runtime_cpp_prop_api
