@@ -590,10 +590,7 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
         uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
         OPENVINO_ASSERT(num_tokens <= src_seq_len);
         if (src_seq_len > num_tokens) {
-            auto src_slice = make_tensor_slice(src_tensor,
-                                               kv_dim,
-                                               src_seq_len - num_tokens,
-                                               src_seq_len);
+            auto src_slice = make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
             copy_tensor_by_dim(src_slice, dst_slice, kv_dim);
         } else {
             copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
@@ -806,9 +803,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
     // NB: input_ids can be either fp32(VLM) or i64(LLM)
     // NOTE: Copying to the end to handle case when input_tokens_len < kvcache_desc.max_generation_token_len
-    std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
-                input_ids->get_byte_size(),
-                reinterpret_cast<uint8_t*>(kv_input_ids->data()) + kv_input_ids->get_byte_size() - input_ids->get_byte_size());
+    std::copy_n(
+        reinterpret_cast<uint8_t*>(input_ids->data()),
+        input_ids->get_byte_size(),
+        reinterpret_cast<uint8_t*>(kv_input_ids->data()) + kv_input_ids->get_byte_size() - input_ids->get_byte_size());
 
     // NOTE: Attention mask pattern for generate model requires the set of "1"
     //       units of length of the current prompt on the right (for present
@@ -823,10 +821,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                 kv_attn_mask->data<int64_t>());
     if (input_tokens_len < kvcache_desc.max_generation_token_len) {
         std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len,
-                    kvcache_desc.max_generation_token_len - input_tokens_len, 0);
+                    kvcache_desc.max_generation_token_len - input_tokens_len,
+                    0);
     }
-    std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len,
-                input_tokens_len, 1);
+    std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 
     auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
     pad_position_ids(kv_pos_ids, position_ids);
@@ -838,10 +836,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         LOG_DEBUG("Calling inference for LM head model asynchronously");
         m_lm_head_request->start_async();
         if (kvcache_desc.num_stored_tokens <= kvcache_desc.total_size - input_tokens_len) {
-            update_kvcache_for(m_kvcache_request,
-                               m_kvcache_in_ports,
-                               m_kvcache_out_ports,
-                               input_tokens_len);
+            update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, input_tokens_len);
         }
         m_lm_head_request->wait();
         LOG_DEBUG("Calling inference for LM head model -- done.");
@@ -849,10 +844,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
     } else {
         if (kvcache_desc.num_stored_tokens <= kvcache_desc.total_size - input_tokens_len) {
-            update_kvcache_for(m_kvcache_request,
-                               m_kvcache_in_ports,
-                               m_kvcache_out_ports,
-                               input_tokens_len);
+            update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, input_tokens_len);
         }
 
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
