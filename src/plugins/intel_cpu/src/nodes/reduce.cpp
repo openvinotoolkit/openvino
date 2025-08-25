@@ -24,6 +24,9 @@
 #include <set>
 #include <string>
 #include <vector>
+#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#    include <common/dnnl_thread.hpp>
+#endif
 
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_types.h"
