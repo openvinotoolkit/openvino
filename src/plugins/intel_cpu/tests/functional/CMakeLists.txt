@@ -79,8 +79,9 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests)
 endif()
 
-# Reset global accumulator before diving into subdirectories
+# Reset global accumulators before diving into subdirectories
 set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "")
+set_property(GLOBAL PROPERTY OV_CPU_FUNC_REQUIRED_OBJECTS "")
 
 # Natural shallow recursion — each subdir lists only its own files and recurses to its children
 add_subdirectory(utils)

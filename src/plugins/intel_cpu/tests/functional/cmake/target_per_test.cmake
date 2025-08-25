@@ -7,23 +7,7 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
   # exclude every other test file inside directory (we pass explicit OBJECT_FILES)
   set(EXCLUDED_SOURCE_PATHS_FOR_TEST ${TEST_DIR})
 
-  # list of object files required for each test
-  set(REQUIRED_OBJECT_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/core_config.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/skip_tests_config.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/cpu_test_utils.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/fusing_test_utils.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_fake_quantize.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_requantize.cpp)
-
-  if(X86_64)
-    list(APPEND REQUIRED_OBJECT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64/filter_cpu_info.cpp)
-  elseif(ARM OR AARCH64)
-    list(APPEND REQUIRED_OBJECT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm/filter_cpu_info.cpp)
-  elseif(RISCV64)
-    list(APPEND REQUIRED_OBJECT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64/filter_cpu_info.cpp)
-  endif()
+  get_property(REQUIRED_OBJECT_FILES GLOBAL PROPERTY OV_CPU_FUNC_REQUIRED_OBJECTS)
 
 
   # 1) Create target per direct .cpp under TEST_DIR
@@ -54,40 +38,11 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
     set_target_properties(${TEST_TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL ON)
   endforeach()
 
-  # 2) Class-based targets with instances
   set(LIST_OF_TEST_CLASSES)
   if(TEST_DIR STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests")
-    set(LIST_OF_TEST_CLASSES
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/activation.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/bitwise_shift.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/col2im.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/comparison.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/conversion.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/convolution_backprop_data.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/convolution.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/eltwise.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/extremum.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/interpolate.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/logical.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/matmul.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/mvn.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/pooling.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/random_uniform.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/reduce.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/rms_norm.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/scaled_attn.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/segment_max.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/softmax.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/sparse_fill_empty_rows.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/string_tensor_pack.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/string_tensor_unpack.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/transpose.cpp)
+    get_property(LIST_OF_TEST_CLASSES GLOBAL PROPERTY OV_CPU_FUNC_SLT_CLASS_SOURCES)
   elseif(TEST_DIR STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src")
-    set(LIST_OF_TEST_CLASSES
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/concat_sdp.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/conv_concat.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/conv_maxpool_activ.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/eltwise_chain.cpp)
+    get_property(LIST_OF_TEST_CLASSES GLOBAL PROPERTY OV_CPU_FUNC_SUBGRAPH_CLASS_SOURCES)
   endif()
 
   foreach(TEST_CLASS_FILE IN LISTS LIST_OF_TEST_CLASSES)
