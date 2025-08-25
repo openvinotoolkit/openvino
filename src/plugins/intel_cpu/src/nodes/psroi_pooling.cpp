@@ -353,7 +353,7 @@ void PSROIPooling::executeAverage(const inputType* srcData,
             const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
             const int binOffsetInput = (roiBatchInd * inputChannelsPadding + gc) * height * width;
             const int binOffsetOutput = (n * outputChannelsPadding + outputBlockIdx) * nh * nw;
-            avgPsroi(c, h, w, 0, outputBlockResidual, binOffsetInput, binOffsetOutput);
+            avgPsroi(c, h, w, binOffsetInput, binOffsetOutput, 0, outputBlockResidual);
         });
     } else {  // nChw16c, nChw8c
         parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
@@ -367,7 +367,7 @@ void PSROIPooling::executeAverage(const inputType* srcData,
                 const int outputBlockIdx = (c / outBlockSize) * outBlockSize;
                 const int binOffsetInput = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
                 const int binOffsetOutput = (n * outputChannelsPadding + outputBlockIdx) * nh * nw;
-                avgPsroi(c, h, w, inputBlockResidual, outputBlockResidual, binOffsetInput, binOffsetOutput);
+                avgPsroi(c, h, w, binOffsetInput, binOffsetOutput, inputBlockResidual, outputBlockResidual);
             }
         });
     }
@@ -508,7 +508,7 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
                     ((srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c))
                          ? c % inBlockSize
                          : 0);
-                bilinearPsroi(c, h, w, outputBlockResidual, binOffsetOutput);
+                bilinearPsroi(c, h, w, binOffsetOutput, outputBlockResidual);
             }
         });
     }
