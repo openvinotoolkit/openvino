@@ -87,8 +87,63 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
         }
     }
 
+    // Get the original input shape and axes for proper fusion
+    const auto original_input_shape = top_reduce->get_input_partial_shape(0);
+    const auto first_axes = top_reduce->get_reduction_axes();
+    const auto second_axes = bottom_reduce->get_reduction_axes();
+
+    // When keep_dims=false, we need to adjust the second reduction axes
+    // because the input shape changes after the first reduction
+    ov::Output<ov::Node> adjusted_second_axes;
+    if (!top_reduce->get_keep_dims()) {
+        // For keep_dims=false, we need to adjust the second axes relative to the original input shape
+        // The second reduction operates on the output of the first reduction, so its axes need adjustment
+        std::vector<int64_t> adjusted_axes;
+        for (const auto& axis : second_axes) {
+            // Convert to positive axis if negative
+            int64_t positive_axis = axis;
+            if (positive_axis < 0) {
+                // This is relative to the intermediate shape after first reduction
+                // We need to find which dimension in the original shape this corresponds to
+                size_t intermediate_rank = original_input_shape.rank().get_length() - first_axes.size();
+                positive_axis += intermediate_rank;
+            }
+            
+            // Now map this intermediate axis back to the original shape
+            // We need to skip the dimensions that were reduced in the first operation
+            size_t original_axis = 0;
+            size_t intermediate_axis = 0;
+            
+            for (size_t i = 0; i < original_input_shape.rank().get_length(); ++i) {
+                // Check if this dimension was reduced in the first operation
+                bool was_reduced = std::find(first_axes.begin(), first_axes.end(), i) != first_axes.end();
+                
+                if (!was_reduced) {
+                    if (intermediate_axis == positive_axis) {
+                        original_axis = i;
+                        break;
+                    }
+                    intermediate_axis++;
+                }
+            }
+            
+            // Convert to negative axis relative to original input shape
+            int64_t negative_axis = static_cast<int64_t>(original_axis) - original_input_shape.rank().get_length();
+            adjusted_axes.push_back(negative_axis);
+        }
+        
+        adjusted_second_axes = ov::op::v0::Constant::create(
+            ov::element::i64, 
+            ov::Shape{adjusted_axes.size()}, 
+            adjusted_axes
+        );
+    } else {
+        // For keep_dims=true, no adjustment needed
+        adjusted_second_axes = bottom_reduce->input_value(1);
+    }
+
     std::shared_ptr<Node> axes =
-        std::make_shared<ov::op::v0::Concat>(OutputVector{top_reduce->input_value(1), bottom_reduce->input_value(1)},
+        std::make_shared<ov::op::v0::Concat>(OutputVector{top_reduce->input_value(1), adjusted_second_axes},
                                              int64_t(0));
     if (auto constant = ov::util::get_constant_from_source(axes)) {
         axes = constant;
