@@ -23,6 +23,13 @@
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
+// Memory profiling support
+#include <fstream>
+#include <string>
+#ifdef __linux__
+#include <unistd.h>
+#endif
+
 #ifdef ENABLE_PROFILING_ITT
 
 namespace ov {
@@ -312,6 +319,37 @@ private:
     std::fstream m_file;
 };
 
+// Memory profiling utilities
+static double get_memory_usage_mb() {
+#ifdef __linux__
+    std::ifstream status_file("/proc/self/status");
+    std::string line;
+    while (std::getline(status_file, line)) {
+        if (line.substr(0, 6) == "VmRSS:") {
+            std::string kb_str = line.substr(7);
+            // Remove "kB" suffix and any whitespace
+            size_t pos = kb_str.find("kB");
+            if (pos != std::string::npos) {
+                kb_str = kb_str.substr(0, pos);
+            }
+            // Parse KB value and convert to MB
+            try {
+                long kb = std::stol(kb_str);
+                return kb / 1024.0;
+            } catch (...) {
+                return -1.0;
+            }
+        }
+    }
+#endif
+    return -1.0;  // Not supported on this platform
+}
+
+static bool is_memory_profiling_enabled() {
+    const auto& env_val = ov::util::getenv_string("OV_ENABLE_MEMORY_PROFILING");
+    return env_val == "1" || env_val == "true" || env_val == "on";
+}
+
 }  // namespace
 
 ov::pass::Manager::Manager() : m_pass_config(std::make_shared<PassConfig>()) {}
@@ -336,17 +374,56 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     bool pass_changed_model = false;
 
     profiler.start_timer(m_name);
+    
+    // Memory profiling setup
+    bool memory_profiling = is_memory_profiling_enabled();
+    double prev_memory = -1.0;
+    if (memory_profiling) {
+        prev_memory = get_memory_usage_mb();
+        std::cout << "[MEMORY] PassManager " << m_name << " started: " << prev_memory << " MB" << std::endl;
+    }
+    
     for (const auto& pass : m_pass_list) {
         const auto& pass_name = pass->get_name();
 
         profiler.start_timer(pass_name);
+        
+        // Memory profiling before pass
+        double memory_before = -1.0;
+        if (memory_profiling) {
+            memory_before = get_memory_usage_mb();
+        }
+        
         pass_changed_model = run_pass(pass, model, pass_changed_model);
+        
+        // Memory profiling after pass
+        if (memory_profiling) {
+            double memory_after = get_memory_usage_mb();
+            double delta = memory_after - memory_before;
+            
+            // Log only if significant change (>1MB) or if pass changed model
+            if (std::abs(delta) > 1.0 || pass_changed_model) {
+                std::cout << "[MEMORY] " << pass_name << ": " 
+                          << memory_before << " -> " << memory_after << " MB "
+                          << "(+" << delta << " MB) " 
+                          << (pass_changed_model ? "[CHANGED]" : "[NO CHANGE]") << std::endl;
+            }
+        }
+        
         profiler.stop_timer(pass_name, pass_changed_model);
 
         model_changed = model_changed || pass_changed_model;
 
         profiler.visualize(model, pass_name);
         profiler.serialize(model, pass_name);
+    }
+    
+    // Final memory report
+    if (memory_profiling) {
+        double final_memory = get_memory_usage_mb();
+        double total_delta = final_memory - prev_memory;
+        std::cout << "[MEMORY] PassManager " << m_name << " finished: " << final_memory 
+                  << " MB (total: +" << total_delta << " MB)" << std::endl;
     }
     profiler.stop_timer(m_name, model_changed);
 
