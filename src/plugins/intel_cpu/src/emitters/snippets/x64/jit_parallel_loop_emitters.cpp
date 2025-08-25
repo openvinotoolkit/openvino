@@ -24,6 +24,7 @@
 #include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
 #include "emitters/snippets/x64/utils.hpp"
 #include "emitters/utils.hpp"
+#include "jit_loop_base_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
@@ -289,87 +290,45 @@ void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vect
 jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(jit_generator_t* h,
                                                              cpu_isa_t isa,
                                                              const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_parallel_loop_base_emitter(h, isa, expr),
-      loop_begin_label{nullptr},
-      loop_end_label{new Label()} {
-    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+    : jit_loop_end_base_emitter(h, isa, expr) {
     auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end && loop_end->get_is_parallel(), "expected parallel LoopEnd expr");
-    const auto begin_expr = get_loop_begin_expr(expr);
+    // Get memory pointer register indices
+    std::vector<snippets::Reg> loop_end_input_regs = expr->get_reg_info().first;
+    OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
+    loop_end_input_regs.pop_back();  // Remove work_amount_reg_idx
+    mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
+    for (const auto& r : loop_end_input_regs) {
+        if (r.type == snippets::RegType::gpr) {
+            mem_ptr_regs_idxs.emplace_back(r.idx);
+        }
+    }
+
+    const auto begin_expr = jit_loop_end_base_emitter::get_loop_begin_expr(expr);
     const auto& loop_begin_emitter =
         std::dynamic_pointer_cast<jit_parallel_loop_begin_emitter>(begin_expr->get_emitter());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_loop_begin_emitter");
+    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_parallel_loop_begin_emitter");
     loop_begin_emitter->set_loop_end_label(loop_end_label);
     loop_begin_label = loop_begin_emitter->get_begin_label();
     m_parallel_section_reg_spiller = loop_begin_emitter->get_parallel_section_reg_spiller();
 }
 
-ov::snippets::lowered::ExpressionPtr jit_parallel_loop_end_emitter::get_loop_begin_expr(
-    const ov::snippets::lowered::ExpressionPtr& expr) {
-    auto begin_expr = expr->get_input_port_connectors().back()->get_source().get_expr();
-    auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(begin_expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_begin && loop_begin->get_is_parallel(),
-                              "LoopEnd expression must have the last port connector to parallel LoopBegin");
-    return begin_expr;
-}
-
 void jit_parallel_loop_end_emitter::validate_arguments(const std::vector<size_t>& in,
                                                        const std::vector<size_t>& out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(out.empty(), "Invalid number of out arguments: expected 0 got ", out.size());
-    OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_num + 1,
-                              "Invalid number of in arguments: expected ",
-                              io_num + 1,
-                              " got ",
-                              in.size());
-    OV_CPU_JIT_EMITTER_ASSERT(is_incremented.size() == io_num,
-                              "Invalid is_incremented size: expected ",
-                              io_num,
-                              " got ",
-                              is_incremented.size());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr && loop_begin_label != nullptr, "has not inited labels!");
-    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
-                              "loop increment might be dynamic only if loop evaluates once!");
+    jit_loop_end_base_emitter::validate_arguments(in, out);
     OV_CPU_JIT_EMITTER_ASSERT(m_parallel_section_reg_spiller != nullptr,
                               "parallel section reg spiller is not initialized");
-}
-
-void jit_parallel_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
-                                                   const std::vector<size_t>& out,
-                                                   const std::vector<size_t>& pool_vec_idxs,
-                                                   const std::vector<size_t>& pool_gpr_idxs) const {
-    validate_arguments(in, out);
-    jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
 void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                               [[maybe_unused]] const std::vector<size_t>& out) const {
     if (!evaluate_once) {
-        Reg64 reg_increments;
-        auto add_increments = [&]() {
-            for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
-                const auto& increment = loop_args.m_ptr_increments[idx];
-                if (is_incremented[idx] && increment != 0) {
-                    if (ov::snippets::utils::is_dynamic_value(increment)) {
-                        OV_CPU_JIT_EMITTER_ASSERT(is_dynamic, "Loop argument structure cannot be pushed to aux GPR");
-                        h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])),
-                               h->ptr[reg_increments + idx * sizeof(int64_t)]);
-                    } else {
-                        h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])), increment);
-                    }
-                }
-            }
-        };
-
-        if (is_dynamic) {
-            utils::jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);
-            reg_increments = gpr_holder.get_reg();
-            h->mov(reg_increments, wa_increment);
-            h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
-            h->mov(reg_increments, h->ptr[reg_increments + loop_id_offset + GET_OFF_LOOP_ARGS(m_ptr_increments)]);
-            add_increments();
-        } else {
-            add_increments();
-        }
+        // Apply pointer increments using the base class method with pre-computed loop_args
+        apply_increments_to_ptrs(mem_ptr_regs_idxs,
+                                 loop_args.m_ptr_increments,
+                                 are_ptr_increments_dynamic,
+                                 GET_OFF_LOOP_ARGS(m_ptr_increments),
+                                 in);
 
         auto reg_work_amount = Reg64(in.back());
         h->sub(reg_work_amount, wa_increment);

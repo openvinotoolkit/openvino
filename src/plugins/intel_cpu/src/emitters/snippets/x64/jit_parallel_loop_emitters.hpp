@@ -8,6 +8,8 @@
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
 #include "jit_binary_call_emitter.hpp"
+#include "jit_loop_base_emitters.hpp"
+#include "jit_loop_emitters.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 
@@ -77,30 +79,18 @@ protected:
     mutable std::vector<uint8_t> m_common_registers_buffer;
 };
 
-class jit_parallel_loop_end_emitter : public jit_parallel_loop_base_emitter {
+class jit_parallel_loop_end_emitter : public jit_loop_end_base_emitter {
 public:
     jit_parallel_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
                                   const ov::snippets::lowered::ExpressionPtr& expr);
 
-    size_t get_inputs_num() const override {
-        return 0;
-    }
-
-    void emit_code_impl(const std::vector<size_t>& in_idxs,
-                        const std::vector<size_t>& out_idxs,
-                        const std::vector<size_t>& pool_vec_idxs,
-                        const std::vector<size_t>& pool_gpr_idxs) const override;
-
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
-    static ov::snippets::lowered::ExpressionPtr get_loop_begin_expr(const ov::snippets::lowered::ExpressionPtr& expr);
-
-    std::shared_ptr<const Xbyak::Label> loop_begin_label = nullptr;
-    std::shared_ptr<Xbyak::Label> loop_end_label = nullptr;
     std::shared_ptr<EmitABIRegSpills> m_parallel_section_reg_spiller = nullptr;
+    std::vector<size_t> mem_ptr_regs_idxs;
 };
 
 }  // namespace ov::intel_cpu
