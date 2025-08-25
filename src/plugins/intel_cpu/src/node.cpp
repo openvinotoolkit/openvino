@@ -59,6 +59,8 @@
 
 #if defined(OV_CPU_WITH_ACL)
 #    include <oneapi/dnnl/dnnl_config.h>
+
+#    include "openvino/core/parallel.hpp"
 #    if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
 #        include <common/dnnl_thread.hpp>
 #    endif
