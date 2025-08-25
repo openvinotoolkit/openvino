@@ -12,7 +12,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Acosh                                                   |9                       |22, 9                           |                                |
 |                        |Add                                                     |14, 13, 7, 6, 1         |14, 13, 7, 6, 1                 |                                |
 |                        |Affine                                                  |1                       |                                |                                |
-|                        |AffineGrid                                              |                        |20                              |                                |
+|                        |AffineGrid                                              |20                      |20                              |                                |
 |                        |And                                                     |7, 1                    |7, 1                            |                                |
 |                        |ArgMax                                                  |12, 1                   |13, 12, 11, 1                   |                                |
 |                        |ArgMin                                                  |12, 1                   |13, 12, 11, 1                   |                                |
