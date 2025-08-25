@@ -78,6 +78,12 @@ static bool isACLApplicable(const executor::Config<InterpolateAttrs>& config,
 #if defined(OV_CPU_WITH_ACL)
     const auto& attrs = config.attrs;
     
+    // If NCHWAsNHWC flag is set, use reference executor instead (as in master)
+    // This avoids issues with ACL's handling of dimension swapping
+    if (attrs.NCHWAsNHWC) {
+        return false;
+    }
+    
     // ACL supports limited modes
     if (!any_of(attrs.mode, 
                 InterpolateMode::nearest,
@@ -86,7 +92,7 @@ static bool isACLApplicable(const executor::Config<InterpolateAttrs>& config,
         return false;
     }
     
-    // Check memory descriptors to ensure both source and destination have compatible layouts
+    // Check memory descriptors
     // Port 0 is the data input for interpolate
     auto srcDesc = config.descs.count(0) ? config.descs.at(0) : nullptr;
     auto dstDesc = config.descs.count(ARG_DST) ? config.descs.at(ARG_DST) : nullptr;
@@ -95,14 +101,105 @@ static bool isACLApplicable(const executor::Config<InterpolateAttrs>& config,
         return false;
     }
     
+    // ACL requires 4D tensors
+    if (srcDesc->getShape().getDims().size() != 4 ||
+        dstDesc->getShape().getDims().size() != 4) {
+        return false;
+    }
+    
+    // Check for unsupported features
+    const auto& pads_begin = attrs.padBegin;
+    const auto& pads_end = attrs.padEnd;
+    
+    if (!pads_begin.empty() && !std::all_of(pads_begin.begin(), pads_begin.end(), [](int i) { return i == 0; })) {
+        return false;
+    }
+    
+    if (!pads_end.empty() && !std::all_of(pads_end.begin(), pads_end.end(), [](int i) { return i == 0; })) {
+        return false;
+    }
+    
+    if (attrs.antialias ||
+        attrs.coordTransMode == InterpolateCoordTransMode::tf_half_pixel_for_nn ||
+        attrs.coordTransMode == InterpolateCoordTransMode::pytorch_half_pixel ||
+        attrs.nearestMode == InterpolateNearestMode::ceil) {
+        return false;
+    }
+    
+    if (attrs.mode == InterpolateMode::cubic || 
+        attrs.mode == InterpolateMode::bilinear_pillow ||
+        attrs.mode == InterpolateMode::bicubic_pillow) {
+        return false;
+    }
+    
+    // Check if it's a supported configuration based on ACL's isSupportedConfiguration logic
+    // ACL has very specific requirements for different mode combinations
+    if (attrs.mode == InterpolateMode::nearest) {
+        const auto& srcShape = srcDesc->getShape().getDims();
+        const auto& dstShape = dstDesc->getShape().getDims();
+        
+        // For 4D tensors, check height and width scaling
+        if (srcShape.size() == 4 && dstShape.size() == 4) {
+            static const size_t index_h = 2;
+            static const size_t index_w = 3;
+            float scale_h = static_cast<float>(dstShape[index_h]) / srcShape[index_h];
+            float scale_w = static_cast<float>(dstShape[index_w]) / srcShape[index_w];
+            
+            // ACL has issues with certain combinations of coord modes and scaling
+            // Especially with align_corners and asymmetric modes
+            if (attrs.coordTransMode == InterpolateCoordTransMode::align_corners) {
+                // align_corners with downsampling often produces incorrect results in ACL
+                if (scale_h < 1.0f || scale_w < 1.0f) {
+                    return false;
+                }
+                // Even for upsampling, floor and simple modes don't work correctly with align_corners
+                if (attrs.nearestMode == InterpolateNearestMode::floor ||
+                    attrs.nearestMode == InterpolateNearestMode::simple) {
+                    return false;
+                }
+            }
+            
+            // ACL has issues with half_pixel mode
+            if (attrs.coordTransMode == InterpolateCoordTransMode::half_pixel) {
+                // half_pixel + simple/round_prefer_ceil doesn't work
+                if (attrs.nearestMode == InterpolateNearestMode::simple ||
+                    attrs.nearestMode == InterpolateNearestMode::round_prefer_ceil) {
+                    return false;
+                }
+                // half_pixel + floor has issues regardless of scaling
+                if (attrs.nearestMode == InterpolateNearestMode::floor) {
+                    return false;
+                }
+                // half_pixel with downsampling has issues with round_prefer_floor
+                if (scale_h < 1.0f || scale_w < 1.0f) {
+                    if (attrs.nearestMode == InterpolateNearestMode::round_prefer_floor) {
+                        return false;
+                    }
+                }
+            }
+            
+            // ACL's asymmetric mode has issues with various nearest modes
+            if (attrs.coordTransMode == InterpolateCoordTransMode::asymmetric) {
+                // ACL only reliably works with asymmetric + simple/floor when upsampling
+                bool is_upsample = scale_h > 1 && scale_w > 1;
+                if (!is_upsample) {
+                    return false;  // Downsampling with asymmetric doesn't work well in ACL
+                }
+                // Even for upsampling, round_prefer modes don't work correctly
+                if (attrs.nearestMode == InterpolateNearestMode::round_prefer_floor ||
+                    attrs.nearestMode == InterpolateNearestMode::round_prefer_ceil) {
+                    return false;
+                }
+            }
+        }
+    }
+    
     // ACL works best with NHWC layout
     bool isNHWC = srcDesc->hasLayoutType(LayoutType::nspc) && 
                   dstDesc->hasLayoutType(LayoutType::nspc);
     
-    // For NCHW layout, we need the NCHWAsNHWC flag to handle dimension swapping
-    bool canHandleNCHW = attrs.NCHWAsNHWC;
-    
-    return isNHWC || canHandleNCHW;
+    // For NCHW layout without NCHWAsNHWC, ACL can still work
+    return isNHWC || srcDesc->hasLayoutType(LayoutType::ncsp);
 #else
     return false;
 #endif

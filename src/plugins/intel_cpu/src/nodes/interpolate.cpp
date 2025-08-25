@@ -51,6 +51,7 @@
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/precision_support.h"
@@ -2627,7 +2628,6 @@ void Interpolate::createPrimitive() {
     // Set precision BEFORE creating factory - this was the bug causing type system errors!
     interpAttrs.inPrc = srcMemPtr->getDesc().getPrecision();
     interpAttrs.outPrc = dstMemPtr->getDesc().getPrecision();
-    
 
     // Initialize the executor factory
     MemoryDescArgs descs;
@@ -3986,6 +3986,11 @@ float Interpolate::OldInterpolateRefExecutor::getValue(const uint8_t* base, size
         return static_cast<float>(*valuePtr);
         break;
     }
+    case ov::element::f16: {
+        const auto* valuePtr = reinterpret_cast<const ov::float16*>(baseOffset);
+        return static_cast<float>(*valuePtr);
+        break;
+    }
     case ov::element::bf16: {
         const auto* valuePtr = reinterpret_cast<const uint16_t*>(baseOffset);
         return bfloat16_t::from_bits(*valuePtr);
@@ -4014,6 +4019,11 @@ void Interpolate::OldInterpolateRefExecutor::setValue(uint8_t* base, size_t offs
     case ov::element::i8: {
         auto data = static_cast<int8_t>(value);
         cpu_memcpy(baseOffset, &data, 1);
+        break;
+    }
+    case ov::element::f16: {
+        ov::float16 data = static_cast<ov::float16>(value);
+        cpu_memcpy(baseOffset, &data, 2);
         break;
     }
     case ov::element::bf16: {
