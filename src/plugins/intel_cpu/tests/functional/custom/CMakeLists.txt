@@ -3,12 +3,13 @@
 
 # Files directly under custom/ (behavior + guarded extension)
 set(current_dir_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/behavior/export_import.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_executable_network/concurent_release_memory.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_executable_network/properties.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_executable_network/release_memory.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_plugin/properties.cpp
+  behavior/export_import.cpp
+  behavior/ov_executable_network/concurent_release_memory.cpp
+  behavior/ov_executable_network/properties.cpp
+  behavior/ov_executable_network/release_memory.cpp
+  behavior/ov_plugin/properties.cpp
 )
+list(TRANSFORM current_dir_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 if(ENABLE_OV_ONNX_FRONTEND)
   list(APPEND current_dir_sources ${CMAKE_CURRENT_SOURCE_DIR}/extension/extension.cpp)

@@ -3,10 +3,11 @@
 
 # Files directly under shared_tests_instances/
 set(current_dir_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/core_config.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/skip_tests_config.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/set_device_name.cpp
+  core_config.cpp
+  skip_tests_config.cpp
+  set_device_name.cpp
 )
+list(TRANSFORM current_dir_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 # Add these files to required objects for per-test targets
 get_property(required_objects GLOBAL PROPERTY OV_CPU_FUNC_REQUIRED_OBJECTS)
