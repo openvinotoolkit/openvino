@@ -22,6 +22,24 @@ elseif(RISCV64)
   list(APPEND current_dir_sources ${CMAKE_CURRENT_SOURCE_DIR}/riscv64/filter_cpu_info.cpp)
 endif()
 
+# Add specific utils files to required objects for per-test targets
+set(required_utils_sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/cpu_test_utils.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/fusing_test_utils.cpp)
+
+# Add arch-specific filter_cpu_info.cpp
+if(X86_64)
+  list(APPEND required_utils_sources ${CMAKE_CURRENT_SOURCE_DIR}/x64/filter_cpu_info.cpp)
+elseif(ARM OR AARCH64)
+  list(APPEND required_utils_sources ${CMAKE_CURRENT_SOURCE_DIR}/arm/filter_cpu_info.cpp)
+elseif(RISCV64)
+  list(APPEND required_utils_sources ${CMAKE_CURRENT_SOURCE_DIR}/riscv64/filter_cpu_info.cpp)
+endif()
+
+get_property(required_objects GLOBAL PROPERTY OV_CPU_FUNC_REQUIRED_OBJECTS)
+list(APPEND required_objects ${required_utils_sources})
+set_property(GLOBAL PROPERTY OV_CPU_FUNC_REQUIRED_OBJECTS "${required_objects}")
+
 # Append to global
 get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
 list(APPEND all_cpu_functional_test_sources ${current_dir_sources})

@@ -107,6 +107,11 @@ else()
   )
 endif()
 
+# Create a separate list of only .cpp files for class-based targets
+set(class_cpp_files ${current_dir_sources})
+list(FILTER class_cpp_files INCLUDE REGEX ".*\\.cpp$")
+set_property(GLOBAL PROPERTY OV_CPU_FUNC_SLT_CLASS_SOURCES "${class_cpp_files}")
+
 get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
 list(APPEND all_cpu_functional_test_sources ${current_dir_sources})
 set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "${all_cpu_functional_test_sources}")
