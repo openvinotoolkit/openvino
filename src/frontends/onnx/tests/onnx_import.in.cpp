@@ -2988,6 +2988,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_one_hot_without_axis) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_one_hot_without_axis_negative_indicies) {
+    auto model = convert_model("one_hot_no_axis.onnx");
+
+    std::vector<std::vector<std::int64_t>> inputs{{0, -5, -4}, {2, 5}};
+    std::vector<std::int64_t> expected_output{5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                              2, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 2};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_where) {
     auto model = convert_model("where.onnx");
 
