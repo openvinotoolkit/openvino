@@ -12,6 +12,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "openvino/core/except.hpp"
 #include "openvino/util/common_util.hpp"
 
 #ifdef _WIN32
@@ -256,15 +257,17 @@ std::string ov::util::sanitize_path(const std::string& path) {
     return (start == std::string::npos) ? "" : sanitized_path.substr(start);
 }
 
-std::filesystem::path ov::util::prevent_path_traversal(const std::filesystem::path& path) {
-    std::filesystem::path safe_path{};
-    for (const auto& part : std::filesystem::path(ov::util::sanitize_path(path.string()))) {
-        if (part != "..") {
-            safe_path /= part;
-        }
-    }
+const std::filesystem::path ov::util::check_path_safety(const std::filesystem::path& path) {
+    const bool contains_dotdot = std::any_of(path.begin(), path.end(), [](const auto& part) {
+        return part == "..";
+    });
 
-    return safe_path;
+    OPENVINO_ASSERT(contains_dotdot == false,
+                    "Invalid file path: path contains parent directory reference '..': ",
+                    path);
+
+    OPENVINO_ASSERT(std::filesystem::is_symlink(path) == false, "Path must not refer to a symbolic link: ", path);
+    return path;
 }
 
 void ov::util::convert_path_win_style(std::string& path) {

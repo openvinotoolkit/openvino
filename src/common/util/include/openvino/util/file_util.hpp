@@ -110,10 +110,11 @@ std::string path_to_string(const Path& path) {
 /// \return A sanitized path
 std::string sanitize_path(const std::string& path);
 
-/// \brief Prevent path traversal by sanitizing the input path and removing any parent directory references.
+/// \brief Check the safety of a file path by expecting no parent directory references ("..") and no symbolic links
+/// references.
 /// \param path A path to file
-/// \return A sanitized path
-std::filesystem::path prevent_path_traversal(const std::filesystem::path& path);
+/// \return A validated path to file
+const std::filesystem::path check_path_safety(const std::filesystem::path& path);
 
 /// \brief Returns the name with extension for a given path
 /// \param path The path to the output file

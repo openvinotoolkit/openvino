@@ -117,25 +117,6 @@ TEST(file_util, sanitize_path) {
     }
 }
 
-TEST(file_util, prevent_path_traversal) {
-    {
-        string path = "../../tensor.data";
-        EXPECT_STREQ("tensor.data", ov::util::prevent_path_traversal(path).string().c_str());
-    }
-    {
-        string path = "a/b/../../../../tensor.data";
-        EXPECT_STREQ("a/b/tensor.data", ov::util::prevent_path_traversal(path).string().c_str());
-    }
-    {
-        string path = "a/b/../tensor.data";
-        EXPECT_STREQ("a/b/tensor.data", ov::util::prevent_path_traversal(path).string().c_str());
-    }
-    {
-        string path = "../a/b/../tensor.data";
-        EXPECT_STREQ("a/b/tensor.data", ov::util::prevent_path_traversal(path).string().c_str());
-    }
-}
-
 using namespace testing;
 
 class TrimFileTest : public Test {
