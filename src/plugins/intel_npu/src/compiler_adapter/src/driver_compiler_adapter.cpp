@@ -361,7 +361,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     ov::Tensor mainBlob,
     const Config& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
-    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
+    const std::optional<std::shared_ptr<const ov::Model>>& model,
+    std::optional<ov::Dimension> batchSize) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
@@ -369,7 +370,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
-    auto networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc);
+    auto networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc, batchSize);
 
     // exporting the blob when we get it from cache or ov::hint::compiled_blob property
     // shall be available

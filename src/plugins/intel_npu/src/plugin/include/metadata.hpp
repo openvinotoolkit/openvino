@@ -43,6 +43,11 @@ public:
      */
     virtual std::optional<std::vector<uint64_t>> get_init_sizes() const = 0;
 
+    /**
+     * @returns Batch size. Populated in case of plugin batching.
+     */
+    virtual std::optional<ov::Dimension> get_batch_size() const = 0;
+
     virtual ~MetadataBase() = default;
 
     static std::streampos getFileSize(std::istream& stream);
@@ -211,6 +216,8 @@ public:
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
+    std::optional<ov::Dimension> get_batch_size() const override;
+
     size_t get_metadata_size() const override;
 
 protected:
@@ -242,6 +249,8 @@ public:
     void write(std::ostream& stream) override;
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
+
+    std::optional<ov::Dimension> get_batch_size() const override;
 
     size_t get_metadata_size() const override;
 
@@ -275,7 +284,7 @@ public:
      */
     void write(std::ostream& stream) override;
 
-    virtual std::optional<ov::Dimension> get_batch_size() const;
+    std::optional<ov::Dimension> get_batch_size() const override;
 
 private:
     std::optional<ov::Dimension> _batchSize;

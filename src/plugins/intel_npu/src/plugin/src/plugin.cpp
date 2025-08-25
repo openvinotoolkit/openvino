@@ -951,6 +951,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     uint64_t mainSize = tensorBig.get_byte_size();
     std::optional<std::vector<uint64_t>> initSizes;
+    std::optional<ov::Dimension> batchSize;
 
     if (metadata) {
         size_t accumulator = 0;
@@ -958,6 +959,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         mainSize = initSizes.has_value()
                        ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
                        : metadata->get_blob_size();
+        batchSize = metadata->get_batch_size();
     } else {
         _logger.info("Blob compatibility check skipped.");
     }
@@ -1024,8 +1026,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto graph = compiler->parse(std::move(tensorMain),
                                  localConfig,
                                  weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
-                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
+                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt,
+                                 batchSize);
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+
     const std::shared_ptr<ov::Model> modelDummy =
         create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
 
