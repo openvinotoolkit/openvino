@@ -2,33 +2,34 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set(current_dir_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/activation.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_shift.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/col2im.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/comparison.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/conversion.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/convolution_backprop_data.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/convolution.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/eltwise.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/extremum.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/interpolate.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/inverse.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/logical.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/matmul.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/multinomial.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/mvn.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/nms_rotated.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/pooling.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/random_uniform.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/reduce.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/scaled_attn.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/segment_max.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/softmax.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/sparse_fill_empty_rows.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/string_tensor_pack.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/string_tensor_unpack.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/transpose.cpp
+  activation.cpp
+  bitwise_shift.cpp
+  col2im.cpp
+  comparison.cpp
+  conversion.cpp
+  convolution_backprop_data.cpp
+  convolution.cpp
+  eltwise.cpp
+  extremum.cpp
+  interpolate.cpp
+  inverse.cpp
+  logical.cpp
+  matmul.cpp
+  multinomial.cpp
+  mvn.cpp
+  nms_rotated.cpp
+  pooling.cpp
+  random_uniform.cpp
+  reduce.cpp
+  scaled_attn.cpp
+  segment_max.cpp
+  softmax.cpp
+  sparse_fill_empty_rows.cpp
+  string_tensor_pack.cpp
+  string_tensor_unpack.cpp
+  transpose.cpp
 )
+list(TRANSFORM current_dir_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
 list(APPEND all_cpu_functional_test_sources ${current_dir_sources})

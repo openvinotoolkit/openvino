@@ -3,15 +3,16 @@
 
 # Files that live directly in utils/
 set(current_dir_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/cpu_test_utils.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/cpu_test_utils.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fusing_test_utils.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fusing_test_utils.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/filter_cpu_info.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/quantization_utils.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/properties_test.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/convolution_params.hpp
+  cpu_test_utils.cpp
+  cpu_test_utils.hpp
+  fusing_test_utils.cpp
+  fusing_test_utils.hpp
+  filter_cpu_info.hpp
+  quantization_utils.hpp
+  properties_test.hpp
+  convolution_params.hpp
 )
+list(TRANSFORM current_dir_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 # Arch-specific files that live in utils/
 if(X86_64)
@@ -24,8 +25,10 @@ endif()
 
 # Add specific utils files to required objects for per-test targets
 set(required_utils_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/cpu_test_utils.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/fusing_test_utils.cpp)
+  cpu_test_utils.cpp
+  fusing_test_utils.cpp
+)
+list(TRANSFORM required_utils_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 # Add arch-specific filter_cpu_info.cpp
 if(X86_64)

@@ -3,10 +3,11 @@
 
 # Files that live directly in this directory
 set(current_dir_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/disable_gathercompressed_quantized_model.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/quantized_matmuls_with_shared_weights.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_select_pd.cpp
+  disable_gathercompressed_quantized_model.cpp
+  quantized_matmuls_with_shared_weights.cpp
+  subgraph_select_pd.cpp
 )
+list(TRANSFORM current_dir_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
 list(APPEND all_cpu_functional_test_sources ${current_dir_sources})

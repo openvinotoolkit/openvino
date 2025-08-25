@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set(current_dir_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/fully_connected_transformation.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/mat_mul_transformation.cpp
+  fully_connected_transformation.cpp
+  mat_mul_transformation.cpp
 )
+list(TRANSFORM current_dir_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
 list(APPEND all_cpu_functional_test_sources ${current_dir_sources})
