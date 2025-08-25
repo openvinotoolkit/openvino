@@ -254,7 +254,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     ov::Tensor mainBlob,
     const Config& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
-    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
+    const std::optional<std::shared_ptr<const ov::Model>>& model,
+    std::optional<int64_t> batchSize) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
