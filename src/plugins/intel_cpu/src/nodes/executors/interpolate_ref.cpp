@@ -409,13 +409,6 @@ void NewRefInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src,
         }
         
         // Check for extreme downsampling that might cause issues
-        bool hasExtremeDownsampling = false;
-        for (size_t i = 0; i < executorScales.size(); ++i) {
-            if (executorScales[i] < 0.2f && executorScales[i] > 0.0f) {
-                hasExtremeDownsampling = true;
-            }
-        }
-        
         try {
             oldRefExecutor_ = std::make_shared<node::Interpolate::OldInterpolateRefExecutor>(
                 attrs_,

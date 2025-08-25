@@ -39,40 +39,6 @@ using namespace ov::element;
 using namespace dnnl::impl::cpu;
 using ov::intel_cpu::any_of;
 
-static bool isJitApplicable(const executor::Config<InterpolateAttrs>& config,
-                            const MemoryFormatFilter& filter) {
-#if defined(OPENVINO_ARCH_X86_64)
-    const auto& attrs = config.attrs;
-    
-    // Check if mode is supported by JIT
-    if (!any_of(attrs.mode, 
-                InterpolateMode::nearest,
-                InterpolateMode::linear,
-                InterpolateMode::linear_onnx,
-                InterpolateMode::cubic,
-                InterpolateMode::bilinear_pillow,
-                InterpolateMode::bicubic_pillow)) {
-        return false;
-    }
-    
-    // Check layout support
-    bool isNearestLinearOrCubic = attrs.mode == InterpolateMode::nearest ||
-                                  attrs.mode == InterpolateMode::linear_onnx ||
-                                  attrs.mode == InterpolateMode::cubic;
-    bool isPlanarLayourAndSse41 = attrs.layout != InterpolateLayoutType::planar && x64::mayiuse(x64::sse41);
-    bool isAvx2AndF32 = x64::mayiuse(x64::avx2) && attrs.inPrc == ov::element::f32;
-    bool isPillowMode = attrs.mode == InterpolateMode::bilinear_pillow ||
-                        attrs.mode == InterpolateMode::bicubic_pillow;
-    bool isByChannelLayout = attrs.layout == InterpolateLayoutType::by_channel;
-    bool isNearestLinearOrCubicSupported = isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32);
-    bool isPillowModeSupported = isPillowMode && isByChannelLayout;
-
-    return (isNearestLinearOrCubicSupported || isPillowModeSupported) && x64::mayiuse(x64::sse41);
-#else
-    return false;
-#endif
-}
-
 static bool isACLApplicable(const executor::Config<InterpolateAttrs>& config,
                             const MemoryFormatFilter& filter) {
 #if defined(OV_CPU_WITH_ACL)
