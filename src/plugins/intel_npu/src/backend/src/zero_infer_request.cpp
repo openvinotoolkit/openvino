@@ -316,7 +316,8 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         _logger.debug("ZeroInferRequest::set_tensor_data - tensor was created in the same L0 context, size: %zu",
                       tensor->get_byte_size());
 
-        if (levelZeroTensors != nullptr && levelZeroTensors->data() == tensor->data()) {
+        if (levelZeroTensors != nullptr && !is_remote_tensor(levelZeroTensors) &&
+            levelZeroTensors->data() == tensor->data()) {
             _logger.debug("ZeroInferRequest::set_tensor_data - same data was provided, don't do anything");
             return;
         }
