@@ -8,9 +8,7 @@ using namespace ov::pass::pattern;
 
 MultiMatcher::MultiMatcher(const std::string& name) : m_name(name) {}
 
-void MultiMatcher::register_patterns(const std::vector<std::shared_ptr<Node>>& patterns,
-                                     Callback callback,
-                                     bool strict) {
+void MultiMatcher::register_patterns(const ov::NodeVector& patterns, Callback callback, bool strict) {
     m_callback = std::move(callback);
     m_patterns.clear();
     m_all_roots.clear();
@@ -27,14 +25,6 @@ bool MultiMatcher::run_on_model(const std::shared_ptr<Model>& model) {
     std::unordered_map<std::shared_ptr<Node>, std::vector<PatternValueMap>> matches_by_pattern;
     for (const auto& node : model->get_ordered_ops()) {
         for (const auto& pattern : m_patterns) {
-            // TODO: prevent overlapping?
-            // bool already_used = m_matched_nodes.count(node.get()) > 0;
-            // bool is_root = m_all_roots.count(node.get()) > 0;
-
-            // if (already_used && !is_root) {
-            //     continue;
-            // }
-
             Matcher matcher(pattern.pattern, m_name, pattern.strict_mode);
             if (!matcher.match(node->output(0)))
                 continue;

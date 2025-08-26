@@ -67,6 +67,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/pass/sdpa_to_vlsdpa.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
@@ -125,6 +126,7 @@
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
@@ -192,6 +194,7 @@
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
 #include "transformations/common_optimizations/multi_scale_deformable_attn_fusion.hpp"
+#include "openvino/util/log.hpp"
 
 namespace {
 template<typename T>
@@ -348,6 +351,37 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
+
+        // Transformation of SDPA to VLSDPA for QWen2.x-VL,
+        // Note: this should be applied before TransposeFusion.
+        manager.register_pass<ov::pass::SDPAToVLSDPA>();
+        // Disable SDPAToVLSDPA if XMX architectures is unavaiable or IGC incompatiable.
+        pass_config->set_callback<ov::pass::SDPAToVLSDPA>(
+                [&](const_node_ptr &) -> bool {
+                    auto& engine = m_context->get_engine();
+                    const auto& info = engine.get_device_info();
+                    if (!(info.supports_immad)) { // CM optimized for systolic-array architectures
+                        return true;
+                    }
+
+#ifdef GPU_DEBUG_CONFIG
+                    if (!config.get_use_cm()) {
+                        OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                                    "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
+                        return true;
+                    }
+#endif
+
+                    if (!check_cm_jit_support(engine, config)) {
+                        OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                                    "as current IGC version is not compatible to the CM kernel used. Enable it by update IGC."
+                                    "Please also make sure clangFEWrapper for CM is present by checking environment varibles like "
+                                    "CM_FE_DIR or LD_LIBRARY_PATH if you are using Linux.");
+                        return true;
+                    }
+
+                    return false;
+                });
 
         // Temporary solution, global rt info cleanup is needed
         for (auto& node : func->get_ops()) {
@@ -522,6 +556,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // - The data type of SDPA should be fp16
             if (sdpa->get_output_element_type(0) != ov::element::f16)
                 return false;
+
+            // - The attn mask type of SDPA should be fp16
+            if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 && sdpa->get_input_element_type(3) == ov::element::boolean) {
+                return false;
+            }
 
             // - The number of dimensions for each input is expected to be 4 or 3
             if (!(query_ps.size() == 3 || query_ps.size() == 4) ||
@@ -813,8 +852,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             });
 
-        pass_config->enable<ov::pass::NormalizeL2Decomposition>();
-        pass_config->set_callback<ov::pass::NormalizeL2Decomposition>(
+        // ReduceSum would causes fp16 out of range.
+        // To avoid the out of range, use fp32 nodes for NormalizeL2Decomposition.
+        bool use_fp32_internal_nodes = (infer_precision == ov::element::f16);
+        manager.register_pass<ov::intel_gpu::NormalizeL2Decomposition>(use_fp32_internal_nodes);
+        pass_config->set_callback<ov::intel_gpu::NormalizeL2Decomposition>(
             [](const_node_ptr &node) -> bool {
             // Condition to filter out axes such as [0, 1, 2] which is not supported currently.
             const auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(node);
