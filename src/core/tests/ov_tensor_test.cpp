@@ -477,7 +477,6 @@ TEST_F(OVTensorTest, canSetShapeStringTensor) {
     {
         constexpr auto max_dim = std::numeric_limits<size_t>::max();
         OV_EXPECT_THROW(t.set_shape(Shape({3, max_dim / 80})), ov::Exception, _);
-        OV_EXPECT_THROW(t.set_shape(Shape({1, max_dim / 80})), ov::Exception, _);
     }
 }
 

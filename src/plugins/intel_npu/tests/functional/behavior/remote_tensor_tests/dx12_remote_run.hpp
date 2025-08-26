@@ -12,7 +12,7 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "openvino/core/any.hpp"
-#include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
@@ -267,7 +267,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
     OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
     auto tensor = inference_request.get_input_tensor();
 
-    const auto byte_size = ov::element::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
+    const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
 
     auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
 
@@ -292,7 +292,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
     OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
     auto tensor = inference_request.get_input_tensor();
 
-    const auto byte_size = ov::element::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
+    const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(tensor.get_shape()));
 
     auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
 
@@ -317,7 +317,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
 
     // set random output tensor
     auto output_tensor = inference_request.get_output_tensor();
-    const auto output_byte_size = ov::element::get_memory_size(ov::element::f32, shape_size(output_tensor.get_shape()));
+    const auto output_byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(output_tensor.get_shape()));
 
     float* output_random_buffer_tensor = new float[output_byte_size / sizeof(float)];
     memset(output_random_buffer_tensor, 1, output_byte_size);
@@ -341,7 +341,7 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
     auto tensor = inference_request.get_input_tensor();
 
     auto shape = tensor.get_shape();
-    const auto byte_size = ov::element::get_memory_size(ov::element::f32, shape_size(shape));
+    const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(shape));
     tensor = {};
 
     createResources(byte_size);
