@@ -264,6 +264,17 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
     network.clear();
     network.shrink_to_fit();
 
+    for (auto& in : networkMeta.inputs) {
+        if (in.shapeFromIRModel.has_value() && batchSize.has_value()) {
+            in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] = ov::Dimension(1, batchSize.value());
+        }
+    }
+    for (auto& out : networkMeta.outputs) {
+        if (out.shapeFromIRModel.has_value() && batchSize.has_value()) {
+            out.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] = ov::Dimension(1, batchSize.value());
+        }
+    }
+
     GraphDescriptor mainGraphDesc;
 
     if (_zeGraphExt) {
