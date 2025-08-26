@@ -47,6 +47,7 @@
 #include "transformations/common_optimizations/reduce_merge.hpp"
 #include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp"
 #include "transformations/common_optimizations/softmax_fusion.hpp"
@@ -188,7 +189,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, UniqueDecomposition)
     decomp->set_name("ov::pass::CommonDecompositions");
 
-    REGISTER_PASS(manager, SimplifyShapeOfSubGraph, true)
+    REGISTER_PASS(manager, NopElimination, true)
     // CF is required after all decompositions
     REGISTER_PASS(manager, ConstantFolding)
 
