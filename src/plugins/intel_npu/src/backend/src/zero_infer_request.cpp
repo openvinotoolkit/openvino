@@ -902,7 +902,7 @@ void ZeroInferRequest::infer_async() {
             }
         }
 
-        if (is_batched_input(inputIndex) || batch_size.has_value()) {
+        if (is_batched_input(inputIndex)) {
             if (batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
                     if (!is_remote_tensor(get_level_zero_input(inputIndex, i))) {
