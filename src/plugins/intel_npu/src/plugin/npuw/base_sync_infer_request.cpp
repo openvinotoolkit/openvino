@@ -200,6 +200,10 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
     }
 }
 
+std::size_t ov::npuw::IBaseInferRequest::get_input_allocated_size() const {
+    return m_input_allocated.size();
+}
+
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::IBaseInferRequest::query_state() const {
     std::vector<ov::SoPtr<ov::IVariableState>> variable_states = {};
     for (const auto& request : m_subrequests) {

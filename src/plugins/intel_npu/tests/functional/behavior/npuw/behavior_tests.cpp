@@ -687,3 +687,113 @@ TEST_F(BehaviorTestsNPUW, CanSayNoToPMMProperty) {
     auto prop = compiled_model.get_property(partitioning::par_matmul_merge_dims.name());
     EXPECT_EQ("NO", prop.as<std::string>());
 }
+
+TEST_F(BehaviorTestsNPUW, SetTensorRemoteTensorInputJust) {
+    // Create model:
+    model = model_generator.get_model_with_repeated_blocks();
+
+    // Set expectation to npu plugin:
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+
+    // Register mock npu plugin in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    use_npuw_props.emplace(devices("MockNPU"));
+    // use_npuw_props.emplace(partitioning::par_matmul_merge_dims("NO"));
+
+    // ov::CompiledModel compiled_model;
+    // EXPECT_NO_THROW(compiled_model = core.compile_model(model, "NPU", use_npuw_props));
+    // auto prop = compiled_model.get_property(partitioning::par_matmul_merge_dims.name());
+    // EXPECT_EQ("NO", prop.as<std::string>());
+
+
+    /* ---------------------- NEW ---------------------- */
+
+    // ov::Core ov_core;
+    // auto devices = ov_core.get_available_devices();
+
+    // if (std::find(devices.begin(), devices.end(), "NPU") == devices.end()) {
+    //     GTEST_SKIP() << "No available devices.";
+    // }
+
+    // ModelGenerator mg;
+    // auto model = mg.get_model_with_repeated_blocks();
+
+    // ov::AnyMap config = {
+    //     {"NPU_USE_NPUW", "YES"},
+    //     {"NPUW_FUNCALL_FOR_ALL", "YES"},
+    //     {"NPUW_WEIGHTS_BANK", "shared"},
+    //     {"NPUW_DEVICES", "NPU"},
+    //     {"NPUW_FOLD" , "YES"}
+    // };
+
+    // ov::element::Type element_type = ov::element::i32;
+    // auto input_tensor_shape = model->inputs()[0].get_shape();
+    // // Calculate total number of elements
+    // size_t total_elements = ov::shape_size(input_tensor_shape);
+
+    // // Create input data
+    // std::vector<int> data = std::vector<int>(total_elements, 0);
+    // std::iota(data.begin(), data.end(), 1);
+
+    // // Create the remote tensor input
+    // auto npu_context = ov_core.get_default_context("NPU");
+    // auto input = npu_context.create_host_tensor(element_type, input_tensor_shape);
+
+    // // Initialize remote input with non-zero data
+    // ov::Tensor values(element_type, input_tensor_shape, data.data());
+    // values.copy_to(input);
+
+    // // Compile NPUW
+    // ::intel_npu::Plugin plugin;
+    // ov::npuw::CompiledModel compiled(model, plugin, config);
+    // // Create infer request
+    // ov::npuw::JustInferRequest request(compiled);
+
+    // ASSERT_EQ(request.get_input_allocated_size(), 1);
+
+    // // Set remote io
+    // request.set_tensor(input);
+
+    // ASSERT_EQ(request.get_input_allocated_size(), 2);
+
+    // ASSERT_NO_THROW(request.infer());
+}
+
+TEST_F(BehaviorTestsNPUW, SetTensorRemoteTensorInputUnfold) {
+    // Create model:
+    model = model_generator.get_model_with_repeated_blocks();
+
+    // Set expectation to npu plugin:
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+
+    // Register mock npu plugin in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    use_npuw_props.emplace(devices("MockNPU"));
+    // use_npuw_props.emplace(partitioning::par_matmul_merge_dims("NO"));
+
+    // ov::CompiledModel compiled_model;
+    // EXPECT_NO_THROW(compiled_model = core.compile_model(model, "NPU", use_npuw_props));
+    // auto prop = compiled_model.get_property(partitioning::par_matmul_merge_dims.name());
+    // EXPECT_EQ("NO", prop.as<std::string>());
+}
+
+TEST_F(BehaviorTestsNPUW, SetTensorRemoteTensorOutput) {
+    // Create model:
+    model = model_generator.get_model_with_repeated_blocks();
+
+    // Set expectation to npu plugin:
+    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
+
+    // Register mock npu plugin in OpenVINO:
+    register_mock_plugins_in_ov();
+
+    use_npuw_props.emplace(devices("MockNPU"));
+    // use_npuw_props.emplace(partitioning::par_matmul_merge_dims("NO"));
+
+    // ov::CompiledModel compiled_model;
+    // EXPECT_NO_THROW(compiled_model = core.compile_model(model, "NPU", use_npuw_props));
+    // auto prop = compiled_model.get_property(partitioning::par_matmul_merge_dims.name());
+    // EXPECT_EQ("NO", prop.as<std::string>());
+}
