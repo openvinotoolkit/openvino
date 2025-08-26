@@ -90,7 +90,6 @@ protected:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     std::shared_ptr<EmitABIRegSpills> m_parallel_section_reg_spiller = nullptr;
-    std::vector<size_t> mem_ptr_regs_idxs;
 };
 
 }  // namespace ov::intel_cpu

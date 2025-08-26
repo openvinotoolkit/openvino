@@ -293,17 +293,6 @@ jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(jit_generator_t* h,
     : jit_loop_end_base_emitter(h, isa, expr) {
     auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end && loop_end->get_is_parallel(), "expected parallel LoopEnd expr");
-    // Get memory pointer register indices
-    std::vector<snippets::Reg> loop_end_input_regs = expr->get_reg_info().first;
-    OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
-    loop_end_input_regs.pop_back();  // Remove work_amount_reg_idx
-    mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
-    for (const auto& r : loop_end_input_regs) {
-        if (r.type == snippets::RegType::gpr) {
-            mem_ptr_regs_idxs.emplace_back(r.idx);
-        }
-    }
-
     const auto begin_expr = jit_loop_end_base_emitter::get_loop_begin_expr(expr);
     const auto& loop_begin_emitter =
         std::dynamic_pointer_cast<jit_parallel_loop_begin_emitter>(begin_expr->get_emitter());
@@ -322,24 +311,13 @@ void jit_parallel_loop_end_emitter::validate_arguments(const std::vector<size_t>
 
 void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                               [[maybe_unused]] const std::vector<size_t>& out) const {
-    if (!evaluate_once) {
-        // Apply pointer increments using the base class method with pre-computed loop_args
-        apply_increments_to_ptrs(mem_ptr_regs_idxs,
-                                 loop_args.m_ptr_increments,
-                                 are_ptr_increments_dynamic,
-                                 GET_OFF_LOOP_ARGS(m_ptr_increments),
-                                 in);
-
-        auto reg_work_amount = Reg64(in.back());
-        h->sub(reg_work_amount, wa_increment);
-        h->cmp(reg_work_amount, wa_increment);
-        h->jge(*loop_begin_label, CodeGenerator::T_NEAR);
-    }
+    // Note: finalization offsets are applied in ParallelLoopExecutor::execute after parallel region is ended
+    // so we don't apply them here
+    emit_loop_end_logic(in, false);
     m_parallel_section_reg_spiller->postamble();
     // Note: parallel region ends here:
     h->ret();
     h->L(*loop_end_label);
-    // Note: finalization offsets are applied in ParallelLoopExecutor::execute after parallel region is ended
 }
 
 }  // namespace ov::intel_cpu

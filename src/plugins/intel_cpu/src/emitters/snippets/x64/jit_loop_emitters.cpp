@@ -124,30 +124,7 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t
 
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                      [[maybe_unused]] const std::vector<size_t>& out) const {
-    std::vector<size_t> data_ptr_reg_idxs;
-    // the last input is actually a work_amount reg
-    data_ptr_reg_idxs.reserve(io_num);
-    std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
-
-    if (!evaluate_once) {
-        apply_increments_to_ptrs(data_ptr_reg_idxs,
-                                 loop_args.m_ptr_increments,
-                                 are_ptr_increments_dynamic,
-                                 GET_OFF_LOOP_ARGS(m_ptr_increments),
-                                 in);
-
-        auto reg_work_amount = Reg64(in.back());
-        h->sub(reg_work_amount, wa_increment);
-        h->cmp(reg_work_amount, wa_increment);
-        h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
-    }
-
-    apply_increments_to_ptrs(data_ptr_reg_idxs,
-                             loop_args.m_finalization_offsets,
-                             are_final_offsets_dynamic,
-                             GET_OFF_LOOP_ARGS(m_finalization_offsets),
-                             in);
-
+    emit_loop_end_logic(in, true);
     h->L(*loop_end_label);
 }
 

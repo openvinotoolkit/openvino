@@ -50,6 +50,8 @@ protected:
                                   size_t field_offset,
                                   const std::vector<size_t>& used_aux_gprs) const;
 
+    void emit_loop_end_logic(const std::vector<size_t>& in, bool apply_finalization_offsets) const;
+
     std::shared_ptr<const Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<Xbyak::Label> loop_end_label = nullptr;
     size_t io_num = 0;

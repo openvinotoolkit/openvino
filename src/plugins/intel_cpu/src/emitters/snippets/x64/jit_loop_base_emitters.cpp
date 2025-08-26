@@ -154,4 +154,33 @@ void jit_loop_end_base_emitter::apply_increments_to_ptrs(const std::vector<size_
     }
 }
 
+void jit_loop_end_base_emitter::emit_loop_end_logic(const std::vector<size_t>& in,
+                                                    bool apply_finalization_offsets) const {
+    std::vector<size_t> data_ptr_reg_idxs;
+    // the last input is actually a work_amount reg
+    data_ptr_reg_idxs.reserve(io_num);
+    std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
+
+    if (!evaluate_once) {
+        apply_increments_to_ptrs(data_ptr_reg_idxs,
+                                 loop_args.m_ptr_increments,
+                                 are_ptr_increments_dynamic,
+                                 GET_OFF_LOOP_ARGS(m_ptr_increments),
+                                 in);
+
+        auto reg_work_amount = Reg64(in.back());
+        h->sub(reg_work_amount, wa_increment);
+        h->cmp(reg_work_amount, wa_increment);
+        h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
+    }
+
+    if (apply_finalization_offsets) {
+        apply_increments_to_ptrs(data_ptr_reg_idxs,
+                                 loop_args.m_finalization_offsets,
+                                 are_final_offsets_dynamic,
+                                 GET_OFF_LOOP_ARGS(m_finalization_offsets),
+                                 in);
+    }
+}
+
 }  // namespace ov::intel_cpu
