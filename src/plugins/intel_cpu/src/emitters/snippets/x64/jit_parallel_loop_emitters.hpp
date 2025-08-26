@@ -15,25 +15,7 @@
 
 namespace ov::intel_cpu {
 
-class jit_parallel_loop_base_emitter : public jit_binary_call_emitter {
-public:
-    jit_parallel_loop_base_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
-                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                   const ov::snippets::lowered::ExpressionPtr& expr);
-
-protected:
-    size_t wa_increment = 0;
-    std::vector<bool> is_incremented;
-    size_t io_num = 0;
-    size_t loop_id_offset = 0;
-    bool evaluate_once = false;
-    bool is_dynamic = false;
-    size_t work_amount_reg_idx = 0;
-    std::vector<size_t> mem_ptr_regs_idxs;
-    jit_snippets_call_args::loop_args_t loop_args;
-};
-
-class jit_parallel_loop_begin_emitter : public jit_parallel_loop_base_emitter {
+class jit_parallel_loop_begin_emitter : public jit_binary_call_emitter {
 public:
     jit_parallel_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -68,9 +50,18 @@ protected:
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
+    size_t wa_increment = 0;
+    size_t loop_id_offset = 0;
+    bool evaluate_once = false;
+    bool is_dynamic = false;
+    size_t work_amount_reg_idx = 0;
+
+    std::vector<size_t> mem_ptr_regs_idxs;
+    jit_snippets_call_args::loop_args_t loop_args;
+
     std::shared_ptr<Xbyak::Label> loop_begin_label = nullptr;
-    std::shared_ptr<Xbyak::Label> loop_preamble_label = nullptr;
     std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
+    std::shared_ptr<Xbyak::Label> loop_preamble_label = nullptr;
     std::shared_ptr<ParallelLoopExecutor> m_executor = nullptr;
     // This spiller is used to spill registers inside the parallel section of each thread
     std::shared_ptr<EmitABIRegSpills> m_parallel_section_reg_spiller = nullptr;
@@ -90,6 +81,7 @@ protected:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     std::shared_ptr<EmitABIRegSpills> m_parallel_section_reg_spiller = nullptr;
+
 };
 
 }  // namespace ov::intel_cpu

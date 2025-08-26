@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include "cpu/x64/jit_generator.hpp"
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -26,10 +27,27 @@ public:
         return 0;
     }
 
+    // Static utility function for common loop begin logic
+    static void emit_loop_begin_work_amount_check(
+        dnnl::impl::cpu::x64::jit_generator_t* h,
+        std::vector<size_t>& aux_gpr_idxs,
+        const std::vector<size_t>& out,
+        bool is_work_amount_dynamic,
+        int64_t work_amount_static,
+        size_t loop_id_offset,
+        bool evaluate_once,
+        size_t wa_increment,
+        const std::shared_ptr<const Xbyak::Label>& loop_end_label);
+
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
+
+    static ov::snippets::lowered::ExpressionPtr get_loop_begin_expr(const ov::snippets::lowered::ExpressionPtr& expr);
+
+    static jit_snippets_call_args::loop_args_t compose_loop_args(
+        const std::shared_ptr<ov::snippets::op::LoopEnd>& loop_end);
 
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
@@ -38,11 +56,6 @@ protected:
     size_t aux_gprs_count() const override {
         return 0;
     }
-
-    static ov::snippets::lowered::ExpressionPtr get_loop_begin_expr(const ov::snippets::lowered::ExpressionPtr& expr);
-
-    static jit_snippets_call_args::loop_args_t compose_loop_args(
-        const std::shared_ptr<ov::snippets::op::LoopEnd>& loop_end);
 
     void apply_increments_to_ptrs(const std::vector<size_t>& data_ptr_reg_idxs,
                                   const int64_t* increments,
@@ -55,7 +68,6 @@ protected:
     std::shared_ptr<const Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<Xbyak::Label> loop_end_label = nullptr;
     size_t io_num = 0;
-    size_t work_amount = 0;
     size_t wa_increment = 0;
     size_t loop_id_offset = 0;
     bool evaluate_once = false;

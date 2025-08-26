@@ -538,8 +538,7 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
     bool need = std::dynamic_pointer_cast<intel_cpu::jit_brgemm_emitter>(e) ||
                 std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e) ||
                 // Note: in static case, loop args, used in execute, are stored in the emitter
-                // TODO: try to include in this list only parallel_loop_begin
-                std::dynamic_pointer_cast<intel_cpu::jit_parallel_loop_base_emitter>(e);
+                std::dynamic_pointer_cast<intel_cpu::jit_parallel_loop_begin_emitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<intel_cpu::CPUTargetMachine>(target);
     need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||

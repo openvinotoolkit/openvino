@@ -77,25 +77,10 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
         return;
     }
 
-    auto reg_work_amount = Reg64(static_cast<int>(out.back()));
-    if (is_work_amount_dynamic) {
-        utils::jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);  // loop_begin has only output registers
-        Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
-        const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
-        h->mov(reg_loop_args_ptr, h->ptr[abi_param1 + GET_OFF(loop_args)]);
-        h->mov(reg_work_amount, h->ptr[reg_loop_args_ptr + id_offset + GET_OFF_LOOP_ARGS(m_work_amount)]);
-    } else {
-        h->mov(reg_work_amount, work_amount);
-    }
-
-    // if wa < increment, skip the loop
-    // Note : If the loop should be evaluated once and increment is dynamic,
-    //        we should manually set `increment = 1` to compare the dynamic work amount
-    //        with `1` at least before loop execution
-    //        (work amount can be zero and we should skip this loop even `evaluate_once = 1`)
-    auto increment = evaluate_once && snippets::utils::is_dynamic_value(wa_increment) ? 1 : wa_increment;
-    h->cmp(reg_work_amount, increment);
-    h->jl(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
+    const auto loop_id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
+    jit_loop_end_base_emitter::emit_loop_begin_work_amount_check(
+        h, aux_gpr_idxs, out, is_work_amount_dynamic, work_amount, loop_id_offset,
+        evaluate_once, wa_increment, loop_end_label);
 
     h->L(*loop_begin_label);
 }

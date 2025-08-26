@@ -43,7 +43,6 @@ jit_loop_end_base_emitter::jit_loop_end_base_emitter(dnnl::impl::cpu::x64::jit_g
     loop_end_label = std::make_shared<Xbyak::Label>();
 
     io_num = loop_end->get_input_num() + loop_end->get_output_num();
-    work_amount = loop_end->get_work_amount();
     evaluate_once = loop_end->get_evaluate_once();
     loop_id_offset = loop_end->get_id() * sizeof(jit_snippets_call_args::loop_args_t);
 
@@ -181,6 +180,37 @@ void jit_loop_end_base_emitter::emit_loop_end_logic(const std::vector<size_t>& i
                                  GET_OFF_LOOP_ARGS(m_finalization_offsets),
                                  in);
     }
+}
+
+void jit_loop_end_base_emitter::emit_loop_begin_work_amount_check(
+    dnnl::impl::cpu::x64::jit_generator_t* h,
+    std::vector<size_t>& aux_gpr_idxs,
+    const std::vector<size_t>& out,
+    bool is_work_amount_dynamic,
+    int64_t work_amount_static,
+    size_t loop_id_offset,
+    bool evaluate_once,
+    size_t wa_increment,
+    const std::shared_ptr<const Xbyak::Label>& loop_end_label) {
+    auto reg_work_amount = Reg64(static_cast<int>(out.back()));
+
+    if (is_work_amount_dynamic) {
+        utils::jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);
+        Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
+        h->mov(reg_loop_args_ptr, h->ptr[abi_param1 + GET_OFF(loop_args)]);
+        h->mov(reg_work_amount, h->ptr[reg_loop_args_ptr + loop_id_offset + GET_OFF_LOOP_ARGS(m_work_amount)]);
+    } else {
+        h->mov(reg_work_amount, work_amount_static);
+    }
+
+    // if wa < increment, skip the loop
+    // Note : If the loop should be evaluated once and increment is dynamic,
+    //        we should manually set `increment = 1` to compare the dynamic work amount
+    //        with `1` at least before loop execution
+    //        (work amount can be zero and we should skip this loop even `evaluate_once = 1`)
+    auto increment = evaluate_once && snippets::utils::is_dynamic_value(wa_increment) ? 1 : wa_increment;
+    h->cmp(reg_work_amount, increment);
+    h->jl(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
 }
 
 }  // namespace ov::intel_cpu
