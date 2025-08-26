@@ -24,9 +24,7 @@
 #ifdef OPENVINO_ARCH_X86_64
 #    include <cstddef>
 
-#    include "debug_messages.hpp"
 #    include "nodes/executors/x64/matmul_small.hpp"
-#    include "utils/general_utils.h"
 #endif
 
 namespace ov::intel_cpu {
@@ -82,20 +80,8 @@ static const MappingNotation matmulMappingNotation {
     {ARG_BIAS, 2},
     {ARG_DST,  3}
 };
+
 // clang-format on
-
-[[maybe_unused]] static inline bool noWeightsDecompression(const MatMulConfig& config) {
-    return !DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config));
-}
-
-[[maybe_unused]] static inline bool noSparseDecompression(const MatMulConfig& config) {
-    return !(config.attrs.sparseWeights);
-}
-
-[[maybe_unused]] static inline bool noPostOps(const MatMulConfig& config) {
-    return config.attrs.postOps.empty();
-}
-
 struct CreateOptimalConfigDefault {
     std::optional<MatMulConfig> operator()(const MatMulConfig& config) const {
         return createOptimalConfigCommon(config, dnnlMatMulTypeMapping, dnnlMatMulLayoutConfig, matmulMappingNotation);
@@ -112,24 +98,7 @@ const std::vector<ExecutorImplementation<MatMulAttrs>>& getImplementations() {
             OperationType::MatMul,
             // supports
             [](const MatMulConfig& config) -> bool {
-                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-
-                VERIFY(!config.attrs.transposeA && !config.attrs.transposeB, "unsupported strides");
-                VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
-
-                const auto& biasDesc = config.descs.at(ARG_BIAS);
-                VERIFY(biasDesc->empty(), "bias is not supported");
-                
-                const auto& srcDesc0 = config.descs.at(ARG_SRC);
-                const auto& srcDesc1 = config.descs.at(ARG_WEI);
-                const auto srcRank0 = srcDesc0->getShape().getRank();
-                const auto srcRank1 = srcDesc1->getShape().getRank();
-
-                VERIFY(srcRank0 >= 2, UNSUPPORTED_SRC_RANK);
-                VERIFY(srcRank0 == srcRank1, UNSUPPORTED_SRC_RANK);
-
-                return true;
+                return MatMulSmallExecutor::supports(config);
             },
             HasNoOptimalConfig<MatMulAttrs>{},
             []([[maybe_unused]] const MatMulAttrs& attrs, const MemoryArgs& memory) -> bool {
