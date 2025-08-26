@@ -265,15 +265,15 @@ jobs:
           script: |
             set -e
             adb wait-for-device
-            [ -f "./android_tests/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
-            chmod +x ./android_tests/ov_cpu_unit_tests
+            [ -f "./android_tests/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: intel64/Release/ov_cpu_unit_tests binary not found"; exit 1; }
+            chmod +x ./android_tests/intel64/Release/ov_cpu_unit_tests
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test"
             echo "Pushing unit test binary and libraries to device..."
-            adb push ./android_tests/ov_cpu_unit_tests /data/local/tmp/ov_test/ov_cpu_unit_tests
-            for lib in ./android_tests/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-            adb shell "chmod 755 /data/local/tmp/ov_test/ov_cpu_unit_tests"
+            adb push ./android_tests/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
+            for lib in ./android_tests/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
             echo "Running CPU unit tests..."
-            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
+            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
             echo "Pulling unit test results..."
             adb pull /data/local/tmp/ov_test/unit_test_results.xml ./unit_test_results.xml || { echo "Warning: Could not pull unit test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/unit_test_results.xml" || echo "No unit test results file"; }
 
@@ -291,15 +291,15 @@ jobs:
           script: |
             set -e
             adb wait-for-device
-            [ -f "./android_tests/ov_cpu_func_tests" ] || { echo "Error: ov_cpu_func_tests binary not found"; exit 1; }
-            chmod +x ./android_tests/ov_cpu_func_tests
+            [ -f "./android_tests/intel64/Release/ov_cpu_func_tests" ] || { echo "Error: intel64/Release/ov_cpu_func_tests binary not found"; exit 1; }
+            chmod +x ./android_tests/intel64/Release/ov_cpu_func_tests
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test"
             echo "Pushing functional test binary and libraries to device..."
-            adb push ./android_tests/ov_cpu_func_tests /data/local/tmp/ov_test/ov_cpu_func_tests
-            for lib in ./android_tests/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-            adb shell "chmod 755 /data/local/tmp/ov_test/ov_cpu_func_tests"
+            adb push ./android_tests/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests
+            for lib in ./android_tests/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests"
             echo "Running CPU functional tests..."
-            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./ov_cpu_func_tests --gtest_output=xml:/data/local/tmp/ov_test/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
+            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_func_tests --gtest_output=xml:/data/local/tmp/ov_test/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
             echo "Pulling functional test results..."
             adb pull /data/local/tmp/ov_test/func_test_results.xml ./func_test_results.xml || { echo "Warning: Could not pull functional test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/func_test_results.xml" || echo "No functional test results file"; }
 
