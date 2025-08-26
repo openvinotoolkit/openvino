@@ -215,52 +215,93 @@ jobs:
           /usr/local/bin/setup-kvm.sh || true
           ls -la /dev/kvm || echo "KVM device not available"
 
-      - name: Setup Android emulator
-        run: |
-          echo "Setting up Android emulator..."
-          # Start emulator in background
-          $ANDROID_HOME/emulator/emulator -avd test_avd -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save &
-          # Wait for device to be ready
-          timeout 300 adb wait-for-device || { echo "Emulator failed to start"; exit 1; }
-          # Wait a bit more for system to be fully ready
-          sleep 30
-          echo "Android emulator is ready"
-          adb devices
+      - name: Set up Java 17
+        uses: actions/setup-java@8df1039502a15bceb9433410b1a100fbe190c53b # v4.5.0
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3.2.2
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          target: ${{ env.ANDROID_TARGET }}
+          arch: ${{ env.ANDROID_ARCH }}
+          script: |
+            echo "Android SDK setup completed"
+
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_TARGET }}-${{ env.ANDROID_ARCH }}
+
+      - name: Create AVD and generate snapshot for caching
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2.34.0
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          target: ${{ env.ANDROID_TARGET }}
+          arch: ${{ env.ANDROID_ARCH }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching."
 
       - name: Run CPU unit tests on emulator
+        if: always()
         id: unit-tests
-        run: |
-          set -e
-          adb wait-for-device
-          [ -f "./android_tests/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
-          chmod +x ./android_tests/ov_cpu_unit_tests
-          adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test"
-          echo "Pushing unit test binary and libraries to device..."
-          adb push ./android_tests/ov_cpu_unit_tests /data/local/tmp/ov_test/ov_cpu_unit_tests
-          for lib in ./android_tests/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-          adb shell "chmod 755 /data/local/tmp/ov_test/ov_cpu_unit_tests"
-          echo "Running CPU unit tests..."
-          adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
-          echo "Pulling unit test results..."
-          adb pull /data/local/tmp/ov_test/unit_test_results.xml ./unit_test_results.xml || { echo "Warning: Could not pull unit test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/unit_test_results.xml" || echo "No unit test results file"; }
+        uses: reactivecircus/android-emulator-runner@v2.34.0
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          target: ${{ env.ANDROID_TARGET }}
+          arch: ${{ env.ANDROID_ARCH }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            set -e
+            adb wait-for-device
+            [ -f "./android_tests/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
+            chmod +x ./android_tests/ov_cpu_unit_tests
+            adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test"
+            echo "Pushing unit test binary and libraries to device..."
+            adb push ./android_tests/ov_cpu_unit_tests /data/local/tmp/ov_test/ov_cpu_unit_tests
+            for lib in ./android_tests/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            adb shell "chmod 755 /data/local/tmp/ov_test/ov_cpu_unit_tests"
+            echo "Running CPU unit tests..."
+            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
+            echo "Pulling unit test results..."
+            adb pull /data/local/tmp/ov_test/unit_test_results.xml ./unit_test_results.xml || { echo "Warning: Could not pull unit test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/unit_test_results.xml" || echo "No unit test results file"; }
 
       - name: Run CPU functional tests on emulator
         if: always()
         id: functional-tests
-        run: |
-          set -e
-          adb wait-for-device
-          [ -f "./android_tests/ov_cpu_func_tests" ] || { echo "Error: ov_cpu_func_tests binary not found"; exit 1; }
-          chmod +x ./android_tests/ov_cpu_func_tests
-          adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test"
-          echo "Pushing functional test binary and libraries to device..."
-          adb push ./android_tests/ov_cpu_func_tests /data/local/tmp/ov_test/ov_cpu_func_tests
-          for lib in ./android_tests/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-          adb shell "chmod 755 /data/local/tmp/ov_test/ov_cpu_func_tests"
-          echo "Running CPU functional tests..."
-          adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./ov_cpu_func_tests --gtest_output=xml:/data/local/tmp/ov_test/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
-          echo "Pulling functional test results..."
-          adb pull /data/local/tmp/ov_test/func_test_results.xml ./func_test_results.xml || { echo "Warning: Could not pull functional test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/func_test_results.xml" || echo "No functional test results file"; }
+        uses: reactivecircus/android-emulator-runner@v2.34.0
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          target: ${{ env.ANDROID_TARGET }}
+          arch: ${{ env.ANDROID_ARCH }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            set -e
+            adb wait-for-device
+            [ -f "./android_tests/ov_cpu_func_tests" ] || { echo "Error: ov_cpu_func_tests binary not found"; exit 1; }
+            chmod +x ./android_tests/ov_cpu_func_tests
+            adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test"
+            echo "Pushing functional test binary and libraries to device..."
+            adb push ./android_tests/ov_cpu_func_tests /data/local/tmp/ov_test/ov_cpu_func_tests
+            for lib in ./android_tests/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            adb shell "chmod 755 /data/local/tmp/ov_test/ov_cpu_func_tests"
+            echo "Running CPU functional tests..."
+            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./ov_cpu_func_tests --gtest_output=xml:/data/local/tmp/ov_test/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
+            echo "Pulling functional test results..."
+            adb pull /data/local/tmp/ov_test/func_test_results.xml ./func_test_results.xml || { echo "Warning: Could not pull functional test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/func_test_results.xml" || echo "No functional test results file"; }
 
       - name: Upload test results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
