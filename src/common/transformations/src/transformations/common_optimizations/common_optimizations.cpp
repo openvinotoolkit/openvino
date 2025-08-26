@@ -188,6 +188,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, UniqueDecomposition)
     decomp->set_name("ov::pass::CommonDecompositions");
 
+    REGISTER_PASS(manager, SimplifyShapeOfSubGraph, true)
     // CF is required after all decompositions
     REGISTER_PASS(manager, ConstantFolding)
 
