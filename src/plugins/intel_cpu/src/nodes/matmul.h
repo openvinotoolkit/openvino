@@ -54,7 +54,7 @@ private:
     std::tuple<VecMemoryDescs, MemoryDescPtr> initMemoryDescriptors(ov::element::Type dstType) const;
     ExecutorFactoryPtr<MatMulAttrs> createExecutorFactory(const MemoryDescArgs& descs, const MatMulAttrs& attrs);
 
-    // @todo Attributes structure for MatMul node
+    // Attributes structure for MatMul node
     MatMulAttrs m_attrs;
 
     // Factory for creating executors
