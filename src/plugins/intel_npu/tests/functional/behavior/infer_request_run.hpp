@@ -1184,6 +1184,42 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun1) {
     }
 }
 
+TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun2) {
+    auto modelShape = PartialShape{-1, 2, 64, 64};
+    size_t batch_size = 3;
+    auto shape = Shape{batch_size, 2, 64, 64};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, modelShape, "N...");
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+
+    ov::InferRequest inference_request;
+    ov::Tensor input_tensor;
+
+    input_tensor = ov::Tensor(ov::element::f32, shape);
+
+    inference_request = compiled_model.create_infer_request();
+
+    inference_request.set_input_tensor(input_tensor);
+
+    auto* input_data = reinterpret_cast<float*>(input_tensor.data());
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = static_cast<float>(batch_size);
+    }
+
+    inference_request.infer();  // Adds '1' to each element
+
+    auto output_tensor = inference_request.get_output_tensor();
+
+    float expected_result = static_cast<float>(batch_size) + 1.f;
+    auto* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+    for (size_t j = 0; j < shape_size; ++j) {
+        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            << "Run=" << batch_size << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
+            << " for index " << j;
+    }
+}
+
 TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRunsSeq) {
     auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
     auto shape = Shape{4, 2, 64, 64};
