@@ -97,16 +97,19 @@ public:
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
                       const dnnl::primitive_attr& attr);
+    
+    // Old exec interface for backward compatibility
     virtual void exec(const std::vector<MemoryCPtr>& src,
                       const std::vector<MemoryPtr>& dst,
-                      const void* post_ops_data_) = 0;
+                      const void* post_ops_data_) {
+        // Default implementation - derived classes should override one of the exec methods
+        OPENVINO_THROW("InterpolateExecutor: exec not implemented");
+    }
     
-    // Bring base class exec into scope to avoid hiding
-    using Executor::exec;
-    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
-    
-    // Executor interface
-    void execute(const MemoryArgs& memory) override {
+    // New exec interface that uses MemoryArgs directly
+    virtual void exec(const MemoryArgs& memory) {
+        // For backward compatibility, convert to old interface
+        // New executors should override this method directly
         std::vector<MemoryCPtr> srcMemory;
         std::vector<MemoryPtr> dstMemory;
         
@@ -125,6 +128,22 @@ public:
         }
         
         exec(srcMemory, dstMemory, nullptr);
+    }
+    
+    // Bring base class exec into scope to avoid hiding
+    using Executor::exec;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
+    
+    // Update method for dynamic shape/parameter updates
+    bool update(const MemoryArgs& memory) override {
+        // Default implementation does nothing
+        // Derived classes can override to perform necessary updates
+        return true;
+    }
+    
+    // Executor interface
+    void execute(const MemoryArgs& memory) override {
+        exec(memory);
     }
     
     [[nodiscard]] impl_desc_type implType() const override {

@@ -39,6 +39,59 @@ using namespace ov::element;
 using namespace dnnl::impl::cpu;
 using ov::intel_cpu::any_of;
 
+#if defined(OPENVINO_ARCH_X86_64)
+static bool isJitApplicable(const executor::Config<InterpolateAttrs>& config,
+                           const MemoryFormatFilter& filter) {
+    using namespace dnnl::impl::cpu;
+    const auto& attrs = config.attrs;
+    
+    // JIT only supports 4D and 5D tensors
+    auto srcDesc = config.descs.count(0) ? config.descs.at(0) : nullptr;
+    auto dstDesc = config.descs.count(ARG_DST) ? config.descs.at(ARG_DST) : nullptr;
+    
+    if (!srcDesc || !dstDesc) {
+        return false;
+    }
+    
+    size_t dataRank = srcDesc->getShape().getDims().size();
+    if (dataRank != 4 && dataRank != 5) {
+        return false;
+    }
+    
+    // Check if SSE4.1 is available
+    if (!x64::mayiuse(x64::sse41)) {
+        return false;
+    }
+    
+    // Check supported modes
+    bool isNearestLinearOrCubic = attrs.mode == InterpolateMode::nearest ||
+                                  attrs.mode == InterpolateMode::linear ||
+                                  attrs.mode == InterpolateMode::linear_onnx ||
+                                  attrs.mode == InterpolateMode::cubic;
+    
+    bool isPillowMode = attrs.mode == InterpolateMode::bilinear_pillow ||
+                       attrs.mode == InterpolateMode::bicubic_pillow;
+    
+    if (!isNearestLinearOrCubic && !isPillowMode) {
+        return false;
+    }
+    
+    // Pillow modes only work with by_channel layout
+    if (isPillowMode && attrs.layout != InterpolateLayoutType::by_channel) {
+        return false;
+    }
+    
+    // Check precision support
+    if (srcDesc->getPrecision() != ov::element::f32 && 
+        srcDesc->getPrecision() != ov::element::u8 &&
+        srcDesc->getPrecision() != ov::element::i8) {
+        return false;
+    }
+    
+    return true;
+}
+#endif
+
 static bool isACLApplicable(const executor::Config<InterpolateAttrs>& config,
                             const MemoryFormatFilter& filter) {
 #if defined(OV_CPU_WITH_ACL)

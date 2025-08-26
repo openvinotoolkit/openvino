@@ -1,15 +1,22 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
+// Modified to support dynamic shapes
 
 #include "interpolate_jit.hpp"
+#include "nodes/interpolate.h"
 #include "cpu_shape.h"
 #include "utils/general_utils.h"
+#include "nodes/common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <dnnl_extension_utils.h>
+#include <cmath>
+#include <algorithm>
 
 namespace ov::intel_cpu {
 
 using namespace dnnl::impl::cpu;
+using namespace node;
 
 JitInterpolateExecutor::JitInterpolateExecutor(ExecutorContext::CPtr context) 
     : InterpolateExecutor(context) {
@@ -26,9 +33,10 @@ bool JitInterpolateExecutor::init(const InterpolateAttrs& interpolateAttrs,
     
     attrs_ = interpolateAttrs;
     
-    // Extract dimensions
+    // Extract dimensions and precision
     if (!srcDescs.empty()) {
         srcDims_ = srcDescs[0]->getShape().getStaticDims();
+        dataPrecision_ = srcDescs[0]->getPrecision();
     }
     if (!dstDescs.empty()) {
         dstDims_ = dstDescs[0]->getShape().getStaticDims();
@@ -43,124 +51,111 @@ bool JitInterpolateExecutor::init(const InterpolateAttrs& interpolateAttrs,
         }
     }
     
+    // Calculate padded dimensions if needed
+    if (hasPadding_) {
+        srcDimsPadded_ = getPaddedInputShape(srcDims_, attrs_.padBegin, attrs_.padEnd);
+    } else {
+        srcDimsPadded_ = srcDims_;
+    }
+    
     // Calculate or use provided scales
     dataScales_ = attrs_.dataScales;
-    if (dataScales_.empty() && !srcDims_.empty() && !dstDims_.empty()) {
-        dataScales_.reserve(srcDims_.size());
-        for (size_t i = 0; i < srcDims_.size(); i++) {
-            if (hasPadding_) {
-                // Account for padding in scale calculation
-                size_t srcDimPadded = srcDims_[i];
-                if (i >= srcDims_.size() - attrs_.padBegin.size()) {
-                    size_t padIdx = i - (srcDims_.size() - attrs_.padBegin.size());
-                    srcDimPadded += attrs_.padBegin[padIdx] + attrs_.padEnd[padIdx];
-                }
-                dataScales_.push_back(static_cast<float>(dstDims_[i]) / static_cast<float>(srcDimPadded));
-            } else {
-                dataScales_.push_back(static_cast<float>(dstDims_[i]) / static_cast<float>(srcDims_[i]));
-            }
+    if (dataScales_.empty() && !srcDimsPadded_.empty() && !dstDims_.empty()) {
+        dataScales_.reserve(srcDimsPadded_.size());
+        for (size_t i = 0; i < srcDimsPadded_.size(); i++) {
+            dataScales_.push_back(static_cast<float>(dstDims_[i]) / static_cast<float>(srcDimsPadded_[i]));
         }
     }
     
-    // Build index and weight tables for interpolation
-    buildIndexWeightTables();
-    
-    return true;
-}
-
-void JitInterpolateExecutor::buildIndexWeightTables() {
-    // Determine padded source dimensions
-    VectorDims srcDimsPadded = srcDims_;
-    if (hasPadding_) {
-        srcDimsPadded = getPaddedInputShape(srcDims_, attrs_.padBegin, attrs_.padEnd);
-    }
-    
-    // Create old JIT executor with padded dimensions
-    // The old executor builds the index/weight tables in its constructor
+    // Create the old JIT executor to leverage existing implementation
     try {
-        oldJitExecutor_ = std::make_shared<node::Interpolate::OldInterpolateJitExecutor>(
+        oldJitExecutor_ = std::make_shared<Interpolate::OldInterpolateJitExecutor>(
             attrs_,
-            srcDimsPadded,  // Use padded dimensions
+            srcDimsPadded_,
             dstDims_,
             dataScales_,
-            dnnl::primitive_attr());
+            attr);
+        return true;
     } catch (const std::exception& e) {
         // Failed to create JIT executor
         oldJitExecutor_ = nullptr;
+        return false;
     }
 }
 
-void JitInterpolateExecutor::preprocessPadding(const std::vector<MemoryCPtr>& src) {
-    if (!hasPadding_ || src.empty()) {
-        return;
+
+bool JitInterpolateExecutor::update(const MemoryArgs& memory) {
+    // When shapes change, we need to recreate the JIT executor with new dimensions
+    if (!memory.count(ARG_SRC_0) || !memory.count(ARG_DST)) {
+        return false;
     }
     
-    const auto srcMemory = src[0];
-    const auto& srcDim = srcDims_;
-    const auto srcDimPadded = getPaddedInputShape(srcDims_, attrs_.padBegin, attrs_.padEnd);
+    // Get new dimensions from memory
+    auto srcMem = memory.at(ARG_SRC_0);
+    auto dstMem = memory.at(ARG_DST);
     
-    const auto srcDim5d = to5Dim(srcDim);
-    const auto srcDimPad5d = to5Dim(srcDimPadded);
-    const auto srcDataSize = srcMemory->getDesc()->getPrecision().size();
+    VectorDims newSrcDims = srcMem->getStaticDims();
+    VectorDims newDstDims = dstMem->getStaticDims();
     
-    int dimSize = srcDim.size();
-    int padB0 = (dimSize > 2) ? attrs_.padBegin[0] : 0;
-    int padB1 = (dimSize > 2) ? attrs_.padBegin[1] : 0;
-    int padB2 = (dimSize == 5) ? attrs_.padBegin[dimSize - 3] : 0;
-    int padB3 = (dimSize > 1) ? attrs_.padBegin[dimSize - 2] : 0;
-    int padB4 = attrs_.padBegin[dimSize - 1];
+    // Check if dimensions changed
+    bool dimsChanged = (newSrcDims != srcDims_ || newDstDims != dstDims_);
     
-    auto getBlockND = [](const VectorDims& shape) -> VectorDims {
-        VectorDims blocks(shape.size());
-        blocks[shape.size() - 1] = 1;
-        for (int i = shape.size() - 2; i >= 0; i--) {
-            blocks[i] = blocks[i + 1] * shape[i + 1];
-        }
-        return blocks;
-    };
+    if (!dimsChanged && oldJitExecutor_) {
+        // No change needed, keep existing executor
+        return true;
+    }
     
-    VectorDims inShapeBlock = getBlockND(srcDim5d);
-    VectorDims inShapePadBlock = getBlockND(srcDimPad5d);
+    // Update dimensions
+    srcDims_ = newSrcDims;
+    dstDims_ = newDstDims;
     
-    const uint8_t* src_data_origin = srcMemory->getDataAs<const uint8_t>();
-    
-    if (attrs_.layout == InterpolateLayoutType::planar) {
-        paddedSrcData_.resize(inShapePadBlock[0] * srcDataSize, 0);
-        uint8_t* src_data_pad = paddedSrcData_.data();
-        
-        parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], 
-            [&](int n, int c, int d, int h) {
-                const uint8_t* src_ptr = src_data_origin + 
-                    (inShapeBlock[1] * n + inShapeBlock[2] * c +
-                     inShapeBlock[3] * d + inShapeBlock[4] * h) * srcDataSize;
-                uint8_t* dst_ptr = src_data_pad + 
-                    (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[2] * (c + padB1) +
-                     inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4) * srcDataSize;
-                cpu_memcpy(dst_ptr, src_ptr, srcDim5d[4] * srcDataSize);
-            });
-    } else if (attrs_.layout == InterpolateLayoutType::by_channel) {
-        paddedSrcData_.resize(inShapePadBlock[0] * srcDataSize, 0);
-        uint8_t* src_data_pad = paddedSrcData_.data();
-        
-        parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4],
-            [&](int n, int d, int h, int w) {
-                const uint8_t* src_ptr = src_data_origin +
-                    (inShapeBlock[1] * n + inShapeBlock[3] * d + 
-                     inShapeBlock[4] * h + w) * srcDim5d[1] * srcDataSize;
-                uint8_t* dst_ptr = src_data_pad +
-                    (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[3] * (d + padB2) +
-                     inShapePadBlock[4] * (h + padB3) + (w + padB4)) * srcDim5d[1] * srcDataSize;
-                cpu_memcpy(dst_ptr, src_ptr, srcDim5d[1] * srcDataSize);
-            });
+    // Recalculate padded dimensions if needed
+    if (hasPadding_) {
+        srcDimsPadded_ = getPaddedInputShape(srcDims_, attrs_.padBegin, attrs_.padEnd);
     } else {
-        // Block layout - simplified padding
-        size_t totalSize = 1;
-        for (auto& dim : srcDimPadded) {
-            totalSize *= dim;
-        }
-        paddedSrcData_.resize(totalSize * srcDataSize, 0);
-        // For block layout, we'll let the old executor handle it
+        srcDimsPadded_ = srcDims_;
     }
+    
+    // Recalculate scales
+    dataScales_.clear();
+    if (!srcDimsPadded_.empty() && !dstDims_.empty()) {
+        dataScales_.reserve(srcDimsPadded_.size());
+        for (size_t i = 0; i < srcDimsPadded_.size(); i++) {
+            dataScales_.push_back(static_cast<float>(dstDims_[i]) / static_cast<float>(srcDimsPadded_[i]));
+        }
+    }
+    
+    // Create new JIT executor with updated dimensions
+    try {
+        // Get the primitive attribute from memory descriptors
+        dnnl::primitive_attr attr;
+        
+        oldJitExecutor_ = std::make_shared<Interpolate::OldInterpolateJitExecutor>(
+            attrs_,
+            srcDimsPadded_,
+            dstDims_,
+            dataScales_,
+            attr);
+        return true;
+    } catch (const std::exception& e) {
+        oldJitExecutor_ = nullptr;
+        return false;
+    }
+}
+
+impl_desc_type JitInterpolateExecutor::getImplType() const {
+#if defined(OPENVINO_ARCH_X86_64)
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+        return impl_desc_type::jit_avx512;
+    }
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        return impl_desc_type::jit_avx2;
+    }
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::sse41)) {
+        return impl_desc_type::jit_sse42;
+    }
+#endif
+    return impl_desc_type::jit;
 }
 
 void JitInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src,
@@ -170,21 +165,13 @@ void JitInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src,
         return;
     }
     
-    const uint8_t* src_data = nullptr;
-    
-    if (hasPadding_) {
-        // Preprocess padding
-        preprocessPadding(src);
-        src_data = paddedSrcData_.data();
-    } else {
-        // Use original source data
-        src_data = src[0]->getDataAs<const uint8_t>();
-    }
-    
+    // Use padPreprocess from base class to handle padding
+    const uint8_t* src_data = padPreprocess(src, dst);
     uint8_t* dst_data = dst[0]->getDataAs<uint8_t>();
     
-    // Execute using old JIT executor
+    // Execute using the old JIT executor
     oldJitExecutor_->exec(src_data, dst_data, post_ops_data_);
 }
+
 
 }  // namespace ov::intel_cpu

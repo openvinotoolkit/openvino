@@ -321,16 +321,12 @@ void NewRefInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src,
         }
         
         // For pillow modes, ensure axes are set if not provided BEFORE calculating scales
+        std::vector<int> axes = attrs_.axes;  // Use a copy, don't modify attrs
         if ((attrs_.mode == InterpolateMode::bilinear_pillow || attrs_.mode == InterpolateMode::bicubic_pillow) &&
             attrs_.layout == InterpolateLayoutType::by_channel) {
-            if (attrs_.axes.empty() && srcDimRuntime.size() == 4) {
+            if (axes.empty() && srcDimRuntime.size() == 4) {
                 // WORKAROUND: Default to [1,2] for pillow modes on 4D tensors
-                // Actually, let's check if this might be [2,3] for height/width in NCHW
-                // The test shows [2,16,16,4] -> [2,2,8,4] which doesn't make sense for NCHW
-                // Let's try interpreting as [N,H,W,C] where axes [1,2] are H,W
-                attrs_.axes = {1, 2};
-                // Disable NCHWAsNHWC since the layout seems wrong
-                attrs_.NCHWAsNHWC = false;
+                axes = {1, 2};
             }
         }
         
@@ -338,36 +334,64 @@ void NewRefInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src,
         // The old executor has a special pillowRefNCHWAsNHWC function that expects the dimensions as-is
         
         // Calculate scales for the old executor
-        // For pillow modes, always recalculate scales based on actual dimensions
+        // For pillow modes with scales mode, use the provided scales
         if ((attrs_.mode == InterpolateMode::bilinear_pillow || attrs_.mode == InterpolateMode::bicubic_pillow)) {
-            // Pillow modes need scales for all dimensions, but only interpolate axes dimensions
-            // Set scale=1.0 for non-interpolated dimensions
-            executorScales.reserve(executorSrcDims.size());
-            
-            // If NCHWAsNHWC, remap axes: [1,2] -> [2,3] for the old executor
-            std::vector<int> remappedAxes = attrs_.axes;
-            if (attrs_.NCHWAsNHWC && executorSrcDims.size() == 4) {
-                for (auto& axis : remappedAxes) {
-                    if (axis == 1) axis = 2;  // H dimension
-                    else if (axis == 2) axis = 3;  // W dimension
-                }
-            }
-            
-            for (size_t i = 0; i < executorSrcDims.size(); ++i) {
-                float scale = 1.0f;
-                // Only calculate scale for axes dimensions
-                bool isAxisDim = false;
-                for (size_t axisIdx = 0; axisIdx < remappedAxes.size(); ++axisIdx) {
-                    if (static_cast<int>(i) == remappedAxes[axisIdx]) {
-                        isAxisDim = true;
-                        break;
+            if (attrs_.shapeCalcMode == InterpolateShapeCalcMode::scales && !attrs_.dataScales.empty()) {
+                // Use the provided scales for pillow modes
+                // The dataScales only contains scales for the axes dimensions
+                // We need to expand to full dimensions with 1.0 for non-axes dimensions
+                executorScales.reserve(executorSrcDims.size());
+                
+                // If NCHWAsNHWC, remap axes: [1,2] -> [2,3] for the old executor
+                std::vector<int> remappedAxes = axes;
+                if (attrs_.NCHWAsNHWC && executorSrcDims.size() == 4) {
+                    for (auto& axis : remappedAxes) {
+                        if (axis == 1) axis = 2;  // H dimension
+                        else if (axis == 2) axis = 3;  // W dimension
                     }
                 }
                 
-                if (isAxisDim) {
-                    scale = static_cast<float>(executorDstDims[i]) / static_cast<float>(executorSrcDims[i]);
+                for (size_t i = 0; i < executorSrcDims.size(); ++i) {
+                    float scale = 1.0f;
+                    // Find if this dimension is in the axes list
+                    for (size_t axisIdx = 0; axisIdx < axes.size(); ++axisIdx) {
+                        if (static_cast<int>(i) == axes[axisIdx]) {
+                            // Use the provided scale for this axis
+                            scale = attrs_.dataScales[axisIdx];
+                            break;
+                        }
+                    }
+                    executorScales.push_back(scale);
                 }
-                executorScales.push_back(scale);
+            } else {
+                // For sizes mode or when scales are not provided, calculate them
+                executorScales.reserve(executorSrcDims.size());
+                
+                // If NCHWAsNHWC, remap axes: [1,2] -> [2,3] for the old executor
+                std::vector<int> remappedAxes = axes;
+                if (attrs_.NCHWAsNHWC && executorSrcDims.size() == 4) {
+                    for (auto& axis : remappedAxes) {
+                        if (axis == 1) axis = 2;  // H dimension
+                        else if (axis == 2) axis = 3;  // W dimension
+                    }
+                }
+                
+                for (size_t i = 0; i < executorSrcDims.size(); ++i) {
+                    float scale = 1.0f;
+                    // Only calculate scale for axes dimensions
+                    bool isAxisDim = false;
+                    for (size_t axisIdx = 0; axisIdx < remappedAxes.size(); ++axisIdx) {
+                        if (static_cast<int>(i) == remappedAxes[axisIdx]) {
+                            isAxisDim = true;
+                            break;
+                        }
+                    }
+                    
+                    if (isAxisDim) {
+                        scale = static_cast<float>(executorDstDims[i]) / static_cast<float>(executorSrcDims[i]);
+                    }
+                    executorScales.push_back(scale);
+                }
             }
         } else if (attrs_.shapeCalcMode == InterpolateShapeCalcMode::scales && !attrs_.dataScales.empty()) {
             // Use the provided scales directly - they already account for padding

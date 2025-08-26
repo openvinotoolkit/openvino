@@ -2514,21 +2514,31 @@ void Interpolate::prepareParams() {
     // Update interpolate attributes with data scales
     interpAttrs.dataScales = dataScales;
 
-    // Update memory descriptors in factory if needed
-    if (execFactory) {
+    // Update or create executor if needed
+    if (interpolateExecutor) {
+        // If we already have an executor, just update it with new memory
+        MemoryArgs memoryArgs;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            memoryArgs[i] = getSrcMemoryAtPort(i);
+        }
+        memoryArgs[ARG_DST] = getDstMemoryAtPort(0);
+        
+        // Call update to handle dynamic shape/parameter changes
+        if (interpolateExecutor->update(memoryArgs)) {
+            lastOutputDims = dstDimsOrign;
+            return;
+        }
+        // If update failed, recreate the executor below
+        interpolateExecutor = nullptr;
+    }
+    
+    // Create new executor if we don't have one or if update failed
+    if (!interpolateExecutor) {
         MemoryDescArgs descs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             descs[i] = getSrcMemoryAtPort(i)->getDescPtr();
         }
         descs[ARG_DST] = getDstMemoryAtPort(0)->getDescPtr();
-
-        // Create new factory with updated attributes and descriptors
-        MemoryFormatFilter filter;
-        execFactory = std::make_shared<ExecutorFactory<InterpolateAttrs>>(
-            interpAttrs,
-            std::make_shared<ExecutorContext>(context, getImplPriority()),
-            descs,
-            filter);
 
         // Create memory arguments for executor creation
         MemoryArgs memoryArgs;
@@ -2540,23 +2550,16 @@ void Interpolate::prepareParams() {
         // Create the executor with current scales and dimensions
         // The new executors handle padding and table building internally
         try {
-//             std::cerr << "[DEBUG] Creating ExecutorFactory for interpolate" << std::endl;
-            // Update the factory's attributes with the computed scales
+            // Create factory with updated attributes and descriptors
+            MemoryFormatFilter filter;
             execFactory = std::make_shared<ExecutorFactory<InterpolateAttrs>>(
                 interpAttrs,
                 std::make_shared<ExecutorContext>(context, getImplPriority()),
                 descs,
                 filter);
             
-//             std::cerr << "[DEBUG] About to create interpolate executor from factory with shapeCalcMode=" << static_cast<int>(interpAttrs.shapeCalcMode) << std::endl;
             interpolateExecutor = execFactory->make(memoryArgs);
-            if (interpolateExecutor) {
-//                 std::cerr << "[DEBUG] Successfully created interpolate executor with impl type: " << interpolateExecutor->implType() << std::endl;
-            } else {
-//                 std::cerr << "[DEBUG] Factory returned null executor" << std::endl;
-            }
         } catch (const std::exception& e) {
-//             std::cerr << "[DEBUG] Executor creation failed with exception: " << e.what() << std::endl;
             // If creation fails, fall through to old implementation
             interpolateExecutor = nullptr;
         }
@@ -2637,11 +2640,42 @@ void Interpolate::createPrimitive() {
     descs[ARG_DST] = getDstMemoryAtPort(0)->getDescPtr();
 
     MemoryFormatFilter filter;
+    
+    // Get implementation priority string for the factory
+    std::string implPriorityStr;
+    const auto& priorities = getImplPriority();
+    if (!priorities.empty()) {
+        // Map the priority to implementation name
+        switch (priorities[0]) {
+            case impl_desc_type::ref:
+            case impl_desc_type::ref_any:
+                // If test specifically requests reference implementation
+                implPriorityStr = "ref_interpolate";
+                break;
+            case impl_desc_type::jit:
+            case impl_desc_type::jit_avx:
+            case impl_desc_type::jit_avx2:
+            case impl_desc_type::jit_avx512:
+            case impl_desc_type::jit_sse42:
+                // If test specifically requests JIT implementation
+                implPriorityStr = "jit_interpolate";
+                break;
+            case impl_desc_type::acl:
+                // If test specifically requests ACL implementation
+                implPriorityStr = "acl_interpolate";
+                break;
+            default:
+                // Let the factory choose based on availability
+                break;
+        }
+    }
+    
     execFactory = std::make_shared<ExecutorFactory<InterpolateAttrs>>(
         interpAttrs,
         std::make_shared<ExecutorContext>(context, getImplPriority()),
         descs,
-        filter);
+        filter,
+        implPriorityStr);
 
     if (shapesDefined() && isExecutable()) {
         if (needPrepareParams()) {

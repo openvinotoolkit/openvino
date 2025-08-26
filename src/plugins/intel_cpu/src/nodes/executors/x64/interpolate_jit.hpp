@@ -7,6 +7,7 @@
 #include "nodes/executors/interpolate.hpp"
 #include "nodes/interpolate.h"
 #include <memory>
+#include <vector>
 
 namespace ov::intel_cpu {
 
@@ -23,24 +24,26 @@ public:
               const std::vector<MemoryPtr>& dst,
               const void* post_ops_data_) override;
               
-    [[nodiscard]] impl_desc_type getImplType() const override {
-        return impl_desc_type::jit_x64;
-    }
+    [[nodiscard]] impl_desc_type getImplType() const override;  // Moved to cpp for ISA detection
+    
+    bool update(const MemoryArgs& memory) override;
     
     ~JitInterpolateExecutor() override = default;
 
 private:
-    // Use old JIT executor internally with proper initialization
-    std::shared_ptr<node::Interpolate::OldInterpolateJitExecutor> oldJitExecutor_;
+    // Configuration
     InterpolateAttrs attrs_;
     VectorDims srcDims_;
     VectorDims dstDims_;
+    VectorDims srcDimsPadded_;
     std::vector<float> dataScales_;
-    std::vector<uint8_t> paddedSrcData_;
     bool hasPadding_ = false;
     
-    void buildIndexWeightTables();
-    void preprocessPadding(const std::vector<MemoryCPtr>& src);
+    // Precision
+    ov::element::Type dataPrecision_;
+    
+    // Use old JIT executor internally
+    std::shared_ptr<node::Interpolate::OldInterpolateJitExecutor> oldJitExecutor_;
 };
 
 }  // namespace ov::intel_cpu
