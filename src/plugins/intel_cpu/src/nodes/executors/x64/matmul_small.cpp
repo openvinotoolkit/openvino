@@ -16,9 +16,11 @@
 #include <unordered_map>
 
 #include "dnnl_extension_utils.h"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/kernels/x64/jit_matmul_small.hpp"
@@ -54,8 +56,33 @@ void MatMulSmallExecutor::prepare_binary_args(const DnnlPrimitiveAttrs& primAttr
     }
 }
 
+
+[[maybe_unused]] static inline bool noWeightsDecompression(const MatMulConfig& config) {
+    return !DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config));
+}
+
+[[maybe_unused]] static inline bool noSparseDecompression(const MatMulConfig& config) {
+    return !(config.attrs.sparseWeights);
+}
+
 bool MatMulSmallExecutor::supports([[maybe_unused]] const MatMulConfig& config) {
-    // @todo cover actual limitations
+    VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+    VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+
+    VERIFY(!config.attrs.transposeA && !config.attrs.transposeB, "unsupported strides");
+    VERIFY(all_of(ov::element::f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+
+    const auto& biasDesc = config.descs.at(ARG_BIAS);
+    VERIFY(biasDesc->empty(), "bias is not supported");
+
+    const auto& srcDesc0 = config.descs.at(ARG_SRC);
+    const auto& srcDesc1 = config.descs.at(ARG_WEI);
+    const auto srcRank0 = srcDesc0->getShape().getRank();
+    const auto srcRank1 = srcDesc1->getShape().getRank();
+
+    VERIFY(srcRank0 >= 2, UNSUPPORTED_SRC_RANK);
+    VERIFY(srcRank0 == srcRank1, UNSUPPORTED_SRC_RANK);
+
     return true;
 }
 

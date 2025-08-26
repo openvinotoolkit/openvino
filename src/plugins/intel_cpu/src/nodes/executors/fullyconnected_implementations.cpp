@@ -11,7 +11,7 @@
 #include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/convolution_config.hpp"
-#include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
+#include "nodes/executors/dnnl/dnnl_executor.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
