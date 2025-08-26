@@ -43,15 +43,18 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
                                                                  const ov::snippets::lowered::ExpressionPtr& expr,
                                                                  const snippets::KernelExecutorTablePtr& kernel_table)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()),
-      loop_begin_label{new Label()},
-      loop_end_label(nullptr),
       loop_preamble_label{new Label()},
       m_parallel_section_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+
+    // Initialize common fields
+    common_fields.loop_begin_label = std::make_shared<Xbyak::Label>();
+    common_fields.init_from_expr(expr);
+
     auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin && loop_begin->get_is_parallel(), "expects parallel LoopBegin expression");
 
-    auto loop_end = loop_begin->get_loop_end();
+    auto loop_end = common_fields.loop_end;
     OV_CPU_JIT_EMITTER_ASSERT(loop_end, "Failed to initialize LoopEnd in jit_parallel_loop_begin_emitter");
 
     // Get loop end input registers
@@ -61,10 +64,6 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
     OV_CPU_JIT_EMITTER_ASSERT(loop_end_expr && loop_end_expr->get_node() == loop_end,
                               "Failed to find valid LoopEnd expression");
     auto loop_end_input_regs = loop_end_expr->get_reg_info().first;
-
-    wa_increment = loop_end->get_increment();
-    evaluate_once = loop_end->get_evaluate_once();
-    loop_id_offset = loop_end->get_id() * sizeof(jit_snippets_call_args::loop_args_t);
 
     const auto& ptr_increments = loop_end->get_ptr_increments();
     const auto& fin_offsets = loop_end->get_finalization_offsets();
@@ -79,7 +78,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
                  });
 
     // Use the reusable function to compose loop args
-    loop_args = jit_loop_end_base_emitter::compose_loop_args(loop_end);
+    loop_args = jit_loop_end_base_emitter::compose_loop_args(common_fields.loop_end);
 
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
     work_amount_reg_idx = loop_end_input_regs.back().idx;
@@ -91,7 +90,8 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
         }
     }
 
-    m_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, ParallelLoopConfig(wa_increment));
+    m_executor =
+        kernel_table->register_kernel<ParallelLoopExecutor>(expr, ParallelLoopConfig(common_fields.wa_increment));
 }
 
 void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in,
@@ -103,9 +103,11 @@ void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_
                               work_amount_reg_idx,
                               " got ",
                               out.size());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
-    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
-                              "loop increment might be dynamic only if loop evaluates once!");
+    OV_CPU_JIT_EMITTER_ASSERT(common_fields.loop_begin_label != nullptr && common_fields.loop_end_label != nullptr,
+                              "has not inited labels!");
+    OV_CPU_JIT_EMITTER_ASSERT(
+        !snippets::utils::is_dynamic_value(common_fields.wa_increment) || common_fields.evaluate_once,
+        "loop increment might be dynamic only if loop evaluates once!");
 }
 
 void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
@@ -156,7 +158,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call(std::vector<Xb
 
     if (is_dynamic) {
         h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(loop_args)]);
-        h->lea(aux_reg, h->ptr[aux_reg + loop_id_offset]);
+        h->lea(aux_reg, h->ptr[aux_reg + common_fields.loop_id_offset]);
         push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(loop_args));
     } else {
         h->mov(aux_reg, reinterpret_cast<uintptr_t>(&loop_args));
@@ -184,7 +186,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call(std::vector<Xb
     h->add(h->rsp, reserved_stack_size);
     binary_call_reg_spiller.postamble();
 
-    h->jmp(*loop_end_label, CodeGenerator::T_NEAR);
+    h->jmp(*common_fields.loop_end_label, CodeGenerator::T_NEAR);
 }
 
 void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization(
@@ -228,15 +230,21 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization(
     h->mov(aux_reg, reinterpret_cast<uintptr_t>(m_common_registers_buffer.data()));
     EmitABIRegSpills::load_regs_from_memory(h, regs_to_restore, aux_reg, m_common_registers_buffer.size());
 
-    h->L(*loop_begin_label);
+    h->L(*common_fields.loop_begin_label);
 }
 
 void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
-                                                [[maybe_unused]] const std::vector<size_t>& out) const {
+                                                const std::vector<size_t>& out) const {
     const bool is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(loop_args.m_work_amount);
-    jit_loop_end_base_emitter::emit_loop_begin_work_amount_check(
-        h, aux_gpr_idxs, out, is_work_amount_dynamic, loop_args.m_work_amount, loop_id_offset,
-        evaluate_once, wa_increment, loop_end_label);
+    jit_loop_end_base_emitter::emit_loop_begin_work_amount_check(h,
+                                                                 aux_gpr_idxs,
+                                                                 out,
+                                                                 is_work_amount_dynamic,
+                                                                 loop_args.m_work_amount,
+                                                                 common_fields.loop_id_offset,
+                                                                 common_fields.evaluate_once,
+                                                                 common_fields.wa_increment,
+                                                                 common_fields.loop_end_label);
 
     std::vector<Xbyak::Reg> regs_to_restore;
     emit_parallel_executor_call(regs_to_restore);

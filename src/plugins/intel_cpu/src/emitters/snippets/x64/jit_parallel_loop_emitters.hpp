@@ -27,10 +27,10 @@ public:
     }
 
     void set_loop_end_label(const std::shared_ptr<const Xbyak::Label>& label) {
-        loop_end_label = label;
+        common_fields.loop_end_label = label;
     }
     std::shared_ptr<const Xbyak::Label> get_begin_label() const {
-        return loop_begin_label;
+        return common_fields.loop_begin_label;
     }
 
     std::shared_ptr<EmitABIRegSpills> get_parallel_section_reg_spiller() const {
@@ -50,17 +50,15 @@ protected:
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
-    size_t wa_increment = 0;
-    size_t loop_id_offset = 0;
-    bool evaluate_once = false;
+    // Common loop begin fields
+    loop_begin_common_fields common_fields;
+
     bool is_dynamic = false;
     size_t work_amount_reg_idx = 0;
 
     std::vector<size_t> mem_ptr_regs_idxs;
     jit_snippets_call_args::loop_args_t loop_args;
 
-    std::shared_ptr<Xbyak::Label> loop_begin_label = nullptr;
-    std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
     std::shared_ptr<Xbyak::Label> loop_preamble_label = nullptr;
     std::shared_ptr<ParallelLoopExecutor> m_executor = nullptr;
     // This spiller is used to spill registers inside the parallel section of each thread

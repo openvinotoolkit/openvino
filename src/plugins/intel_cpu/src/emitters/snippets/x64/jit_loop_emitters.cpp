@@ -37,27 +37,19 @@ namespace ov::intel_cpu {
 jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa),
-      loop_begin_label{new Xbyak::Label()},
-      loop_end_label(nullptr) {
-    const auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_begin, "expects LoopBegin expression");
-    const auto loop_end = loop_begin->get_loop_end();
-    work_amount = loop_end->get_work_amount();
-    wa_increment = loop_end->get_increment();
-    evaluate_once = loop_end->get_evaluate_once();
-    loop_id = loop_end->get_id();
+    : jit_emitter(h, isa) {
+    common_fields.loop_begin_label = std::make_shared<Xbyak::Label>();
+    common_fields.init_from_expr(expr);
+    
+    work_amount = common_fields.loop_end->get_work_amount();
+    loop_id = common_fields.loop_end->get_id();
     is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(work_amount);
+    
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
 
 void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got " + std::to_string(in.size()));
-    // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
-    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
-    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
-                              "loop increment might be dynamic only if loop evaluates once!");
+    common_fields.validate_loop_arguments(in, out);
 }
 
 void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
@@ -73,16 +65,16 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
     // If the loop evaulate once, we can skip loop begin code emission
     // If work_amount is dynamic, we should get runtime `work_amount` - it might be `zero` and we should skip loop
     // evaluation
-    if (evaluate_once && !is_work_amount_dynamic) {
+    if (common_fields.evaluate_once && !is_work_amount_dynamic) {
         return;
     }
 
-    const auto loop_id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
+    const auto loop_id_offset_for_runtime = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
     jit_loop_end_base_emitter::emit_loop_begin_work_amount_check(
-        h, aux_gpr_idxs, out, is_work_amount_dynamic, work_amount, loop_id_offset,
-        evaluate_once, wa_increment, loop_end_label);
+        h, aux_gpr_idxs, out, is_work_amount_dynamic, work_amount, loop_id_offset_for_runtime,
+        common_fields.evaluate_once, common_fields.wa_increment, common_fields.loop_end_label);
 
-    h->L(*loop_begin_label);
+    h->L(*common_fields.loop_begin_label);
 }
 
 jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
