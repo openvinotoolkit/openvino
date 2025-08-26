@@ -205,6 +205,31 @@ void regclass_graph_Model(py::module m) {
                 )");
 
     model.def(
+    "reshape",
+    [](ov::Model& self, const py::list& input_shapes, const py::dict& variables_shapes = py::dict()) {
+        auto inputs = self.inputs();
+        if (inputs.size() != input_shapes.size()) {
+            throw py::value_error("Number of shapes does not match number of model inputs.");
+        }
+        std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            new_shapes[inputs[i]] = ov::PartialShape(input_shapes[i].cast<py::list>());
+        }
+        const auto new_variables_shapes = get_variables_shapes(variables_shapes);
+        ConditionalGILScopedRelease release;
+        self.reshape(new_shapes, new_variables_shapes);
+    },
+    py::arg("input_shapes"),
+    py::arg("variables_shapes") = py::dict(),
+    R"(
+        Reshape model inputs by assigning each shape in the list to the corresponding input in order.
+        Example: model.reshape([[2,2], [1,3,224,244], [10]])
+        :param input_shapes: List of shapes for each input.
+        :type input_shapes: list[list[int]]
+        :param variables_shapes: New shapes for variables
+        :type variables_shapes: dict[keys, values]
+        :return: void
+    )");
         py::init([](const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name) {
             return make_model_with_tensor_names(ov::as_output_vector(results), parameters, name);
         }),

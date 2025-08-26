@@ -96,6 +96,7 @@ def test_add_output_port():
     relu2 = ops.relu(relu1, name="relu2")
     model = Model(relu2, [param], "TestModel")
     assert len(model.results) == 1
+    relu1.output(0).get_tensor().set_names({"relu1_t1"})
     new_outs = model.add_outputs(relu1.output(0))
     assert len(model.results) == 2
     assert len(new_outs) == 1
@@ -597,6 +598,29 @@ def test_reshape_with_python_types_for_variable():
         "expected values as openvino.PartialShape, str, list or tuple."
         in str(e.value)
     )
+
+def test_reshape_with_list_of_shapes():
+    # Model with three inputs
+    shape_a = [4, 4]
+    shape_b = [4, 4]
+    shape_c = [4, 4]
+    param_a = ops.parameter(Shape(shape_a), dtype=np.float32, name="A")
+    param_b = ops.parameter(Shape(shape_b), dtype=np.float32, name="B")
+    param_c = ops.parameter(Shape(shape_c), dtype=np.float32, name="C")
+    # Use a simple output node that combines all inputs
+    output = ops.add(param_a, param_b)
+    output = ops.add(output, param_c)
+    model = Model(output, [param_a, param_b, param_c])
+    # New shapes to assign
+    model.reshape({0: [2, 2], 1: [2, 2], 2: [2, 2]})
+    inputs = model.inputs    
+    new_shapes = [[2, 2], [2, 2], [2, 2]]
+    assert inputs[0].partial_shape == PartialShape(new_shapes[0])
+    assert inputs[1].partial_shape == PartialShape(new_shapes[1])
+    assert inputs[2].partial_shape == PartialShape(new_shapes[2])
+    # Test error for mismatched input count
+    with pytest.raises(RuntimeError):
+        model.reshape([[1, 2], [3, 4]])
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
