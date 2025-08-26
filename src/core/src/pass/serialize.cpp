@@ -972,7 +972,7 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
 }
 
 bool append_custom_rt_info(pugi::xml_node& node, const std::string& name, const ov::Any& data) {
-    if (std::regex_search(name, std::regex{"^__"}))
+    if (std::regex_search(name, std::regex{"^__"}))  // Skip restricted entries
         return false;
 
     auto custom_node = node.append_child("custom");
@@ -990,8 +990,11 @@ bool append_custom_rt_info(pugi::xml_node& node, const std::string& name, const 
         appended = true;
     }
 
-    if (!appended)
+    if (appended) {
+        custom_node.append_attribute("version").set_value(-1);
+    } else {
         node.remove_child(custom_node);
+    }
     return appended;
 }
 
@@ -1248,8 +1251,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     // Serialize rt info
     pugi::xml_node rt_info_node = netXml.append_child("rt_info");
     for (const auto& it : model.get_rt_info()) {
-        // Skip IR version
-        if (it.first == "version" || it.first == "__weights_path")
+        // Skip IR version and restricted entries
+        if (it.first == "version" || std::regex_search(it.first, std::regex{"^__"}))
             continue;
         serialize_rt_info(rt_info_node, it.first, it.second);
     }
