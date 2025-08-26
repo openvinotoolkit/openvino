@@ -8,6 +8,7 @@
 #include "primitive_onednn_base.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -432,8 +433,10 @@ public:
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
+        attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
         auto prim_desc = get_gemm_primitive_descriptor(impl_params, *attr);
-        attr->set_fpmath_mode(dnnl::fpmath_mode::f16, false);
+        
+        //attr->set_accumulation_mode(dnnl::accumulation_mode::f16);
         return std::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
     }
 
