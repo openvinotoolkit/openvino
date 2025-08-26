@@ -15,8 +15,40 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/loop.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::intel_cpu {
+
+class jit_loop_begin_helper {
+public:
+    jit_loop_begin_helper(const ov::snippets::lowered::ExpressionPtr& expr);
+
+    void set_loop_end_label(const std::shared_ptr<const Xbyak::Label>& label) {
+        loop_end_label = label;
+    }
+
+    std::shared_ptr<const Xbyak::Label> get_begin_label() const {
+        return loop_begin_label;
+    }
+
+protected:
+    std::shared_ptr<Xbyak::Label> loop_begin_label = nullptr;
+    std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
+    size_t wa_increment = 0;
+    size_t loop_id_offset = 0;
+    bool evaluate_once = false;
+    std::shared_ptr<ov::snippets::op::LoopEnd> loop_end = nullptr;
+
+    void validate_loop_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+
+    // Utility function for common loop begin logic (moved from jit_loop_end_base_emitter)
+    void emit_loop_begin_work_amount_check(dnnl::impl::cpu::x64::jit_generator_t* h,
+                                          std::vector<size_t>& aux_gpr_idxs,
+                                          const std::vector<size_t>& out,
+                                          bool is_work_amount_dynamic,
+                                          int64_t work_amount_static) const;
+};
+
 class jit_loop_end_base_emitter : public jit_emitter {
 public:
     jit_loop_end_base_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
@@ -26,18 +58,6 @@ public:
     size_t get_inputs_num() const override {
         return 0;
     }
-
-    // Static utility function for common loop begin logic
-    static void emit_loop_begin_work_amount_check(
-        dnnl::impl::cpu::x64::jit_generator_t* h,
-        std::vector<size_t>& aux_gpr_idxs,
-        const std::vector<size_t>& out,
-        bool is_work_amount_dynamic,
-        int64_t work_amount_static,
-        size_t loop_id_offset,
-        bool evaluate_once,
-        size_t wa_increment,
-        const std::shared_ptr<const Xbyak::Label>& loop_end_label);
 
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
@@ -65,8 +85,8 @@ protected:
 
     void emit_loop_end_logic(const std::vector<size_t>& in, bool apply_finalization_offsets) const;
 
-    std::shared_ptr<const Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<Xbyak::Label> loop_end_label = nullptr;
+    std::shared_ptr<const Xbyak::Label> loop_begin_label = nullptr;
     size_t io_num = 0;
     size_t wa_increment = 0;
     size_t loop_id_offset = 0;

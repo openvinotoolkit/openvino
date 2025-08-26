@@ -15,7 +15,7 @@
 
 namespace ov::intel_cpu {
 
-class jit_parallel_loop_begin_emitter : public jit_binary_call_emitter {
+class jit_parallel_loop_begin_emitter : public jit_loop_begin_helper, public jit_binary_call_emitter {
 public:
     jit_parallel_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -24,13 +24,6 @@ public:
 
     size_t get_inputs_num() const override {
         return 0;
-    }
-
-    void set_loop_end_label(const std::shared_ptr<const Xbyak::Label>& label) {
-        common_fields.loop_end_label = label;
-    }
-    std::shared_ptr<const Xbyak::Label> get_begin_label() const {
-        return common_fields.loop_begin_label;
     }
 
     std::shared_ptr<EmitABIRegSpills> get_parallel_section_reg_spiller() const {
@@ -49,9 +42,6 @@ protected:
                         const std::vector<size_t>& out_idxs,
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
-
-    // Common loop begin fields
-    loop_begin_common_fields common_fields;
 
     bool is_dynamic = false;
     size_t work_amount_reg_idx = 0;
@@ -79,7 +69,6 @@ protected:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     std::shared_ptr<EmitABIRegSpills> m_parallel_section_reg_spiller = nullptr;
-
 };
 
 }  // namespace ov::intel_cpu
