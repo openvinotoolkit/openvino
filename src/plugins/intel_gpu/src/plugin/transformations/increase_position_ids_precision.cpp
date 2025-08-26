@@ -4,7 +4,6 @@
 
 #include "increase_position_ids_precision.hpp"
 
-// #include "itt.hpp"
 #include "intel_gpu/op/gemm.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 
@@ -80,12 +79,13 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
         const auto original_et = matmul_node->get_output_element_type(0);
         if (original_et == desired_et)
             return false;
-
-        bool is_changed = insert_converts_before_if_needed(matmul_node, desired_et);
+        size_t input_idx = 0;
+        bool is_changed = insert_converts_before_if_needed(matmul_node, desired_et, input_idx);
 
         if (is_changed) {
-            insert_converts_after_if_needed(cos_node, original_et);
-            insert_converts_after_if_needed(sin_node, original_et);
+            size_t output_idx = 0;
+            insert_converts_after_if_needed(cos_node, original_et, output_idx);
+            insert_converts_after_if_needed(sin_node, original_et, output_idx);
         }
         return true;
     };
@@ -121,11 +121,10 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
     auto add_1 = wrap_type<ov::op::v1::Add>({mul_2, mul_3});
     auto reshape_3 = wrap_type<ov::op::v1::Reshape>({add_1, any_input()});
     auto tranpose_1 = wrap_type<ov::op::v1::Transpose>({reshape_3, any_input()});
-    auto sdpa = wrap_type<ov::op::v13::ScaledDotProductAttention>({tranpose_1, any_input(), any_input()});
+    auto sdpa = wrap_type<ov::op::v13::ScaledDotProductAttention>({any_input(), tranpose_1, any_input()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& root_node = m.get_match_root();
 
         auto mul_node = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul).get_node_shared_ptr());
         auto constant_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(add_constant).get_node_shared_ptr());
@@ -144,15 +143,16 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
         if (original_et == desired_et)
             return false;
 
-        bool is_changed = insert_converts_before_if_needed(mul_node, desired_et);
-
+        size_t input_idx = 0;
+        bool is_changed = insert_converts_before_if_needed(mul_node, desired_et, input_idx);
         if (is_changed) {
             if (constant_node)
-                insert_converts_after_if_needed(constant_node, desired_et);
+                insert_converts_after_if_needed(constant_node, desired_et, input_idx);
+            size_t output_idx = 0;
             if (cos_node)
-                insert_converts_after_if_needed(cos_node, original_et);
+                insert_converts_after_if_needed(cos_node, original_et, output_idx);
             if (sin_node)
-                insert_converts_after_if_needed(sin_node, original_et);
+                insert_converts_after_if_needed(sin_node, original_et, output_idx);
         }
         return true;
     };
@@ -161,8 +161,8 @@ IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo
     this->register_matcher(m, callback);
 }
 
-bool IncreasePositionIdsPrecisionForRoPE::insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type desired_et) {
-    size_t input_idx = 0;
+bool IncreasePositionIdsPrecisionForRoPE::insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& node,
+                                                                const ov::element::Type desired_et, size_t& input_idx) {
     bool is_changed = false;
     for (const auto& input : node->inputs()) {
         const auto& incoming_output = input.get_source_output();
@@ -193,8 +193,8 @@ bool IncreasePositionIdsPrecisionForRoPE::insert_converts_before_if_needed(const
     return is_changed;
 }
 
-void IncreasePositionIdsPrecisionForRoPE::insert_converts_after_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type original_et) {
-    size_t output_idx = 0;
+void IncreasePositionIdsPrecisionForRoPE::insert_converts_after_if_needed(const std::shared_ptr<ov::Node>& node,
+                                                            const ov::element::Type original_et, size_t& output_idx) {
     for (const auto& output : node->outputs()) {
         for (const auto& out_inputs : output.get_target_inputs()) {
             auto out_node = out_inputs.get_node()->shared_from_this();
@@ -212,7 +212,6 @@ void IncreasePositionIdsPrecisionForRoPE::insert_converts_after_if_needed(const 
 IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {}
 
 bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    // RUN_ON_MODEL_SCOPE(IncreasePositionIdsPrecision);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForRoPE>();

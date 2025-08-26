@@ -13,8 +13,8 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionBase");
     IncreasePositionIdsPrecisionForRoPE();
 protected:
-    bool insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type desired_et);
-    void insert_converts_after_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type original_et);
+    bool insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type desired_et, size_t& input_idx);
+    void insert_converts_after_if_needed(const std::shared_ptr<ov::Node>& node, const ov::element::Type original_et, size_t& output_idx);
 };
 
 class IncreasePositionIdsPrecisionForLtxVideo : public IncreasePositionIdsPrecisionForRoPE {
