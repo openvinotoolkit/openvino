@@ -11,6 +11,8 @@
 #include <utility>
 
 #include "compiled_model.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/parameter.hpp"
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
@@ -86,19 +88,37 @@ static void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
     }
 }
 
-std::vector<ScoresPort> ScoresLocator::find(const std::shared_ptr<const CompiledModel>& cm) {
-    std::vector<ScoresPort> res;
+
+struct PortsDiscovery {
+    std::vector<ov::template_plugin::InferRequest::ScoresPort> scores;
+    std::vector<ov::template_plugin::InferRequest::LayerPorts> layers;
+};
+
+static PortsDiscovery discover_ports(const std::shared_ptr<const ov::template_plugin::CompiledModel>& cm) {
+    PortsDiscovery out;
     auto runtime = cm->get_runtime_model();
     const auto& results = runtime->get_results();
+    size_t layer_id = 0;
     for (size_t i = 0; i < results.size(); ++i) {
-        size_t lid = 0;
-        bool matched = false;
-        const auto& tens = results[i]->get_input_source_output(0).get_tensor();
-        for (const auto& name : tens.get_names()) {
-            if (is_scores_output_name(name, lid)) {
-                matched = true;
-                break;
-            }
+        auto res = results[i];
+        if (res->get_output_size() != 1) continue;
+        auto src = res->input_value(0);
+        auto pat = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(src.get_node_shared_ptr());
+        if (!pat) continue;
+        if (src.get_index() != 1) continue; // second output = scores
+        // Resolve KC/VC parameter ports from PagedAttention inputs [3] and [4]
+        ov::template_plugin::InferRequest::LayerPorts lp;
+        lp.k_param = pat->input_value(3);
+        lp.v_param = pat->input_value(4);
+        out.layers.push_back(lp);
+        // record scores port
+        ov::template_plugin::InferRequest::ScoresPort sp{};
+        sp.result_index = i;
+        sp.layer_id = layer_id++;
+        out.scores.push_back(sp);
+    }
+    return out;
+}
         }
         if (!matched) {
             const auto& fname = results[i]->get_friendly_name();
@@ -154,7 +174,9 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& model) : 
 
     // ---- NEW: cache manager & eviction wiring ----
     m_cache_mgr = model->get_or_create_cache_manager_locked();
-    m_scores_ports = ScoresLocator::find(model);
+    auto _ports = discover_ports(model);
+    m_scores_ports = std::move(_ports.scores);
+    m_layer_ports = std::move(_ports.layers);
 
     const size_t block_size = m_cache_mgr ? m_cache_mgr->get_block_size() : 32;
     const size_t num_layers = m_cache_mgr ? m_cache_mgr->get_num_decoder_layers() : m_scores_ports.size();
@@ -333,28 +355,20 @@ void InferRequest::cancel() {
 
 // -------------------- NEW HELPERS --------------------
 
-void InferRequest::ensure_kv_cache_bound() {
-    if (!m_cache_mgr)
-        return;
-    // minimal capacity to start
-    m_cache_mgr->allocate_cache_if_needed(1);
 
-    const size_t layers = m_cache_mgr->get_num_decoder_layers();
-    for (size_t l = 0; l < layers; ++l) {
-        const std::string kname = "key_cache." + std::to_string(l);
-        const std::string vname = "value_cache." + std::to_string(l);
+void ov::template_plugin::InferRequest::ensure_kv_cache_bound() {
+    if (!m_cache_mgr) return;
+    m_cache_mgr->allocate_cache_if_needed(m_cfg_max_kv_blocks);
 
-        for (const auto& in : get_inputs()) {
-            for (const auto& n : in.get_names()) {
-                if (n == kname) {
-                    ov::Tensor t = m_cache_mgr->get_key_cache(l);
-                    auto it = ov::get_tensor_impl(t);  // SoPtr<ITensor>
-                    set_tensor(in, it);
-                } else if (n == vname) {
-                    ov::Tensor t = m_cache_mgr->get_value_cache(l);
-                    auto it = ov::get_tensor_impl(t);  // SoPtr<ITensor>
-                    set_tensor(in, it);
-                }
+    // Bind per-layer KC/VC ports to CacheManager tensors
+    for (size_t l = 0; l < m_layer_ports.size() && l < m_cache_mgr->get_num_decoder_layers(); ++l) {
+        const auto& lp = m_layer_ports[l];
+        auto kc = m_cache_mgr->get_key_cache(l);
+        auto vc = m_cache_mgr->get_value_cache(l);
+        if (kc) set_tensor(lp.k_param, ov::get_tensor_impl(kc));
+        if (vc) set_tensor(lp.v_param, ov::get_tensor_impl(vc));
+    }
+}
             }
         }
     }

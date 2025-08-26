@@ -29,6 +29,12 @@ struct ScoresPort {
     size_t result_index;
     size_t layer_id;
 };
+
+    // NEW: resolved input ports for K/V per attention layer (no names)
+    struct LayerPorts {
+        ov::Output<const ov::Node> k_param; // PagedAttention input[3]
+        ov::Output<const ov::Node> v_param; // PagedAttention input[4]
+    };
 class ScoresLocator {
 public:
     static std::vector<ScoresPort> find(const std::shared_ptr<const CompiledModel>& cm);
@@ -72,6 +78,7 @@ private:
     std::shared_ptr<ov::cache::CacheManager> m_cache_mgr;
     std::unique_ptr<ov::cache::CacheEvictionAlgorithm> m_eviction;
     std::vector<ScoresPort> m_scores_ports;
+    std::vector<LayerPorts> m_layer_ports;
 
     void ensure_kv_cache_bound();
     void register_scores_and_evict();
