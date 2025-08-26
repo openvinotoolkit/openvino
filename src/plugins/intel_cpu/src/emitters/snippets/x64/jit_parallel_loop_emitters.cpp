@@ -47,7 +47,6 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
       loop_preamble_label{new Label()},
       m_parallel_section_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end, "Failed to initialize LoopEnd in jit_parallel_loop_begin_emitter");
 
     loop_args = jit_loop_end_base_emitter::compose_loop_args(loop_end);
     const auto& ptr_increments = loop_end->get_ptr_increments();
@@ -62,39 +61,28 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
                      return snippets::utils::is_dynamic_value(x);
                  });
 
-    // Get loop end input registers
-    const auto& consumers = expr->get_output_port_connector(expr->get_output_count() - 1)->get_consumers();
-    OV_CPU_JIT_EMITTER_ASSERT(!consumers.empty(), "LoopBegin must have LoopEnd as the last consumer");
-    const auto& loop_end_expr = consumers.rbegin()->get_expr();
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end_expr && loop_end_expr->get_node() == loop_end,
-                              "Failed to find valid LoopEnd expression");
-    auto loop_end_input_regs = loop_end_expr->get_reg_info().first;
+    const auto loop_end_expr = jit_loop_begin_helper::get_loop_end_expr(expr);
+    const auto& loop_end_input_regs = loop_end_expr->get_reg_info().first;
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
 
-    work_amount_reg_idx = loop_end_input_regs.back().idx;
-    loop_end_input_regs.pop_back();
-    mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
-    for (const auto& r : loop_end_input_regs) {
+    for (size_t i = 0; i < loop_end_input_regs.size() - 1; ++i) {
+        const auto& r = loop_end_input_regs[i];
         if (r.type == snippets::RegType::gpr) {
             mem_ptr_regs_idxs.emplace_back(r.idx);
         }
     }
-
+    work_amount_reg_idx = loop_end_input_regs.back().idx;
     m_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, ParallelLoopConfig(wa_increment));
 }
 
 void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in,
                                                          const std::vector<size_t>& out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got ", in.size());
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs: expected 1 got ", out.size());
+    validate_loop_arguments(in, out);
     OV_CPU_JIT_EMITTER_ASSERT(out.back() == work_amount_reg_idx,
                               "Invalid out reg: expected ",
                               work_amount_reg_idx,
                               " got ",
-                              out.size());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
-    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
-                              "loop increment might be dynamic only if loop evaluates once!");
+                              out.back());
 }
 
 void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,

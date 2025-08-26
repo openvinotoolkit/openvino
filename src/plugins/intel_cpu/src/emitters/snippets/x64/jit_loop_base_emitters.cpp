@@ -51,6 +51,20 @@ void jit_loop_begin_helper::validate_loop_arguments(const std::vector<size_t>& i
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
+ov::snippets::lowered::ExpressionPtr jit_loop_begin_helper::get_loop_end_expr(const ov::snippets::lowered::ExpressionPtr& expr) {
+    const auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(loop_begin, "Expected LoopBegin expression");
+
+    const auto& consumers = expr->get_output_port_connector(expr->get_output_count() - 1)->get_consumers();
+    OV_CPU_JIT_EMITTER_ASSERT(!consumers.empty(), "LoopBegin must have LoopEnd as the last consumer");
+    const auto& loop_end_expr = consumers.rbegin()->get_expr();
+
+    const auto expected_loop_end = loop_begin->get_loop_end();
+    OV_CPU_JIT_EMITTER_ASSERT(loop_end_expr && loop_end_expr->get_node() == expected_loop_end,
+                              "Failed to find valid LoopEnd expression");
+    return loop_end_expr;
+}
+
 void jit_loop_begin_helper::emit_loop_begin_work_amount_check(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                              std::vector<size_t>& aux_gpr_idxs,
                                                              const std::vector<size_t>& out,

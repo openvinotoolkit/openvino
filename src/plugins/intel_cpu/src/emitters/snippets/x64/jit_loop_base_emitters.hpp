@@ -31,6 +31,8 @@ public:
         return loop_begin_label;
     }
 
+    static ov::snippets::lowered::ExpressionPtr get_loop_end_expr(const ov::snippets::lowered::ExpressionPtr& expr);
+
 protected:
     std::shared_ptr<Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
@@ -43,10 +45,10 @@ protected:
 
     // Utility function for common loop begin logic (moved from jit_loop_end_base_emitter)
     void emit_loop_begin_work_amount_check(dnnl::impl::cpu::x64::jit_generator_t* h,
-                                          std::vector<size_t>& aux_gpr_idxs,
-                                          const std::vector<size_t>& out,
-                                          bool is_work_amount_dynamic,
-                                          int64_t work_amount_static) const;
+                                           std::vector<size_t>& aux_gpr_idxs,
+                                           const std::vector<size_t>& out,
+                                           bool is_work_amount_dynamic,
+                                           int64_t work_amount_static) const;
 };
 
 class jit_loop_end_base_emitter : public jit_emitter {
