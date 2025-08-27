@@ -207,8 +207,6 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         for (auto& stage : _stages) {
             stage->kd.need_args_update = (current_flags & mask_args) != 0;
             stage->kd.need_dispatch_data_update = (current_flags & mask_dispatch) != 0;
-            // If need_args_update is set, then need_dispatch_data_update should also be set.
-            stage->kd.need_dispatch_data_update |= stage->kd.need_args_update;
         }
     }
 

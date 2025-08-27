@@ -1958,6 +1958,7 @@ void primitive_inst::prepare_primitive() {
         // even if the input shapes haven't been changed
         if (get_node().is_type<paged_attention>() && !get_flag(ExecutionFlags::IMPL_CHANGED) && _impl->requires_update(*this, *_impl_params)) {
             _impl->update(*this, *_impl_params);
+            set_flag(ExecutionFlags::SHAPE_CHANGED);
 
             realloc_if_needed(prev_execution_skipped);
         }
