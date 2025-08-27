@@ -26,6 +26,7 @@
 #include "nodes/kernels/x64/jit_matmul_small.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -56,7 +57,6 @@ void MatMulSmallExecutor::prepare_binary_args(const DnnlPrimitiveAttrs& primAttr
     }
 }
 
-
 [[maybe_unused]] static inline bool noWeightsDecompression(const MatMulConfig& config) {
     return !DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config));
 }
@@ -65,7 +65,7 @@ void MatMulSmallExecutor::prepare_binary_args(const DnnlPrimitiveAttrs& primAttr
     return !(config.attrs.sparseWeights);
 }
 
-bool MatMulSmallExecutor::supports([[maybe_unused]] const MatMulConfig& config) {
+bool MatMulSmallExecutor::supports(const MatMulConfig& config) {
     VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
     VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
 
