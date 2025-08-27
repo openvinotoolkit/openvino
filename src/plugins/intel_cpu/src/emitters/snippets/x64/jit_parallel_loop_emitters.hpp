@@ -15,16 +15,12 @@
 
 namespace ov::intel_cpu {
 
-class jit_parallel_loop_begin_emitter : public jit_loop_begin_helper, public jit_binary_call_emitter {
+class jit_parallel_loop_begin_emitter : public jit_loop_begin_base_emitter, public jit_binary_call_emitter {
 public:
     jit_parallel_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                     const ov::snippets::lowered::ExpressionPtr& expr,
                                     const snippets::KernelExecutorTablePtr& kernel_table);
-
-    size_t get_inputs_num() const override {
-        return 0;
-    }
 
     std::shared_ptr<EmitABIRegSpills> get_parallel_section_reg_spiller() const {
         return m_parallel_section_reg_spiller;
@@ -37,11 +33,6 @@ protected:
     void emit_parallel_executor_call(std::vector<Xbyak::Reg>& used_regs) const;
     void emit_parallel_region_initialization(const std::vector<Xbyak::Reg>& regs_to_restore) const;
     std::set<snippets::Reg> get_regs_to_spill_except_mem_ptr_regs() const;
-
-    void emit_code_impl(const std::vector<size_t>& in_idxs,
-                        const std::vector<size_t>& out_idxs,
-                        const std::vector<size_t>& pool_vec_idxs,
-                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     bool is_dynamic = false;
     size_t work_amount_reg_idx = 0;

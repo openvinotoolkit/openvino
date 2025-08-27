@@ -31,7 +31,11 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-jit_loop_begin_helper::jit_loop_begin_helper(const ov::snippets::lowered::ExpressionPtr& expr) {
+jit_loop_begin_base_emitter::jit_loop_begin_base_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
+                                                         dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                                         const ov::snippets::lowered::ExpressionPtr& expr)
+    : jit_emitter(h, isa) {
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     loop_begin_label = std::make_shared<Xbyak::Label>();
     const auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin, "expects LoopBegin expression");
@@ -41,8 +45,8 @@ jit_loop_begin_helper::jit_loop_begin_helper(const ov::snippets::lowered::Expres
     loop_id_offset = loop_end->get_id() * sizeof(jit_snippets_call_args::loop_args_t);
 }
 
-void jit_loop_begin_helper::validate_loop_arguments(const std::vector<size_t>& in,
-                                                    const std::vector<size_t>& out) const {
+void jit_loop_begin_base_emitter::validate_arguments(const std::vector<size_t>& in,
+                                                     const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got " + std::to_string(in.size()));
     // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
@@ -51,7 +55,7 @@ void jit_loop_begin_helper::validate_loop_arguments(const std::vector<size_t>& i
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
-ov::snippets::lowered::ExpressionPtr jit_loop_begin_helper::get_loop_end_expr(
+ov::snippets::lowered::ExpressionPtr jit_loop_begin_base_emitter::get_loop_end_expr(
     const ov::snippets::lowered::ExpressionPtr& expr) {
     const auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin, "Expected LoopBegin expression");
@@ -66,11 +70,9 @@ ov::snippets::lowered::ExpressionPtr jit_loop_begin_helper::get_loop_end_expr(
     return loop_end_expr;
 }
 
-void jit_loop_begin_helper::emit_loop_begin_work_amount_check(dnnl::impl::cpu::x64::jit_generator_t* h,
-                                                              std::vector<size_t>& aux_gpr_idxs,
-                                                              const std::vector<size_t>& out,
-                                                              bool is_work_amount_dynamic,
-                                                              int64_t work_amount_static) const {
+void jit_loop_begin_base_emitter::emit_loop_begin_work_amount_check(const std::vector<size_t>& out,
+                                                                    bool is_work_amount_dynamic,
+                                                                    int64_t work_amount_static) const {
     auto reg_work_amount = Reg64(static_cast<int>(out.back()));
 
     if (is_work_amount_dynamic) {
@@ -92,6 +94,14 @@ void jit_loop_begin_helper::emit_loop_begin_work_amount_check(dnnl::impl::cpu::x
     h->jl(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
 }
 
+void jit_loop_begin_base_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
+                                                 const std::vector<size_t>& out_idxs,
+                                                 const std::vector<size_t>& pool_vec_idxs,
+                                                 const std::vector<size_t>& pool_gpr_idxs) const {
+    validate_arguments(in_idxs, out_idxs);
+    jit_emitter::emit_code_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+}
+
 jit_loop_end_base_emitter::jit_loop_end_base_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
@@ -100,9 +110,9 @@ jit_loop_end_base_emitter::jit_loop_end_base_emitter(dnnl::impl::cpu::x64::jit_g
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end, "Expected LoopEnd node");
 
-    const auto begin_expr = jit_loop_end_base_emitter::get_loop_begin_expr(expr);
-    const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_helper>(begin_expr->get_emitter());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_loop_begin_helper");
+    const auto begin_expr = get_loop_begin_expr(expr);
+    const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_base_emitter>(begin_expr->get_emitter());
+    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_loop_begin_base_emitter");
     loop_begin_emitter->set_loop_end_label(loop_end_label);
     loop_begin_label = loop_begin_emitter->get_begin_label();
 

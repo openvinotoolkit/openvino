@@ -42,13 +42,12 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
                                                                  cpu_isa_t isa,
                                                                  const ov::snippets::lowered::ExpressionPtr& expr,
                                                                  const snippets::KernelExecutorTablePtr& kernel_table)
-    : jit_loop_begin_helper(expr),
+    : jit_emitter(h, isa, ov::element::f32, emitter_in_out_map::gpr_to_gpr),
+      jit_loop_begin_base_emitter(h, isa, expr),
       jit_binary_call_emitter(h, isa, expr->get_live_regs()),
       loop_preamble_label{new Label()},
       m_parallel_section_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
-    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-
-    const auto loop_end_expr = jit_loop_begin_helper::get_loop_end_expr(expr);
+    const auto loop_end_expr = get_loop_end_expr(expr);
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(loop_end_expr->get_node());
     loop_args = jit_loop_end_base_emitter::compose_loop_args(loop_end);
     const auto& ptr_increments = loop_end->get_ptr_increments();
@@ -78,20 +77,12 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
 
 void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in,
                                                          const std::vector<size_t>& out) const {
-    validate_loop_arguments(in, out);
+    jit_loop_begin_base_emitter::validate_arguments(in, out);
     OV_CPU_JIT_EMITTER_ASSERT(out.back() == work_amount_reg_idx,
                               "Invalid out reg: expected ",
                               work_amount_reg_idx,
                               " got ",
                               out.back());
-}
-
-void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
-                                                     const std::vector<size_t>& out,
-                                                     const std::vector<size_t>& pool_vec_idxs,
-                                                     const std::vector<size_t>& pool_gpr_idxs) const {
-    validate_arguments(in, out);
-    jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
 std::set<snippets::Reg> jit_parallel_loop_begin_emitter::get_regs_to_spill_except_mem_ptr_regs() const {
@@ -212,7 +203,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization(
 void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
                                                 const std::vector<size_t>& out) const {
     const bool is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(loop_args.m_work_amount);
-    emit_loop_begin_work_amount_check(h, aux_gpr_idxs, out, is_work_amount_dynamic, loop_args.m_work_amount);
+    emit_loop_begin_work_amount_check(out, is_work_amount_dynamic, loop_args.m_work_amount);
 
     std::vector<Xbyak::Reg> regs_to_restore;
     emit_parallel_executor_call(regs_to_restore);
@@ -226,7 +217,7 @@ jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(jit_generator_t* h,
     : jit_loop_end_base_emitter(h, isa, expr) {
     auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end && loop_end->get_is_parallel(), "expected parallel LoopEnd expr");
-    const auto begin_expr = jit_loop_end_base_emitter::get_loop_begin_expr(expr);
+    const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter =
         std::dynamic_pointer_cast<jit_parallel_loop_begin_emitter>(begin_expr->get_emitter());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_parallel_loop_begin_emitter");

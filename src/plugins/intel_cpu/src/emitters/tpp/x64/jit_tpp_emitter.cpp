@@ -53,7 +53,8 @@ VectorDims TppEmitter::get_projected_subtensor(const snippets::lowered::PortDesc
 TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
+    : jit_emitter(h, isa),
+      jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& node = expr->get_node();
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(node);

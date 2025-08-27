@@ -23,15 +23,11 @@
 
 namespace ov::intel_cpu {
 
-class jit_loop_begin_emitter : public jit_loop_begin_helper, public jit_emitter {
+class jit_loop_begin_emitter : public jit_loop_begin_base_emitter {
 public:
     jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                            dnnl::impl::cpu::x64::cpu_isa_t isa,
                            const ov::snippets::lowered::ExpressionPtr& expr);
-
-    size_t get_inputs_num() const override {
-        return 0;
-    }
 
     // `jit_loop_begin_emitter` handles manually aux_gpr allocation using `jit_aux_gpr_holder`
     size_t aux_gprs_count() const override {
@@ -39,13 +35,7 @@ public:
     }
 
 protected:
-    void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
-
-    void emit_code_impl(const std::vector<size_t>& in_idxs,
-                        const std::vector<size_t>& out_idxs,
-                        const std::vector<size_t>& pool_vec_idxs,
-                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     size_t work_amount = 0;
 };

@@ -35,23 +35,10 @@ namespace ov::intel_cpu {
 jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_loop_begin_helper(expr),
-      jit_emitter(h, isa) {
-    auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(jit_loop_begin_helper::get_loop_end_expr(expr)->get_node());
+    : jit_emitter(h, isa),
+      jit_loop_begin_base_emitter(h, isa, expr) {
+    auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(get_loop_end_expr(expr)->get_node());
     work_amount = loop_end->get_work_amount();
-    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-}
-
-void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    validate_loop_arguments(in, out);
-}
-
-void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
-                                            const std::vector<size_t>& out,
-                                            const std::vector<size_t>& pool_vec_idxs,
-                                            const std::vector<size_t>& pool_gpr_idxs) const {
-    validate_arguments(in, out);
-    jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
 void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
@@ -64,7 +51,7 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
         return;
     }
 
-    emit_loop_begin_work_amount_check(h, aux_gpr_idxs, out, is_work_amount_dynamic, work_amount);
+    emit_loop_begin_work_amount_check(out, is_work_amount_dynamic, work_amount);
     h->L(*loop_begin_label);
 }
 

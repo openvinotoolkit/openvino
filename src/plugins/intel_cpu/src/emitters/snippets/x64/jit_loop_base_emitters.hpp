@@ -19,9 +19,15 @@
 
 namespace ov::intel_cpu {
 
-class jit_loop_begin_helper {
+class jit_loop_begin_base_emitter : public virtual jit_emitter {
 public:
-    jit_loop_begin_helper(const ov::snippets::lowered::ExpressionPtr& expr);
+    jit_loop_begin_base_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
+                                dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                const ov::snippets::lowered::ExpressionPtr& expr);
+
+    size_t get_inputs_num() const override {
+        return 0;
+    }
 
     void set_loop_end_label(const std::shared_ptr<const Xbyak::Label>& label) {
         loop_end_label = label;
@@ -31,8 +37,6 @@ public:
         return loop_begin_label;
     }
 
-    static ov::snippets::lowered::ExpressionPtr get_loop_end_expr(const ov::snippets::lowered::ExpressionPtr& expr);
-
 protected:
     std::shared_ptr<Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
@@ -40,13 +44,18 @@ protected:
     size_t loop_id_offset = 0;
     bool evaluate_once = false;
 
-    void validate_loop_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+    static ov::snippets::lowered::ExpressionPtr get_loop_end_expr(const ov::snippets::lowered::ExpressionPtr& expr);
+
+    void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     // Utility function for common loop begin logic (moved from jit_loop_end_base_emitter)
-    void emit_loop_begin_work_amount_check(dnnl::impl::cpu::x64::jit_generator_t* h,
-                                           std::vector<size_t>& aux_gpr_idxs,
-                                           const std::vector<size_t>& out,
+    void emit_loop_begin_work_amount_check(const std::vector<size_t>& out,
                                            bool is_work_amount_dynamic,
                                            int64_t work_amount_static) const;
+
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 };
 
 class jit_loop_end_base_emitter : public jit_emitter {
@@ -64,7 +73,6 @@ public:
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
-    static ov::snippets::lowered::ExpressionPtr get_loop_begin_expr(const ov::snippets::lowered::ExpressionPtr& expr);
 
     static jit_snippets_call_args::loop_args_t compose_loop_args(
         const std::shared_ptr<ov::snippets::op::LoopEnd>& loop_end);
@@ -73,8 +81,10 @@ public:
     size_t aux_gprs_count() const override {
         return 0;
     }
-   
+
 protected:
+    static ov::snippets::lowered::ExpressionPtr get_loop_begin_expr(const ov::snippets::lowered::ExpressionPtr& expr);
+
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     void apply_increments_to_ptrs(const std::vector<size_t>& data_ptr_reg_idxs,

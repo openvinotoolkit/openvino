@@ -30,7 +30,8 @@ jit_perf_count_chrono_start_emitter::jit_perf_count_chrono_start_emitter(
     dnnl::impl::cpu::x64::jit_generator_t* host,
     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
     const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_binary_call_emitter(host, host_isa, expr->get_live_regs()) {
+    : jit_emitter(h, host_isa),
+      jit_binary_call_emitter(host, host_isa, expr->get_live_regs()) {
     m_start_node = ov::as_type_ptr<snippets::op::PerfCountBegin>(expr->get_node());
 }
 
@@ -66,7 +67,8 @@ void jit_perf_count_chrono_start_emitter::emit_impl([[maybe_unused]] const std::
 jit_perf_count_chrono_end_emitter::jit_perf_count_chrono_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                                                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                                                      const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_binary_call_emitter(host, host_isa, expr->get_live_regs()) {
+    : jit_emitter(h, host_isa),
+      jit_binary_call_emitter(host, host_isa, expr->get_live_regs()) {
     m_end_node = ov::as_type_ptr<snippets::op::PerfCountEnd>(expr->get_node());
 }
 
