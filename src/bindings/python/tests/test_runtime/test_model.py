@@ -93,6 +93,7 @@ def test_add_output_port():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
+    relu1.get_output_tensor(0).set_names({"relu_t1"})
     relu2 = ops.relu(relu1, name="relu2")
     model = Model(relu2, [param], "TestModel")
     assert len(model.results) == 1
@@ -600,27 +601,108 @@ def test_reshape_with_python_types_for_variable():
     )
 
 def test_reshape_with_list_of_shapes():
-    # Model with three inputs
-    shape_a = [4, 4]
-    shape_b = [4, 4]
-    shape_c = [4, 4]
-    param_a = ops.parameter(Shape(shape_a), dtype=np.float32, name="A")
-    param_b = ops.parameter(Shape(shape_b), dtype=np.float32, name="B")
-    param_c = ops.parameter(Shape(shape_c), dtype=np.float32, name="C")
-    # Use a simple output node that combines all inputs
-    output = ops.add(param_a, param_b)
-    output = ops.add(output, param_c)
+    # Model with three identical inputs
+    param_a = ops.parameter([4, 4], dtype=np.float32, name="A")
+    param_b = ops.parameter([4, 4], dtype=np.float32, name="B")
+    param_c = ops.parameter([4, 4], dtype=np.float32, name="C")
+    output = ops.add(ops.add(param_a, param_b), param_c)
     model = Model(output, [param_a, param_b, param_c])
-    # New shapes to assign
+
+    # Dict form; still works
     model.reshape({0: [2, 2], 1: [2, 2], 2: [2, 2]})
-    inputs = model.inputs    
-    new_shapes = [[2, 2], [2, 2], [2, 2]]
-    assert inputs[0].partial_shape == PartialShape(new_shapes[0])
-    assert inputs[1].partial_shape == PartialShape(new_shapes[1])
-    assert inputs[2].partial_shape == PartialShape(new_shapes[2])
-    # Test error for mismatched input count
-    with pytest.raises(RuntimeError):
-        model.reshape([[1, 2], [3, 4]])
+    inputs = model.inputs
+    assert inputs[0].partial_shape == PartialShape([2, 2])
+    assert inputs[1].partial_shape == PartialShape([2, 2])
+    assert inputs[2].partial_shape == PartialShape([2, 2])
+
+    # List-of-lists form using new reshape_list
+    new_shapes = [[3, 3], [3, 3], [3, 3]]
+    model.reshape_list(new_shapes)
+    inputs = model.inputs
+    assert inputs[0].partial_shape == PartialShape([3, 3])
+    assert inputs[1].partial_shape == PartialShape([3, 3])
+    assert inputs[2].partial_shape == PartialShape([3, 3])
+
+    # Model with three identical inputs
+    param_a = ops.parameter([4, 4], dtype=np.float32, name="A")
+    param_b = ops.parameter([3, 3, 224, 244], dtype=np.float32, name="B")
+    param_c = ops.parameter([10], dtype=np.float32, name="C")
+
+    # Simple output to complete the model (we won't compute Add to avoid broadcasting issues)
+    model = Model(param_a, [param_a, param_b, param_c])
+
+    # New shapes to assign
+    new_shapes = [[2, 2], [1, 3, 224, 244], [10]]
+
+    # Use the new reshape_list API
+    model.reshape_list(new_shapes)
+
+    inputs = model.inputs
+    assert inputs[0].partial_shape == PartialShape([2, 2])
+    assert inputs[1].partial_shape == PartialShape([1, 3, 224, 244])
+    assert inputs[2].partial_shape == PartialShape([10])
+
+
+    # Negative case: mismatched input count
+    with pytest.raises(ValueError):
+        model.reshape_list([[1, 2], [3, 4]])  # only 2 shapes, model has 3 inputs
+
+    # Single-input model
+    param_s = ops.parameter([4, 4], dtype=np.float32, name="S")
+    model_s = Model(param_s, [param_s])
+
+    # Flat list form
+    model_s.reshape_list([2, 2])
+    assert model_s.inputs[0].partial_shape == PartialShape([2, 2])
+
+
+# The test confirms that reshaping is selective and non-destructive to inspecified inputs
+def test_partial_input_reshape():
+    # Define params with dynamic shapes
+    param0 = ops.parameter(PartialShape([-1, -1]), dtype=np.float32, name="input0")
+    param1 = ops.parameter(PartialShape([-1, -1]), dtype=np.float32, name="input1")
+    param2 = ops.parameter(PartialShape([-1, -1]), dtype=np.float32, name="input2")
+
+    output = ops.add(ops.add(param0, param1), param2)
+    model = Model(output, [param0, param1, param2], "PartialReshapeModel")
+
+    # Partial reshape: only param0 and param2 change, param1 stays untouched
+    model.reshape({0: [2, 2], 2: [2, 2]})
+
+    assert model.input(0).partial_shape == PartialShape([2, 2])
+    assert model.input(1).partial_shape.is_dynamic or model.input(1).partial_shape == PartialShape([4, 4])
+    assert model.input(2).partial_shape == PartialShape([2, 2])
+
+
+# This ensures that the model accepts inputs with completely unknown rank - useful for generic preprocessing pipelines
+def test_dynamic_rank_input_shape():
+    param = ops.parameter(PartialShape.dynamic(), dtype=np.float32, name="dyn_rank")
+    relu = ops.relu(param, name="relu")
+    model = Model(relu, [param], "DynamicRankModel")
+
+    shape = model.input(0).get_partial_shape()
+    assert shape.rank.is_dynamic
+
+# Validates mixed dynamic/static dimensions, common in batch-size-agnostic models
+def test_dynamic_dimension_input_shape():
+    param = ops.parameter(PartialShape([Dimension.dynamic(), 3, Dimension(224), Dimension(224)]), dtype=np.float32, name="dyn_dim")
+    relu = ops.relu(param, name="relu")
+    model = Model(relu, [param], "DynamicDimModel")
+
+    shape = model.input(0).get_partial_shape()
+    assert shape[0].is_dynamic and shape[1] == 3 and shape[2] == 224 and shape[3] == 224
+
+# Confirms that interval contraints are preserved and correctly interpreted by the model
+def test_interval_dimension_input_shape():
+    param = ops.parameter(PartialShape([Dimension(1, 3), Dimension(3, 5)]), np.float32, name="interval_input")
+    relu = ops.relu(param, name="relu")
+    model = Model(relu, [param], "IntervalDimModel")
+
+    shape = model.input(0).get_partial_shape()
+    assert shape[0].get_min_length() == 1
+    assert shape[0].get_max_length() == 3
+    assert shape[1].get_min_length() == 3
+    assert shape[1].get_max_length() == 5
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
