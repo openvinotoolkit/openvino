@@ -68,8 +68,8 @@ TEST(PrefixCacheManagerTest, LinkBlocks) {
 
 TEST(PrefixCacheManagerTest, EvictLRUBlock) {
     /*
-        Test Purpose: Verify that the PrefixCacheManager's evict_lru_block method correctly removes the least recently
-       used block.
+        Test Purpose: Verify that the PrefixCacheManager's evict_lru_block_unsafe method correctly removes the least
+       recently used block.
 
         Initial Cache State (Capacity is 5):
             1

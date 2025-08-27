@@ -307,6 +307,10 @@ uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 }
 
+bool is_aligned_to(uint32_t value, uint32_t alignment) {
+    return value % alignment == 0;
+}
+
 std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>& model) {
     ov::preprocess::PrePostProcessor ppp(model);
 
@@ -326,8 +330,8 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>&
 }
 
 std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
-    const auto kStartOutputKVCacheLayers = 1u;
-    for (std::size_t i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
+    for (std::size_t i = ov::npuw::LLMInferRequest::layer_ids::kStartOutputKVCacheLayers; i < model->outputs().size();
+         ++i) {
         auto kvout = model->output(i);
         auto kvrslt = kvout.get_node();
         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
@@ -869,16 +873,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         m_enable_prefix_caching = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>();
         if (m_enable_prefix_caching) {
-            std::cout << "Prefix caching is enabled" << std::endl;
+            LOG_INFO("Prefix caching is enabled");
             m_prefix_caching_block_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>();
-            if (m_prefix_caching_block_size > m_prefill_chunk_size ||
-                m_prefill_chunk_size % m_prefix_caching_block_size != 0) {
-                std::cout << "Prefix caching block size is adjusted to " << m_use_chunk_prefill << std::endl;
+            if (is_aligned_to(static_cast<uint32_t>(m_prefill_chunk_size),
+                              static_cast<uint32_t>(m_prefix_caching_block_size))) {
+                LOG_INFO("Prefix caching block size is adjusted to " << m_prefill_chunk_size);
                 m_prefix_caching_block_size = m_prefill_chunk_size;
             }
             m_prefix_caching_max_num_blocks = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS>();
-            std::cout << "Prefix caching block size: " << m_prefix_caching_block_size << std::endl;
-            std::cout << "Prefix caching maximum number of blocks: " << m_prefix_caching_max_num_blocks << std::endl;
+            LOG_INFO("Prefix caching block size: " << m_prefix_caching_block_size);
+            LOG_INFO("Prefix caching maximum number of blocks: " << m_prefix_caching_max_num_blocks);
         }
     }
 

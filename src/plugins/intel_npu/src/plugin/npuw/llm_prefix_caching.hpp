@@ -18,7 +18,7 @@ namespace ov {
 namespace npuw {
 
 // KV cache tensors for all layers per block
-using BlocKVCache = std::vector<std::pair<std::string, ov::SoPtr<ov::ITensor>>>;
+using KVData = std::vector<std::pair<std::string, ov::SoPtr<ov::ITensor>>>;
 
 class KVBlock {
 public:
@@ -40,11 +40,11 @@ public:
         m_token_start = token_start;
     }
 
-    size_t get_token_start() {
+    const size_t get_token_start() {
         return m_token_start;
     }
 
-    uint64_t get_block_hash() {
+    const uint64_t get_block_hash() {
         return m_block_hash;
     }
 
@@ -52,12 +52,12 @@ public:
         return m_child_block_hashes;
     }
 
-    uint64_t get_parent_block_hash() {
+    const uint64_t get_parent_block_hash() {
         return m_parent_block_hash;
     }
 
-    const BlocKVCache& get_block_kv_cache() {
-        return m_block_kv_cache;
+    const KVData& get_block_kv_data() {
+        return m_kv_data;
     }
 
     /**
@@ -66,12 +66,9 @@ public:
      * @param kv_tensors KV cache data for all tokens in the block
      * @return Whether the addition was successful
      */
-    bool add_block(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors);
-
+    bool add_block(const std::vector<uint64_t>& token_hashes, const KVData& kv_tensors);
     void link_blocks(std::shared_ptr<KVBlock> prev_block);
-
     void unlink_blocks(std::shared_ptr<KVBlock> prev_block);
-
     void print_block_info(bool verbose) const;
 
 private:
@@ -87,31 +84,21 @@ private:
     uint64_t compute_block_hash(const std::vector<uint64_t>& token_hashes) const;
 
     size_t m_block_size;
-
     std::vector<uint64_t> m_token_hashes;
-
     size_t m_ref_count;
-
     bool m_is_full;
-
     size_t m_token_start;
-
     uint64_t m_block_hash;
-
     // One block may have multiply child blocks
     std::unordered_set<uint64_t> m_child_block_hashes;
-
     // One block only has single parent block
     uint64_t m_parent_block_hash;
-
-    BlocKVCache m_block_kv_cache;
+    KVData m_kv_data;
 };
 
 class PrefixCacheManager {
 public:
-    PrefixCacheManager(size_t max_cache_size = 100, bool debug = false)
-        : m_max_cache_size(max_cache_size),
-          m_debug(debug) {}
+    PrefixCacheManager(size_t max_cache_size = 100) : m_max_cache_size(max_cache_size) {}
 
     // Add a block to the cache
     void put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash);
@@ -119,29 +106,22 @@ public:
     // Retrieve a block from the cache by hash
     bool get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block);
 
-    // Retrieve a block from the cache by hash without holding a mutex
-    std::shared_ptr<KVBlock> get_block_unsafe(uint64_t combined_hash);
-
     // Print the current status of the cache
     void print_cache_status(bool verbose = false) const;
 
 private:
     size_t m_max_cache_size;
-
     std::mutex m_mutex;
-
-    bool m_debug;
-
     // Mapping from hash to KV blocks
     std::unordered_map<uint64_t, std::shared_ptr<KVBlock>> m_cache_map;
-
     // LRU list to track the least recently used blocks
     std::list<std::shared_ptr<KVBlock>> m_lru_list;
 
-    void update_lru(const std::shared_ptr<KVBlock>& block);
-
+    // Retrieve a block from the cache by hash without holding a mutex
+    std::shared_ptr<KVBlock> get_block_unsafe(uint64_t combined_hash);
+    void update_lru_unsafe(const std::shared_ptr<KVBlock>& block);
     // Evict the least recently used blocks with no children
-    bool evict_lru_block();
+    bool evict_lru_block_unsafe();
 };
 
 std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);

@@ -15,10 +15,6 @@
 namespace ov {
 namespace npuw {
 
-constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
-
-constexpr std::size_t kStartOutputKVCacheLayers = 1;
-
 class LLMInferRequest final : public ov::ISyncInferRequest {
 public:
     struct layer_names {
@@ -29,6 +25,11 @@ public:
         static constexpr const char* past_key_values = "past_key_values";
         static constexpr const char* output_embeds = "npuw_output_embed";
         static constexpr const char* logits = "logits";
+    };
+
+    struct layer_ids {
+        static constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
+        static constexpr std::size_t kStartOutputKVCacheLayers = 1;
     };
 
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
@@ -103,12 +104,11 @@ private:
     uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
                                    size_t block_size,
                                    const std::vector<size_t>& prompt_hashes,
-                                   std::unordered_map<std::string, std::string> input_name_map);
+                                   const std::unordered_map<std::string, std::string>& input_name_map);
     void store_blocks_in_cache(size_t chunk_size,
                                size_t block_size,
                                const std::vector<size_t>& prompt_hashes,
-                               size_t& token_idx,
-                               const std::unordered_map<std::string, std::string>& input_name_map);
+                               size_t& token_idx);
 };
 
 }  // namespace npuw
