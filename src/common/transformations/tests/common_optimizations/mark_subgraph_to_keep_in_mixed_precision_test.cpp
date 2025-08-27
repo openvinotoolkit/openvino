@@ -1375,16 +1375,10 @@ TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
 
     model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{param});
 
-    precisions_map fp_convert_precision_map = {
-        {ov::element::f32, ov::element::f16}
-    };
+    precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 
     type_to_fuse_map empty_fuse_map;
 
     model_ref = model->clone();
-    manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
-                                                      empty_fuse_map,
-                                                      true,
-                                                      false,
-                                                      true);
+    manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true, false, true);
 }
