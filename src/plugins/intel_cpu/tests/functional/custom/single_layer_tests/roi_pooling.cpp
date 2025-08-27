@@ -8,8 +8,8 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
 
+#include "openvino/core/type/bfloat16.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include "openvino/op/roi_pooling.hpp"
 

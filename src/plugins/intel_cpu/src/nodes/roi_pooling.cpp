@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <common/bfloat16.hpp>
 #include <common/float16.hpp>
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -32,7 +33,6 @@
 #include "openvino/op/roi_pooling.hpp"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)

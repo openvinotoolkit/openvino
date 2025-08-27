@@ -10,8 +10,8 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "utils/bfloat16.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
@@ -337,18 +337,18 @@ void SoftmaxGeneric::execute(const uint8_t* src_data, uint8_t* dst_data, int B, 
             auto* float_dst_data = reinterpret_cast<float*>(dst_data);
             calculate(float_src_data, float_dst_data, B, C, H, W);
         } else if (ov::element::bf16 == output_prec) {
-            auto* bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<bfloat16*>(dst_data);
             calculate(float_src_data, bf16_dst_data, B, C, H, W);
         } else {
             OPENVINO_THROW("Unsupported output precision: ", output_prec.get_type_name());
         }
     } else if (ov::element::bf16 == input_prec) {
-        const auto* bf16_src_data = reinterpret_cast<const bfloat16_t*>(src_data);
+        const auto* bf16_src_data = reinterpret_cast<const bfloat16*>(src_data);
         if (ov::element::f32 == output_prec) {
             auto* float_dst_data = reinterpret_cast<float*>(dst_data);
             calculate(bf16_src_data, float_dst_data, B, C, H, W);
         } else if (ov::element::bf16 == output_prec) {
-            auto* bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<bfloat16*>(dst_data);
             calculate(bf16_dst_data, bf16_dst_data, B, C, H, W);
         } else {
             OPENVINO_THROW("Unsupported output precision: ", output_prec.get_type_name());

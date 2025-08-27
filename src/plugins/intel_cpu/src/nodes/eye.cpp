@@ -11,7 +11,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utils/bfloat16.hpp>
 #include <vector>
 
 #include "cpu_types.h"
@@ -23,6 +22,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/eye.hpp"
 #include "selective_build.h"
@@ -80,7 +80,7 @@ void Eye::execute([[maybe_unused]] const dnnl::stream& strm) {
               this,
               outputPrec,
               OV_CASE(ov::element::f32, float),
-              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::bf16, bfloat16),
               OV_CASE(ov::element::i32, int),
               OV_CASE(ov::element::i8, int8_t),
               OV_CASE(ov::element::u8, uint8_t))

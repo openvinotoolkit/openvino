@@ -34,12 +34,12 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -467,7 +467,7 @@ void Pad::PadExecutor::padConstant(const MemoryPtr& srcMemPtr, const MemoryPtr& 
               params.attrs.prc,
               OV_CASE(ov::element::f32, float),
               OV_CASE(ov::element::i32, int32_t),
-              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::bf16, bfloat16),
               OV_CASE(ov::element::f16, ov::float16),
               OV_CASE(ov::element::i8, int8_t),
               OV_CASE(ov::element::u8, uint8_t));

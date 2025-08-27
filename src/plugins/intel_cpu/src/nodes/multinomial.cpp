@@ -23,11 +23,11 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/multinomial.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
@@ -158,7 +158,7 @@ void Multinomial::execute([[maybe_unused]] const dnnl::stream& strm) {
         break;
     }
     case ov::element::bf16: {
-        execute_probs_type<bfloat16_t>();
+        execute_probs_type<bfloat16>();
         break;
     }
     default:
