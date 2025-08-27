@@ -35,23 +35,24 @@ jit_loop_begin_helper::jit_loop_begin_helper(const ov::snippets::lowered::Expres
     loop_begin_label = std::make_shared<Xbyak::Label>();
     const auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin, "expects LoopBegin expression");
-    loop_end = loop_begin->get_loop_end();
+    auto loop_end = loop_begin->get_loop_end();
     wa_increment = loop_end->get_increment();
     evaluate_once = loop_end->get_evaluate_once();
     loop_id_offset = loop_end->get_id() * sizeof(jit_snippets_call_args::loop_args_t);
 }
 
-void jit_loop_begin_helper::validate_loop_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_loop_begin_helper::validate_loop_arguments(const std::vector<size_t>& in,
+                                                    const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got " + std::to_string(in.size()));
     // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1,
-                              "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
+    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
     OV_CPU_JIT_EMITTER_ASSERT(!ov::snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
-ov::snippets::lowered::ExpressionPtr jit_loop_begin_helper::get_loop_end_expr(const ov::snippets::lowered::ExpressionPtr& expr) {
+ov::snippets::lowered::ExpressionPtr jit_loop_begin_helper::get_loop_end_expr(
+    const ov::snippets::lowered::ExpressionPtr& expr) {
     const auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin, "Expected LoopBegin expression");
 
@@ -66,10 +67,10 @@ ov::snippets::lowered::ExpressionPtr jit_loop_begin_helper::get_loop_end_expr(co
 }
 
 void jit_loop_begin_helper::emit_loop_begin_work_amount_check(dnnl::impl::cpu::x64::jit_generator_t* h,
-                                                             std::vector<size_t>& aux_gpr_idxs,
-                                                             const std::vector<size_t>& out,
-                                                             bool is_work_amount_dynamic,
-                                                             int64_t work_amount_static) const {
+                                                              std::vector<size_t>& aux_gpr_idxs,
+                                                              const std::vector<size_t>& out,
+                                                              bool is_work_amount_dynamic,
+                                                              int64_t work_amount_static) const {
     auto reg_work_amount = Reg64(static_cast<int>(out.back()));
 
     if (is_work_amount_dynamic) {
@@ -100,8 +101,7 @@ jit_loop_end_base_emitter::jit_loop_end_base_emitter(dnnl::impl::cpu::x64::jit_g
     OV_CPU_JIT_EMITTER_ASSERT(loop_end, "Expected LoopEnd node");
 
     const auto begin_expr = jit_loop_end_base_emitter::get_loop_begin_expr(expr);
-    const auto& loop_begin_emitter =
-        std::dynamic_pointer_cast<jit_loop_begin_helper>(begin_expr->get_emitter());
+    const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_helper>(begin_expr->get_emitter());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_loop_begin_helper");
     loop_begin_emitter->set_loop_end_label(loop_end_label);
     loop_begin_label = loop_begin_emitter->get_begin_label();

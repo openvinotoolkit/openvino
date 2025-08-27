@@ -39,10 +39,8 @@ protected:
     size_t wa_increment = 0;
     size_t loop_id_offset = 0;
     bool evaluate_once = false;
-    std::shared_ptr<ov::snippets::op::LoopEnd> loop_end = nullptr;
 
     void validate_loop_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
-
     // Utility function for common loop begin logic (moved from jit_loop_end_base_emitter)
     void emit_loop_begin_work_amount_check(dnnl::impl::cpu::x64::jit_generator_t* h,
                                            std::vector<size_t>& aux_gpr_idxs,
@@ -71,13 +69,13 @@ public:
     static jit_snippets_call_args::loop_args_t compose_loop_args(
         const std::shared_ptr<ov::snippets::op::LoopEnd>& loop_end);
 
-protected:
-    void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
-
     // `jit_loop_end_base_emitter` handles manually aux_gpr allocation using `jit_aux_gpr_holder`
     size_t aux_gprs_count() const override {
         return 0;
     }
+   
+protected:
+    void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     void apply_increments_to_ptrs(const std::vector<size_t>& data_ptr_reg_idxs,
                                   const int64_t* increments,

@@ -48,6 +48,8 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
       m_parallel_section_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 
+    const auto loop_end_expr = jit_loop_begin_helper::get_loop_end_expr(expr);
+    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(loop_end_expr->get_node());
     loop_args = jit_loop_end_base_emitter::compose_loop_args(loop_end);
     const auto& ptr_increments = loop_end->get_ptr_increments();
     const auto& fin_offsets = loop_end->get_finalization_offsets();
@@ -61,7 +63,6 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
                      return snippets::utils::is_dynamic_value(x);
                  });
 
-    const auto loop_end_expr = jit_loop_begin_helper::get_loop_end_expr(expr);
     const auto& loop_end_input_regs = loop_end_expr->get_reg_info().first;
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
 
