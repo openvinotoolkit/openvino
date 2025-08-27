@@ -33,12 +33,15 @@ namespace ov::intel_cpu {
 
 jit_loop_begin_base_emitter::jit_loop_begin_base_emitter(jit_generator_t* h,
                                                          cpu_isa_t isa,
-                                                         const ov::snippets::lowered::ExpressionPtr& expr)
+                                                         const ov::snippets::lowered::ExpressionPtr& expr,
+                                                         bool is_parallel)
     : jit_emitter(h, isa),
       m_loop_begin_label(std::make_shared<Xbyak::Label>()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_begin, "expects LoopBegin expression");
+    OV_CPU_JIT_EMITTER_ASSERT(loop_begin && loop_begin->get_is_parallel() == is_parallel,
+                              "expects LoopBegin expression with is parallel = ",
+                              is_parallel);
     auto loop_end = loop_begin->get_loop_end();
     m_wa_increment = loop_end->get_increment();
     m_evaluate_once = loop_end->get_evaluate_once();
@@ -67,6 +70,8 @@ ov::snippets::lowered::ExpressionPtr jit_loop_begin_base_emitter::get_loop_end_e
     const auto expected_loop_end = loop_begin->get_loop_end();
     OV_CPU_JIT_EMITTER_ASSERT(loop_end_expr && loop_end_expr->get_node() == expected_loop_end,
                               "Failed to find valid LoopEnd expression");
+    OV_CPU_JIT_EMITTER_ASSERT(loop_begin->get_is_parallel() == expected_loop_end->get_is_parallel(),
+                              "LoopBegin and LoopEnd must have the same is_parallel attribute");
     return loop_end_expr;
 }
 
@@ -103,11 +108,14 @@ void jit_loop_begin_base_emitter::emit_code_impl(const std::vector<size_t>& in_i
 
 jit_loop_end_base_emitter::jit_loop_end_base_emitter(jit_generator_t* h,
                                                      cpu_isa_t isa,
-                                                     const ov::snippets::lowered::ExpressionPtr& expr)
+                                                     const ov::snippets::lowered::ExpressionPtr& expr,
+                                                     bool is_parallel)
     : jit_emitter(h, isa),
       m_loop_end_label(std::make_shared<Xbyak::Label>()) {
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end, "Expected LoopEnd node");
+    OV_CPU_JIT_EMITTER_ASSERT(loop_end && loop_end->get_is_parallel() == is_parallel,
+                              "Expected LoopEnd node with is parallel = ",
+                              is_parallel);
 
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_base_emitter>(begin_expr->get_emitter());

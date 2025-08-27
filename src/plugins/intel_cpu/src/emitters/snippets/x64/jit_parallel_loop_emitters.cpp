@@ -43,7 +43,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
                                                                  const ov::snippets::lowered::ExpressionPtr& expr,
                                                                  const snippets::KernelExecutorTablePtr& kernel_table)
     : jit_emitter(h, isa),
-      jit_loop_begin_base_emitter(h, isa, expr),
+      jit_loop_begin_base_emitter(h, isa, expr, true),
       jit_binary_call_emitter(h, isa, expr->get_live_regs()),
       m_loop_preamble_label{std::make_shared<Xbyak::Label>()},
       m_parallel_section_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
@@ -212,7 +212,7 @@ void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vect
 jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(jit_generator_t* h,
                                                              cpu_isa_t isa,
                                                              const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_loop_end_base_emitter(h, isa, expr) {
+    : jit_loop_end_base_emitter(h, isa, expr, true) {
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter =
         std::dynamic_pointer_cast<jit_parallel_loop_begin_emitter>(begin_expr->get_emitter());

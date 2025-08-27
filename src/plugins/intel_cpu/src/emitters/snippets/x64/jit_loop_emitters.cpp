@@ -26,7 +26,7 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generat
                                                dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa),
-      jit_loop_begin_base_emitter(h, isa, expr) {
+      jit_loop_begin_base_emitter(h, isa, expr, false) {
     auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(get_loop_end_expr(expr)->get_node());
     m_work_amount = loop_end->get_work_amount();
 }
@@ -48,7 +48,7 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
 jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                            dnnl::impl::cpu::x64::cpu_isa_t isa,
                                            const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_loop_end_base_emitter(h, isa, expr) {}
+    : jit_loop_end_base_emitter(h, isa, expr, false) {}
 
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                      [[maybe_unused]] const std::vector<size_t>& out) const {

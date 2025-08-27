@@ -23,7 +23,8 @@ class jit_loop_begin_base_emitter : public virtual jit_emitter {
 public:
     jit_loop_begin_base_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                 dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                const ov::snippets::lowered::ExpressionPtr& expr);
+                                const ov::snippets::lowered::ExpressionPtr& expr,
+                                bool is_parallel);
 
     size_t get_inputs_num() const override {
         return 0;
@@ -72,7 +73,8 @@ class jit_loop_end_base_emitter : public jit_emitter {
 public:
     jit_loop_end_base_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                               dnnl::impl::cpu::x64::cpu_isa_t isa,
-                              const ov::snippets::lowered::ExpressionPtr& expr);
+                              const ov::snippets::lowered::ExpressionPtr& expr,
+                              bool is_parallel);
 
     size_t get_inputs_num() const override {
         return 0;
