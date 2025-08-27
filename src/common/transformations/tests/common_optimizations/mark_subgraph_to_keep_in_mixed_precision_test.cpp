@@ -12,6 +12,7 @@
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/greater.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -23,13 +24,12 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tile.hpp"
-#include "openvino/op/less.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/opsets/opset2_decl.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace testing;
@@ -1367,9 +1367,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_disable_for_quant
 TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
     auto param = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{2});
     auto random_uniform = std::make_shared<v8::RandomUniform>(param,
-                                                                v0::Constant::create(element::f32, {}, {0}),
-                                                                v0::Constant::create(element::f32, {}, {1}),
-                                                                element::f32);
+                                                              v0::Constant::create(element::f32, {}, {0}),
+                                                              v0::Constant::create(element::f32, {}, {1}),
+                                                              element::f32);
     auto less = std::make_shared<v1::Less>(random_uniform, v0::Constant::create(element::f32, {1, 1}, {0.5}));
     auto res = std::make_shared<v0::Result>(less);
 
@@ -1383,8 +1383,8 @@ TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
 
     model_ref = model->clone();
     manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
-                                                        empty_fuse_map,
-                                                        true,
-                                                        false,
-                                                        true);
+                                                      empty_fuse_map,
+                                                      true,
+                                                      false,
+                                                      true);
 }
