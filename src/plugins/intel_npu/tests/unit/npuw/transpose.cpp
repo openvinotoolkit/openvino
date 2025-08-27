@@ -99,7 +99,7 @@ TEST_P(TransposeTests, transpose) {
 const auto TestCases = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i4, ov::element::Type_t::f32}),
         ::details::ShapesIn({Tensors{input={1, 10, 16};
-}  // namespace
+}
 , Tensors {
     input = {1, 10, 128};
 }

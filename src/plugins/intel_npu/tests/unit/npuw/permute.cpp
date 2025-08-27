@@ -186,7 +186,7 @@ TEST_P(PermuteTests, permute) {
 const auto TestCases201 = ::testing::Combine(
         ::testing::ValuesIn({ov::element::Type_t::i4, ov::element::Type_t::f32}),
         ::details::ShapesIn({Tensors{input={1, 2, 4};
-}  // namespace
+}
 , Tensors {
     input = {1, 10, 128};
 }
