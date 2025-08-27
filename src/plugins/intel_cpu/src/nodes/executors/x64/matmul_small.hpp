@@ -39,6 +39,7 @@ public:
     bool update(const MemoryArgs& memory) override;
 
     static bool supports(const MatMulConfig& config);
+
 private:
     // set post_ops_args based on primArgs and post_ops
     void prepare_binary_args(const DnnlPrimitiveAttrs& primAttrs);
