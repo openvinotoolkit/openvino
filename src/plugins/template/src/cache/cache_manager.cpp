@@ -35,7 +35,6 @@ CacheManager::CacheManager(const std::shared_ptr<const ov::Model>& runtime_model
         for (const auto& name : input.get_names()) {
             auto cache_precision = input.get_element_type();
             ov::PartialShape pshape;
-
             if (name.find("key_cache.") == 0) {
                 pshape = input.get_partial_shape();
                 m_block_size_in_bytes +=
