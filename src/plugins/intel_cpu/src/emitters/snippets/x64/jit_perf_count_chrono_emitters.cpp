@@ -14,6 +14,7 @@
 #include "snippets/op/perf_count.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
+#    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "emitters/plugin/x64/utils.hpp"
 #    include "jit_perf_count_chrono_emitters.hpp"
 

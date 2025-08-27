@@ -30,24 +30,34 @@ public:
     }
 
     void set_loop_end_label(const std::shared_ptr<const Xbyak::Label>& label) {
-        loop_end_label = label;
+        m_loop_end_label = label;
     }
 
     std::shared_ptr<const Xbyak::Label> get_begin_label() const {
-        return loop_begin_label;
+        return m_loop_begin_label;
     }
 
 protected:
-    std::shared_ptr<Xbyak::Label> loop_begin_label = nullptr;
-    std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
-    size_t wa_increment = 0;
-    size_t loop_id_offset = 0;
-    bool evaluate_once = false;
+    std::shared_ptr<Xbyak::Label> m_loop_begin_label = nullptr;
+    std::shared_ptr<const Xbyak::Label> m_loop_end_label = nullptr;
+    size_t m_wa_increment = 0;
+    size_t m_loop_id_offset = 0;
+    bool m_evaluate_once = false;
 
     static ov::snippets::lowered::ExpressionPtr get_loop_end_expr(const ov::snippets::lowered::ExpressionPtr& expr);
 
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
-    // Utility function for common loop begin logic (moved from jit_loop_end_base_emitter)
+
+    /**
+     * @brief Loads work amount (either from runtime arguments for dynamic loops
+     * or uses a compile-time constant for static loops), and jumps to
+     * the loop end label if the work amount is less than the increment, effectively skipping the loop body.
+     *
+     * @param out Vector of output register indices, contining the work amount register
+     * @param is_work_amount_dynamic True if work amount is determined at runtime
+     * (and its value should be read from loop_args), false if known at compile time
+     * @param work_amount_static Compile-time work amount value (used only when is_work_amount_dynamic is false)
+     */
     void emit_loop_begin_work_amount_check(const std::vector<size_t>& out,
                                            bool is_work_amount_dynamic,
                                            int64_t work_amount_static) const;
@@ -68,12 +78,6 @@ public:
         return 0;
     }
 
-    void emit_code_impl(const std::vector<size_t>& in_idxs,
-                        const std::vector<size_t>& out_idxs,
-                        const std::vector<size_t>& pool_vec_idxs,
-                        const std::vector<size_t>& pool_gpr_idxs) const override;
-
-
     static jit_snippets_call_args::loop_args_t compose_loop_args(
         const std::shared_ptr<ov::snippets::op::LoopEnd>& loop_end);
 
@@ -83,27 +87,44 @@ public:
     }
 
 protected:
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
+
     static ov::snippets::lowered::ExpressionPtr get_loop_begin_expr(const ov::snippets::lowered::ExpressionPtr& expr);
 
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
+    /**
+     * @brief Emits loop termination logic.
+     * If evaluate once is true, applies only finalization offsets if needed.
+     * Otherwise:
+     * 1. Applies pointer increments to advance data pointers for the next iteration
+     * 2. Decrements the work amount by the loop increment
+     * 3. Checks if remaining work amount >= increment and jumps back to loop begin if true
+     *
+     * @param in Vector of reg indices, where data pointer registers come first and work amount register is last
+     * @param apply_finalization_offsets If true, applies finalization offsets to data ptrs
+     */
+    void emit_loop_end_logic(const std::vector<size_t>& in, bool apply_finalization_offsets) const;
+
+    std::shared_ptr<Xbyak::Label> m_loop_end_label = nullptr;
+    std::shared_ptr<const Xbyak::Label> m_loop_begin_label = nullptr;
+    size_t m_io_num = 0;
+    size_t m_wa_increment = 0;
+    size_t m_loop_id_offset = 0;
+    bool m_evaluate_once = false;
+    bool m_are_ptr_increments_dynamic = false;
+    bool m_are_final_offsets_dynamic = false;
+    jit_snippets_call_args::loop_args_t m_loop_args;
+
+private:
     void apply_increments_to_ptrs(const std::vector<size_t>& data_ptr_reg_idxs,
                                   const int64_t* increments,
                                   bool use_runtime_args,
                                   size_t field_offset,
                                   const std::vector<size_t>& used_aux_gprs) const;
-
-    void emit_loop_end_logic(const std::vector<size_t>& in, bool apply_finalization_offsets) const;
-
-    std::shared_ptr<Xbyak::Label> loop_end_label = nullptr;
-    std::shared_ptr<const Xbyak::Label> loop_begin_label = nullptr;
-    size_t io_num = 0;
-    size_t wa_increment = 0;
-    size_t loop_id_offset = 0;
-    bool evaluate_once = false;
-    bool are_ptr_increments_dynamic = false;
-    bool are_final_offsets_dynamic = false;
-    jit_snippets_call_args::loop_args_t loop_args;
 };
 
 }  // namespace ov::intel_cpu

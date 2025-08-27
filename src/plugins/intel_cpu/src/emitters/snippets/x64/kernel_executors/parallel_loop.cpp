@@ -42,10 +42,7 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, call_ar
     OV_CPU_JIT_EMITTER_ASSERT(stack_ptr, "has nullptr mem_ptrs");
     OV_CPU_JIT_EMITTER_ASSERT(call_args->preamble_ptr, "has nullptr preamble_ptr");
 
-    // todo: it might worth to use num_ptrs as a template parameter, because it is always known in advance
-    //  plus it would enable additional compiler optimizations like vectorized mem copy and for loops
     const auto num_ptrs = loop_args->m_num_data_ptrs;
-
     const auto increment =
         // Note: dynamic increment means tail loop which is equal to work amount
         static_cast<int>(ov::snippets::utils::is_dynamic_value(config.get_increment()) ? loop_args->m_work_amount

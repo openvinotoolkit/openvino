@@ -26,7 +26,22 @@ public:
         return m_parallel_section_reg_spiller;
     }
 
+    size_t aux_gprs_count() const override {
+        return jit_binary_call_emitter::aux_gprs_count() + jit_loop_begin_base_emitter::aux_gprs_count();
+    }
+
+    size_t get_inputs_num() const override {
+        return jit_loop_begin_base_emitter::get_inputs_num();
+    }
+
 protected:
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override {
+        jit_loop_begin_base_emitter::emit_code_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+    }
+
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
@@ -34,13 +49,13 @@ protected:
     void emit_parallel_region_initialization(const std::vector<Xbyak::Reg>& regs_to_restore) const;
     std::set<snippets::Reg> get_regs_to_spill_except_mem_ptr_regs() const;
 
-    bool is_dynamic = false;
-    size_t work_amount_reg_idx = 0;
+    bool m_is_dynamic = false;
+    size_t m_work_amount_reg_idx = 0;
 
-    std::vector<size_t> mem_ptr_regs_idxs;
-    jit_snippets_call_args::loop_args_t loop_args;
+    std::vector<size_t> m_mem_ptr_regs_idxs;
+    jit_snippets_call_args::loop_args_t m_loop_args;
 
-    std::shared_ptr<Xbyak::Label> loop_preamble_label = nullptr;
+    std::shared_ptr<Xbyak::Label> m_loop_preamble_label = nullptr;
     std::shared_ptr<ParallelLoopExecutor> m_executor = nullptr;
     // This spiller is used to spill registers inside the parallel section of each thread
     std::shared_ptr<EmitABIRegSpills> m_parallel_section_reg_spiller = nullptr;

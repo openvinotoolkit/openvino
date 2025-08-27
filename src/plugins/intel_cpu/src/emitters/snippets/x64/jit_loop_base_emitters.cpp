@@ -31,18 +31,18 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-jit_loop_begin_base_emitter::jit_loop_begin_base_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
-                                                         dnnl::impl::cpu::x64::cpu_isa_t isa,
+jit_loop_begin_base_emitter::jit_loop_begin_base_emitter(jit_generator_t* h,
+                                                         cpu_isa_t isa,
                                                          const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_emitter(h, isa) {
+    : jit_emitter(h, isa),
+      m_loop_begin_label(std::make_shared<Xbyak::Label>()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    loop_begin_label = std::make_shared<Xbyak::Label>();
     const auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin, "expects LoopBegin expression");
     auto loop_end = loop_begin->get_loop_end();
-    wa_increment = loop_end->get_increment();
-    evaluate_once = loop_end->get_evaluate_once();
-    loop_id_offset = loop_end->get_id() * sizeof(jit_snippets_call_args::loop_args_t);
+    m_wa_increment = loop_end->get_increment();
+    m_evaluate_once = loop_end->get_evaluate_once();
+    m_loop_id_offset = loop_end->get_id() * sizeof(jit_snippets_call_args::loop_args_t);
 }
 
 void jit_loop_begin_base_emitter::validate_arguments(const std::vector<size_t>& in,
@@ -50,8 +50,8 @@ void jit_loop_begin_base_emitter::validate_arguments(const std::vector<size_t>& 
     OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got " + std::to_string(in.size()));
     // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
-    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
-    OV_CPU_JIT_EMITTER_ASSERT(!ov::snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
+    OV_CPU_JIT_EMITTER_ASSERT(m_loop_begin_label != nullptr && m_loop_end_label != nullptr, "has not inited labels!");
+    OV_CPU_JIT_EMITTER_ASSERT(!ov::snippets::utils::is_dynamic_value(m_wa_increment) || m_evaluate_once,
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
@@ -74,12 +74,11 @@ void jit_loop_begin_base_emitter::emit_loop_begin_work_amount_check(const std::v
                                                                     bool is_work_amount_dynamic,
                                                                     int64_t work_amount_static) const {
     auto reg_work_amount = Reg64(static_cast<int>(out.back()));
-
     if (is_work_amount_dynamic) {
         utils::jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);
         Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
         h->mov(reg_loop_args_ptr, h->ptr[abi_param1 + GET_OFF(loop_args)]);
-        h->mov(reg_work_amount, h->ptr[reg_loop_args_ptr + loop_id_offset + GET_OFF_LOOP_ARGS(m_work_amount)]);
+        h->mov(reg_work_amount, h->ptr[reg_loop_args_ptr + m_loop_id_offset + GET_OFF_LOOP_ARGS(m_work_amount)]);
     } else {
         h->mov(reg_work_amount, work_amount_static);
     }
@@ -88,10 +87,10 @@ void jit_loop_begin_base_emitter::emit_loop_begin_work_amount_check(const std::v
     // Note : If the loop should be evaluated once and increment is dynamic,
     //        we should manually set `increment = 1` to compare the dynamic work amount
     //        with `1` at least before loop execution
-    //        (work amount can be zero and we should skip this loop even `evaluate_once = 1`)
-    auto increment = evaluate_once && ov::snippets::utils::is_dynamic_value(wa_increment) ? 1 : wa_increment;
+    //        (work amount can be zero and we should skip this loop even `m_evaluate_once = 1`)
+    auto increment = m_evaluate_once && ov::snippets::utils::is_dynamic_value(m_wa_increment) ? 1 : m_wa_increment;
     h->cmp(reg_work_amount, increment);
-    h->jl(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
+    h->jl(*m_loop_end_label, Xbyak::CodeGenerator::T_NEAR);
 }
 
 void jit_loop_begin_base_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
@@ -102,33 +101,32 @@ void jit_loop_begin_base_emitter::emit_code_impl(const std::vector<size_t>& in_i
     jit_emitter::emit_code_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 }
 
-jit_loop_end_base_emitter::jit_loop_end_base_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
-                                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
+jit_loop_end_base_emitter::jit_loop_end_base_emitter(jit_generator_t* h,
+                                                     cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa),
-      loop_end_label(std::make_shared<Xbyak::Label>()) {
+      m_loop_end_label(std::make_shared<Xbyak::Label>()) {
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end, "Expected LoopEnd node");
 
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_base_emitter>(begin_expr->get_emitter());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_loop_begin_base_emitter");
-    loop_begin_emitter->set_loop_end_label(loop_end_label);
-    loop_begin_label = loop_begin_emitter->get_begin_label();
+    loop_begin_emitter->set_loop_end_label(m_loop_end_label);
+    m_loop_begin_label = loop_begin_emitter->get_begin_label();
 
-    io_num = loop_end->get_input_num() + loop_end->get_output_num();
-    wa_increment = loop_end->get_increment();
-    loop_id_offset = loop_end->get_id() * sizeof(jit_snippets_call_args::loop_args_t);
-    evaluate_once = loop_end->get_evaluate_once();
+    m_io_num = loop_end->get_input_num() + loop_end->get_output_num();
+    m_wa_increment = loop_end->get_increment();
+    m_loop_id_offset = loop_end->get_id() * sizeof(jit_snippets_call_args::loop_args_t);
+    m_evaluate_once = loop_end->get_evaluate_once();
 
-    const auto& ptr_increments = loop_end->get_ptr_increments();
-    are_ptr_increments_dynamic =
-        std::any_of(ptr_increments.cbegin(), ptr_increments.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
-    const auto& finalization_offsets = loop_end->get_finalization_offsets();
-    are_final_offsets_dynamic = std::any_of(finalization_offsets.cbegin(),
-                                            finalization_offsets.cend(),
-                                            ov::snippets::utils::is_dynamic_value<int64_t>);
-    loop_args = compose_loop_args(loop_end);
+    auto is_dynamic_offsets = [](const std::vector<int64_t>& offsets) {
+        return std::any_of(offsets.cbegin(), offsets.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
+    };
+
+    m_are_ptr_increments_dynamic = is_dynamic_offsets(loop_end->get_ptr_increments());
+    m_are_final_offsets_dynamic = is_dynamic_offsets(loop_end->get_finalization_offsets());
+    m_loop_args = compose_loop_args(loop_end);
 }
 
 ov::snippets::lowered::ExpressionPtr jit_loop_end_base_emitter::get_loop_begin_expr(
@@ -176,13 +174,13 @@ jit_snippets_call_args::loop_args_t jit_loop_end_base_emitter::compose_loop_args
 void jit_loop_end_base_emitter::validate_arguments(const std::vector<size_t>& in,
                                                    const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(out.empty(), "Invalid number of out arguments: expected ", 0, " got ", out.size());
-    OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_num + 1,
+    OV_CPU_JIT_EMITTER_ASSERT(in.size() == m_io_num + 1,
                               "Invalid number of in arguments: expected ",
-                              io_num + 1,
+                              m_io_num + 1,
                               " got ",
                               in.size());
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr && loop_begin_label != nullptr, "has not inited labels!");
-    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
+    OV_CPU_JIT_EMITTER_ASSERT(m_loop_end_label != nullptr && m_loop_begin_label != nullptr, "has not inited labels!");
+    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(m_wa_increment) || m_evaluate_once,
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
@@ -220,7 +218,7 @@ void jit_loop_end_base_emitter::apply_increments_to_ptrs(const std::vector<size_
         utils::jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, used_aux_gprs);
         reg_increments = gpr_holder.get_reg();
         h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
-        h->mov(reg_increments, h->ptr[reg_increments + loop_id_offset + field_offset]);
+        h->mov(reg_increments, h->ptr[reg_increments + m_loop_id_offset + field_offset]);
         add_increments();
     } else {
         add_increments();
@@ -231,26 +229,26 @@ void jit_loop_end_base_emitter::emit_loop_end_logic(const std::vector<size_t>& i
                                                     bool apply_finalization_offsets) const {
     std::vector<size_t> data_ptr_reg_idxs;
     // the last input is actually a work_amount reg
-    data_ptr_reg_idxs.reserve(io_num);
+    data_ptr_reg_idxs.reserve(m_io_num);
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
-    if (!evaluate_once) {
+    if (!m_evaluate_once) {
         apply_increments_to_ptrs(data_ptr_reg_idxs,
-                                 loop_args.m_ptr_increments,
-                                 are_ptr_increments_dynamic,
+                                 m_loop_args.m_ptr_increments,
+                                 m_are_ptr_increments_dynamic,
                                  GET_OFF_LOOP_ARGS(m_ptr_increments),
                                  in);
 
         auto reg_work_amount = Reg64(in.back());
-        h->sub(reg_work_amount, wa_increment);
-        h->cmp(reg_work_amount, wa_increment);
-        h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
+        h->sub(reg_work_amount, m_wa_increment);
+        h->cmp(reg_work_amount, m_wa_increment);
+        h->jge(*m_loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
     }
 
     if (apply_finalization_offsets) {
         apply_increments_to_ptrs(data_ptr_reg_idxs,
-                                 loop_args.m_finalization_offsets,
-                                 are_final_offsets_dynamic,
+                                 m_loop_args.m_finalization_offsets,
+                                 m_are_final_offsets_dynamic,
                                  GET_OFF_LOOP_ARGS(m_finalization_offsets),
                                  in);
     }

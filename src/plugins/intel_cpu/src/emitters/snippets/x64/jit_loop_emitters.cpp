@@ -4,22 +4,12 @@
 
 #include "jit_loop_emitters.hpp"
 
-#include <xbyak/xbyak.h>
-
-#include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
-#include <cstdint>
-#include <iterator>
-#include <memory>
-#include <string>
 #include <vector>
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "emitters/snippets/x64/utils.hpp"
-#include "emitters/utils.hpp"
 #include "jit_loop_base_emitters.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -38,7 +28,7 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generat
     : jit_emitter(h, isa),
       jit_loop_begin_base_emitter(h, isa, expr) {
     auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(get_loop_end_expr(expr)->get_node());
-    work_amount = loop_end->get_work_amount();
+    m_work_amount = loop_end->get_work_amount();
 }
 
 void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
@@ -46,35 +36,24 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
     // If the loop evaulate once, we can skip loop begin code emission
     // If work_amount is dynamic, we should get runtime `work_amount` - it might be `zero` and we should skip loop
     // evaluation
-    const bool is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(work_amount);
-    if (evaluate_once && !is_work_amount_dynamic) {
+    const bool is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(m_work_amount);
+    if (m_evaluate_once && !is_work_amount_dynamic) {
         return;
     }
 
-    emit_loop_begin_work_amount_check(out, is_work_amount_dynamic, work_amount);
-    h->L(*loop_begin_label);
+    emit_loop_begin_work_amount_check(out, is_work_amount_dynamic, m_work_amount);
+    h->L(*m_loop_begin_label);
 }
 
 jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                            dnnl::impl::cpu::x64::cpu_isa_t isa,
                                            const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_loop_end_base_emitter(h, isa, expr) {
-    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
-
-    const auto& ptr_increments = loop_end->get_ptr_increments();
-    const auto& finalization_offsets = loop_end->get_finalization_offsets();
-
-    are_ptr_increments_dynamic =
-        std::any_of(ptr_increments.cbegin(), ptr_increments.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
-    are_final_offsets_dynamic = std::any_of(finalization_offsets.cbegin(),
-                                            finalization_offsets.cend(),
-                                            ov::snippets::utils::is_dynamic_value<int64_t>);
-}
+    : jit_loop_end_base_emitter(h, isa, expr) {}
 
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                      [[maybe_unused]] const std::vector<size_t>& out) const {
     emit_loop_end_logic(in, true);
-    h->L(*loop_end_label);
+    h->L(*m_loop_end_label);
 }
 
 }  // namespace ov::intel_cpu

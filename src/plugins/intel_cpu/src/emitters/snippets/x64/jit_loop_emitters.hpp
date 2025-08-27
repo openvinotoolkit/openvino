@@ -37,7 +37,7 @@ public:
 protected:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
-    size_t work_amount = 0;
+    size_t m_work_amount = 0;
 };
 
 class jit_loop_end_emitter : public jit_loop_end_base_emitter {
