@@ -63,35 +63,35 @@ void registerNPUWLLMOptions(OptionsDesc& desc);
         }                                                       \
     };
 
-#define DEFINE_ANYMAP_OPT(Name, PropertyKey)                                 \
-    struct Name final : OptionBase<Name, ov::AnyMap> {                       \
-        static std::string_view key() {                                      \
-            return ov::intel_npu::npuw::llm::prefill_config.name();          \
-        }                                                                    \
-                                                                             \
-        static constexpr std::string_view getTypeName() {                    \
-            return "::intel_npu::"#PropertyKey;                              \
-        }                                                                    \
-                                                                             \
-        static ov::AnyMap defaultValue() {                                   \
-            return {};                                                       \
-        }                                                                    \
-                                                                             \
-        static ov::AnyMap parse(std::string_view val) {                      \
-            return ov::npuw::s11n::stringToAnyMap(std::string(val));         \
-        }                                                                    \
-                                                                             \
-        static std::string toString(const ov::AnyMap& val) {                 \
-            return ov::npuw::s11n::anyMapToString(val);                      \
-        }                                                                    \
-                                                                             \
-        static OptionMode mode() {                                           \
-            return OptionMode::RunTime;                                      \
-        }                                                                    \
-                                                                             \
-        static bool isPublic() {                                             \
-            return false;                                                    \
-        }                                                                    \
+#define DEFINE_ANYMAP_OPT(Name, PropertyKey)                         \
+    struct Name final : OptionBase<Name, ov::AnyMap> {               \
+        static std::string_view key() {                              \
+            return ov::intel_npu::npuw::llm::prefill_config.name();  \
+        }                                                            \
+                                                                     \
+        static constexpr std::string_view getTypeName() {            \
+            return "::intel_npu::" #PropertyKey;                     \
+        }                                                            \
+                                                                     \
+        static ov::AnyMap defaultValue() {                           \
+            return {};                                               \
+        }                                                            \
+                                                                     \
+        static ov::AnyMap parse(std::string_view val) {              \
+            return ov::npuw::s11n::stringToAnyMap(std::string(val)); \
+        }                                                            \
+                                                                     \
+        static std::string toString(const ov::AnyMap& val) {         \
+            return ov::npuw::s11n::anyMapToString(val);              \
+        }                                                            \
+                                                                     \
+        static OptionMode mode() {                                   \
+            return OptionMode::RunTime;                              \
+        }                                                            \
+                                                                     \
+        static bool isPublic() {                                     \
+            return false;                                            \
+        }                                                            \
     };
 
 DEFINE_OPT(NPU_USE_NPUW, bool, false, use_npuw, RunTime);
