@@ -16,23 +16,28 @@
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tile.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/opsets/opset2_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
+#include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace std;
 using namespace ov::opset10;
+using namespace ov::op;
 
 TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
     shared_ptr<Model> model, model_ref;
@@ -1358,4 +1363,29 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_disable_for_quant
     ASSERT_TRUE(result.valid) << result.message;
     result = fc(model, model_ref);
     ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
+    auto param = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{2});
+    auto random_uniform = std::make_shared<v8::RandomUniform>(param,
+                                                                v0::Constant::create(element::f32, {}, {0}),
+                                                                v0::Constant::create(element::f32, {}, {1}),
+                                                                element::f32);
+    auto less = std::make_shared<v1::Less>(random_uniform, v0::Constant::create(element::f32, {1, 1}, {0.5}));
+    auto res = std::make_shared<v0::Result>(less);
+
+    model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{param});
+
+    precisions_map fp_convert_precision_map = {
+        {ov::element::f32, ov::element::f16}
+    };
+
+    type_to_fuse_map empty_fuse_map;
+
+    model_ref = model->clone();
+    manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
+                                                        empty_fuse_map,
+                                                        true,
+                                                        false,
+                                                        true);
 }
