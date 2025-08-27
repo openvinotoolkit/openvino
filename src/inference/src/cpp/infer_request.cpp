@@ -3,12 +3,12 @@
 //
 
 #include "openvino/runtime/infer_request.hpp"
-#include "itt.hpp"
 
 #include <map>
 #include <memory>
 #include <string>
 
+#include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/compiled_model.hpp"
