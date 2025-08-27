@@ -687,14 +687,16 @@ uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(
 
         std::shared_ptr<KVBlock> retrieved_block;
         if (!m_prefix_cache->get_block(block_hash, retrieved_block)) {
-            LOG_INFO("[Cache miss] Block not found with block hash: " << block_hash);
+            LOG_INFO("[PrefixCache] No cache block found for hash " << block_hash
+                                                                    << ", will compute remaining tokens.");
             break;
         }
 
         // Cache hit
         auto token_start = retrieved_block->get_token_start();
         const KVData block_kv_data = retrieved_block->get_block_kv_data();
-        LOG_INFO("[Cache hit] Block found with block hash: " << block_hash << " token_start: " << token_start);
+        LOG_INFO("[PrefixCache] Cache hit for block hash " << block_hash << ", restored tokens start from position "
+                                                           << token_start << ".");
         for (auto kv_per_layer : block_kv_data) {
             auto kv_out_name = kv_per_layer.first;
             const auto& kv_in_name = input_name_map.at(kv_out_name);
@@ -836,8 +838,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         auto restored_token_num =
             restore_cached_blocks(input_ids, prefix_caching_block_size, prompt_hashes, input_name_map);
         uint64_t scheduled_token_num = input_prompt_len - restored_token_num;
-        LOG_INFO("input_prompt_len: " << input_prompt_len << " restored_token_num: " << restored_token_num);
-        LOG_INFO("scheduled_token_num: " << scheduled_token_num);
+        LOG_INFO("[PrefixCache] Successfully restored " << restored_token_num
+                                                        << " tokens from cache. "
+                                                           "Will compute "
+                                                        << scheduled_token_num << " tokens out of total input length "
+                                                        << input_prompt_len << ".");
         remaining_prompts = scheduled_token_num;
 
         kvcache_desc.num_stored_tokens = static_cast<uint32_t>(restored_token_num);
