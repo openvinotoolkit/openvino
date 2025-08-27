@@ -331,6 +331,7 @@ KERNEL(rope_opt)
  const __global INPUT3_TYPE* gather,
 #endif
  __global OUTPUT_TYPE* output) {
+    // printf("wzx debug hit ocl\n");
     const uint b = get_global_id(0);
     const uint h = get_global_id(1);
     const uint p = ((uint)get_global_id(2) * VEC_SIZE) / HALF_ROTARY_NDIMS;
@@ -344,6 +345,12 @@ KERNEL(rope_opt)
         input_idx += SLICED_FROM_START;
     #endif
 #endif
+    // if (b == 0 && h == 0 && p == 0 && r == 0) {
+    //     printf("wzx debug b: %d, h: %d, p: %d, r: %d\n", b, h, p, r);
+    //     printf("wzx debug Half_rotary_ndims: %d\n", HALF_ROTARY_NDIMS);
+    //     printf("wzx debug input_idx: %d\n", input_idx);
+    //     printf("wzx debug INPUT1_BATCH_NUM: %d, INPUT1_FEATURE_NUM: %d, Y: %d, X:%d \n", INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X);
+    // }
 
 uint cos_sin_p = p;
 #ifdef ENABLE_GATHER
@@ -378,7 +385,7 @@ uint cos_sin_p = p;
     uint cos_sin_h = 0;
     cos_sin_p = cos_sin_p < INPUT1_BATCH_NUM ? cos_sin_p : 0;
 
-    #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
+#ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, 0, 0, 0);
 
     uint cos_idx = cos_sin_idx;
@@ -387,14 +394,23 @@ uint cos_sin_p = p;
     uint cos_idx = INPUT1_GET_INDEX(cos_sin_p, 0, 0, 0);
     uint sin_idx = INPUT2_GET_INDEX(cos_sin_p, 0, 0, 0);
 #endif
-#else
+#elif INPUT1_DIMS == 3 && INPUT2_DIMS == 3
     uint cos_sin_b = 0;
-    uint cos_sin_h = 0;
+    uint cos_sin_h = cos_sin_h < INPUT1_BATCH_NUM ? cos_sin_h : 0;
+    cos_sin_p = cos_sin_p < INPUT1_FEATURE_NUM ? cos_sin_p : 0;
+ #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_h, cos_sin_p, 0, 0);
+
+    uint cos_idx = cos_sin_idx;
+    uint sin_idx = cos_sin_idx;
+#else
+    uint cos_idx = INPUT1_GET_INDEX(cos_sin_h, cos_sin_p, 0, 0);
+    uint sin_idx = INPUT2_GET_INDEX(cos_sin_h, cos_sin_p, 0, 0);   
+#endif
 #endif
 
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
 
-/*
 #if VEC_SIZE == 1
     INPUT0_TYPE in1 = input[input_idx + r];
     INPUT0_TYPE in2 = input[input_idx + HALF_ROTARY_NDIMS + r];
@@ -417,7 +433,6 @@ uint cos_sin_p = p;
     *(OUTPUT_VEC_TYPE*)(output + output_idx + r) = out1;
     *(OUTPUT_VEC_TYPE*)(output + output_idx + HALF_ROTARY_NDIMS + r) = out2;
 #endif
-*/
 
 }
 #endif
