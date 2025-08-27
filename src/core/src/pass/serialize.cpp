@@ -991,6 +991,12 @@ bool append_custom_rt_info(pugi::xml_node& node, const std::string& name, const 
     }
 
     if (appended) {
+        // The 'version' attribute is added for backward compatibility only, it's not deserialized (not impact on
+        // rt_info entry). Older versions of IR deserializer require this attribute to be present in all tags contained
+        // within rt_info tag, despite of the tagname. Such tag to be ignored (without throwing) must have 'name' and
+        // 'version' values which are not present in predefined list of deserializable Runtime Attributes - to assure
+        // this 'version' value is -1 (pinpointing its meaninglessness).
+        // https://github.com/openvinotoolkit/openvino/blob/dd16602824c66c53935a2d084ab4d7ace36a6414/src/frontends/ir/src/ir_deserializer.cpp#L976
         custom_node.append_attribute("version").set_value(-1);
     } else {
         node.remove_child(custom_node);
