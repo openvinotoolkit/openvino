@@ -70,7 +70,7 @@ void registerNPUWLLMOptions(OptionsDesc& desc);
         }                                                                    \
                                                                              \
         static constexpr std::string_view getTypeName() {                    \
-            return std::string("::intel_npu::") + std::string(#PropertyKey); \
+            return "::intel_npu::"#PropertyKey;                              \
         }                                                                    \
                                                                              \
         static ov::AnyMap defaultValue() {                                   \
