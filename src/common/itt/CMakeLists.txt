@@ -13,23 +13,28 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME itt)
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::util)
 
-if(ENABLE_PROFILING_ITT)
+if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
     if(TARGET ittapi::ittnotify)
         set(itt_dependency ittapi::ittnotify)
     else()
         set(itt_dependency ittapi::ittapi)
     endif()
     target_link_libraries(${TARGET_NAME} PUBLIC ${itt_dependency})
+    # Ensure the backend is compiled in this target when BASE or FULL
+    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_PROFILING_ITT)
 
-    if(ENABLE_PROFILING_FILTER STREQUAL "ALL")
-        target_compile_definitions(${TARGET_NAME} PUBLIC
-            ENABLE_PROFILING_ALL
-            ENABLE_PROFILING_FIRST_INFERENCE)
-    elseif(ENABLE_PROFILING_FILTER STREQUAL "FIRST_INFERENCE")
-        target_compile_definitions(${TARGET_NAME} PUBLIC
-            ENABLE_PROFILING_FIRST_INFERENCE)
-    else()
-        message(FATAL_ERROR "The ${ENABLE_PROFILING_FILTER} profiling filter isn't supported")
+    # Only enable full ITT groups when FULL mode is selected.
+    if(ENABLE_PROFILING_ITT STREQUAL "FULL")
+        if(ENABLE_PROFILING_FILTER STREQUAL "ALL")
+            target_compile_definitions(${TARGET_NAME} PUBLIC
+                ENABLE_PROFILING_ALL
+                ENABLE_PROFILING_FIRST_INFERENCE)
+        elseif(ENABLE_PROFILING_FILTER STREQUAL "FIRST_INFERENCE")
+            target_compile_definitions(${TARGET_NAME} PUBLIC
+                ENABLE_PROFILING_FIRST_INFERENCE)
+        else()
+            message(FATAL_ERROR "The ${ENABLE_PROFILING_FILTER} profiling filter isn't supported")
+        endif()
     endif()
 endif()
 
