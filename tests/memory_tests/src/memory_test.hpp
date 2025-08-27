@@ -1,3 +1,6 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include <stdint.h>
 #include <string>
@@ -9,7 +12,21 @@
 #define AS_STR(x) _AS_STR(x)
 
 
+struct MemoryCounters {
+    // memory size in kb
+    int64_t virtual_size = -1;
+    int64_t virtual_peak = -1;
+    int64_t resident_size = -1;
+    int64_t resident_peak = -1;
+
+    int32_t thread_count = -1;
+
+    static MemoryCounters sample();
+};
+
+
 #ifdef _WIN32
+
 #include <windows.h>
 #include <tlhelp32.h>
 #include <psapi.h>
@@ -44,77 +61,60 @@ static size_t getThreadsNum() {
         ?   entry.cntThreads
         :   -1;
 }
-#endif
 
+MemoryCounters MemoryCounters::sample() {
+    MemoryCounters out;
+    auto meminfo = getMemoryInfo();
+    out.virtual_size = meminfo.PagefileUsage / 1024;
+    out.virtual_peak = meminfo.PeakPagefileUsage / 1024;
+    out.resident_size = meminfo.WorkingSetSize / 1024;
+    out.resident_peak = meminfo.PeakWorkingSetSize / 1024;
+    out.thread_count = (int32_t) getThreadsNum();
+    return out;
+}
 
-struct MemoryCounters {
-    // memory size in kb
-    int64_t virtual_size = -1;
-    int64_t virtual_peak = -1;
-    int64_t resident_size = -1;
-    int64_t resident_peak = -1;
-
-    int32_t thread_count = -1;
-
-    static MemoryCounters sample() {
-        MemoryCounters out;
-#ifdef _WIN32
-        // windows stats
-        auto meminfo = getMemoryInfo();
-        out.virtual_size = meminfo.PagefileUsage / 1024;
-        out.virtual_peak = meminfo.PeakPagefileUsage / 1024;
-        out.resident_size = meminfo.WorkingSetSize / 1024;
-        out.resident_peak = meminfo.PeakWorkingSetSize / 1024;
-        out.thread_count = (int32_t) getThreadsNum();
 #else
-        // unix stats
-        std::ifstream file;
-        file.open("/proc/self/status");
-        std::string line;
-        while (true) {
-            if (!std::getline(file, line)) {
-                break;
-            }
-            auto delim_pos = line.find(':');
-            if (delim_pos == std::string::npos) {
-                continue;
-            }
-            auto prefix = line.substr(0, delim_pos);
-            auto value_start = line.find_first_not_of("\t ", delim_pos + 1); 
-            auto value_end = line.find_first_of("\t ", value_start);
-            if (value_start == std::string::npos) {
-                continue;
-            }
-            auto value = line.substr(value_start, value_end - value_start);
-            long ivalue = std::atol(value.c_str());
-            if (prefix == "VmSize") {
-                out.virtual_size = ivalue;
-            } else if (prefix == "VmPeak") {
-                out.virtual_peak = ivalue;
-            } else if (prefix == "VmRSS") {
-                out.resident_size = ivalue;
-            } else if (prefix == "VmHWM") {
-                out.resident_peak = ivalue;
-            } else if (prefix == "Threads") {
-                out.thread_count = (int32_t) ivalue;
-            } 
+
+MemoryCounters MemoryCounters::sample() {
+    MemoryCounters out;
+    std::ifstream file;
+    file.open("/proc/self/status");
+    std::string line;
+    while (true) {
+        if (!std::getline(file, line)) {
+            break;
         }
+        auto delim_pos = line.find(':');
+        if (delim_pos == std::string::npos) {
+            continue;
+        }
+        auto prefix = line.substr(0, delim_pos);
+        auto value_start = line.find_first_not_of("\t ", delim_pos + 1); 
+        auto value_end = line.find_first_of("\t ", value_start);
+        if (value_start == std::string::npos) {
+            continue;
+        }
+        auto value = line.substr(value_start, value_end - value_start);
+        long ivalue = std::atol(value.c_str());
+        if (prefix == "VmSize") {
+            out.virtual_size = ivalue;
+        } else if (prefix == "VmPeak") {
+            out.virtual_peak = ivalue;
+        } else if (prefix == "VmRSS") {
+            out.resident_size = ivalue;
+        } else if (prefix == "VmHWM") {
+            out.resident_peak = ivalue;
+        } else if (prefix == "Threads") {
+            out.thread_count = (int32_t) ivalue;
+        } 
+    }
+    return out;
+}
+
 #endif
-        return out;
-    }
 
-    MemoryCounters subtract_base(const MemoryCounters &base) {
-        return {
-            virtual_size - base.virtual_size,
-            virtual_peak - base.virtual_peak,
-            resident_size - base.resident_size,
-            resident_peak - base.resident_peak,
-            thread_count // doesn't make sense to subtract it
-        };
-    }
-};
 
-std::string jsonescape(std::string str) {
+std::string jsonescape(const std::string &str) {
     std::string newstr;
     newstr.reserve(str.size() * 2);
     for (auto chr: str) {
@@ -169,7 +169,7 @@ struct TestContext {
     }
 
     void sample(std::string sample_name) {
-        samples.push_back({sample_name, MemoryCounters::sample()});
+        samples.emplace_back(std::move(sample_name), MemoryCounters::sample());
     }
     
     void report() {
