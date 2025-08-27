@@ -6,7 +6,10 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/runtime/memory.hpp"
+// undefine EXPAND macro before/after registry/registry.hpp because it also defined by including sycl/sycl.hpp
+#undef EXPAND
 #include "registry/registry.hpp"
+#undef EXPAND
 #include "runtime/ocl/ocl_event.hpp"
 #include "sycl/sycl_base_event.hpp"
 
