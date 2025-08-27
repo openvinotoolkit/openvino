@@ -232,14 +232,13 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
     auto transpose_out_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_out_m = wrap_type<ov::op::v1::Transpose>({sdpa_m, transpose_out_order_m}, is_fp_type);
 
-    auto root_m = std::make_shared<Or>(OutputVector{transpose_out_m, sdpa_m});
-
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(pattern_map.at(sdpa_m).get_node_shared_ptr());
+        std::shared_ptr<ov::Node> transpose_out = pattern_map.at(transpose_out_m).get_node_shared_ptr();
 
-        if (!sdpa || transformation_callback(sdpa)) {
+        if (!sdpa || !transpose_out || transformation_callback(sdpa)) {
             return false;
         }
 
@@ -285,9 +284,7 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
                                                      pattern_map.at(transpose_v_order_m).get_node_shared_ptr(),
                                                      order_v, input_v_output_idx);
 
-        std::shared_ptr<ov::Node> transpose_out;
         if (pattern_map.count(transpose_out_m) > 0) {
-            transpose_out = pattern_map.at(transpose_out_m).get_node_shared_ptr();
             can_fuse_transposes &= process_transpose(transpose_out,
                                                      pattern_map.at(transpose_out_order_m).get_node_shared_ptr(),
                                                      order_output, sdpa_output_idx);
@@ -315,15 +312,11 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);
-        if (transpose_out) {
-            ov::replace_node(transpose_out, sdpa_new);
-        } else {
-            ov::replace_node(sdpa, sdpa_new);
-        }
+        ov::replace_node(transpose_out, sdpa_new);
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(root_m, "TransposeSDPAMatcher");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_out_m, "TransposeSDPAMatcher");
     this->register_matcher(m, callback);
 }
 
