@@ -86,8 +86,12 @@ static const TypeMapping dnnlFCTypeMapping {
     {{_bf16, _f16, _any, _any},                        {bypass(), bypass(), use<0>(), use<0>()}},
     {{_f16, _bf16, _any, _any},                        {bypass(), bypass(), use<0>(), use<0>()}},
     // quantization configuration
-    // int8 inner_product does not support f16 output and bias
+    // int8 inner_product does not support f16 output or bias (f16 output is only supported on X86_64 platforms)
+#if defined(OPENVINO_ARCH_X86_64)
+    {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _dynamic, _u8 | _i8 | _i32 | _bf16 | _f16 | _f32}, {bypass(), bypass(), bypass(),  bypass()}},
+#else
     {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _dynamic, _u8 | _i8 | _i32 | _bf16 | _f32}, {bypass(), bypass(), bypass(),  bypass()}},
+#endif
     {{_u8 | _i8, _i8, _f16, _u8 | _i8 | _i32 | _bf16 | _f32}, {bypass(), bypass(), just<f32>(), bypass()}},
     {{_u8 | _i8, _i8, _any, _any}, {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights (@todo more strict requrements for output precision?)
