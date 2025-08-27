@@ -875,8 +875,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (m_enable_prefix_caching) {
             LOG_INFO("Prefix caching is enabled");
             m_prefix_caching_block_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>();
-            if (is_aligned_to(static_cast<uint32_t>(m_prefill_chunk_size),
-                              static_cast<uint32_t>(m_prefix_caching_block_size))) {
+            if (!is_aligned_to(static_cast<uint32_t>(m_prefill_chunk_size),
+                               static_cast<uint32_t>(m_prefix_caching_block_size))) {
                 LOG_INFO("Prefix caching block size is adjusted to " << m_prefill_chunk_size);
                 m_prefix_caching_block_size = m_prefill_chunk_size;
             }
