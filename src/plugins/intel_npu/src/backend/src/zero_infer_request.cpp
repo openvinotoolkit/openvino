@@ -902,6 +902,11 @@ void ZeroInferRequest::infer_async() {
             }
         }
 
+        // This path is used only for batched input when set_tensors is called and userTensor vector size is greater
+        // than 1.
+        // There are two cases:
+        // 1. Batch size is set and batching is handled by the plugin.
+        // 2. Batch size isn't set and batching is handled by the compiler.
         if (is_batched_input(inputIndex)) {
             if (batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {
