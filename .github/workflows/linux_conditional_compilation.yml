@@ -172,7 +172,7 @@ jobs:
             -DENABLE_TESTS=ON \
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_PROFILING_ITT=ON \
+            -DENABLE_PROFILING_ITT=FULL \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_FASTER_BUILD=ON \
             -DENABLE_UNITY_BUILD=ON \
