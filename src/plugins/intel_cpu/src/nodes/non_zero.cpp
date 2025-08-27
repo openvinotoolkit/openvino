@@ -13,7 +13,6 @@
 #include <numeric>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utils/bfloat16.hpp>
 #include <vector>
 
 #include "cpu_shape.h"
@@ -27,6 +26,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/non_zero.hpp"
@@ -148,7 +148,7 @@ void NonZero::execute([[maybe_unused]] const dnnl::stream& strm) {
               ctx,
               inputPrec,
               OV_CASE(ov::element::f32, float),
-              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::bf16, ov::bfloat16),
               OV_CASE(ov::element::f16, float16),
               OV_CASE(ov::element::i32, int),
               OV_CASE(ov::element::u32, uint32_t),
