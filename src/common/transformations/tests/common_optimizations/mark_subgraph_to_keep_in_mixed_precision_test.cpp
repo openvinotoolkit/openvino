@@ -25,7 +25,6 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/opsets/opset2_decl.hpp"
 #include "openvino/pass/manager.hpp"
