@@ -32,6 +32,7 @@
 #include <utility>
 #include <vector>
 
+#include "../../core/src/itt.hpp"
 #include "allocation_context.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -41,7 +42,6 @@
 #include "graph_optimizer.h"
 #include "infer_request.h"
 #include "itt.h"
-#include "../../core/src/itt.hpp"
 #include "memory_control.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -1591,10 +1591,10 @@ public:
 
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
-#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
-    VERBOSE(node, (config).debugCaps.verbose);                  \
-    PERF(node, (config).collectPerfCounters);                   \
-    DUMP(node, (config).debugCaps, infer_count);                \
+#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config)             \
+    VERBOSE(node, (config).debugCaps.verbose);                              \
+    PERF(node, (config).collectPerfCounters);                               \
+    DUMP(node, (config).debugCaps, infer_count);                            \
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_op_exec, (node)->getTypeStr()); \
     DEBUG_LOG(*(node));
 

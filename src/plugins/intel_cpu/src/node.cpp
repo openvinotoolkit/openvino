@@ -21,13 +21,13 @@
 #include <utility>
 #include <vector>
 
+#include "../../core/src/itt.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "edge.h"
 #include "graph_context.h"
 #include "itt.h"
-#include "../../core/src/itt.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
