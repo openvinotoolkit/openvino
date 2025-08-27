@@ -8,6 +8,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstdint>
 #include <cstring>
+#include <iomanip>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -2221,12 +2222,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             size_t xattention_block_size,
             size_t xattention_stride) {
 
+        static unsigned long long global_blocks_in_total = 0;
+        static unsigned long long global_blocks_kept = 0;
+
         size_t num_seqs = past_lens.size(0);
         std::vector<ov::reference::XAttentionRetainedBlockIndicesForAllHeads> retval(num_seqs);
         for (size_t seq_idx = 0; seq_idx < num_seqs; seq_idx++) {
             float seq_threshold = xattention_threshold.ptr<float>()[seq_idx];
             if (seq_threshold == 0.0) {
-                std::cout << "VSHAMPOR: skipping seq " << seq_idx << " - threshold is zero" << std::endl;
                 continue;
             }
 
@@ -2248,34 +2251,32 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             OPENVINO_ASSERT((kv_len + _helper._block_size - 1) / _helper._block_size == physical_block_indices_for_this_seq.size());
 
             PlainTensor gathered_key_cache;
-            std::cout << "VSHAMPOR: key cache shape is " << k_cache.shape() << std::endl;
             gathered_key_cache.resize<DATA_TYPE>({q.m_dims[1], selector.pad_to_block(kv_len), k_cache.m_dims[3]}); // in GQA case, will duplicate the K head data for each group as necessary
-            std::cout << "VSHAMPOR: gathered key cache shape is " << gathered_key_cache.shape() << std::endl;
 
             using KEY_TYPE = typename ov::element_type_traits<KEY_PREC>::value_type;
             auto k_cache_data = k_cache.ptr<KEY_TYPE>();
-            selector.template cpu_gather_key_cache_blocks<KEY_TYPE>(k_cache_data, k_cache.shape(), gathered_key_cache.ptr<DATA_TYPE>(), gathered_key_cache.shape(), physical_block_indices_for_this_seq, kv_len);
+            selector.template cpu_gather_key_cache_from_blocks_and_pad<KEY_TYPE>(k_cache_data, k_cache.shape(), gathered_key_cache.ptr<DATA_TYPE>(), gathered_key_cache.shape(), physical_block_indices_for_this_seq, kv_len);
 
-            std::cout << "VSHAMPOR: query shape is " << q.shape() << std::endl;
             PlainTensor gathered_query;
             gathered_query.resize<DATA_TYPE>({q.m_dims[1], selector.pad_to_block(subsequence_length), q.m_dims[3]});
-            selector.cpu_gather_query(q.ptr<DATA_TYPE>(), q.shape(), gathered_query.ptr<DATA_TYPE>(), gathered_query.shape(), subsequence_begin, subsequence_length);
+            selector.cpu_gather_query_and_pad(q.ptr<DATA_TYPE>(), q.shape(), gathered_query.ptr<DATA_TYPE>(), gathered_query.shape(), subsequence_begin, subsequence_length);
 
-            std::cout << "VSHAMPOR: reshaped query shape is " << gathered_query.shape() << std::endl;
             retval[seq_idx] = selector.select_blocks(gathered_query.ptr<DATA_TYPE>(), gathered_query.shape(), gathered_key_cache.ptr<DATA_TYPE>(), gathered_key_cache.shape());
-            size_t num_blocks_in_total = (gathered_query.m_dims[1] / xattention_block_size) * (gathered_key_cache.m_dims[1] / xattention_block_size);
 
-            std::cout << "VSHAMPOR: for seq_idx " << seq_idx << " selected blocks:" << std::endl;
+            size_t num_heads = retval[seq_idx].size();
+            size_t num_blocks_in_total = num_heads * (gathered_query.m_dims[1] / xattention_block_size) * (gathered_key_cache.m_dims[1] / xattention_block_size);
+            size_t num_blocks_kept = 0;
+
+
             for (size_t head_idx = 0; head_idx < retval[seq_idx].size(); head_idx++) {
-                auto head_blocks = retval[seq_idx][head_idx];
-                std::cout << "VSHAMPOR: for head " << head_idx << " keeping " << head_blocks.size() << "out of " << num_blocks_in_total << " (" << (head_blocks.size() + 0.0) / num_blocks_in_total * 100 << "%)" <<  std::endl;
-                for (auto block : head_blocks) {
-                    std::cout << "("  << block.first << ";" << block.second << "),  ";
-                }
-                std::cout << std::endl;
+                num_blocks_kept += retval[seq_idx][head_idx].size();
             }
+            std::cout << "VSHAMPOR: for seq_idx " << seq_idx << " kept " << num_blocks_kept << "/" << num_blocks_in_total << " (" << std::setprecision(4) << (num_blocks_kept + 0.0) / num_blocks_in_total * 100 << "%)" << std::endl;
+            global_blocks_in_total += num_blocks_in_total;
+            global_blocks_kept += num_blocks_kept;
         }
 
+        std::cout << "VSHAMPOR: global retained block percentage: " << std::setprecision(4) << (global_blocks_kept + 0.0) / global_blocks_in_total * 100 << "%)" << std::endl;
         return retval;
     }
 };

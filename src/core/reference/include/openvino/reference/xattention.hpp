@@ -57,13 +57,12 @@ public:
         OPENVINO_ASSERT(reshaped_key_shape.size() == 3);
         OPENVINO_ASSERT(reshaped_query_shape.size() == 3);
         OPENVINO_ASSERT(reshaped_query_shape[0] == reshaped_key_shape[0]);
-        OPENVINO_ASSERT(reshaped_query_shape[1] == reshaped_key_shape[1]);
         OPENVINO_ASSERT(reshaped_query_shape[2] == reshaped_key_shape[2]);
 
         OPENVINO_ASSERT(out_shape.size() == 3);
         OPENVINO_ASSERT(out_shape[0] == reshaped_query_shape[0]);
         OPENVINO_ASSERT(out_shape[1] == reshaped_query_shape[1]);
-        OPENVINO_ASSERT(out_shape[2] == reshaped_key_shape[2]);
+        OPENVINO_ASSERT(out_shape[2] == reshaped_key_shape[1]);
 
         // ov::Tensor key_transposed(ov::element::from<T>(), {reshaped_query_shape[0], reshaped_query_shape[2], reshaped_query_shape[1]});
         // ov::reference::transpose(reshaped_key_data, key_transposed.data<char>(), reshaped_key_shape, sizeof(T), {0, 2, 1}, key_transposed.get_shape());
@@ -132,12 +131,20 @@ public:
                 }
             }
             double cumsum = 0.0;
+            double total_sum = 0.0;
             while (cumsum < m_threshold && !indices_and_scores_queue.empty()) {
                 auto index_and_largest_score = indices_and_scores_queue.top();
                 indices_and_scores_queue.pop();
                 cumsum += index_and_largest_score.score;
+                total_sum += index_and_largest_score.score;
                 retval[head_idx].insert(index_and_largest_score.idx);
             }
+            while (!indices_and_scores_queue.empty()) {
+                auto index_and_largest_score = indices_and_scores_queue.top();
+                indices_and_scores_queue.pop();
+                total_sum += index_and_largest_score.score;
+            }
+            std::cout << "VSHAMPOR: head " << head_idx << " cumsum: " << cumsum << " total_sum: " << total_sum << std::endl;
         }
         return retval;
     }
@@ -192,7 +199,7 @@ public:
     }
 
     template<typename KEY_TYPE>
-    void cpu_gather_key_cache_blocks(const KEY_TYPE* key_cache_data, const Shape& key_cache_shape, T* out_data, const Shape& out_shape, std::vector<size_t> physical_block_indices, size_t key_length_in_tokens) {
+    void cpu_gather_key_cache_from_blocks_and_pad(const KEY_TYPE* key_cache_data, const Shape& key_cache_shape, T* out_data, const Shape& out_shape, std::vector<size_t> physical_block_indices, size_t key_length_in_tokens) {
         // num_k_heads and num_q_heads may differ to accomodated grouped-query mechanism
         OPENVINO_ASSERT(key_cache_shape.size() == 4); // [cache_size_in_blocks, num_k_heads, cb_block_size, head_dim]
         OPENVINO_ASSERT(out_shape.size() == 3); // [num_q_heads, pad(key_length_in_tokens, m_block_size), head_dim]
@@ -238,17 +245,16 @@ public:
         }
     }
 
-    void cpu_gather_query(const T* query_data, const Shape& query_shape, T* out_data, const Shape& out_shape, size_t subsequence_begin, size_t subsequence_length) {
+    void cpu_gather_query_and_pad(const T* query_data, const Shape& query_shape, T* out_data, const Shape& out_shape, size_t subsequence_begin, size_t subsequence_length) {
         OPENVINO_ASSERT(query_shape.size() == 4); // [num_tokens_for_all_seqs, num_heads, 1, head_dim]
         OPENVINO_ASSERT(query_shape[2] == 1);
 
+        OPENVINO_ASSERT(out_shape.size() == 3); // [num_heads, pad(num_tokens_for_this_seq, m_block_size), head_dim]
         OPENVINO_ASSERT(query_shape[1] == out_shape[0]);
-        OPENVINO_ASSERT(query_shape[0] >= out_shape[1]);
         OPENVINO_ASSERT(query_shape[3] == out_shape[2]);
 
         OPENVINO_ASSERT(query_shape[0] >= subsequence_begin + subsequence_length);
 
-        OPENVINO_ASSERT(out_shape.size() == 3); // [num_heads, pad(num_tokens_for_this_seq, m_block_size), head_dim]
         OPENVINO_ASSERT(out_shape[1] >= subsequence_length); // will pad with zeroes if token length is not a multiple of m_block_size
         OPENVINO_ASSERT(out_shape[1] % m_block_size == 0);
 
@@ -260,9 +266,7 @@ public:
                 size_t out_token_offset = token_idx * out_shape[2];
                 if (token_idx < subsequence_length) {
                     std::memcpy(out_data + out_head_offset + out_token_offset, query_data + in_token_offset + in_head_offset, sizeof(T) * out_shape[2]);
-                } else {
-                    std::memset(out_data + out_head_offset + out_token_offset, 0, sizeof(T) * out_shape[2]);
-                }
+                } else { std::memset(out_data + out_head_offset + out_token_offset, 0, sizeof(T) * out_shape[2]); }
             }
         }
     }
