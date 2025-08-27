@@ -61,7 +61,7 @@ void KVBlock::print_block_info(bool verbose) const {
 
     LOG_INFO("  Children blocks: ");
     if (m_child_block_hashes.empty()) {
-        std::cout << "    Null" << std::endl;
+        LOG_INFO("    Null");
     } else {
         size_t index = 0;
         for (auto it = m_child_block_hashes.begin(); it != m_child_block_hashes.end(); ++it, ++index) {
