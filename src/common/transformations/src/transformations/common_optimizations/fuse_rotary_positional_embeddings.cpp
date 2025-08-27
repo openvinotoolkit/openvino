@@ -79,11 +79,9 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
 }
 
 static std::shared_ptr<ov::Node> gen_chatglm_const() {
-    using namespace pattern;
+    using namespace ov::pass::pattern;
 
-    auto pred = value_matches("-1, head_cnt, 1, ndims/2, 1") || value_matches("1, -1, head_cnt, ndims/2, 1") ||
-                value_matches("0, 0, 0, ndims/2, 1");
-    return wrap_type<v0::Constant>(pred);
+    return wrap_type<ov::op::v0::Constant>();
 }
 
 ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
