@@ -688,13 +688,8 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
     // and make use of it too If we have turbo in the config string, we check if compiler supports it. If it doesn't
     // support it, we remove it
     if (std::regex_search(content, std::regex("NPU_TURBO"))) {
-        bool is_supported = false;
-        try {
-            is_supported = is_option_supported("NPU_TURBO");
-        } catch (...) {
-            // mute it, not critical
-            is_supported = false;
-        }
+        bool is_supported = _zeGraphExt->isTurboOptionSupported(compilerVersion);
+
         if (!is_supported) {
             std::ostringstream turbostr;
             turbostr << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
