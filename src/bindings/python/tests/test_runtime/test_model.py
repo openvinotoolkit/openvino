@@ -623,7 +623,7 @@ def test_reshape_with_list_of_shapes():
     assert inputs[1].partial_shape == PartialShape([3, 3])
     assert inputs[2].partial_shape == PartialShape([3, 3])
 
-    # Model with three seperate inputs
+    # Model with three distinct inputs
     param_a = ops.parameter([4, 4], dtype=np.float32, name="A")
     param_b = ops.parameter([3, 3, 224, 244], dtype=np.float32, name="B")
     param_c = ops.parameter([10], dtype=np.float32, name="C")
