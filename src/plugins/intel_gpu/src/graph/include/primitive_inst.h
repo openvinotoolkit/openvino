@@ -24,6 +24,7 @@
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "impls/ocl/kernels_cache.hpp"
+#include <functional>
 
 // TODO: add generic interface for weights_reorder_params and get rid of this dependency
 #include "impls/ocl/kernel_selector_helper.h"
@@ -271,6 +272,51 @@ public:
     void reset_events();
 
     void prepare_primitive();
+    void prepare_primitive2();
+
+    // ExecutionContext structure for sharing data between preparation phases
+    struct ExecutionContext {
+        bool valid_input = false;
+        bool prev_skipped = false;
+
+        // Execution control flags
+        bool need_deferred_allocation = false;
+        bool needs_immediate_execution = false;  // For shape-dependent primitives
+        bool execution_completed = false;        // Track if execution is done
+
+        // POC: Deferred memory information storage
+        struct DeferredMemoryInfo {
+            layout mem_layout;
+            size_t output_idx;
+            bool is_output_buffer;
+            allocation_type alloc_type;
+        };
+
+        std::vector<memory::ptr> original_outputs;
+        std::vector<DeferredMemoryInfo> deferred_memory_list;
+
+        // Default constructor for container usage
+        ExecutionContext() = default;
+
+        bool has_deferred() {
+            return !deferred_memory_list.empty();
+        }
+
+        // // Check if this primitive affects shape inference
+        // bool affects_shape_inference() const {
+        //     if (!inst_ptr) return false;
+        //     return inst_ptr->get_node().is_in_shape_of_subgraph() ||
+        //            inst_ptr->get_node().is_shape_infer_dep();
+        // }
+    };
+
+    // Optional execution context for dynamic execution
+    std::optional<ExecutionContext> _execution_context;
+
+    // Split prepare_primitive2 into two phases
+    void prepare_memory_and_impl();
+    void prepare_execution();
+
     void execute();
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
@@ -319,6 +365,9 @@ public:
                                        bool is_output_buffer = false,
                                        memory* curr_memory = nullptr,
                                        bool runtime_alloc = false);
+
+    // Allocate all deferred memory outputs from ExecutionContext
+    void allocate_deferred_outputs();
 
     const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
     size_t get_max_output_layout_count(size_t idx = 0) const { return _max_output_layout_count[idx]; }
@@ -443,7 +492,19 @@ protected:
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
-    void realloc_if_needed(bool prev_execution_skipped = false);
+
+    // POC: Deferred memory info collection function type
+    // Parameters: (layout, output_idx, is_output_buffer)
+    //   - layout: Memory layout information
+    //   - output_idx: Output index for this allocation
+    //   - is_output_buffer: Whether this is an output buffer or intermediate buffer
+    using DeferredMemoryCollector = std::function<void(const layout&, allocation_type alloc_type, size_t, bool)>;
+
+    void realloc_if_needed(bool prev_execution_skipped = false, DeferredMemoryCollector collector = nullptr);
+
+    // POC: Memory allocation analysis functions
+    bool is_reusable_memory_allocation(const layout& required_layout, size_t output_idx, bool is_output_buffer, bool runtime_alloc) const;
+    allocation_type determine_allocation_type(const layout& layout, bool is_output_buffer, bool runtime_alloc) const;
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -517,6 +578,30 @@ private:
     void do_runtime_in_place_crop();
     void do_runtime_skip_scatter_update();
     void do_runtime_skip_lora();
+
+    // Shape dependency analysis
+    bool check_needs_immediate_execution() const;
+
+private:
+    // ======== 전처리 단계 함수들 ========
+    void init_execution_context();
+    void log_debug_info();
+    bool skip_execution();
+    void apply_runtime_optimizations();
+    bool validate_fusion();
+
+    // ======== 메모리 할당 단계 ========
+    void update_impl_and_allocate_memory();
+
+    // ======== 후처리 단계 함수들 ========
+    void handle_attention_update();
+    void verify_post_allocation();
+    bool check_dynamic_dependencies();
+    void setup_kernel_args();
+    void track_memory_changes(const std::vector<memory::ptr>& original_outputs);
+    void setup_execution_dependencies();
+    void handle_output_reset();
+    void manage_event_groups();
 };
 
 /*
