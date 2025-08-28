@@ -76,13 +76,8 @@ protected:
             if (prim->decompression_zero_point.is_valid()) {
                 auto decompression_zp_idx = idx++;
                 auto zp_mem = instance.dep_memory_ptr(decompression_zp_idx);
-                if (zp_mem->get_layout().get_partial_shape().size() == 3) {
-                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
-                    args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
-                } else {
-                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
-                    args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
-                }
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
+                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
             }
             bool is_dyn_quan_input = instance.get_input_layout(0).data_type == data_types::i8 || instance.get_input_layout(0).data_type == data_types::u8;
 
@@ -399,20 +394,13 @@ public:
                     "[GPU] group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
-                } else if (ngroups == 1) {
-                    if (weight_rank <= 2) {
+                } else if (ngroups == 1 && weight_rank <= 2) {
                         attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
-                    } else if (weight_rank == 3) {
-                        // should use {K, 1} for the group size + per tensor mask for 3d
-                        // Example:
-                        // input[32, 6, 2088], W_t[32, 5760, 2088], scale[32, 1, 5760]
-                        // set scale group as [32, 2088, 1]
-                        attr->set_scales(DNNL_ARG_WEIGHTS, PER_TENSOR, {ifm, 1}, ds_data_type);
-                    } else {
-                        OPENVINO_ASSERT(false, "Unsupported rank for fc scale : ", weight_rank);
-                    }
                 } else {
-                    // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
+                    // should use {K, 1} for the group size + per tensor mask for 3d
+                    // Example:
+                    // input[32, 6, 2088], W_t[32, 5760, 2088], scale[32, 1, 5760]
+                    // set scale group as [32, 2088, 1]
                     attr->set_scales(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, ds_data_type);
                 }
             }
@@ -427,16 +415,11 @@ public:
                 } else {
                     size_t rank = dzp_layout.get_partial_shape().size();
                     OPENVINO_ASSERT(rank <= 3, "rank > 3d not supported");
-                    auto ifm = arg.get_dependency(1).get_output_layout().get_dim(rank - 1);
                     auto ngroups = dzp_layout.get_dim(rank - 1);
-                    if (ngroups == 1) {
-                        if (rank <= 2) {
-                            attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
-                        } else if (rank == 3) {
-                            // should use {K, 1} for the group size + per tensor mask for 3d
-                            attr->set_zero_points(DNNL_ARG_WEIGHTS, PER_TENSOR, {ifm, 1}, dzp_data_type); // could not create prim desc
-                        }
+                    if (ngroups == 1 && rank <= 2) {
+                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
+                        // should use {K, 1} for the group size + per tensor mask for 3d
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type);
                     }
                 }
