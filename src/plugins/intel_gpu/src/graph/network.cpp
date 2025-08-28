@@ -758,28 +758,104 @@ bool network::has_event(const primitive_id& id) const {
 void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
 
-    // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
-    // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
-    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
-    const bool needs_flushing = _is_dynamic;
-    const size_t flush_frequency = needs_flushing ? 16 : 0;
-    size_t executed_prims = 0;
+    if (_is_dynamic) {
+        // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
+        // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+        // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
+        const bool needs_flushing = _is_dynamic;
+        const size_t flush_frequency = needs_flushing ? 16 : 0;
+        size_t executed_prims = 0;
 
-    for (auto& inst : _exec_order) {
-        NODE_DEBUG(*inst);
+        // Phase 1: Process all primitives - execute shape-critical ones immediately
+        for (auto& inst : _exec_order) {
+            NODE_DEBUG(*inst);
+            inst->reset_events();
 
-        inst->reset_events();
+            if (inst->is_input()) {
+                inst->add_dep_events(events);
+            }
 
-        if (inst->is_input()) {
-            inst->add_dep_events(events);
+            // Prepare memory and check if immediate execution is needed
+            inst->prepare_memory_and_impl();
+
+            auto& exec_ctx = *inst->_execution_context;
+            if (exec_ctx.needs_immediate_execution && exec_ctx.valid_input) {
+                // Execute immediately - these primitives don't need actual data content
+                // They only need memory layout information (shape_of, shape inference dependencies)
+                inst->prepare_execution();
+                inst->execute();
+
+                // Mark as completed
+                exec_ctx.execution_completed = true;
+            }
         }
 
-        inst->prepare_primitive();
-        inst->execute();
+        // Create a vector of primitives with deferred memory and sort by largest memory size first
+        std::vector<std::shared_ptr<primitive_inst>> primitives_with_deferred;
+        for (auto& inst : _exec_order) {
+            if (inst->_execution_context && inst->_execution_context->has_deferred()) {
+                primitives_with_deferred.push_back(inst);
+            }
+        }
 
-        executed_prims++;
-        if (needs_flushing && executed_prims % flush_frequency == 0)
-            get_stream().flush();
+        std::sort(primitives_with_deferred.begin(), primitives_with_deferred.end(),
+            [this](const std::shared_ptr<primitive_inst>& a, const std::shared_ptr<primitive_inst>& b) {
+                auto a_layout = a->_execution_context->deferred_memory_list[0].mem_layout;
+                auto b_layout = b->_execution_context->deferred_memory_list[0].mem_layout;
+
+                // 기본적으로는 메모리 크기 우선
+                if (a_layout.bytes_count() != b_layout.bytes_count()) {
+                    return a_layout.bytes_count() > b_layout.bytes_count();
+                }
+
+                // 동점시 노드 ID로 일관성 보장
+                return a->get_node().get_unique_id() < b->get_node().get_unique_id();
+            });
+
+        GPU_DEBUG_COUT << "Deferred allocation: " << primitives_with_deferred.size() << std::endl;
+        // Allocate deferred outputs for sorted primitives (largest memory first)
+        for (auto& inst : primitives_with_deferred) {
+            inst->allocate_deferred_outputs();
+        }
+        GPU_DEBUG_COUT << "Deferred allocation finished" << std::endl;
+
+        // Phase 2: Execute remaining primitives (those not executed in phase 1)
+        for (auto& inst : _exec_order) {
+            auto& exec_ctx = *inst->_execution_context;
+            // Skip if already executed in phase 1
+            if (exec_ctx.execution_completed) {
+                continue;
+            }
+
+            // Prepare execution and execute
+            inst->prepare_execution();
+
+            inst->_execution_context.reset();  // free execution context
+
+            inst->execute();
+
+            executed_prims++;
+            // Only flush GPU stream for GPU implementations, not CPU implementations
+            if (needs_flushing && executed_prims % flush_frequency == 0) {
+                bool is_cpu_impl = inst->get_impl() && inst->get_impl()->is_cpu();
+                if (!is_cpu_impl) {
+                    get_stream().flush();
+                }
+            }
+        }
+    } else { // static
+        for (auto& inst : _exec_order) {
+            NODE_DEBUG(*inst);
+
+            inst->reset_events();
+
+            if (inst->is_input()) {
+                inst->add_dep_events(events);
+            }
+
+            inst->prepare_primitive();
+            inst->execute();
+        }
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
@@ -979,6 +1055,8 @@ void network::allocate_primitive_instance(program_node const& node) {
     if (node.is_constant()) {
         transfer_memory_to_device(inst, node);
     }
+
+        GPU_DEBUG_TRACE_DETAIL << node.id() << ": allocate primitive instance END" << std::endl;
 }
 
 void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node) {
