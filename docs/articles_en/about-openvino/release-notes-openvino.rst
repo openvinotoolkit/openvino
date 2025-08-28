@@ -39,41 +39,85 @@ OpenVINO™ Runtime
 Common
 ---------------------------------------------------------------------------------------------
 
+* Public API has been added to set and reset the log message handling callback.
+* Build-time optimizations have been introduced to improve developer experience in project compilation.
+* Ability to import a precompiled model from an `ov::Tensor` has been added. Using `ov::Tensor`, 
+which also supports memory-mapped files, to store precompiled models benefits both the OpenVINO 
+caching mechanism and applications using `core.import_model()`. 
+* 
+*  
 
-
-AUTO Inference Mode
----------------------------------------------------------------------------------------------
 
 CPU Device Plugin
 ---------------------------------------------------------------------------------------------
+
+* Sage Attention is now supported. This feature is turned on with the ``ENABLE_SAGE_ATTN`` property, 
+providing a performance boost for 1st token generation in LLMs with long prompts, 
+while maintaining accuracy. 
+* FP16 model performance on 6th generation Intel® Xeon® processors has been enhanced by improving 
+utilization of the underlying AMX FP16 capabilities and graph-level optimizations.
+* Model inference on Intel® Core™ Ultra Series 3 processors has been optimized with AI workload 
+scheduling among P-cores, E-cores, and LP E-cores. 
 
 
 GPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
+* LLM accuracy has been improved with by-channel key cache compression. Default KV-cache compression 
+has also been switched from by-token to by-channel compression.
+* Gemma3-4b and Qwen-VL VLM performance has been improved on XMX-supporting platforms. 
+* Basic functionalities for dynamic shape custom operations in GPU extension have been enabled. 
 
 NPU Device Plugin
 ---------------------------------------------------------------------------------------------
 
+* Models compressed as NF4-FP16 are now enabled on NPU. This is recommended precision 
+for the following models: deepseek-r1-distill-qwen-7b, deepseek-r1-distill-qwen-14b, 
+and qwen2-7b-instruct. Note that this quantization is not supported on Intel® Core Ultra Series 
+1 and 2 (MTL), where only symmetrically quantized channel-wise or group-wise INT4-FP16 models are supported.
+* Peak memory consumption of LLMs on NPU has been significantly reduced when using ahead-of-time compilation.
+* Optimizations for LLM vocabularies (LM Heads) compressed in INT8 asymmetric have been introduced, 
+available with NPU driver 32.0.100.4181 or later. 
+* Accuracy of LLMs with RoPE on longer contexts has been improved. 
+* Preview: Llama.cpp integration added for easy deployment on NPU.
 
 OpenVINO Python API
 ---------------------------------------------------------------------------------------------
 
-
-OpenVINO C API
----------------------------------------------------------------------------------------------
+* TensorVector binding has been enabled to avoid extra copies and speed up PostponedConstant usage. 
+* Free-threaded Python performance has been improved. 
+* 
+* Added `set_rt_info()` method to Node, Output, Input to align with `Model.set_rt_info()`.
 
 OpenVINO Node.js API
 ---------------------------------------------------------------------------------------------
 
+* AsyncInferQueue class has been added to support easier implementation of asynchronous inference. 
+=
+* Model.reshape method has been exposed, including type conversion ability and type validation helpers,
+useful for reshaping LLMs.
+* Support for ov-node types in TypeScript part of bindings has been extended, enabling
+direct integration with the JavaScript API. 
+* Wrapping of `compileModel()` method has been fixed to allow checking type of returned objects.  
+
+
 PyTorch Framework Support 
 ---------------------------------------------------------------------------------------------
 
+* Tensor concatenation inside loops is now supported, enabling the Paraformer model family.
 
 
 OpenVINO™ Model Server
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+* Major new features:
+  
+   * Tool-guided generation with the `enable_tool_guided_generation` parameter and
+`–tool_parser` option has been implemented to enable model-specific XGrammar configuration
+to enforce response syntax. It uses dynamic rules based on the generated sequence, improving
+model accuracy and reducing invalid tool response formats.
+	* Tool parser has been added for Mistral-7B-Instruct-v0.3, extending the list of supported 
+models with tool handling.
 
 
 Neural Network Compression Framework
