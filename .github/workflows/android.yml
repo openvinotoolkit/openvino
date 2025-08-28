@@ -15,7 +15,7 @@ on:
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android-${{ matrix.arch }}
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android
   cancel-in-progress: true
 
 permissions: read-all
