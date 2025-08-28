@@ -860,4 +860,11 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>The "one shot" implementation of the weights separation feature is supported only in the compiler-in-plugin flow</message>
+        <filters>
+            <filter>.*WeightsSeparationOneShotTests.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
