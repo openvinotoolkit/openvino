@@ -1,4 +1,4 @@
-name: Android ARM64
+name: Android
 on:
   workflow_dispatch:
     inputs:
@@ -15,7 +15,7 @@ on:
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android-arm64
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android-${{ matrix.arch }}
   cancel-in-progress: true
 
 permissions: read-all
@@ -85,6 +85,13 @@ jobs:
       run:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            android_abi: arm64-v8a
+          - arch: x64
+            android_abi: x86_64
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_android }}
       volumes:
@@ -107,11 +114,13 @@ jobs:
       ANDROID_TOOLS: '/deps/android_tools'
       ANDROID_NDK_HOME: '/deps/android_tools/ndk/26.1.10909125'
       ANDROID_SDK_VERSION: 30
-      ANDROID_ABI_CONFIG: arm64-v8a
+      ANDROID_ABI_CONFIG: ${{ matrix.android_abi }}
+      TBB_VERSION: 'v2022.2.0'
       TBB_SRC: "/__w/openvino/openvino/build/onetbb-src"
       TBB_BUILD: "/__w/openvino/openvino/build/onetbb-build"
       TBB_INSTALL: "/__w/openvino/openvino/build/onetbb-install"
       TBB_CMAKE_DIR: "/__w/openvino/openvino/build/onetbb-install/lib/cmake/TBB"
+      SCCACHE_AZURE_KEY_PREFIX: android_${{ matrix.arch }}
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -145,6 +154,9 @@ jobs:
       # Build
       #
 
+      - name: Clean ccache stats
+        run: ${SCCACHE_PATH} --zero-stats
+
       - name: Clone OneTBB
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -152,7 +164,7 @@ jobs:
           repository: 'oneapi-src/oneTBB'
           path: ${{ env.TBB_SRC }}
           submodules: 'true'
-          ref: 'v2022.2.0'
+          ref: ${{ env.TBB_VERSION }}
           
       - name: Configure OneTBB CMake project
         run: |
@@ -203,9 +215,6 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
-      - name: Clean ccache stats
-        run: ${SCCACHE_PATH} --zero-stats
-
       - name: CMake - build OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel $(nproc)
 
@@ -219,12 +228,12 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: build_logs
+          name: build_logs_${{ matrix.arch }}
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
   Overall_Status:
-    name: ci/gha_overall_status_android_arm64
+    name: ci/gha_overall_status_android
     needs: [Smart_CI, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
