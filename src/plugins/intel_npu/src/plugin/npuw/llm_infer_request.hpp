@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
+#include <vector>
 
 #include "llm_compiled_model.hpp"
 #include "llm_lora_states.hpp"
@@ -53,6 +55,8 @@ private:
                             std::unordered_map<std::string, ov::Output<const ov::Node>> out_ports,
                             uint32_t tokens);
 
+    void update_kvcache_between_chunks(uint32_t tokens, size_t chunk_idx);
+
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,
                                ov::SoPtr<ov::ITensor> position_ids);
@@ -70,14 +74,20 @@ private:
                         ov::SoPtr<ov::ITensor> position_ids);
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
-    std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
+    // For KV chunking, we will have multiple prefill infer requests
+    // For others, we will have a single prefill infer request
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_prefill_requests;
+    size_t m_last_infer_chunk_idx = 0;
+
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
 
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
+    // For KV chunking, we will have multiple prefill I/O mappings
+    // For others, we will have a single prefill I/O mapping
+    std::vector<std::unordered_map<std::string, ov::Output<const ov::Node>>> m_prefill_in_ports;
+    std::vector<std::unordered_map<std::string, ov::Output<const ov::Node>>> m_prefill_out_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
     ov::Output<const ov::Node> m_lm_head_logits_port;
@@ -86,6 +96,8 @@ private:
     std::string m_input_ids_name;
 
     bool m_generate_initialized = false;
+
+    uint64_t m_tokens_in_present_chunk = 0;
 
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;

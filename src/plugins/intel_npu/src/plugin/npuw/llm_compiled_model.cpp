@@ -3,6 +3,12 @@
 //
 #include "llm_compiled_model.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <openvino/core/parallel.hpp>
+#include <string>
+
+#include "intel_npu/config/npuw.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/op/group_query_attention.hpp"
@@ -305,6 +311,10 @@ public:
 namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
+}
+
+bool is_aligned_to(uint32_t value, uint32_t alignment) {
+    return value % alignment == 0;
 }
 
 std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>& model) {
@@ -868,25 +878,55 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    if (m_use_chunk_prefill) {
+        m_enable_kv_chunk = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ENABLE_KV_CHUNK>();
+    }
+
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
+    LOG_VERB("Enabled KV chunking: " << m_enable_kv_chunk);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("Make prefill model with static shapes");
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
+
+    std::vector<std::shared_ptr<ov::Model>> prefill_models;
     if (m_use_chunk_prefill) {
-        reshape_to_static(prefill_model,
-                          static_cast<uint32_t>(m_prefill_chunk_size),
-                          m_kvcache_desc.max_prompt_size,
-                          axes,
-                          m_max_lora_rank);
+        if (!m_enable_kv_chunk) {
+            reshape_to_static(prefill_model,
+                              static_cast<uint32_t>(m_prefill_chunk_size),
+                              m_kvcache_desc.max_prompt_size,
+                              axes,
+                              m_max_lora_rank);
+            prefill_models.push_back(prefill_model);
+        } else {
+            // KV Chunking: we will have multiple prefill models with different past KV shapes
+            if (!is_aligned_to(max_prompt_len, static_cast<uint32_t>(m_prefill_chunk_size))) {
+                OPENVINO_THROW("max_prompt_len is not aligned to m_prefill_chunk_size");
+            }
+            size_t num_kv_chunks = max_prompt_len / m_prefill_chunk_size;
+            std::cout << "KV Chunking: " << std::to_string(num_kv_chunks) << " kv chunks" << std::endl;
+            m_prefill_model_count = num_kv_chunks;
+            for (size_t i = 0; i < m_prefill_model_count; i++) {
+                auto prefill_kv_chunk_model = kvcache_model->clone();
+                prefill_kv_chunk_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill_kv_chunk_" +
+                                                          std::to_string(i));
+                reshape_to_static(prefill_kv_chunk_model,
+                                  static_cast<uint32_t>(m_prefill_chunk_size),
+                                  static_cast<uint32_t>((i + 1) * m_prefill_chunk_size),
+                                  axes,
+                                  m_max_lora_rank);
+                prefill_models.push_back(std::move(prefill_kv_chunk_model));
+            }
+        }
     } else {
         reshape_to_static(prefill_model,
                           m_kvcache_desc.max_prompt_size,
                           m_kvcache_desc.max_prompt_size,
                           axes,
                           m_max_lora_rank);
+        prefill_models.push_back(prefill_model);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes, m_max_lora_rank);
@@ -894,13 +934,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, 1, embed size], so only apply slice to
         // the Prefill model:
-        slice_out_embeds(prefill_model, axes.batch);
+        for (auto prefill_model : prefill_models) {
+            slice_out_embeds(prefill_model, axes.batch);
+        }
         LOG_DEBUG("Make LM head model with static shapes");
         reshape_sliced_head_to_static(lm_head_model, axes.batch);
     }
 
     LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
-    decompose_GQA(prefill_model, true);
+    for (auto prefill_model : prefill_models) {
+        decompose_GQA(prefill_model, true);
+    }
     decompose_GQA(kvcache_model, false);
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
@@ -908,7 +952,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Check and apply opt layout");
         LOG_BLOCK();
         if (ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
-            NPUW_ASSERT(ov::npuw::util::optimize_value_tensors(prefill_model, true));
+            for (auto prefill_model : prefill_models) {
+                NPUW_ASSERT(ov::npuw::util::optimize_value_tensors(prefill_model, true));
+            }
             m_kvcache_desc.v_tensors_transposed = true;
         } else {
             LOG_DEBUG("vtensors optimisation not applied");
@@ -922,7 +968,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("Don't remove input key/values from prefill model.");
         LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
-        prefill_model = redirect_new_kv_to_output(prefill_model);
+        for (auto prefill_model : prefill_models) {
+            prefill_model = redirect_new_kv_to_output(prefill_model);
+        }
     }
 
     LOG_DEBUG("Optimize kvcache model to output key/values for new token.");
@@ -930,10 +978,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Converting KV-cache in kvcache model to FP16.");
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
     LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
-    prefill_model = cvt_kvcache_to_fp16(prefill_model);
+    for (auto prefill_model : prefill_models) {
+        prefill_model = cvt_kvcache_to_fp16(prefill_model);
+    }
 
     auto prefill_config =
-        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
+        prefill_config_opt.value_or(get_default_prefill_config(prefill_models.back(), npudesc)).as<ov::AnyMap>();
 
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
@@ -961,7 +1011,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
             ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
-            rope_prefill_cacher.run_on_model(prefill_model);
+            for (auto prefill_model : prefill_models) {
+                rope_prefill_cacher.run_on_model(prefill_model);
+            }
         }
 
         if (const uint32_t ctx_len = max_prompt_len + min_response_len; !is_best || (ctx_len >= CACHE_ROPE_START)) {
@@ -975,10 +1027,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
     NPUW_ASSERT(m_kvcache_compiled && "Can't create ov::npuw::CompiledModel for passed kvcache "
                                       "model and its config, please check passed config.");
-    m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
-        ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
-    NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
-                                      "model and its config, please check passed config.");
+
+    m_prefill_compiled.resize(prefill_models.size());
+    ov::parallel_for(prefill_models.size(), [&](size_t idx) {
+        auto prefill_model = prefill_models[idx];
+        std::cout << "Start to compile prefill model: " << prefill_model->get_friendly_name() << std::endl;
+        auto compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+            ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
+        NPUW_ASSERT(compiled && "Can't create ov::npuw::CompiledModel for passed prefill model and its config, please "
+                                "check passed config.");
+        m_prefill_compiled[idx] = std::move(compiled);
+        std::cout << "Finished compilation for prefill model: " << prefill_model->get_friendly_name() << std::endl;
+    });
+
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
@@ -1092,7 +1153,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.v_tensors_transposed);
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
+        write(model_stream, m_enable_kv_chunk);
         write(model_stream, m_max_lora_rank);
+        write(model_stream, m_prefill_model_count);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1101,7 +1164,10 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         // Note: no need to pass any encryption here as it's done in export_model()
         CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
         m_kvcache_compiled->serialize(model_stream, enc_ctx);
-        m_prefill_compiled->serialize(model_stream, enc_ctx);
+        NPUW_ASSERT(m_prefill_compiled.size() == m_prefill_model_count && "Mismatched prefill model count!");
+        for (auto compiled : m_prefill_compiled) {
+            compiled->serialize(model_stream, enc_ctx);
+        }
         const bool is_shared_lm_head = m_lm_head_compiled != nullptr;
         write(model_stream, is_shared_lm_head);
         if (is_shared_lm_head) {
@@ -1122,8 +1188,11 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
 
     // Serialize bank name
     const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
-    const auto& p_bank = m_prefill_compiled->m_weights_bank;
-    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    for (const auto& compiled : m_prefill_compiled) {
+        auto p_bank = compiled->m_weights_bank;
+        NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank &&
+                    "Prefill and KVCache models' weight bank should be shared!");
+    }
     write(stream, kv_bank->get_name());
 
     if (!is_weightless) {
@@ -1198,16 +1267,17 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
             compiled->m_kvcache_compiled->m_weights_bank = bank;
-            compiled->m_prefill_compiled->m_weights_bank = bank;
-
             compiled->m_kvcache_compiled->finalize_weights_bank();
             compiled->m_kvcache_compiled->m_import_weights_ctx.reset();
-            compiled->m_prefill_compiled->finalize_weights_bank();
-            compiled->m_prefill_compiled->m_import_weights_ctx.reset();
+
+            for (auto prefill_compiled : compiled->m_prefill_compiled) {
+                prefill_compiled->m_weights_bank = bank;
+                prefill_compiled->finalize_weights_bank();
+                prefill_compiled->m_import_weights_ctx.reset();
+            }
 
             if (compiled->m_lm_head_compiled) {
                 compiled->m_lm_head_compiled->m_weights_bank = bank;
-
                 compiled->m_lm_head_compiled->finalize_weights_bank();
                 compiled->m_lm_head_compiled->m_import_weights_ctx.reset();
             }
@@ -1216,14 +1286,15 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
 
             compiled->m_kvcache_compiled->m_weights_bank = bank;
-            compiled->m_prefill_compiled->m_weights_bank = bank;
-
             compiled->m_kvcache_compiled->reconstruct_closure();
-            compiled->m_prefill_compiled->reconstruct_closure();
+
+            for (auto prefill_compiled : compiled->m_prefill_compiled) {
+                prefill_compiled->m_weights_bank = bank;
+                prefill_compiled->reconstruct_closure();
+            }
 
             if (compiled->m_lm_head_compiled) {
                 compiled->m_lm_head_compiled->m_weights_bank = bank;
-
                 compiled->m_lm_head_compiled->reconstruct_closure();
             }
         }
@@ -1300,7 +1371,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
+        read(model_stream, compiled->m_enable_kv_chunk);
         read(model_stream, compiled->m_max_lora_rank);
+        read(model_stream, compiled->m_prefill_model_count);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
@@ -1310,7 +1383,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         // Note: no need to pass any encryption here as it's done in import_model()
         CompiledContext enc_ctx(false, nullptr, nullptr);
         compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
-        compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+        for (size_t i = 0; i < compiled->m_prefill_model_count; i++) {
+            auto prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+            compiled->m_prefill_compiled.push_back(prefill_compiled);
+        }
         bool is_shared_lm_head = false;
         read(model_stream, is_shared_lm_head);
         if (is_shared_lm_head) {
@@ -1354,7 +1430,7 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
     if (configIterator != m_prop_to_opt.cend()) {
         return std::get<1>(configIterator->second)(m_cfg);
     } else {
-        return m_prefill_compiled->get_property(name);
+        return m_prefill_compiled.front()->get_property(name);
     }
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
