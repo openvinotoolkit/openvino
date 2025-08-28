@@ -69,20 +69,20 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
     auto const_div = wrap_type<ov::op::v0::Constant>(constant_value(1));
     auto const_div_convert = pattern::optional<ov::op::v0::Convert>(const_div);
     auto div = wrap_type<ov::op::v1::Divide>({const_div_convert, sqrt});
-    auto div_or_pow_sqrt = std::make_shared<pattern::op::Or>(OutputVector{div, pow, sqrt});
+    auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{div, pow});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div_or_pow_sqrt});
+    auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div_or_pow});
 
-    // x / 1/Sqrt(ReduceMean(x^2,axes)+eps)
-    auto div1 = wrap_type<ov::op::v1::Divide>({x, div_or_pow_sqrt});
-    auto mul1_or_div1 = std::make_shared<pattern::op::Or>(OutputVector{mul1, div1});
+    // x / Sqrt(ReduceMean(x^2,axes)+eps)
+    auto div_x = wrap_type<ov::op::v1::Divide>({x, sqrt});
+    auto mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto gamma = wrap_type<ov::op::v0::Constant>();
     auto gamma_convert = pattern::optional<ov::op::v0::Convert>(gamma);
 
-    auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma_convert, mul1_or_div1});
+    auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma_convert, mul_or_div});
 
     std::shared_ptr<ov::Node> comp = mul2;
     if (force_tail_convert) {
