@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "utils/cpp/bit_cast.hpp"
+#include "openvino/util/bit_cast.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -72,7 +72,7 @@ inline float f16tof32(ie_fp16 x) {
     }
 
     // finaly represent result as float and return
-    return ov::intel_cpu::bit_cast<float>(u);
+    return ov::bit_cast<float>(u);
 }
 
 }  // namespace intel_cpu

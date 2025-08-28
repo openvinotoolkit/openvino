@@ -15,8 +15,8 @@
 #include "general_utils.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/util/bit_cast.hpp"
 #include "precision_support.h"
-#include "utils/cpp/bit_cast.hpp"
 
 namespace ov::intel_cpu {
 

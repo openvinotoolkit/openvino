@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/util/bit_cast.hpp"
 
 #define ROUND_MODE_TO_NEAREST_EVEN
 
@@ -69,7 +70,11 @@ public:
     bfloat16 operator/(const T& other) const;
     template <typename T>
     bfloat16 operator/=(const T& other);
-    operator float() const;
+
+    operator float() const {
+        auto bits = static_cast<uint32_t>(m_value) << 16;
+        return ov::bit_cast<float>(bits);
+    }
 
     static std::vector<float> to_float_vector(const std::vector<bfloat16>&);
     static std::vector<bfloat16> from_float_vector(const std::vector<float>&);

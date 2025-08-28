@@ -29,8 +29,8 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/region_yolo.hpp"
+#include "openvino/util/bit_cast.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/cpp/bit_cast.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -376,7 +376,7 @@ void RegionYolo::createPrimitive() {
 }
 
 inline float RegionYolo::logistic_scalar(float src) {
-    int sign = ov::intel_cpu::bit_cast<int>(src) >> 31;
+    int sign = ov::bit_cast<int>(src) >> 31;
     if (sign == 0) {
         src *= -1;
     }

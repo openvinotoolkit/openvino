@@ -6,11 +6,14 @@
 
 #include <cstring>
 #include <type_traits>
+
+#include "openvino/util/cpp_version.hpp"
+
 #if defined(OPENVINO_CPP_VER_AT_LEAST_20)
 #    include <bit>
 #endif
 
-namespace ov::intel_cpu {
+namespace ov {
 
 #if defined(OPENVINO_CPP_VER_AT_LEAST_20)
 using std::bit_cast;
@@ -34,4 +37,4 @@ bit_cast(const From& src) noexcept {
 }
 #endif
 
-}  // namespace ov::intel_cpu
+}  // namespace ov

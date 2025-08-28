@@ -33,8 +33,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/util/bit_cast.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/cpp/bit_cast.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -512,7 +512,7 @@ inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res)
 inline void convertToOutputTypePhilox(const uint32_t* in, float min, float range, float* out, size_t el_to_copy) {
     for (size_t i = 0LU; i < el_to_copy; i++) {
         uint32_t bits = 0x3f800000 | (in[i] & 0x7fffffU);
-        float f = ov::intel_cpu::bit_cast<float>(bits);
+        float f = ov::bit_cast<float>(bits);
         out[i] = (f - 1.F) * range + min;
     }
 }
@@ -521,7 +521,7 @@ inline void convertToOutputTypePhilox(const uint32_t* in, float16 min, float16 r
     for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
         uint16_t bits = 0x3c00 | (x_uint16 & 0x03ffU);
-        float16 f = ov::intel_cpu::bit_cast<float16>(bits);
+        float16 f = ov::bit_cast<float16>(bits);
         out[i] = (f - static_cast<float16>(1)) * range + min;
     }
 }
@@ -534,7 +534,7 @@ inline void convertToOutputTypePhilox(const uint32_t* in,
     for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
         uint16_t bits = 0x3f80 | (x_uint16 & 0x7fU);
-        bfloat16 f = ov::intel_cpu::bit_cast<bfloat16>(bits);
+        bfloat16 f = ov::bit_cast<bfloat16>(bits);
         out[i] = (f - static_cast<bfloat16>(1)) * range + min;
     }
 }
