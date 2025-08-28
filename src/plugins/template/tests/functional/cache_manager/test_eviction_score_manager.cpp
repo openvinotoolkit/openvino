@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "cache/cache_eviction.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "cache_eviction.hpp"
 
 using namespace ov::cache;
 
