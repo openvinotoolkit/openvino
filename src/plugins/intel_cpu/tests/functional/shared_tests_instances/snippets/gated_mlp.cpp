@@ -29,6 +29,10 @@ static std::vector<std::pair<InputShape, std::vector<Shape>>> shapes {
         InputShape{{-1, -1, 1024}, {{3, 64, 1024}, {3, 1, 1024}}},
         std::vector<Shape>{{256, 1024}, {256, 1024}, {1024, 256}}
     },
+    {
+        InputShape{{}, {{1, 32, 1024}}},
+        std::vector<Shape>{{256, 1024}, {256, 1024}, {1024, 256}}
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_GatedMLP_f32,
