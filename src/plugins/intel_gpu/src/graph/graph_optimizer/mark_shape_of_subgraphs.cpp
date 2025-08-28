@@ -117,6 +117,35 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
             return false;
     }
 
+    // Exclude convolution layers that have mixed dependencies to ensure consistent execution
+    // between static and dynamic modes. In dynamic mode, convolutions may have dependencies
+    // that are part of shape_of subgraph (like shape calculations from previous operations)
+    // combined with regular data dependencies (like feature maps and weights).
+    // When a convolution has both shape_of subgraph dependencies and non-constant data dependencies,
+    // it sits at the boundary between shape calculation flow and data processing flow.
+    // To maintain GPU execution consistency and avoid unnecessary CPU-GPU transfers,
+    // we prevent such convolutions from being marked as shape_of subgraph nodes.
+    if (node.is_type<convolution>()) {
+        bool has_dynamic_shape_dep = false;
+        bool has_non_constant_dep = false;
+
+        for (auto& dep : dependencies) {
+            if (dep.first->is_in_shape_of_subgraph()) {
+                has_dynamic_shape_dep = true;
+            }
+            if (!dep.first->is_constant()) {
+                has_non_constant_dep = true;
+            }
+        }
+
+        // If convolution has both shape_of subgraph dependencies and non-constant data dependencies,
+        // exclude it from shape_of subgraph to maintain GPU execution consistency.
+        // This ensures convolutions use GPU implementation in both static and dynamic modes.
+        if (has_dynamic_shape_dep && has_non_constant_dep) {
+            return false;
+        }
+    }
+
     return true;
 }
 
