@@ -52,7 +52,7 @@ private:
     ShuffleChannelsAttributes attrs;
 
     struct ShuffleChannelsExecutor final {
-        ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs);
+        explicit ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs);
         void exec(const uint8_t* srcData, uint8_t* dstData, int MB);
         ~ShuffleChannelsExecutor() = default;
 

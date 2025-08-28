@@ -102,3 +102,114 @@ TEST(UtilsTests, split_by_delimiter_empty_and_comma) {
 
     ASSERT_EQ(split_set, expected_set);
 }
+
+TEST(UtilsTests, mul_overflow_i8_detected) {
+    int8_t result;
+    constexpr auto max = std::numeric_limits<int8_t>::max();
+    constexpr auto min = std::numeric_limits<int8_t>::min();
+
+    EXPECT_TRUE(mul_overflow<int8_t>(2, max, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(max, 3, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(5, 50, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(51, 4, result));
+
+    EXPECT_TRUE(mul_overflow<int8_t>(max, min, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(max, -2, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(31, -5, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(2, min, result));
+
+    EXPECT_TRUE(mul_overflow<int8_t>(min, max, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(min, 2, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(-2, max, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(-13, 12, result));
+
+    EXPECT_TRUE(mul_overflow<int8_t>(min, -1, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(-1, min, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(-2, -64, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(-64, -2, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(-43, -3, result));
+    EXPECT_TRUE(mul_overflow<int8_t>(-4, -33, result));
+}
+
+TEST(UtilsTests, mul_overflow_i8_zero_value) {
+    int8_t result;
+    constexpr auto max = std::numeric_limits<int8_t>::max();
+    constexpr auto min = std::numeric_limits<int8_t>::min();
+
+    ASSERT_FALSE(mul_overflow<int8_t>(0, 0, result));
+    EXPECT_EQ(result, 0);
+
+    ASSERT_FALSE(mul_overflow<int8_t>(0, max, result));
+    EXPECT_EQ(result, 0);
+
+    ASSERT_FALSE(mul_overflow<int8_t>(max, 0, result));
+    EXPECT_EQ(result, 0);
+
+    ASSERT_FALSE(mul_overflow<int8_t>(0, min, result));
+    EXPECT_EQ(result, 0);
+
+    ASSERT_FALSE(mul_overflow<int8_t>(min, 0, result));
+    EXPECT_EQ(result, 0);
+}
+
+TEST(UtilsTests, mul_overflow_i8_non_zero_value) {
+    int8_t result;
+    constexpr auto max = std::numeric_limits<int8_t>::max();
+    constexpr auto min = std::numeric_limits<int8_t>::min();
+
+    ASSERT_FALSE(mul_overflow<int8_t>(-2, 5, result));
+    EXPECT_EQ(result, -10);
+
+    ASSERT_FALSE(mul_overflow<int8_t>(-5, 3, result));
+    EXPECT_EQ(result, -15);
+
+    ASSERT_FALSE(mul_overflow<int8_t>(max, 1, result));
+    EXPECT_EQ(result, max);
+
+    ASSERT_FALSE(mul_overflow<int8_t>(max, -1, result));
+    EXPECT_EQ(result, -max);
+
+    ASSERT_FALSE(mul_overflow<int8_t>(1, min, result));
+    EXPECT_EQ(result, min);
+
+    ASSERT_FALSE(mul_overflow<int8_t>(-6, -10, result));
+    EXPECT_EQ(result, 60);
+}
+
+TEST(UtilsTests, mul_overflow_u8_detected) {
+    uint8_t result;
+    constexpr auto max = std::numeric_limits<uint8_t>::max();
+
+    EXPECT_TRUE(mul_overflow<uint8_t>(2, max, result));
+    EXPECT_TRUE(mul_overflow<uint8_t>(max, 3, result));
+    EXPECT_TRUE(mul_overflow<uint8_t>(5, 56, result));
+    EXPECT_TRUE(mul_overflow<uint8_t>(66, 4, result));
+}
+
+TEST(UtilsTests, mul_overflow_u8_zero_value) {
+    uint8_t result;
+    constexpr auto max = std::numeric_limits<uint8_t>::max();
+
+    ASSERT_FALSE(mul_overflow<uint8_t>(0, 0, result));
+    EXPECT_EQ(result, 0);
+
+    ASSERT_FALSE(mul_overflow<uint8_t>(0, max, result));
+    EXPECT_EQ(result, 0);
+
+    ASSERT_FALSE(mul_overflow<uint8_t>(max, 0, result));
+    EXPECT_EQ(result, 0);
+}
+
+TEST(UtilsTests, mul_overflow_u8_non_zero_value) {
+    uint8_t result;
+    constexpr auto max = std::numeric_limits<uint8_t>::max();
+
+    ASSERT_FALSE(mul_overflow<uint8_t>(2, 5, result));
+    EXPECT_EQ(result, 10);
+
+    ASSERT_FALSE(mul_overflow<uint8_t>(15, 3, result));
+    EXPECT_EQ(result, 45);
+
+    ASSERT_FALSE(mul_overflow<uint8_t>(max, 1, result));
+    EXPECT_EQ(result, max);
+}

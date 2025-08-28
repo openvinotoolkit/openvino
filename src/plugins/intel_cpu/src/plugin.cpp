@@ -6,13 +6,19 @@
 
 #include <cstddef>
 #include <cstring>
+#include <fstream>
 #include <istream>
 #include <memory>
 #include <set>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
+#if defined(__APPLE__)
+#    include <sys/sysctl.h>
+#    include <sys/types.h>
+#endif
 
 #include "compiled_model.h"
 #include "config.h"
@@ -66,8 +72,134 @@ static std::string getDeviceFullName() {
     // TODO: extract actual device name
     brand_string = "RISCV-64 CPU";
 #elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: extract actual device name
-    brand_string = "ARM CPU";
+#    if defined(__APPLE__) || defined(__MACOSX)
+    {
+        auto read_sysctl_str = [](const char* name) -> std::string {
+            size_t size = 0;
+            if (sysctlbyname(name, nullptr, &size, nullptr, 0) != 0 || size == 0) {
+                return {};
+            }
+            std::string out(size, '\0');
+            if (sysctlbyname(name, out.data(), &size, nullptr, 0) != 0 || size == 0) {
+                return {};
+            }
+            if (!out.empty() && out.back() == '\0') {
+                out.pop_back();
+            }
+            return out;
+        };
+
+        brand_string = read_sysctl_str("machdep.cpu.brand_string");
+        if (brand_string.empty()) {
+            brand_string = read_sysctl_str("hw.model");
+        }
+    }
+#    elif defined(__linux__)
+    {
+        auto trim = [](std::string s) -> std::string {
+            const auto start = s.find_first_not_of(" \t\r\n");
+            const auto end = s.find_last_not_of(" \t\r\n");
+            if (start == std::string::npos || end == std::string::npos) {
+                return {};
+            }
+            return s.substr(start, end - start + 1);
+        };
+        auto read_first_line = [&](const char* path) -> std::string {
+            std::ifstream f(path);
+            if (!f.is_open()) {
+                return {};
+            }
+            std::string line;
+            std::getline(f, line);
+            return trim(line);
+        };
+        auto pick_value = [&](const std::string& s) -> std::string {
+            const auto pos = s.find(':');
+            if (pos == std::string::npos) {
+                return {};
+            }
+            return trim(s.substr(pos + 1));
+        };
+
+        // 1) Prefer device-tree model if available (not present in many containers)
+        brand_string = read_first_line("/sys/firmware/devicetree/base/model");
+        if (brand_string.empty()) {
+            brand_string = read_first_line("/proc/device-tree/model");
+        }
+
+        // 2) Fall back to /proc/cpuinfo keys commonly seen on ARM
+        if (brand_string.empty()) {
+            std::ifstream cpuinfo("/proc/cpuinfo");
+            std::string line;
+            std::string implementer_hex;  // e.g., 0x41
+            std::string part_hex;         // e.g., 0xd40
+            while (cpuinfo.is_open() && std::getline(cpuinfo, line)) {
+                if (line.rfind("model name", 0) == 0 || line.rfind("Hardware", 0) == 0 ||
+                    line.rfind("Processor", 0) == 0 || line.rfind("Model", 0) == 0) {
+                    auto v = pick_value(line);
+                    if (!v.empty()) {
+                        brand_string = v;
+                        break;
+                    }
+                } else if (line.rfind("CPU implementer", 0) == 0) {
+                    implementer_hex = pick_value(line);
+                } else if (line.rfind("CPU part", 0) == 0) {
+                    part_hex = pick_value(line);
+                }
+            }
+
+            // 3) If we still don't have a friendly string, synthesize something readable
+            if (brand_string.empty()) {
+                auto vendor_from_impl = [](const std::string& hex) -> const char* {
+                    // Map common implementer IDs (see Linux arch/arm64/include/asm/sysreg.h / MIDR)
+                    static const std::unordered_map<uint32_t, const char*> vendor_map = {
+                        {0x41, "ARM"},
+                        {0x42, "Broadcom"},
+                        {0x43, "Cavium"},
+                        {0x44, "DEC"},
+                        {0x46, "Fujitsu"},
+                        {0x48, "HiSilicon"},
+                        {0x49, "Infineon"},
+                        {0x4C, "Motorola"},
+                        {0x4D, "MediaTek"},
+                        {0x4E, "NVIDIA"},
+                        {0x50, "Applied Micro"},
+                        {0x51, "Qualcomm"},
+                        {0x53, "Samsung"},
+                        {0x56, "Marvell"},
+                        {0x61, "Apple"},
+                        {0x69, "Intel"},
+                        {0x7A, "Allwinner"},
+                        {0xC0, "Ampere"},
+                    };
+
+                    if (hex.length() >= 3) {
+                        try {
+                            auto id = std::stoul(hex, nullptr, 16);
+                            auto it = vendor_map.find(id);
+                            return it != vendor_map.end() ? it->second : nullptr;
+                        } catch (const std::exception&) {
+                            return nullptr;
+                        }
+                    }
+                    return nullptr;
+                };
+
+                const char* vendor = vendor_from_impl(implementer_hex);
+                if (vendor) {
+                    if (!part_hex.empty()) {
+                        brand_string = std::string(vendor) + " (" + part_hex + ")";
+                    } else {
+                        brand_string = vendor;
+                    }
+                }
+            }
+        }
+    }
+#    endif
+    if (brand_string.empty()) {
+        brand_string = "ARM CPU";
+    }
 #elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     const unsigned int addr_list[3] = {0x80000002, 0x80000003, 0x80000004};
     unsigned int regs[4];
@@ -88,6 +220,10 @@ static std::string getDeviceFullName() {
 #else
 #    error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
 #endif
+    // Strip any extra null terminators
+    while (!brand_string.empty() && brand_string.back() == '\0') {
+        brand_string.pop_back();
+    }
     return brand_string;
 }
 

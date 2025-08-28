@@ -26,8 +26,8 @@ class InplaceResolveIOTestBase : public testing::WithParamInterface<VectorShapes
                                  virtual public ov::test::SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<VectorShapes> obj) {
-        VectorShapes& inputShapes = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<VectorShapes>& obj) {
+        const VectorShapes& inputShapes = obj.param;
 
         std::ostringstream result;
         result << "IS=";
