@@ -30,6 +30,7 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
     auto input_layout = impl_params.get_input_layout(0);
     auto weights_layout = impl_params.get_input_layout(1);
     auto output_layout = impl_params.get_output_layout();
+    auto auto_pad = prim->auto_pad;
 
     dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
     dnnl::memory::dims dilation(prim->dilation.begin(), prim->dilation.end());
@@ -68,7 +69,16 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
         auto is = input_md.get_dims()[2 + i];
         auto ks = weights_md.get_dims()[weights_offset];
         auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
-        pad_r[i] = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
+        auto padding = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
+        if (auto_pad == ov::op::PadType::SAME_UPPER) {
+            pad_l[i] = padding / 2;
+            pad_r[i] = padding - pad_l[i];
+        } else if (auto_pad == ov::op::PadType::SAME_LOWER) {
+            pad_r[i] = padding / 2;
+            pad_l[i] = padding - pad_r[i];
+        } else {
+            pad_r[i] = padding;
+        }
     }
 
     // Extend conv parameters in case if spatials rank of output memory doesn't match size of parameters

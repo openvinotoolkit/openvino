@@ -32,6 +32,7 @@ protected:
 
         auto input_layout = impl_params.get_input_layout(0);
         auto output_layout = impl_params.get_output_layout();
+        auto auto_pad = prim->auto_pad;
 
         auto kernel_shape = prim->size;
         auto stride_shape = prim->stride;
@@ -56,7 +57,16 @@ protected:
         auto output_md = onednn::layout_to_memory_desc(output_layout);
 
         for (size_t i = 0; i < kernel.size(); i++) {
-            pad_r[i] = (output_md.get_dims()[2 + i] - 1) * stride[i] - input_md.get_dims()[2 + i] + ((kernel[i] - 1) * dilation[i]) - pad_l[i] + 1;
+            auto padding = (output_md.get_dims()[2 + i] - 1) * stride[i] - input_md.get_dims()[2 + i] + ((kernel[i] - 1) * dilation[i]) - pad_l[i] + 1;
+            if (auto_pad == ov::op::PadType::SAME_UPPER) {
+                pad_l[i] = padding / 2;
+                pad_r[i] = padding - pad_l[i];
+            } else if (auto_pad == ov::op::PadType::SAME_LOWER) {
+                pad_r[i] = padding / 2;
+                pad_l[i] = padding - pad_r[i];
+            } else {
+                pad_r[i] = padding;
+            }
         }
 
         dnnl::algorithm alg;
