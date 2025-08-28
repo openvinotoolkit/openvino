@@ -219,9 +219,6 @@ Subgraph::Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& b
     m_shape_infer = std::make_shared<OVShapeInfer>(body);
 }
 
-Subgraph::Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body)
-    : Subgraph(as_output_vector(args), body) {}
-
 std::shared_ptr<Node> Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
     return make_shared<Subgraph>(inputs, body().clone());
