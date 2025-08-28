@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
-#include "openvino/runtime/tensor.hpp"
+
 #include "cache_eviction.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 using namespace ov::cache;
 
@@ -14,12 +15,14 @@ TEST(CacheManagerEviction, ScoreRegisterRemoveSmoke) {
     {
         ov::Tensor t0(ov::element::f32, {32});
         auto* p0 = t0.data<float>();
-        for (size_t i=0;i<32;++i) p0[i] = static_cast<float>(i+1);
+        for (size_t i = 0; i < 32; ++i)
+            p0[i] = static_cast<float>(i + 1);
         scores.push_back(t0);
 
         ov::Tensor t1(ov::element::f32, {32});
         auto* p1 = t1.data<float>();
-        for (size_t i=0;i<32;++i) p1[i] = static_cast<float>(32 - i);
+        for (size_t i = 0; i < 32; ++i)
+            p1[i] = static_cast<float>(32 - i);
         scores.push_back(t1);
     }
     std::set<size_t> skipped{};
@@ -34,7 +37,7 @@ TEST(CacheManagerEviction, ScoreRegisterRemoveSmoke) {
 }
 
 TEST(CacheManagerEviction, MaxCacheCeilProperty) {
-    CacheEvictionConfig cfg(/*start*/32, /*recent*/64, /*max*/256, AggregationMode::SUM, false);
-    CacheEvictionAlgorithm algo(cfg, /*block_size*/16, /*num_layers*/2, /*pool*/8);
+    CacheEvictionConfig cfg(/*start*/ 32, /*recent*/ 64, /*max*/ 256, AggregationMode::SUM, false);
+    CacheEvictionAlgorithm algo(cfg, /*block_size*/ 16, /*num_layers*/ 2, /*pool*/ 8);
     EXPECT_EQ(algo.get_max_cache_size_after_eviction(), 256 + 16 - 1);
 }
