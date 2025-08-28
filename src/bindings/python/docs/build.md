@@ -14,6 +14,15 @@ While wheels make installation easier, using wheels for development offers less 
 
 To learn more about wheels and their use cases, check out the article [What Are Python Wheels and Why Should You Care?](https://realpython.com/python-wheels/).
 
+## Experimental free threaded Python build
+To build the OpenVINO™ Python API with experimental free threaded Python support, add the following flag to your `cmake` command:
+
+```shell
+-DENABLE_GIL_PYTHON_API=OFF
+```
+
+This disables the Global Interpreter Lock (GIL) in the Python API, enabling free threading. Note that this feature is experimental and may not be fully supported in all environments.
+
 ## Virtual environments
 
 OpenVINO can be built based on specific virtual environments such as [venv](https://docs.python.org/3/tutorial/venv.html), [virtualenv](https://virtualenv.pypa.io/en/latest/) or [pyenv](https://github.com/pyenv/pyenv). It is highly recommended to use virtual environments during development. They improve development process and allow better management of Python versions and packages.
