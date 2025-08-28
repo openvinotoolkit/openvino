@@ -81,7 +81,9 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
 static std::shared_ptr<ov::Node> gen_chatglm_const() {
     using namespace ov::pass::pattern;
 
-    return wrap_type<ov::op::v0::Constant>();
+    auto pred = value_matches("-1, batch, head_cnt, ndims/2, 1") || value_matches("0, 0, 0, ndims/2, 1") ||
+                value_matches("1, -1, head_cnt, ndims/2, 1");
+    return wrap_type<v0::Constant>(pred);
 }
 
 ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
@@ -694,16 +696,16 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     std::shared_ptr<ov::Node> reshape0 = nullptr;
     if (support_2d_rope) {
         auto const_target_shape0 =
-            pattern::wrap_type<v0::Constant>(pattern::value_matches("0, head_cnt, 0, ndims/2, 2"));
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("0, head_cnt_pos3, 0, ndims/2, 2"));
         reshape0 = pattern::wrap_type<v1::Reshape>({slice0 | var_split0->output(0), const_target_shape0},
                                                    {{"special_zero", true}});
     } else {
         auto concat0 =
             pattern::wrap_type<v0::Concat>({seq_length, {-1}, {"head_cnt"}, {"ndims/2"}, {2}}, {{"axis", 0}});
         auto const_target_shape1 =
-            pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims/2, 2"));
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt_pos4, ndims/2, 2"));
         auto const_target_shape2 =
-            pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims/2, 2"));
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt_pos5, ndims/2, 2"));
         reshape0 = pattern::wrap_type<v1::Reshape>(
             {slice0 | var_split0->output(0), concat0 | const_target_shape1 | const_target_shape2});
     }
@@ -770,14 +772,15 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     if (support_2d_rope) {
         // [batch, head_cnt, length, half_rotary_dims, 2]
         const_target_shape6 =
-            pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, head_cnt, seq_len, ndims") ||
-                                             pattern::value_matches("0, head_cnt, 0, ndims"));
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, head_cnt_pos6, seq_len, ndims") ||
+                                             pattern::value_matches("0, head_cnt_pos7, 0, ndims"));
         reshape2 = pattern::wrap_type<v1::Reshape>({concat2, concat3 | const_target_shape6}, {{"special_zero", true}});
     } else {
         // [length, batch, head_cnt, half_rotary_dims, 2]
-        auto const_target_shape7 = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims"));
+        auto const_target_shape7 =
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt_pos9, ndims"));
         const_target_shape6 =
-            pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims"));
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt_pos8, ndims"));
         reshape2 = pattern::wrap_type<v1::Reshape>({concat2, concat3 | const_target_shape6 | const_target_shape7},
                                                    {{"special_zero", true}});
     }
