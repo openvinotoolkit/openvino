@@ -19,7 +19,7 @@ ov_add_test_target(
             openvino::runtime::dev
         INCLUDES
             "${OpenVINOTemplatePlugin_SOURCE_DIR}/include"
-            "${OpenVINOTemplatePlugin_SOURCE_DIR}/src/cache"
+            "${OpenVINOTemplatePlugin_SOURCE_DIR}/src"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
         DEFINES
             IN_OV_COMPONENT            

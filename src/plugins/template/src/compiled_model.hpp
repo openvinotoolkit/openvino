@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "cache/cache_eviction.hpp"
-#include "cache/cache_manager.hpp"
+#include "cache_eviction.hpp"
+#include "cache_manager.hpp"
 #include "config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
