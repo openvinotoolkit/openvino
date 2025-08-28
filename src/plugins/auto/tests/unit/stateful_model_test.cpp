@@ -37,20 +37,13 @@ protected:
 };
 
 std::string StatefulModelSupportedTest::getTestCaseName(testing::TestParamInfo<StatefulModelConfigParams> obj) {
-    bool isDynamicModel;
-    bool isStatefulModel;
-    bool isActualSuccessful;
-    bool isCumulative;
-    std::vector<std::pair<std::string, int>> expectedCalledTimes;
-    std::string devicesList;
-    std::string expectedExecuteDev;
-    std::tie(devicesList,
-             isDynamicModel,
-             isStatefulModel,
-             isCumulative,
-             isActualSuccessful,
-             expectedCalledTimes,
-             expectedExecuteDev) = obj.param;
+    const auto& [devicesList,
+                 isDynamicModel,
+                 isStatefulModel,
+                 isCumulative,
+                 isActualSuccessful,
+                 expectedCalledTimes,
+                 expectedExecuteDev] = obj.param;
     std::ostringstream result;
     result << "_devicesList_" << devicesList;
     result << "_isDynamic_" << isDynamicModel;

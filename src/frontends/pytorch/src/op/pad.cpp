@@ -118,11 +118,14 @@ OutputVector translate_pad(const NodeContext& context) {
     return translate_pad_common(context, data, paddings, pad_value, mode);
 }
 
-OutputVector translate_constant_pad_nd_fx(const NodeContext& context) {
-    num_inputs_check(context, 3, 3);
+OutputVector translate_constant_pad_nd(const NodeContext& context) {
+    num_inputs_check(context, 2, 3);
     auto data = context.get_input(0);
     auto paddings = context.const_input<std::vector<int64_t>>(1);
-    auto pad_value = context.get_input(2);
+    Output<Node> pad_value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+    if (!context.input_is_none(2)) {
+        pad_value = context.get_input(2);
+    }
     return translate_pad_common(context, data, paddings, pad_value);
 }
 

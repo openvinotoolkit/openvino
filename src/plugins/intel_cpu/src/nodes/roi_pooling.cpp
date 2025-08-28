@@ -40,6 +40,7 @@
 
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
@@ -63,7 +64,7 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     };
 
     void generate() override {
@@ -565,7 +566,7 @@ void ROIPooling::prepareParams() {
 template <typename T>
 class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp) {
+    explicit ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
             roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>>(jpp);
@@ -719,7 +720,7 @@ private:
 template <typename T>
 class ROIPooling::ROIPoolingRefExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    ROIPoolingRefExecutor(const jit_roi_pooling_params& _jpp) : jpp(_jpp) {}
+    explicit ROIPoolingRefExecutor(const jit_roi_pooling_params& _jpp) : jpp(_jpp) {}
     void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
@@ -961,10 +962,10 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
                                                                              const int pooled_w) {
     float height_scale =
         (pooled_h > 1 ? ((roi_end_h - roi_start_h) * static_cast<float>(ih - 1)) / static_cast<float>(pooled_h - 1)
-                      : 0.0f);
+                      : 0.0F);
     float width_scale =
         (pooled_w > 1 ? ((roi_end_w - roi_start_w) * static_cast<float>(iw - 1)) / static_cast<float>(pooled_w - 1)
-                      : 0.0f);
+                      : 0.0F);
 
     float in_y = NAN;
     float in_x = NAN;
@@ -977,13 +978,13 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
             (oh == pooled_h - 1 ? roi_end_h * static_cast<float>(ih - 1)
                                 : (static_cast<float>(oh) * height_scale + roi_start_h * static_cast<float>(ih - 1)));
     } else {
-        in_y = 0.5f * (roi_start_h + roi_end_h) * static_cast<float>(ih - 1);
+        in_y = 0.5F * (roi_start_h + roi_end_h) * static_cast<float>(ih - 1);
     }
     if (pooled_w > 1) {
         in_x = (ow == pooled_w - 1 ? roi_end_w * static_cast<float>(iw - 1)
                                    : (static_cast<float>(ow) * width_scale + roi_start_w * static_cast<float>(iw - 1)));
     } else {
-        in_x = 0.5f * (roi_start_w + roi_end_w) * static_cast<float>(iw - 1);
+        in_x = 0.5F * (roi_start_w + roi_end_w) * static_cast<float>(iw - 1);
     }
 
     return std::make_pair(in_x, in_y);

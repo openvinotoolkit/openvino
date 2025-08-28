@@ -8,12 +8,7 @@
 namespace ov {
 namespace test {
 std::string RollLayerTest::getTestCaseName(const testing::TestParamInfo<rollParams>& obj) {
-    std::vector<InputShape> input_shapes;
-    ov::element::Type model_type;
-    std::vector<int64_t> shift;
-    std::vector<int64_t> axes;
-    std::string target_device;
-    std::tie(input_shapes, model_type, shift, axes, target_device) = obj.param;
+    const auto& [input_shapes, model_type, shift, axes, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -37,12 +32,9 @@ std::string RollLayerTest::getTestCaseName(const testing::TestParamInfo<rollPara
 }
 
 void RollLayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    ov::element::Type model_type;
-    std::vector<int64_t> shift;
-    std::vector<int64_t> axes;
     std::string target_device;
-    std::tie(input_shapes, model_type, shift, axes, targetDevice) = this->GetParam();
+    const auto& [input_shapes, model_type, shift, axes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(input_shapes);
 

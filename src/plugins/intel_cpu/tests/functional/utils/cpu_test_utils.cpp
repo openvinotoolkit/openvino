@@ -263,13 +263,9 @@ bool CPUTestsBase::primTypeCheck(std::string primType) const {
         return selectedType.find(CPUTestsBase::any_type) != std::string::npos ||
                std::regex_match(primType, std::regex(selectedType, std::regex::icase));
 }
-
-std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
+std::string CPUTestsBase::getTestCaseName(const CPUSpecificParams& params) {
+    const auto& [inFmts, outFmts, priority, selectedType] = params;
     std::ostringstream result;
-    std::vector<cpu_memory_format_t> inFmts, outFmts;
-    std::vector<std::string> priority;
-    std::string selectedType;
-    std::tie(inFmts, outFmts, priority, selectedType) = params;
     if (!inFmts.empty()) {
         auto str = fmts2str(inFmts, "");
         std::replace(str.begin(), str.end(), ',', '.');
@@ -285,7 +281,6 @@ std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
     }
     return result.str();
 }
-
 CPUTestsBase::CPUInfo CPUTestsBase::getCPUInfo() const {
     return makeCPUInfo(inFmts, outFmts, priority);
 }

@@ -15,23 +15,18 @@ namespace test {
 std::string InterpolateLayerTest::getTestCaseName(const testing::TestParamInfo<InterpolateLayerTestParams>& obj) {
     using ov::test::utils::operator<<;
 
-    InterpolateSpecificParams interpolate_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    ov::Shape target_shape;
-    std::string target_device;
-    std::map<std::string, std::string> additional_config;
-    std::tie(interpolate_params, model_type, shapes, target_shape, target_device, additional_config) = obj.param;
-    std::vector<size_t> pad_begin, pad_end;
-    std::vector<int64_t> axes;
-    std::vector<float> scales;
-    bool antialias;
-    ov::op::v4::Interpolate::InterpolateMode mode;
-    ov::op::v4::Interpolate::ShapeCalcMode shape_calc_mode;
-    ov::op::v4::Interpolate::CoordinateTransformMode coordinate_transform_mode;
-    ov::op::v4::Interpolate::NearestMode nearest_mode;
-    double cube_coef;
-    std::tie(mode, shape_calc_mode, coordinate_transform_mode, nearest_mode, antialias, pad_begin, pad_end, cube_coef, axes, scales) = interpolate_params;
+    const auto& [interpolate_params, model_type, shapes, target_shape, target_device, additional_config] = obj.param;
+
+    const auto& [mode,
+                 shape_calc_mode,
+                 coordinate_transform_mode,
+                 nearest_mode,
+                 antialias,
+                 pad_begin,
+                 pad_end,
+                 cube_coef,
+                 axes,
+                 scales] = interpolate_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -63,25 +58,22 @@ std::string InterpolateLayerTest::getTestCaseName(const testing::TestParamInfo<I
 }
 
 void InterpolateLayerTest::SetUp() {
-    InterpolateSpecificParams interpolate_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    ov::Shape target_shape;
-    std::map<std::string, std::string> additional_config;
-    std::tie(interpolate_params, model_type, shapes, target_shape, targetDevice, additional_config) = this->GetParam();
-    std::vector<size_t> pad_begin, pad_end;
-    std::vector<int64_t> axes;
-    std::vector<float> scales;
-    bool antialias;
-    ov::op::v4::Interpolate::InterpolateMode mode;
-    ov::op::v4::Interpolate::ShapeCalcMode shape_calc_mode;
-    ov::op::v4::Interpolate::CoordinateTransformMode coordinate_transform_mode;
-    ov::op::v4::Interpolate::NearestMode nearest_mode;
+    const auto& [interpolate_params, model_type, shapes, target_shape, _targetDevice, additional_config] =
+        this->GetParam();
+    targetDevice = _targetDevice;
 
     configuration.insert(additional_config.begin(), additional_config.end());
 
-    double cube_coef;
-    std::tie(mode, shape_calc_mode, coordinate_transform_mode, nearest_mode, antialias, pad_begin, pad_end, cube_coef, axes, scales) = interpolate_params;
+    const auto& [mode,
+                 shape_calc_mode,
+                 coordinate_transform_mode,
+                 nearest_mode,
+                 antialias,
+                 pad_begin,
+                 pad_end,
+                 cube_coef,
+                 axes,
+                 scales] = interpolate_params;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
@@ -132,25 +124,22 @@ std::shared_ptr<ov::op::v0::Constant> make_scales_or_sizes_input(ov::op::util::I
 }
 }
 void Interpolate11LayerTest::SetUp() {
-    InterpolateSpecificParams interpolate_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    ov::Shape target_shape;
-    std::map<std::string, std::string> additional_config;
-    std::tie(interpolate_params, model_type, shapes, target_shape, targetDevice, additional_config) = this->GetParam();
-    std::vector<size_t> pad_begin, pad_end;
-    std::vector<int64_t> axes;
-    std::vector<float> scales;
-    bool antialias;
-    ov::op::v4::Interpolate::InterpolateMode mode;
-    ov::op::v4::Interpolate::ShapeCalcMode shape_calc_mode;
-    ov::op::v4::Interpolate::CoordinateTransformMode coordinate_transform_mode;
-    ov::op::v4::Interpolate::NearestMode nearest_mode;
+    const auto& [interpolate_params, model_type, shapes, target_shape, _targetDevice, additional_config] =
+        this->GetParam();
+    targetDevice = _targetDevice;
 
     configuration.insert(additional_config.begin(), additional_config.end());
 
-    double cube_coef;
-    std::tie(mode, shape_calc_mode, coordinate_transform_mode, nearest_mode, antialias, pad_begin, pad_end, cube_coef, axes, scales) = interpolate_params;
+    const auto& [mode,
+                 shape_calc_mode,
+                 coordinate_transform_mode,
+                 nearest_mode,
+                 antialias,
+                 pad_begin,
+                 pad_end,
+                 cube_coef,
+                 axes,
+                 scales] = interpolate_params;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

@@ -35,7 +35,7 @@ void jit_uni_matmul_small_kernel_f32<isa>::generate() {
                                                                                           post_op.eltwise.alg,
                                                                                           post_op.eltwise.alpha,
                                                                                           post_op.eltwise.beta,
-                                                                                          1.f,
+                                                                                          1.F,
                                                                                           data_type::f32));
         } else if (post_op.is_depthwise()) {
             depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
@@ -55,9 +55,6 @@ void jit_uni_matmul_small_kernel_f32<isa>::generate() {
     mov(reg_input2, ptr[reg_params + GET_OFF(input2)]);
     mov(reg_out, ptr[reg_params + GET_OFF(output)]);
     mov(reg_work_amount, ptr[reg_params + GET_OFF(B)]);
-    if (jcp_.M > 2 || jcp_.N > 2 || jcp_.K > 2) {
-        assert("matmul_small_kernel only support M/N/K smaller than 3.");
-    }
 
     if (attr_.post_ops_.len() != 0) {
         mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);

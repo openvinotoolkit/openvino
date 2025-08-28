@@ -202,7 +202,7 @@ static MemoryPtr prepareWeightMemory(const std::vector<MemoryCPtr>& src, const E
         const std::string string_hash = format + "_" + std::to_string(src[1]->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(src[1]->getData()));
         DEBUG_LOG("ACLDeconvExecutor: findOrCreate, string_hash: ", string_hash);
-        return *weightCache->findOrCreate(string_hash, create);
+        return static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     }
 
     DEBUG_LOG("ACLDeconvExecutor: Weights cache is not available");
@@ -247,9 +247,9 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
         return false;
     }
 
-    if (!(any_of(srcDescs[0]->getPrecision(), ov::element::f16, ov::element::f32) &&
-          srcDescs[0]->getPrecision() == srcDescs[1]->getPrecision() &&
-          srcDescs[1]->getPrecision() == dstDescs[0]->getPrecision())) {
+    if (!any_of(srcDescs[0]->getPrecision(), ov::element::f16, ov::element::f32) ||
+        srcDescs[0]->getPrecision() != srcDescs[1]->getPrecision() ||
+        srcDescs[1]->getPrecision() != dstDescs[0]->getPrecision()) {
         DEBUG_LOG("AclDeconvExecutor does not support precisions:",
                   " src[0]=",
                   srcDescs[0]->getPrecision(),
@@ -265,11 +265,11 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
         return false;
     }
 
-    if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && srcDescs[1]->hasLayoutType(LayoutType::ncsp) &&
-          dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-        !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
-          // Check weights as ncsp because we remove reorder and will transform ncsp -> nspc in exec() function
-          srcDescs[1]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+    if ((!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !srcDescs[1]->hasLayoutType(LayoutType::ncsp) ||
+         !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+        (!srcDescs[0]->hasLayoutType(LayoutType::nspc) ||
+         // Check weights as ncsp because we remove reorder and will transform ncsp -> nspc in exec() function
+         !srcDescs[1]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
         DEBUG_LOG("AclDeconvExecutor does not support layouts:",
                   " src[0]=",
                   srcDescs[0]->serializeFormat(),

@@ -153,7 +153,7 @@ public:
         CanBeFusedAsPostOpPred m_can_be_fused_as_postop = nullptr;
     };
 
-    SnippetsTokenization(Config config) : m_config(std::move(config)) {}
+    explicit SnippetsTokenization(Config config) : m_config(std::move(config)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:

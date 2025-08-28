@@ -25,15 +25,7 @@ class BucketizeLayerCPUTest : public testing::WithParamInterface<BucketizeCPUPar
                               virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BucketizeCPUParamsTuple>& obj) {
-        InputShape dataShape;
-        InputShape bucketsShape;
-        bool with_right_bound;
-        ElementType inDataPrc;
-        ElementType inBucketsPrc;
-        ElementType netPrc;
-
-        std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc) = obj.param;
-
+        const auto& [dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({dataShape.first}) << "_"
                << ov::test::utils::partialShape2str({bucketsShape.first}) << "_";
@@ -78,15 +70,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape dataShape;
-        InputShape bucketsShape;
-        bool with_right_bound;
-        ElementType inDataPrc;
-        ElementType inBucketsPrc;
-        ElementType netPrc;
-
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc) = this->GetParam();
+        const auto& [dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc] = this->GetParam();
         init_input_shapes({dataShape, bucketsShape});
 
         auto data = std::make_shared<ov::op::v0::Parameter>(inDataPrc, inputDynamicShapes[0]);

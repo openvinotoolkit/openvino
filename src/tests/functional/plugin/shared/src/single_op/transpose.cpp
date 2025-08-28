@@ -8,11 +8,7 @@
 namespace ov {
 namespace test {
 std::string TransposeLayerTest::getTestCaseName(const testing::TestParamInfo<transposeParams>& obj) {
-    ov::element::Type modelType;
-    std::vector<size_t> inputOrder;
-    std::vector<InputShape> input_shapes;
-    std::string targetDevice;
-    std::tie(inputOrder, modelType, input_shapes, targetDevice) = obj.param;
+    const auto& [inputOrder, modelType, input_shapes, targetDevice] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < input_shapes.size(); i++) {
@@ -34,10 +30,8 @@ std::string TransposeLayerTest::getTestCaseName(const testing::TestParamInfo<tra
 }
 
 void TransposeLayerTest::SetUp() {
-    std::vector<size_t> input_order;
-    std::vector<InputShape> input_shapes;
-    ov::element::Type model_type;
-    std::tie(input_order, model_type, input_shapes, targetDevice) = this->GetParam();
+    const auto& [input_order, model_type, input_shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes({input_shapes});
 

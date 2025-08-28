@@ -14,19 +14,18 @@ const float box_size_scale = 2.0f;
 const float box_coordinate_scale = 2.0f;
 
 std::string ProposalLayerTest::getTestCaseName(const testing::TestParamInfo<proposalLayerTestParamsSet>& obj) {
-    proposalSpecificParams proposal_params;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(proposal_params, model_type, target_device) = obj.param;
-    size_t base_size, pre_nms_topn, post_nms_topn, min_size;
-    float nms_thresh;
-    std::vector<float> ratio, scale;
-    bool clip_before_nms, clip_after_nms;
-    std::string framework;
+    const auto& [proposal_params, model_type, target_device] = obj.param;
 
-    std::tie(base_size, pre_nms_topn, post_nms_topn,
-             nms_thresh, min_size, ratio, scale,
-             clip_before_nms, clip_after_nms, framework) = proposal_params;
+    const auto& [base_size,
+                 pre_nms_topn,
+                 post_nms_topn,
+                 nms_thresh,
+                 min_size,
+                 ratio,
+                 scale,
+                 clip_before_nms,
+                 clip_after_nms,
+                 framework] = proposal_params;
 
     std::ostringstream result;
     result << "base_size=" << base_size << "_";
@@ -51,20 +50,19 @@ std::string ProposalLayerTest::getTestCaseName(const testing::TestParamInfo<prop
 void ProposalLayerTest::SetUp() {
     std::vector<float> img_info = {225.0f, 225.0f, 1.0f};
 
-    proposalSpecificParams proposal_params;
-    ov::element::Type model_type;
+    const auto& [proposal_params, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
-    std::tie(proposal_params, model_type, targetDevice) = this->GetParam();
-    size_t base_size, pre_nms_topn, post_nms_topn, min_size;
-    float nms_thresh;
-    std::vector<float> ratio, scale;
-    bool clip_before_nms, clip_after_nms;
-    std::string framework;
-
-    std::tie(base_size, pre_nms_topn, post_nms_topn,
-             nms_thresh, min_size, ratio, scale,
-             clip_before_nms, clip_after_nms, framework) = proposal_params;
-
+    const auto& [base_size,
+                 pre_nms_topn,
+                 post_nms_topn,
+                 nms_thresh,
+                 min_size,
+                 ratio,
+                 scale,
+                 clip_before_nms,
+                 clip_after_nms,
+                 framework] = proposal_params;
 
     size_t bottom_w = base_size;
     size_t bottom_h = base_size;

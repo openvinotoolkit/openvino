@@ -3,6 +3,8 @@
 //
 
 #include <memory>
+#include <queue>
+#include <unordered_set>
 
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -10,44 +12,51 @@
 #include "openvino/op/sin.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/util/scatter_base.hpp"
-#include "openvino/op/util/scatter_nd_base.hpp"
-#include "openvino/op/util/scatter_elements_update_base.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/split.hpp"
 #include "openvino/op/strided_slice.hpp"
-#include "openvino/op/tile.hpp"
-#include "openvino/op/identity.hpp"
-#include "openvino/op/pad.hpp"
-#include "openvino/op/util/gather_base.hpp"
-#include "openvino/op/util/gather_nd_base.hpp"
-#include "openvino/op/squeeze.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reduce_mean.hpp"
 
 #include "transformations/utils/utils.hpp"
 #include "disable_fp16_comp_for_periodic_funcs.hpp"
 
-static bool is_non_value_modifying_node(const std::shared_ptr<ov::Node>& node) {
-    return ov::is_type<ov::op::v1::Reshape>(node) ||
-           ov::is_type<ov::op::v1::Transpose>(node) ||
-           ov::is_type<ov::op::util::ScatterBase>(node) ||
-           ov::is_type<ov::op::util::ScatterNDBase>(node) ||
-           ov::is_type<ov::op::util::ScatterElementsUpdateBase>(node) ||
-           ov::is_type<ov::op::v8::Slice>(node) ||
-           ov::is_type<ov::op::v1::Broadcast>(node) ||
-           ov::is_type<ov::op::v0::Concat>(node) ||
-           ov::is_type<ov::op::v1::Split>(node) ||
+// Uses propagate_through_ops whitelist from mark_subgraph_to_keep_in_mixed_precision in convert precision pass
+// to ensure consistent behavior with OpenVINO's existing mixed precision logic.
+static bool is_propagate_through_node(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<ov::op::v0::Squeeze>(node) ||
+           ov::is_type<ov::op::v0::Unsqueeze>(node) ||
+           ov::is_type<ov::op::v1::Reshape>(node) ||
+           ov::is_type<ov::op::util::BroadcastBase>(node) ||
+           ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(node) ||
+           ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(node) ||
+           ov::is_type<ov::op::v6::MVN>(node) ||
+           ov::is_type<ov::op::v0::MVN>(node) ||
+           ov::is_type<ov::op::v0::NormalizeL2>(node) ||
+           ov::is_type<ov::op::v0::Sqrt>(node) ||
            ov::is_type<ov::op::v1::StridedSlice>(node) ||
-           ov::is_type<ov::op::v0::Tile>(node) ||
-           ov::is_type<ov::op::v16::Identity>(node) ||
-           ov::is_type<ov::op::v1::Pad>(node) ||
-           ov::is_type<ov::op::util::GatherNDBase>(node) ||
-           ov::is_type<ov::op::util::GatherBase>(node) ||
-           ov::is_type<ov::op::v15::Squeeze>(node) ||
-           ov::is_type<ov::op::v0::Unsqueeze>(node);
+           ov::is_type<ov::op::v1::ReduceSum>(node) ||
+           ov::is_type<ov::op::v1::ReduceMean>(node) ||
+           ov::is_type<ov::op::v8::Slice>(node) ||
+           ov::is_type<ov::op::v1::VariadicSplit>(node) ||
+           ov::is_type<ov::op::v1::Split>(node) ||
+           ov::is_type<ov::op::v0::Concat>(node) ||
+           ov::is_type<ov::op::v0::Convert>(node) ||
+           ov::is_type<ov::op::v0::Constant>(node) ||
+           ov::is_type<ov::op::v0::Tile>(node);
 }
 
 ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionForPeriodicFuncs()
@@ -60,41 +69,65 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
 
     ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
+        // Only disable FP16 compression for FP32 data type,
+        // because sin/cos with fp64 should be converted to sin/cos with fp32.
+        if (node->get_output_element_type(0) != ov::element::f32) {
+            return false;
+        }
 
-        // Disable FP16 compression for the current node
+        // Check if sin/cos is followed by propagate-through operations.
+        // If so, skip disable_fp16_compression because convert_precision pass will insert
+        // Convert nodes at the end of the propagate-through chain (before the first
+        // non-propagate-through node), not immediately after sin/cos.
+        // In this case, do not apply disable_fp16_compression.
+        for (auto& user : node->get_users()) {
+            if (is_propagate_through_node(user)) {
+                return false;
+            }
+        }
+
+        // Disable FP16 compression for the current sin/cos node
         ov::disable_fp16_compression(node);
 
-        auto current_node = node;
+        // Traverse the input chain to find non-propagate-through nodes
+        // and apply disable_fp16_compression to prevent fp16 precision data loss
+        std::queue<std::shared_ptr<ov::Node>> nodes_to_process;
+        std::unordered_set<std::shared_ptr<ov::Node>> visited;
 
-        OPENVINO_ASSERT(current_node && !current_node->inputs().empty(),
-                        "current_node should not be null and have inputs");
+        nodes_to_process.push(node);
+        visited.insert(node);
 
-        // Traverse the input chain to find the first value-modifying node
-        while (current_node) {
-            /*
-            * Move to the first input node, the reason that we only traverse first input:
-            * 1. Sin/Cos operations have only one input containing the actual data
-            * 2. For non-value-modifying operations (reshape, transpose, etc.), input[0] contains the actual data
-            *    while other inputs (input[1], input[2]...) are metadata for:
-            *    - Shape information (target shape for reshape)
-            *    - Index information (axes for transpose, gather indices)
-            *    - Broadcasting parameters (broadcast shape)
-            *    These metadata inputs don't affect the actual data values, only how the data is arranged or accessed
-            * 3. Since we're tracking the data flow that affects numerical precision,
-            *    we only need to follow the path of actual data (input[0])
-            */
-            current_node = current_node->get_input_node_shared_ptr(0);  // Follow only the first input
-            if (!current_node || current_node->inputs().empty()) {
-                break;
+        /*
+        * Use BFS to traverse input chain and find non-propagate-through nodes
+        * to apply disable_fp16_compression, preventing fp16 precision data loss.
+        */
+        while (!nodes_to_process.empty()) {
+            auto current_node = nodes_to_process.front();
+            nodes_to_process.pop();
+
+            OPENVINO_ASSERT(current_node, "current_node should not be null");
+
+            if (current_node->inputs().empty()) {
+                continue;
             }
 
-            if (ov::fp16_compression_is_disabled(current_node)) {
-                break;
+            if ((node != current_node)
+                && ov::fp16_compression_is_disabled(current_node)) {
+                continue;
             }
 
-            if (!is_non_value_modifying_node(current_node)) {
+            if (!is_propagate_through_node(current_node)) {
                 ov::disable_fp16_compression(current_node);
-                break;
+                continue;
+            }
+
+            // For propagate-through nodes, add all input nodes to processing queue
+            for (size_t i = 0; i < current_node->get_input_size(); ++i) {
+                auto input_node = current_node->get_input_node_shared_ptr(i);
+                if (input_node && visited.find(input_node) == visited.end()) {
+                    nodes_to_process.push(input_node);
+                    visited.insert(input_node);
+                }
             }
         }
 

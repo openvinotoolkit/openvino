@@ -84,29 +84,29 @@ private:
 
     ov::element::Type dataPrecision;
     ov::element::Type outPrecision;
-    uint64_t dataTypeSize = 1lu;
-    uint64_t outTypeSize = 1lu;
+    uint64_t dataTypeSize = 1LU;
+    uint64_t outTypeSize = 1LU;
     static constexpr uint64_t idxTypeSize = sizeof(int);
 
     int axis = 0;
     int axisDim = 0;
     int batchDims = 0;
     int dataSrcRank = 1;
-    uint64_t specIndicesSize = 0lu;
-    uint64_t beforeBatchSize = 0lu;
-    uint64_t beforeAxisSize = 0lu;
-    uint64_t betweenBatchAndAxisSize = 0lu;
-    uint64_t afterAxisSize = 0lu;
-    uint64_t afterAxisSizeInBytes = 0lu;
-    uint64_t afterAxisSizeInBytesOut = 0lu;
-    uint64_t axisAndAfterAxisSizeInBytes = 0lu;
-    uint64_t axisAndAfterAxisSize = 0lu;
-    uint64_t srcAfterBatchSizeInBytes = 0lu;
-    uint64_t srcAfterBatchSize = 0lu;
-    uint64_t specIdxAndAfterAxSizeB = 0lu;
-    uint64_t specIdxAndAfterAxSizeBOut = 0lu;
-    uint64_t specIdxAndAfterAxSize = 0lu;
-    uint64_t totalWork = 0lu;
+    uint64_t specIndicesSize = 0LU;
+    uint64_t beforeBatchSize = 0LU;
+    uint64_t beforeAxisSize = 0LU;
+    uint64_t betweenBatchAndAxisSize = 0LU;
+    uint64_t afterAxisSize = 0LU;
+    uint64_t afterAxisSizeInBytes = 0LU;
+    uint64_t afterAxisSizeInBytesOut = 0LU;
+    uint64_t axisAndAfterAxisSizeInBytes = 0LU;
+    uint64_t axisAndAfterAxisSize = 0LU;
+    uint64_t srcAfterBatchSizeInBytes = 0LU;
+    uint64_t srcAfterBatchSize = 0LU;
+    uint64_t specIdxAndAfterAxSizeB = 0LU;
+    uint64_t specIdxAndAfterAxSizeBOut = 0LU;
+    uint64_t specIdxAndAfterAxSize = 0LU;
+    uint64_t totalWork = 0LU;
 
     std::vector<threadExecParams> execParamsPerThread;
     std::vector<int> constIndices;
@@ -120,9 +120,9 @@ private:
     bool have_zp = false;
     bool have_scalar_zp = false;
     bool have_scalar_scale = false;
-    size_t zp_group_size = 1u;
-    size_t scale_group_size = 1u;
-    size_t m_threads_num = 0lu;
+    size_t zp_group_size = 1U;
+    size_t scale_group_size = 1U;
+    size_t m_threads_num = 0LU;
 
     std::shared_ptr<jitGatherKernelBase> jitKernel;
 };

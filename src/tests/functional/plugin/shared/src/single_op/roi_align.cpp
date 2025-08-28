@@ -12,17 +12,15 @@
 namespace ov {
 namespace test {
 std::string ROIAlignLayerTest::getTestCaseName(const testing::TestParamInfo<roialignParams>& obj) {
-    std::vector<InputShape> input_shapes;
-    ov::Shape coords_shape;
-    int pooled_h;
-    int pooled_w;
-    float spatial_scale;
-    int pooling_ratio;
-    std::string pooling_mode;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(input_shapes, coords_shape, pooled_h, pooled_w, spatial_scale,
-    pooling_ratio, pooling_mode, model_type, target_device) = obj.param;
+    const auto& [input_shapes,
+                 coords_shape,
+                 pooled_h,
+                 pooled_w,
+                 spatial_scale,
+                 pooling_ratio,
+                 pooling_mode,
+                 model_type,
+                 target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -84,16 +82,16 @@ void ROIAlignLayerTest::fillIdxTensor(std::vector<int>& idx, int batch_size) {
 }
 
 void ROIAlignLayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    ov::Shape coords_shape;
-    int pooled_h;
-    int pooled_w;
-    float spatial_scale;
-    int pooling_ratio;
-    std::string pooling_mode;
-    ov::element::Type model_type;
-    std::tie(input_shapes, coords_shape, pooled_h, pooled_w, spatial_scale,
-    pooling_ratio, pooling_mode, model_type, targetDevice) = this->GetParam();
+    const auto& [input_shapes,
+                 coords_shape,
+                 pooled_h,
+                 pooled_w,
+                 spatial_scale,
+                 pooling_ratio,
+                 pooling_mode,
+                 model_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(input_shapes);
 
@@ -122,18 +120,16 @@ void ROIAlignLayerTest::SetUp() {
 }
 
 std::string ROIAlignV9LayerTest::getTestCaseName(const testing::TestParamInfo<roialignV9Params>& obj) {
-    std::vector<InputShape> input_shapes;
-    ov::Shape coords_shape;
-    int pooled_h;
-    int pooled_w;
-    float spatial_scale;
-    int pooling_ratio;
-    std::string pooling_mode;
-    std::string roi_aligned_mode;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(input_shapes, coords_shape, pooled_h, pooled_w, spatial_scale,
-    pooling_ratio, pooling_mode, roi_aligned_mode, model_type, target_device) = obj.param;
+    const auto& [input_shapes,
+                 coords_shape,
+                 pooled_h,
+                 pooled_w,
+                 spatial_scale,
+                 pooling_ratio,
+                 pooling_mode,
+                 roi_aligned_mode,
+                 model_type,
+                 target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -162,17 +158,17 @@ std::string ROIAlignV9LayerTest::getTestCaseName(const testing::TestParamInfo<ro
 }
 
 void ROIAlignV9LayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    ov::Shape coords_shape;
-    int pooled_h;
-    int pooled_w;
-    float spatial_scale;
-    int pooling_ratio;
-    std::string pooling_mode;
-    std::string roi_aligned_mode;
-    ov::element::Type model_type;
-    std::tie(input_shapes, coords_shape, pooled_h, pooled_w, spatial_scale,
-    pooling_ratio, pooling_mode, roi_aligned_mode, model_type, targetDevice) = this->GetParam();
+    const auto& [input_shapes,
+                 coords_shape,
+                 pooled_h,
+                 pooled_w,
+                 spatial_scale,
+                 pooling_ratio,
+                 pooling_mode,
+                 roi_aligned_mode,
+                 model_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(input_shapes);
 

@@ -23,16 +23,8 @@ using NormalizeL2LayerCPUTestParamSet = std::tuple<InputShape,            // inp
 class NormalizeL2LayerCPUTest : public testing::WithParamInterface<NormalizeL2LayerCPUTestParamSet>,
                                 virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerCPUTestParamSet> obj) {
-        InputShape shapes;
-        ElementType inType;
-        std::vector<int64_t> axes;
-        float eps;
-        ov::op::EpsMode epsMode;
-        CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        std::tie(shapes, inType, axes, eps, epsMode, cpuParams, fusingParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerCPUTestParamSet>& obj) {
+        const auto& [shapes, inType, axes, eps, epsMode, cpuParams, fusingParams] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -51,15 +43,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        ElementType inType;
-        std::vector<int64_t> axes;
-        float eps;
-        ov::op::EpsMode epsMode;
-        CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        std::tie(shapes, inType, axes, eps, epsMode, cpuParams, fusingParams) = this->GetParam();
-
+        const auto& [shapes, inType, axes, eps, epsMode, cpuParams, fusingParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
         if (selectedType.empty()) {

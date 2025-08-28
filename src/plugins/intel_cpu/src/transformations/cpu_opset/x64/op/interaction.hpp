@@ -21,9 +21,9 @@ public:
 
     InteractionNode() = default;
 
-    InteractionNode(const OutputVector& args);
+    explicit InteractionNode(const OutputVector& args);
 
-    InteractionNode(const NodeVector& args);
+    explicit InteractionNode(const NodeVector& args);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 

@@ -113,7 +113,7 @@ private:
     bool withBinarization = false;
 
     size_t group = 1;
-    float pad_value = 0.f;
+    float pad_value = 0.F;
 
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;

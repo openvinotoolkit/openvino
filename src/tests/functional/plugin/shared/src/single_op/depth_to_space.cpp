@@ -27,12 +27,7 @@ static inline std::string DepthToSpaceModeToString(const DepthToSpace::DepthToSp
 }
 
 std::string DepthToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<depthToSpaceParamsTuple> &obj) {
-    std::vector<InputShape> shapes;
-    DepthToSpace::DepthToSpaceMode mode;
-    std::size_t block_size;
-    ov::element::Type model_type;
-    std::string device_name;
-    std::tie(shapes, model_type, mode, block_size, device_name) = obj.param;
+    const auto& [shapes, model_type, mode, block_size, device_name] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -55,11 +50,8 @@ std::string DepthToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void DepthToSpaceLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    DepthToSpace::DepthToSpaceMode mode;
-    std::size_t block_size;
-    ov::element::Type model_type;
-    std::tie(shapes, model_type, mode, block_size, targetDevice) = this->GetParam();
+    const auto& [shapes, model_type, mode, block_size, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

@@ -88,7 +88,7 @@ public:
 
 private:
     struct PropertySetter {
-        PropertySetter(std::string name) : propertyName(std::move(name)) {}
+        explicit PropertySetter(std::string name) : propertyName(std::move(name)) {}
         virtual ~PropertySetter() = default;
         virtual bool parseAndSet(const std::string& str) = 0;
         [[nodiscard]] virtual std::string getPropertyValueDescription() const = 0;

@@ -15,6 +15,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
@@ -269,6 +270,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(RUN_INFERENCES_SEQUENTIALLY);
     REGISTER_OPTION(COMPILER_DYNAMIC_QUANTIZATION);
     REGISTER_OPTION(QDQ_OPTIMIZATION);
+    REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
     REGISTER_OPTION(STEPPING);
     REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
@@ -329,6 +331,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_MAX_PROMPT_LEN);
     REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
     REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
+    REGISTER_OPTION(NPUW_LLM_CACHE_ROPE);
     REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
     REGISTER_OPTION(NPUW_LLM_GENERATE_HINT);
@@ -524,14 +527,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
+    update_log_level(localPropertiesMap);
+
     // create compiler
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
-    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
-    update_log_level(localPropertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
@@ -689,7 +693,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             }
             blobSize = metadata->get_blob_size();
         }
-        ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize});
+        ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+        ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
@@ -766,8 +771,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    update_log_level(propertiesMap);
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -793,9 +799,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                                   const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
     CompilerAdapterFactory compilerAdapterFactory;
+    const auto propertiesMap = any_copy(properties);
+    update_log_level(propertiesMap);
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
-    const auto propertiesMap = any_copy(properties);
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());

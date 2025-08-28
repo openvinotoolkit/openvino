@@ -79,8 +79,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 14 || get_input_size() == 17,
-                          "PagedAttensionExtension expects 14 or 17 inputs, but it has ",
+                          get_input_size() == 20,
+                          "PagedAttensionExtension expects 20 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -98,11 +98,12 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 11, "alibi_slopes", {1}, get_real_types());
     input_check(this, 12, "max_context_len", {0}, {element::i32});
     input_check(this, 13, "score_aggregation_window", {0, 1}, {element::i32});
-    if (get_input_size() == 17) {
-        input_check(this, 14, "rotated_block_indices", {1}, {element::i32});
-        input_check(this, 15, "rotation_deltas", {2}, {element::i32});
-        input_check(this, 16, "rotation_trig_lut", {2}, {element::f16, element::f32});
-    }
+    input_check(this, 14, "rotated_block_indices", {1}, {element::i32});
+    input_check(this, 15, "rotation_deltas", {1, 2}, {element::i32});
+    input_check(this, 16, "rotation_trig_lut", {1, 2}, {element::f16, element::f32});
+    input_check(this, 17, "xattention_threshold", {1}, {element::f16, element::f32});
+    input_check(this, 18, "xattention_block_size", {0}, {element::i32});
+    input_check(this, 19, "xattention_stride", {0}, {element::i32});
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(0);

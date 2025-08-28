@@ -117,7 +117,7 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz, bool bf16sat
 Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
     : m_eng(std::move(eng)),
       m_pMemDesc(std::move(desc)),
-      m_blockHandle(std::make_shared<DnnlMemoryBlock>(make_unique<MemoryBlockWithReuse>()), this),
+      m_blockHandle(std::make_shared<DnnlMemoryBlock>(std::make_unique<MemoryBlockWithReuse>()), this),
       dnnlMemHandle(this) {
     OPENVINO_ASSERT(m_pMemDesc->getPrecision() != element::string,
                     "[CPU] Memory object cannot be created for string data.");

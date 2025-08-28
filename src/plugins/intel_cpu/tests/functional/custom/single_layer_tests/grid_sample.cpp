@@ -5,6 +5,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 #include "openvino/op/grid_sample.hpp"
 
 using namespace CPUTestUtils;
@@ -27,24 +28,9 @@ class GridSampleLayerTestCPU : public testing::WithParamInterface<GridSampleLaye
                                virtual public SubgraphBaseTest,
                                public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GridSampleLayerTestCPUParams> obj) {
-        std::vector<InputShape> inputShapes;
-        ov::op::v9::GridSample::InterpolationMode interpolateMode;
-        ov::op::v9::GridSample::PaddingMode paddingMode;
-        bool alignCorners;
-        ElementType dataPrecision, gridPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes,
-                 interpolateMode,
-                 paddingMode,
-                 alignCorners,
-                 dataPrecision,
-                 gridPrecision,
-                 cpuParams,
-                 additionalConfig) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<GridSampleLayerTestCPUParams>& obj) {
+        const auto &[inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision, cpuParams,
+                     additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=(";
         for (size_t i = 0lu; i < inputShapes.size(); i++) {
@@ -90,28 +76,14 @@ public:
 protected:
     void SetUp() override {
         abs_threshold = 0.0005;
-        std::vector<InputShape> inputShapes;
-        ov::op::v9::GridSample::InterpolationMode interpolateMode;
-        ov::op::v9::GridSample::PaddingMode paddingMode;
-        bool alignCorners;
-        ElementType dataPrecision, gridPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes,
-                 interpolateMode,
-                 paddingMode,
-                 alignCorners,
-                 dataPrecision,
-                 gridPrecision,
-                 cpuParams,
-                 additionalConfig) = this->GetParam();
+        const auto &[inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision, cpuParams,
+                     additionalConfig] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             auto execType = dataPrecision == ov::element::i32 ? ov::element::i32 : ov::element::f32;

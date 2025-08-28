@@ -1,6 +1,7 @@
 # type: ignore
 from . import util
 from __future__ import annotations
+import collections.abc
 import numpy
 import openvino._pyopenvino
 import typing
@@ -19,40 +20,40 @@ class Constant(openvino._pyopenvino.Node):
     def __init__(self, tensor: openvino._pyopenvino.Tensor, shared_memory: bool = True) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[str]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[str]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[...]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[...]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[float]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[typing.SupportsFloat]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[float]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[typing.SupportsFloat]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[int]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[typing.SupportsInt]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[int]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[typing.SupportsInt]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[int]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[typing.SupportsInt]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[int]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[typing.SupportsInt]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[int]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[typing.SupportsInt]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[int]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[typing.SupportsInt]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[int]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[typing.SupportsInt]) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[int]) -> None:
+    def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: collections.abc.Sequence[typing.SupportsInt]) -> None:
         ...
     def __repr__(self) -> str:
         ...
@@ -170,9 +171,9 @@ class Result(openvino._pyopenvino.Node):
         ...
     def get_layout(self) -> openvino._pyopenvino.Layout:
         ...
-    def get_output_element_type(self, index: int) -> openvino._pyopenvino.Type:
+    def get_output_element_type(self, index: typing.SupportsInt) -> openvino._pyopenvino.Type:
         ...
-    def get_output_partial_shape(self, index: int) -> openvino._pyopenvino.PartialShape:
+    def get_output_partial_shape(self, index: typing.SupportsInt) -> openvino._pyopenvino.PartialShape:
         ...
     def set_layout(self, layout: openvino._pyopenvino.Layout) -> None:
         ...
@@ -180,7 +181,7 @@ class _PagedAttentionExtension(openvino._pyopenvino.Node):
     """
     Experimental extention for PagedAttention operation. Use with care: no backward compatibility is guaranteed in future releases.
     """
-    def __init__(self, arg0: list[openvino._pyopenvino.Output]) -> None:
+    def __init__(self, arg0: collections.abc.Sequence[openvino._pyopenvino.Output]) -> None:
         ...
 class assign(openvino._pyopenvino.Node):
     """
@@ -240,7 +241,7 @@ class if_op(openvino._pyopenvino.Node):
                     :return: else_body as Model object.
                     :rtype: openvino.Model
         """
-    def get_function(self, index: int) -> typing.Any:
+    def get_function(self, index: typing.SupportsInt) -> typing.Any:
         """
                     Gets internal sub-graph by index in MultiSubGraphOp.
         
@@ -250,7 +251,7 @@ class if_op(openvino._pyopenvino.Node):
                     :return: Model with sub-graph.
                     :rtype: openvino.Model
         """
-    def get_input_descriptions(self, index: int) -> list:
+    def get_input_descriptions(self, index: typing.SupportsInt) -> list:
         """
                     Gets list with connections between operation inputs and internal sub-graph parameters.
         
@@ -262,7 +263,7 @@ class if_op(openvino._pyopenvino.Node):
                                        openvino.op.util.InvariantInputDescription,
                                        openvino.op.util.SliceInputDescription]]
         """
-    def get_output_descriptions(self, index: int) -> list:
+    def get_output_descriptions(self, index: typing.SupportsInt) -> list:
         """
                     Gets list with connections between operation outputs and internal sub-graph parameters.
         
@@ -289,7 +290,7 @@ class if_op(openvino._pyopenvino.Node):
         
                     :rtype: None
         """
-    def set_function(self, index: int, func: typing.Any) -> None:
+    def set_function(self, index: typing.SupportsInt, func: typing.Any) -> None:
         """
                     Adds sub-graph to MultiSubGraphOp.
         
@@ -316,7 +317,7 @@ class if_op(openvino._pyopenvino.Node):
         
                     :rtype: None
         """
-    def set_input_descriptions(self, index: int, inputs: list) -> None:
+    def set_input_descriptions(self, index: typing.SupportsInt, inputs: list) -> None:
         """
                     Sets list with connections between operation inputs and internal sub-graph parameters.
         
@@ -343,7 +344,7 @@ class if_op(openvino._pyopenvino.Node):
                     :return: output from operation.
                     :rtype: openvino.Output
         """
-    def set_output_descriptions(self, index: int, outputs: list) -> None:
+    def set_output_descriptions(self, index: typing.SupportsInt, outputs: list) -> None:
         """
                     Sets list with connections between operation outputs and internal sub-graph parameters.
         
@@ -380,13 +381,13 @@ class loop(openvino._pyopenvino.Node):
         ...
     def __repr__(self) -> str:
         ...
-    def get_concatenated_slices(self, value: openvino._pyopenvino.Output, start: int, stride: int, part_size: int, end: int, axis: int) -> openvino._pyopenvino.Output:
+    def get_concatenated_slices(self, value: openvino._pyopenvino.Output, start: typing.SupportsInt, stride: typing.SupportsInt, part_size: typing.SupportsInt, end: typing.SupportsInt, axis: typing.SupportsInt) -> openvino._pyopenvino.Output:
         ...
     def get_function(self) -> typing.Any:
         ...
     def get_input_descriptions(self) -> list:
         ...
-    def get_iter_value(self, body_value: openvino._pyopenvino.Output, iteration: int = -1) -> openvino._pyopenvino.Output:
+    def get_iter_value(self, body_value: openvino._pyopenvino.Output, iteration: typing.SupportsInt = -1) -> openvino._pyopenvino.Output:
         ...
     def get_num_iterations(self) -> int:
         ...
@@ -404,7 +405,7 @@ class loop(openvino._pyopenvino.Node):
         ...
     def set_output_descriptions(self, outputs: list) -> None:
         ...
-    def set_sliced_input(self, parameter: Parameter, value: openvino._pyopenvino.Output, start: int, stride: int, part_size: int, end: int, axis: int) -> None:
+    def set_sliced_input(self, parameter: Parameter, value: openvino._pyopenvino.Output, start: typing.SupportsInt, stride: typing.SupportsInt, part_size: typing.SupportsInt, end: typing.SupportsInt, axis: typing.SupportsInt) -> None:
         ...
     def set_special_body_ports(self, special_body_ports: list) -> None:
         ...
@@ -440,13 +441,13 @@ class tensor_iterator(openvino._pyopenvino.Node):
         ...
     def get_body(self) -> typing.Any:
         ...
-    def get_concatenated_slices(self, value: openvino._pyopenvino.Output, start: int, stride: int, part_size: int, end: int, axis: int) -> openvino._pyopenvino.Output:
+    def get_concatenated_slices(self, value: openvino._pyopenvino.Output, start: typing.SupportsInt, stride: typing.SupportsInt, part_size: typing.SupportsInt, end: typing.SupportsInt, axis: typing.SupportsInt) -> openvino._pyopenvino.Output:
         ...
     def get_function(self) -> typing.Any:
         ...
     def get_input_descriptions(self) -> list:
         ...
-    def get_iter_value(self, body_value: openvino._pyopenvino.Output, iteration: int = -1) -> openvino._pyopenvino.Output:
+    def get_iter_value(self, body_value: openvino._pyopenvino.Output, iteration: typing.SupportsInt = -1) -> openvino._pyopenvino.Output:
         ...
     def get_num_iterations(self) -> int:
         ...
@@ -464,5 +465,5 @@ class tensor_iterator(openvino._pyopenvino.Node):
         ...
     def set_output_descriptions(self, outputs: list) -> None:
         ...
-    def set_sliced_input(self, parameter: Parameter, value: openvino._pyopenvino.Output, start: int, stride: int, part_size: int, end: int, axis: int) -> None:
+    def set_sliced_input(self, parameter: Parameter, value: openvino._pyopenvino.Output, start: typing.SupportsInt, stride: typing.SupportsInt, part_size: typing.SupportsInt, end: typing.SupportsInt, axis: typing.SupportsInt) -> None:
         ...

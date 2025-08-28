@@ -14,24 +14,14 @@
 namespace ov {
 namespace test {
 std::string SharedMatmulWeightsDecompression::getTestCaseName(testing::TestParamInfo<MatmulSharedWeightsDecompressionParams> obj) {
-    std::string target_device;
-    MatMulDecompressionShapeParams shape_params;
-    ov::test::ElementType weights_precision;
-    ov::test::ElementType decompression_precision;
-    bool transpose;
-    DecompressionType decompression_subtract_type;
-    bool use_decompression_impl;
-    std::map<std::string, std::string> additional_config;
-
-    std::tie(target_device,
-             shape_params,
-             weights_precision,
-             decompression_precision,
-             transpose,
-             decompression_subtract_type,
-             use_decompression_impl,
-             additional_config) = obj.param;
-
+    const auto& [target_device,
+                 shape_params,
+                 weights_precision,
+                 decompression_precision,
+                 transpose,
+                 decompression_subtract_type,
+                 use_decompression_impl,
+                 additional_config] = obj.param;
     std::ostringstream result;
     result << "device=" << target_device << "_";
     result << shape_params << "_";
@@ -92,22 +82,15 @@ std::shared_ptr<ov::Model> SharedMatmulWeightsDecompression::initSubgraph(
 }
 
 void SharedMatmulWeightsDecompression::SetUp() {
-    MatMulDecompressionShapeParams shape_params;
-    ov::test::ElementType weights_precision;
-    ov::test::ElementType decompression_precision;
-    bool transpose_weights;
-    DecompressionType decompression_subtract_type;
-    bool use_decompression_impl;
-    std::map<std::string, std::string> additional_config;
-
-    std::tie(targetDevice,
-             shape_params,
-             weights_precision,
-             decompression_precision,
-             transpose_weights,
-             decompression_subtract_type,
-             use_decompression_impl,
-             additional_config) = GetParam();
+    const auto& [_targetDevice,
+                 shape_params,
+                 weights_precision,
+                 decompression_precision,
+                 transpose_weights,
+                 decompression_subtract_type,
+                 use_decompression_impl,
+                 additional_config] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes({shape_params.data_shape, shape_params.data_shape});
     configuration.insert(additional_config.begin(), additional_config.end());
 

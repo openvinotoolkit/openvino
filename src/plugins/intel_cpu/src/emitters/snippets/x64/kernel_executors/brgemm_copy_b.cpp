@@ -39,6 +39,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
@@ -231,7 +232,7 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
 status_t BrgemmCopyBKernel::create_kernel() {
     const auto code = jit_generator_t::create_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(code == status::success, "Failed to create kernel");
-    ker_ = reinterpret_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
+    ker_ = jit_kernel_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
     return code;
 }
 
@@ -429,28 +430,33 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     const auto& loop_ids = expr->get_loop_ids();
     const snippets::lowered::LoopManagerPtr& loop_manager = linear_ir->get_loop_manager();
 
-    auto init = [&](size_t& dim, size_t& blk, size_t idx) {
+    auto init = [&](int64_t& dim, int64_t& blk, size_t idx) {
         OPENVINO_ASSERT(idx < planar_shape.size() && idx < in_subtensor.size(),
                         "Index must be less than shape/subtensor rank!");
-        dim = *(planar_shape.rbegin() + idx);
-        blk = *(in_subtensor.rbegin() + idx);
-        if (ov::snippets::utils::is_full_dim_value(blk)) {
+        auto curr_dim = *(planar_shape.rbegin() + idx);
+        auto curr_blk = *(in_subtensor.rbegin() + idx);
+        OPENVINO_ASSERT(
+            !ov::snippets::utils::is_dynamic_value(curr_dim) && !ov::snippets::utils::is_dynamic_value(curr_blk),
+            "Dimension and subtensor should not be dynamic at update config stage.");
+        dim = static_cast<int64_t>(curr_dim);
+        if (ov::snippets::utils::is_full_dim_value(curr_blk)) {
             blk = dim;
         } else {
             OPENVINO_ASSERT(loop_idx < loop_ids.size(), "Loop is missed");
             const auto& current_expanded_loop_info =
                 loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids[loop_idx++]);
-            blk = current_expanded_loop_info->get_increment();
-            input_desc->set_subtensor_dim(idx, blk);
-            output_desc->set_subtensor_dim(idx, blk);
+            curr_blk = current_expanded_loop_info->get_increment();
+            input_desc->set_subtensor_dim(idx, curr_blk);
+            output_desc->set_subtensor_dim(idx, curr_blk);
+            blk = static_cast<int64_t>(curr_blk);
             OV_CPU_JIT_EMITTER_ASSERT(blk <= dim, "BrgemmCopyB has incompatible subtensor dimensions");
         }
     };
 
-    size_t K_dim = 0;
-    size_t K_blk = 0;
-    size_t N_dim = 0;
-    size_t N_blk = 0;
+    int64_t K_dim = 0;
+    int64_t K_blk = 0;
+    int64_t N_dim = 0;
+    int64_t N_blk = 0;
     //  Dimension K
     init(K_dim, K_blk, 1);
     //  Dimension N

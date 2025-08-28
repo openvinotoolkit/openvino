@@ -45,7 +45,7 @@ namespace ov::snippets::pass {
 class TokenizeMHASnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeMHASnippets");
-    TokenizeMHASnippets(const SnippetsTokenization::Config& config);
+    explicit TokenizeMHASnippets(const SnippetsTokenization::Config& config);
 
     static std::vector<int32_t> get_fusion_transpose_order(size_t rank);
     static std::vector<int32_t> get_decomposed_transpose_order(size_t rank);

@@ -68,7 +68,7 @@ public:
           inPlace(inPlace) {}
 
     PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
-                     ov::element::Type prc = ov::element::dynamic,
+                     ov::element::Type prc,
                      bool constant = false,
                      int inPlace = -1)
         : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
@@ -187,7 +187,7 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        PerfCounters(const std::string& name)
+        explicit PerfCounters(const std::string& name)
             : execute(openvino::itt::handle(name)),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
@@ -362,7 +362,7 @@ public:
 
     virtual void addFusedNode(const NodePtr& fusingNode);
 
-    virtual void fuseInto(NodePtr& parentNode) {
+    virtual void fuseInto(const NodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input
         // port a node was fused into parent one.
         for (size_t i = 0; i < getParentEdges().size(); i++) {

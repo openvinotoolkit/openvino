@@ -11,6 +11,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -45,6 +46,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
@@ -543,6 +545,24 @@ bool Eltwise::isWithBroadcast() {
     return false;
 }
 
+void Eltwise::init() {
+    // Bf16 saturation handling for gamma parameter when input precision is bf16 to make sure it stays within the valid
+    // range for bfloat16.
+    if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
+        const float lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        const float max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
+        auto& gamma = m_attrs.data.gamma;
+
+        if (gamma < lowest) {
+            gamma = lowest;
+        }
+
+        if (gamma > max) {
+            gamma = max;
+        }
+    }
+}
+
 void Eltwise::getSupportedDescriptors() {
     CPU_NODE_ASSERT(!getParentEdges().empty(), "Incorrect number of input edges");
     CPU_NODE_ASSERT(!getChildEdges().empty(), "Incorrect number of output edges");
@@ -619,6 +639,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     m_attrs.data.algo = getAlgorithm();
     m_attrs.postOps = getPostOps(fusedWith, ov::element::dynamic);
     m_attrs.opsList = {getType()};
+
     // Create memory descriptors
     std::vector<MemoryDescPtr> srcDescs;
     // Select preferred layout for memory descriptors
@@ -667,7 +688,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 const bool acceptAnyBatchStride = !isDynamicNode() && srcShape.getDims()[0] == 1;
                 const BlockedMemoryDesc::CmpMask inputMask =
                     acceptAnyBatchStride ? BlockedMemoryDesc::EMPTY_MASK : BlockedMemoryDesc::SKIP_OFFSET_MASK;
-                nodeConfig.inConfs[i] = {desc, inputMask, isInPlace};
+                nodeConfig.inConfs[i] = PortConfig(desc, inputMask, isInPlace);
             }
         }
 
@@ -862,7 +883,7 @@ bool Eltwise::canBeInPlace() const {
     return getInputShapeAtPort(0) == getOutputShapeAtPort(0);
 }
 
-void Eltwise::fuseInto(NodePtr& parentNode) {
+void Eltwise::fuseInto(const NodePtr& parentNode) {
     // Handle special convolution add fusing case
     m_attrs.specialConvolutionAddFusing =
         (parentNode->getType() == Type::Convolution || parentNode->getType() == Type::BinaryConvolution) &&

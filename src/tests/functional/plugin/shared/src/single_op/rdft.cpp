@@ -15,13 +15,9 @@ static inline void set_real_number_generation_data(utils::InputGenerateData& inG
 }
 
 void RDFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    std::vector<size_t> input_shape;
-    ov::element::Type model_type;
-    std::vector<int64_t> axes;
-    std::vector<int64_t> signal_size;
-    ov::test::utils::DFTOpType op_type;
     std::string target_device;
-    std::tie(input_shape, model_type, axes, signal_size, op_type, targetDevice) = this->GetParam();
+    const auto& [input_shape, model_type, axes, signal_size, op_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     auto elemType = model_type;
 
@@ -54,13 +50,7 @@ void RDFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputSta
 }
 
 std::string RDFTLayerTest::getTestCaseName(const testing::TestParamInfo<RDFTParams>& obj) {
-    std::vector<size_t> input_shape;
-    ov::element::Type model_type;
-    std::vector<int64_t> axes;
-    std::vector<int64_t> signal_size;
-    ov::test::utils::DFTOpType op_type;
-    std::string target_device;
-    std::tie(input_shape, model_type, axes, signal_size, op_type, target_device) = obj.param;
+    const auto& [input_shape, model_type, axes, signal_size, op_type, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
@@ -73,12 +63,8 @@ std::string RDFTLayerTest::getTestCaseName(const testing::TestParamInfo<RDFTPara
 }
 
 void RDFTLayerTest::SetUp() {
-    std::vector<size_t> input_shape;
-    ov::element::Type model_type;
-    std::vector<int64_t> axes;
-    std::vector<int64_t> signal_size;
-    ov::test::utils::DFTOpType op_type;
-    std::tie(input_shape, model_type, axes, signal_size, op_type, targetDevice) = this->GetParam();
+    const auto& [input_shape, model_type, axes, signal_size, op_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape));
     auto rdft = ov::test::utils::make_rdft(param, axes, signal_size, op_type);

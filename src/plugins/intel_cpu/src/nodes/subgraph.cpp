@@ -46,6 +46,8 @@
 
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
+#    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
+#    include "snippets/pass/matmul_to_brgemm.hpp"
 #elif defined(OPENVINO_ARCH_ARM64)
 #    include <cpu/aarch64/cpu_isa_traits.hpp>
 
@@ -55,8 +57,6 @@
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_reg_spills.hpp"
-#    include "snippets/lowered/pass/mark_loops.hpp"
-#    include "snippets/pass/propagate_precision.hpp"
 #    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
@@ -64,15 +64,16 @@
 #endif
 
 #if !defined(OPENVINO_ARCH_RISCV64)
-#    include "cache/cache_entry.h"
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
+#    include "snippets/lowered/pass/mark_loops.hpp"
+#    include "snippets/pass/propagate_precision.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "cache/cache_entry.h"
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_loops.hpp"
-#    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
-#    include "snippets/lowered/pass/mark_loops.hpp"
-#    include "snippets/pass/matmul_to_brgemm.hpp"
-#    include "snippets/pass/propagate_precision.hpp"
 #    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/pass/enforce_precision.hpp"
@@ -84,6 +85,7 @@
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
 #    include "transformations/snippets/x64/pass/repack_matmul_weights.hpp"
 #endif
+
 #include <utility>
 #include <vector>
 
@@ -177,7 +179,7 @@ struct SubgraphShapeInferResultKey {
 };
 
 struct SubgraphShapeInferResult {
-    SubgraphShapeInferResult(IShapeInfer::Result res) : result(std::move(res)) {}
+    explicit SubgraphShapeInferResult(IShapeInfer::Result res) : result(std::move(res)) {}
 
     IShapeInfer::Result result;
 };

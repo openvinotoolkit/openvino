@@ -16,5 +16,5 @@ def denormals_optimization(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]
 def sparse_weights_decompression_rate() -> str:
     ...
 @typing.overload
-def sparse_weights_decompression_rate(arg0: float) -> tuple[str, openvino._pyopenvino.OVAny]:
+def sparse_weights_decompression_rate(arg0: typing.SupportsFloat) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...

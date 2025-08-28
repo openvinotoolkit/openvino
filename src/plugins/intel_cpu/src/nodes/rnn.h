@@ -75,7 +75,7 @@ private:
     void prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) override;
     class RnnDnnlExecutor : public DnnlExecutorLegacy {
     public:
-        RnnDnnlExecutor(const dnnl::primitive_desc& pd);
+        explicit RnnDnnlExecutor(const dnnl::primitive_desc& pd);
 
         DnnlMemoryDescPtr getWeightIterDesc() const {
             return wghts_iter_md;
@@ -157,11 +157,11 @@ private:
 
     static const std::map<dnnl::memory::data_type, dnnl::memory::data_type> weightsByinputDataType;
 
-    static constexpr size_t optimalBatchSize = 16lu;
-    static constexpr size_t batchDimDummyValue = 64lu;
+    static constexpr size_t optimalBatchSize = 16LU;
+    static constexpr size_t batchDimDummyValue = 64LU;
 
-    float inputScale = 0.f;
-    float inputShift = 0.f;
+    float inputScale = 0.F;
+    float inputShift = 0.F;
     std::vector<float> weightsScales;
 
     const uint64_t* m_gate_map = nullptr;

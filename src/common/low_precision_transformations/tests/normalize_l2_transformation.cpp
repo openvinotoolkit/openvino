@@ -54,12 +54,7 @@ typedef std::tuple<
 class NormalizeL2Transformation : public LayerTransformation, public testing::WithParamInterface<NormalizeL2TransformationParams> {
 public:
     void SetUp() override {
-        ov::element::Type precision;
-        ov::PartialShape shape;
-        ov::op::EpsMode epsMode;
-        std::vector<size_t> axes;
-        NormalizeL2TransformationTestValues params;
-        std::tie(precision, shape, epsMode, axes, params) = GetParam();
+        const auto& [precision, shape, epsMode, axes, params] = GetParam();
 
         actualFunction = ov::builder::subgraph::NormalizeL2Function::getOriginal(
             precision,
@@ -85,12 +80,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
-        ov::element::Type precision;
-        ov::PartialShape shape;
-        ov::Shape axes;
-        ov::op::EpsMode epsMode;
-        NormalizeL2TransformationTestValues params;
-        std::tie(precision, shape, epsMode, axes, params) = obj.param;
+        const auto& [precision, shape, epsMode, axes, params] = obj.param;
 
         std::ostringstream result;
         result <<

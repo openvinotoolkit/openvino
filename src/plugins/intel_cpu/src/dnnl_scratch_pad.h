@@ -21,8 +21,8 @@ class DnnlScratchPad {
     dnnl::engine eng;
 
 public:
-    DnnlScratchPad(dnnl::engine eng, int numa_node = -1) : eng(std::move(eng)) {
-        auto baseMemoryBlock = make_unique<MemoryBlockWithReuse>(numa_node);
+    explicit DnnlScratchPad(dnnl::engine eng, int numa_node = -1) : eng(std::move(eng)) {
+        auto baseMemoryBlock = std::make_unique<MemoryBlockWithReuse>(numa_node);
         baseBlockPtr = baseMemoryBlock.get();
         blockPtr = std::make_shared<DnnlMemoryBlock>(std::move(baseMemoryBlock));
     }

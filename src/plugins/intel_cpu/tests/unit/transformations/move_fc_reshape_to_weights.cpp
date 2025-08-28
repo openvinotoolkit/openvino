@@ -64,13 +64,8 @@ using MoveFCReshapeToWeightsParams = std::tuple<std::pair<ov::PartialShape, ov::
 
 class MoveFCReshapeToWeightsTests : public TransformationTestsF, public WithParamInterface<MoveFCReshapeToWeightsParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MoveFCReshapeToWeightsParams> obj) {
-        std::pair<ov::PartialShape, ov::Shape> input_shapes;
-        bool add_transpose;
-        ZeroPointType zp_type;
-        ZeroPointShape zp_shape;
-        std::tie(input_shapes, add_transpose, zp_type, zp_shape) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<MoveFCReshapeToWeightsParams>& obj) {
+        const auto& [input_shapes, add_transpose, zp_type, zp_shape] = obj.param;
         std::ostringstream result;
         result << "Input_shape=(" << input_shapes.first << ")_Weights_shape=(" << input_shapes.second
                << ")_add_transpose=" << add_transpose << "_zp_type=" << zp_type << "_zp_shape=" << zp_shape;
@@ -131,12 +126,7 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        std::pair<ov::PartialShape, ov::Shape> input_shapes;
-        bool add_transpose;
-        ZeroPointType zp_type;
-        ZeroPointShape zp_shape;
-        std::tie(input_shapes, add_transpose, zp_type, zp_shape) = this->GetParam();
-
+        const auto& [input_shapes, add_transpose, zp_type, zp_shape] = this->GetParam();
         ov::Shape ref_weights_shape = input_shapes.second;
         ref_weights_shape.erase(ref_weights_shape.begin());
         model = initModel(input_shapes.first, input_shapes.second, add_transpose, zp_type, zp_shape, true);

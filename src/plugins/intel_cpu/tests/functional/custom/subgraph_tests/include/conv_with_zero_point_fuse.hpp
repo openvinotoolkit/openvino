@@ -44,7 +44,7 @@ class ConvWithZeroPointFuseSubgraphTest : public testing::WithParamInterface<con
                                           public CPUTestsBase,
                                           virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<convConcatCPUParams>& obj);
 
 protected:
     void SetUp() override;

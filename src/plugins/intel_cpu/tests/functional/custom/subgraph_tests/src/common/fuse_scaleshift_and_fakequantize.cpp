@@ -23,12 +23,7 @@ class FuseScaleShiftAndFakeQuantizeTest : public testing::WithParamInterface<Fus
                                           virtual public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FuseScaleShiftAndQuantizeTuple>& obj) {
-        Shape inputShape;
-        element::Type inputPrecision;
-        std::pair<std::vector<float>, std::vector<float>> scaleShift;
-        std::vector<std::vector<float>> quantizeIntervals;
-        std::string targetName;
-        std::tie(inputShape, inputPrecision, scaleShift, quantizeIntervals, targetName) = obj.param;
+        const auto& [inputShape, inputPrecision, scaleShift, quantizeIntervals, targetName] = obj.param;
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision
@@ -45,12 +40,8 @@ public:
 
 protected:
     void SetUp() override {
-        Shape inputShape;
-        element::Type inputPrecision;
-        std::pair<std::vector<float>, std::vector<float>> scaleShift;
-        std::vector<std::vector<float>> quantizeIntervals;
-        std::tie(inputShape, inputPrecision, scaleShift, quantizeIntervals, targetDevice) = this->GetParam();
-
+        const auto& [inputShape, inputPrecision, scaleShift, quantizeIntervals, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
         const auto param = std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputShape);
         Shape constShape = Shape(inputShape.size(), 1);
         constShape[1] = scaleShift.second.size();

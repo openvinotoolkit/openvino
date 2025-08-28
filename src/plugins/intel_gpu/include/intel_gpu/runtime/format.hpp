@@ -382,6 +382,7 @@ struct format {
     constexpr operator type() const { return value; }
 
     std::string to_string() const;
+    format get_default_format() const;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const format& fmt) {

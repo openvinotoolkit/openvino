@@ -232,11 +232,8 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
     if (auto blob_hint = config.find(ov::hint::compiled_blob.name()); blob_hint != config.end()) {
         try {
             auto compiled_blob = blob_hint->second.as<ov::Tensor>();
-            auto _config = config;
-            _config.erase(ov::hint::compiled_blob.name());
-
-            compiled_model = context ? plugin.import_model(compiled_blob, context, _config)
-                                     : plugin.import_model(compiled_blob, _config);
+            compiled_model = context ? plugin.import_model(compiled_blob, context, config)
+                                     : plugin.import_model(compiled_blob, config);
         } catch (...) {
         }
     }
@@ -966,15 +963,32 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     OPENVINO_ASSERT(context, "Remote context must not be empty.");
-    auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
+    const auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
     return get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
+}
+
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& compiled_blob,
+                                                         const std::string& device_name,
+                                                         const ov::AnyMap& config) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    const auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    return get_plugin(parsed._deviceName).import_model(compiled_blob, parsed._config);
+}
+
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& compiled_blob,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& config) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    OPENVINO_ASSERT(context, "Remote context must not be empty.");
+    const auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
+    return get_plugin(parsed._deviceName).import_model(compiled_blob, context, parsed._config);
 }
 
 ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Model>& model,
                                               const std::string& device_name,
                                               const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::query_model");
-    auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    const auto parsed = parseDeviceNameIntoConfig(device_name, config);
     return get_plugin(parsed._deviceName).query_model(model, parsed._config);
 }
 
@@ -1517,16 +1531,24 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             cacheContent.blobId,
             cacheContent.mmap_enabled && ov::util::contains(plugin.get_property(ov::internal::supported_properties),
                                                             ov::internal::caching_with_mmap),
-            [&](ov::Tensor& compiled_blob) {
+            [&](ICacheManager::CompiledBlobVariant& compiled_blob) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,
                              "Core::load_model_from_cache::ReadStreamAndImport");
                 ov::CompiledBlobHeader header;
                 size_t compiled_blob_offset = 0;
                 try {
-                    header.read_from_buffer(static_cast<const char*>(compiled_blob.data()),
-                                            compiled_blob.get_byte_size(),
-                                            compiled_blob_offset);
+                    ov::util::VariantVisitor header_reader{[&](const ov::Tensor& tensor) {
+                                                               header.read_from_buffer(
+                                                                   static_cast<const char*>(tensor.data()),
+                                                                   tensor.get_byte_size(),
+                                                                   compiled_blob_offset);
+                                                           },
+                                                           [&](std::reference_wrapper<std::istream> stream) {
+                                                               stream >> header;
+                                                           }};
+                    std::visit(header_reader, compiled_blob);
+
                     if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                         // Original file is changed, don't use cache
                         OPENVINO_THROW("Original model file is changed");
@@ -1580,12 +1602,19 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     }
                 }
 
-                ov::Tensor compiled_blob_without_header{compiled_blob,
-                                                        {compiled_blob_offset},
-                                                        {compiled_blob.get_size()}};
-
-                compiled_model = context ? plugin.import_model(compiled_blob_without_header, context, update_config)
-                                         : plugin.import_model(compiled_blob_without_header, update_config);
+                ov::util::VariantVisitor model_importer{
+                    [&](const ov::Tensor& compiled_blob) -> ov::SoPtr<ov::ICompiledModel> {
+                        const ov::Tensor compiled_blob_without_header{compiled_blob,
+                                                                      {compiled_blob_offset},
+                                                                      {compiled_blob.get_size()}};
+                        return context ? plugin.import_model(compiled_blob_without_header, context, update_config)
+                                       : plugin.import_model(compiled_blob_without_header, update_config);
+                    },
+                    [&](std::reference_wrapper<std::istream> stream) -> ov::SoPtr<ov::ICompiledModel> {
+                        return context ? plugin.import_model(stream, context, update_config)
+                                       : plugin.import_model(stream, update_config);
+                    }};
+                compiled_model = std::visit(model_importer, compiled_blob);
             });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work

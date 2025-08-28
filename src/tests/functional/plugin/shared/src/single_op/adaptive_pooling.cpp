@@ -10,13 +10,7 @@ namespace ov {
 namespace test {
 
 std::string AdaPoolLayerTest::getTestCaseName(const testing::TestParamInfo<adapoolParams>& obj) {
-    std::vector<InputShape> shapes;
-    std::vector<int> pooled_spatial_shape;
-
-    std::string pooling_mode;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(shapes, pooled_spatial_shape, pooling_mode, model_type, target_device) = obj.param;
+    const auto& [shapes, pooled_spatial_shape, pooling_mode, model_type, target_device] = obj.param;
 
     std::ostringstream result;
 
@@ -38,11 +32,8 @@ std::string AdaPoolLayerTest::getTestCaseName(const testing::TestParamInfo<adapo
 }
 
 void AdaPoolLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    std::vector<int> pooled_spatial_shape;
-    std::string pooling_mode;
-    ov::element::Type model_type;
-    std::tie(shapes, pooled_spatial_shape, pooling_mode, model_type, targetDevice) = this->GetParam();
+    const auto& [shapes, pooled_spatial_shape, pooling_mode, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};

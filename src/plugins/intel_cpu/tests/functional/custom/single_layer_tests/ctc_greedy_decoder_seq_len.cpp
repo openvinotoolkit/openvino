@@ -34,19 +34,12 @@ class CTCGreedyDecoderSeqLenLayerCPUTest : public testing::WithParamInterface<CT
                                            public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CTCGreedyDecoderSeqLenLayerCPUTestParams>& obj) {
-        InputElementParams inType;
-        bool mergeRepeated;
-        InputShapeParams shapes;
-        ElementType indexType;
-        std::tie(shapes, inType, indexType, mergeRepeated) = obj.param;
+        const auto& [shapes, inType, indexType, mergeRepeated] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& shape : shapes.second) {
-            size_t N;
-            size_t T;
-            size_t C;
-            std::tie(N, T, C) = shape;
+            const auto& [N, T, C] = shape;
             results << "{" << N << "," << T << "," << C << "}"
                     << "_";
         }
@@ -63,11 +56,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputElementParams inType;
-        bool mergeRepeated;
-        InputShapeParams shapes;
-        ElementType indexType;
-        std::tie(shapes, inType, indexType, mergeRepeated) = GetParam();
+        const auto& [shapes, inType, indexType, mergeRepeated] = GetParam();
         selectedType = "ref_any_f32";
         targetDevice = ov::test::utils::DEVICE_CPU;
         ASSERT_EQ(shapes.first.size(), 4);
@@ -83,10 +72,7 @@ protected:
         OPENVINO_ASSERT(inType.size() == inputDynamicShapes.size());
 
         for (auto& shape : shapes.second) {
-            size_t N;
-            size_t T;
-            size_t C;
-            std::tie(N, T, C) = shape;
+            const auto& [N, T, C] = shape;
             if (blank_rank == 0)
                 targetStaticShapes.push_back({{N, T, C}, {N}, {}});
             else

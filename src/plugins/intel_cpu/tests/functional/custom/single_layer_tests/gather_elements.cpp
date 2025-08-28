@@ -26,12 +26,7 @@ class GatherElementsCPUTest : public testing::WithParamInterface<GatherElementsC
                               public CPUTestsBase {
 public:
     static std::string getTestCaseNameCommon(const testing::TestParamInfo<GatherElementsParams>& obj) {
-        std::vector<InputShape> shapes;
-        ElementType dPrecision, iPrecision;
-        int axis;
-        std::string device;
-        std::tie(shapes, axis, dPrecision, iPrecision, device) = obj.param;
-
+        const auto& [shapes, axis, dPrecision, iPrecision, device] = obj.param;
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : shapes) {
@@ -52,10 +47,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<GatherElementsCPUTestParamSet>& obj) {
-        GatherElementsParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-
+        const auto& [basicParamsSet, cpuParams] = obj.param;
         std::ostringstream result;
         result << getTestCaseNameCommon(testing::TestParamInfo<GatherElementsParams>(basicParamsSet, 0));
 
@@ -82,16 +74,10 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> shapes;
-        ElementType dPrecision, iPrecision;
-        int axis;
-        GatherElementsParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        std::tie(shapes, axis, dPrecision, iPrecision, targetDevice) = basicParamsSet;
+        const auto& [shapes, axis, dPrecision, iPrecision, _targetDevice] = basicParamsSet;
+        targetDevice = _targetDevice;
         selectedType = std::string("ref_any_") + ov::element::Type(dPrecision).get_type_name();
         init_input_shapes(shapes);
 

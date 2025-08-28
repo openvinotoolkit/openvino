@@ -15,7 +15,7 @@ namespace test {
 
 class AnyLayoutOnInputsAndOutputs : public ::testing::TestWithParam<ov::Shape> {
 public:
-    static std::string getTestCaseName(::testing::TestParamInfo<ov::Shape> obj) {
+    static std::string getTestCaseName(const ::testing::TestParamInfo<ov::Shape>& obj) {
         std::ostringstream result;
         result << "shape=" << obj.param;
         return result.str();

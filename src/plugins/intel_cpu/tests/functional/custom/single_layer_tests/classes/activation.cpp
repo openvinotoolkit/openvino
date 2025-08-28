@@ -18,15 +18,8 @@ using namespace ov::test::utils;
 namespace ov {
 namespace test {
 std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj) {
-    std::vector<ov::test::InputShape> inputShapes;
-    std::vector<size_t> activationShapes;
-    std::pair<utils::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
-    ov::element::Type netPrecision, inPrecision, outPrecision;
-    CPUTestUtils::CPUSpecificParams cpuParams;
-    bool enforceSnippets;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets) =
-             obj.param;
-
+    const auto& [inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision,
+                 cpuParams, enforceSnippets] = obj.param;
     std::ostringstream result;
     result << activationNames[activationTypeAndConstValue.first] << "_";
     if (inputShapes.front().first.size() != 0) {
@@ -83,6 +76,11 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         startFrom = 0;
         range = 2;
         resolution = 1;
+    } else if (activationType == utils::ActivationTypes::RoundHalfAwayFromZero ||
+               activationType == utils::ActivationTypes::RoundHalfToEven) {
+        startFrom = -10;
+        range = 20;
+        resolution = 4;
     } else {
         startFrom = 0;
         range = 15;
@@ -118,15 +116,9 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 
 void ActivationLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    std::vector<ov::test::InputShape> inputShapes;
-    std::vector<size_t> activationShapes;
-    std::pair<utils::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
-    ov::element::Type inPrecision, outPrecision;
-    CPUTestUtils::CPUSpecificParams cpuParams;
-    bool enforceSnippets;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets) =
-             this->GetParam();
+    const auto& [inputShapes, activationShapes, activationTypeAndConstValue, _netPrecision, inPrecision, outPrecision,
+                 cpuParams, enforceSnippets] = this->GetParam();
+    netPrecision = _netPrecision;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     activationType = activationTypeAndConstValue.first;
     auto constantsValue = activationTypeAndConstValue.second;
@@ -222,6 +214,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
        (activation_type == utils::ActivationTypes::Ceiling) ||
        (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
+       (activation_type == utils::ActivationTypes::IsInf) ||
        (activation_type == utils::ActivationTypes::IsFinite) ||
        (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
        (activation_type == utils::ActivationTypes::RoundHalfToEven)) {
@@ -237,15 +230,23 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::Erf) ||
             (activation_type == utils::ActivationTypes::Exp) ||
             (activation_type == utils::ActivationTypes::Floor) ||
+            (activation_type == utils::ActivationTypes::GeluErf) ||
+            (activation_type == utils::ActivationTypes::GeluTanh) ||
             (activation_type == utils::ActivationTypes::HSigmoid) ||
             (activation_type == utils::ActivationTypes::HSwish) ||
             (activation_type == utils::ActivationTypes::Mish) ||
+            (activation_type == utils::ActivationTypes::IsFinite) ||
+            (activation_type == utils::ActivationTypes::IsInf) ||
+            (activation_type == utils::ActivationTypes::IsNaN) ||
             (activation_type == utils::ActivationTypes::Negative) ||
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
+            (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
+            (activation_type == utils::ActivationTypes::RoundHalfToEven) ||
             (activation_type == utils::ActivationTypes::PReLu) ||
             (activation_type == utils::ActivationTypes::Sigmoid) ||
-            (activation_type == utils::ActivationTypes::Sqrt))
+            (activation_type == utils::ActivationTypes::Sqrt) ||
+            (activation_type == utils::ActivationTypes::Tanh))
             return "jit";
     }
 #if defined(OV_CPU_WITH_SHL)
@@ -301,7 +302,10 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {SoftSign,    {{}}},
         {SoftPlus,    {{}}},
         {IsFinite,    {{}}},
+        {IsInf,       {{false, false}, {false, true}, {true, false}, {true, true}}},
         {IsNaN,       {{}}},
+        {RoundHalfToEven,       {{}}},
+        {RoundHalfAwayFromZero, {{}}},
     };
 
     return activationTypes;

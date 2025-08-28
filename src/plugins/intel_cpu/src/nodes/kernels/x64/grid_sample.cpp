@@ -17,6 +17,7 @@
 #include "nodes/kernels/x64/registers_pool.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu;
@@ -41,7 +42,7 @@ void GridSampleKernel<isa>::create_ker() {
     OPENVINO_ASSERT(code == dnnl::impl::status::success,
                     "Could not create GridSample kernel. Error code: ",
                     std::to_string(code));
-    ker_ = (decltype(ker_))jit_ker();
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <x64::cpu_isa_t isa>
@@ -92,7 +93,7 @@ void GridSampleKernel<x64::avx512_core>::initVectors() {
 
     if (any_of(jcp.interpolationMode, GridSampleInterpolationMode::BICUBIC, GridSampleInterpolationMode::BILINEAR)) {
         vOnesF = getVmm();
-        mov(r32Aux, 0x3f800000);  // 1.f
+        mov(r32Aux, 0x3f800000);  // 1.F
         vpbroadcastd(vOnesF, r32Aux);
     }
 

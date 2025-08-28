@@ -409,19 +409,12 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<DeReshapeMatMulParameters>& obj) {
-        vector<size_t> lhs_input_shape_indices, lhs_reshape_indices;
-        vector<size_t> rhs_input_shape_indices, rhs_reshape_indices;
-        vector<size_t> output_reshape_indices;
-        size_t bea_scalar_mode, concat_mode, final_add_mode;
-
-        tuple<vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>, vector<size_t>> tmp;
-
-        std::tie(tmp, bea_scalar_mode, concat_mode, final_add_mode) = obj.param;
-        std::tie(lhs_input_shape_indices,
-                 lhs_reshape_indices,
-                 rhs_input_shape_indices,
-                 rhs_reshape_indices,
-                 output_reshape_indices) = tmp;
+        const auto& [tmp, bea_scalar_mode, concat_mode, final_add_mode] = obj.param;
+        const auto& [lhs_input_shape_indices,
+                     lhs_reshape_indices,
+                     rhs_input_shape_indices,
+                     rhs_reshape_indices,
+                     output_reshape_indices] = tmp;
 
         std::ostringstream result;
         result << "l_in_shape_idx=" << lhs_input_shape_indices << "_l_reshape_idx=" << lhs_reshape_indices

@@ -1,5 +1,6 @@
 # type: ignore
 from __future__ import annotations
+import collections.abc
 import numpy
 import openvino._pyopenvino
 import typing
@@ -50,7 +51,7 @@ class ColorFormat:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: int) -> None:
+    def __init__(self, value: typing.SupportsInt) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -58,7 +59,7 @@ class ColorFormat:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: int) -> None:
+    def __setstate__(self, state: typing.SupportsInt) -> None:
         ...
     def __str__(self) -> str:
         ...
@@ -92,7 +93,7 @@ class InputTensorInfo:
     """
     openvino.preprocess.InputTensorInfo wraps ov::preprocess::InputTensorInfo
     """
-    def set_color_format(self, format: ColorFormat, sub_names: list[str] = []) -> InputTensorInfo:
+    def set_color_format(self, format: ColorFormat, sub_names: collections.abc.Sequence[str] = []) -> InputTensorInfo:
         ...
     def set_element_type(self, type: openvino._pyopenvino.Type) -> InputTensorInfo:
         """
@@ -109,7 +110,7 @@ class InputTensorInfo:
         """
                     Helper function to reuse element type and shape from user's created tensor. Overwrites previously
                     set shape and element type via `set_shape` and `set_element_type' methods. This method should be
-                    used only in case if tensor is already known and avaiable before.
+                    used only in case if tensor is already known and available before.
         
                     :param tensor: User's created tensor
                     :type type: openvino.Tensor
@@ -121,7 +122,7 @@ class InputTensorInfo:
         """
                     Helper function to reuse element type and shape from user's created tensor. Overwrites previously
                     set shape and element type via `set_shape` and `set_element_type' methods. This method should be
-                    used only in case if tensor is already known and avaiable before.
+                    used only in case if tensor is already known and available before.
         
                     :param tensor: User's created numpy array
                     :type type: numpy.ndarray
@@ -141,11 +142,11 @@ class InputTensorInfo:
     def set_shape(self, shape: openvino._pyopenvino.PartialShape) -> InputTensorInfo:
         ...
     @typing.overload
-    def set_shape(self, shape: list[int]) -> InputTensorInfo:
+    def set_shape(self, shape: collections.abc.Sequence[typing.SupportsInt]) -> InputTensorInfo:
         ...
     def set_spatial_dynamic_shape(self) -> InputTensorInfo:
         ...
-    def set_spatial_static_shape(self, height: int, width: int) -> InputTensorInfo:
+    def set_spatial_static_shape(self, height: typing.SupportsInt, width: typing.SupportsInt) -> InputTensorInfo:
         ...
 class OutputInfo:
     """
@@ -211,7 +212,7 @@ class PaddingMode:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: int) -> None:
+    def __init__(self, value: typing.SupportsInt) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -219,7 +220,7 @@ class PaddingMode:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: int) -> None:
+    def __setstate__(self, state: typing.SupportsInt) -> None:
         ...
     def __str__(self) -> str:
         ...
@@ -247,9 +248,9 @@ class PostProcessSteps:
     def convert_layout(self, dst_layout: openvino._pyopenvino.Layout) -> PostProcessSteps:
         ...
     @typing.overload
-    def convert_layout(self, dims: list[int]) -> PostProcessSteps:
+    def convert_layout(self, dims: collections.abc.Sequence[typing.SupportsInt]) -> PostProcessSteps:
         ...
-    def custom(self, operation: typing.Callable) -> PostProcessSteps:
+    def custom(self, operation: collections.abc.Callable) -> PostProcessSteps:
         """
                     Adds custom postprocessing operation.
         
@@ -279,7 +280,7 @@ class PrePostProcessor:
     def input(self, tensor_name: str) -> InputInfo:
         ...
     @typing.overload
-    def input(self, input_index: int) -> InputInfo:
+    def input(self, input_index: typing.SupportsInt) -> InputInfo:
         ...
     @typing.overload
     def output(self) -> OutputInfo:
@@ -288,7 +289,7 @@ class PrePostProcessor:
     def output(self, tensor_name: str) -> OutputInfo:
         ...
     @typing.overload
-    def output(self, output_index: int) -> OutputInfo:
+    def output(self, output_index: typing.SupportsInt) -> OutputInfo:
         ...
 class PreProcessSteps:
     """
@@ -310,11 +311,11 @@ class PreProcessSteps:
     def convert_layout(self, dst_layout: openvino._pyopenvino.Layout) -> PreProcessSteps:
         ...
     @typing.overload
-    def convert_layout(self, dims: list[int]) -> PreProcessSteps:
+    def convert_layout(self, dims: collections.abc.Sequence[typing.SupportsInt]) -> PreProcessSteps:
         ...
-    def crop(self, begin: list[int], end: list[int]) -> PreProcessSteps:
+    def crop(self, begin: collections.abc.Sequence[typing.SupportsInt], end: collections.abc.Sequence[typing.SupportsInt]) -> PreProcessSteps:
         ...
-    def custom(self, operation: typing.Callable) -> PreProcessSteps:
+    def custom(self, operation: collections.abc.Callable) -> PreProcessSteps:
         """
                     Adds custom preprocessing operation.
         
@@ -324,7 +325,7 @@ class PreProcessSteps:
                     :rtype: openvino.preprocess.PreProcessSteps
         """
     @typing.overload
-    def mean(self, value: float) -> PreProcessSteps:
+    def mean(self, value: typing.SupportsFloat) -> PreProcessSteps:
         """
                     Subtracts single float value from each element in input tensor.
                     Input tensor must have ov.Type.f32 data type.
@@ -335,7 +336,7 @@ class PreProcessSteps:
                     :rtype: openvino.preprocess.PreProcessSteps
         """
     @typing.overload
-    def mean(self, values: list[float]) -> PreProcessSteps:
+    def mean(self, values: collections.abc.Sequence[typing.SupportsFloat]) -> PreProcessSteps:
         """
                     Subtracts a given single float value from each element in a given channel from input tensor.
                     Input tensor must have ov.Type.f32 data type.
@@ -346,7 +347,7 @@ class PreProcessSteps:
                     :rtype: openvino.preprocess.PreProcessSteps
         """
     @typing.overload
-    def pad(self, pads_begin: list[int], pads_end: list[int], value: float, mode: PaddingMode) -> PreProcessSteps:
+    def pad(self, pads_begin: collections.abc.Sequence[typing.SupportsInt], pads_end: collections.abc.Sequence[typing.SupportsInt], value: typing.SupportsFloat, mode: PaddingMode) -> PreProcessSteps:
         """
                     Adds padding preprocessing operation.
         
@@ -354,7 +355,7 @@ class PreProcessSteps:
                     :type pads_begin: 1D tensor of type T_INT.
                     :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
                     :type pads_end: 1D tensor of type T_INT.
-                    :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
+                    :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn't be set for other pad_mode values.
                     :type value: scalar tensor of type T.
                     :param mode: pad_mode specifies the method used to generate new element values.
                     :type mode: string
@@ -362,7 +363,7 @@ class PreProcessSteps:
                     :rtype: openvino.preprocess.PreProcessSteps
         """
     @typing.overload
-    def pad(self, pads_begin: list[int], pads_end: list[int], value: list[float], mode: PaddingMode) -> PreProcessSteps:
+    def pad(self, pads_begin: collections.abc.Sequence[typing.SupportsInt], pads_end: collections.abc.Sequence[typing.SupportsInt], value: collections.abc.Sequence[typing.SupportsFloat], mode: PaddingMode) -> PreProcessSteps:
         """
                     Adds padding preprocessing operation.
         
@@ -370,7 +371,7 @@ class PreProcessSteps:
                     :type pads_begin: 1D tensor of type T_INT.
                     :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
                     :type pads_end: 1D tensor of type T_INT.
-                    :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
+                    :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn't be set for other pad_mode values.
                     :type value: scalar tensor of type T.
                     :param mode: pad_mode specifies the method used to generate new element values.
                     :type mode: string
@@ -378,7 +379,7 @@ class PreProcessSteps:
                     :rtype: openvino.PreProcessSteps
         """
     @typing.overload
-    def resize(self, alg: ResizeAlgorithm, dst_height: int, dst_width: int) -> PreProcessSteps:
+    def resize(self, alg: ResizeAlgorithm, dst_height: typing.SupportsInt, dst_width: typing.SupportsInt) -> PreProcessSteps:
         ...
     @typing.overload
     def resize(self, alg: ResizeAlgorithm) -> PreProcessSteps:
@@ -386,7 +387,7 @@ class PreProcessSteps:
     def reverse_channels(self) -> PreProcessSteps:
         ...
     @typing.overload
-    def scale(self, value: float) -> PreProcessSteps:
+    def scale(self, value: typing.SupportsFloat) -> PreProcessSteps:
         """
                     Divides each element in input tensor by specified constant float value.
                     Input tensor must have ov.Type.f32 data type.
@@ -397,7 +398,7 @@ class PreProcessSteps:
                     :rtype: openvino.preprocess.PreProcessSteps
         """
     @typing.overload
-    def scale(self, values: list[float]) -> PreProcessSteps:
+    def scale(self, values: collections.abc.Sequence[typing.SupportsFloat]) -> PreProcessSteps:
         """
                     Divides each element in a given channel from input tensor by a given single float value.
                     Input tensor must have ov.Type.f32 data type.
@@ -435,7 +436,7 @@ class ResizeAlgorithm:
         ...
     def __index__(self) -> int:
         ...
-    def __init__(self, value: int) -> None:
+    def __init__(self, value: typing.SupportsInt) -> None:
         ...
     def __int__(self) -> int:
         ...
@@ -443,7 +444,7 @@ class ResizeAlgorithm:
         ...
     def __repr__(self) -> str:
         ...
-    def __setstate__(self, state: int) -> None:
+    def __setstate__(self, state: typing.SupportsInt) -> None:
         ...
     def __str__(self) -> str:
         ...

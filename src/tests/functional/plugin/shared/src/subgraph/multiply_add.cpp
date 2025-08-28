@@ -12,10 +12,7 @@ namespace ov {
 namespace test {
 
 std::string MultiplyAddLayerTest::getTestCaseName(const testing::TestParamInfo<MultiplyAddParamsTuple>& obj) {
-    ov::Shape inputShapes;
-    ov::element::Type element_type;
-    std::string targetName;
-    std::tie(inputShapes, element_type, targetName) = obj.param;
+    const auto& [inputShapes, element_type, targetName] = obj.param;
     std::ostringstream results;
 
     results << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
@@ -25,9 +22,8 @@ std::string MultiplyAddLayerTest::getTestCaseName(const testing::TestParamInfo<M
 }
 
 void MultiplyAddLayerTest::SetUp() {
-    ov::Shape inputShape;
-    ov::element::Type element_type;
-    std::tie(inputShape, element_type, targetDevice) = this->GetParam();
+    const auto& [inputShape, element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape(inputShape))};
 
     std::vector<size_t> constShape(inputShape.size(), 1);

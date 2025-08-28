@@ -44,9 +44,9 @@ static std::shared_ptr<ov::Model> createRefGraph(std::shared_ptr<ov::opset1::Par
 template <class T>
 static bool registerAndRunReducePass(std::shared_ptr<ov::Model> model) {
     ov::pass::Manager manager;
-    if (std::is_base_of<ov::op::util::LogicalReductionKeepDims, T>::value) {
+    if (std::is_base_of_v<ov::op::util::LogicalReductionKeepDims, T>) {
         manager.register_pass<ConvertReduction<ov::op::util::LogicalReductionKeepDims>>();
-    } else if (std::is_base_of<ov::op::util::ArithmeticReductionKeepDims, T>::value) {
+    } else if (std::is_base_of_v<ov::op::util::ArithmeticReductionKeepDims, T>) {
         manager.register_pass<ConvertReduction<ov::op::util::ArithmeticReductionKeepDims>>();
     } else {
         return false;
@@ -61,8 +61,8 @@ static ov::PartialShape dynamic_param_shape = ov::PartialShape{2, -1, 2, 9};
 TYPED_TEST_SUITE_P(ConvertReduceNoKeepDimsTest);
 
 TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsAppliedForStaticShapes) {
-    ov::element::Type_t dataType = std::is_base_of<ov::op::util::LogicalReductionKeepDims, TypeParam>::value ?
-                                   ov::element::boolean : ov::element::f32;
+    ov::element::Type_t dataType =
+        std::is_base_of_v<ov::op::util::LogicalReductionKeepDims, TypeParam> ? ov::element::boolean : ov::element::f32;
     auto param = std::make_shared<ov::opset1::Parameter>(dataType, static_param_shape);
     auto model = createInitGraph<TypeParam>(param);
     auto model_ref = createRefGraph<TypeParam>(param);
@@ -76,8 +76,8 @@ TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsAppl
 }
 
 TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsAppliedForDynaimcShapes) {
-    ov::element::Type_t dataType = std::is_base_of<ov::op::util::LogicalReductionKeepDims, TypeParam>::value ?
-                                   ov::element::boolean : ov::element::f32;
+    ov::element::Type_t dataType =
+        std::is_base_of_v<ov::op::util::LogicalReductionKeepDims, TypeParam> ? ov::element::boolean : ov::element::f32;
     auto param = std::make_shared<ov::opset1::Parameter>(dataType, dynamic_param_shape);
     auto model = createInitGraph<TypeParam>(param);
     auto model_ref = createRefGraph<TypeParam>(param);

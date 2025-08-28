@@ -24,11 +24,7 @@ class SelectLayerGPUTest : public testing::WithParamInterface<SelectLayerTestPar
                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SelectLayerTestParamSet>& obj) {
-        std::vector<InputShape> inshapes;
-        ov::element::Type model_type;
-        ov::op::AutoBroadcastSpec broadcast;
-        std::string targetDevice;
-        std::tie(inshapes, model_type, broadcast, targetDevice) = obj.param;
+        const auto& [inshapes, model_type, broadcast, targetDevice] = obj.param;
 
         std::ostringstream result;
 
@@ -51,10 +47,8 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> inshapes;
-        ov::element::Type model_type;
-        ov::op::AutoBroadcastSpec broadcast;
-        std::tie(inshapes, model_type, broadcast, targetDevice) = this->GetParam();
+        const auto& [inshapes, model_type, broadcast, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes(inshapes);
 

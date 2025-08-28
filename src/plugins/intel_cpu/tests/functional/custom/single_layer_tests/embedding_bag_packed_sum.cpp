@@ -29,16 +29,8 @@ class EmbeddingBagPackedSumLayerCPUTest : public testing::WithParamInterface<emb
                                           public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<embeddingBagPackedSumLayerTestParamsSet>& obj) {
-        embeddingBagPackedSumParams params;
-        ElementType netPrecision, indPrecision;
-        std::string targetDevice;
-        std::tie(params, netPrecision, indPrecision, targetDevice) = obj.param;
-
-        InputShape inputShapes;
-        std::vector<std::vector<size_t>> indices;
-        bool withWeights;
-        std::tie(inputShapes, indices, withWeights) = params;
-
+        const auto& [params, netPrecision, indPrecision, targetDevice] = obj.param;
+        const auto& [inputShapes, indices, withWeights] = params;
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
         result << "I" << ov::test::utils::vec2str(indices) << "_";
@@ -51,15 +43,10 @@ public:
 
 protected:
     void SetUp() override {
-        embeddingBagPackedSumParams embParams;
-        ElementType indPrecision;
-        std::tie(embParams, inType, indPrecision, targetDevice) = this->GetParam();
-
-        InputShape inputShapes;
-        std::vector<std::vector<size_t>> indices;
-        bool withWeights;
-        std::tie(inputShapes, indices, withWeights) = embParams;
-
+        const auto& [embParams, _inType, indPrecision, _targetDevice] = this->GetParam();
+        inType = _inType;
+        targetDevice = _targetDevice;
+        const auto& [inputShapes, indices, withWeights] = embParams;
         selectedType = makeSelectedTypeStr("ref", inType);
         targetDevice = ov::test::utils::DEVICE_CPU;
 

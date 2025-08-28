@@ -12,13 +12,7 @@
 namespace ov {
 namespace test {
 std::string LrnLayerTest::getTestCaseName(const testing::TestParamInfo<lrnLayerTestParamsSet>& obj) {
-    double alpha, beta, bias;
-    size_t size;
-    std::vector<int64_t> axes;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string targetDevice;
-    std::tie(alpha, beta, bias, size, axes, model_type, shapes, targetDevice) = obj.param;
+    const auto& [alpha, beta, bias, size, axes, model_type, shapes, targetDevice] = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -46,12 +40,8 @@ std::string LrnLayerTest::getTestCaseName(const testing::TestParamInfo<lrnLayerT
 }
 
 void LrnLayerTest::SetUp() {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    double alpha, beta, bias;
-    size_t size;
-    std::vector<int64_t> axes;
-    std::tie(alpha, beta, bias, size, axes, model_type, shapes, targetDevice) = GetParam();
+    const auto& [alpha, beta, bias, size, axes, model_type, shapes, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

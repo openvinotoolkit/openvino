@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/except.hpp"
+#include "utils/cpu_utils.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_util.hpp"
 
@@ -46,9 +47,9 @@ namespace ov::intel_cpu::riscv64 {
 
 class jit_generator_t : public Xbyak_riscv::CodeGenerator {
 public:
-    jit_generator_t(size_t maxSize = Xbyak_riscv::DEFAULT_MAX_CODE_SIZE,
-                    void* userPtr = Xbyak_riscv::DontSetProtectRWE,
-                    Xbyak_riscv::Allocator* allocator = nullptr)
+    explicit jit_generator_t(size_t maxSize = Xbyak_riscv::DEFAULT_MAX_CODE_SIZE,
+                             void* userPtr = Xbyak_riscv::DontSetProtectRWE,
+                             Xbyak_riscv::Allocator* allocator = nullptr)
         : Xbyak_riscv::CodeGenerator(maxSize, userPtr, allocator) {}
     ~jit_generator_t() override = default;
 
@@ -60,7 +61,7 @@ public:
     template <typename... kernel_args_t>
     void operator()(kernel_args_t... args) const {
         using jit_kernel_func_t = void (*)(const kernel_args_t... args);
-        auto* fptr = (jit_kernel_func_t)jit_ker_;
+        auto* fptr = jit_kernel_cast<jit_kernel_func_t>(jit_ker_);
         (*fptr)(std::forward<kernel_args_t>(args)...);
     }
 

@@ -31,17 +31,9 @@ using PadLayerCPUTestParamSet = std::tuple<
 class PadLayerCPUTest : public testing::WithParamInterface<PadLayerCPUTestParamSet>,
                         virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PadLayerCPUTestParamSet> obj) {
-        InputShape shapes;
-        ov::test::utils::InputLayerType secondaryInputType;
-        ElementType elementType;
-        std::vector<int64_t> padsBegin, padsEnd;
-        ov::op::PadMode padMode;
-        float argPadValue;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-        std::tie(shapes, secondaryInputType, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams, additionalConfig) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<PadLayerCPUTestParamSet>& obj) {
+        const auto& [shapes, secondaryInputType, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams,
+                     additionalConfig] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -91,13 +83,11 @@ protected:
         }
     }
     void SetUp() override {
-        InputShape shapes;
-        ov::test::utils::InputLayerType secondaryInputType;
-        ov::op::PadMode padMode;
-        ElementType dataType;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-        std::tie(shapes, secondaryInputType, dataType, padsBegin, padsEnd, padValue, padMode, cpuParams, additionalConfig) = this->GetParam();
+        const auto& [shapes, secondaryInputType, dataType, _padsBegin, _padsEnd, _padValue, padMode, cpuParams,
+                     additionalConfig] = this->GetParam();
+        padsBegin = _padsBegin;
+        padsEnd = _padsEnd;
+        padValue = _padValue;
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 

@@ -125,9 +125,10 @@ def parse_args():
     advs.add_argument('-inference_only', '--inference_only', type=str2bool, required=False, default=None, nargs='?', const=True,
                       help='Optional. If true inputs filling only once before measurements (default for static models), '
                                      'else inputs filling is included into loop measurement (default for dynamic models)', )
+    advs.add_argument('-no_warmup', action='store_true', required=False, default=False,
+                  help='Optional. Skip warmup inference. Useful for benchmarking purposes in simulated environments. Otherwise, not recommended.')
     advs.add_argument('-infer_precision', type=str, required=False,
                       help='Optional. Specifies the inference precision. Example #1: \'-infer_precision bf16\'. Example #2: \'-infer_precision CPU:bf16,GPU:f32\'')
-
     prpr = parser.add_argument_group('Preprocessing options')
     prpr.add_argument('-ip', '--input_precision', type=str, required=False, choices=INPUT_OUTPUT_PRECISION_CHOICES,
                       help='Optional. Specifies precision for all input layers of the model.')

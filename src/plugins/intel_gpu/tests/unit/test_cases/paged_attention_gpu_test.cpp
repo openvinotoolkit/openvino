@@ -106,6 +106,10 @@ struct PagedAttentionManager {
     std::vector<int> rotation_deltas;
     std::vector<ov::float16> rotation_trig_lut;
 
+    std::vector<ov::float16> xattention_threshold;
+    std::vector<int> xattention_block_size;
+    std::vector<int> xattention_stride;
+
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
     tests::random_generator& rg;
@@ -434,6 +438,28 @@ struct PagedAttentionManager {
         }
 
         return test_engine.reinterpret_buffer(*mem, layout);
+    }
+
+    memory::ptr get_xattention_threshold_memory() {
+        auto mem = get_memory_from_vec(xattention_threshold);
+        auto layout = mem->get_layout();
+        layout.set_partial_shape(ov::PartialShape{ 1 });
+
+        if (xattention_threshold.empty()) {
+            auto empty_layout = mem->get_layout();
+            empty_layout.set_partial_shape(ov::PartialShape{ 0 });
+            return test_engine.reinterpret_buffer(*mem, empty_layout);
+        }
+
+        return test_engine.reinterpret_buffer(*mem, layout);
+    }
+
+    memory::ptr get_xattention_block_size_memory() {
+        return get_memory_from_vec(xattention_block_size);
+    }
+
+    memory::ptr get_xattention_stride_memory() {
+        return get_memory_from_vec(xattention_stride);
     }
 
     float get_default_scale() {
@@ -911,6 +937,10 @@ public:
         auto rotation_deltas_mem = pam.get_rotation_deltas_memory();
         auto rotation_trig_lut_mem = pam.get_rotation_trig_lut_memory();
 
+        auto xattention_threshold_mem = pam.get_xattention_threshold_memory();
+        auto xattention_block_size_mem = pam.get_xattention_block_size_memory();
+        auto xattention_stride_mem = pam.get_xattention_stride_memory();
+
         auto query_layout = query_mem->get_layout();
         auto key_layout = key_mem->get_layout();
         auto value_layout = value_mem->get_layout();
@@ -928,6 +958,9 @@ public:
         auto rotated_block_indices_layout = rotated_block_indices_mem->get_layout();
         auto rotation_deltas_layout = rotation_deltas_mem->get_layout();
         auto rotation_trig_lut_layout = rotation_trig_lut_mem->get_layout();
+        auto xattention_threshold_layout = xattention_threshold_mem->get_layout();
+        auto xattention_block_size_layout = xattention_block_size_mem->get_layout();
+        auto xattention_stride_layout = xattention_stride_mem->get_layout();
 
         // make layouts dynamic
         query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
@@ -943,6 +976,7 @@ public:
         rotated_block_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
         rotation_deltas_layout.set_partial_shape(ov::PartialShape{ -1, -1 });
         rotation_trig_lut_layout.set_partial_shape(ov::PartialShape{ -1, p.k_head_size });
+        xattention_threshold_layout.set_partial_shape(ov::PartialShape{ -1 });
 
         if (p.dynamic_paddings) {
             const auto padding_axis = 1;
@@ -989,13 +1023,14 @@ public:
             input_info("sliding_window"),
             input_info("alibi"),
             input_info("max_context_len"),
-            input_info("score_aggregation_window") };
-
-        if (p.rotation_config.apply_rotation) {
-            pa_inputs.push_back(input_info("rotated_block_indices"));
-            pa_inputs.push_back(input_info("rotation_deltas"));
-            pa_inputs.push_back(input_info("rotation_trig_lut_modified"));
-        }
+            input_info("score_aggregation_window"),
+            input_info("rotated_block_indices"),
+            input_info("rotation_deltas"),
+            input_info("rotation_trig_lut_modified"),
+            input_info("xattention_threshold"),
+            input_info("xattention_block_size"),
+            input_info("xattention_stride"),
+        };
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
 
@@ -1036,13 +1071,17 @@ public:
             topology.add(reorder("output_scores", input_info("paged_attention", 1), format::bfyx, data_types::f16));
         }
 
-        if (p.rotation_config.apply_rotation) {
+        {
             topology.add(input_layout("rotated_block_indices", rotated_block_indices_layout));
             topology.add(input_layout("rotation_deltas", rotation_deltas_layout));
             topology.add(input_layout("rotation_trig_lut", rotation_trig_lut_layout));
 
             // add dummy activation operation to simulate an empty PA `rotation_trig_lut` buffer for shapes like [0, k_head_size]
             topology.add(activation("rotation_trig_lut_modified", input_info("rotation_trig_lut"), activation_func::none));
+
+            topology.add(input_layout("xattention_threshold", xattention_threshold_layout));
+            topology.add(input_layout("xattention_block_size", xattention_block_size_layout));
+            topology.add(input_layout("xattention_stride", xattention_stride_layout));
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
@@ -1066,12 +1105,13 @@ public:
         network->set_input_data("alibi", alibi_mem);
         network->set_input_data("max_context_len", max_context_len_mem);
         network->set_input_data("score_aggregation_window", score_aggregation_mem);
+        network->set_input_data("rotated_block_indices", rotated_block_indices_mem);
+        network->set_input_data("rotation_deltas", rotation_deltas_mem);
+        network->set_input_data("rotation_trig_lut", rotation_trig_lut_mem);
+        network->set_input_data("xattention_threshold", xattention_threshold_mem);
+        network->set_input_data("xattention_block_size", xattention_block_size_mem);
+        network->set_input_data("xattention_stride", xattention_stride_mem);
 
-        if (p.rotation_config.apply_rotation) {
-            network->set_input_data("rotated_block_indices", rotated_block_indices_mem);
-            network->set_input_data("rotation_deltas", rotation_deltas_mem);
-            network->set_input_data("rotation_trig_lut", rotation_trig_lut_mem);
-        }
         auto outputs = network->execute();
 
         cldnn::memory::ptr output_data_mem = nullptr;

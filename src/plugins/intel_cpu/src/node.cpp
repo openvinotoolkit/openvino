@@ -365,7 +365,8 @@ bool Node::isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov
     bool samePrec = desc1->getPrecision() == desc2->getPrecision();
     bool isOneDimShape1 = isOneDimShape(desc1->getShape().toPartialShape());
     bool isOneDimShape2 = isOneDimShape(desc2->getShape().toPartialShape());
-    return !(isOneDimShape1 && isOneDimShape2 && samePrec);
+    const bool all_conditions_true = isOneDimShape1 && isOneDimShape2 && samePrec;
+    return !all_conditions_true;
 }
 
 void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority,
@@ -1126,7 +1127,7 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
         const auto string_hash = name + "_" + std::to_string(indx) + "_" +
                                  DnnlExtensionUtils::computeWeightsStringHash(internalBlob, intDesc);
-        ptr = *weightCache->findOrCreate(string_hash, create);
+        ptr = static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     } else {
         ptr = create();
     }
@@ -1192,7 +1193,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr) {
         const auto string_hash = DnnlExtensionUtils::computeWeightsStringHash(edgeMem, dstWeightDesc);
-        ptr = *weightCache->findOrCreate(string_hash, create);
+        ptr = static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     } else {
         ptr = create();
     }

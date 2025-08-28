@@ -12,19 +12,19 @@ namespace ov {
 namespace test {
 
 std::string QuantGroupConvLayerTest::getTestCaseName(const testing::TestParamInfo<quantGroupConvLayerTestParamsSet>& obj) {
-    quantGroupConvSpecificParams groupConvParams;
-    ov::element::Type element_type;
-    ov::Shape inputShapes;
-    std::string targetDevice;
-    std::tie(groupConvParams, element_type, inputShapes, targetDevice) = obj.param;
+    const auto& [groupConvParams, element_type, inputShapes, targetDevice] = obj.param;
     ov::op::PadType padType = ov::op::PadType::AUTO;
-    ov::Shape kernel, stride, dilation;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t convOutChannels, numGroups;
-    size_t quantLevels;
-    ov::test::utils::QuantizationGranularity quantGranularity;
-    bool quantizeWeights;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, quantLevels, quantGranularity, quantizeWeights) = groupConvParams;
+
+    const auto& [kernel,
+                 stride,
+                 padBegin,
+                 padEnd,
+                 dilation,
+                 convOutChannels,
+                 numGroups,
+                 quantLevels,
+                 quantGranularity,
+                 quantizeWeights] = groupConvParams;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
@@ -45,18 +45,20 @@ std::string QuantGroupConvLayerTest::getTestCaseName(const testing::TestParamInf
 }
 
 void QuantGroupConvLayerTest::SetUp() {
-    quantGroupConvSpecificParams groupConvParams;
-    ov::Shape inputShape;
-    ov::element::Type element_type = ov::element::dynamic;
-    std::tie(groupConvParams, element_type, inputShape, targetDevice) = this->GetParam();
+    const auto& [groupConvParams, element_type, inputShape, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     ov::op::PadType padType = ov::op::PadType::AUTO;
-    ov::Shape kernel, stride, dilation;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t convOutChannels, numGroups;
-    size_t quantLevels;
-    ov::test::utils::QuantizationGranularity quantGranularity;
-    bool quantizeWeights;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, quantLevels, quantGranularity, quantizeWeights) = groupConvParams;
+
+    const auto& [kernel,
+                 stride,
+                 padBegin,
+                 padEnd,
+                 dilation,
+                 convOutChannels,
+                 numGroups,
+                 quantLevels,
+                 quantGranularity,
+                 quantizeWeights] = groupConvParams;
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
 
     std::vector<size_t> dataFqConstShapes(inputShape.size(), 1);

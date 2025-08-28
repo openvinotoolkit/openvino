@@ -57,7 +57,7 @@ class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeig
                                    virtual public SubgraphBaseTest,
                                    public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulWeightsDecompressionParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulWeightsDecompressionParams>& obj);
 
 protected:
     std::shared_ptr<ov::Model> initSubgraph(const ov::PartialShape& data_shape,

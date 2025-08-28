@@ -466,23 +466,24 @@ void primitive_inst::update_shape() {
     _impl_params->memory_deps = memory_deps;
 
     auto new_layouts = get_node().type()->calc_output_layouts(*_node, *_impl_params);
-
     for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
         auto& new_layout = new_layouts[idx];
+        auto new_pshape = new_layout.get_partial_shape();
+        auto& impl_layout = _impl_params->get_output_layout(idx);
         if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
-            auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, new_layout.data_padding);
+            auto data_padding = padding::max(impl_layout.data_padding, new_layout.data_padding);
             new_layout.data_padding = padding::max(get_node().get_primitive()->get_output_padding(idx), data_padding);
         }
 
-        if (_impl_params->get_output_layout(idx) != new_layout) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
+        if (impl_layout != new_layout) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << impl_layout.to_short_string()
                                     << " now: " << new_layout.to_short_string() << std::endl;
             set_flag(ExecutionFlags::SHAPE_CHANGED);
         }
 
         _impl_params->output_layouts[idx].data_padding = new_layout.data_padding;
-        _impl_params->output_layouts[idx].set_partial_shape(new_layouts[idx].get_partial_shape());
-        _impl_params->output_layouts[idx].data_type = new_layouts[idx].data_type;
+        _impl_params->output_layouts[idx].set_partial_shape(new_pshape);
+        _impl_params->output_layouts[idx].data_type = new_layout.data_type;
     }
 
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
@@ -904,7 +905,6 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
 
     // Handle runtime dynamic concat optimization
     if (get_node().is_type<concatenation>() && can_be_optimized() && _allocation_done_by_other) {
-        _allocation_done_by_other = false;
         GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("concat_alloc_by_other");
         return;
     }
@@ -1672,6 +1672,10 @@ void primitive_inst::do_runtime_in_place_concat() {
 
     if (!concat_inst->get_flag(ExecutionFlags::SHAPE_CHANGED))
         return;
+
+    // Reset the allocation flag when the output shape has changed, to allow buffer reallocation
+    // by predecessors or by the concat primitive itself if in-place optimization is not possible
+    concat_inst->_allocation_done_by_other = false;
 
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
         concat_inst->set_can_be_optimized(false);
@@ -2990,7 +2994,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
     // 5. Finally, if no impl found so far, we just enforce static impl compilation
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
-    assert(static_impl != nullptr);
+    OPENVINO_ASSERT(static_impl != nullptr, "No static impl " + node->id());
     static_impl->set_node_params(*node);
     if (!inst.can_be_optimized()) {
         auto& kernels_cache = prog.get_kernels_cache();

@@ -92,6 +92,18 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::stri
     return buffer;
 }
 
+Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {
+    char* addr_ptr = reinterpret_cast<char*>(m_offset);
+    if (m_data_location != ORT_MEM_ADDR || !addr_ptr || m_data_length == 0) {
+        throw error::invalid_external_data{*this};
+    }
+    auto aligned_memory = std::make_shared<ov::AlignedBuffer>(m_data_length);
+    std::memcpy(aligned_memory->get_ptr<char>(), addr_ptr, m_data_length);
+    return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(aligned_memory->get_ptr<char>(),
+                                                                                  aligned_memory->size(),
+                                                                                  aligned_memory);
+}
+
 std::string TensorExternalData::to_string() const {
     std::stringstream s;
     s << "ExternalDataInfo(";

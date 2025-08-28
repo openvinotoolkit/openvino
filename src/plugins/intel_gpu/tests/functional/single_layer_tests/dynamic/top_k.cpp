@@ -35,14 +35,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<TopKLayerTestParamsSet>& obj) {
         TopKLayerTestParamsSet basicParamsSet = obj.param;
 
-        int64_t keepK, axis;
-        ov::op::v1::TopK::Mode mode;
-        ov::op::v1::TopK::SortType sort;
-        ov::element::Type model_type, inPrc, outPrc;
-        InputShape input_shape;
-        std::string targetDevice;
-        ov::test::utils::InputLayerType input_type;
-        std::tie(keepK, axis, mode, sort, model_type, inPrc, outPrc, input_shape, targetDevice, input_type) = basicParamsSet;
+        const auto& [keepK, axis, mode, sort, model_type, inPrc, outPrc, input_shape, targetDevice, input_type] = basicParamsSet;
 
         std::ostringstream result;
         result << "k=" << keepK << "_";
@@ -67,12 +60,11 @@ protected:
     void SetUp() override {
         TopKLayerTestParamsSet basicParamsSet = this->GetParam();
 
-        int64_t keepK;
-        ov::op::v1::TopK::Mode mode;
-        ov::op::v1::TopK::SortType sort;
-        ov::element::Type inPrc, outPrc;
-        InputShape input_shape;
-        std::tie(keepK, axis, mode, sort, model_type, inPrc, outPrc, input_shape, targetDevice, input_type) = basicParamsSet;
+        const auto& [keepK, _axis, mode, sort, _model_type, inPrc, outPrc, input_shape, _targetDevice, _input_type] = basicParamsSet;
+        axis = _axis;
+        model_type = _model_type;
+        targetDevice = _targetDevice;
+        input_type = _input_type;
 
         if (input_type == ov::test::utils::InputLayerType::CONSTANT) {
             init_input_shapes({input_shape});
@@ -158,7 +150,7 @@ const std::vector<ov::element::Type> model_types = {
     ov::element::f32,
 };
 
-const std::vector<int64_t> axes = {0, 3};
+const std::vector<int64_t> axes = {0, 1, 3};
 const std::vector<int64_t> k = {3, 5, 7};
 
 const std::vector<ov::op::v1::TopK::Mode> modes = {

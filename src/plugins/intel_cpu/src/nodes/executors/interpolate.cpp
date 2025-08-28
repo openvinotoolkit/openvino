@@ -421,10 +421,10 @@ std::vector<float> ov::intel_cpu::InterpolateExecutor::getCubicCoeffs(float mant
     float m = std::fabs(mantissa);
     std::vector<float> coeffs(4, 0.F);
 
-    coeffs[0] = a * (m - 1.0f) * (m - 1.0f) * m;
-    coeffs[1] = ((a + 2.0f) * m - (a + 3.0f)) * m * m + 1.0f;
-    coeffs[2] = (((-a - 2.0f) * m + (2.0f * a + 3.0f)) * m - a) * m;
-    coeffs[3] = -a * m * m * (m - 1.0f);
+    coeffs[0] = a * (m - 1.0F) * (m - 1.0F) * m;
+    coeffs[1] = ((a + 2.0F) * m - (a + 3.0F)) * m * m + 1.0F;
+    coeffs[2] = (((-a - 2.0F) * m + (2.0F * a + 3.0F)) * m - a) * m;
+    coeffs[3] = -a * m * m * (m - 1.0F);
     return coeffs;
 }
 

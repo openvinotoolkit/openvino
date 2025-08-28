@@ -20,6 +20,7 @@
 #include "nodes/executors/eltwise_config.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu::x64 {
 
@@ -34,7 +35,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public dnnl::imp
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override;

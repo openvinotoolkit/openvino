@@ -19,6 +19,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
 
@@ -42,7 +43,7 @@ jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator* h, cpu_isa
                               " and ",
                               n->get_output_element_type(0));
     const auto element_type = n->get_input_element_type(0);
-    OV_CPU_JIT_EMITTER_ASSERT(any_of(element_type.size(), 1u, 2u, 4u), "Unsupported element type: ", element_type);
+    OV_CPU_JIT_EMITTER_ASSERT(any_of(element_type.size(), 1U, 2U, 4U), "Unsupported element type: ", element_type);
 
     byte_size = n->get_input_element_type(0).size();
 }

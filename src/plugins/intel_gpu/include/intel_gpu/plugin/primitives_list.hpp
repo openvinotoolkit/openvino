@@ -281,6 +281,8 @@ REGISTER_FACTORY(v15, Col2Im);
 
 // ------------------------------ Supported v16 ops ----------------------------- //
 REGISTER_FACTORY(v16, ISTFT);
+REGISTER_FACTORY(v16, SparseFillEmptyRows);
+REGISTER_FACTORY(v16, AvgPool);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
@@ -307,3 +309,4 @@ REGISTER_FACTORY(internal, DynamicQuantize);
 REGISTER_FACTORY(internal, PagedAttentionExtension);
 REGISTER_FACTORY(internal, LoraSubgraph);
 REGISTER_FACTORY(internal, LoraSubgraphFused);
+REGISTER_FACTORY(internal, VLSDPA);

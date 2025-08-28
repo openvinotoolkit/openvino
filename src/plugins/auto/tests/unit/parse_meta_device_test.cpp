@@ -19,11 +19,7 @@ using ConfigParams = std::tuple<std::string,                     // Priority dev
 class ParseMetaDeviceTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string priorityDevices;
-        std::vector<DeviceInformation> metaDevices;
-        bool throwException;
-        int expectedTimes;
-        std::tie(priorityDevices, metaDevices, throwException, expectedTimes) = obj.param;
+        const auto& [priorityDevices, metaDevices, throwException, expectedTimes] = obj.param;
         std::ostringstream result;
         result << "priorityDevices_" << priorityDevices;
         if (throwException) {

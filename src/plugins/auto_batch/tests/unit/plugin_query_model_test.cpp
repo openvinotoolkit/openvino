@@ -20,10 +20,7 @@ public:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<query_model_params> obj) {
-        ov::AnyMap properties;
-        bool throw_exception;
-
-        std::tie(properties, throw_exception) = obj.param;
+        const auto& [properties, throw_exception] = obj.param;
         std::string res = "";
         if (properties.size() > 0) {
             res += "QueryModel_";

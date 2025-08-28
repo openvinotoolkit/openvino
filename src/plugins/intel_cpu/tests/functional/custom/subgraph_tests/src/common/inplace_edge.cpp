@@ -30,7 +30,7 @@ namespace test {
 
 class NonInputInPlaceTest : public testing::WithParamInterface<ElementType>, virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ElementType> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ElementType>& obj) {
         std::ostringstream result;
         result << "NonInputInPlaceTest_inPrc=outPrc=" << obj.param;
         return result.str();

@@ -5,12 +5,14 @@
 #include <cstdlib>
 
 #include "common_test_utils/node_builders/lstm_cell.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/pass/manager.hpp"
+#include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
 
@@ -25,24 +27,16 @@ using LSTMSequenceCpuSpecificParams =
                         ov::op::RecurrentSequenceDirection,  // Direction
                         ElementType,                         // Network precision
                         CPUSpecificParams,                   // CPU specific params
-                        ov::AnyMap                           // Additional config
+                        ov::AnyMap,                          // Additional config
+                        bool                                 // dynamic batch
                         >;
-
 class LSTMSequenceCPUTest : public testing::WithParamInterface<LSTMSequenceCpuSpecificParams>,
-                            virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
-public:
+                            virtual public ov::test::SubgraphBaseTest,
+                            public CPUTestsBase {
+   public:
     static std::string getTestCaseName(const testing::TestParamInfo<LSTMSequenceCpuSpecificParams> &obj) {
-        std::vector<InputShape> inputShapes;
-        ov::test::utils::SequenceTestsMode seqMode;
-        std::vector<std::string> activations;
-        float clip;
-        ov::op::RecurrentSequenceDirection direction;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes, seqMode, activations, clip, direction, netPrecision, cpuParams, additionalConfig) = obj.param;
-
+        const auto &[inputShapes, seqMode, activations, clip, direction, netPrecision, cpuParams, additionalConfig, dynamicBatch] =
+            obj.param;
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
@@ -69,21 +63,15 @@ public:
                 result << "_" << item.first << "=" << item.second.as<std::string>();
             }
         }
+
+        result << "dynamicBatch=" << dynamicBatch << "_";
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> inputShapes;
-        ov::test::utils::SequenceTestsMode seqMode;
-        std::vector<std::string> activations;
-        float clip;
-        ov::op::RecurrentSequenceDirection direction;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes, seqMode, activations, clip, direction, netPrecision, cpuParams, additionalConfig) = this->GetParam();
+        const auto &[inputShapes, seqMode, activations, clip, direction, netPrecision, cpuParams, additionalConfig, dynamicBatch] =
+            this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         targetDevice = ov::test::utils::DEVICE_CPU;
 
@@ -96,19 +84,14 @@ protected:
         const size_t hiddenSize = targetStaticShapes.front()[1][2];
         const size_t numDirections = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
 
-        float WRB_range = 0;
-        auto it_dynamic_batch = additionalConfig.find("_dynamic_batch_test");
-        if (it_dynamic_batch != additionalConfig.end() && it_dynamic_batch->second == "yes") {
-            additionalConfig.erase(it_dynamic_batch);
-            // special config for _dynamic_batch_test
+        const float WRB_range = dynamicBatch ? 1.0f : 0.f;
+        if (dynamicBatch) {
             abs_threshold = 0.001f;
-            WRB_range = 1.0f;
         }
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        auto it = additionalConfig.find(ov::hint::inference_precision.name());
-        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
@@ -183,7 +166,6 @@ protected:
         }
     }
 };
-
 TEST_P(LSTMSequenceCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "RNNSeq");
@@ -230,6 +212,8 @@ const std::vector<std::vector<InputShape>> staticShapes = {
       { {}, { {1} } } },
 };
 
+const bool dynamicBatchTest = true;
+
 INSTANTIATE_TEST_SUITE_P(smoke_static, LSTMSequenceCPUTest,
                 ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{staticShapes[0], staticShapes[1]}),
                                    ::testing::ValuesIn(mode),
@@ -238,7 +222,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_static, LSTMSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::Values(ov::AnyMap{})),
+                                   ::testing::Values(ov::AnyMap{}),
+                                   ::testing::Values(false)),
                 LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, LSTMSequenceCPUTest,
@@ -249,7 +234,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, LSTMSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParamsBatchSizeOne),
-                                   ::testing::Values(ov::AnyMap{})),
+                                   ::testing::Values(ov::AnyMap{}),
+                                   ::testing::Values(false)),
                 LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_static_bf16, LSTMSequenceCPUTest,
@@ -260,7 +246,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_static_bf16, LSTMSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::ValuesIn(additionalConfig)),
+                                   ::testing::ValuesIn(additionalConfig),
+                                   ::testing::Values(false)),
                 LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_static_bf16_BatchSizeOne, LSTMSequenceCPUTest,
@@ -271,7 +258,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_static_bf16_BatchSizeOne, LSTMSequenceCPUTest,
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParamsBatchSizeOne),
-                                   ::testing::ValuesIn(additionalConfig)),
+                                   ::testing::ValuesIn(additionalConfig),
+                                   ::testing::Values(false)),
                 LSTMSequenceCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicShapes = {
@@ -397,7 +385,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_batch, LSTMSequenceCPUTest,
                                ::testing::Values(ov::op::RecurrentSequenceDirection::FORWARD),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(dynamicShapesBatchSwitch::cpuParams),
-                               ::testing::Values(ov::AnyMap{{"_dynamic_batch_test", "yes"}})),
+                               ::testing::Values(ov::AnyMap{}),
+                               ::testing::Values(dynamicBatchTest)),
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMSequenceCPUTest,
@@ -408,7 +397,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParams),
-                               ::testing::Values(ov::AnyMap{})),
+                               ::testing::Values(ov::AnyMap{}),
+                               ::testing::Values(false)),
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, LSTMSequenceCPUTest,
@@ -419,7 +409,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParamsBatchSizeOne),
-                               ::testing::Values(ov::AnyMap{})),
+                               ::testing::Values(ov::AnyMap{}),
+                               ::testing::Values(false)),
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic, LSTMSequenceCPUTest,
@@ -430,7 +421,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParams),
-                               ::testing::Values(ov::AnyMap{})),
+                               ::testing::Values(ov::AnyMap{}),
+                               ::testing::Values(false)),
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, LSTMSequenceCPUTest,
@@ -441,7 +433,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParams),
-                               ::testing::Values(additionalConfig[1])),
+                               ::testing::Values(additionalConfig[1]),
+                               ::testing::Values(false)),
             LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16_BatchSizeOne, LSTMSequenceCPUTest,
@@ -452,7 +445,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16_BatchSizeOne, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParamsBatchSizeOne),
-                               ::testing::Values(additionalConfig[1])),
+                               ::testing::Values(additionalConfig[1]),
+                               ::testing::Values(false)),
             LSTMSequenceCPUTest::getTestCaseName);
 
 // Odd but valid use case
@@ -475,7 +469,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_mixedDynamicStaticBatch, LSTMSequenceCPUT
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParams),
-                               ::testing::Values(ov::AnyMap{})),
+                               ::testing::Values(ov::AnyMap{}),
+                               ::testing::Values(false)),
             LSTMSequenceCPUTest::getTestCaseName);
 
 }  // namespace

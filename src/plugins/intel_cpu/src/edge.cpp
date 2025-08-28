@@ -356,7 +356,7 @@ void Edge::externalAllocate(const WeightsSharing::Ptr& weightsCache) {
         };
 
         auto ptr = weightsCache->findOrCreate(hash(), alloc, false);
-        memoryPtr = *ptr;
+        memoryPtr = static_cast<MemoryPtr>(*ptr);
         DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
         useExternalMemory = true;
         status = Status::Allocated;
@@ -530,9 +530,9 @@ EdgePtr Edge::getBaseEdge(int look) {
     const int parentInPlacePort = getParent()->inPlaceOutPort(inputNum);
     const int childInPlacePort = getChild()->inPlaceInputPort(outputNum);
 
-    OPENVINO_ASSERT(!(parentInPlacePort >= 0 && childInPlacePort >= 0),
-                    "Unresolved in place memory conflict detected on edge: ",
-                    *this);
+    const bool parent_valid = parentInPlacePort >= 0;
+    const bool child_valid = childInPlacePort >= 0;
+    OPENVINO_ASSERT(!parent_valid || !child_valid, "Unresolved in place memory conflict detected on edge: ", *this);
 
     if ((childInPlacePort >= 0) && (look & LOOK_DOWN)) {
         auto ch_edges = getChild()->getChildEdgesAtPort(childInPlacePort);
@@ -554,7 +554,7 @@ EdgePtr Edge::getBaseEdge(int look) {
     }
 
     auto edgesForSamePort = getParent()->getChildEdgesAtPort(inputNum);
-    for (auto edge : edgesForSamePort) {
+    for (const auto& edge : edgesForSamePort) {
         if (edge.get() != this) {
             // Return once found the first inplace consumer
             if (edge->inPlace()) {
@@ -565,7 +565,7 @@ EdgePtr Edge::getBaseEdge(int look) {
 
     // Return the first output edge as the base if there is no inPlace consumers
     // thus benefits zero-copy of outputs.
-    for (auto edge : edgesForSamePort) {
+    for (const auto& edge : edgesForSamePort) {
         if (Type::Output == edge->getChild()->getType()) {
             return edge;
         }

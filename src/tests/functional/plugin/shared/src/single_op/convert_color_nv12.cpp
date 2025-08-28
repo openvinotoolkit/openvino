@@ -12,11 +12,7 @@
 namespace ov {
 namespace test {
 std::string ConvertColorNV12LayerTest::getTestCaseName(const testing::TestParamInfo<ConvertColorNV12ParamsTuple> &obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type type;
-    bool conversion, single_plane;
-    std::string device_name;
-    std::tie(shapes, type, conversion, single_plane, device_name) = obj.param;
+    const auto& [shapes, type, conversion, single_plane, device_name] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
@@ -38,12 +34,10 @@ std::string ConvertColorNV12LayerTest::getTestCaseName(const testing::TestParamI
 }
 
 void ConvertColorNV12LayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type net_type;
-    bool conversionToRGB, single_plane;
     abs_threshold = 1.1f; // NV12 conversion can use various algorithms, thus some absolute deviation is allowed
     rel_threshold = 1.1f; // Ignore relative comparison for NV12 convert (allow 100% relative deviation)
-    std::tie(shapes, net_type, conversionToRGB, single_plane, targetDevice) = GetParam();
+    const auto& [shapes, net_type, conversionToRGB, single_plane, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     if (single_plane) {

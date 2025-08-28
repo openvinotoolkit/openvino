@@ -17,14 +17,8 @@ namespace test {
 using namespace ov::test::utils;
 
 std::string EltwiseChainTest::getTestCaseName(const testing::TestParamInfo<EltwiseChainTuple> &obj) {
-    std::vector<InputShape> inputShapes;
-    InputLayerType secondaryInputType;
-    std::vector<ElementType> inputPrecisions;
-    std::vector<EltwiseTypes> eltwiseOpTypes;
-    bool withQuantization;
-    ov::element::Type conversion;
-    std::string targetName;
-    std::tie(inputShapes, secondaryInputType, inputPrecisions, eltwiseOpTypes, withQuantization, conversion, targetName) = obj.param;
+    const auto& [inputShapes, secondaryInputType, inputPrecisions, eltwiseOpTypes, withQuantization, conversion,
+                 targetName] = obj.param;
     std::ostringstream results;
 
     results << "IS=(";
@@ -86,15 +80,9 @@ void EltwiseChainTest::generate_inputs(const std::vector<ov::Shape>& targetInput
 
 void EltwiseChainTest::SetUp() {
     abs_threshold = 0.1f;
-
-    std::vector<InputShape> inputShapes;
-    InputLayerType secondaryInputType;
-    std::vector<ElementType> inputPrecisions;
-    std::vector<EltwiseTypes> eltwiseOpTypes;
-    bool withQuantization;
-    ov::element::Type conversion;
-    std::tie(inputShapes, secondaryInputType, inputPrecisions, eltwiseOpTypes, withQuantization, conversion, targetDevice) = this->GetParam();
-
+    const auto& [inputShapes, secondaryInputType, inputPrecisions, eltwiseOpTypes, withQuantization, conversion,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(inputShapes);
 
     ov::ParameterVector paramVec;

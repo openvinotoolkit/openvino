@@ -377,6 +377,9 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
             }
         }
     }
+
+    // Process setting input tensor
+    handle_set_remote_input(port, tensor);
 }
 
 ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) {

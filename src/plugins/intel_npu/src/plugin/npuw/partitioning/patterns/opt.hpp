@@ -42,7 +42,7 @@ struct Context {
     };
     using DQParMMs = std::vector<DQParMM>;
     std::map<std::pair<O, std::size_t>, DQParMMs> par_dq_mms;
-    void register_parallel_matmul(O multiply, std::size_t axis, DQParMM&& mm);
+    void register_parallel_matmul(const O& multiply, std::size_t axis, DQParMM&& mm);
 
     std::map<PPtr, std::pair<ov::ParameterVector, std::size_t>> params_to_concat;
     PPtr concat(ov::ParameterVector&& v, std::size_t dim);
@@ -53,6 +53,13 @@ struct Context {
     std::map<PPtr, DQUnpack> params_to_unpack;
     PPtr unpack(const PPtr& w, const PPtr& z, const PPtr& s, ov::element::Type type);
     PPtr unpack(const PPtr& w, const PPtr& s, ov::element::Type type);
+
+    struct DQNF4Gather {
+        PPtr w;
+        ov::Tensor t;
+    };
+    std::map<PPtr, DQNF4Gather> params_to_nf4_gather;
+    PPtr gather_cb4(const PPtr& w, const ov::Tensor& t, ov::element::Type type);
 
     struct Gather {
         PPtr pnew, pold, pids;
@@ -66,7 +73,8 @@ struct Context {
         PPtr pids;
     };
     std::optional<QuantizedGather> params_to_quant_gather_unpack;
-    PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr z, PPtr s, ov::element::Type type);
+    bool found_host_gather_quant() const;
+    PPtr host_gather_unpack_quant(const PPtr& ids, const PPtr& w, const PPtr& z, const PPtr& s, ov::element::Type type);
 
     using Ref = std::reference_wrapper<Context>;
 };
@@ -155,22 +163,18 @@ public:
     DQUnpackDictGatherGQi(Context::Ref ctx);
 };
 
+template <typename WType = ov::op::v0::Parameter>
 class HostGatherQuantAsymm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantAsymm");
-    HostGatherQuantAsymm(Context::Ref ctx);
+    HostGatherQuantAsymm(Context::Ref ctx, bool verify_only = false);
 };
 
+template <typename WType = ov::op::v0::Parameter>
 class HostGatherQuantSymm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantSymm");
-    HostGatherQuantSymm(Context::Ref ctx);
-};
-
-class HostGatherQuant : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuant");
-    HostGatherQuant(Context::Ref ctx);
+    HostGatherQuantSymm(Context::Ref ctx, bool verify_only = false);
 };
 
 class HostGather : public ov::pass::MatcherPass {
@@ -183,6 +187,12 @@ class HostGatherDQ : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherDQ");
     HostGatherDQ(Context::Ref ctx);
+};
+
+class HostGatherCB4 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherCB4");
+    HostGatherCB4(Context::Ref ctx);
 };
 
 // Tail vocab unpacks
@@ -212,24 +222,24 @@ public:
 };
 
 // Tail vocab transformations
-class PreserveConstDictMatMulCWu : public ov::pass::MatcherPass {
+class PreserveConstDictMatMulAsymm : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulCWu");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulAsymm");
 
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulCWu(Results to_keep);
+    PreserveConstDictMatMulAsymm(Results to_keep);
 };
 
-class PreserveConstDictMatMulCWf8 : public ov::pass::MatcherPass {
+class PreserveConstDictMatMulSymm : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulCWf8");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulSymm");
 
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulCWf8(Results to_keep);
+    PreserveConstDictMatMulSymm(Results to_keep);
 };
 
 // Slice last Matmul

@@ -16,6 +16,19 @@
 namespace ov::intel_gpu::ocl {
 
 JitConstants KernelGenerator::make_tensors_jit_constants(const RuntimeParams& params) {
+    static std::map<size_t, JitConstants> tensors_jit_constants_cache;
+    static std::mutex m;
+
+    size_t params_hash = params.hash();
+
+    std::lock_guard<std::mutex> lock(m);
+
+    auto it_jit = tensors_jit_constants_cache.find(params_hash);
+
+    if (it_jit != tensors_jit_constants_cache.end()) {
+        return it_jit->second;
+    }
+
     JitConstants jit_constants;
 
     const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -29,6 +42,8 @@ JitConstants KernelGenerator::make_tensors_jit_constants(const RuntimeParams& pa
     for (size_t i = 1; i < params.output_layouts.size(); i++) {
         jit_constants.add(make_layout_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i], out_offsets_map.at(i)));
     }
+
+    tensors_jit_constants_cache.emplace(params_hash, jit_constants);
 
     return jit_constants;
 }
@@ -109,10 +124,10 @@ std::string KernelGenerator::get_build_options(const RuntimeParams& params) cons
         options = " -cl-mad-enable";
     }
 
-#if CL_TARGET_OPENCL_VERSION >= 200
-    options += " -cl-std=CL2.0";
-#endif
-
+    if (device_info.supports_work_group_collective_functions)
+        options += " -cl-std=CL3.0";
+    else
+        options += " -cl-std=CL2.0";
     return options;
 }
 

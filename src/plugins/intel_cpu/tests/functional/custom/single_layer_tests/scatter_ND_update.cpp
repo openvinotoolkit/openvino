@@ -27,11 +27,8 @@ class ScatterNDUpdateLayerCPUTest : public testing::WithParamInterface<scatterUp
                                     public SubgraphBaseTest,
                                     public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<scatterUpdateParams> obj) {
-        ScatterNDUpdateLayerParams scatterParams;
-        ElementType inputPrecision;
-        ElementType idxPrecision;
-        std::tie(scatterParams, inputPrecision, idxPrecision) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<scatterUpdateParams>& obj) {
+        const auto& [scatterParams, inputPrecision, idxPrecision] = obj.param;
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesValues = scatterParams.indicesValues;
         const auto exceptionExpected = scatterParams.exceptionExpected;
@@ -96,10 +93,7 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        ScatterNDUpdateLayerParams scatterParams;
-        ElementType inputPrecision;
-        ElementType idxPrecision;
-        std::tie(scatterParams, inputPrecision, idxPrecision) = this->GetParam();
+        const auto& [scatterParams, inputPrecision, idxPrecision] = this->GetParam();
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesValues = scatterParams.indicesValues;
         const auto exceptionExpected = scatterParams.exceptionExpected;

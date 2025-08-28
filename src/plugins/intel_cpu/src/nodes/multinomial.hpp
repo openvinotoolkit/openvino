@@ -53,9 +53,9 @@ private:
     uint64_t m_op_seed = 0;
 
     /// Shape inference
-    static constexpr size_t PROBS_PORT = 0lu;
-    static constexpr size_t NUM_SAMPLES_PORT = 1lu;
-    static constexpr size_t OUTPUT_PORT = 0lu;
+    static constexpr size_t PROBS_PORT = 0LU;
+    static constexpr size_t NUM_SAMPLES_PORT = 1LU;
+    static constexpr size_t OUTPUT_PORT = 0LU;
     bool m_const_inputs[2] = {false, false};
     bool m_const_batch = false;
     VectorDims m_output_shape;

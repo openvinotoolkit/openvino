@@ -59,7 +59,7 @@ struct jit_uni_normalize_modulo_kernel {
         ker_(args);
     }
 
-    jit_uni_normalize_modulo_kernel(jit_normalize_config_params jcp) : jcp_(jcp) {}
+    explicit jit_uni_normalize_modulo_kernel(jit_normalize_config_params jcp) : jcp_(jcp) {}
     virtual ~jit_uni_normalize_modulo_kernel() = default;
 
     virtual void create_ker() = 0;
@@ -114,12 +114,12 @@ public:
         NormEpsMode epsMode = NormEpsMode::ADD;
         bool across_spatial = true;
         bool cornerCase = false;
-        float eps = 1e-10f;
+        float eps = 1e-10F;
 
         ov::element::Type input_prec = ov::element::dynamic;
         ov::element::Type output_prec = ov::element::dynamic;
-        size_t src_data_size = 0lu;
-        size_t dst_data_size = 0lu;
+        size_t src_data_size = 0LU;
+        size_t dst_data_size = 0LU;
     };
 
 private:
