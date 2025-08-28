@@ -95,6 +95,7 @@ jobs:
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      CMAKE_GENERATOR: 'Ninja'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -106,8 +107,12 @@ jobs:
       BUILD_DIR: '/__w/openvino/openvino/build'
       ANDROID_TOOLS: '/deps/android_tools'
       ANDROID_NDK_HOME: '/deps/android_tools/ndk/26.1.10909125'
-      ANDROID_SDK_VERSION: 29
+      ANDROID_SDK_VERSION: 30
       ANDROID_ABI_CONFIG: x86_64
+      TBB_SRC: "/__w/openvino/openvino/build/onetbb-src"
+      TBB_BUILD: "/__w/openvino/openvino/build/onetbb-build"
+      TBB_INSTALL: "/__w/openvino/openvino/build/onetbb-install"
+      TBB_CMAKE_DIR: "/__w/openvino/openvino/build/onetbb-install/lib/cmake/TBB"
       SCCACHE_AZURE_KEY_PREFIX: android_x64
     steps:
       - name: Clone OpenVINO
@@ -137,30 +142,67 @@ jobs:
       # Build
       #
 
-      - name: CMake - configure
+      - name: Clone OneTBB
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          repository: 'oneapi-src/oneTBB'
+          path: ${{ env.TBB_SRC }}
+          submodules: 'true'
+          
+      - name: Configure OneTBB CMake project
+        run: |
+          mkdir -p ${{ env.TBB_INSTALL }}
+          cmake \
+            -G '${{ env.CMAKE_GENERATOR }}' \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_INSTALL_PREFIX=${{ env.TBB_INSTALL }} \
+            -DCMAKE_TOOLCHAIN_FILE=${{ env.ANDROID_NDK_HOME }}/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
+            -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
+            -DANDROID_STL=c++_shared \
+            -DTBB_TEST=OFF \
+            -DTBB_STRICT=OFF \
+            -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--undefined-version" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -S ${TBB_SRC} \
+            -B ${TBB_BUILD}
+
+      - name: Build OneTBB project
+        run: cmake --build ${TBB_BUILD} --parallel $(nproc)
+
+      - name: Install OneTBB project
+        run: cmake --install ${TBB_BUILD}
+
+      - name: CMake - configure OpenVINO
         run: |
           cmake \
-            -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
+            -G '${{ env.CMAKE_GENERATOR }}' \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_TOOLCHAIN_FILE=${{ env.ANDROID_NDK_HOME }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
-            -DANDROID_STL=c++_shared \
             -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
+            -DANDROID_STL=c++_shared \
+            -DENABLE_TESTS=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DENABLE_SYSTEM_TBB=ON \
+            -DTBB_DIR=${{ env.TBB_CMAKE_DIR }} \
+            -DTBBROOT=${{ env.TBB_INSTALL }} \
+            -DENABLE_FASTER_BUILD=ON \
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DENABLE_LTO=ON \
             -DENABLE_PYTHON=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_FASTER_BUILD=ON \
-            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
       - name: Clean ccache stats
         run: ${SCCACHE_PATH} --zero-stats
 
-      - name: Cmake - build
+      - name: CMake - build OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel $(nproc)
 
       - name: Show ccache stats

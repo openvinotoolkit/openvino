@@ -75,6 +75,11 @@ To improve the parallelism performance of the OpenVINO™ library using OneTBB, 
   cmake --install $OPV_HOME_DIR/one-tbb-build
   ```
 
+### Clone OpenVINO™ GenAI (Optional)
+  ```sh
+  git clone --recursive https://github.com/openvinotoolkit/openvino.genai $OPV_HOME_DIR/openvino-genai
+  ```
+
 ### Build and install OpenVINO™
   ```sh
   # Clone OpenVINO™ repository 
@@ -84,11 +89,13 @@ To improve the parallelism performance of the OpenVINO™ library using OneTBB, 
   # Configure OpenVINO™ CMake project 
   cmake -S $OPV_HOME_DIR/openvino \
         -B $OPV_HOME_DIR/openvino-build \
+        -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=$OPV_HOME_DIR/openvino-install \
         -DCMAKE_TOOLCHAIN_FILE=$CURRENT_CMAKE_TOOLCHAIN_FILE \
         -DANDROID_ABI=$CURRENT_ANDROID_ABI \
         -DANDROID_PLATFORM=$CURRENT_ANDROID_PLATFORM \
         -DANDROID_STL=$CURRENT_ANDROID_STL \
+        -DOPENVINO_EXTRA_MODULES=$OPV_HOME_DIR/openvino-genai \
         -DTBB_DIR=$OPV_HOME_DIR/one-tbb-install/lib/cmake/TBB
   # Build OpenVINO™ project 
   cmake --build $OPV_HOME_DIR/openvino-build --parallel
