@@ -17,9 +17,8 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 
-// NEW: cache glue
-#include "cache/cache_eviction.hpp"
-#include "cache/cache_manager.hpp"
+#include "cache_eviction.hpp"
+#include "cache_manager.hpp"
 
 namespace ov {
 namespace template_plugin {
