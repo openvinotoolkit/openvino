@@ -317,14 +317,14 @@ TEST(RTInfoSerialization, custom_info) {
 		<layer id="0" name="node_A" type="Parameter" version="opset1">
 			<data shape="10,10" element_type="f32" />
 			<rt_info>
-				<custom name="node_info_A" value="v_A" version="-1" />
+				<custom name="node_info_A" value="v_A" version="" />
 			</rt_info>
 			<output>
 				<port id="0" precision="FP32">
 					<dim>10</dim>
 					<dim>10</dim>
 					<rt_info>
-						<custom name="output_info_A" value="o_A" version="-1" />
+						<custom name="output_info_A" value="o_A" version="" />
 					</rt_info>
 				</port>
 			</output>
@@ -332,13 +332,13 @@ TEST(RTInfoSerialization, custom_info) {
 		<layer id="1" name="node_B" type="Const" version="opset1">
 			<data element_type="f32" shape="1" offset="0" size="4" />
 			<rt_info>
-				<custom name="node_info_B" value="v_B" version="-1" />
+				<custom name="node_info_B" value="v_B" version="" />
 			</rt_info>
 			<output>
 				<port id="0" precision="FP32">
 					<dim>1</dim>
 					<rt_info>
-						<custom name="output_info_B" value="o_B" version="-1" />
+						<custom name="output_info_B" value="o_B" version="" />
 					</rt_info>
 				</port>
 			</output>
@@ -346,7 +346,7 @@ TEST(RTInfoSerialization, custom_info) {
 		<layer id="2" name="node_C" type="Add" version="opset1">
 			<data auto_broadcast="numpy" />
 			<rt_info>
-				<custom name="node_info_C" value="v_C" version="-1" />
+				<custom name="node_info_C" value="v_C" version="" />
 			</rt_info>
 			<input>
 				<port id="0" precision="FP32">
@@ -362,15 +362,15 @@ TEST(RTInfoSerialization, custom_info) {
 					<dim>10</dim>
 					<dim>10</dim>
 					<rt_info>
-						<custom name="output_info_C" value="o_C" version="-1" />
-						<custom name="output_info_D" value="o_D" version="-1" />
+						<custom name="output_info_C" value="o_C" version="" />
+						<custom name="output_info_D" value="o_D" version="" />
 					</rt_info>
 				</port>
 			</output>
 		</layer>
 		<layer id="3" name="node_D" type="Result" version="opset1">
 			<rt_info>
-				<custom name="node_info_D" value="v_D" version="-1" />
+				<custom name="node_info_D" value="v_D" version="" />
 			</rt_info>
 			<input>
 				<port id="0" precision="FP32">
@@ -435,13 +435,13 @@ TEST(RTInfoSerialization, AnyMap_info) {
 		</layer>
 		<layer id="1" name="abs" type="Abs" version="opset1">
 			<rt_info>
-				<custom name="AnyMap" version="-1">
-					<custom name="a" value="b" version="-1" />
-					<custom name="i" value="7" version="-1" />
-					<custom name="nested" version="-1">
-						<custom name="c" value="d" version="-1" />
+				<custom name="AnyMap" version="">
+					<custom name="a" value="b" version="" />
+					<custom name="i" value="7" version="" />
+					<custom name="nested" version="">
+						<custom name="c" value="d" version="" />
 					</custom>
-					<custom name="x" value="3.14" version="-1" />
+					<custom name="x" value="3.14" version="" />
 				</custom>
 			</rt_info>
 			<input>
