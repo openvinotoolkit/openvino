@@ -72,7 +72,7 @@ std::shared_ptr<ov::Model> GatedMLPFunction::initReference() const {
     auto fc_up_weights = makeWeights(m_weights_shapes[1], 7);
     auto fc_down_weights = makeWeights(m_weights_shapes[2], 11);
 
-    NodeVector subgraph_inputs = {data, fc_gate_weights, fc_up_weights, fc_down_weights};
+    OutputVector subgraph_inputs = {data, fc_gate_weights, fc_up_weights, fc_down_weights};
 
     auto param1 = std::make_shared<ov::op::v0::Parameter>(data->get_element_type(), data->get_output_partial_shape(0));
     auto param2 = std::make_shared<ov::op::v0::Parameter>(fc_gate_weights->get_element_type(), fc_gate_weights->get_output_partial_shape(0));
