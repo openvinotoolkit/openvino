@@ -491,7 +491,7 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
 // }
 
 ov::pass::RoPEFusionVIT3D::RoPEFusionVIT3D() {
-    using namespace ov::op;
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionVIT3D);
 
     auto x = pattern::any_input(pattern::rank_equals(3));
@@ -502,8 +502,12 @@ ov::pass::RoPEFusionVIT3D::RoPEFusionVIT3D() {
     auto varsplit = pattern::wrap_type<v1::VariadicSplit>({x, 2, {"half_ndims", "?"}});
     varsplit->set_output_size(2);
 
-    auto x2neg = pattern::wrap_type<v1::Multiply>({varsplit->output(0), -1.0f}, {{"auto_broadcast", "numpy"}});
-    auto x_rotate_half = pattern::wrap_type<v0::Concat>({x2neg, varsplit->output(1)}, {{"axis", -1}});
+    auto int32_max = std::numeric_limits<std::int32_t>::max();
+
+    auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, 2);
+    auto x2neg = pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto x1 = NewGenSlice(x, 0, "half_ndims", 1, 2);
+    auto x_rotate_half = pattern::wrap_type<v0::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 
     auto mul_cos = pattern::wrap_type<v1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
     auto mul_sin = pattern::wrap_type<v1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
