@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "openvino/util/bit_cast.hpp"
+#include "openvino/core/type/bit_cast.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -7,7 +7,7 @@
 #include <cstring>
 #include <type_traits>
 
-#include "openvino/util/cpp_version.hpp"
+#include "openvino/core/visibility.hpp"
 
 #if defined(OPENVINO_CPP_VER_AT_LEAST_20)
 #    include <bit>

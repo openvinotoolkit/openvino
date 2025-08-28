@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/util/bit_cast.hpp"
+#include "openvino/core/type/bit_cast.hpp"
 
 #define ROUND_MODE_TO_NEAREST_EVEN
 
