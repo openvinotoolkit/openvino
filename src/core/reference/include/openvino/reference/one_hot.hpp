@@ -18,8 +18,8 @@ void one_hot(const INPUT_TYPE* indices,
              const int64_t one_hot_axis,
              const char* on_value,
              const char* off_value,
-             const op::v1::OneHot::NegativeIndicesMode mode) {
-    const bool is_mode_normalize = mode == op::v1::OneHot::NegativeIndicesMode::NORMALIZE;
+             const op::v16::OneHot::NegativeIndicesMode mode) {
+    const bool is_mode_normalize = mode == op::v16::OneHot::NegativeIndicesMode::NORMALIZE;
     const size_t num_ind = shape_size(indices_shape);
     // Step 1: Set off_value to the output.
     for (auto p = out; p < out + num_ind * depth * out_elem_size; p += out_elem_size)

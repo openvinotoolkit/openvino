@@ -10,7 +10,6 @@
 namespace ov {
 namespace op {
 namespace util {
-
 template <class T>
 struct GetNotNegative {
     const Node* m_op;
@@ -23,9 +22,8 @@ struct GetNotNegative {
         return static_cast<T>(v);
     }
 };
-}  // namespace util
-namespace v1 {
-void inline resolve_axis(OneHot* op) {
+
+void inline resolve_axis(OneHotBase* op) {
     if (op->get_input_size() < 1) {
         return;
     }
@@ -33,12 +31,12 @@ void inline resolve_axis(OneHot* op) {
     if (indices_shape.rank().is_static()) {
         op->m_axis = ov::util::try_normalize_axis(op->m_axis, indices_shape.rank() + 1, *op);
     }
-}
+}  // namespace util
 
 template <class T, class TRShape = result_shape_t<T>>
-std::vector<TRShape> shape_infer(const OneHot* op,
-                                 const std::vector<T>& input_shapes,
-                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+std::vector<TRShape> shape_infer_base(const OneHotBase* op,
+                                      const std::vector<T>& input_shapes,
+                                      const ITensorAccessor& ta = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
     using DimType = typename T::value_type;
     const auto& indices_shape = input_shapes[0];
@@ -77,6 +75,25 @@ std::vector<TRShape> shape_infer(const OneHot* op,
     }
     return output_shapes;
 }
+}  // namespace util
+
+namespace v1 {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const OneHot* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 const ITensorAccessor& ta = make_tensor_accessor()) {
+    return util::shape_infer_base(op, input_shapes, ta);
+}
 }  // namespace v1
+
+// namespace v16 {
+// template <class TShape, class TRShape = result_shape_t<TShape>>
+// std::vector<TRShape> shape_infer(const OneHot* op,
+//                                  const std::vector<TShape>& input_shapes,
+//                                  const ITensorAccessor& ta = make_tensor_accessor()) {
+//     return util::shape_infer_base(op, input_shapes, ta);
+// }
+// }  // namespace v16
+
 }  // namespace op
 }  // namespace ov

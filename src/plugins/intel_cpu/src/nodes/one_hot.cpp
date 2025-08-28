@@ -65,7 +65,10 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         depth = depthNode->cast_vector<uint32_t>()[0];
     }
     axis = static_cast<int32_t>(oneHot->get_axis());
-    is_mode_normalize = oneHot->get_negative_indices_mode() == ov::op::v1::OneHot::NegativeIndicesMode::NORMALIZE;
+    if (const auto oneHot_v16 = ov::as_type_ptr<const ov::op::v16::OneHot>(op)) {
+        is_mode_normalize =
+            oneHot_v16->get_negative_indices_mode() == ov::op::v16::OneHot::NegativeIndicesMode::NORMALIZE;
+    }
 
     VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
     if (ov::is_scalar(srcDims)) {

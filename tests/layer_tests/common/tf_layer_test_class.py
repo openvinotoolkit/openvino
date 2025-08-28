@@ -131,8 +131,8 @@ class CommonTFLayerTest:
         # Compare Ie results with Framework results
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
                                                       framework_eps=custom_eps), \
-            "Comparing with Framework failed: input={}; ie_res={}; framework_res={}.".format(inputs_dict,
-                                                                                   infer_res, fw_res)
+            "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
+                                                                                   fw_res)
 
     # Feed dict for each input is filled with random number.
     # It is possible to redefine this function and generate your own input
