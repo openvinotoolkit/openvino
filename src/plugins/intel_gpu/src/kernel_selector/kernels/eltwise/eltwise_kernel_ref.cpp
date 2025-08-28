@@ -7,8 +7,6 @@
 
 namespace kernel_selector {
 
-static inline void GetInnerFeatureBlockSize(const DataTensor&, size_t&, size_t&);
-
 ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -60,16 +58,6 @@ KernelsPriority EltwiseKernelRef::GetKernelsPriority(const Params& /*params*/) c
 JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) const {
     auto jit = EltwiseKernelBase::GetJitConstants(params);
 
-    size_t batch_block_size = 0;
-    size_t feature_block_size = 0;
-    GetInnerFeatureBlockSize(params.outputs[0], batch_block_size, feature_block_size);
-    if (params.operations[0].mode == EltwiseMode::ASSIGN) {
-        if (batch_block_size > 1)
-            jit.AddConstant(MakeJitConstant("BATCH_BLOCK_SIZE", batch_block_size));
-        if (feature_block_size > 1)
-            jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", feature_block_size));
-    }
-
     if (!params.fused_ops.empty()) {
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);
 
@@ -108,50 +96,4 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
 
     return jit;
 }
-
-static inline void GetInnerFeatureBlockSize(const DataTensor& tensor, size_t& block_b, size_t& block_f) {
-    auto layout = tensor.GetLayout();
-    switch (layout) {
-    case DataLayout::b_fs_yx_fsv4:
-        block_b = 1;
-        block_f = 4;
-        break;
-    case DataLayout::b_fs_yx_fsv16:
-        block_b = 1;
-        block_f = 16;
-        break;
-    case DataLayout::b_fs_yx_fsv32:
-    case DataLayout::b_fs_zyx_fsv32:
-        block_b = 1;
-        block_f = 32;
-        break;
-    case DataLayout::bs_fs_yx_bsv16_fsv16:
-    case DataLayout::bs_fs_zyx_bsv16_fsv16:
-        block_b = 16;
-        block_f = 16;
-        break;
-    case DataLayout::bs_fs_yx_bsv16_fsv32:
-    case DataLayout::bs_fs_zyx_bsv16_fsv32:
-        block_b = 16;
-        block_f = 32;
-        break;
-    case DataLayout::bs_fs_yx_bsv32_fsv16:
-    case DataLayout::bs_fs_zyx_bsv32_fsv16:
-        block_b = 32;
-        block_f = 16;
-        break;
-    case DataLayout::bs_fs_yx_bsv32_fsv32:
-    case DataLayout::bs_fs_zyx_bsv32_fsv32:
-        block_b = 32;
-        block_f = 32;
-        break;
-    case DataLayout::bfyx:
-    case DataLayout::bfzyx:
-    default:
-        block_b = 1;
-        block_f = 1;
-    }
-    return;
-}
-
 }  // namespace kernel_selector
