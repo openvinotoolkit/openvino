@@ -20,10 +20,10 @@ namespace intel_npu {
 using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 
 struct GraphDescriptor {
-    GraphDescriptor(ze_graph_handle_t handle = nullptr, void* data = nullptr);
+    GraphDescriptor(ze_graph_handle_t handle = nullptr, bool memoryPersistent = false);
 
     ze_graph_handle_t _handle = nullptr;
-    void* _data = nullptr;
+    bool _memoryPersistent = false;
 };
 
 /**
@@ -52,6 +52,7 @@ public:
     std::string getCompilerSupportedOptions() const;
 
     bool isOptionSupported(std::string optname) const;
+    bool isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const;
 
     void getGraphBinary(const GraphDescriptor& graphDescriptor,
                         std::vector<uint8_t>& blob,
@@ -74,8 +75,7 @@ private:
 
     void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
 
-    void* importCpuVa(void* data, size_t size, const uint32_t flags = 0) const;
-    bool releaseCpuVa(void* data);
+    bool canCpuVaBeImported(void* data, size_t size, const uint32_t flags = 0) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;
