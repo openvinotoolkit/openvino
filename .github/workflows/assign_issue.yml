@@ -6,6 +6,8 @@ on:
   issues:
     types: [assigned, unassigned]
 
+permissions: read-all
+
 jobs:
   handle-issue:
     runs-on: ubuntu-latest
