@@ -35,6 +35,10 @@ public:
     }
 
 protected:
+    void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override {
+        return jit_loop_begin_base_emitter::validate_arguments(in, out);
+    }
+
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
                         const std::vector<size_t>& pool_vec_idxs,
