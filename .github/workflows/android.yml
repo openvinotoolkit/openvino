@@ -164,7 +164,7 @@ jobs:
           repository: 'oneapi-src/oneTBB'
           path: ${{ env.TBB_SRC }}
           submodules: 'true'
-          ref: ${{ env.TBB_VERSION }}
+          ref: ${{ env.TBB_BRANCH }}
           
       - name: Configure OneTBB CMake project
         run: |
