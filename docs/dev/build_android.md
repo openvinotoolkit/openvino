@@ -77,7 +77,7 @@ To improve the parallelism performance of the OpenVINO™ library using OneTBB, 
 
 ### Clone OpenVINO™ GenAI (Optional)
   ```sh
-  git clone --recursive https://github.com/openvinotoolkit/openvino.genai $OPV_HOME_DIR/openvino-genai
+  git clone --recursive https://github.com/openvinotoolkit/openvino.genai $OPV_HOME_DIR/openvino.genai
   ```
 
 ### Build and install OpenVINO™
