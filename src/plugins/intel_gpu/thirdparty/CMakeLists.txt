@@ -9,7 +9,7 @@ set(XETLA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/xetla/include/" CACHE PATH "P
 #
 
 if(ENABLE_ONEDNN_FOR_GPU)
-    function(build_onednn_gpu)
+    function(build_onednn_gpu GPU_RUNTIME)
         include(ExternalProject)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build")
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install" CACHE PATH "Installation path for oneDNN GPU library")
@@ -113,7 +113,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
                 "-DDNNL_CPU_RUNTIME=NONE"
-                "-DDNNL_GPU_RUNTIME=OCL"
+                "-DDNNL_GPU_RUNTIME=${GPU_RUNTIME}"
                 "-DDNNL_LIBRARY_NAME=${DNNL_GPU_LIBRARY_NAME}"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
@@ -160,7 +160,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/ngen"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/config"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/gemm/include"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/gemm/jit/include"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party/ngen")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_DLL
@@ -188,5 +188,5 @@ if(ENABLE_ONEDNN_FOR_GPU)
                     COMPONENT ${OV_CPACK_COMP_CORE})
         endif()
     endfunction()
-    build_onednn_gpu()
+    build_onednn_gpu(${GPU_RT_TYPE})
 endif()
