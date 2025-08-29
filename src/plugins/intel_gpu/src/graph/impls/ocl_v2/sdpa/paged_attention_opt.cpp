@@ -242,11 +242,15 @@ PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_par
         mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, *impl_param.strm);
 
         const auto past_lens_size = past_lens_mem_lock.size();
-        for (size_t i = 0; i < past_lens_size; i++) {
-            if (past_lens_mem_lock[i] != 0) {
-                return PagedAttentionStage::MIXED;
+        std::cout << "past_lens_size: " << past_lens_size << " past_lens: " << past_lens_mem_lock[0] << std::endl;
+        // if (past_lens_size > 1) {
+            for (size_t i = 0; i < past_lens_size; i++) {
+                if (past_lens_mem_lock[i] != 0) {
+                    return PagedAttentionStage::MIXED;
+                }
             }
-        }
+        // }
+
         return PagedAttentionStage::PREFILL;
     }
     return PagedAttentionStage::UNKNOWN;
@@ -1169,9 +1173,7 @@ public:
 
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
-        if (use_micro_sdpa && stage == PagedAttentionStage::PREFILL)
-            return get_micro_tile_qsize(pa_sdpa_micro->kd);
-        return default_block_size;
+        return use_micro_sdpa ? get_micro_tile_qsize(pa_sdpa_micro->kd) : default_block_size;
     }
 #else
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
@@ -1213,22 +1215,19 @@ public:
             rt_params->paged_attention_snap_kv_tokens = 0;
         }
 
-        if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            // Determine if sdpa_micro can be used based on sliding_window and aliged_seq_len
-            bool support_sliding_window =
-                desc->sliding_window == 0 || (desc->sliding_window > 0 && rt_params->paged_attention_aligned_seq_len < desc->sliding_window);
-            rt_params->use_micro_sdpa = supports_micro_sdpa(params) && support_sliding_window;
+        // Determine if sdpa_micro can be used based on sliding_window and aliged_seq_len
+        bool support_sliding_window =
+            desc->sliding_window == 0 || (desc->sliding_window > 0 && rt_params->paged_attention_aligned_seq_len < desc->sliding_window);
+        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && support_sliding_window;
 #else
-            rt_params->use_micro_sdpa = false;
+        rt_params->use_micro_sdpa = false;
 #endif
-            rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
-        } else {
-            rt_params->use_micro_sdpa = false;
-        }
+        rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
+            rt_params->use_gqa_kernel = false;//can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
+            rt_params->use_micro_sdpa = false;
         }
         return;
     }
@@ -1272,11 +1271,17 @@ public:
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
             if (rt_params->use_gqa_kernel) {
+                // std::cout << "use_gqa_kernel " << num_of_partitions << " , " << rt_params->use_micro_sdpa << std::endl;
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
-                res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                if (multi_tokens_mode && rt_params->use_micro_sdpa)
+                    res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
+                else
+#endif
+                    res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
             }
-            if (num_of_partitions > 1) {
+            if (num_of_partitions > 1 && (!rt_params->use_micro_sdpa || rt_params->use_gqa_kernel)) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token_finalization : pa_single_token_finalization)};
             }
         }
@@ -1364,11 +1369,9 @@ public:
             const auto max_context_len = get_max_context_len(params);
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
-        bool can_use_micro_sdpa = stage == PagedAttentionStage::PREFILL;
+        bool can_use_micro_sdpa = false; //stage == PagedAttentionStage::PREFILL;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa &= has_stage(pa_sdpa_micro);
-#else
-        can_use_micro_sdpa = false;
+        can_use_micro_sdpa = has_stage(pa_sdpa_micro) && stage != PagedAttentionStage::GENERATE;
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
@@ -1440,14 +1443,14 @@ public:
 
         // PREFILL stage without scores_output doesn't require additional buffers for softmax, exp_sums and max_logits.
         // GENERATE/MIXED stages require additional buffers for softmax, exp_sums and max_logits.
-        if (!can_use_micro_sdpa && (stage != PagedAttentionStage::PREFILL || has_scores_output)) {
+        // if (!can_use_micro_sdpa && (stage != PagedAttentionStage::PREFILL || has_scores_output)) {
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
             internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
-        }
+        // }
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
-        if (multi_tokens_mode) {
+        if (multi_tokens_mode || can_use_micro_sdpa) {
             internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable);  // 9
         }
 
@@ -1456,7 +1459,7 @@ public:
             const auto wg_tile_q = get_micro_tile_qsize(pa_sdpa_micro->kd);
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
-            internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
+            internal_buffers.emplace_back(indexes_buf_size * 30, indexes_dt, lockable);
         }
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: internal_buffers.size = " << internal_buffers.size() << std::endl;
@@ -1567,8 +1570,8 @@ public:
             sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
         }
 
-        if (stage == PagedAttentionStage::PREFILL && use_micro_sdpa) {
-            const auto memory_idx = 3;  // intermediate_idx for micro kernel
+        if (use_micro_sdpa) {
+            const auto memory_idx = 7;  // intermediate_idx for micro kernel
             auto memory = intermediates_memories[memory_idx];
             micro_sdpa_block_starts_and_gws_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(memory, stream));
         }
