@@ -236,7 +236,7 @@ inline matrix<float, _kv_step, _q_step> ugemm_KQ(uint slm_K, matrix_ref<half, nu
 template<int num_P_tiles = REG_N/REG_M, int num_rO_tiles>
 inline void ugemm_PV0(uint slm_V, matrix_ref<half, REG_N, REG_K> P, matrix_ref<float, num_rO_tiles, REG_M*REG_N> rO, uint slm_offset = 0) {
     constexpr int _head_size = num_rO_tiles*REG_N/num_P_tiles;
-    
+
     auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
     #pragma unroll
     for(int k = 0, ri = 0; k < _head_size; k += REG_N, ri += num_P_tiles) {
@@ -312,6 +312,74 @@ vector<float, cols> online_softmax_update(matrix_ref<T, rows, cols> St, vector_r
     return max_comp;
 }
 
+#ifdef CM_HAS_LSC_UNTYPED_2D
+    #define cm_load_normal cm_load<lsc::Normal>
+    #define cm_load_transpose cm_load<lsc::Transpose>
+    #define cm_load_vnni cm_load<lsc::VNNI>
+    #define cm_store_normal cm_store
+#else
+    // simulation of LSC API using SVM API
+    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    inline void cm_load_normal(vector_ref<T, NBlocks*BlockH*BlockW> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
+        static_assert(NBlocks == 1);
+        auto pitch = Desc.get_pitch() + 1;
+        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+        #pragma unroll
+        for(int i = 0; i < BlockH; i++) {
+            cm_svm_block_read(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
+        }
+    }
+
+    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    inline void cm_load_transpose(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
+        static_assert(NBlocks == 1);
+        auto pitch = Desc.get_pitch() + 1;
+        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+        matrix<T, BlockH, BlockW> temp;
+        #pragma unroll
+        for(int i = 0; i < BlockH; i++) {
+            cm_svm_block_read(base + i * pitch, temp[i]);
+        }
+        Transpose2DMatrix(temp, Res.format<T, BlockW, BlockH>());
+    }
+
+    // in VNNI case, NBlocks is increasing along X dimension (increase cache-line usage)
+    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    inline void cm_load_vnni(vector_ref<T, NBlocks*BlockW*BlockH> Res, const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, int16_t Pred = 1) {
+        static_assert(NBlocks == 1 || NBlocks == 2);
+        // each block must be a full XMX B matrix
+        static_assert(BlockH == REG_K);
+        static_assert(BlockW == REG_N);
+        auto pitch = Desc.get_pitch() + 1;
+        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+        matrix<T, BlockH, NBlocks * BlockW> temp;
+        #pragma unroll
+        for(int i = 0; i < BlockH; i++) {
+            cm_svm_block_read(base + i * pitch, temp[i]);
+        }
+
+        auto out_vnni = Res.format<T, NBlocks * (BlockH/2), 2*BlockW>();
+        #pragma unroll
+        for(int i = 0; i < NBlocks; i ++) {
+            out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 0) = temp.select<BlockH/2, 2, BlockW, 1>(0, i*BlockW);
+            out_vnni.select<BlockH/2, 1, BlockW, 2>(i*(BlockH/2), 1) = temp.select<BlockH/2, 2, BlockW, 1>(1, i*BlockW);
+        }
+    }
+
+    template <typename T = int, unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+    inline void cm_store_normal(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc, vector_ref<T, NBlocks*BlockW*BlockH> Res) {
+        static_assert(NBlocks == 1);
+        auto pitch = Desc.get_pitch() + 1;
+        auto base = reinterpret_cast<svmptr_t>(Desc.get_base() + Desc.get_block_y()*pitch + Desc.get_block_x() * sizeof(T));
+        #pragma unroll
+        for(int i = 0; i < BlockH; i++) {
+            cm_svm_block_write(base + i * pitch, Res.select<BlockW, 1>(i*BlockW));
+        }
+    }
+#endif
+
+
+
 //===============================================================================================
 template <int i, int N, int M>
 constexpr void apply_causal_mask(matrix_ref<float, N, M> St) {
@@ -322,6 +390,7 @@ constexpr void apply_causal_mask(matrix_ref<float, N, M> St) {
 }
 
 #ifdef CM_HAS_LSC_UNTYPED_2D
+
 template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_qkv_fused = 0>
 void sdpa_kernel_lsc(
     uint slm_K,
@@ -481,7 +550,6 @@ void sdpa_kernel_lsc(
         cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
     }
 }
-
 
 template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_qkv_fused, int wg_local_size>
 void sdpa_kernel_lsc_prefetch(
@@ -655,6 +723,226 @@ void sdpa_kernel_lsc_prefetch(
             #pragma unroll
             for(int r = 0; r < cO.n_rows(); r++) {
                 cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
+            }
+        }
+        b2dO.set_block_x(k);
+        cm_store(b2dO.set_block_y(0), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(0));
+        cm_store(b2dO.set_block_y(REG_M), cur_O_f16.format<half, num_P_tiles, REG_M * REG_N>().row(1));
+    }
+}
+
+template<bool use_causal_mask, int num_heads, int num_kv_heads, int head_size, int is_qkv_fused, int wg_local_size>
+void pa_kernel_lsc_prefetch(
+    int wg_local_id,
+    int q_start,
+    int kv_stop, //
+    int q_len, //q_step
+    int kv_len, //not used for now
+    svmptr_t q_base [[type("svmptr_t")]],
+    svmptr_t k_base [[type("svmptr_t")]],
+    svmptr_t v_base [[type("svmptr_t")]],
+#if SPARSE_BLOCK_SIZE > 1
+    svmptr_t sparse_mask_base [[type("svmptr_t")]],
+#endif
+    svmptr_t o_base [[type("svmptr_t")]],
+    int32_t past_lens,
+    int32_t* block_indices [[type("svmptr_t")]]) {
+    constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
+    constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) : o_pitch;
+    // constexpr uint k_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
+    // constexpr uint v_pitch = is_qkv_fused ? q_pitch : (num_kv_heads * head_size * sizeof(half));
+    //[block_num, kv_heads, block_size, head_size]
+    constexpr uint k_pitch =  head_size * sizeof(half);
+    constexpr uint v_pitch = k_pitch;
+
+    vector<float, q_step> cur_max;
+    vector<float, q_step> cur_sum;
+
+    bool need_comp = false;
+
+    cur_max = -3e38f;
+    cur_sum = 0;
+    constexpr int num_P_tiles = REG_N / REG_M;
+    matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
+    matrix <float, head_size/REG_N*num_P_tiles, REG_M*REG_N> rO;
+
+    auto q_tokens_left = q_len;
+    static_assert(q_step == REG_N);
+    static_assert(kv_step == REG_K);
+
+    if (q_tokens_left < 0) q_tokens_left = 0;
+    if (q_tokens_left > q_step) q_tokens_left = q_step;
+
+#if SPARSE_BLOCK_SIZE > 1
+    // printf("wg:%d.%d  q: %d, +%d   kv: %d, x-attn: %p\n", 0, wg_local_id, q_start, q_tokens_left, kv_stop, reinterpret_cast<bool*>(sparse_mask_base));
+#endif
+
+    if (q_tokens_left > 0) {
+        lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dQ(reinterpret_cast<uint*>(q_base), q_tokens_left - 1, head_size*sizeof(half) - 1, q_pitch - 1, 0, 0);
+        #pragma unroll
+        for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri++) {
+            cm_load<lsc::Transpose>(rQ[ri].format<uint>(), b2dQ.set_block_x(k));
+            rQ[ri].format<half>() = cm_mul<half>(rQ[ri].format<half>(), (half)scale_factor);
+        }
+    }
+
+    lsc::block_2d_desc<half, 1, kv_step, REG_K> b2dK(k_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(half) - 1, k_pitch - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, REG_K, REG_N> b2dV(v_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(half) - 1, v_pitch - 1, 0, 0);
+
+    static_assert(wg_local_size == 16);
+    lsc::block_2d_desc<half, 1, kv_step/wg_local_size, REG_K> prefetch_K(k_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(half) - 1, k_pitch - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, REG_K/wg_local_size, REG_N> prefetch_V(v_base, CMPA_BLOCK_SZ - 1, head_size*sizeof(half) - 1, v_pitch - 1, 0, 0);
+    constexpr int blk_stride = CMFLA_NUM_KV_HEADS*CMFLA_HEAD_SIZE*CMPA_BLOCK_SZ;
+    int causal_left = q_start+past_lens;
+
+    for(int kv_pos = 0; kv_pos < kv_stop; kv_pos += kv_step) {
+        auto cur_block_id = block_indices[kv_pos / CMPA_BLOCK_SZ];
+        //For the last step, duplicate prefetch here.
+        uint32_t prefetch_kv_pos = (kv_pos+kv_step) >= kv_stop ?  kv_pos : (kv_pos+kv_step);
+        auto prefetch_block_id = block_indices[prefetch_kv_pos / CMPA_BLOCK_SZ];
+        //# St = k @ Qt
+        matrix<float, kv_step, q_step> St; // = ugemm_KQ(slm_K, rQ, slm_offset);
+        {
+            constexpr int num_K = kv_step/REG_M;
+            auto St2 = St.format<float, num_K, REG_M*REG_N>();
+
+            matrix<half, num_K, REG_M * REG_K> Kmat;
+            //cm_slm_block_read(slm_K, GENX_NONE, slm_offset, Kmat.format<half>());
+
+            prefetch_K.set_base_ptr((reinterpret_cast<half*>(k_base)+prefetch_block_id*blk_stride));
+            prefetch_K.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
+            cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(0));
+
+#if SPARSE_BLOCK_SIZE > 1
+            {
+                auto kv_start_block = kv_pos/ SPARSE_BLOCK_SIZE;
+                bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
+                if (!sparse_mask) {
+                    if constexpr (use_causal_mask) {
+                        causal_left -= kv_step;
+                    }
+                    continue;
+                }
+            }
+#endif
+
+            b2dK.set_base_ptr((reinterpret_cast<half*>(k_base)+cur_block_id*blk_stride));
+            b2dK.set_block_y(kv_pos%CMPA_BLOCK_SZ);
+            cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(0));
+            #pragma unroll
+            for(int k = 0; k < num_K; k++)
+                St2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                0,
+                                rQ[0].format<int32_t>(),
+                                Kmat[k].format<int32_t>());
+
+            #pragma unroll
+            for(int ri = 1; ri < head_size/REG_K; ri++) {
+                //cm_slm_block_read(slm_K, GENX_NONE, slm_offset + ri * Kmat.n_elems() * sizeof(half), Kmat.format<half>());
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_K.set_block_x(ri*REG_K));
+                cm_load<lsc::Normal>(Kmat.format<half>(), b2dK.set_block_x(ri*REG_K));
+                #pragma unroll
+                for(int k = 0; k < num_K; k++) {
+                    St2.row(k) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                        St2.row(k),
+                        rQ[ri].format<int32_t>(),
+                        Kmat[k].format<int32_t>());
+                }
+            }
+        }
+        if constexpr (use_causal_mask) {
+            // since kv_step == q_step == 16, causal_left is n*kv_step
+            if (causal_left == 0) {
+                apply_causal_mask<1>(St);
+            } else if (causal_left < 0) {
+                St = -3.4e38f;
+            }
+            causal_left -= kv_step;
+        } else {
+            int kv_tokens = kv_stop - kv_pos;
+            // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
+            for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+        }
+
+        // show(St);
+        auto max_comp = online_softmax_update(St, cur_max, cur_sum);
+
+        matrix<half, REG_N, REG_K> P;
+        Transpose2DMatrix(St, P);
+
+        prefetch_V.set_base_ptr((reinterpret_cast<half*>(v_base)+prefetch_block_id*blk_stride));
+        prefetch_V.set_block_y((prefetch_kv_pos + wg_local_id) % CMPA_BLOCK_SZ);
+
+        b2dV.set_base_ptr((reinterpret_cast<half*>(v_base)+cur_block_id*blk_stride));
+        b2dV.set_block_y(kv_pos%CMPA_BLOCK_SZ);
+        if (need_comp == false) {
+            // ugemm_PV0(slm_V, P, rO, slm_offset);
+            auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            #pragma unroll
+            for(int k = 0, ri = 0; k < head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount, float>(
+                                    0,
+                                    Vmat.format<int32_t>(),
+                                    P2.row(p).format<int32_t>());
+                    // show(rO[ri + p].format<float, REG_M, REG_N>());
+                }
+            }
+
+            need_comp = true;
+        }
+        else {
+            //ugemm_PV1(slm_V, P, max_comp, rO, slm_offset);
+            auto P2 = P.format<half, num_P_tiles, REG_M * REG_K>();
+            #pragma unroll
+            for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {
+                matrix<half, REG_K/2, REG_N*2> Vmat;
+
+                cm_prefetch<CacheHint::Cached, CacheHint::Cached>(prefetch_V.set_block_x(k));
+                cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_x(k));
+
+                //# compensate cur_O
+                //  matrix <float, head_size/REG_K*2, REG_M*REG_N> rO;
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+                    #pragma unroll
+                    for(int r = 0; r < REG_M; r++)
+                        cO.row(r) = cm_mul<float>(cO.row(r), max_comp[r + p*REG_M]);
+                }
+
+                #pragma unroll
+                for(int p = 0; p < num_P_tiles; p++) {
+                    rO[ri + p] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                                rO[ri + p].format<float>(),
+                                Vmat.format<int32_t>(),
+                                P2.row(p).format<int32_t>());
+                    // show(rO[ri + p].format<float, REG_M, REG_N>());
+                }
+            }
+        }
+    }
+    if (q_tokens_left == 0) return;
+
+    //# save cur_O/cur_sum.transpose(0, 1)
+    matrix<half, num_P_tiles*REG_M, REG_N> cur_O_f16;
+    cur_sum = cm_inv(cur_sum);
+
+    lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_left - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
+
+    #pragma unroll
+    for(int k = 0, ri=0; k < head_size; k += REG_N, ri += num_P_tiles) {
+        #pragma unroll
+        for(int p = 0; p < num_P_tiles; p++) {
+            auto cO = rO[ri + p].format<float, REG_M, REG_N>();
+            #pragma unroll
+            for(int r = 0; r < cO.n_rows(); r++) {
+                cur_O_f16[r + p*REG_M] = cm_mul<float>(cO.row(r), cur_sum[r + p*REG_M]);
+
             }
         }
         b2dO.set_block_x(k);
