@@ -26,12 +26,12 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/deformable_psroi_pooling.hpp"
 #include "openvino/op/psroi_pooling.hpp"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
@@ -669,7 +669,7 @@ void PSROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
               ctx,
               std::tie(inputPrec, outputPrec),
               OV_CASE2(ov::element::f32, ov::element::f32, float, float),
-              OV_CASE2(ov::element::bf16, ov::element::bf16, bfloat16_t, bfloat16_t))
+              OV_CASE2(ov::element::bf16, ov::element::bf16, bfloat16, bfloat16))
 }
 
 bool PSROIPooling::created() const {

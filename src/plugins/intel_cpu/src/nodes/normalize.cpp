@@ -46,12 +46,12 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "selective_build.h"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -1596,7 +1596,7 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
               OV_CASE2(ov::element::u8, ov::element::f32, uint8_t, float),
               OV_CASE2(ov::element::i8, ov::element::f32, int8_t, float),
               OV_CASE2(ov::element::f32, ov::element::f32, float, float),
-              OV_CASE2(ov::element::bf16, ov::element::bf16, bfloat16_t, bfloat16_t),
+              OV_CASE2(ov::element::bf16, ov::element::bf16, bfloat16, bfloat16),
               OV_CASE2(ov::element::f16, ov::element::f16, dnnl::impl::float16_t, dnnl::impl::float16_t));
 
     return ctx.executor;

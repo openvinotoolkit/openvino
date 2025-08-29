@@ -6,6 +6,8 @@
 #include <kernels/x64/jit_kernel.hpp>
 #include <random>
 
+#include "openvino/core/type/bfloat16.hpp"
+
 using namespace ov::intel_cpu;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -356,7 +358,7 @@ TEST(JitKernel, variable_load_and_store) {
     }
 
     {
-        jit_variable_load_store_test_kernel<float, bfloat16_t> kernel;
+        jit_variable_load_store_test_kernel<float, ov::bfloat16> kernel;
         if (mayiuse(cpu_isa_t::avx512_core)) {
             kernel.test<16, 4, true>();
             kernel.test<16, 11, true>();
@@ -393,7 +395,7 @@ TEST(JitKernel, variable_load_and_store) {
     }
 
     {
-        jit_variable_load_store_test_kernel<int32_t, bfloat16_t> kernel;
+        jit_variable_load_store_test_kernel<int32_t, ov::bfloat16> kernel;
         if (mayiuse(cpu_isa_t::avx512_core)) {
             kernel.test<16, 11, true>();
         }
