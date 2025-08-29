@@ -127,6 +127,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: 'openvino'
+          submodules: 'recursive'
 
       - name: Clone OpenVINO GenAI
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -136,12 +137,6 @@ jobs:
           path: ${{ env.OPENVINO_GENAI_REPO }}
           submodules: 'true'
           ref: ${{ env.TARGET_BRANCH }}
-
-      - name: Init submodules
-        run: |
-          pushd ${OPENVINO_REPO}
-            git submodule update --init --recursive
-          popd
 
       #
       # Print system info
