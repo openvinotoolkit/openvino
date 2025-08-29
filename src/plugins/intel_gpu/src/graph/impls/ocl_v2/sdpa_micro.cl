@@ -153,7 +153,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         global SCALE_DATA_T *scale_ptr,
 #endif
 #if HAS_SINK_INPUT
-        const global SINK_DATA_T *sink_ptr,
+        global SINK_DATA_T *sink_ptr,
 #endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
@@ -319,12 +319,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     float scale = native_recip(iscale);
 #endif
 #endif
-// scale : 0.125
-// iscale : 8 
-//    printf("scale : %f\n", scale);
-#ifndef HAS_SINK_INPUT
     scale *= 1.442695f; // log2(e)
-#endif
 
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
     float masked_scale = iscale * STATIC_SCALAR_ATTN_MASK_VALUE;
@@ -459,19 +454,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #define mask_scale_op(x) ((x) + masked_scale)
         tile_elementwise(S_tile, mask_scale_op);
 #elif WITH_ATTN_MASK
-#if HAS_SINK_INPUT
-        mask_tile_type_float mask_tile_float;
-        tile_copy(mask_tile, mask_tile_float);
-#define s_scale(x) ((x)*scale)
-        tile_elementwise(S_tile, s_scale);
-        tile_binary(S_tile, mask_tile_float, binary_add);
-#else
 #define unscale(x) ((x)*iscale)
         mask_tile_type_float mask_tile_float;
         tile_copy(mask_tile, mask_tile_float);
         tile_elementwise(mask_tile_float, unscale);
         tile_binary(S_tile, mask_tile_float, binary_add);
-#endif
 #endif
 
         /* Apply k mask */
@@ -495,23 +482,15 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #if HAS_SINK_INPUT
 
         const int head_idx = get_group_id(1);
-        const float sink_val = convert_float(sink_ptr[head_idx]);
+        const SINK_DATA_T sink_val = sink_ptr[head_idx];
         float2 sink_val_vec = {sink_val, sink_val};
         const int cur_k = k - k0 * ugemm_kq_wg_tile_m;
         const bool is_last_m_sg = last && (sg_i_kq == cur_k / ugemm_kq_sg_tile_m);
-//        if (head_idx == 0 && get_local_id(0) == 0) {
-//                printf("is_last_m_sg : %d, head_n: %d, sg_i_kq :%d, (%d,%d,%d), original max: %f sink_val: %f\n", \
-//                        is_last_m_sg, head_idx, sg_i_kq, get_global_id(0), get_global_id(1), get_global_id(2), S_max_tile.x[0][0], sink_val);
-//        }
+
         if (is_last_m_sg) {
 //            if (ugemm_kq_sg_per_wg_n == 1 && head_idx < 4)
 //                printf("first : %d last : %d last_m_Sg? %d! gid :(%d,%d,%d), head_idx : %d, k : %d, sg_i_kq: %d, sink_val : %f ugemm_kq_sg_tile_m : %d, ugemm_kq_wg_tile_m : %d \n", \
 //                first, last, is_last_m_sg, get_global_id(0), get_global_id(1), get_global_id(2), head_idx, k, sg_i_kq, sink_val, ugemm_kq_sg_tile_m, ugemm_kq_wg_tile_m);
-//        if (head_idx == 0 && get_local_id(0) == 0) {
-//                printf("is_last_m_sg : %d, head_n: %d, sg_i_kq :%d, (%d,%d,%d), original max: %f sink_val: %f\n", \
-//                        is_last_m_sg, head_idx, sg_i_kq, get_global_id(0), get_global_id(1), get_global_id(2), S_max_tile.x[0][0], sink_val);
-//        }
-
         #if (ugemm_kq_sg_tile_n/SUBGROUP_SIZE) > 1
             #define max_sink(x) (fmax(x, sink_val_vec))
             tile_elementwise(S_max_tile, max_sink);
@@ -580,14 +559,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         tile_vbroadcast_sub(&S_tile, S_max_tile);
 
-#ifdef HAS_SINK_INPUT
-#define s_exp(x) native_exp(x)
-        tile_elementwise_s(S_tile, s_exp);
-#else
 /* Scale + exponentiate */
 #define scaled_exp(x) native_vexp2(x *scale)
         tile_elementwise(S_tile, scaled_exp);
-#endif
 
 #ifdef ALT_MAX
         /* Read back WG-wide maxima and adjust S to match */
@@ -610,10 +584,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         if (is_last_m_sg){
             s_sum_tile_type sink_minus_max_exp;
             tile_fill(sink_minus_max_exp, convert_float(sink_val));
-            #define binary_neg(x, y) ((x) - (y))
-            tile_binary(sink_minus_max_exp, S_max_tile, binary_neg);
-            #define scaled_exp(x) native_exp(x)
-            tile_elementwise_s(sink_minus_max_exp, scaled_exp);
+            #define binary_exp_neg(x, y) native_vexp2(((x) - (y)))
+            tile_binary(sink_minus_max_exp, S_max_tile, binary_exp_neg);
             tile_binary(S_sum_tile1, sink_minus_max_exp, binary_add);
             #undef binary_exp_neg
         }
