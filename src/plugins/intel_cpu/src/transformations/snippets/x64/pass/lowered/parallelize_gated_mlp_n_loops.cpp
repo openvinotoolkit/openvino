@@ -44,6 +44,7 @@ bool ParallelizeGatedMlpNLoops::run(LinearIR& linear_ir, LinearIR::constExprIt b
     const auto& loop_manager = linear_ir.get_loop_manager();
     for (const auto& brgemm : brgemm_expressions) {
         const auto& out_subtensor = brgemm->get_output_port_descriptor(0)->get_subtensor();
+        OPENVINO_ASSERT(out_subtensor.size() == 2, "Brgemm out subtensor should be 2D");
         // If there are no blocking loop by N, then we have nothing to parallelize
         if (ov::snippets::utils::is_full_dim_value(out_subtensor.back())) {
             continue;
@@ -52,7 +53,7 @@ bool ParallelizeGatedMlpNLoops::run(LinearIR& linear_ir, LinearIR::constExprIt b
         // Bloking loop order: M -> N -> K
         // so N loop can be first(if M loop is absent) or second.
         const size_t n_loop_idx = ov::snippets::utils::is_full_dim_value(*(out_subtensor.rbegin() + 1)) ? 0 : 1;
-        const auto loop_idces = brgemm->get_loop_ids();
+        const auto& loop_idces = brgemm->get_loop_ids();
         OPENVINO_ASSERT(loop_idces.size() > n_loop_idx, "BrgemmCPU expr have N blocking loop");
         const auto n_loop_info = loop_manager->get_loop_info(loop_idces[n_loop_idx]);
         n_loop_info->set_is_parallel(true);

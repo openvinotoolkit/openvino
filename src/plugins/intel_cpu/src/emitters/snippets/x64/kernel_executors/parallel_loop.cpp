@@ -44,7 +44,7 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, call_ar
 
     const auto num_ptrs = loop_args->m_num_data_ptrs;
     const auto increment =
-        // Note: dynamic increment means tail loop which is equal to work amount
+        // Note: dynamic increment means tail loop whose increment is always equal to work amount
         static_cast<int>(ov::snippets::utils::is_dynamic_value(config.get_increment()) ? loop_args->m_work_amount
                                                                                        : config.get_increment());
     const int num_chunks = static_cast<int>(loop_args->m_work_amount) / increment;

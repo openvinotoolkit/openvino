@@ -70,18 +70,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
             m_mem_ptr_regs_idxs.emplace_back(r.idx);
         }
     }
-    m_work_amount_reg_idx = loop_end_input_regs.back().idx;
     m_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, ParallelLoopConfig(m_wa_increment));
-}
-
-void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in,
-                                                         const std::vector<size_t>& out) const {
-    jit_loop_begin_base_emitter::validate_arguments(in, out);
-    OV_CPU_JIT_EMITTER_ASSERT(out.back() == m_work_amount_reg_idx,
-                              "Invalid out reg: expected ",
-                              m_work_amount_reg_idx,
-                              " got ",
-                              out.back());
 }
 
 std::set<snippets::Reg> jit_parallel_loop_begin_emitter::get_regs_to_spill_except_mem_ptr_regs() const {
@@ -106,11 +95,10 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call(std::vector<Xb
     // Spill before parallel for => we'll need them to update data ptrs afterwards
     h->sub(h->rsp, reserved_stack_size);
 
-    auto push_reg_on_stack = [&](Reg64 reg, size_t offset) {
-        utils::push_ptr_with_static_offset_on_stack(h, offset, reg);
-    };
     for (size_t i = 0; i < m_mem_ptr_regs_idxs.size(); ++i) {
-        push_reg_on_stack(Reg64(m_mem_ptr_regs_idxs[i]), call_args_size + i * sizeof(uintptr_t*));
+        utils::push_ptr_with_static_offset_on_stack(h,
+                                                    call_args_size + i * sizeof(uintptr_t*),
+                                                    Reg64(m_mem_ptr_regs_idxs[i]));
     }
 
     const auto& aux_reg = get_call_address_reg();
@@ -125,23 +113,23 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call(std::vector<Xb
     if (m_is_dynamic) {
         h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(loop_args)]);
         h->lea(aux_reg, h->ptr[aux_reg + m_loop_id_offset]);
-        push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(loop_args));
+        utils::push_ptr_with_static_offset_on_stack(h, GET_OFF_PARALLEL_LOOP_ARGS(loop_args), aux_reg);
     } else {
         h->mov(aux_reg, reinterpret_cast<uintptr_t>(&m_loop_args));
-        push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(loop_args));
+        utils::push_ptr_with_static_offset_on_stack(h, GET_OFF_PARALLEL_LOOP_ARGS(loop_args), aux_reg);
     }
     h->mov(aux_reg, *m_loop_preamble_label);
-    push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(preamble_ptr));
+    utils::push_ptr_with_static_offset_on_stack(h, GET_OFF_PARALLEL_LOOP_ARGS(preamble_ptr), aux_reg);
     h->lea(aux_reg, h->qword[h->rsp + call_args_size]);
-    push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(mem_ptrs));
+    utils::push_ptr_with_static_offset_on_stack(h, GET_OFF_PARALLEL_LOOP_ARGS(mem_ptrs), aux_reg);
 
     h->mov(aux_reg, reinterpret_cast<uintptr_t>(ParallelLoopExecutor::execute));
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_executor.get()));
     h->mov(abi_param2, h->rsp);
 
     binary_call_reg_spiller.rsp_align(get_callee_saved_reg().getIdx());
-    // Note: we will return from this call only when the parallel region is finished (return from
-    // jit_parallel_loop_end_emitter)
+    // Note: we will return from this call only when the parallel region is finished
+    // (h->ret() from jit_parallel_loop_end_emitter)
     h->call(aux_reg);
     binary_call_reg_spiller.rsp_restore();
 
@@ -156,7 +144,8 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call(std::vector<Xb
 }
 
 void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization(
-    const std::vector<Xbyak::Reg>& regs_to_restore) const {
+    const std::vector<Xbyak::Reg>& regs_to_restore,
+    size_t work_amount_reg_idx) const {
     h->L(*m_loop_preamble_label);
 
     std::set<snippets::Reg> loop_premble_spill;
@@ -183,10 +172,10 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization(
     if (abi_param2_collision_index.has_value()) {
         const auto collision_idx = abi_param2_collision_index.value();
         h->mov(abi_param2, h->ptr[abi_param2 + collision_idx * sizeof(uintptr_t*)]);
-        OPENVINO_ASSERT(m_work_amount_reg_idx != static_cast<size_t>(abi_param2.getIdx()),
+        OPENVINO_ASSERT(work_amount_reg_idx != static_cast<size_t>(abi_param2.getIdx()),
                         "Unexpected collision: the same reg is allocated for work_amount and memory pointer");
     }
-    h->mov(Reg64(m_work_amount_reg_idx), abi_param1);
+    h->mov(Reg64(work_amount_reg_idx), abi_param1);
 
     const auto& aux_reg = get_call_address_reg();
     OV_CPU_JIT_EMITTER_ASSERT(
@@ -206,7 +195,7 @@ void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vect
     std::vector<Xbyak::Reg> regs_to_restore;
     emit_parallel_executor_call(regs_to_restore);
     // Note: parallel region starts here. The only legal entry point is from ParallelLoopExecutor::execute(...)
-    emit_parallel_region_initialization(regs_to_restore);
+    emit_parallel_region_initialization(regs_to_restore, out.back());
 }
 
 jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(jit_generator_t* h,

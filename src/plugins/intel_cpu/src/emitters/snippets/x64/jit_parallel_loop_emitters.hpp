@@ -42,19 +42,20 @@ protected:
         jit_loop_begin_base_emitter::emit_code_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
     }
 
-    void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     void emit_parallel_executor_call(std::vector<Xbyak::Reg>& used_regs) const;
-    void emit_parallel_region_initialization(const std::vector<Xbyak::Reg>& regs_to_restore) const;
+    void emit_parallel_region_initialization(const std::vector<Xbyak::Reg>& regs_to_restore,
+                                             size_t work_amount_reg_idx) const;
     std::set<snippets::Reg> get_regs_to_spill_except_mem_ptr_regs() const;
 
     bool m_is_dynamic = false;
-    size_t m_work_amount_reg_idx = 0;
-
     std::vector<size_t> m_mem_ptr_regs_idxs;
     jit_snippets_call_args::loop_args_t m_loop_args;
 
+    // Label pointing to the per-thread initialization code that is called by ParallelLoopExecutor
+    // for each thread in the parallel region. This preamble initializes thread-specific context
+    // including register state restoration, memory pointer setup, and work amount configuration.
     std::shared_ptr<Xbyak::Label> m_loop_preamble_label = nullptr;
     std::shared_ptr<ParallelLoopExecutor> m_executor = nullptr;
     // This spiller is used to spill registers inside the parallel section of each thread
