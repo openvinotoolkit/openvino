@@ -32,6 +32,8 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "transformations/snippets/x64/op/fa.hpp"
+#include "transformations/snippets/x64/op/fa_utils.hpp"
 
 namespace ov::intel_cpu::pass {
 
@@ -63,11 +65,22 @@ BrgemmExternalRepackingAdjuster::RepackExecutorPtr BrgemmExternalRepackingAdjust
 
     for (const auto& consumer : consumers) {
         auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(consumer.get_expr()->get_node());
-        if (!brgemm) {
+        auto fa = ov::as_type_ptr<ov::intel_cpu::FACPU>(consumer.get_expr()->get_node());
+        if (!brgemm && !fa) {
             continue;
         }
 
-        const auto& brgemm_config = brgemm->get_config();
+        brgemm_utils::BrgemmConfig brgemm_config;
+        if (brgemm) {
+            brgemm_config = brgemm->get_config();
+        } else {
+            auto fa_config = fa->get_config();
+            brgemm_config = brgemm_utils::BrgemmConfig(fa_config.src_dt(),
+                                                       fa_config.wei_dt(),
+                                                       fa_config.orig_wei_dt(),
+                                                       false,
+                                                       fa_config.transposed_b());
+        }
         if (brgemm_config.with_wei_repacking() && consumer.get_index() == 1) {
             OPENVINO_ASSERT(brgemm_config.with_compensations() == false,
                             "External repacking for BrgemmCPU with compensations is not supported.");
@@ -164,7 +177,6 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
                                                      : CPURuntimeConfig::RepackingImplType::SEPARATE;
 
     const auto is_impl_parallel = cpu_config->repacking_impl_type == CPURuntimeConfig::RepackingImplType::IN_PARALLEL;
-
     for (const auto& p : m_executors) {
         const auto& i = p.first;
         const auto& executor = p.second;
