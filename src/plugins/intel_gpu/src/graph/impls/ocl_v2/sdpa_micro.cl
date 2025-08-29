@@ -491,6 +491,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         /* Before softmax, we will need to scale columns by maximum values to avoid overflow. */
 
         /* Compute our maxima and reduce across SLM */
+        #if HAS_SINK_INPUT
+        tile_fill(S_max_tile, -INFINITY);
+        #endif
         tile_vreduce_max(S_tile, &S_max_tile);
         #if HAS_SINK_INPUT
 
@@ -523,8 +526,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #endif
         }
         #endif
+        #if HAS_SINK_INPUT
+        #else
         tile_atomic_max_full(
                 S_max_tile, S_max_slm, ugemm_kq_wg_tile_n, sg_j0_kq, 0);
+        #endif
         intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
 
         int k_chunk = min(k - k0, ugemm_kq_wg_tile_m);
@@ -575,7 +581,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #ifndef ALT_MAX
         /* Read back WG-wide maxima */
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
+        #if HAS_SINK_INPUT
+        #else
         tile_load_full(&S_max_tile, S_max_slm, ugemm_kq_wg_tile_n, sg_j0_kq, 0);
+        #endif
 #endif
 
         tile_vbroadcast_sub(&S_tile, S_max_tile);
@@ -631,11 +640,18 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Rescale existing accumulator and sums to match new maxima */
         if (!first) {
+#if HAS_SINK_INPUT
+        // TODO 
+        // A_tile = (sum_tile/sum_tile1) * A_tile 
+        // A_tile : float8 x[2]
+        // sum_tile float2 x[1]
+        A_tile.x[0] = (S_sum_tile.x[0][0] / S_sum_tile1.x[0][0]) * A_tile.x[0];
+        A_tile.x[1] = (S_sum_tile.x[0][1] / S_sum_tile1.x[0][1]) * A_tile.x[1];
+#else //!HAS_SINK_INPUT
 #define binary_exp_sub(x, y) native_vexp2(scale *((x) - (y)))
 #define binary_mul(x, y) ((x) * (y))
             tile_binary(S_max_tile_old, S_max_tile, binary_exp_sub);
             tile_binary(S_sum_tile, S_max_tile_old, binary_mul);
-
             /* Find the subset of sums that applies to the accumulation tile */
             a_scale_tile_type A_scale_tile;
 #if ugemm_kq_wg_tile_n == ugemm_vs_wg_tile_n \
@@ -649,19 +665,24 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #error unimplemented
 #endif
             tile_hbroadcast_mul(&A_tile, A_scale_tile);
+#endif
         }
-
-        /* Accumulate sums */
-        tile_binary(S_sum_tile, S_sum_tile1, binary_add);
-
-        /* Save maxima */
-        tile_copy(S_max_tile, S_max_tile_old);
-
-        /* Last iteration: store column sums in SLM */
-        if (last) {
-            tile_store_full(S_sum_tile, S_sum_slm, ugemm_kq_wg_tile_n, sg_j0_kq,
-                    sg_i_kq);
-        }
+#if HAS_SINK_INPUT
+//        tile_copy(S_sum_tile, S_sum_tile1);
+        tile_copy(S_sum_tile1, S_sum_tile);
+#else
+//        /* Accumulate sums */
+//        tile_binary(S_sum_tile, S_sum_tile1, binary_add);
+//
+//        /* Save maxima */
+//        tile_copy(S_max_tile, S_max_tile_old);
+//
+//        /* Last iteration: store column sums in SLM */
+//        if (last) {
+//            tile_store_full(S_sum_tile, S_sum_slm, ugemm_kq_wg_tile_n, sg_j0_kq,
+//                    sg_i_kq);
+//        }
+#endif
 
 #ifdef PREFETCH_K
         /* Prefetch next K tile. */
@@ -760,31 +781,43 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if VAL_ZERO_POINTS == QUANTIZE_2D
         V_zp += ldvq * ugemm_kq_wg_tile_m / VAL_ZP_ELEMENTS_PER_BYTE;
 #endif
+
+#if HAS_SINK_INPUT
+        // TODO
+        // A_tile1 = A_tile1 / sum_tile_1
+        // A : float8 x[2]
+        // sum : float2 x[1]
+        A_tile1.x[0] = A_tile1.x[0] / S_sum_tile1.x[0][0];
+        A_tile1.x[1] = A_tile1.x[1] / S_sum_tile1.x[0][1];
+#endif
         tile_binary(A_tile, A_tile1, binary_add);
     }
 
     /* Wait for column sums to be ready */
     if (need_sum_barrier) intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
 
-    /* Load column sums from SLM + reduce in registers */
-    a_scale_tile_type A_scale_tile, A_scale_tile_load;
-    tile_fill(A_scale_tile, 0.0f);
-
-#pragma unroll
-    for (uint sg1 = 0; sg1 < ugemm_kq_sg_per_wg_m; sg1++) {
-        tile_load_full(&A_scale_tile_load, S_sum_slm, ugemm_kq_wg_tile_n,
-                ugemm_vs_sg_tile_n * sg_j_vs, sg1);
-        tile_binary(A_scale_tile, A_scale_tile_load, binary_add);
-    }
-
-#if VAL_SCALES == QUANTIZE_COMMON
-#define v_scale_op(x) ((x)*v_scale)
-    tile_elementwise(A_tile, v_scale_op);
+#ifdef HAS_SINK_INPUT
+#else
+//    /* Load column sums from SLM + reduce in registers */
+//    a_scale_tile_type A_scale_tile, A_scale_tile_load;
+//    tile_fill(A_scale_tile, 0.0f);
+//
+//#pragma unroll
+//    for (uint sg1 = 0; sg1 < ugemm_kq_sg_per_wg_m; sg1++) {
+//        tile_load_full(&A_scale_tile_load, S_sum_slm, ugemm_kq_wg_tile_n,
+//                ugemm_vs_sg_tile_n * sg_j_vs, sg1);
+//        tile_binary(A_scale_tile, A_scale_tile_load, binary_add);
+//    }
+//
+//#if VAL_SCALES == QUANTIZE_COMMON
+//#define v_scale_op(x) ((x)*v_scale)
+//    tile_elementwise(A_tile, v_scale_op);
+//#endif
+//
+//    /* Rescale by 1 / (column sums) */
+//    tile_elementwise(A_scale_tile, native_vrecip);
+//    tile_hbroadcast_mul(&A_tile, A_scale_tile);
 #endif
-
-    /* Rescale by 1 / (column sums) */
-    tile_elementwise(A_scale_tile, native_vrecip);
-    tile_hbroadcast_mul(&A_tile, A_scale_tile);
 
     /* Convert to half precision and store */
     a_tile_type_half A_tile_half;
