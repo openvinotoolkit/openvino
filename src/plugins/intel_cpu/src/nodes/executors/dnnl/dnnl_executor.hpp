@@ -137,8 +137,7 @@ private:
             return;
         }
 
-        originalMemDesc =
-            Primitive::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc, m_attrs.weightsNonTransposed);
+        originalMemDesc = Primitive::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc, m_attrs);
 
         const auto weiMemory = utils::prepareWeightsMemory(originalMemDesc, newPrimMemDesc, memory, m_context, true);
         m_primArgs[DNNL_ARG_WEIGHTS] = weiMemory->getPrimitive();

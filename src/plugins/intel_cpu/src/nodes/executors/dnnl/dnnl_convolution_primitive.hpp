@@ -92,7 +92,11 @@ public:
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
-                                                            bool weightsNonTransposed);
+                                                            const ConvAttrs& attrs);
+
+    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                            const DnnlMemoryDescPtr& dstDesc,
+                                                            const FCAttrs& attrs);
 
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const ConvAttrs& attrs,
                                                             const MemoryArgs& memory,
