@@ -168,7 +168,6 @@ jobs:
           
       - name: Configure OneTBB CMake project
         run: |
-          mkdir -p ${{ env.TBB_INSTALL }}
           cmake \
             -G '${{ env.CMAKE_GENERATOR }}' \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
