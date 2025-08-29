@@ -193,6 +193,7 @@
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
+#include "transformations/common_optimizations/multi_scale_deformable_attn_fusion.hpp"
 #include "openvino/util/log.hpp"
 
 namespace {
@@ -1334,6 +1335,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::EliminatePad>();
 
         manager.register_pass<ov::pass::ConstantsReduce>();
+        manager.register_pass<ov::pass::MultiScaleDeformableAttnFusion>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
