@@ -90,8 +90,13 @@ jobs:
         include:
           - arch: arm64
             android_abi: arm64-v8a
+            android_sdk_version: 30
           - arch: x64
             android_abi: x86_64
+            android_sdk_version: 30
+          - arch: riscv64
+            android_abi: riscv64
+            android_sdk_version: 35
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_android }}
       volumes:
@@ -113,7 +118,7 @@ jobs:
       BUILD_DIR: '/__w/openvino/openvino/build'
       ANDROID_TOOLS: '/deps/android_tools'
       ANDROID_NDK_HOME: '/deps/android_tools/ndk/28.2.13676358'
-      ANDROID_SDK_VERSION: 30
+      ANDROID_SDK_VERSION: ${{ matrix.android_sdk_version }}
       ANDROID_ABI_CONFIG: ${{ matrix.android_abi }}
       TBB_BRANCH: 'v2022.2.0'
       TBB_SRC: "/__w/openvino/openvino/build/onetbb-src"
