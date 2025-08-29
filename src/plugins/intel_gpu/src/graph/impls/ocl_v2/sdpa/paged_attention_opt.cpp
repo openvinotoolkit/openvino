@@ -242,15 +242,11 @@ PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_par
         mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, *impl_param.strm);
 
         const auto past_lens_size = past_lens_mem_lock.size();
-        std::cout << "past_lens_size: " << past_lens_size << " past_lens: " << past_lens_mem_lock[0] << std::endl;
-        // if (past_lens_size > 1) {
-            for (size_t i = 0; i < past_lens_size; i++) {
-                if (past_lens_mem_lock[i] != 0) {
-                    return PagedAttentionStage::MIXED;
-                }
+        for (size_t i = 0; i < past_lens_size; i++) {
+            if (past_lens_mem_lock[i] != 0) {
+                return PagedAttentionStage::MIXED;
             }
-        // }
-
+        }
         return PagedAttentionStage::PREFILL;
     }
     return PagedAttentionStage::UNKNOWN;
@@ -1091,6 +1087,7 @@ public:
     Stage::Ptr pa_scores_calc = make_stage<PagedAttentionGeneratorScoresCalculation>();
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
+    Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
 #endif
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
@@ -1103,6 +1100,7 @@ public:
         const bool use_micro_sdpa = supports_micro_sdpa(params);
         if (use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
+            add_stage(pa_sdpa_micro_mixed, params);
         }
 #endif
 
@@ -1271,12 +1269,11 @@ public:
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
             if (rt_params->use_gqa_kernel) {
-                // std::cout << "use_gqa_kernel " << num_of_partitions << " , " << rt_params->use_micro_sdpa << std::endl;
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa)
-                    res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
+                    res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
                 else
 #endif
                     res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};

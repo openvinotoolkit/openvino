@@ -145,9 +145,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         global half *A,
 #if IS_PAGED_ATTENTION
         const __global INPUT3_TYPE* subsequence_begins,
+    #if IS_PREFILL == 0
         const __global INPUT3_TYPE* past_lens,
         const __global INPUT3_TYPE* block_indices,
         const __global INPUT3_TYPE* block_indices_begins,
+    #endif
 #endif
 #if WITH_ATTN_MASK
         const global half *msk,
@@ -177,11 +179,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     const uint subsequence_begin = subsequence_begins[gws_mapping];
     const uint subsequence_end = subsequence_begins[gws_mapping + 1];
     const uint subsequence_query_block_idx = block_start_pos - subsequence_begin;
-    const uint past_len = past_lens[gws_mapping];
     const int q = subsequence_end - subsequence_begin;
-    const int k = q + past_len;
+#if IS_PREFILL
+    const int k = q;
+#else
+    const int k = q + past_lens[gws_mapping];
+#endif
     const int d = HEAD_SIZE;
-//     printf("block_start_pos: %d , gws_mapping: %d \n", block_start_pos, gws_mapping);
 #endif
     uint sg_ij = sub_group_broadcast(get_local_id(1), 0);
     uint b0 = get_group_id(1);
@@ -195,19 +199,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     /* Leading dimension for matrices */
 #if IS_PAGED_ATTENTION
-    // uint ldk = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
-    uint ldk = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
     uint ldq = HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
-    // uint ldv = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
-    uint ldv = HEAD_SIZE;
     uint lda = HEAD_SIZE * HEADS_NUM;
-    #if IS_KV_COMPRESSED_PA
-        #if IS_KEY_BY_CHANNEL
-            uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
-        #else
-            uint ldkq = 1;
+    #if IS_PREFILL
+        uint ldk = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
+        uint ldv = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
+    #else
+        uint ldk = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+        uint ldv = HEAD_SIZE;
+        #if IS_KV_COMPRESSED_PA
+            #if IS_KEY_BY_CHANNEL
+                uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
+            #else
+                uint ldkq = 1;
+            #endif
+            uint ldvq = 1;
         #endif
-        uint ldvq = 1;
     #endif
 #else
     uint ldk = TRANSPOSE_K ? KEY_S3 : KEY_S2;
@@ -252,83 +259,24 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             + S_sum_slm_size + S_max_slm_size];
 
     const bool need_sum_barrier = (ugemm_vs_barrier_count == 0);
-//     if (get_global_id(0) == 0 && get_global_id(1) == 0 && get_global_id(2) == 0) {
-//         #if IS_PAGED_ATTENTION
-//                 printf("subsequence_begins: ");
-//                 for (int aaa = 0; aaa < 16; aaa++) {
-//                 printf("%d ", subsequence_begins[aaa]);
-//                 }
-//                 printf("\n");
-//                 printf("past_lens: ");
-//                 for (int aaa = 0; aaa < 16; aaa++) {
-//                 printf("%d ", past_lens[aaa]);
-//                 }
-//                 printf("\n");
-//                 printf("block_indices: ");
-//                 for (int aaa = 0; aaa < 16; aaa++) {
-//                 printf("%d ", block_indices[aaa]);
-//                 }
-//                 printf("\n");
-//                 printf("block_indices_begins: ");
-//                 for (int aaa = 0; aaa < 16; aaa++) {
-//                 printf("%d ", block_indices_begins[aaa]);
-//                 }
-//                 printf("\n");
 
-//                 printf("K ");
-//                 for (int jjj = 0; jjj < 16; jjj++) {
-//                         // printf("%f ", S_tile.x[0][jjj]);
-//                         #if IS_KV_COMPRESSED_PA
-//                                 printf("%d ", K[jjj]);
-//                         #else
-//                                 printf("%f ", K[jjj]);
-//                         #endif
-//                 }
-//                 printf("\n");
-//                 int hoho = 2 * 68 * 16;
-//                 for (int jjj = 0; jjj < 16; jjj++) {
-//                         // printf("%f ", S_tile.x[0][jjj]);
-//                         #if IS_KV_COMPRESSED_PA
-//                                 printf("%d ", K[hoho + jjj]);
-//                         #else
-//                                 printf("%f ", K[hoho + jjj]);
-//                         #endif
-//                 }
-//                 printf("\n");
-//         #endif
-
-//         // printf("%d %d %d\n", KEY_S2, KEY_S3, ldk);
-//         // printf("%d %d %d\n", ldq, ldv, lda);
-
-//         // printf("d: %d , k: %d , q : %d, HEAD_SIZE: %d , HEADS_NUM: %d\n", d, k, q, HEAD_SIZE, HEADS_NUM);
-
-//         // printf("%d, %d, %d\n", D_MAX, ugemm_kq_wg_tile_n, Q_slm_size);
-//         // for (int aaa = 0; aaa < 2; aaa++) {
-//         //     for (int bbb = 0; bbb < 64; bbb++) {
-//         //         for (int ccc = 0; ccc < 16; ccc++) {
-//         //             int iii = aaa * 64 * 16 + bbb * 16 + ccc;
-//         //             printf("%f ", K[iii]);
-//         //         }
-//         //         printf("\n");
-//         //     }
-//         //     printf("\n");
-//         // }
-//         // printf("\n");
-//     }
     /* Locate K/Q/V/A matrices within batch */
 #if IS_PAGED_ATTENTION
-    const uint base_block_index = block_indices_begins[gws_mapping];
-
-    K += b0_kv * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
-//        + KV_HEADS_NUM * HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + sg_i_kq]
-//        - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
-// //        + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
     Q += subsequence_begin * ldq
        + b0 * HEAD_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
-    V += b0_kv * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
-//        + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     A += subsequence_begin * lda
        + b0 * HEAD_SIZE;
+    #if IS_PREFILL
+        K += subsequence_begin * ldk
+           + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
+        V += subsequence_begin * ldv
+           + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
+    #else
+        const uint base_block_index = block_indices_begins[gws_mapping];
+
+        K += b0_kv * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+        V += b0_kv * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+    #endif
 #else
     K += (KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET) / KEY_ELEMENTS_PER_BYTE;
     Q += (QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET);
@@ -496,9 +444,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         uint sg_j0_kq = sg_j_kq * ugemm_kq_sg_tile_n;
 
         int k_chunk = min(k - k0, ugemm_kq_wg_tile_m);
-        // if (get_local_id(0) == 1 && get_local_id(1) == 2 && get_local_id(2) == 0 && b0 == 0) {
-        //     printf("k0: %d\n", k0);
-        // }
 
 #if WITH_ATTN_MASK
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
@@ -526,7 +471,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
         /* Calculate S = (K^T) * Q */
-#if IS_PAGED_ATTENTION
+#if IS_PAGED_ATTENTION && IS_PREFILL == 0
         int k_block_num = k0 / ugemm_kq_sg_tile_m + sg_i_kq;
         global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
                                - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
@@ -564,37 +509,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #endif
 #endif
                 );
-
-        // if (get_local_id(0) == 0 && get_local_id(1) == 1 && get_local_id(2) == 0 && b0 == 0) {
-        //     printf("sg_i_kq: %d , sg_j_kq: %d , k_chunk: %d,\n", sg_i_kq, sg_j_kq, k_chunk);
-        //     for (int iii = 0; iii < 4; iii++) {
-        //         for (int jjj = 0; jjj < 8; jjj++) {
-        //             printf("%f ", S_tile.x[iii][jjj]);
-        //         }
-        //         printf("\n");
-        //     }
-        //     printf("\n");
-        // // //     for (int iii = 0; iii < 256; iii++) {
-        // // //         for (int jjj = 0; jjj < 16; jjj++) {
-        // // //             int ddd = iii * 16 + jjj;
-        // // //             printf("%f ", Q_slm[ddd]);
-        // // //         }
-        // // //         printf("\n");
-        // // //         // printf("%f ", Q_slm[jjj + 0]);
-        // // //     }
-        // // //     printf("\n");
-        //     for (int jjj = 0; jjj < 16; jjj++) {
-        //         // printf("%f ", S_tile.x[0][jjj]);
-        //         #if IS_KV_COMPRESSED_PA
-        //                 printf("%d ", K0[jjj + PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq]);
-        //         #else
-        //                 printf("%f ", K0[jjj + PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq]);
-        //         #endif
-        //     }
-        //     #if IS_KV_COMPRESSED_PA
-        //     printf("K0_scales: %f , K0_zp: %f\n", ((global half *)K0_scales)[0], ((global half *)K0_zp)[0]);
-        //     #endif
-        // }
 
 #if KEY_SCALES == QUANTIZE_COMMON
 #define k_scale_op(x) ((x)*k_scale)
@@ -861,17 +775,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     /* cache */ LSC_LDCC_L1UC_L3C);
         }
 #endif
-        // if (get_local_id(0) == 0 && get_local_id(1) == 0 && get_local_id(2) == 0 && b0 == 0) {
-        //         for (int iii = 0; iii < ugemm_kq_wg_tile_n; iii++) {
-        //                 for (int jjj = 0; jjj < ugemm_kq_wg_tile_m; jjj++) {
-        //                         int idx = iii * ugemm_kq_wg_tile_m + jjj;
-        //                         S_slm[idx] = 0.f;
-        //                 }
-        //         }
-        //         int idx = (int)Q[0];
-        //         printf("idx: %d\n", idx);
-        //         S_slm[idx] = 1.f;
-        // }
 
         /* Wait for S stores */
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
@@ -881,7 +784,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
 
         /* Accumulate A += V * S */
-#if IS_PAGED_ATTENTION
+#if IS_PAGED_ATTENTION && IS_PREFILL == 0
         for (int kb0 = 0; kb0 < k_chunk; kb0 += PAGED_ATTENTION_BLOCK_SIZE) {
             uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
             local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
@@ -922,44 +825,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 ldvq
 #endif
         );
-        // if (get_local_id(0) == 0 && get_local_id(1) == 4 && get_local_id(2) == 0 && b0 == 0) {
-        //         // printf("S_slm [%d %d]\n", ugemm_kq_wg_tile_n, ugemm_kq_wg_tile_m);
-        //         // for (int iii = 0; iii < ugemm_kq_wg_tile_n; iii++) {
-        //         //         for (int jjj = 0; jjj < ugemm_kq_wg_tile_m; jjj++) {
-        //         //                 int idx = iii * ugemm_kq_wg_tile_m + jjj;
-        //         //                 printf("%f ", S_slm[idx]);
-        //         //         }
-        //         //         printf("\n");
-        //         // }
-        //         printf("V [%d %d]\n", k, HEAD_SIZE);
-        //         for (int iii = 0; iii < k; iii++) {
-        //                 for (int jjj = 0; jjj < HEAD_SIZE; jjj++) {
-        //                         int idx = iii * HEAD_SIZE + jjj;
-        //                         printf("%f ", V[idx]);
-        //                         break;
-        //                 }
-        //                 // printf("\n");
-        //         }
-        //         printf("\n");
-        //         printf("A_tile1\n");
-        //         for (int iii = 0; iii < 4; iii++) {
-        //                 for (int jjj = 0; jjj < 8; jjj++) {
-        //                         printf("%f ", A_tile1.x[iii][jjj]);
-        //                 }
-        //                 printf("\n");
-        //         }
-        // }
+
         V += ldv * ugemm_kq_wg_tile_m / VAL_ELEMENTS_PER_BYTE;
 #endif
-        // if (get_local_id(0) == 0 && get_local_id(1) == 0 && get_local_id(2) == 0 && b0 == 0) {
-        //     for (int iii = 0; iii < ugemm_kq_wg_tile_m; iii++) {
-        //         // for (int jjj = 0; jjj < ugemm_kq_wg_tile_n; jjj++) {
-        //         //     int xxx = iii * 
-        //             printf("%f ", S_slm[iii]);
-        //         // }
-        //         printf("\n");
-        //     }
-        // }
 
 #if VAL_SCALES == QUANTIZE_2D
         V_scales += ldvq * ugemm_kq_wg_tile_m;
@@ -967,7 +835,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if VAL_ZERO_POINTS == QUANTIZE_2D
         V_zp += ldvq * ugemm_kq_wg_tile_m / VAL_ZP_ELEMENTS_PER_BYTE;
 #endif
-#if IS_PAGED_ATTENTION
+#if IS_PAGED_ATTENTION && IS_PREFILL == 0
         // already done
 #else
         tile_binary(A_tile, A_tile1, binary_add);
