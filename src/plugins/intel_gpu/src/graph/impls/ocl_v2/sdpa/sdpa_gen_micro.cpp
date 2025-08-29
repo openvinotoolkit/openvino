@@ -960,8 +960,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const auto& device_info = params.get_device_info();
 
     const auto& Q = params.input_layouts[0];
-    const auto& K = config.is_paged_attention ? params.input_layouts[3] : params.input_layouts[1];
-    const auto& V = config.is_paged_attention ? params.input_layouts[4] : params.input_layouts[2];
+    const auto& K = (config.is_paged_attention && !m_is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
+    const auto& V = (config.is_paged_attention && !m_is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
     const auto& out = params.output_layouts[0];
     const auto& out_ps = out.get_partial_shape();
 
@@ -1013,6 +1013,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("V_ALIGN", micro::alignment_for_ld(static_cast<int>(ldv)));
     jit.make("A_ALIGN", micro::alignment_for_ld(static_cast<int>(lda)));
 
+    jit.make("IS_PREFILL", m_is_prefill);
     jit.make("TRANSPOSE_K", false);
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
     jit.make("KV_HEADS_NUM", config.kv_heads_num);
@@ -1130,9 +1131,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
         jit.make("PREFETCH_MASK", 1);
-        jit.make("PREFETCH_K0", config.is_paged_attention ? 0 : 1);
-        jit.make("PREFETCH_K", config.is_paged_attention ? 0 : 1);
-        jit.make("PREFETCH_V", config.is_paged_attention ? 0 : 1);
+        jit.make("PREFETCH_K0", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
+        jit.make("PREFETCH_K", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
+        jit.make("PREFETCH_V", (config.is_paged_attention && !m_is_prefill) ? 0 : 1);
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
         jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
@@ -1225,15 +1226,23 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
     auto data_inputs_num = micro_get_input_num(params, config);
 
     if (config.is_paged_attention) {
-        args.push_back({ArgumentDescriptor::Types::INPUT, 3});   // Key cache
-        args.push_back({ArgumentDescriptor::Types::INPUT, 0});   // Q
-        args.push_back({ArgumentDescriptor::Types::INPUT, 4});   // Value cache
+        if (m_is_prefill) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 1});   // Key
+            args.push_back({ArgumentDescriptor::Types::INPUT, 0});   // Q
+            args.push_back({ArgumentDescriptor::Types::INPUT, 2});   // Value
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 3});   // Key cache
+            args.push_back({ArgumentDescriptor::Types::INPUT, 0});   // Q
+            args.push_back({ArgumentDescriptor::Types::INPUT, 4});   // Value cache
+        }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
 
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
-        args.push_back({ArgumentDescriptor::Types::INPUT, 5});  // past_lens
-        args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // block_indices
-        args.push_back({ArgumentDescriptor::Types::INPUT, 8});  // block_indices_begins
+        if (!m_is_prefill) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 5});  // past_lens
+            args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // block_indices
+            args.push_back({ArgumentDescriptor::Types::INPUT, 8});  // block_indices_begins
+        }
         if (!config.has_const_scale_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});        // scale
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7});  // blocked_indexes_start_and_gws_mapping
@@ -1355,8 +1364,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
 
     const auto& Q = params.input_layouts[0];
-    const auto& K = is_paged_attention ? params.input_layouts[3] : params.input_layouts[1];
-    const auto& V = is_paged_attention ? params.input_layouts[4] : params.input_layouts[2];
+    const auto& K = (is_paged_attention && !is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
+    const auto& V = (is_paged_attention && !is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
     auto& out = params.output_layouts[0];
     const auto& out_ps = out.get_partial_shape();
     const auto& device_info = params.get_device_info();
@@ -1420,7 +1429,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem.Ts = problem.Tc;
 
     auto problem_kq = problem;
-    problem_kq.A.layout = is_paged_attention ? micro::MatrixLayout::N : micro::MatrixLayout::T;
+    problem_kq.A.layout = (is_paged_attention && !is_prefill) ? micro::MatrixLayout::N : micro::MatrixLayout::T;
 
     /* Set up microkernel options */
     micro::GEMMProtocol::Options opts_kq;
@@ -1429,7 +1438,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     const bool use_asymmetric_quantization = configuration.use_asymmetric_quantization;
 
-    if (is_paged_attention && is_quantized) {
+    if (is_paged_attention && !is_prefill && is_quantized) {
         const auto scale_dt = convert_type(ov::element::f16);
         problem_kq.Ta_scale = scale_dt;
         problem_kq.A_scale.setAlignment(scale_dt.size());
@@ -1529,7 +1538,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_vs.Ta_ext = convert_type(V.data_type);
     problem_vs.A.layout = micro::MatrixLayout::N;
 
-    if (is_paged_attention && is_quantized) {
+    if (is_paged_attention && !is_prefill && is_quantized) {
         auto scale_dt = convert_type(ov::element::f16);
         problem_vs.Ta_scale = scale_dt;
         problem_vs.A_scale.setAlignment(scale_dt.size());
