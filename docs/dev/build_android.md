@@ -95,7 +95,7 @@ To improve the parallelism performance of the OpenVINO™ library using OneTBB, 
         -DANDROID_ABI=$CURRENT_ANDROID_ABI \
         -DANDROID_PLATFORM=$CURRENT_ANDROID_PLATFORM \
         -DANDROID_STL=$CURRENT_ANDROID_STL \
-        -DOPENVINO_EXTRA_MODULES=$OPV_HOME_DIR/openvino-genai \
+        -DOPENVINO_EXTRA_MODULES=$OPV_HOME_DIR/openvino.genai \
         -DTBB_DIR=$OPV_HOME_DIR/one-tbb-install/lib/cmake/TBB
   # Build OpenVINO™ project 
   cmake --build $OPV_HOME_DIR/openvino-build --parallel
