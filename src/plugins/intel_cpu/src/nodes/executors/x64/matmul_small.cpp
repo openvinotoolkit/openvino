@@ -26,6 +26,7 @@
 #include "nodes/kernels/x64/jit_matmul_small.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
