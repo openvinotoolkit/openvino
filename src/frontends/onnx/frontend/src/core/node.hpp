@@ -78,6 +78,7 @@ public:
 
     bool has_subgraphs() const;
     const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& get_subgraphs() const;
+    //const std::shared_ptr<ov::Model> get_subgraph(const std::string& name) const;
 
     template <typename T>
     T get_attribute_value(const std::string& name, T default_value) const;
@@ -167,6 +168,9 @@ template <>
 std::vector<Graph> Node::get_attribute_value(const std::string& name, std::vector<Graph> default_value) const;
 
 template <>
+std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name, std::shared_ptr<ov::Model> default_value) const;
+
+template <>
 float Node::get_attribute_value(const std::string& name) const;
 
 template <>
@@ -213,6 +217,9 @@ std::vector<SparseTensor> Node::get_attribute_value(const std::string& name) con
 
 template <>
 std::vector<Graph> Node::get_attribute_value(const std::string& name) const;
+
+template <>
+std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) const;
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
