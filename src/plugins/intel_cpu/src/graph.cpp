@@ -1753,10 +1753,6 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
             for (const auto& fusedNode : node->fusedWith) {
                 getPerfMapFor(perfMap, fusedNode);
             }
-
-            for (const auto& mergedWith : node->mergedWith) {
-                getPerfMapFor(perfMap, mergedWith);
-            }
         };
 
     for (const auto& graphNode : graphNodes) {
