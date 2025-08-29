@@ -2952,7 +2952,8 @@ TEST(constant_folding, constant_v1_variadic_split_axis_1_3_splits_neg_length) {
               res3_values);
 }
 
-TEST(constant_folding, constant_v1_one_hot) {
+template<typename TOpFunc> 
+void OneHotConstantFoldingGenericTest(const TOpFunc& op_func) {
     const vector<int64_t> indices{0, 1, 2};
     const float on_value = 1.123f;
     const float off_value = 0.321f;
@@ -2963,21 +2964,46 @@ TEST(constant_folding, constant_v1_one_hot) {
     const auto off_const = ov::op::v0::Constant::create(element::f32, Shape{}, {off_value});
     int64_t axis = 1;
 
-    auto one_hot_v1 = make_shared<op::v1::OneHot>(indices_const, depth_const, on_const, off_const, axis);
-    auto f = make_shared<Model>(one_hot_v1, ParameterVector{});
+    auto one_hot = op_func(indices_const, depth_const, on_const, off_const, axis);
+    auto f = make_shared<Model>(one_hot, ParameterVector{});
 
     run_constant_folding(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v1::OneHot>(f), 0);
+    ASSERT_EQ(count_ops_of_type<typename decltype(one_hot)::element_type>(f), 0);
     ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 1);
 
-    auto res = get_result_constant(f);
+    std::shared_ptr<ov::op::v0::Constant> res = get_result_constant(f);
     ASSERT_TRUE(res);
 
     ASSERT_EQ((Shape{3, 3}), res->get_output_shape(0));
     ASSERT_EQ(
         vector<float>({on_value, off_value, off_value, off_value, on_value, off_value, off_value, off_value, on_value}),
         res->get_vector<float>());
+}
+
+TEST(constant_folding, constant_v1_one_hot) {
+    OneHotConstantFoldingGenericTest([](const Output<Node>& indices,
+                                        const Output<Node>& depth,
+                                        const Output<Node>& on_value,
+                                        const Output<Node>& off_value,
+                                        int64_t axis) {
+        return make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
+    });
+}
+
+TEST(constant_folding, constant_v16_one_hot) {
+    OneHotConstantFoldingGenericTest([](const Output<Node>& indices,
+                                        const Output<Node>& depth,
+                                        const Output<Node>& on_value,
+                                        const Output<Node>& off_value,
+                                        int64_t axis) {
+        return make_shared<op::v16::OneHot>(indices,
+                                            depth,
+                                            on_value,
+                                            off_value,
+                                            axis,
+                                            op::v16::OneHot::NegativeIndicesMode::NORMALIZE);
+    });
 }
 
 TEST(constant_folding, constant_v1_one_hot_negative_axes) {
