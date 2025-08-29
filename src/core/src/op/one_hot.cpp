@@ -107,7 +107,7 @@ bool OneHot::visit_attributes(AttributeVisitor& visitor) {
 std::shared_ptr<Node> OneHot::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_OneHot_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<v16::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
+    return std::make_shared<v1::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
 }
 
 bool OneHot::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
