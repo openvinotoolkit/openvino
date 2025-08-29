@@ -437,7 +437,7 @@ public:
         mvn_results /= tensor_size ? tensor_size : 1;
         if (!incorrect_values_abs.empty() && equal(1.f, topk_threshold) ||
             incorrect_values_abs.size() > static_cast<int>(std::floor(topk_threshold * tensor_size))) {
-            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED!";
+            std::string msg = "[ COMPARATION ] COMPARATION FAILED!";
             msg.append(" abs_threshold: ")
                 .append(std::to_string(abs_threshold))
                 .append(" rel_threshold: ")
@@ -467,7 +467,7 @@ public:
 
             throw std::runtime_error(msg);
         } else if (!less_or_equal(mvn_results, mvn_threshold)) {
-            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED due to MVN THRESHOLD: ";
+            std::string msg = "[ COMPARATION ] COMPARATION FAILED due to MVN THRESHOLD: ";
             msg += std::to_string(mvn_threshold);
             msg += ". Actual MVN value is ";
             msg += std::to_string(mvn_results);
