@@ -10,7 +10,9 @@
 #include "core/graph.hpp"
 #include "core/null_node.hpp"
 #include "core/tensor.hpp"
+#include "input_model.hpp"
 #include "openvino/frontend/onnx/decoder.hpp"
+#include "openvino/frontend/onnx/graph_iterator.hpp"
 
 namespace ov {
 namespace frontend {
@@ -67,6 +69,7 @@ public:
 
     bool has_subgraphs() const;
     const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& get_subgraphs() const;
+    std::shared_ptr<ov::Model> get_subgraph(const std::string name) const;
 
     template <typename T>
     T get_attribute_value(const std::string& name, T default_value) const;
@@ -169,6 +172,13 @@ const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::Impl::ge
     return m_subgraphs;
 }
 
+std::shared_ptr<ov::Model> Node::Impl::get_subgraph(const std::string name) const {
+    auto it = m_subgraphs.find(name);
+    if (it == m_subgraphs.end())
+        return nullptr;
+    return it->second->decode();
+}
+
 template <typename T>
 T Node::Impl::get_attribute_value(const std::string& name, T default_value) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
@@ -192,6 +202,18 @@ T Node::Impl::get_attribute_value(const std::string& name) const {
 }
 
 template <>
+std::shared_ptr<ov::Model> Node::Impl::get_attribute_value(const std::string& name,
+                                                           std::shared_ptr<ov::Model> default_value) const {
+    auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
+        return attribute.get_name() == name;
+    });
+    if (it == std::end(m_attributes)) {
+        return std::forward<std::shared_ptr<ov::Model>>(default_value);
+    }
+    return get_subgraph(name);
+}
+
+template <>
 Subgraph Node::Impl::get_attribute_value(const std::string& name) const {
     return get_subgraph_from_attribute(name);
 }
@@ -199,6 +221,11 @@ Subgraph Node::Impl::get_attribute_value(const std::string& name) const {
 template <>
 ov::Any Node::get_attribute_value(const std::string& name) const {
     return get_attribute(name).get_any();
+}
+
+template <>
+std::shared_ptr<ov::Model> Node::Impl::get_attribute_value(const std::string& name) const {
+    return get_subgraph(name);
 }
 
 ov::OutputVector Node::Impl::get_ov_inputs() const {
@@ -459,7 +486,11 @@ const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::get_subg
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
+/*
+const std::shared_ptr<ov::Model> Node::get_subgraph(const std::string& name) const {
 
+}
+*/
 std::vector<std::string> Node::get_attribute_names() const {
     if (m_pimpl != nullptr) {
         std::vector<std::string> attr_names;
@@ -675,6 +706,19 @@ std::vector<Graph> Node::get_attribute_value(const std::string& name, std::vecto
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
+template <>
+std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name,
+                                                     std::shared_ptr<ov::Model> default_value) const {
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::shared_ptr<ov::Model>>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
+        auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator);
+        return input_model->get_model();
+    }
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+}
+
 // Repeat the same for the non-default_value overloads:
 
 template <>
@@ -831,6 +875,16 @@ template <>
 std::vector<Graph> Node::get_attribute_value(const std::string& name) const {
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<std::vector<Graph>>(name);
+    } else if (m_decoder != nullptr) {
+        // Non-applicable
+    }
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+}
+
+template <>
+std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) const {
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::shared_ptr<ov::Model>>(name);
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
