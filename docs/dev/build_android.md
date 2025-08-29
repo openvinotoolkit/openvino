@@ -6,8 +6,8 @@ This article describes how to build OpenVINO for Android operating systems.
 
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - [SCons](https://scons.org/pages/download.html) 4.6.0 or higher
-- [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) (this guide has been validated with 30.0.0 release)
-- [Android NDK](https://developer.android.com/ndk/downloads) (this guide has been validated with r26 release)
+- [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) (this guide has been validated with the 35.0.0 release)
+- [Android NDK](https://developer.android.com/ndk/downloads) (this guide has been validated with r28c release)
 
 ## How to build
 
@@ -21,10 +21,10 @@ This article describes how to build OpenVINO for Android operating systems.
 ### Download and unpack Android packages 
 * Download and unpack [Android NDK](https://developer.android.com/ndk/downloads)
   ```sh
-  wget https://dl.google.com/android/repository/android-ndk-r26d-${HOST_OS_TYPE}.zip --directory-prefix $OPV_HOME_DIR
+  wget https://dl.google.com/android/repository/android-ndk-r28c-${HOST_OS_TYPE}.zip --directory-prefix $OPV_HOME_DIR
 
-  unzip $OPV_HOME_DIR/android-ndk-r26d-${HOST_OS_TYPE}.zip -d $OPV_HOME_DIR
-  mv $OPV_HOME_DIR/android-ndk-r26d $OPV_HOME_DIR/android-ndk
+  unzip $OPV_HOME_DIR/android-ndk-r28c-${HOST_OS_TYPE}.zip -d $OPV_HOME_DIR
+  mv $OPV_HOME_DIR/android-ndk-r28c $OPV_HOME_DIR/android-ndk
   export ANDROID_NDK_PATH=$OPV_HOME_DIR/android-ndk
   ```
 * Download and unpack [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools)
@@ -40,7 +40,7 @@ _For Windows and Mac operating systems, the downloading and unpacking steps are 
   ```sh
   # If you have no android devices please set CURRENT_ANDROID_ABI according to your preferences e.g. export CURRENT_ANDROID_ABI=arm64-v8a
   export CURRENT_ANDROID_ABI=`$ANDROID_TOOLS_PATH/adb shell getprop ro.product.cpu.abi`
-  export CURRENT_ANDROID_PLATFORM=30
+  export CURRENT_ANDROID_PLATFORM=35
   export CURRENT_ANDROID_STL=c++_shared
   export CURRENT_CMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_PATH/build/cmake/android.toolchain.cmake
   ```

@@ -49,7 +49,7 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 ENV ANDROID_TOOLS /deps/android_tools
 ENV ANDROID_NDK_HOME /deps/android_tools/ndk/28.2.13676358
 RUN mkdir -p ${ANDROID_NDK_HOME}
-ENV ANDROID_SDK_VERSION 30
+ENV ANDROID_SDK_VERSION 35
 
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip && \
     unzip commandlinetools-linux-9123335_latest.zip
