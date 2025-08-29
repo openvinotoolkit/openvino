@@ -10,7 +10,7 @@
 
 namespace ov::test::behavior {
 
-std::string OVPropertiesTestsNPU::getTestCaseName(testing::TestParamInfo<PropertiesParamsNPU> obj) {
+std::string OVPropertiesTestsNPU::getTestCaseName(const testing::TestParamInfo<PropertiesParamsNPU>& obj) {
     std::string target_device;
     AnyMap properties;
     std::tie(target_device, properties) = obj.param;
