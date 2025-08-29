@@ -395,7 +395,7 @@ public:
                 if (scale_layout.count() == 1) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
                 } else if (ngroups == 1 && weight_rank <= 2) {
-                        attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
+                    attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
                 } else {
                     // should use {K, 1} for the group size + per tensor mask for 3d
                     // Example:
@@ -417,7 +417,7 @@ public:
                     OPENVINO_ASSERT(rank <= 3, "rank > 3d not supported");
                     auto ngroups = dzp_layout.get_dim(rank - 1);
                     if (ngroups == 1 && rank <= 2) {
-                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type);
