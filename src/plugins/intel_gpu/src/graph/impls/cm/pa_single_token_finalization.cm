@@ -1,0 +1,54 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#if 0
+#define HEADS_NUM
+#define HEAD_SIZE
+#define REDUCE_SPLIT_SIZE
+#endif
+
+//cm_sdpa_2nd_reduce
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+// extern "C" _GENX_MAIN_ void cm_sdpa_2nd_reduce(
+    half* input [[type("svmptr_t")]], // 
+    half* output [[type("svmptr_t")]],
+    float* lse [[type("svmptr_t")]],
+    int kv_partition_num
+    ) {
+        auto batch = cm_global_id(0);
+        auto head = cm_global_id(1);
+        auto offset = cm_group_id(2) * REDUCE_SPLIT_SIZE;
+        const int total_partition_num = (kv_partition_num * HEADS_NUM);
+
+        // load lse
+    #if 0
+        uint lse_offset = batch * total_partition_num + head * kv_partition_num;
+        vector<float, kv_partition_num> lse_vec;
+        cm_svm_block_read<float, kv_partition_num>((svmptr_t)(lse + lse_offset), lse_vec.format<float>());
+        float total_lse = cm_sum<float>(lse_vec);
+    #else
+        float total_lse = 0.0;
+        uint lse_offset = batch * total_partition_num + head * kv_partition_num;
+        float* lse_vec = lse + lse_offset;
+        #pragma unroll
+        for(int k = 0; k < kv_partition_num; k ++) {
+            total_lse += lse_vec[k];
+        }
+    #endif
+
+        // load input, total_partition_num = head_nums * kv_partition_num;
+        matrix<half, 1, REDUCE_SPLIT_SIZE> out_mat = 0;
+        matrix<half, 1, REDUCE_SPLIT_SIZE> data_mat;
+        uint input_offset = batch * total_partition_num * HEAD_SIZE + head * kv_partition_num * HEAD_SIZE + offset;
+        #pragma unroll
+        for(int k = 0; k < kv_partition_num; k ++) {
+            cm_svm_block_read<half, REDUCE_SPLIT_SIZE>((svmptr_t)(input + input_offset), data_mat.format<half>());
+            input_offset += HEAD_SIZE;
+            out_mat += cm_mul<half>(data_mat, (float)(lse_vec[k]/total_lse));
+        }
+
+        // write output
+        uint output_offset = batch * HEADS_NUM * HEAD_SIZE + head * HEAD_SIZE + offset;
+        cm_svm_block_write<half, REDUCE_SPLIT_SIZE>((svmptr_t)(output + output_offset),out_mat.format<half>());
+    }

@@ -25,9 +25,13 @@ struct PagedAttentionOpt : public ImplementationManager {
             ov::element::f16,
         };
         static constexpr std::array supported_kv_types = {
+            #if ENABLE_PA_CM_PATH
+            ov::element::i8,
+            #else
             ov::element::f32,
             ov::element::f16,
             ov::element::i8,
+            #endif
         };
 
         const auto& q_layout = node.get_input_layout(0);
