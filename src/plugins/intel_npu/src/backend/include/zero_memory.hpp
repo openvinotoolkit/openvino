@@ -13,7 +13,6 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "openvino/runtime/itensor.hpp"
 
 namespace intel_npu {
 namespace zeroMemory {
@@ -56,15 +55,18 @@ protected:
 class HostMemSharedAllocator final : public HostMemAllocator {
 public:
     explicit HostMemSharedAllocator(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
-                                    const std::shared_ptr<ov::ITensor>& tensor,
+                                    void* data,
+                                    size_t size,
                                     uint32_t flag = 0)
         : HostMemAllocator(initStructs, flag),
-          _tensor(tensor) {}
+          _data(data),
+          _size(size){}
 
     void* allocate(const size_t bytes = 0, const size_t alignment = utils::STANDARD_PAGE_SIZE) noexcept override;
 
 private:
-    const std::shared_ptr<ov::ITensor> _tensor;
+    void* _data;
+    size_t _size;
 };
 
 }  // namespace zeroMemory

@@ -46,6 +46,29 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     _ptr = data;
 }
 
+ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+           const Config& config,
+           const std::shared_ptr<ov::ITensor>& tensor,
+           const ov::Allocator& allocator)
+    : _init_structs(init_structs),
+      _logger("ZeroTensor", config.get<LOG_LEVEL>()),
+      _element_type{tensor->get_element_type()},
+      _shape{tensor->get_shape()},
+      _ref(tensor),
+      _capacity{_shape},
+      _strides{},
+      _strides_once{},
+      _allocator{allocator} {
+    OPENVINO_ASSERT(_element_type.is_static());
+    OPENVINO_ASSERT(allocator, "Allocator was not initialized");
+    const auto byte_size = ov::util::get_memory_size_safe(_element_type, _shape);
+    OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", _element_type, " and shape: ", _shape);
+    auto data = const_cast<ov::Allocator&>(_allocator).allocate(*byte_size);
+    OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate memory");
+    initialize_elements(data, _element_type, _shape);
+    _ptr = data;
+}
+
 // Note: Override data() members to not used OpenVINO library code to improve performance
 void* ZeroTensor::data() {
     return _ptr;

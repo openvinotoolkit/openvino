@@ -46,16 +46,22 @@ bool HostMemAllocator::is_equal(const HostMemAllocator& other) const {
     return (_initStructs == other._initStructs) && (_flag == other._flag);
 }
 
-void* HostMemSharedAllocator::allocate(const size_t /*bytes*/, const size_t /*alignment*/) noexcept {
+void* HostMemSharedAllocator::allocate(const size_t bytes, const size_t /*alignment*/) noexcept {
+
+    if (bytes > _size) {
+        _logger.error("Import size exceeds the total capacity of the allocator");
+        return nullptr;
+    }
+
     _ze_external_memory_import_system_memory_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
                                                                 nullptr,
-                                                                _tensor->data(),
-                                                                _tensor->get_byte_size()};
+                                                                _data,
+                                                                bytes};
 
     void* data = nullptr;
 
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, _flag};
-    auto result = zeMemAllocHost(_initStructs->getContext(), &desc, _tensor->get_byte_size(), _alignment, &data);
+    auto result = zeMemAllocHost(_initStructs->getContext(), &desc, bytes, _alignment, &data);
 
     if (result == ZE_RESULT_SUCCESS) {
         return data;
@@ -65,7 +71,7 @@ void* HostMemSharedAllocator::allocate(const size_t /*bytes*/, const size_t /*al
                       uint64_t(result),
                       ze_result_to_description(result).c_str());
 
-        return HostMemAllocator::allocate(_tensor->get_byte_size());
+        return HostMemAllocator::allocate(bytes);
     }
 }
 
