@@ -83,6 +83,7 @@
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
+#include "snippets/pass/fa_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/gn_decomposition.hpp"
 #include "snippets/pass/manager.hpp"
@@ -472,6 +473,7 @@ void Subgraph::data_flow_transformations(
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
         manager.register_pass<snippets::pass::TransposeDecomposition>();
+        manager.register_pass<snippets::pass::FADecomposition>();
         manager.register_pass<snippets::pass::SoftmaxDecomposition>();
         manager.register_pass<snippets::pass::GNDecomposition>();
     }
