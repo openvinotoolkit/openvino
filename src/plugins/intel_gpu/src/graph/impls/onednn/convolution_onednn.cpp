@@ -69,7 +69,8 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
         auto is = input_md.get_dims()[2 + i];
         auto ks = weights_md.get_dims()[weights_offset];
         auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
-        auto padding = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
+        // Calculate total padding
+        auto padding = (os - 1) * stride[i] - is + kernel_range;
         if (auto_pad == ov::op::PadType::SAME_UPPER) {
             pad_l[i] = padding / 2;
             pad_r[i] = padding - pad_l[i];
@@ -77,7 +78,7 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
             pad_r[i] = padding / 2;
             pad_l[i] = padding - pad_r[i];
         } else {
-            pad_r[i] = padding;
+            pad_r[i] = padding - pad_l[i];
         }
     }
 

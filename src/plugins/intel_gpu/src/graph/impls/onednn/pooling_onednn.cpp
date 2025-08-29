@@ -57,7 +57,8 @@ protected:
         auto output_md = onednn::layout_to_memory_desc(output_layout);
 
         for (size_t i = 0; i < kernel.size(); i++) {
-            auto padding = (output_md.get_dims()[2 + i] - 1) * stride[i] - input_md.get_dims()[2 + i] + ((kernel[i] - 1) * dilation[i]) - pad_l[i] + 1;
+            // Calculate total padding
+            auto padding = (output_md.get_dims()[2 + i] - 1) * stride[i] - input_md.get_dims()[2 + i] + ((kernel[i] - 1) * dilation[i]) + 1;
             if (auto_pad == ov::op::PadType::SAME_UPPER) {
                 pad_l[i] = padding / 2;
                 pad_r[i] = padding - pad_l[i];
@@ -65,7 +66,7 @@ protected:
                 pad_r[i] = padding / 2;
                 pad_l[i] = padding - pad_r[i];
             } else {
-                pad_r[i] = padding;
+                pad_r[i] = padding - pad_l[i];;
             }
         }
 
