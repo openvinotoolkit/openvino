@@ -312,7 +312,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
         const auto dst_strings = static_cast<std::string*>(get_data_ptr_nc());
         std::uninitialized_copy_n(src_strings, num_elements, dst_strings);
     } else {
-        std::memcpy(get_data_ptr_nc(), data, element::get_memory_size(m_element_type, num_elements));
+        std::memcpy(get_data_ptr_nc(), data, ov::util::get_memory_size(m_element_type, num_elements));
     }
 }
 
@@ -354,7 +354,7 @@ Constant::Constant(const element::Type& type, const Shape& shape, const void* da
           shape,
           // Note: const_cast used to store pointer only
           std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(reinterpret_cast<char*>(const_cast<void*>(data)),
-                                                                    element::get_memory_size(type, shape_size(shape)),
+                                                                    ov::util::get_memory_size(type, shape_size(shape)),
                                                                     so)) {}
 
 Constant::~Constant() = default;
