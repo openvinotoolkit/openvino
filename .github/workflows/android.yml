@@ -178,6 +178,7 @@ jobs:
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--undefined-version" \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -DANDROID_TOOLCHAIN_NAME="${{ env.ANDROID_ABI_CONFIG }}-linux-android"
             -S ${TBB_SRC} \
             -B ${TBB_BUILD}
 
@@ -195,6 +196,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=${{ env.ANDROID_NDK_HOME }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
             -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
+            -DANDROID_TOOLCHAIN_NAME="${{ env.ANDROID_ABI_CONFIG }}-linux-android" \
             -DANDROID_STL=c++_shared \
             -DENABLE_TESTS=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \

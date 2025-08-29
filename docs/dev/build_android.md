@@ -48,10 +48,11 @@ _For Windows and Mac operating systems, the downloading and unpacking steps are 
     * `x86_64` for x64 build
     * `armeabi-v7a with NEON` for ARM with NEON support
     * `arm64-v8a` for ARM 64 bits
+    * `riscv64` for RISC-V 64 bits
 * `ANDROID_PLATFORM` specifies the Android API version.
 * `ANDROID_STL` indicates that a shared C++ runtime is used.
 
-### Build and install OneTBB™
+### Build and install OneTBB™ (Not for RISC-V 64 architecture)
 To improve the parallelism performance of the OpenVINO™ library using OneTBB, it is required to separately build OneTBB for a specific version of the Android NDK:
   ```sh
   # Clone OneTBB™ repository 
@@ -68,7 +69,7 @@ To improve the parallelism performance of the OpenVINO™ library using OneTBB, 
         -DANDROID_PLATFORM=$CURRENT_ANDROID_PLATFORM \
         -DANDROID_STL=$CURRENT_ANDROID_STL \
         -DTBB_TEST=OFF \
-        -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--undefined-version" 
+        -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--undefined-version"
   # Build OneTBB™ project 
   cmake --build $OPV_HOME_DIR/one-tbb-build --parallel
   # Install OneTBB™ project 
@@ -96,6 +97,7 @@ To improve the parallelism performance of the OpenVINO™ library using OneTBB, 
         -DANDROID_PLATFORM=$CURRENT_ANDROID_PLATFORM \
         -DANDROID_STL=$CURRENT_ANDROID_STL \
         -DOPENVINO_EXTRA_MODULES=$OPV_HOME_DIR/openvino.genai \
+        -DTBBROOT=$OPV_HOME_DIR/one-tbb-install \
         -DTBB_DIR=$OPV_HOME_DIR/one-tbb-install/lib/cmake/TBB
   # Build OpenVINO™ project 
   cmake --build $OPV_HOME_DIR/openvino-build --parallel
