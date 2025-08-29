@@ -352,6 +352,9 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
                                std::shared_ptr<ov::Model>& ov_function) const {
     auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
+    ov_function = model_onnx->get_model();
+    return;
+#if 0
     auto subgraphs_as_input_models = model_onnx->get_subgraphs();
     auto input_to_ov_model = [&](const std::shared_ptr<ov::frontend::onnx::unify::InputModel>& in_model) {
         auto simple_lambda = [&]() -> std::shared_ptr<ov::Model> {
@@ -470,6 +473,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
     }
     auto model_name = "onnx_Frontend_IR";
     ov_function = std::make_shared<ov::Model>(results, parameters, model_name);
+#endif
 }
 
 std::shared_ptr<ov::Model> FrontEnd::decode_unify(const InputModel::Ptr& model) const {
