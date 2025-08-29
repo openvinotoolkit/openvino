@@ -113,10 +113,18 @@ private:
         ov::intel_npu::npuw::llm::max_prompt_len.name(),
         ov::intel_npu::npuw::llm::min_response_len.name(),
         ov::intel_npu::npuw::llm::optimize_v_tensors.name(),
+        ov::intel_npu::npuw::llm::cache_rope.name(),
+        ov::intel_npu::npuw::llm::prefill_chunk_size.name(),
+        ov::intel_npu::npuw::llm::shared_lm_head.name(),
+        ov::intel_npu::npuw::llm::max_lora_rank.name(),
         ov::intel_npu::npuw::llm::prefill_hint.name(),
         ov::intel_npu::npuw::llm::prefill_config.name(),
+        ov::intel_npu::npuw::llm::additional_prefill_config.name(),
         ov::intel_npu::npuw::llm::generate_hint.name(),
-        ov::intel_npu::npuw::llm::generate_config.name()};
+        ov::intel_npu::npuw::llm::generate_config.name(),
+        ov::intel_npu::npuw::llm::additional_generate_config.name(),
+        ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
+        ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name()};
