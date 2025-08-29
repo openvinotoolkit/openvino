@@ -20,6 +20,7 @@
 typedef half __attribute__((ext_vector_type(1))) half1;
 typedef uint __attribute__((ext_vector_type(1))) uint1;
 typedef float __attribute__((ext_vector_type(1))) float1;
+typedef int __attribute__((ext_vector_type(1))) int1;
 
 float1 __attribute__((overloadable)) vmad(float1 a, float1 b, float1 c) {
     c[0] = mad(a[0], b[0], c[0]);
@@ -70,6 +71,40 @@ float8 __attribute__((overloadable)) native_vexp2(float8 x) {
 }
 float16 __attribute__((overloadable)) native_vexp2(float16 x) {
     return native_exp2(x);
+}
+
+float1 __attribute__((overloadable)) vselect(float1 x, float1 y, int1 c) {
+    x[0] = select(x[0], y[0], c[0]);
+    return x;
+}
+float2 __attribute__((overloadable)) vselect(float2 x, float2 y, int2 c) {
+    return select(x, y, c);
+}
+float4 __attribute__((overloadable)) vselect(float4 x, float4 y, int4 c) {
+    return select(x, y, c);
+}
+float8 __attribute__((overloadable)) vselect(float8 x, float8 y, int8 c) {
+    return select(x, y, c);
+}
+float16 __attribute__((overloadable)) vselect(float16 x, float16 y, int16 c) {
+    return select(x, y, c);
+}
+
+int1 __attribute__((overloadable)) visfinite(float1 x) {
+    int1 out = isfinite(x[0]);
+    return out;
+}
+int2 __attribute__((overloadable)) visfinite(float2 x) {
+    return isfinite(x);
+}
+int4 __attribute__((overloadable)) visfinite(float4 x) {
+    return isfinite(x);
+}
+int8 __attribute__((overloadable)) visfinite(float8 x) {
+    return isfinite(x);
+}
+int16 __attribute__((overloadable)) visfinite(float16 x) {
+    return isfinite(x);
 }
 
 #endif
