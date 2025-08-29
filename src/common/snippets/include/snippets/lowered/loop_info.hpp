@@ -271,7 +271,6 @@ public:
                     size_t increment,
                     const std::vector<ExpressionPort>& entries,
                     const std::vector<ExpressionPort>& exits,
-
                     SpecificIterationHandlers handlers = SpecificIterationHandlers(),
                     bool is_parallel = false);
 
@@ -453,8 +452,7 @@ public:
                                  const std::vector<LoopPortDesc>& in_descs,
                                  const std::vector<LoopPortDesc>& out_descs,
                                  const SpecificIterationHandlers& handlers,
-                                 LoopInfoPtr outer_splitted_loop_info,
-                                 bool is_parallel = false);
+                                 LoopInfoPtr outer_splitted_loop_info);
 
     /**
      * @brief Clone LoopInfo with new Expressions
@@ -520,8 +518,7 @@ public:
                      std::vector<int64_t> data_sizes,
                      SpecificLoopIterType type,
                      UnifiedLoopInfoPtr unified_loop_info,
-                     bool evaluate_once = false,
-                     bool is_parallel = false);
+                     bool evaluate_once = false);
     /**
      * @brief Clone LoopInfo with new Expressions
      * @param expr_map map of new and old expressions
