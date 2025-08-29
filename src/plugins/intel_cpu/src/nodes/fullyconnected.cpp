@@ -78,7 +78,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
     }
     return supportedDataTypes;
 #elif defined(OV_CPU_WITH_KLEIDIAI)
-    return {Type_t::i8};
+    return {Type_t::i8, Type_t::i4};
 #else
     return {};
 #endif
