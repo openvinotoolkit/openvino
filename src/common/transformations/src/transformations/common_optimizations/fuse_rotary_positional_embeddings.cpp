@@ -80,7 +80,7 @@ static std::shared_ptr<ov::Node> gen_chatglm_const() {
     using namespace pattern;
 
     auto pred = value_matches("-1, head_cnt, 1, ndims/2, 1") || value_matches("1, -1, head_cnt, ndims/2, 1") ||
-                value_matches("0, 0, 0, ndims/2, 1");
+                value_matches("0, 0, 0, ndims/2, 1") || value_matches("-1, batch, head_cnt, ndims/2, 1");
     return wrap_type<v0::Constant>(pred);
 }
 
