@@ -258,8 +258,8 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  size_t increment,
                                  const std::vector<LoopPort>& entries,
                                  const std::vector<LoopPort>& exits,
-                                 SpecificIterationHandlers handlers,
-                                 bool is_parallel)
+                                 bool is_parallel,
+                                 SpecificIterationHandlers handlers)
     : LoopInfo(work_amount, increment, entries, exits, is_parallel),
       m_handlers(std::move(handlers)),
       m_input_port_descs(std::vector<LoopPortDesc>(entries.size())),
@@ -271,8 +271,8 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  size_t increment,
                                  const std::vector<ExpressionPort>& entries,
                                  const std::vector<ExpressionPort>& exits,
-                                 SpecificIterationHandlers handlers,
-                                 bool is_parallel)
+                                 bool is_parallel,
+                                 SpecificIterationHandlers handlers)
     : LoopInfo(work_amount, increment, entries, exits, is_parallel),
       m_handlers(std::move(handlers)),
       m_input_port_descs(std::vector<LoopPortDesc>(entries.size())),
@@ -286,8 +286,8 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  const std::vector<LoopPort>& exits,
                                  const std::vector<LoopPortDesc>& in_descs,
                                  const std::vector<LoopPortDesc>& out_descs,
-                                 SpecificIterationHandlers handlers,
-                                 bool is_parallel)
+                                 bool is_parallel,
+                                 SpecificIterationHandlers handlers)
     : LoopInfo(work_amount, increment, entries, exits, is_parallel),
       m_handlers(std::move(handlers)),
       m_input_port_descs(in_descs),
@@ -307,8 +307,8 @@ std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionM
                                                            new_output_ports,
                                                            m_input_port_descs,
                                                            m_output_port_descs,
-                                                           m_handlers,
-                                                           m_is_parallel);
+                                                           m_is_parallel,
+                                                           m_handlers);
     }
     return loop_map.at(this);
 }
@@ -510,8 +510,8 @@ InnerSplittedUnifiedLoopInfo::InnerSplittedUnifiedLoopInfo(size_t increment,
                       exits,
                       in_descs,
                       out_descs,
-                      handlers,
-                      outer_splitted_loop_info->is_parallel()),
+                      outer_splitted_loop_info->is_parallel(),
+                      handlers),
       m_outer_splitted_loop_info(std::move(outer_splitted_loop_info)) {
     OPENVINO_ASSERT(m_outer_splitted_loop_info != nullptr, "Outer Splitted Loop Info is missed!");
 }

@@ -321,7 +321,12 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target,
     auto new_exits = std::move(output_ports_upper);
     new_exits.insert(new_exits.end(), output_ports_lower.begin(), output_ports_lower.end());
 
-    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers);
+    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount,
+                                                  increment,
+                                                  new_entries,
+                                                  new_exits,
+                                                  loop_info_lower->is_parallel(),
+                                                  handlers);
 
     // Need to handle InnerSplittedLoopInfo - update outer splitted loop info if it was fused
     for (const auto& p : m_map) {

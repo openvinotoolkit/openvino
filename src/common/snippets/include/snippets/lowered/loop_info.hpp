@@ -259,20 +259,20 @@ public:
                     const std::vector<LoopPort>& exits,
                     const std::vector<LoopPortDesc>& in_descs,
                     const std::vector<LoopPortDesc>& out_descs,
-                    SpecificIterationHandlers handlers = SpecificIterationHandlers(),
-                    bool is_parallel = false);
+                    bool is_parallel,
+                    SpecificIterationHandlers handlers = SpecificIterationHandlers());
     UnifiedLoopInfo(size_t work_amount,
                     size_t increment,
                     const std::vector<LoopPort>& entries,
                     const std::vector<LoopPort>& exits,
-                    SpecificIterationHandlers handlers = SpecificIterationHandlers(),
-                    bool is_parallel = false);
+                    bool is_parallel,
+                    SpecificIterationHandlers handlers = SpecificIterationHandlers());
     UnifiedLoopInfo(size_t work_amount,
                     size_t increment,
                     const std::vector<ExpressionPort>& entries,
                     const std::vector<ExpressionPort>& exits,
-                    SpecificIterationHandlers handlers = SpecificIterationHandlers(),
-                    bool is_parallel = false);
+                    bool is_parallel,
+                    SpecificIterationHandlers handlers = SpecificIterationHandlers());
 
     /**
      * @brief Clone LoopInfo with new Expressions
