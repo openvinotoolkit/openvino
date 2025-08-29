@@ -70,6 +70,9 @@ private:
     void update_pipeline_if_memory_changed();
     void update_states_if_memory_changed();
 
+    void check_and_update_batch_value(const ov::SoPtr<ov::ITensor>& tensor,
+                                      const std::optional<size_t> batchSizeCandidate);
+
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
     const Config _config;
