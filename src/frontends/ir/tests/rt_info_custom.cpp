@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 
 namespace ov {
@@ -184,5 +186,35 @@ TEST(RTInfoCustom, nested_entries) {
     EXPECT_EQ(value.compare("D"), 0);
 }
 
+TEST(RTInfoCustom, RuntimeAttribute_priority) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f64, Shape{111});
+    const auto abs = std::make_shared<op::v0::Abs>(data);
+    const auto result = std::make_shared<op::v0::Result>(abs);
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+
+    auto& info = abs->get_rt_info();
+    const auto layout_custom_id = std::string{"layout"};
+    const auto layout_custom_value = std::string{"ABCxyz"};
+    const auto layout_attribute_id = std::string{LayoutAttribute::get_type_info_static()};
+    const auto layout_attribute_value = LayoutAttribute{"NCHW"};
+    info[layout_custom_id] = layout_custom_value;
+    info[layout_attribute_id] = "CWHN";
+    info["L_A_Y_O_U_T"] = layout_attribute_value;
+
+    std::stringstream model_s, weights_s;
+    pass::Serialize{model_s, weights_s}.run_on_model(model);
+    const auto r_model = Core{}.read_model(model_s.str(), Tensor{});
+
+    const auto& r_abs_rt_info = r_model->get_output_op(0)->input(0).get_source_output().get_node()->get_rt_info();
+    EXPECT_EQ(r_abs_rt_info.size(), 2);
+
+    LayoutAttribute la;
+    OV_ASSERT_NO_THROW(la = r_abs_rt_info.at(layout_attribute_id).as<LayoutAttribute>());
+    EXPECT_EQ(la.to_string(), layout_attribute_value.to_string());
+
+    std::string custom;
+    OV_ASSERT_NO_THROW(custom = r_abs_rt_info.at(layout_custom_id).as<std::string>());
+    EXPECT_EQ(custom, layout_custom_value);
+}
 }  // namespace test
 }  // namespace ov
