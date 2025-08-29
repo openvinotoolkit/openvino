@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifndef ENABLE_ONEDNN_FOR_GPU
+#define ENABLE_ONEDNN_FOR_GPU
+#endif
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // clang-format off
 // Put this file at first to avoid incorrect header files includes order.
@@ -34,6 +38,8 @@ size_t get_subgroup_size(gpu_arch arch) {
         return 0;
     }
 }
+
+constexpr size_t paged_attention_block_size = 16;
 
 inline size_t get_d_max(size_t head_size) {
     for (size_t i = 32; i <= 1024; i *= 2) {
@@ -272,7 +278,7 @@ sdpa_config_t xehpg_h32_2nd = {8, 32, 16, 8, 8, 1, 2, 4};
 sdpa_config_t xehpg_q_h32 = {32, 16, 16, 16, 2, 8, 2, 8};
 sdpa_config_t xehpg_q_h32_2nd = {32, 16, 8, 8, 8, 1, 4, 2};
 
-sdpa_config_t xehpg_h64 = {32, 16, 16, 16, 4, 8, 4, 8};
+sdpa_config_t xehpg_h64 = {16, 16, 16, 16, 8, 8, 8, 8};
 sdpa_config_t xehpg_h64_s128 = {16, 16, 16, 16, 4, 8, 4, 8};
 sdpa_config_t xehpg_h64_s64 = {32, 16, 16, 8, 8, 4, 4, 8};
 sdpa_config_t xehpg_h64_2nd = {8, 16, 16, 8, 8, 1, 4, 2};
@@ -286,7 +292,7 @@ sdpa_config_t xehpg_q_h64_s64_2nd = {8, 8, 8, 8, 8, 2, 8, 2};
 sdpa_config_t xehpg_q_h64_s128_2nd = {16, 8, 8, 8, 8, 4, 8, 4};
 sdpa_config_t xehpg_q_h64_2nd = {16, 16, 8, 8, 16, 2, 8, 4};
 
-sdpa_config_t xehpg_h128 = {16, 16, 32, 8, 8, 4, 4, 8};
+sdpa_config_t xehpg_h128 = {16, 16, 16, 16, 8, 4, 8, 4};
 sdpa_config_t xehpg_h128_s32 = {16, 16, 16, 8, 16, 2, 8, 4};
 sdpa_config_t xehpg_h128_2nd = {8, 16, 16, 8, 16, 1, 8, 2};
 
@@ -954,8 +960,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const auto& device_info = params.get_device_info();
 
     const auto& Q = params.input_layouts[0];
-    const auto& K = params.input_layouts[1];
-    const auto& V = params.input_layouts[2];
+    const auto& K = config.is_paged_attention ? params.input_layouts[3] : params.input_layouts[1];
+    const auto& V = config.is_paged_attention ? params.input_layouts[4] : params.input_layouts[2];
     const auto& out = params.output_layouts[0];
     const auto& out_ps = out.get_partial_shape();
 
@@ -992,6 +998,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         }
     } else {
         jit.make("WITH_ATTN_MASK", 0);
+        jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
     }
 
     if (config.has_const_scale_val) {
@@ -1026,7 +1033,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     };
 
     const bool use_asymmetric_quantization = config.use_asymmetric_quantization;
-    if (config.is_kv_compressed) {
+    if (!config.is_paged_attention && config.is_kv_compressed) {
         const auto& key_cache_comp_scale = params.input_layouts[data_inputs_num];
         const auto& value_cache_comp_scale = params.input_layouts[data_inputs_num + 1];
         jit.make("KV_COMPRESSED", 1);
@@ -1063,6 +1070,26 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("KEY_ZP_ELEMENTS_PER_BYTE", elems_per_byte(key_cache_comp_zp.data_type));
             jit.make("VAL_ZP_ELEMENTS_PER_BYTE", elems_per_byte(value_cache_comp_zp.data_type));
         }
+    }
+
+    if (config.is_paged_attention && data_type_traits::is_i8_u8(K.data_type)) {
+        auto pa_desc = params.typed_desc<paged_attention>();
+        jit.make("IS_KV_COMPRESSED_PA", true);
+
+        auto scales_zp_size = 4;  // scale + zp
+        if (pa_desc->is_key_by_channel) {
+            jit.make("IS_KEY_BY_CHANNEL", 1);
+            jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
+        } else {
+            jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size + scales_zp_size);
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+        }
+        jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
+    } else if (config.is_paged_attention) {
+        jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
+        jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size);
+        jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
     }
 
     jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(params.input_layouts[1].data_type));
@@ -1103,9 +1130,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
         jit.make("PREFETCH_MASK", 1);
-        jit.make("PREFETCH_K0", 1);
-        jit.make("PREFETCH_K", 1);
-        jit.make("PREFETCH_V", 1);
+        jit.make("PREFETCH_K0", config.is_paged_attention ? 0 : 1);
+        jit.make("PREFETCH_K", config.is_paged_attention ? 0 : 1);
+        jit.make("PREFETCH_V", config.is_paged_attention ? 0 : 1);
         bool no_rem = d_full && v_full && k_full;
         jit.make("PREFETCH_REMAINDER", !no_rem);
         jit.make("PREFETCH_D_MAX", std::min<int64_t>(d_max, 64));
@@ -1197,17 +1224,25 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
     auto data_inputs_num = micro_get_input_num(params, config);
 
-    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
-    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});  // Q
-    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::VALUE});  // V
-    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                        // A
-
     if (config.is_paged_attention) {
+        args.push_back({ArgumentDescriptor::Types::INPUT, 3});   // Key cache
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});   // Q
+        args.push_back({ArgumentDescriptor::Types::INPUT, 4});   // Value cache
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
+
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
+        args.push_back({ArgumentDescriptor::Types::INPUT, 5});  // past_lens
+        args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // block_indices
+        args.push_back({ArgumentDescriptor::Types::INPUT, 8});  // block_indices_begins
         if (!config.has_const_scale_val)
-            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});                        // blocked_indexes_start_and_gws_mapping
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});        // scale
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7});  // blocked_indexes_start_and_gws_mapping
     } else {
+        args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});   // K
+        args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});   // Q
+        args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::VALUE});   // V
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
+
         const uint32_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
         if (config.input_num > attn_mask_idx && !config.has_const_attn_mask_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
@@ -1313,9 +1348,15 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                            bool is_prefill) {
     // TODO: Remove once micro API is thread safe
     std::lock_guard<std::mutex> l(m);
+
+    bool is_paged_attention = false;
+    if (params.is_type<cldnn::paged_attention>()) {
+        is_paged_attention = true;
+    }
+
     const auto& Q = params.input_layouts[0];
-    const auto& K = params.input_layouts[1];
-    const auto& V = params.input_layouts[2];
+    const auto& K = is_paged_attention ? params.input_layouts[3] : params.input_layouts[1];
+    const auto& V = is_paged_attention ? params.input_layouts[4] : params.input_layouts[2];
     auto& out = params.output_layouts[0];
     const auto& out_ps = out.get_partial_shape();
     const auto& device_info = params.get_device_info();
@@ -1341,11 +1382,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     bool is_quantized =
         (K.data_type == ov::element::u8 || K.data_type == ov::element::i8) || (V.data_type == ov::element::u8 || V.data_type == ov::element::i8);
     int32_t nkeys_v = n_keys.is_dynamic() ? 0 : n_keys.get_length();
-
-    bool is_paged_attention = false;
-    if (params.is_type<cldnn::paged_attention>()) {
-        is_paged_attention = true;
-    }
 
     GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", nkeys_v = " << nkeys_v << "\n";
     GPU_DEBUG_TRACE_DETAIL << "thin_q = " << thin_q << ", is_quantized = " << is_quantized << "\n";
@@ -1384,7 +1420,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem.Ts = problem.Tc;
 
     auto problem_kq = problem;
-    problem_kq.A.layout = micro::MatrixLayout::T;
+    problem_kq.A.layout = is_paged_attention ? micro::MatrixLayout::N : micro::MatrixLayout::T;
 
     /* Set up microkernel options */
     micro::GEMMProtocol::Options opts_kq;
@@ -1392,34 +1428,62 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     opts_kq.slmPtr = true;
 
     const bool use_asymmetric_quantization = configuration.use_asymmetric_quantization;
-    const auto key_cache_id = micro_get_key_cache_id(params);
-    if (configuration.is_kv_compressed && !kq_common_scales) {
-        const auto& key_cache_comp_scale = params.input_layouts[key_cache_id];
-        const auto scale_dt = convert_type(key_cache_comp_scale.data_type);
+
+    if (is_paged_attention && is_quantized) {
+        const auto scale_dt = convert_type(ov::element::f16);
         problem_kq.Ta_scale = scale_dt;
         problem_kq.A_scale.setAlignment(scale_dt.size());
         problem_kq.A_scale.layout = micro::MatrixLayout::N;
         problem_kq.asPtrDims = 2;
-        GPU_DEBUG_TRACE_DETAIL << "kq: key_cache_id = " << key_cache_id << std::endl;
-    }
 
-    if (configuration.is_kv_compressed && use_asymmetric_quantization) {
-        const auto& key_cache_comp_zp = params.input_layouts[key_cache_id + 2];
-        const auto zp_dt = convert_type(key_cache_comp_zp.data_type);
+        const auto zp_dt = convert_type(ov::element::f16);
         problem_kq.Tao = zp_dt;
         problem_kq.AO.setAlignment(zp_dt.size());
         problem_kq.AO.layout = micro::MatrixLayout::N;
-        problem_kq.aoPtrDims = kq_common_zp ? 0 : 2;
+        problem_kq.aoPtrDims = 2;
         problem_kq.aOffset = micro::ABOffset::Calc;
-    }
 
-    if (configuration.is_kv_compressed) {
-        problem_kq.aqGroupM = 1;
-        problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(k_head_size);
-    }
+        auto pa_desc = params.typed_desc<paged_attention>();
+        if (pa_desc->is_key_by_channel) {
+            problem_kq.aqGroupM = paged_attention_block_size * 16;
+            problem_kq.aqGroupK = 1;
+        } else {
+            problem_kq.aqGroupM = 1;
+            problem_kq.aqGroupK = static_cast<int>(k_head_size);
+        }
 
-    opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales;
-    opts_kq.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization;
+        opts_kq.scaleA = true;
+        opts_kq.offsetA = true;
+    } else {
+        const auto key_cache_id = micro_get_key_cache_id(params);
+        if (configuration.is_kv_compressed && !kq_common_scales) {
+            const auto& key_cache_comp_scale = params.input_layouts[key_cache_id];
+            const auto scale_dt = convert_type(key_cache_comp_scale.data_type);
+            problem_kq.Ta_scale = scale_dt;
+            problem_kq.A_scale.setAlignment(scale_dt.size());
+            problem_kq.A_scale.layout = micro::MatrixLayout::N;
+            problem_kq.asPtrDims = 2;
+            GPU_DEBUG_TRACE_DETAIL << "kq: key_cache_id = " << key_cache_id << std::endl;
+        }
+
+        if (configuration.is_kv_compressed && use_asymmetric_quantization) {
+            const auto& key_cache_comp_zp = params.input_layouts[key_cache_id + 2];
+            const auto zp_dt = convert_type(key_cache_comp_zp.data_type);
+            problem_kq.Tao = zp_dt;
+            problem_kq.AO.setAlignment(zp_dt.size());
+            problem_kq.AO.layout = micro::MatrixLayout::N;
+            problem_kq.aoPtrDims = kq_common_zp ? 0 : 2;
+            problem_kq.aOffset = micro::ABOffset::Calc;
+        }
+
+        if (configuration.is_kv_compressed) {
+            problem_kq.aqGroupM = 1;
+            problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(k_head_size);
+        }
+
+        opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales;
+        opts_kq.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization;
+    }
 
     problem_kq.B.layout = micro::MatrixLayout::Pr;
     problem_kq.C.layout = micro::MatrixLayout::T;
@@ -1465,34 +1529,55 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_vs.Ta_ext = convert_type(V.data_type);
     problem_vs.A.layout = micro::MatrixLayout::N;
 
-    const auto value_cache_id = micro_get_value_cache_id(params);
-    if (configuration.is_kv_compressed && !vs_common_scales) {
-        const auto& value_cache_comp_scale = params.input_layouts[value_cache_id];
-        auto scale_dt = convert_type(value_cache_comp_scale.data_type);
+    if (is_paged_attention && is_quantized) {
+        auto scale_dt = convert_type(ov::element::f16);
         problem_vs.Ta_scale = scale_dt;
         problem_vs.A_scale.setAlignment(scale_dt.size());
         problem_vs.A_scale.layout = micro::MatrixLayout::N;
         problem_vs.asPtrDims = 2;
-        GPU_DEBUG_TRACE_DETAIL << "vs: value_cache_id = " << value_cache_id << std::endl;
-    }
 
-    if (configuration.is_kv_compressed && use_asymmetric_quantization) {
-        const auto& value_cache_comp_zp = params.input_layouts[value_cache_id + 2];
-        auto zp_dt = convert_type(value_cache_comp_zp.data_type);
+        auto zp_dt = convert_type(ov::element::f16);
         problem_vs.Tao = zp_dt;
         problem_vs.AO.setAlignment(zp_dt.size());
         problem_vs.AO.layout = micro::MatrixLayout::N;
-        problem_vs.aoPtrDims = vs_common_zp ? 0 : 2;
+        problem_vs.aoPtrDims = 2;
         problem_vs.aOffset = micro::ABOffset::Calc;
-    }
 
-    if (configuration.is_kv_compressed) {
-        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(micro::rnd_up_pow2(v_head_size));
+        problem_vs.aqGroupM = static_cast<int>(v_head_size);
         problem_vs.aqGroupK = 1;
-    }
 
-    opts_vs.scaleA = configuration.is_kv_compressed && !vs_common_scales;
-    opts_vs.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization;
+        opts_vs.scaleA = true;
+        opts_vs.offsetA = true;
+    } else {
+        const auto value_cache_id = micro_get_value_cache_id(params);
+        if (configuration.is_kv_compressed && !vs_common_scales) {
+            const auto& value_cache_comp_scale = params.input_layouts[value_cache_id];
+            auto scale_dt = convert_type(value_cache_comp_scale.data_type);
+            problem_vs.Ta_scale = scale_dt;
+            problem_vs.A_scale.setAlignment(scale_dt.size());
+            problem_vs.A_scale.layout = micro::MatrixLayout::N;
+            problem_vs.asPtrDims = 2;
+            GPU_DEBUG_TRACE_DETAIL << "vs: value_cache_id = " << value_cache_id << std::endl;
+        }
+
+        if (configuration.is_kv_compressed && use_asymmetric_quantization) {
+            const auto& value_cache_comp_zp = params.input_layouts[value_cache_id + 2];
+            auto zp_dt = convert_type(value_cache_comp_zp.data_type);
+            problem_vs.Tao = zp_dt;
+            problem_vs.AO.setAlignment(zp_dt.size());
+            problem_vs.AO.layout = micro::MatrixLayout::N;
+            problem_vs.aoPtrDims = vs_common_zp ? 0 : 2;
+            problem_vs.aOffset = micro::ABOffset::Calc;
+        }
+
+        if (configuration.is_kv_compressed) {
+            problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(micro::rnd_up_pow2(v_head_size));
+            problem_vs.aqGroupK = 1;
+        }
+
+        opts_vs.scaleA = configuration.is_kv_compressed && !vs_common_scales;
+        opts_vs.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization;
+    }
 
     problem_vs.B.layout = micro::MatrixLayout::Pr;
     problem_vs.C.layout = micro::MatrixLayout::N;
