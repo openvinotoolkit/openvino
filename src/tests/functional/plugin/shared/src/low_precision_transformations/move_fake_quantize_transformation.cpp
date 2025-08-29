@@ -15,7 +15,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj) {
+std::string MoveFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<MoveFakeQuantizeTransformationParams>& obj) {
     auto [netPrecision, inputShape, device, oneInputWithSplit, param] = obj.param;
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShape[0], device) <<

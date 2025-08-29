@@ -33,7 +33,7 @@ using ExecGraphRuntimePrecisionParams = std::tuple<
 class ExecGraphRuntimePrecision : public testing::WithParamInterface<ExecGraphRuntimePrecisionParams>,
                                  public ov::test::TestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ExecGraphRuntimePrecisionParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ExecGraphRuntimePrecisionParams>& obj);
     std::string targetDevice;
     std::shared_ptr<ov::Model> fnPtr;
     std::map<std::string, ov::element::Type> expectedPrecisions;

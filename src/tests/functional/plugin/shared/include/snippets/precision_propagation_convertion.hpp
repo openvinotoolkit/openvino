@@ -22,7 +22,7 @@ class PrecisionPropagationConvertion :
     public testing::WithParamInterface<PrecisionPropagationParams>,
     virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PrecisionPropagationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<PrecisionPropagationParams>& obj);
 
 protected:
     void SetUp() override;

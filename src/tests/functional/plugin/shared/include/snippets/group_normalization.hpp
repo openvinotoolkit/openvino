@@ -22,7 +22,7 @@ typedef std::tuple<
 class GroupNormalization : public testing::WithParamInterface<ov::test::snippets::GroupNormalizationParams>,
                            virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::GroupNormalizationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::GroupNormalizationParams>& obj);
 
 protected:
     void SetUp() override;

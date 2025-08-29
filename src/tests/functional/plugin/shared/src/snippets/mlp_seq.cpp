@@ -37,7 +37,7 @@ void MLPSeqBase::SetUp() {
     setInferenceType(prc);
 }
 
-std::string MLPSeq::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPSeqParams> obj) {
+std::string MLPSeq::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MLPSeqParams>& obj) {
     auto [input_shapes,
           elem_types,
           prc,

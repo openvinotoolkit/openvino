@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string Add::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddParams> obj) {
+std::string Add::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::AddParams>& obj) {
     const auto& [inputShapes0, inputShapes1, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
@@ -44,7 +44,7 @@ void Add::SetUp() {
     setIgnoreCallbackMode();
 }
 
-std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj) {
+std::string AddConst::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::AddConstParams>& obj) {
     const auto& [inputShapes, constShape, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
@@ -92,7 +92,7 @@ void AddRollConst::SetUp() {
     }
 }
 
-std::string AddPair::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddParamsPair> obj) {
+std::string AddPair::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::AddParamsPair>& obj) {
     const auto& [input_shapes, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
     OPENVINO_ASSERT(input_shapes.size() == 2, "Invalid input shapes vector size");
     std::ostringstream result;

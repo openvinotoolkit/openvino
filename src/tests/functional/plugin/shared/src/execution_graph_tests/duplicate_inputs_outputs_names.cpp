@@ -18,8 +18,8 @@ constexpr char DUMMY_NAME[] = "dummy_name";
 
 namespace ExecutionGraphTests {
 
-std::string ExecGraphDuplicateInputsOutputsNames::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-    std::string targetDevice = obj.param;
+std::string ExecGraphDuplicateInputsOutputsNames::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+    const std::string& targetDevice = obj.param;
     return "Dev=" + targetDevice;
 }
 
@@ -30,7 +30,7 @@ std::string ExecGraphDuplicateInputsOutputsNames::getTestCaseName(testing::TestP
 TEST_P(ExecGraphDuplicateInputsOutputsNames, CheckOutputsMatch) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    const std::string device_name = this->GetParam();
+    const auto& device_name = this->GetParam();
     const ov::element::Type precision = ov::element::f32;
     const ov::Shape shape = {3, 2};
     float input_data1[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
