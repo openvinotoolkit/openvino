@@ -8,12 +8,19 @@ graph {
     output: "y"
     op_type: "OneHot"
   }
-  name: "test_onehot_without_axis"
+  name: "test_onehot_negative_indices"
   initializer {
     dims: 1
     data_type: 7
     int64_data: 12
     name: "depth"
+  }
+  initializer {
+    dims: 2
+    data_type: 7
+    int64_data: 2
+    int64_data: 5
+    name: "values"
   }
   input {
     name: "indices"
@@ -41,19 +48,6 @@ graph {
       }
     }
   }
-  input {
-    name: "values"
-    type {
-      tensor_type {
-        elem_type: 7
-        shape {
-          dim {
-            dim_value: 2
-          }
-        }
-      }
-    }
-  }
   output {
     name: "y"
     type {
@@ -72,5 +66,5 @@ graph {
   }
 }
 opset_import {
-  version: 9
+  version: 11
 }

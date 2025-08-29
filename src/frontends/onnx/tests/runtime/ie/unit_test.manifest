@@ -90,7 +90,6 @@ onnx_model_conv_with_dynamic_batch
 # OneHot operation has a form that is not supported
 onnx_model_one_hot_without_axis
 onnx_model_one_hot_with_axis
-onnx_model_one_hot_without_axis_negative_indicies
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
 onnx_dyn_shapes_model_acosh_1_3
