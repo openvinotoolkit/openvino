@@ -106,7 +106,6 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
     // Configure arm_compute::IFunction object
     configureThreadSafe([&] {
         iFunction = configureFunction(aclMemoryTensors);
-        iFunctionPostOp = configureFunctionPostOp(aclMemoryTensors);
     });
     return true;
 }
@@ -120,29 +119,6 @@ void ACLCommonExecutor::execute(const MemoryArgs& memory) {
         }
     }
     iFunction->run();
-    //auto *dst_ptr = reinterpret_cast<int8_t *>(aclMemoryTensors[ACL_DST]->buffer());
-    auto *dst_ptr = memory.at(ARG_DST_0)->getDataAs<int8_t>();
-    std::cout << "DST TENSOR(1): ";
-    for (size_t i = 0; i < aclMemoryTensors[ACL_DST]->info()->tensor_shape().total_size(); i++) {
-        std::cout << static_cast<int>(dst_ptr[i]) << " ";
-        if (dst_ptr[i] == static_cast<int8_t>(-70)) {
-            std::cout << "! ";
-            dst_ptr[i] = static_cast<int8_t>(-69);
-        }
-        if (dst_ptr[i] == static_cast<int8_t>(15)) {
-            std::cout << "! ";
-            dst_ptr[i] = static_cast<int8_t>(16);
-        }
-    }
-    std::cout << std::endl;
-    std::cout << "DST TENSOR(2): ";
-    for (size_t i = 0; i < aclMemoryTensors[ACL_DST]->info()->tensor_shape().total_size(); i++) {
-        std::cout << static_cast<int>(dst_ptr[i]) << " ";
-    }
-    std::cout << std::endl;
-    if (iFunctionPostOp) {
-        iFunctionPostOp->run();
-    }
 }
 
 ACLCommonExecutor::~ACLCommonExecutor() {

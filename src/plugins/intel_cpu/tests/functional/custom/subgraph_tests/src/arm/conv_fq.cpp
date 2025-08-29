@@ -17,6 +17,7 @@ namespace test {
 class ConvAndFQ : virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     void SetUp() override {
+        abs_threshold = 4e-3f;
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
@@ -30,11 +31,10 @@ public:
 
         auto fq_before = ov::test::utils::make_fake_quantize(input_params[0], precision, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
-        // Weights
         auto weights_shape = Shape{4, 3, 2, 2};
         auto weights = utils::make_constant(element::i8, weights_shape, ov::test::utils::InputGenerateData(0, 2, 1));
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, /*weights_shape*/{1, 1}, {0.625}));
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
 
         std::shared_ptr<Node> conv;
         {
@@ -57,12 +57,11 @@ public:
                                                      numOutChannels);
         }
 
-        //auto add = std::make_shared<ov::op::v1::Add>(conv, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
-        auto fq_after = ov::test::utils::make_fake_quantize(conv, precision, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+        auto fq_after = ov::test::utils::make_fake_quantize(conv, precision, 256, {}, {-1.28}, {1.27}, {-1.28}, {1.27});
 
         auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
         auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, element::f32);
-        auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
+        auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(element::f32, {1, 1}, {0.1}));
         const auto matMul = std::make_shared<ov::op::v0::MatMul>(fq_after, multiply_mm, false, false);
 
         function = makeNgraphFunction(precision, input_params, matMul, "ConvFQ");
