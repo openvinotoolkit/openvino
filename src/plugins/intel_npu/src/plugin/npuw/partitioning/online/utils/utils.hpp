@@ -42,6 +42,7 @@ struct PassContext {
     std::vector<Avoid> avoids;
     std::vector<Isolate> isolates;
     std::vector<std::string> nofolds;
+    bool experimental_rep_fusion = false;
 };
 
 // Forward declaration
@@ -49,6 +50,7 @@ class Group;
 struct Repeated;
 struct Interconnect;
 struct MetaInterconnect;
+struct MetaInterconnectIO;
 
 namespace detail {
 using OVNodePtr = std::shared_ptr<ov::Node>;
