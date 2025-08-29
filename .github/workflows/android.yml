@@ -202,7 +202,7 @@ jobs:
             -DENABLE_TESTS=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_TBB=ON \
+            -DENABLE_SYSTEM_TBB=OFF \
             -DTBB_DIR=${{ env.TBB_CMAKE_DIR }} \
             -DTBBROOT=${{ env.TBB_INSTALL }} \
             -DENABLE_FASTER_BUILD=ON \
