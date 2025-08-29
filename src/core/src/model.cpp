@@ -811,6 +811,8 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
                         "' is not used in ov::Model::reshape");
     }
 
+
+
     if (!need_reshape)
         return;
 
@@ -864,6 +866,32 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
         reshape_only(original_input_shapes, original_vars_shapes);
         throw;
     }
+}
+
+// New multi-input reshape
+// Reshape the model inputs and variables using explicit shapes.
+// This allows assigning new partial shapes to multiple model inputs
+// and optional variables in a single call.
+void ov::Model::reshape_list(const std::map<size_t, ov::PartialShape>& input_shapes, // Map of input index -> new partial shape
+                              const std::unordered_map<std::string, ov::PartialShape>& variable_shapes = {}) { // Map of variable name -> new partial shape
+
+    // Iterate over all specified input shapes to ensure the input index is valie and assigning the new
+    // partial shape to the corresponding parameter.
+    for (const auto& [idx, shape] : input_shapes) {
+        OPENVINO_ASSERT(idx < m_parameters.size(), "Invalid input index");
+        m_parameters[idx]->set_partial_shape(shape);
+    }
+
+    // Iterate over all specified variable shapes to ensure the variable name is valid and assigning the new
+    // partial shape to the corresponding variable.
+    for (const auto& [name, shape] : variable_shapes) {
+        auto var = get_variable_by_name(name);
+        OPENVINO_ASSERT(var, "Variable not found: ", name);
+        var->set_partial_shape(shape);
+    }
+
+    // Validate the model to ensure all nodes are consistent with the new input and variable shapes.
+    validate_nodes_and_infer_types();
 }
 
 ov::Output<ov::Node> ov::Model::add_output(const std::string& tensor_name) {
