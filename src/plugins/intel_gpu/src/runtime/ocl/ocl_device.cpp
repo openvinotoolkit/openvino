@@ -51,7 +51,7 @@ namespace ocl {
 
 namespace {
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
 gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
     switch (gpu_arch) {
         case ngen::HW::Gen9: return gpu_arch::gen9;
@@ -350,7 +350,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.device_memory_ordinal = 0;
     info.supports_cp_offload = false;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
     using namespace dnnl::impl::gpu::intel::jit;
     ngen::Product product = ngen::OpenCLCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get());
     info.arch = convert_ngen_arch(ngen::getCore(product.family));
