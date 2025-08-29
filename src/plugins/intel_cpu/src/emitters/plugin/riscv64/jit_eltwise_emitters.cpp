@@ -901,7 +901,7 @@ size_t jit_softsign_emitter::get_inputs_num() const {
 }
 
 size_t jit_softsign_emitter::aux_vecs_count() const {
-    return 2;
+    return 1;
 }
 
 size_t jit_softsign_emitter::aux_fp_gprs_count() const {
@@ -924,9 +924,10 @@ void jit_softsign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
+
+ // Single aux register for intermediate results    
     
-    auto aux0 = VReg(aux_vec_idxs[0]);  // for |x|
-    auto aux1 = VReg(aux_vec_idxs[1]);  // for 1 + |x|
+    auto aux0 = VReg(aux_vec_idxs[0]);  // for |x| & 1 + |x|
     auto fp0 = FReg(aux_fp_gpr_idxs[0]);
 
     // Compute |x| (absolute value)
@@ -934,10 +935,10 @@ void jit_softsign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     // Compute 1 + |x|
     load_table_val("one", fp0);
-    h->vfadd_vf(aux1, aux0, fp0);  // aux1 = 1 + |x|
+    h->vfadd_vf(aux0, aux0, fp0);  // aux0 = 1 + |x|
 
     // Compute x / (1 + |x|)
-    h->vfdiv_vv(dst, src, aux1);
+    h->vfdiv_vv(dst, src, aux0);
 }
 
 std::set<std::vector<element::Type>> jit_softsign_emitter::get_supported_precisions(
