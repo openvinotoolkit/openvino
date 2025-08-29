@@ -21,9 +21,7 @@ using namespace ov::snippets::lowered;
 
 namespace ov::intel_cpu::pass {
 
-bool ParallelizeGatedMlpNLoops::run(LinearIR& linear_ir,
-                                    LinearIR::constExprIt begin,
-                                    LinearIR::constExprIt end) {
+bool ParallelizeGatedMlpNLoops::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ParallelizeGatedMlpNLoops")
 
     std::vector<ExpressionPtr> brgemm_expressions;
