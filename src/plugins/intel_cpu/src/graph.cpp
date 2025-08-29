@@ -32,6 +32,7 @@
 #include <utility>
 #include <vector>
 
+#include "../../core/src/itt.hpp"
 #include "allocation_context.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -1590,11 +1591,11 @@ public:
 
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
-#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
-    VERBOSE(node, (config).debugCaps.verbose);                  \
-    PERF(node, (config).collectPerfCounters);                   \
-    DUMP(node, (config).debugCaps, infer_count);                \
-    OV_ITT_SCOPED_TASK(ittScope, (node)->profiling.execute);    \
+#define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config)             \
+    VERBOSE(node, (config).debugCaps.verbose);                              \
+    PERF(node, (config).collectPerfCounters);                               \
+    DUMP(node, (config).debugCaps, infer_count);                            \
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_op_exec, (node)->getTypeStr()); \
     DEBUG_LOG(*(node));
 
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
