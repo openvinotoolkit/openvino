@@ -218,9 +218,9 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
     auto transpose_k_m = wrap_type<ov::op::v1::Transpose>({input_k_m, transpose_k_order_m}, is_fp_type);
     auto transpose_v_m = wrap_type<ov::op::v1::Transpose>({input_v_m, transpose_v_order_m}, is_fp_type);
 
-    auto sdpa_in_q = std::make_shared<Or>(OutputVector{input_q_m, transpose_q_m});
-    auto sdpa_in_k = std::make_shared<Or>(OutputVector{input_k_m, transpose_k_m});
-    auto sdpa_in_v = std::make_shared<Or>(OutputVector{input_v_m, transpose_v_m});
+    auto sdpa_in_q = std::make_shared<Or>(OutputVector{transpose_q_m, input_q_m});
+    auto sdpa_in_k = std::make_shared<Or>(OutputVector{transpose_k_m, input_k_m});
+    auto sdpa_in_v = std::make_shared<Or>(OutputVector{transpose_v_m, input_v_m});
 
     auto sdpa_without_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v });
     auto sdpa_with_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask });
@@ -229,16 +229,22 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
 
     auto sdpa_m = std::make_shared<Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
 
-    auto transpose_out_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_out_m = wrap_type<ov::op::v1::Transpose>({sdpa_m, transpose_out_order_m}, is_fp_type);
-
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(pattern_map.at(sdpa_m).get_node_shared_ptr());
-        std::shared_ptr<ov::Node> transpose_out = pattern_map.at(transpose_out_m).get_node_shared_ptr();
+        auto sdpa_users = sdpa->get_users();
+        std::shared_ptr<ov::Node> transpose_out, transpose_out_order;
+        if (sdpa_users.size() == 1 && ov::as_type_ptr<ov::op::v1::Transpose>(sdpa_users[0]) != nullptr) {
+            transpose_out = sdpa_users[0];
+            auto order_idx = 1;
+            if (transpose_out->get_input_size() == 2 && ov::as_type_ptr<ov::op::v0::Constant>(transpose_out->get_input_node_shared_ptr(order_idx))) {
+                transpose_out_order = transpose_out->get_input_node_shared_ptr(order_idx);
+            }
+        }
+        bool can_fuse_out_transpose = transpose_out && transpose_out_order;
 
-        if (!sdpa || !transpose_out || transformation_callback(sdpa)) {
+        if (!sdpa || transformation_callback(sdpa)) {
             return false;
         }
 
@@ -284,17 +290,12 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
                                                      pattern_map.at(transpose_v_order_m).get_node_shared_ptr(),
                                                      order_v, input_v_output_idx);
 
-        if (pattern_map.count(transpose_out_m) > 0) {
-            can_fuse_transposes &= process_transpose(transpose_out,
-                                                     pattern_map.at(transpose_out_order_m).get_node_shared_ptr(),
-                                                     order_output, sdpa_output_idx);
+        auto new_out_order = order_output;
+        if (can_fuse_out_transpose) {
+            can_fuse_out_transpose = can_fuse_transposes && process_transpose(transpose_out, transpose_out_order, new_out_order, sdpa_output_idx);
         }
         if (!can_fuse_transposes)
             return false;
-
-        auto input_q = ov::Output<Node>(pattern_map.at(input_q_m).get_node_shared_ptr(), input_q_output_idx);
-        auto input_k = ov::Output<Node>(pattern_map.at(input_k_m).get_node_shared_ptr(), input_k_output_idx);
-        auto input_v = ov::Output<Node>(pattern_map.at(input_v_m).get_node_shared_ptr(), input_v_output_idx);
 
         OutputVector inputs;
         inputs.push_back(ov::Output<Node>(pattern_map.at(input_q_m).get_node_shared_ptr(), input_q_output_idx));
@@ -308,15 +309,23 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
             inputs.push_back(sdpa->get_input_source_output(4));
         }
 
-        auto sdpa_new = std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output);
+        if (can_fuse_out_transpose) {
+            auto sdpa_new = std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, new_out_order);
 
-        sdpa_new->set_friendly_name(sdpa->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);
-        ov::replace_node(transpose_out, sdpa_new);
+            sdpa_new->set_friendly_name(sdpa->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);
+            ov::replace_node(transpose_out, sdpa_new);
+        } else {
+            auto sdpa_new = std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output);
+
+            sdpa_new->set_friendly_name(sdpa->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);
+            ov::replace_node(sdpa, sdpa_new);
+        }
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_out_m, "TransposeSDPAMatcher");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_m, "TransposeSDPAMatcher");
     this->register_matcher(m, callback);
 }
 
