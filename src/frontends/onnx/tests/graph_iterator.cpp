@@ -214,12 +214,15 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
 }
 }  // namespace
 
+class DecoderProtoTensor;
+
 class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     size_t node_index = 0;
-    std::vector<std::shared_ptr<ov::frontend::onnx::DecoderBase>> m_decoders{};
     std::shared_ptr<ModelProto> m_model;
     const GraphProto* m_graph{};
     GraphIteratorProto* m_parent;
+    std::vector<std::shared_ptr<ov::frontend::onnx::DecoderBase>> m_decoders{};
+    std::map<std::string, std::shared_ptr<DecoderProtoTensor>> m_tensors{};
 
 public:
     GraphIteratorProto() = default;
@@ -311,6 +314,21 @@ public:
     }
 
     std::int64_t get_opset_version(const std::string& domain) const override;
+
+protected:
+    /// \brief Returns DecoderProtoTensor found in the current scope, or in a parent scope
+    /// \param name Name of tensor
+    /// \param owner Returns real owner of the tensor
+    std::shared_ptr<DecoderProtoTensor> get_tensor(const std::string& name, GraphIteratorProto** owner) {
+        if (m_tensors.count(name) == 0) {
+            if (m_parent == nullptr) {
+                throw std::runtime_error("Input tensor isn't found for node \"" + name + "\"");
+            }
+            return m_parent->get_tensor(name, owner);
+        }
+        *owner = this;
+        return m_tensors[name];
+    }
 };
 
 class DecoderProtoTensor : public ov::frontend::onnx::DecoderBaseTensor {
@@ -508,7 +526,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             return std::vector<std::string>{attr.strings().begin(), attr.strings().end()};
         case AttributeProto_AttributeType::AttributeProto_AttributeType_GRAPH:
             if (attr.has_g())
-                return GraphIteratorProto{m_parent, &attr.g()};
+                return static_cast<ov::frontend::onnx::GraphIterator::Ptr>(std::make_shared<GraphIteratorProto>(m_parent, &attr.g()));
             else
                 throw std::runtime_error("Attribute doesn't have value");
             break;
@@ -610,22 +628,21 @@ void GraphIteratorProto::reset() {
         return;
     m_decoders.reserve(m_graph->initializer_size() + m_graph->input_size() + m_graph->output_size() +
                        m_graph->node_size());
-    std::map<std::string, std::shared_ptr<DecoderProtoTensor>> tensors{};
     for (const auto& value : m_graph->input()) {
         auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, 0, -1);
         m_decoders.push_back(tensor);
-        if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
+        if (m_tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
             throw std::runtime_error("Tensor already exists \"" + tensor->get_tensor_info().m_tensor_name + "\"");
         }
-        tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
+        m_tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     for (const auto& value : m_graph->output()) {
         auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, -1, 0);
         m_decoders.push_back(tensor);
-        if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
+        if (m_tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
             throw std::runtime_error("Tensor already exists \"" + tensor->get_tensor_info().m_tensor_name + "\"");
         }
-        tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
+        m_tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     for (const auto& initializer : m_graph->initializer()) {
         const auto& decoder =
@@ -644,25 +661,30 @@ void GraphIteratorProto::reset() {
             continue;
         }
         const auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, this, -1, -1);
-        tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
+        m_tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
+    size_t top_index = 0;
     for (const auto& node : m_graph->node()) {
         std::vector<const ov::frontend::onnx::TensorMetaInfo*> input_tensors{};
         std::vector<const ov::frontend::onnx::TensorMetaInfo*> output_tensors{};
         input_tensors.reserve(node.input_size());
         output_tensors.reserve(node.output_size());
         for (const auto& name : node.input()) {
-            if (tensors.count(name) == 0) {
-                throw std::runtime_error("Input tensor isn't found for node \"" + name + "\"");
-            }
             if (name != "") {
-                input_tensors.push_back(&tensors[name]->get_tensor_info());
+                GraphIteratorProto* tensor_owner = nullptr;
+                auto decoder_proto_tensor = this->get_tensor(name, &tensor_owner);
+                input_tensors.push_back(&decoder_proto_tensor->get_tensor_info());
+                if (tensor_owner != this) {
+                    // Need to insert parent's decoders on top of decoders
+                    m_decoders.insert(m_decoders.begin() + top_index, decoder_proto_tensor);
+                    ++top_index;
+                }
             }
         }
         for (const auto& name : node.output()) {
             if (name != "") {
-                const auto& found_tensor = tensors.find(name);
-                if (found_tensor == tensors.end()) {
+                const auto& found_tensor = m_tensors.find(name);
+                if (found_tensor == m_tensors.end()) {
                     const auto& initializer = std::find_if(m_graph->initializer().begin(),
                                                            m_graph->initializer().end(),
                                                            [&name](const TensorProto& value) {
@@ -684,7 +706,7 @@ void GraphIteratorProto::reset() {
                         tensor = std::make_shared<DecoderProtoTensor>(name, this, -1, -1);
                     }
                     m_decoders.push_back(tensor);
-                    tensors[name] = tensor;
+                    m_tensors[name] = tensor;
                     output_tensors.push_back(&tensor->get_tensor_info());
                 } else {
                     output_tensors.push_back(&found_tensor->second->get_tensor_info());
@@ -754,9 +776,13 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
 #include <openvino/openvino.hpp>
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
-    const auto path = ov::util::path_join({ov::test::utils::getExecutableDirectory(),
+    //    const std::string model_name = "abs.onnx";
+    //    const std::string model_name = "model_editor/subgraph_extraction_tests.onnx";
+    const std::string model_name = "controlflow/if_branches_with_same_inputs.onnx";
+    const auto path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(),
                                            TEST_ONNX_MODELS_DIRNAME,
-                                           "model_editor/subgraph_extraction_tests.onnx"})
+                                           model_name})
                           .string();
 
     ov::frontend::FrontEnd::Ptr fe;
