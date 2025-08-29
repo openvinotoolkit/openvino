@@ -141,6 +141,8 @@ public:
     void override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) override;
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                           const std::vector<ov::frontend::Place::Ptr>& outputs) override;
+
+    std::shared_ptr<ov::Model> get_model();
 };
 }  // namespace unify
 
