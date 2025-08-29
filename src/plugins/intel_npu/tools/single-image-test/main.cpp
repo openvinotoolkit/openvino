@@ -721,7 +721,7 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
 /**
  * @brief Parses and processes input files and matches them to model input names.
  *
- * This function processes input file specifications for multiple test cases. It supports both 
+ * This function processes input file specifications for multiple test cases. It supports both
  * the simple format (same file for all inputs) and the mapped format (specific files for specific inputs).
  *
  * The input format supports:
@@ -1174,7 +1174,7 @@ std::vector<std::vector<std::pair<int, float>>> parseClassificationBatch(const o
     return ret;
 }
 
-bool testClassification(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
+bool testClassification(const TensorMap& outputs, const TensorMap& references, const LayoutMap &outputLayouts) {
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(outputs.size() == references.size());
 
@@ -1184,6 +1184,14 @@ bool testClassification(const TensorMap& outputs, const TensorMap& references, s
     OPENVINO_ASSERT(outputFP32.get_element_type() == referenceFP32.get_element_type());
     OPENVINO_ASSERT(outputFP32.get_shape() == referenceFP32.get_shape());
     OPENVINO_ASSERT(referenceFP32.get_element_type() == ov::element::Type_t::f32);
+
+    // calculate batch_size using both tensor layout & shape information
+    size_t batch_size = 1;
+    if(auto it = outputLayouts.find(outputs.begin()->first); it != outputLayouts.end()) {
+        if (ov::layout::has_batch(it->second)) {
+            batch_size = outputFP32.get_shape()[ov::layout::batch_idx(it->second)];
+        }
+    }
 
     auto probsBatch = parseClassificationBatch(outputFP32, batch_size);
     auto refProbsBatch = parseClassificationBatch(referenceFP32, batch_size);
@@ -2460,7 +2468,7 @@ static int runSingleImageTest() {
 
                 // Compare the outputs with their references using the chosen metric
                 if (strEq(FLAGS_mode, "classification")) {
-                    if (testClassification(outputTensors, referenceTensors, FLAGS_override_model_batch_size)) {
+                    if (testClassification(outputTensors, referenceTensors, outputLayouts)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
