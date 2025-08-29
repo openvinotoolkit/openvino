@@ -694,16 +694,112 @@ def test_dynamic_dimension_input_shape():
 
 # Confirms that interval contraints are preserved and correctly interpreted by the model
 def test_interval_dimension_input_shape():
-    param = ops.parameter(PartialShape([Dimension(1, 3), Dimension(3, 5)]), np.float32, name="interval_input")
+    # Create a parameter with interval dimensions
+    param = ops.parameter(
+        PartialShape([Dimension(1, 3), Dimension(3, 5)]),
+        np.float32,
+        name="interval_input"
+    )
     relu = ops.relu(param, name="relu")
     model = Model(relu, [param], "IntervalDimModel")
 
+    # Check min/max bounds
     shape = model.input(0).get_partial_shape()
     assert shape[0].get_min_length() == 1
     assert shape[0].get_max_length() == 3
     assert shape[1].get_min_length() == 3
     assert shape[1].get_max_length() == 5
 
+    # Check dynamic status
+    assert shape[0].is_dynamic
+    assert shape[1].is_dynamic
+
+    # Valid reshape within bounds
+    model.reshape({0: [2, 4]})
+    assert list(model.input(0).shape) == [2, 4]
+
+    # Invalid reshape outside bounds
+    from openvino.runtime import Core
+    core = Core()
+    model.reshape({0: [0, 6]})
+    with pytest.raises(RuntimeError):
+        core.compile_model(model, "CPU")
+
+def test_named_input_reshape():
+    # Verify that a model can be reshaped by specifying the input's tensor name
+    # instead of its positional index, and that the new shape is applied.
+    param = ops.parameter([1, 3, 224, 224], np.float32, name="input_tensor")
+    model = Model(param, [param], "NamedInputModel")
+
+    input_name = model.input(0).get_any_name()
+    new_shape = [1, 3, 256, 256]
+    model.reshape({input_name: new_shape})
+
+    assert list(model.input(0).shape) == new_shape
+
+def test_reshape_with_port_mapping():
+    # Verify that reshape works when passing an Output (port) object
+    # as the key in the shape mapping, rather than an index or name.
+    param = ops.parameter([1, 3, 224, 224], np.float32, name="port_input")
+    model = Model(param, [param], "PortMappingModel")
+
+    port = model.input(0)
+    new_shape = [1, 3, 128, 128]
+    model.reshape({port: new_shape})
+
+    assert list(model.input(0).shape) == new_shape
+
+def test_reshape_with_tensor_name_and_partial_shape():
+    # Verify that reshape accepts a PartialShape alongside an input tensor name,
+    # and that dynamic bounds are preserved and reported correctly.
+    param = ops.parameter(PartialShape([1, Dimension.dynamic(), 224, 224]), np.float32, name="pshape_input")
+    model = Model(param, [param], "PartialShapeNameModel")
+
+    name = model.input(0).get_any_name()
+    partial = PartialShape([1, Dimension(1, 5), 224, 224])
+    model.reshape({name: partial})
+
+    ps = model.input(0).get_partial_shape()
+    assert ps[1].is_dynamic
+    assert ps[1].get_max_length() == 5
+
+def test_reshape_propagation_to_outputs():
+    # Verify that reshaping the model updates all output shapes accordingly,
+    # in this case checking that the batch dimension is propagated.
+    param = ops.parameter([1, 3, 224, 224], np.float32, name="prop_input")
+    relu = ops.relu(param)
+    model = Model(relu, [param], "PropModel")
+
+    new_shape = [1, 3, 128, 128]
+    model.reshape({0: new_shape})
+
+    for out in model.outputs:
+        assert out.shape[0] == 1  # Batch size propagated
+
+def test_reshape_on_subgraph_model():
+    # Verify that reshape works on a model built from a subgraph (subset of ops),
+    # not just on a top-level model loaded from IR.
+    param = ops.parameter([1, 3, 224, 224], np.float32, name="sub_input")
+    relu = ops.relu(param)
+    # Create a new Model from the relu node (subgraph)
+    subgraph_model = Model([relu], [param], "SubgraphModel")
+
+    new_shape = [1, 3, 64, 64]
+    subgraph_model.reshape({0: new_shape})
+
+    assert list(subgraph_model.input(0).shape) == new_shape
+
+def test_invalid_shape_raises_on_compile():
+    # Verify that compiling a model fails if it is reshaped to a shape
+    # outside valid bounds (here: zero dimension), even if reshape() itself accepts it.
+    core = Core()
+    param = ops.parameter([1, 3, 224, 224], np.float32, name="input")
+    relu = ops.relu(param)
+    model = Model([relu], [param], "TinyModel")
+
+    model.reshape({0: [0, 6]})
+    with pytest.raises(RuntimeError):
+        core.compile_model(model, "CPU")
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_rt_info(request, tmp_path):
