@@ -1,0 +1,1 @@
+../ovep/onnxruntime_openvino-1.23.0-cp310-cp310-win_amd64.whl

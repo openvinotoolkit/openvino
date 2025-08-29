@@ -1,0 +1,8 @@
+numpy==2.2.0
+openvino-telemetry
+packaging
+openvino
+onnxruntime
+
+-r inner_ov_package_requirements.txt
+-r external_common_requirements.txt
