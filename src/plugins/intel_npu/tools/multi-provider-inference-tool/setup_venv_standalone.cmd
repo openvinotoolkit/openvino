@@ -9,6 +9,8 @@ set SCRIPT_LOCATION=%~dp0
 set "python_version="
 set STANDALONE_MODE_VENV_PATH=
 
+setlocal enabledelayedexpansion
+
 :: command line arguments parsing
 :input_arguments_loop
 if not "%1"=="" (
@@ -23,6 +25,12 @@ if not "%1"=="" (
     shift
     goto :input_arguments_loop
 )
+
+IF [%STANDALONE_MODE_VENV_PATH%] == [] (
+    set STANDALONE_MODE_VENV_PATH=.venv_standalone_mode
+    echo Use the default venv name for STANDALONE mode: !STANDALONE_MODE_VENV_PATH!
+)
+
 
 :: Check if Python is installed
 set PYTHON_VERSION_MAJOR=3
@@ -81,13 +89,6 @@ for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(64 if sys.maxsi
 if not "%bitness%"=="64" (
    echo Unsupported Python bitness. Please install one of Python %PYTHON_VERSION_MAJOR%.%MIN_REQUIRED_PYTHON_VERSION_MINOR% - %PYTHON_VERSION_MAJOR%.%MAX_SUPPORTED_PYTHON_VERSION_MINOR%^(64-bit^) from https://www.python.org/downloads/
    exit /B 0
-)
-
-
-setlocal enabledelayedexpansion
-IF [%STANDALONE_MODE_VENV_PATH%] == [] (
-    set STANDALONE_MODE_VENV_PATH=.venv_standalone_mode
-    echo Use the default venv name for STANDALONE mode: !STANDALONE_MODE_VENV_PATH!
 )
 
 IF exist %STANDALONE_MODE_VENV_PATH% ( 

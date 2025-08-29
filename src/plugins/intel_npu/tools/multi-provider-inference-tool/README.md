@@ -1,46 +1,33 @@
-
 # multi-provider-inference-tool
 
 Yet another one implementation of single-image-test, which is conceived with intention to launch nn-mod inference using using different frameworks
 
-# Setup environment
+# Setup virtual environment
 
-#### 1. Create a virtual environment
+##### 1. STANDALONE MODE
 
-   ```python3 -m venv myenv```
+If you intend to use the tool in standalone mode and expect that all necessary dependencies will be installed from Python default repositories, please change dir to the tool directory and execute the following commands:
 
-#### 2. Activate it
-
-##### Linux
-
-   ```source ./myenv/bin/activate```
-
-##### or Windows
-
-```myenv\Scripts\activate```
-
-#### 3. Install prerequisites
-
-There are several options how to proceed with the installation, you need to choose only one
-
-##### 3.1. STANDALONE MODE
-
-If you intend to use the tool in standalone mode and expect that all necessary dependencies will be installed from Python default repositories, please use the following commands
-
-    python -m pip install -U pip
-    pip install -r standalone_mode_requirements.txt
+    setup_venv_standalone.cmd <Python venv name>
+    
+You may omit `<Python venv name>`, in this case a default venv will be created
 
 Having this done, please proceed to the [Usage](#usage) section
 
-##### 3.2. OpenVINO package MODE
+##### 2. OpenVINO package MODE
 
-In case if you have already got OpenVINO+TOOLS packages, then you might probably want this tool to use applications from these packages. In this case, please execute the following commands:
+In case if you have already got OpenVINO+TOOLS packages, then you might probably want this tool to use applications from these packages. In this case, please execute the following commands from the tool directory:
 
 ##### Windows
-    <OpenVINO package path>/setupvars.bat
-    find_inner_ov_package_requirements.py <OpenVINO package path>
-    python -m pip install -U pip
-    pip install -r ov_package_mode_requirements.txt
+    
+    setup_venv_standalone.cmd <OpenVINO package path> <Python venv name>
+
+Where: 
+
+`<OpenVINO package path>` is the OpenVINO package where `setupvars.bat` is specified
+
+You may omit `<Python venv name>`, in this case a default venv will be created
+
 
 Having this done, please proceed to the [Usage](#usage) section
 

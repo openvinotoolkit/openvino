@@ -28,8 +28,20 @@ if not "%1"=="" (
     goto :input_arguments_loop
 )
 
-echo OV_PACKAGE_DIR %OV_PACKAGE_DIR%
-echo PACKAGE_MODE_VENV_PATH %PACKAGE_MODE_VENV_PATH%
+iF [%OV_PACKAGE_DIR%] == [] (
+    echo OV_PACKAGE_DIR is not set: please specify it as a first commandline arguments of the script !SCRIPT_NAME! invocation
+    exit /B -1
+)
+if not exist "%OV_PACKAGE_DIR%/setupvars.bat" (
+    echo %OV_PACKAGE_DIR% must contain setupvars.bat
+    exit /B -1
+)
+ 
+IF [%PACKAGE_MODE_VENV_PATH%] == [] (
+    set PACKAGE_MODE_VENV_PATH=.venv_package_mode
+    echo Use the default venv name for PACKAGE mode: !PACKAGE_MODE_VENV_PATH!
+)
+
 :: Check if Python is installed
 set PYTHON_VERSION_MAJOR=3
 set MIN_REQUIRED_PYTHON_VERSION_MINOR=9
@@ -88,25 +100,13 @@ if not "%bitness%"=="64" (
    exit /B 0
 )
 
-
-setlocal enabledelayedexpansion
-
-iF [%OV_PACKAGE_DIR%] == [] (
-    echo OV_PACKAGE_DIR is not set: please specify it as a first commandline arguments of the script !SCRIPT_NAME! invocation
-    exit /B -1
-)
-
-IF [%PACKAGE_MODE_VENV_PATH%] == [] (
-    set PACKAGE_MODE_VENV_PATH=.venv_package_mode
-    echo Use the default venv name for PACKAGE mode: !PACKAGE_MODE_VENV_PATH!
-)
-
 IF exist %PACKAGE_MODE_VENV_PATH% ( 
     echo Python venv for PACKAGE mode exists: %PACKAGE_MODE_VENV_PATH%. Skip it
 ) ELSE (
     copy /b/v/y requirements\generated_gathered_requirements_from_ov_package.txt requirements\generated_gathered_requirements_from_ov_package.txt_bk >NUL
     python requirements/find_inner_ov_package_requirements.py !OV_PACKAGE_DIR!
     python -m venv %PACKAGE_MODE_VENV_PATH%
+    echo !OV_PACKAGE_DIR!/setupvars.bat >> %PACKAGE_MODE_VENV_PATH%\Scripts\activate.bat
     Call "%PACKAGE_MODE_VENV_PATH%\Scripts\activate"
 
     set ret=0
