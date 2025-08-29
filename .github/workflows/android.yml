@@ -115,7 +115,7 @@ jobs:
       ANDROID_NDK_HOME: '/deps/android_tools/ndk/28.2.13676358'
       ANDROID_SDK_VERSION: 30
       ANDROID_ABI_CONFIG: ${{ matrix.android_abi }}
-      TBB_VERSION: 'v2022.2.0'
+      TBB_BRANCH: 'v2022.2.0'
       TBB_SRC: "/__w/openvino/openvino/build/onetbb-src"
       TBB_BUILD: "/__w/openvino/openvino/build/onetbb-build"
       TBB_INSTALL: "/__w/openvino/openvino/build/onetbb-install"
