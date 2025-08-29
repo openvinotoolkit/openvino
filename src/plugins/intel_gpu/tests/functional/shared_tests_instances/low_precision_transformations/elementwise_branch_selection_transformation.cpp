@@ -76,12 +76,21 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
     }
 };
 
+std::vector<std::pair <ElementwiseBranchSelectionTestValues, std::string>> getParamPairs() {
+    std::vector<std::pair<ElementwiseBranchSelectionTestValues, std::string>> result;
+    for (auto elType : elementwiseTypes) {
+        for (const auto& param : params) {
+            result.push_back(std::make_pair(param, elType));
+        }
+    }
+    return result;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ElementwiseBranchSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(params),
-        ::testing::ValuesIn(elementwiseTypes)),
+        ::testing::ValuesIn(getParamPairs())),
     ElementwiseBranchSelectionTransformation::getTestCaseName);
 }  // namespace
