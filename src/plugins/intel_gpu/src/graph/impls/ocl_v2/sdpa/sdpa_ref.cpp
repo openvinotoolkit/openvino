@@ -31,7 +31,10 @@ protected:
         auto desc = params.typed_desc<scaled_dot_product_attention>();
 
         jit.add(make_type_jit_constants("ACCUMULATOR", get_accumulator_type(params)));
-        jit.make("NUM_KV_HEADS", -1);
+        if (desc->has_sink_input) {
+            jit.make("HAS_SINK_INPUT", 1);
+            jit.make("SINK_DATA_T", "half");
+        }
 
         return jit;
     }
