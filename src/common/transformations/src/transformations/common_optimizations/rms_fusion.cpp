@@ -79,6 +79,8 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
     auto gamma_convert = pattern::optional<ov::op::v0::Convert>(gamma);
     auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma_convert, mul1});
 
+    // Check CI failure test.
+
     std::shared_ptr<ov::Node> comp = mul2;
     if (force_tail_convert) {
         // compress RMS result
