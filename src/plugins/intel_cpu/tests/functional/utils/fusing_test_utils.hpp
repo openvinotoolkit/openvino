@@ -87,7 +87,7 @@ struct ExtraOperationsParams {
 
 class CpuTestWithFusing : public CPUTestsBase {
 public:
-    static std::string getTestCaseName(fusingSpecificParams params);
+    static std::string getTestCaseName(const fusingSpecificParams& params);
 
 protected:
     /**

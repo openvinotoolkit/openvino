@@ -140,6 +140,35 @@ std::optional<ov::Output<const ov::Node>> find_port_by_name(const std::vector<ov
     return std::make_optional(*it);
 }
 
+void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
+    const auto& src_shape = src->get_shape();
+
+    OPENVINO_ASSERT(src_shape.size() == 2u);
+    OPENVINO_ASSERT(src_shape == dst->get_shape());
+    OPENVINO_ASSERT(src->get_byte_size() == dst->get_byte_size());
+
+    const auto& src_strides = src->get_strides();
+    const auto& dst_strides = dst->get_strides();
+    const auto elem_size = src->get_byte_size() / src->get_size();
+
+    const auto H = src_shape[0];
+    const auto W = src_shape[1];
+
+    const auto IS_H = src_strides[0];
+    const auto OS_H = dst_strides[0];
+
+    const size_t chunk_byte_size = W * elem_size;
+
+    const auto* src_p = static_cast<uint8_t*>(src->data());
+    auto* dst_p = static_cast<uint8_t*>(dst->data());
+
+    for (size_t i = 0; i < H; ++i) {
+        const size_t src_offset = i * IS_H;
+        const size_t dst_offset = i * OS_H;
+        std::copy_n(src_p + src_offset, chunk_byte_size, dst_p + dst_offset);
+    }
+}
+
 void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const ov::SoPtr<ov::ITensor>& position_ids) {
     // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH, SEQ_LEN]
     // The first dimension (3) represents the three components of position encoding: time, height, and width
@@ -178,11 +207,66 @@ void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const o
     }
 }
 
+void check_tensor_shape_compatibility(const ov::Shape& state_tensor_shape,
+                                      const ov::Shape& infer_tensor_shape,
+                                      size_t full_rank_dim,
+                                      size_t low_rank_dim,
+                                      uint32_t max_low_rank_dim_size) {
+    if (state_tensor_shape[full_rank_dim] != infer_tensor_shape[full_rank_dim]) {
+        OPENVINO_THROW("LoRA adapter tensor shape: ",
+                       state_tensor_shape,
+                       " is not compatible with inference tensor shape: ",
+                       infer_tensor_shape,
+                       ". Please check if adapter is compatible with the base model.");
+    }
+
+    uint32_t state_tensor_low_rank_size = static_cast<uint32_t>(state_tensor_shape[low_rank_dim]);
+    if (state_tensor_low_rank_size > max_low_rank_dim_size) {
+        OPENVINO_THROW("LoRA tensor low-rank size: ",
+                       state_tensor_low_rank_size,
+                       " is larger than the maximum LoRA low-rank size ",
+                       max_low_rank_dim_size,
+                       ". Please adjust NPUW_LLM_MAX_LORA_RANK configuration.");
+    }
+}
+
+std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_name) {
+    uint32_t low_rank_dim, full_rank_dim;
+    if (ov::npuw::util::matchLoRAMatMulAString(state_name)) {
+        // Shape of A is [r, d]
+        low_rank_dim = 0;
+        full_rank_dim = 1;
+    } else if (ov::npuw::util::matchLoRAMatMulBString(state_name)) {
+        // Shape of B is [d, r]
+        low_rank_dim = 1;
+        full_rank_dim = 0;
+    } else if (ov::npuw::util::matchLoRAMatMulAlphaString(state_name)) {
+        // Shape of alpha is [1, r]
+        low_rank_dim = 1;
+        full_rank_dim = 0;
+    } else {
+        OPENVINO_THROW("Unknown LoRA state name: " + state_name);
+    }
+
+    return std::make_pair(low_rank_dim, full_rank_dim);
+}
+
 constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
 
 constexpr std::size_t kStartOutputKVCacheLayers = 1;
 
 }  // anonymous namespace
+
+void ov::npuw::LLMInferRequest::init_lora_states() {
+    for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
+        auto input_name = input_port.get_any_name();
+        if (ov::npuw::util::matchLoRAMatMulAString(input_name) || ov::npuw::util::matchLoRAMatMulBString(input_name) ||
+            ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
+            auto input_tensor = m_prefill_request->get_tensor(input_port);
+            m_variableStates.push_back(std::make_shared<VariableState>(input_name, input_tensor));
+        }
+    }
+}
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
@@ -220,8 +304,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
     }
 
-    const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
-    const bool use_chunk_prefill = prefill_chunk_size > 0;
+    init_lora_states();
+
+    const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
         clear_chunk_prefill_kv_cache();
     }
@@ -248,6 +333,12 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
             enable_cpu_wa = true;
             break;
         }
+    }
+
+    ov::Any kvcache_weight_bank_alloc =
+        compiled_model->m_kvcache_compiled->get_property(ov::intel_npu::npuw::weights_bank_alloc.name());
+    if (kvcache_weight_bank_alloc.as<std::string>() == "CPU") {
+        enable_cpu_wa = true;
     }
 
     if (enable_cpu_wa) {
@@ -289,11 +380,106 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
     }
 }
 
+void ov::npuw::LLMInferRequest::apply_lora() {
+    uint32_t max_low_rank_dim_size = m_npuw_llm_compiled_model->m_max_lora_rank;
+
+    bool pre_alloc_on_npu = true;
+    const auto& prefill_compiled = m_npuw_llm_compiled_model->m_prefill_compiled;
+    for (std::size_t idx = 0; idx < prefill_compiled->m_compiled_submodels.size(); ++idx) {
+        if (prefill_compiled->submodel_device(idx) != "NPU") {
+            pre_alloc_on_npu = false;
+            break;
+        }
+    }
+    std::string device = pre_alloc_on_npu ? "NPU" : "CPU";
+
+    for (auto state : m_variableStates) {
+        auto state_name = state->get_name();
+        auto state_tensor = state->get_state();
+
+        auto variableState = dynamic_cast<VariableState*>(state.operator->());
+        if (!variableState) {
+            OPENVINO_THROW("Failed to cast ov::IVariableState to VariableState.");
+        }
+
+        bool stateUpdated = variableState->is_state_updated();
+        if (!stateUpdated) {
+            continue;
+        }
+
+        if (state_tensor->get_size() == 0) {
+            // Generate without LoRA:
+            // the size of applied LoRA tensor from GenAI is 0
+
+            auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
+            auto kvcach_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
+
+            // Disable adapter by setting alpha to 0
+            if (ov::npuw::util::matchLoRAMatMulAlphaString(state_name)) {
+                fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
+                fill_tensor<float>(kvcach_lora_in_tensor, 0.0f);
+            }
+        } else {
+            // Generate with LoRA
+            auto infer_tensor_shape = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name))->get_shape();
+            auto state_tensor_shape = state_tensor->get_shape();
+            auto lora_dims = get_lora_dims_by_name(state_name);
+            auto low_rank_dim = std::get<0>(lora_dims);
+            auto full_rank_dim = std::get<1>(lora_dims);
+
+            check_tensor_shape_compatibility(state_tensor_shape,
+                                             infer_tensor_shape,
+                                             full_rank_dim,
+                                             low_rank_dim,
+                                             max_low_rank_dim_size);
+
+            uint32_t state_tensor_rank = static_cast<uint32_t>(state_tensor_shape[low_rank_dim]);
+            uint32_t target_lora_rank = static_cast<uint32_t>(infer_tensor_shape[low_rank_dim]);
+
+            auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
+            auto new_infer_tensor = ov::npuw::util::allocMem(prefill_lora_in_tensor->get_element_type(),
+                                                             prefill_lora_in_tensor->get_shape(),
+                                                             device,
+                                                             m_npuw_llm_compiled_model->get_plugin());
+            bool has_padding = state_tensor_rank != target_lora_rank;
+            if (has_padding) {
+                // Clear padding tensor in infer request
+                fill_tensor<float>(new_infer_tensor, 0.0f);
+            }
+
+            // Fill LoRA into infer request
+            auto fill_lora_in_tensor = [low_rank_dim, state_tensor_rank](ov::SoPtr<ov::ITensor> state_tensor,
+                                                                         ov::SoPtr<ov::ITensor> infer_tensor,
+                                                                         bool has_padding) {
+                if (!has_padding) {
+                    state_tensor->copy_to(infer_tensor._ptr);
+                    return;
+                }
+
+                auto new_tensor_slice = make_tensor_slice(infer_tensor, low_rank_dim, 0u, state_tensor_rank);
+                if (low_rank_dim == 1) {
+                    copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
+                } else {
+                    state_tensor->copy_to(new_tensor_slice._ptr);
+                }
+            };
+            fill_lora_in_tensor(state_tensor, new_infer_tensor, has_padding);
+
+            // Set new tensor for inference
+            m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), new_infer_tensor);
+            m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), new_infer_tensor);
+        }
+        variableState->clear_state_updated();
+    }
+}
+
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
+
+    apply_lora();
 }
 
 void ov::npuw::LLMInferRequest::copy_kvcache() {
@@ -319,7 +505,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                  : kvcache_desc.dim;
 
         const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
-        const bool use_chunk_prefill = prefill_chunk_size > 0;
+        const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
         if (use_chunk_prefill) {
             // The chunk prefilled KV results are divided into two parts:
             // Part 1: The KV results from loops 1 to n-1 have been copied into the 'past' KV input tensor
@@ -428,6 +614,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     LOG_BLOCK();
 
     const auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+
+    // For LLM, model accepts 2d inputs_embeds[BATCH, SEQ_LEN]
+    // For VLM, model accepts 3d inputs_ids[BATCH, SEQ_LEN, EMB_SIZE]
+    bool is_input_embeds = input_ids->get_shape().size() == 2 ? false : true;
+
     const auto input_ids_elem_size = input_ids->get_element_type().size();
     auto input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
     const int64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
@@ -459,6 +650,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
         auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
+        if (is_input_embeds) {
+            current_prefill_bytes *= input_ids->get_shape().back();
+            prefilled_bytes *= input_ids->get_shape().back();
+        }
+
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
                     current_prefill_bytes,
                     reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
@@ -507,8 +703,6 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     LOG_DEBUG("Calling inference for prefill model in a single launch.");
     LOG_BLOCK();
 
-    prepare_for_new_conversation();
-
     // NB: padded_input can be either fp32(VLM) or i64(LLM)
     auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
     std::copy_n(
@@ -548,8 +742,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     prepare_for_new_conversation();
 
-    const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
-    const bool use_chunk_prefill = prefill_chunk_size > 0;
+    const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
         infer_chunked_prefill(input_ids, attention_mask, position_ids);
     } else {
@@ -663,4 +856,8 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
         return m_logits;
     }
     return ov::ISyncInferRequest::get_tensor(port);
+}
+
+std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
+    return m_variableStates;
 }
