@@ -496,17 +496,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         const int head_idx = get_group_id(1);
         const float sink_val = convert_float(sink_ptr[head_idx]);
         float2 sink_val_vec = {sink_val, sink_val};
-        const int cur_k = k - k0 * ugemm_kq_wg_tile_m;
+        const int cur_k = k - k0 - 1;
         const bool is_last_m_sg = last && (sg_i_kq == cur_k / ugemm_kq_sg_tile_m);
-//        if (head_idx == 0 && get_local_id(0) == 0) {
-//                printf("is_last_m_sg : %d, head_n: %d, sg_i_kq :%d, (%d,%d,%d), original max: %f sink_val: %f\n", \
-//                        is_last_m_sg, head_idx, sg_i_kq, get_global_id(0), get_global_id(1), get_global_id(2), S_max_tile.x[0][0], sink_val);
-//        }
-
         if (is_last_m_sg) {
-//            if (ugemm_kq_sg_per_wg_n == 1 && head_idx < 4)
-//                printf("first : %d last : %d last_m_Sg? %d! gid :(%d,%d,%d), head_idx : %d, k : %d, sg_i_kq: %d, sink_val : %f ugemm_kq_sg_tile_m : %d, ugemm_kq_wg_tile_m : %d \n", \
-//                first, last, is_last_m_sg, get_global_id(0), get_global_id(1), get_global_id(2), head_idx, k, sg_i_kq, sink_val, ugemm_kq_sg_tile_m, ugemm_kq_wg_tile_m);
         #if (ugemm_kq_sg_tile_n/SUBGROUP_SIZE) > 1
             #define max_sink(x) (fmax(x, sink_val_vec))
             tile_elementwise(S_max_tile, max_sink);
