@@ -244,12 +244,15 @@ std::vector<std::string> disabledTestPatterns() {
         returnVal.push_back(R"(.*smoke_MatMul_NoTranspose/MatMulLayerTest.Inference/IS=.*)");
         returnVal.push_back(R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled/GroupConvo.*)");
         returnVal.push_back(R"(.*smoke_static_conv_n_dynamic_concat/ConvStaticConcatDynamicGPUTestDynam.*)");
-        returnVal.push_back(R"(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netP.*)");
+//        returnVal.push_back(R"(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netP.*)");
         returnVal.push_back(R"(.*smoke_FC_3D/MatMulLayerGPUTest.Inference/.*)");
         returnVal.push_back(R"(.*smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest..*)");
         returnVal.push_back(R"(.*smoke_MatmulWeightsDecompressionQuantizeConvolution_basic.*)");
         returnVal.push_back(R"(.*smoke_Nms9LayerTest/Nms9LayerTest.Inference/num_batches=2_num_boxes=50.*)");
         returnVal.push_back(R"(.*smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/n.*)");
+    } else {
+        // CVS-172342
+        returnVal.push_back(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)");
     }
     return returnVal;
 }
