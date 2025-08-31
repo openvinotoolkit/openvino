@@ -6,10 +6,11 @@
 
 #include <memory>
 #include <utility>
-#include "program_node.h"
+
 #include "intel_gpu/runtime/layout.hpp"
-#include "registry/implementation_manager.hpp"
 #include "paged_attention_inst.h"
+#include "program_node.h"
+#include "registry/implementation_manager.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
@@ -34,7 +35,7 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
         const auto& info = engine.get_device_info();
         // CM optimized for systolic-array architectures
         if (!check_cm_jit_support(engine, config) || !info.supports_immad || !config.get_use_cm()) {
-            std::cout << __LINE__ << ": ov::intel_gpu::cm::PagedAttentionImplementationManager::validate_impl() - false " << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << __LINE__ << ": ov::intel_gpu::cm::PagedAttentionImplementationManager::validate_impl() - false " << std::endl;
             return false;
         }
 
@@ -43,21 +44,21 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
         const auto& v_layout = node.get_input_layout(2);
         const auto& out_layout = node.get_output_layout(0);
         if (!everyone_is(format::bfyx, q_layout.format, k_layout.format, v_layout.format, out_layout.format)) {
-            std::cout << __LINE__ << ": ov::intel_gpu::cm::PagedAttentionImplementationManager::validate_impl() - false " << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << __LINE__ << ": ov::intel_gpu::cm::PagedAttentionImplementationManager::validate_impl() - false " << std::endl;
             return false;
         }
 
         if (!one_of(k_layout.data_type, supported_kv_types) || !one_of(v_layout.data_type, supported_kv_types)) {
-            std::cout << __LINE__ << ": ov::intel_gpu::cm::PagedAttentionImplementationManager::validate_impl() - false " << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << __LINE__ << ": ov::intel_gpu::cm::PagedAttentionImplementationManager::validate_impl() - false " << std::endl;
             return false;
         }
 
         if (!one_of(q_layout.data_type, supported_q_types) || !one_of(out_layout.data_type, supported_q_types)) {
-            std::cout << __LINE__ << ": ov::intel_gpu::cm::PagedAttentionImplementationManager::validate_impl() - false " << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << __LINE__ << ": ov::intel_gpu::cm::PagedAttentionImplementationManager::validate_impl() - false " << std::endl;
             return false;
         }
 
-        std::cout << "ov::intel_gpu::cm::PagedAttentionImplementationManager::validate_impl() - true" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionImplementationManager::validate_impl() - true" << std::endl;
         return true;
     }
 };

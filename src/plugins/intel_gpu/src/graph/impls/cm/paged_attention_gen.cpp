@@ -26,6 +26,8 @@ constexpr size_t WG_SIZE = 16;
 constexpr size_t reduce_split_step = 16;
 }  // namespace
 
+#define DEBUG_ENABLED 1
+
 // This function returns the kv_step and kv_split_len based on the architecture.
 // return {kv_step, kv_split_len}
 inline std::pair<size_t, size_t> get_kv_split_size(size_t arch) {
@@ -213,7 +215,7 @@ PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_par
 JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = KernelGenerator::get_jit_constants(params);
     jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
-    std::cout << "PagedAttentionGeneratorBase::get_jit_constants: " << get_entry_point(params) << std::endl;
+    // std::cout << "PagedAttentionGeneratorBase::get_jit_constants: " << get_entry_point(params) << std::endl;
 
     // auto desc = params.typed_desc<paged_attention>();
     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
@@ -277,36 +279,10 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         wgs.local = {1, 1, WG_SIZE};
 
         auto& scalars = kd.params.scalars;
-        // TODO: how to get pitch for dynamic_padding?
         size_t key_pitch = desc->k_head_size * kv_heads_num;
         size_t value_pitch = desc->v_head_size * kv_heads_num;
         auto key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
         auto value_layout = params.input_layouts[PagedAttentionInputIdx::VALUE];
-
-        {
-            std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: "
-                      << "key_layout: " << key_layout.to_string() << ", value_layout: " << value_layout.to_string() << std::endl;
-            std::cout << "\tkey_dims = [";
-            for (auto& it : key_layout.get_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-            std::cout << "\tkey_pads = [";
-            for (auto& it : key_layout.get_padded_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-            std::cout << "\tvalue_dims = [";
-            for (auto& it : value_layout.get_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-            std::cout << "\tvalue_pads = [";
-            for (auto& it : value_layout.get_padded_dims()) {
-                std::cout << static_cast<size_t>(it) << ", ";
-            }
-            std::cout << "]" << std::endl;
-        }
 
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
@@ -321,16 +297,16 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         };
         key_pitch = get_simple_pitch(key_layout);
         value_pitch = get_simple_pitch(value_layout);
-        std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: "
-                  << "key_pitch: " << key_pitch << ", value_pitch: " << value_pitch << std::endl;
+
+        if (DEBUG_ENABLED) {  // Debug
+            std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: "
+                      << "key_pitch: " << key_pitch << ", value_pitch: " << value_pitch << std::endl;
+        }
 
         // TODO: support multiple sequences
         size_t batch_size_in_sequences = 1;
         std::vector<size_t> scaler_value = {key_pitch, value_pitch, batch_size_in_sequences};
         scalars.resize(scaler_value.size());
-
-        // std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: "
-        //           << "batch: " << batch << ", heads_num: " << heads_num << ", split_num: " << split_num << ", kv_len: " << kv_len << std::endl;
 
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
@@ -395,7 +371,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
 
         auto query_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
 
-        {
+        if (DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: query_layout: " << query_layout.to_string() << std::endl;
             std::cout << "\tquery_dims = [";
             for (auto& it : query_layout.get_dims()) {
@@ -421,13 +397,12 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         wgs.global = {batch, heads_num, wg_count * WG_SIZE};
         wgs.local = {1, 1, WG_SIZE};
 
-        {
+        if (DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: \n"
-                      << "\tbatch: " << batch << ", heads_num: " << heads_num << ", q_len: " << q_len
-                      << ", q_step: " << q_step << ", wg_seq_len: " << wg_seq_len << ", wg_count: " << wg_count
-                      << ", global_work_size: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
-                      << ", local_work_size: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]"
-                      << std::endl;
+                      << "\tbatch: " << batch << ", heads_num: " << heads_num << ", q_len: " << q_len << ", q_step: " << q_step
+                      << ", wg_seq_len: " << wg_seq_len << ", wg_count: " << wg_count << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", "
+                      << wgs.global[2] << "]"
+                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
 
         std::vector<size_t> scaler_value = {q_len};
@@ -507,8 +482,12 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         std::vector<size_t> scaler_value = {1};
         scalars.resize(scaler_value.size());
 
-        // std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: "
-        //           << "batch: " << batch << ", heads_num: " << heads_num << ", partition_num: " << partition_num << ", kv_len: " << kv_len << std::endl;
+        if (DEBUG_ENABLED) {  // Debug
+            std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: "
+                      << "batch: " << batch << ", heads_num: " << heads_num << ", partition_num: " << partition_num << ", gws: [" << wgs.global[0] << ", "
+                      << wgs.global[1] << ", " << wgs.global[2] << "]"
+                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+        }
 
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
@@ -566,8 +545,12 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
         std::vector<size_t> scaler_value = {partition_num};
         scalars.resize(scaler_value.size());
 
-        // std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: "
-        //           << "batch: " << batch << ", heads_num: " << heads_num << ", partition_num: " << partition_num << ", kv_len: " << kv_len << std::endl;
+        if (DEBUG_ENABLED) {  // Debug
+            std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: "
+                      << "batch: " << batch << ", heads_num: " << heads_num << ", partition_num: " << partition_num << ", gws: [" << wgs.global[0] << ", "
+                      << wgs.global[1] << ", " << wgs.global[2] << "]"
+                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+        }
 
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
