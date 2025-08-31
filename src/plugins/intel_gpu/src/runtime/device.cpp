@@ -37,33 +37,15 @@ struct DeviceOps {
     std::map<data_types, float> ops_dpas;
     std::map<data_types, float> ops_dp4a;
 
-    void print_summary() const {
-        printf("platform: %s\n", platform.c_str());
-
-        if (gfx_version_list.size() == 1) {
-            printf("gfx_version: %d.%d.%d\n", gfx_version_list[0].major, gfx_version_list[0].minor, gfx_version_list[0].revision);
-        } else if (gfx_version_list.size() == 2) {
-            printf("gfx_version: %d.%d.%d ~ %d.%d.%d\n",
-                    gfx_version_list[0].major, gfx_version_list[0].minor, gfx_version_list[0].revision,
-                    gfx_version_list[1].major, gfx_version_list[1].minor, gfx_version_list[1].revision);
-        }
-
-        for (const auto& pair : ops_mad) {
-            std::cout << "\tops(mad): " << pair.first << ", " << pair.second << std::endl;
-        }
-        for (const auto& pair : ops_dpas) {
-            std::cout << "\tops(dpas): " << pair.first << ", " << pair.second << std::endl;
-        }
-        for (const auto& pair : ops_dp4a) {
-            std::cout << "\tops(dp4a): " << pair.first << ", " << pair.second << std::endl;
-        }
-    }
-
     static bool is_zero(float value) {
         return std::abs(value) <= std::numeric_limits<float>::epsilon();
     }
 
     bool is_support(device_info& info) const {
+        if (dev_id_list.size() > 0) {
+            return std::find(dev_id_list.begin(), dev_id_list.end(), info.device_id) != dev_id_list.end();
+        }
+
         if (gfx_version_list.size() == 1) {
             return info.gfx_ver == gfx_version_list[0];
         } else if (gfx_version_list.size() == 2) {
@@ -87,6 +69,10 @@ struct DeviceOps {
             }
         }
 
+        return get_ops_for_mad(dt);
+    }
+
+    float get_ops_for_mad(data_types dt) const {
         auto it = ops_mad.find(dt);
         if (it != ops_mad.end()) {
             return it->second;
@@ -108,7 +94,7 @@ const std::vector<DeviceOps> device_ops_table = {
     { "PVC_XT",   {},         { {12, 60,  3}, {12, 61, 7}            }, {    32,     32,     64,      0,      0,      0,    512,   1024 } },
     { "MTL/ARL",  {},         { {12, 70,  0}, {12, 74, MAX_REVISION} }, {   0.5,     16,     32,    128,    256,      0,      0,     64 } },
     { "ATS",      { 0x020A, 0x0210 },
-                              { {20,  1,  0}, {20,  2, MAX_REVISION} }, {     0,     16,     32,    128,    256,    512,      0,      0 } },
+                              {},                                       {     0,     16,     32,    128,    256,    512,      0,      0 } },
     { "BMG",      {},         { {20,  1,  0}, {20,  2, MAX_REVISION} }, {     1,     16,     32,    128,    256,    512,      0,      0 } },
     { "LNL/PTL",  {},         { {20,  4,  0}, {30,  1, MAX_REVISION} }, {     1,     16,     32,    128,    256,    512,      0,      0 } },
 };
@@ -127,10 +113,15 @@ float device::get_gops(data_types dt) const {
     auto numEUs = info.execution_units_count * (info.arch < gpu_arch::xe2 ? 1 : 2);
     auto opsPerEU = 0.f;
 
-    for (auto& device_ops : device_ops_table) {
-        if (device_ops.is_support(info)) {
-            opsPerEU = device_ops.get_ops(info, dt);
-            break;
+    auto it = std::find_if(device_ops_table.begin(), device_ops_table.end(),
+        [&info](auto& ops) {
+            return ops.is_support(info);
+        });
+    if (it != device_ops_table.end()) {
+        opsPerEU = it->get_ops(info, dt);
+        if (DeviceOps::is_zero(opsPerEU) && (dt == data_types::i8 || dt == data_types::u8)) {
+            // WA: ops of i8/u8 is twice of f16.
+            opsPerEU = it->get_ops_for_mad(data_types::f16) * 2;
         }
     }
 
