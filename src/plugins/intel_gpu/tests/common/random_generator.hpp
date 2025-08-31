@@ -58,6 +58,16 @@ public:
     }
 
     template<typename ReturnType>
+    std::vector<ReturnType> generate_random_1d_fixed(size_t a, int start, int step, int k = 100) {
+        std::vector<ReturnType> v(a);
+
+        for (size_t i = 0; i < a; ++i) {
+            v[i] = static_cast<ReturnType>(start + i * step) / k;
+        }
+        return v;
+    }
+
+    template<typename ReturnType>
     std::vector<std::vector<ReturnType>> generate_random_2d(size_t a, size_t b, int min, int max, int k = 8) {
         std::vector<std::vector<ReturnType>> v(a);
         for (size_t i = 0; i < a; ++i)

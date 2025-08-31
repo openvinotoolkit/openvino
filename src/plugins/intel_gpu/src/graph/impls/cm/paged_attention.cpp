@@ -31,7 +31,9 @@ public:
     Stage::Ptr pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
     Stage::Ptr pa_multi_token = make_stage<PagedAttentionGeneratorMultiToken>();
 
-    PagedAttentionCmImpl(): PrimitiveImplCM(PagedAttentionImplementationManager::get_type_info_static()) {}
+    PagedAttentionCmImpl(): PrimitiveImplCM(PagedAttentionImplementationManager::get_type_info_static()) {
+        m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
+    }
     explicit PagedAttentionCmImpl(const kernel_impl_params& params) : PagedAttentionCmImpl() {
         const auto desc = params.typed_desc<paged_attention>();
 
@@ -45,7 +47,7 @@ public:
     void update_rt_params(const primitive_inst& instance) override {
         update_stages_flags(instance);
         if (m_rt_params == nullptr) {
-            m_rt_params = std::make_unique<ImplRuntimeParams>();
+            m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
         }
         std::cout << "ov::intel_gpu::cm::PagedAttentionCmImpl::update_rt_params()" << std::endl;
         const auto& params = *instance.get_impl_params();
