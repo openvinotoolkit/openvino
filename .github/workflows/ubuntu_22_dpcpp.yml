@@ -6,8 +6,8 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  pull_request:
-  merge_group:
+  # pull_request:
+  # merge_group:
 
 concurrency:
   # github.ref is not unique in post-commit
