@@ -128,8 +128,7 @@ OpenVINO Node.js API
   The change comes with a benchmark tool to evaluate performance.
 * `Model.reshape` method has been exposed, including type conversion ability and type validation helpers,
    useful for reshaping LLMs.
-* Support for ov-node types in TypeScript part of bindings has been extended, enabling
-  direct integration with the JavaScript API. 
+* Support for ov-node types in TypeScript part of bindings has been extended, enabling  direct integration with the JavaScript API. 
 * Wrapping of `compileModel()` method has been fixed to allow checking type of returned objects.  
 
 
@@ -175,7 +174,7 @@ OpenVINO™ Model Server
    * Qwen3-reranker,
    * Gemma3 VLM models.
   
-* New models and use cases supported:
+* Deployment improvements:
   
 	* Progress bar display has been implemented for model downloads from Hugging Face. 
 	  For models from the OpenVINO organization, download status is now shown in the logs.
@@ -199,31 +198,64 @@ OpenVINO™ Model Server
 Neural Network Compression Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-
+* 4-bit data-aware Scale Estimation and AWQ compression methods have been introduced for ONNX 
+  models, providing more accurate compression results.
+* NF4 data type is now supported as an FP8 look-up table for faster inference. 
+* New parameter has been added to support a fallback group size in 4-bit weight compression 
+  methods. This helps when the specified group size can not be applied, for example,
+  in models with an unusual number of channels in matrix multiplication (matmuls). When enabled with 
+  `nncf.AdvancedCompressionParameters(group_size_fallback_mode=ADJUST)`, NNCF automatically 
+  adjusts the group size. By default, `nncf.AdvancedCompressionParameters(group_size_fallback_mode=IGNORE)` 
+  is used, meaning that NNCF will not compress nodes when the specified group size can not be applied. 
+* Initialization for 4-bit QAT with absorbable LoRA has been enhanced using advanced compression methods 
+  (AWQ + Scale Estimation). This replaces the previous basic data-free compression 
+  approach, enabling QAT to start with a more accurate model baseline and achieve better final accuracy.
+* External quantizers in the `quantize_pt2e` API have been enabled, including `XNNPACKQuantizer  <https://docs.pytorch.org/executorch/stable/backends-xnnpack.html>`__
+  and `CoreMLQuantizer  <https://docs.pytorch.org/executorch/stable/backends-coreml.html>`__.
+* PyTorch 2.8 is now supported. 
 
 OpenVINO Tokenizers
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+* OpenVINO GenAI integration: 
 
+   * Padding side can now be set dynamically during runtime.
+   * Tokenizer loading now supports a second input for relevant GenAI pipelines, for example TextRerankPipeline.
+
+* Two inputs are now supported to accommodate a wider range of tokenizer types. 
 
 OpenVINO GenAI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* New preview pipelines with C++ and Python samples have been added:
+* New OpenVINO GenAI docs homepage: https://openvinotoolkit.github.io/openvino.genai/
+* Transitioned from Jinja2Cpp to Minja, improving chat_template coverage support.
+* Cache eviction algorithms added:
 
-  * Text2SpeechPipeline,
-  * TextEmbeddingPipeline covering RAG scenario.
+  * KVCrush algorithm
+  * Sparse attention prefill
 
-* Visual language modeling (VLMPipeline):
+* Support for Structured Output for flexible and efficient structured generation with XGrammar:
 
-  * VLM prompt can now refer to specific images. For example, 
-	 ``<ov_genai_image_0>What’s in the image?`` will prepend the corresponding image to the prompt 
-	 while ignoring other images. See VLMPipeline’s docstrings for more details.
-  * VLM uses continuous batching by default, improving performance.
-  * VLMPipeline can now be constructed from in-memory `ov::Model`.
-  * Qwen2.5-VL support has been added.
+  * C++ and Python samples
+  * Constraint sampling with Regex, JSONSchema, EBNF Grammar and Structural tags
+  * Compound grammar to combine multiple grammar types (Regex, JSONSchema, EBNF) using Union 
+  (|) and Concat (+) operations for more flexible and complex output constraints.
 
-* JavaScript: 
+* GGUF 
+  * Qwen3 architecture is now supported 
+  * `enable_save_ov_model` property to serialize generated ov::Model as IR for faster 
+    LLMPipeline construction next time 
+
+* LoRA  
+  * Dynamic LoRA for NPU has been enabled.
+  * Model weights can now be overridden from .safetensors 
+
+* Tokenizer   
+  * padding_side property has been added to specify left or right 
+  * add_second_input property to transform Tokenizer from one input to two inputs. 
+    Used for TextRerankPipeline 
+  
+* JavaScript bindings: 
 
   * JavaScript samples have been added: beam_search_causal_lm and multinomial_causal_lm.
   * An interruption option for LLMPipeline streaming has been introduced.
