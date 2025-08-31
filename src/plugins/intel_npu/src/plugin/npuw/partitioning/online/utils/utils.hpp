@@ -90,7 +90,8 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:VocabMatMul/compute,"
                                                                  "P:RMSNorm/compute,P:RMSNorm2/compute,"
                                                                  "P:RMSNorm3/compute,P:RMSNorm4/compute,"
-                                                                 "P:VariadicSplit/compute"},
+                                                                 "P:VariadicSplit/compute,"
+                                                                 "P:SDPA/attention"},
                                                                 {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake"}};
 }  // namespace util
 

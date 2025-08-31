@@ -516,6 +516,7 @@ void Snapshot::earlyRegroup() {
             HNDL(DQMatMulConv);
             HNDL(VocabMatMul);
             HNDL(VariadicSplit);
+            HNDL(SDPA);
             HNDL_FAKE(FakeConvert);
             HNDL_FAKE(FakeQuantize);
 #undef HNDL_FAKE

@@ -4,6 +4,8 @@
 
 #include "compute.hpp"
 
+#include <iostream>
+
 #include "../../logging.hpp"
 #include "../online/group.hpp"     // online::Group
 #include "../online/snapshot.hpp"  // online::Snapshot
@@ -19,6 +21,118 @@ namespace patterns {
 namespace compute {
 
 namespace opp = ov::pass::pattern;
+
+/*
+    SDPA Pattern:
+            Convert
+                \       /
+                 Concat
+                    |
+                Unsqueeze
+                    |
+                Broadcast   Convert
+                    |       \       /
+                Reshape       Concat
+        \           /           |
+            MatMul           Unsqueeze
+    \       /                   |
+       Add                   Broadcast
+        |                       |
+     Softmax                Reshape
+            \               /
+                  MatMul
+                    |
+                Transpose
+                    |
+                Reshape
+                    |
+*/
+
+SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto convert1 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
+    auto concat1 = opp::wrap_type<ov::op::v0::Concat>({convert1, opp::any_input()});
+    auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({concat1, opp::any_input()});
+    auto broadcast1 = opp::wrap_type<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()});
+    auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({broadcast1, opp::any_input()});
+
+    auto convert2 = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
+    auto concat2 = opp::wrap_type<ov::op::v0::Concat>({convert2, opp::any_input()});
+    auto unsqueeze2 = opp::wrap_type<ov::op::v0::Unsqueeze>({concat2, opp::any_input()});
+    auto broadcast2 = opp::wrap_type<ov::op::v3::Broadcast>({unsqueeze2, opp::any_input()});
+    auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({broadcast2, opp::any_input()});
+
+    auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), reshape1});
+    auto add = opp::wrap_type<ov::op::v1::Add>({matmul1, opp::any_input()});
+    auto softmax = opp::wrap_type<ov::op::v8::Softmax>({add});
+
+    auto matmul2 = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape2});
+    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul2, opp::any_input()});
+    auto reshape3 = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_softmax = node_to_output.at(softmax).get_node_shared_ptr();
+
+        // Check softmax shape: skip if second-to-last dimension is 1 so that not isolate for kvcache model
+        // FIXME: check for a more proper condition
+        auto softmax_shape = matched_softmax->get_output_shape(0);
+        if (softmax_shape.size() < 2) {
+            return false;
+        }
+        auto second_to_last_dim = softmax_shape[softmax_shape.size() - 2];
+        if (second_to_last_dim == 1) {
+            LOG_DEBUG("SDPA pattern skipped: softmax second-to-last dimension is 1");
+            return false;
+        }
+
+        LOG_INFO("SDPA pattern matched!");
+        auto matched_convert1 = node_to_output.at(convert1).get_node_shared_ptr();
+        auto matched_concat1 = node_to_output.at(concat1).get_node_shared_ptr();
+        auto matched_unsqueeze1 = node_to_output.at(unsqueeze1).get_node_shared_ptr();
+        auto matched_broadcast1 = node_to_output.at(broadcast1).get_node_shared_ptr();
+        auto matched_reshape1 = node_to_output.at(reshape1).get_node_shared_ptr();
+
+        auto matched_convert2 = node_to_output.at(convert2).get_node_shared_ptr();
+        auto matched_concat2 = node_to_output.at(concat2).get_node_shared_ptr();
+        auto matched_unsqueeze2 = node_to_output.at(unsqueeze2).get_node_shared_ptr();
+        auto matched_broadcast2 = node_to_output.at(broadcast2).get_node_shared_ptr();
+        auto matched_reshape2 = node_to_output.at(reshape2).get_node_shared_ptr();
+
+        auto matched_matmul1 = node_to_output.at(matmul1).get_node_shared_ptr();
+        auto matched_add = node_to_output.at(add).get_node_shared_ptr();
+        auto matched_matmul2 = node_to_output.at(matmul2).get_node_shared_ptr();
+        auto matched_transpose = node_to_output.at(transpose).get_node_shared_ptr();
+        auto matched_reshape3 = node_to_output.at(reshape3).get_node_shared_ptr();
+
+        // Isolate all matched nodes with the given tag
+        node_to_gptr->at(matched_convert1)->isolate(isol_tag);
+        node_to_gptr->at(matched_concat1)->isolate(isol_tag);
+        node_to_gptr->at(matched_unsqueeze1)->isolate(isol_tag);
+        node_to_gptr->at(matched_broadcast1)->isolate(isol_tag);
+        node_to_gptr->at(matched_reshape1)->isolate(isol_tag);
+
+        node_to_gptr->at(matched_convert2)->isolate(isol_tag);
+        node_to_gptr->at(matched_concat2)->isolate(isol_tag);
+        node_to_gptr->at(matched_unsqueeze2)->isolate(isol_tag);
+        node_to_gptr->at(matched_broadcast2)->isolate(isol_tag);
+        node_to_gptr->at(matched_reshape2)->isolate(isol_tag);
+
+        node_to_gptr->at(matched_matmul1)->isolate(isol_tag);
+        node_to_gptr->at(matched_add)->isolate(isol_tag);
+        node_to_gptr->at(matched_softmax)->isolate(isol_tag);
+        node_to_gptr->at(matched_matmul2)->isolate(isol_tag);
+        node_to_gptr->at(matched_transpose)->isolate(isol_tag);
+        node_to_gptr->at(matched_reshape3)->isolate(isol_tag);
+
+        return false;  // root hasn't changed
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(reshape3, "TagSDPA"), std::move(callback));
+}
 
 // TODO: visualize
 DQMatMulGQu4::DQMatMulGQu4(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
