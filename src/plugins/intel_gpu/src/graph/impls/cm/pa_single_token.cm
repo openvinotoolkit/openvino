@@ -98,7 +98,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         return;
     }
     const uint total_blocks_num = (kv_len + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE;
-    
     //#TODO: int8 compression data
     uint kv_pitch = HEAD_SIZE * sizeof(half);
     //# fp16 data
