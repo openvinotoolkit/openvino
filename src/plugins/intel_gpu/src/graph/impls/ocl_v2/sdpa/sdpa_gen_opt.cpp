@@ -80,8 +80,10 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         if (info.supports_immad && broadcast_axis == -1 && k_head_size >= 128) {
             jit.make("LOAD_KEY_LEFTOVERS_IN_CALC_LOOP", 1);
         }
-        if (desc->has_sink_input)
+        if (desc->has_sink_input) {
             jit.make("HAS_SINK_INPUT", 1);
+            jit.make("SINK_DATA_T", "half");
+        }
     }
 
     if (unaligned_head_size(k_head_size, v_head_size, subgroup_size)) {
