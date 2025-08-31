@@ -48,6 +48,19 @@
 
 #define KV_SCALE_ZP_SIZE 0 // 4: scale/zp size
 
+template<typename T, int M, int N>
+void show(matrix<T, M, N> mat) {
+    for(int m = 0; m < M; m ++) {
+        printf("\t[");
+        for(int n = 0; n < N; n ++) {
+            printf("%8.4f,", mat[m][n]);
+        }
+        printf("],\n");
+    }
+    printf("]\n");
+}
+
+
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
 // extern "C" _GENX_MAIN_ void cm_sdpa_2nd(
     half* query [[type("svmptr_t")]],
@@ -95,9 +108,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint start_block_idx = block_indices_begins[subsequence_idx] + partition_idx * (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
 
     if(partition_idx * KV_PARTITION_SIZE > kv_len) {
+        // printf("WG exit: partition_idx=%d, KV_PARTITION_SIZE=%d, kv_len=%d\n", partition_idx, KV_PARTITION_SIZE, kv_len);
         return;
     }
     const uint total_blocks_num = (kv_len + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE;
+
     //#TODO: int8 compression data
     uint kv_pitch = HEAD_SIZE * sizeof(half);
     //# fp16 data
@@ -118,11 +133,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint per_kv_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + KV_SCALE_ZP_SIZE / sizeof(half)); // 4: scale/zp
     uint block_num = KV_PARTITION_SIZE / KV_BLOCK_SIZE;
 
+    uint leftover_aligned_size = 0;
     uint leftover_size = 0;
+    if(partition_idx == kv_partition_num - 1) {
+        leftover_size = (kv_len - KV_PARTITION_SIZE * partition_idx) % KV_PARTITION_SIZE;
+        leftover_aligned_size = KV_STEP * ((leftover_size + KV_STEP - 1) / KV_STEP); // round up to KV_STEP
+    }
     if(block_num > total_blocks_num - start_block_idx) {
         block_num = total_blocks_num - start_block_idx;
-        leftover_size = kv_len - KV_PARTITION_SIZE * partition_idx;
-        leftover_size = KV_STEP * ((leftover_size + KV_STEP - 1) / KV_STEP); // round up to KV_STEP
     }
 
     //# rS = Q @ Kt
@@ -153,8 +171,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     #endif
 
         uint kv_pos_end = KV_BLOCK_SIZE;
-        if(block_idx == block_num - 1 && leftover_size > 0) {
-            kv_pos_end = leftover_size % KV_BLOCK_SIZE;
+        if(block_idx == block_num - 1 && start_block_idx > 0) {
+            kv_pos_end = start_block_idx % KV_BLOCK_SIZE;
         }
         for(int kv_pos = 0; kv_pos < kv_pos_end; kv_pos += KV_STEP, ki++) {
             auto rSvec = rS[ki].format<float>();
@@ -190,8 +208,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         }
     }
 
-    // printf("rS:\n");
-    // show(rS);
+    //if(wg_thread_id==1) {
+    //    printf("rS:\n");
+    //    show(rS);
+    //}
 
     // online softmax
     float cur_sum = 0.0f;
@@ -210,9 +230,18 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         rS = cm_mul<float>(rS, (float)SCALE_FACTOR);  // convert scale_factor into (float), or it will be promoted to double
         //rS = cm_add<float>(rS, MaskMat);
 
+        // printf("leftover_size = %d, leftover_aligned_size = %d, XE_ARCH = %d, PARTITION_SUBBLOCK_NUM * REG_N = %d\n", leftover_size, leftover_aligned_size, XE_ARCH, PARTITION_SUBBLOCK_NUM * REG_N);
+        if(leftover_size > 0) {
+            auto Svec = rS.format<float>();
+            for(int i = leftover_size; i < PARTITION_SUBBLOCK_NUM * REG_N; i++){
+                Svec[i] = -10000000000.0f;
+            }
+        }
+
         // compute lse
         constexpr float log2e = 1.4426950408889634f;
         vector<float, PARTITION_SUBBLOCK_NUM * REG_N> rS_exp = cm_exp(rS.format<float>()*log2e);
+
         cur_lse += cm_sum<float>(rS_exp);
 
         // compute row_max
@@ -233,7 +262,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         cur_sum = cm_sum<float>(rPv[0]);
     }
 
-    //if(wg_thread_id==0) {
+    // if(wg_thread_id==kv_partition_num - 1 && head_num_idx == 0) {
     //    printf("Pmat:\n");
     //    show(Pmat);
     //}
@@ -258,8 +287,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     #endif
     
         uint kv_pos_end = KV_BLOCK_SIZE;
-        if(block_idx == block_num - 1 && leftover_size > 0) {
-            kv_pos_end = leftover_size % KV_BLOCK_SIZE;
+        if(block_idx == block_num - 1 && start_block_idx > 0) {
+            kv_pos_end = start_block_idx % KV_BLOCK_SIZE;
         }
         for(int kv_pos =0; kv_pos < kv_pos_end; kv_pos += REG_K, ki++) {
             uint kv_offset_y = kv_pos;
@@ -288,11 +317,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             }
         }
     }
-    
-    //if(wg_thread_id==0) {
+
+    // if(wg_thread_id==kv_partition_num - 1) {
     //    printf("Omat:\n");
     //    show(Omat);
-    //}
+    // }
 
     //# save Output
     matrix<half, REG_M, REG_N> cur_O_f16;

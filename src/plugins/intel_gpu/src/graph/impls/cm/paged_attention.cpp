@@ -37,7 +37,7 @@ public:
     explicit PagedAttentionCmImpl(const kernel_impl_params& params) : PagedAttentionCmImpl() {
         const auto desc = params.typed_desc<paged_attention>();
 
-        std::cout << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::PagedAttentionCmImpl()" << std::endl;
         add_stage(kv_cache_update, params);
         add_stage(pa_single_token, params);
         add_stage(pa_single_token_finalization, params);
@@ -49,7 +49,7 @@ public:
         if (m_rt_params == nullptr) {
             m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
         }
-        std::cout << "ov::intel_gpu::cm::PagedAttentionCmImpl::update_rt_params()" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::update_rt_params()" << std::endl;
         const auto& params = *instance.get_impl_params();
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         const auto& desc = params.typed_desc<paged_attention>();
@@ -60,8 +60,8 @@ public:
         rt_params->num_of_partitions = ceil_div(max_context_len, rt_params->partition_size);
         rt_params->stage = get_paged_attention_stage(params);
 
-        std::cout << "  max_context_len: " << rt_params->max_context_len << "  partition_size: " << rt_params->partition_size
-                  << "  num_of_partitions: " << rt_params->num_of_partitions << ", stage: " << static_cast<size_t>(rt_params->stage) << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "  max_context_len: " << rt_params->max_context_len << "  partition_size: " << rt_params->partition_size
+                               << "  num_of_partitions: " << rt_params->num_of_partitions << ", stage: " << static_cast<size_t>(rt_params->stage) << std::endl;
     }
 
     // update impl_parameter and rt_parameter
@@ -78,7 +78,7 @@ public:
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         assert(rt_params != nullptr);
 
-        std::cout << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::execute():  stage = " << static_cast<int>(rt_params->stage) << std::endl;
         std::vector<event::ptr> res_event = events;
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
@@ -121,8 +121,8 @@ public:
             partition_size = get_partition_size();
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
-        std::cout << "ov::intel_gpu::cm::PagedAttentionCmImpl::get_internal_buffer_descs(): stage = " << static_cast<int>(stage)
-                  << "  partition_size: " << partition_size << "  num_of_partitions: " << num_of_partitions << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::get_internal_buffer_descs(): stage = " << static_cast<int>(stage)
+                               << "  partition_size: " << partition_size << "  num_of_partitions: " << num_of_partitions << std::endl;
         if (stage == PagedAttentionStage::GENERATE) {
             const auto& input = params.input_layouts[0];
             const int64_t total_tokens = input.get_partial_shape()[0].get_length();
@@ -132,8 +132,8 @@ public:
             internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 0: intermediate partition output
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 1: softmax exp_sums
 
-            std::cout << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * element_size << "  exp_sums=" << buf_elements_count * element_size
-                      << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * element_size
+                                   << "  exp_sums=" << buf_elements_count * element_size << std::endl;
         } else {
             internal_buffers.emplace_back(16, indexes_dt);  // 0: intermediate partition output
             internal_buffers.emplace_back(16, indexes_dt);  // 1: softmax exp_sums
