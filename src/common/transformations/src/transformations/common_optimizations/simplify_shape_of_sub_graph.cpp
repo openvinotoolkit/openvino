@@ -168,7 +168,7 @@ pass::AbsSinking::AbsSinking() {
         // This is intentionally left to ConstantFolding pass which is better suited for this task
         for (const auto& abs : abs_ops) {
             // Skip Abs operations applied to constants - let ConstantFolding handle them
-            if (as_type_ptr<v0::Constant>(abs->get_input_node_shared_ptr(0))) {
+            if (ov::is_type<v0::Constant>(abs->get_input_node_ptr(0))) {
                 continue;
             }
 
