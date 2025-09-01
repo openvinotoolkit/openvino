@@ -4,7 +4,6 @@ Example:
         <message>skip_message_xxxxxx</message>
         <enable_rules>
             <backend>LEVEL0</backend>
-            <backend>IMD</backend>
             <backend></backend> (special case for no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
@@ -426,28 +425,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#81065 -->
-    <skip_config>
-        <message>IMD/Simics do not support the tests</message>
-        <enable_rules>
-            <backend>IMD</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*smoke_ClassPluginProperties.*DEVICE_UUID.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#85488 -->
-    <skip_config>
-        <message>Run long time on IMD/Simics</message>
-        <enable_rules>
-            <backend>IMD</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*PreprocessingPrecisionConvertTestNPU.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#83423 -->
     <skip_config>
         <message>Tests enabled only for L0 NPU3720</message>
@@ -844,6 +821,14 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Only "developer built" compilers support weights separation</message>
+        <filters>
+            <filter>.*WeightsSeparationTests.*</filter>
+            <filter>.*WeightsSeparationNotSupportedTests.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- C#165445 -->
     <skip_config>
         <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
@@ -872,6 +857,13 @@ Example:
         <filters>
             <filter>.*DynamicBatchingRunSeqTests.*</filter>
             <filter>.*DynamicBatchedTensorsRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>The "one shot" implementation of the weights separation feature is supported only in the compiler-in-plugin flow</message>
+        <filters>
+            <filter>.*WeightsSeparationOneShotTests.*</filter>
         </filters>
     </skip_config>
 
