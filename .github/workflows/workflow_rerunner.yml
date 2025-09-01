@@ -52,7 +52,7 @@ jobs:
           sparse-checkout: '.github/scripts/workflow_rerun'
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0 requests==2.31.0
+        run: pip3 install PyGithub==2.2.0 requests==2.31.0 psycopg2-binary==2.9.9
 
       - name: Dump GitHub context
         env:
@@ -62,19 +62,16 @@ jobs:
       - name: Rerun
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PGHOST: ${{ secrets.METRICS_DATABASE_HOST }}
+          PGUSER: ${{ secrets.METRICS_DATABASE_USERNAME }}
+          PGPASSWORD: ${{ secrets.METRICS_DATABASE_PASSWORD }}
+          PGDATABASE: ${{ secrets.METRICS_DATABASE_NAME }}
+          PGPORT: 5432
         run: |
           export PYTHONPATH=${{ github.workspace }}/.github/scripts/workflow_rerun:${{ github.workspace }}/.github/scripts:$PYTHONPATH
           python3 ${{ github.workspace }}/.github/scripts/workflow_rerun/rerunner.py \
           --run-id ${{ github.event.workflow_run.id }} \
           --repository-name ${GITHUB_REPOSITORY}
-
-      - name: Rerun Retriggered (Ticket ${{ env.FOUND_ERROR_TICKET }})
-        if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
-        run: echo "Rerun retriggered for ${{ github.event.workflow_run.html_url }} with ticket ${{ env.FOUND_ERROR_TICKET }}"
-
-      - name: ${{ github.event.workflow_run.html_url }}
-        if: ${{ env.PIPELINE_RETRIGGERED == 'true' }}
-        run: echo "Step for statistics gathering"
 
   rerunner_tests:
     name: Rerunner Tests
