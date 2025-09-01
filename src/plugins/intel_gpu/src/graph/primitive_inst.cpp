@@ -606,6 +606,10 @@ void primitive_inst::clear_output_memory() {
     _max_output_layout_count[0] = 0;
 }
 
+void primitive_inst::release_memory(memory* mem) {
+    get_network().get_memory_pool().release_memory(mem, _node->get_unique_id(), id(), get_network_id());
+}
+
 // POC: 재활용 가능한 메모리인지 판별하는 함수
 bool primitive_inst::is_reusable_memory_allocation(const layout& required_layout,
                                                   size_t output_idx,
@@ -1062,6 +1066,9 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped, DeferredMemo
             updated_params.output_layouts[i] = updated_layouts[i];
         }
 
+        // POC: 재사용 가능한 메모리인지 확인 (deferred allocation 가능성 체크)
+        bool is_deferrable = is_reusable_memory_allocation(updated_layouts[i], i, is_output_buffer(this, true), true);
+
         if (can_reuse_buffer) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer[" << i << "] - "
                                    << actual_layouts[i].get_linear_size() << "/" << _max_output_layout_count[i]
@@ -1084,6 +1091,9 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped, DeferredMemo
                 set_flag(ExecutionFlags::SHAPE_CHANGED);
             } else {
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
+                if (is_deferrable && collector) {
+                    collector(updated_layouts[i], _outputs[i]->get_allocation_type(), i, is_output_buffer(this, true));
+                }
             }
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
         } else {
@@ -1093,13 +1103,9 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped, DeferredMemo
                                    << " Requested buffer_size=" << updated_layouts[i].get_linear_size()
                                    << std::endl;
 
-            // POC: 재사용 가능한 메모리인지 확인 (deferred allocation 가능성 체크)
-            bool is_deferrable = is_reusable_memory_allocation(updated_layouts[i], i, is_output_buffer(this, true), true);
-
             if (is_deferrable && collector) {
                 // 할당될 메모리 타입 미리 계산
                 allocation_type alloc_type = determine_allocation_type(updated_layouts[i], is_output_buffer(this, true), true);
-
                 GPU_DEBUG_TRACE_DETAIL << id() << ": output[" << i << "] - "
                                        << "linear_size: " << updated_layouts[i].get_linear_size()
                                        << ", bytes: " << updated_layouts[i].bytes_count()
@@ -1107,6 +1113,8 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped, DeferredMemo
                                        << ", padding: " << (updated_layouts[i].data_padding != padding() ? "yes" : "no")
                                        << std::endl;
                 collector(updated_layouts[i], alloc_type, i, is_output_buffer(this, true));
+                if (_outputs[i])
+                    release_memory(_outputs[i].get());
                 _outputs[i] = nullptr;
             } else {
                 _outputs[i] = allocate_output(get_network().get_engine(),
@@ -2393,20 +2401,19 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable) {
-    if ((_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr) &&
-        (!_execution_context.has_value() || !_execution_context->has_deferred()))
+    if (_impl == nullptr || _outputs.empty() || (_outputs[0] == nullptr && !_execution_context.is_deferred()))
         return nullptr;
 
     auto device_mem_acc = [&](size_t a, std::pair<primitive_inst*, int32_t> b) {
         if (!b.first->mem_allocated()) return a;
         auto res = a;
-        if (b.first->_execution_context.has_value() && b.first->_execution_context->has_deferred()) {
-            auto& exec_ctx = *b.first->_execution_context;
+        if (b.first->_execution_context.is_deferred() && !b.first->_execution_context.deferred_mem_infos.empty()) {
+            auto& exec_ctx = b.first->_execution_context;
             for (size_t i = 0; i < b.first->outputs_memory_count(); ++i) {
-                auto& def_mem = exec_ctx.deferred_memory_list[i];
-                if (def_mem.alloc_type == allocation_type::usm_device ||
-                    def_mem.alloc_type == allocation_type::cl_mem)
-                    return a + def_mem.mem_layout.bytes_count();
+                auto& mem_info = exec_ctx.deferred_mem_infos[i];
+                if (mem_info.alloc_type == allocation_type::usm_device ||
+                    mem_info.alloc_type == allocation_type::cl_mem)
+                    return a + mem_info.mem_layout.bytes_count();
             }
         } else {
             for (size_t i = 0; i < b.first->outputs_memory_count(); ++i) {
@@ -2427,10 +2434,10 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
 
     auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), size_t(0), device_mem_acc);
 
-    if (_execution_context.has_value() && _execution_context->has_deferred()) {
-        for (const auto& exec_ctx : _execution_context->deferred_memory_list) {
-            if (exec_ctx.alloc_type == allocation_type::usm_device)
-                total_device_mem_size += exec_ctx.mem_layout.bytes_count();
+    if (_execution_context.is_deferred() && !_execution_context.deferred_mem_infos.empty()) {
+        for (const auto& [idx, mem_info] : _execution_context.deferred_mem_infos) {
+            if (mem_info.alloc_type == allocation_type::usm_device)
+                total_device_mem_size += mem_info.mem_layout.bytes_count();
         }
     } else {
         for (const auto& output : _outputs) {
@@ -2444,9 +2451,10 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
     // check if there is any device mem input
     if (engine.supports_allocation(allocation_type::usm_device)) {
         for (const auto& dep : inst_deps) {
-            if (dep.first->_execution_context.has_value() && dep.first->_execution_context->has_deferred()) {
-                auto& exec_ctx = *dep.first->_execution_context;
-                if (exec_ctx.deferred_memory_list[0].alloc_type == allocation_type::usm_device) {
+            if (dep.first->_execution_context.is_deferred()
+                && dep.first->_execution_context.deferred_mem_infos.count(0)) {
+                auto& exec_ctx = dep.first->_execution_context;
+                if (exec_ctx.deferred_mem_infos[0].alloc_type == allocation_type::usm_device) {
                     input_device_mem = true;
                     break;
                 }
@@ -2645,22 +2653,22 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
 }
 
 void primitive_inst::allocate_deferred_outputs() {
-    if (_execution_context->deferred_memory_list.empty()) {
+    if (!_execution_context.is_deferred()) {
+        GPU_DEBUG_COUT << id() << " skipped allocating deferred outputs" << std::endl;
         return; // No deferred memory to allocate
     }
 
-    auto& exec_ctx = *_execution_context;
+    auto& exec_ctx = _execution_context;
 
     auto& engine = get_network().get_engine();
     auto& pool = get_network().get_memory_pool();
 
-    GPU_DEBUG_LOG << "[" << id() << ": allocating " << exec_ctx.deferred_memory_list.size()
+    GPU_DEBUG_LOG << "[" << id() << ": allocating " << exec_ctx.deferred_mem_infos.size()
                   << " deferred outputs]" << std::endl;
 
     // Process each deferred memory info
-    for (const auto& info : exec_ctx.deferred_memory_list) {
+    for (const auto& [output_idx, info] : exec_ctx.deferred_mem_infos) {
         const auto& layout = info.mem_layout;
-        const size_t output_idx = info.output_idx;
 
         OPENVINO_ASSERT(layout.is_static() || layout.has_upper_bound(),
                         "[GPU] Can't allocate deferred output for dynamic layout");
@@ -3256,197 +3264,169 @@ bool ImplementationsFactory::has(impl_types impl_type) const {
     });
 }
 
-// ========================================================================
-// 1. 실행 컨텍스트 초기화 (기반: 라인 1867-1884)
-// ========================================================================
-
-// Check if primitive needs immediate execution for shape inference
-bool primitive_inst::check_needs_immediate_execution() const {
-    // Only execute shape_of primitives immediately
-    // These are the only primitives that don't need actual data content
-    if (get_node().is_type<shape_of>()) {
-        return true;
+void primitive_inst::clear_deferred_outputs() {
+    if (_execution_context.is_deferred()) {
+        for (const auto& [out_idx, mem_info] : _execution_context.deferred_mem_infos) {
+            if (_outputs[out_idx])
+                release_memory(_outputs[out_idx].get());
+            _outputs[out_idx] = nullptr;
+            _max_output_layout_count[out_idx] = 0;
+        }
     }
-
-    return false;
 }
 
-void primitive_inst::init_execution_context() {
-    // Reset execution context
-    _execution_context = ExecutionContext();
-    // 기반: 라인 1869-1872 (입력 유효성 검사)
+void primitive_inst::prepare_memory_and_impl() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
+    const auto& primitive_id = id();
     if (!_has_valid_input) {
-        GPU_DEBUG_TRACE_DETAIL << id() << " lacks valid input, skipping execution" << std::endl;
-        return; // is_valid remains false
+        // For unfused network with dynamic_quantization, we may have empty/unused input
+        GPU_DEBUG_TRACE_DETAIL << primitive_id << " does not have valid input. do nothing" << std::endl;
+        return;
     }
-
-    log_debug_info();
-
-    // 기반: 라인 1881-1883 (이전 실행 스킵 여부 계산)
-    _execution_context->prev_skipped = can_be_optimized() ||
-        (_impl_params->output_layouts[0].is_static() &&
-         _impl_params->output_layouts[0].count() == 0);
-
-    // 기반: 라인 1884 (원본 출력 백업)
-    _execution_context->original_outputs = _outputs;
-    _execution_context->valid_input = true;
-
-    // Check if this primitive needs immediate execution for shape inference
-    _execution_context->needs_immediate_execution = check_needs_immediate_execution();
-}
-
-// ========================================================================
-// 2. 디버그 정보 로깅 (기반: 라인 1873-1880)
-// ========================================================================
-void primitive_inst::log_debug_info() {
-    GPU_DEBUG_TRACE_DETAIL << "=========================================" << std::endl;
-    GPU_DEBUG_TRACE_DETAIL << "Preparing " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
     for (size_t i = 0; i < _deps.size(); ++i) {
-        GPU_DEBUG_TRACE_DETAIL << "  input[" << i << "]: " <<  _deps[i].first->id() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
     }
-    GPU_DEBUG_TRACE_DETAIL << "=========================================" << std::endl;
-}
+    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
 
-// ========================================================================
-// 3. 스킵 조건 평가 (기반: 라인 1885-1933)
-// ========================================================================
-bool primitive_inst::skip_execution() {
-    // 주의: 이 함수는 이미 dynamic shape 조건 내에서 호출됨
-    do_runtime_in_place_concat();
-    update_shape();
+    // If it is optimized out or skipped for zero dimension at the previous iteration,
+    // Set this flag true to reset output memory in realloc_if_needed.
+    const bool prev_execution_skipped = can_be_optimized()
+                        || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
+    _execution_context.original_outputs = _outputs;
 
-    if (_impl_params->output_layouts[0].count() == 0) {
-        GPU_DEBUG_TRACE_DETAIL << id() << ": Skipping due to empty output data" << std::endl;
-        set_flag(ExecutionFlags::SKIP);
+    // shape_of should be executed in advance.
+    if (get_node().is_type<shape_of>()) {
+        _execution_context.needs_immediate_execution = true;
+        _execution_context.execution_completed = false;
     }
 
-    if (get_node().is_in_shape_of_subgraph() && _dependant_shape_of_insts.front()->is_dynamic()) {
-        bool subgraph_input_changed = false;
-        for (size_t i = 0; i < _dependant_shape_of_insts.size(); i++) {
-            if (_dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED)) {
-                subgraph_input_changed = true;
+    if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
+        do_runtime_in_place_concat();
+        update_shape();
+
+        if (_impl_params->output_layouts[0].count() == 0) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
+            set_flag(ExecutionFlags::SKIP);
+        }
+
+        // subgraph_input_changed can be available only shape_of is dynamic.
+        // shape_of_subgraph for static shape_of could be run every inference if constant propagation does not work.
+        if (get_node().is_in_shape_of_subgraph() && _dependant_shape_of_insts.front()->is_dynamic()) {
+            bool subgraph_input_changed = false;
+            for (size_t i = 0; i < _dependant_shape_of_insts.size(); i++) {
+                if (_dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED)) {
+                    subgraph_input_changed = true;
+                    break;
+                }
+            }
+            if (!subgraph_input_changed) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping execution because dependent shapeof node is not changed " << std::endl;
+                set_flag(ExecutionFlags::SKIP);
+            }
+        }
+
+        if (get_flag(ExecutionFlags::SKIP)) {
+            _update_shape_done_by_other = false; // reset
+            return;
+        }
+
+        if (_node->is_type<read_value>()) {
+            auto prim = get_node().as<read_value>().get_primitive();
+            auto& variable = get_network().get_variable(prim->variable_id);
+
+            if (variable.is_set() && can_be_optimized()) {
+                set_flag(ExecutionFlags::SKIP);
+            }
+        }
+
+        // Check successor reorder if layouts are same
+        // Need to set can_be_optimized for user reorder at predecessor because
+        // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
+        do_runtime_skip_reorder();
+        do_runtime_skip_gather();
+        update_paddings();
+        do_runtime_in_place_kv_cache();
+        do_runtime_skip_permute();
+        do_runtime_skip_strided_slice();
+        do_runtime_skip_broadcast();
+        do_runtime_skip_scatter_update();
+        do_runtime_skip_lora();
+        do_runtime_in_place_crop();
+
+        if (!is_valid_fusion()) {
+            OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
+            get_unfused_subgraph();
+            return;
+        }
+
+        // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
+        // Only try update weight and realloc when impl is updated.
+        const bool can_use_async_compilation = use_async_compilation();
+        const bool shape_changed = get_flag(ExecutionFlags::SHAPE_CHANGED);
+        if (shape_changed || !_impl || (!shape_changed && _impl->is_dynamic() && can_use_async_compilation)) {
+            update_impl(can_use_async_compilation);
+            if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
+                update_weights();
+                // POC: Define lambda function to collect deferred memory info
+                auto collect_deferred_memory = [this](const layout& mem_layout, allocation_type alloc_type, size_t output_idx, bool is_output_buffer) {
+                    ExecutionContext::MemoryInfo info;
+                    info.mem_layout = mem_layout;
+                    info.output_idx = output_idx;
+                    info.is_output_buffer = is_output_buffer;
+                    info.alloc_type = alloc_type;
+                    this->_execution_context.need_deferred_allocation = true;
+                    this->_execution_context.deferred_mem_infos[output_idx] = info;
+                };
+
+                // ⭐ 핵심 메모리 할당 지점 - collector 함수와 함께 호출
+                realloc_if_needed(prev_execution_skipped, collect_deferred_memory);
+            }
+        }
+
+        // Paged Attention may require dispatch data update and internal buffers reallocation
+        // even if the input shapes haven't been changed
+        if (get_node().is_type<paged_attention>() && !get_flag(ExecutionFlags::IMPL_CHANGED) && _impl->requires_update(*this, *_impl_params)) {
+            _impl->update(*this, *_impl_params);
+            realloc_if_needed(prev_execution_skipped);
+        }
+
+        OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
+                        "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
+    }
+    _update_shape_done_by_other = false; // reset
+    OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
+
+    _execution_context.need_notify_mem_changed = false;
+    if (!get_node().is_type<condition>() && !get_node().is_type<loop>()) {
+        for (size_t i = 0; i < _outputs.size(); ++i) {
+            if (!_execution_context.original_outputs[i] && !_outputs[i])
+                continue;
+
+            if ((!_execution_context.original_outputs[i] && _outputs[i]) ||
+                (_execution_context.original_outputs[i] && !_outputs[i])) {
+                _execution_context.need_notify_mem_changed = true;
+                break;
+            }
+            if (!get_network().get_engine().is_the_same_buffer(*_execution_context.original_outputs[i], *_outputs[i])) {
+                _execution_context.need_notify_mem_changed = true;
                 break;
             }
         }
-        if (!subgraph_input_changed) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": Skipping due to unchanged subgraph dependencies" << std::endl;
-            set_flag(ExecutionFlags::SKIP);
-        }
     }
-
-    if (get_flag(ExecutionFlags::SKIP)) {
-        _update_shape_done_by_other = false;
-        return true;
-    }
-
-    if (_node->is_type<read_value>()) {
-        auto primitive_desc = get_node().as<read_value>().get_primitive();
-        auto& var_storage = get_network().get_variable(primitive_desc->variable_id);
-
-        if (var_storage.is_set() && can_be_optimized()) {
-            set_flag(ExecutionFlags::SKIP);
-        }
-    }
-
-    return false;
+    _execution_context.original_outputs.clear();
 }
 
-// ========================================================================
-// 4. 런타임 최적화 적용 (기반: 라인 1922-1933)
-// ========================================================================
-void primitive_inst::apply_runtime_optimizations() {
-    do_runtime_skip_reorder();
-    do_runtime_skip_gather();
-    update_paddings();
-    do_runtime_in_place_kv_cache();
-    do_runtime_skip_permute();
-    do_runtime_skip_strided_slice();
-    do_runtime_skip_broadcast();
-    do_runtime_skip_scatter_update();
-    do_runtime_skip_lora();
-    do_runtime_in_place_crop();
-}
-
-// ========================================================================
-// 5. 퓨전 유효성 확인 (기반: 라인 1935-1939)
-// ========================================================================
-bool primitive_inst::validate_fusion() {
-    if (!is_valid_fusion()) {
-        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin,
-                           openvino::itt::handle("unfused_subgraph_creation: " + id()));
-        get_unfused_subgraph();
-        return false;
-    }
-    return true;
-}
-
-// ========================================================================
-// 7. 구현 업데이트 및 메모리 할당 (기반: 라인 1947-1953) - 핵심 메모리 할당 지점
-// ========================================================================
-void primitive_inst::update_impl_and_allocate_memory() {
-    bool can_use_async_compilation = use_async_compilation();
-    bool shape_changed = get_flag(ExecutionFlags::SHAPE_CHANGED);
-    bool needs_update = shape_changed || !_impl ||
-                       (!shape_changed && _impl->is_dynamic() && can_use_async_compilation);
-    if (needs_update) {
-        // 구현 업데이트 (메모리 할당 전)
-        update_impl(can_use_async_compilation);
-
-        if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
-            // 가중치 업데이트 (메모리 할당 전)
-            update_weights();
-
-            // POC: Define lambda function to collect deferred memory info
-            auto collect_deferred_memory = [this](const layout& mem_layout, allocation_type alloc_type, size_t output_idx, bool is_output_buffer) {
-                ExecutionContext::DeferredMemoryInfo info;
-                info.mem_layout = mem_layout;
-                info.output_idx = output_idx;
-                info.is_output_buffer = is_output_buffer;
-                info.alloc_type = alloc_type;
-                _execution_context->deferred_memory_list.push_back(info);
-            };
-
-            // ⭐ 핵심 메모리 할당 지점 - collector 함수와 함께 호출
-            realloc_if_needed(_execution_context->prev_skipped, collect_deferred_memory);
-        }
-    }
-}
-
-// ========================================================================
-// 8. Attention 업데이트 처리 (기반: 라인 1955-1961) - 추가 메모리 할당 지점
-// ========================================================================
-void primitive_inst::handle_attention_update() {
-    if (get_node().is_type<paged_attention>() && !get_flag(ExecutionFlags::IMPL_CHANGED)
-        && _impl->requires_update(*this, *_impl_params)) {
-        _impl->update(*this, *_impl_params);
-
-        // ⭐ 추가 메모리 할당 지점 (paged attention 전용)
-        realloc_if_needed(_execution_context->prev_skipped);
-    }
-}
-
-// ========================================================================
-// 9. 할당 후 상태 검증 (기반: 라인 1963-1968)
-// ========================================================================
-void primitive_inst::verify_post_allocation() {
-    const auto& primitive_id = id();
-
-    OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
-                    "[GPU] Cannot execute ", primitive_id, " - dynamic layout in runtime");
-}
-
-// ========================================================================
-// 10. 동적 종속성 체인 확인 (기반: 라인 1970-1982)
-// ========================================================================
-bool primitive_inst::check_dynamic_dependencies() {
-    std::function<bool(const cldnn::primitive_inst*)> check_deps =
-        [&check_deps](const cldnn::primitive_inst* inst) {
-        for (auto& dependency : inst->_deps) {
-            const cldnn::primitive_inst* dep_inst = dependency.first;
+void primitive_inst::prepare_execution() {
+    std::function<bool(const cldnn::primitive_inst*)> has_dynamic_dependencies_insts =
+        [&has_dynamic_dependencies_insts](const cldnn::primitive_inst* prim_inst) {
+        for (auto& dep : prim_inst->_deps) {
+            const cldnn::primitive_inst* dep_inst = dep.first;
             if (dep_inst->get_flag(ExecutionFlags::MEMORY_CHANGED)) {
                 return true;
             } else if (dep_inst->can_be_optimized()) {
-                if (check_deps(dep_inst)) {
+                if (has_dynamic_dependencies_insts(dep_inst)) {
                     return true;
                 }
             }
@@ -3454,180 +3434,63 @@ bool primitive_inst::check_dynamic_dependencies() {
         return false;
     };
 
-    return check_deps(this);
-}
+    bool need_args_update = get_flag(ExecutionFlags::IMPL_CHANGED) || get_flag(ExecutionFlags::MEMORY_CHANGED);
 
-// ========================================================================
-// 11. 커널 인수 설정 (기반: 라인 1984-1990)
-// ========================================================================
-void primitive_inst::setup_kernel_args() {
-    bool need_args_update = get_flag(ExecutionFlags::IMPL_CHANGED) ||
-                           get_flag(ExecutionFlags::MEMORY_CHANGED);
-
-    bool has_dynamic_deps = check_dynamic_dependencies();
-
-    if ((is_dynamic() && need_args_update) ||
-        has_mutable_input() ||
-        is_output() ||
-        has_dynamic_deps ||
-        _use_shared_kernels) {
+    // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this) || _use_shared_kernels) {
+        // For ocl_v2 impls we call set args based in flag in the execute() impl, so need to update the flag here
         set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
         set_arguments();
     }
-}
+    on_execute();
 
-// ========================================================================
-// 12. 메모리 변경 추적 (기반: 라인 1993-2008)
-// ========================================================================
-void primitive_inst::track_memory_changes(const std::vector<memory::ptr>& original_outputs) {
-    if (get_node().is_type<condition>() || get_node().is_type<loop>()) {
-        return;
+    if (_execution_context.need_notify_mem_changed) {
+        set_flag(ExecutionFlags::MEMORY_CHANGED);
+        _execution_context.need_notify_mem_changed = false;
     }
 
-    for (size_t i = 0; i < _outputs.size(); ++i) {
-        if (!original_outputs[i] && !_outputs[i])
-            continue;
+    GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << " (is_dynamic=" << _impl->is_dynamic()
+                    << ", "
+                    << "can_be_optimized=" << can_be_optimized() << ")" << std::endl;
 
-        if ((!original_outputs[i] && _outputs[i]) || (original_outputs[i] && !_outputs[i])) {
-            set_flag(ExecutionFlags::MEMORY_CHANGED);
-            break;
-        }
-        if (!get_network().get_engine().is_the_same_buffer(*original_outputs[i], *_outputs[i])) {
-            set_flag(ExecutionFlags::MEMORY_CHANGED);
-            break;
-        }
-    }
-}
-
-// ========================================================================
-// 13. 실행 종속성 설정 (기반: 라인 2014-2023)
-// ========================================================================
-void primitive_inst::setup_execution_dependencies() {
     const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
     if (!_exec_deps.empty()) {
-        if (out_of_order_queue ||
-            (_impl->is_cpu() && !can_be_optimized()) ||
-            (can_be_optimized() && needs_completion_event() && !is_output())) {
+        // Prepare dependencies events in case of OOO queue, CPU implementation,
+        // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
+        if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {
             for (auto& input : _exec_deps) {
                 add_dep_event(input->get_impl_params()->out_event);
             }
         }
     }
-}
 
-// ========================================================================
-// 14. 출력 메모리 리셋 처리 (기반: 라인 2025-2041)
-// ========================================================================
-void primitive_inst::handle_output_reset() {
-    if (!is_dynamic() || !need_reset_output_memory() || can_be_optimized() ||
-        get_node().is_type<input_layout>()) {
-        return;
-    }
+    // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
+    // is a convolution that requires zeroed-out data paddings)
+    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+        const auto& users = get_user_insts();
+        const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
+                                 users.front()->_allocation_done_by_other;
+        const auto skip_reset = skip_concat;
 
-    const auto& users = get_user_insts();
-    const auto skip_concat = users.size() == 1 &&
-                           users.front()->get_node().is_type<concatenation>() &&
-                           users.front()->get_node().is_runtime_skippable() &&
-                           users.front()->_allocation_done_by_other;
-
-    if (skip_concat) {
-        return;
-    }
-
-    const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
-
-    for (const auto& output : _outputs) {
-        if (output != nullptr) {
-            GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
-
-            auto dep_events = out_of_order_queue ?
-                std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)} :
-                std::vector<event::ptr>{};
-
-            add_dep_event(output->fill(get_network().get_stream(), dep_events));
+        if (!skip_reset) {
+            for (const auto& output : _outputs) {
+                if (output != nullptr) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
+                    // Use marker to ensure proper synchronization for both events and barriers
+                    auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                         : std::vector<event::ptr>{};
+                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
+                }
+            }
         }
     }
-}
 
-// ========================================================================
-// 15. 이벤트 그룹화 관리 (기반: 라인 2043-2048)
-// ========================================================================
-void primitive_inst::manage_event_groups() {
-    const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
-
-    if (get_node().is_in_shape_of_subgraph() &&
-        can_be_optimized() &&
-        _impl_params->dep_events.size() > 1 &&
-        out_of_order_queue) {
+    // Replace multiple events with single grouped event in case of barriers synchronization to prevent `_last_barrier_ev` usage as a dependency
+    // event of optimized_out instance's users, which may lead to unwanted extra synchronization of CPU impls with GPU kernels
+    if (get_node().is_in_shape_of_subgraph() && can_be_optimized() && _impl_params->dep_events.size() > 1 && out_of_order_queue) {
         auto grouped_ev = get_network().get_stream().group_events(_impl_params->dep_events);
         _impl_params->dep_events = {grouped_ev};
     }
-}
-
-// ========================================================================
-// 16. 리팩터링된 메인 함수 - 분리된 두 단계
-// ========================================================================
-
-// 단계 1: 메모리 할당 및 구현 준비
-void primitive_inst::prepare_memory_and_impl() {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin,
-                       openvino::itt::handle("primitive_inst::prepare_memory: " + id()));
-
-    // === PHASE 1: PRE-ALLOCATION (메모리 할당 전) ===
-    init_execution_context();
-    if (!_execution_context->valid_input) {
-        return;
-    }
-
-    // Dynamic shape 조건 확인 및 처리
-    if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
-        if (skip_execution()) {
-            return;
-        }
-
-        apply_runtime_optimizations();
-
-        if (!validate_fusion()) {
-            return;
-        }
-
-        // === PHASE 2: MEMORY ALLOCATION POINT (메모리 할당 지점) ===
-        // 이 함수들은 dynamic shape 조건에서만 실행됨
-        update_impl_and_allocate_memory();
-
-        // === PHASE 3: POST-ALLOCATION (메모리 할당 후) ===
-        handle_attention_update();
-        verify_post_allocation();
-    }
-
-    // === 공통 처리 (모든 경우에 실행) ===
-    _update_shape_done_by_other = false; // reset
-    OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", id(), " primitive");
-}
-
-// 단계 2: 실행 준비
-void primitive_inst::prepare_execution() {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin,
-                       openvino::itt::handle("primitive_inst::prepare_execution: " + id()));
-
-    // ExecutionContext에서 유효성 검사
-    if (!_execution_context->valid_input) {
-        return;
-    }
-
-    setup_kernel_args();
-
-    on_execute();
-
-    track_memory_changes(_execution_context->original_outputs);
-    _execution_context->original_outputs.clear();
-    setup_execution_dependencies();
-    handle_output_reset();
-    manage_event_groups();
-
-    GPU_DEBUG_TRACE << id() << ": prepared " << _impl->get_kernel_name()
-                    << " (dynamic=" << _impl->is_dynamic() << ", "
-                    << "optimized=" << can_be_optimized() << ")" << std::endl;
 }
 
 // 호환성을 위한 기존 prepare_primitive2() 함수

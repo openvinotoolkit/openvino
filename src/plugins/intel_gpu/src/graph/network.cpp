@@ -759,6 +759,8 @@ bool network::has_event(const primitive_id& id) const {
 void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
 
+    // static int num = 0;
+
     if (_is_dynamic) {
         // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
         // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
@@ -779,30 +781,29 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             // Prepare memory and check if immediate execution is needed
             inst->prepare_memory_and_impl();
 
-            auto& exec_ctx = *inst->_execution_context;
-            if (exec_ctx.needs_immediate_execution && exec_ctx.valid_input) {
+            if (inst->_execution_context.needs_immediate_execution) {
                 // Execute immediately - these primitives don't need actual data content
                 // They only need memory layout information (shape_of, shape inference dependencies)
                 inst->prepare_execution();
                 inst->execute();
 
                 // Mark as completed
-                exec_ctx.execution_completed = true;
+                inst->_execution_context.execution_completed = true;
             }
         }
 
         // Create a vector of primitives with deferred memory and sort by largest memory size first
         std::vector<std::shared_ptr<primitive_inst>> primitives_with_deferred;
         for (auto& inst : _exec_order) {
-            if (inst->_execution_context && inst->_execution_context->has_deferred()) {
+            if (inst->_execution_context.is_deferred()) {
                 primitives_with_deferred.push_back(inst);
             }
         }
 
         std::sort(primitives_with_deferred.begin(), primitives_with_deferred.end(),
             [this](const std::shared_ptr<primitive_inst>& a, const std::shared_ptr<primitive_inst>& b) {
-                auto a_layout = a->_execution_context->deferred_memory_list[0].mem_layout;
-                auto b_layout = b->_execution_context->deferred_memory_list[0].mem_layout;
+                auto a_layout = a->_execution_context.deferred_mem_infos[0].mem_layout;
+                auto b_layout = b->_execution_context.deferred_mem_infos[0].mem_layout;
 
                 // 기본적으로는 메모리 크기 우선
                 if (a_layout.bytes_count() != b_layout.bytes_count()) {
@@ -822,7 +823,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         // Phase 2: Execute remaining primitives (those not executed in phase 1)
         for (auto& inst : _exec_order) {
-            auto& exec_ctx = *inst->_execution_context;
+            auto& exec_ctx = inst->_execution_context;
             // Skip if already executed in phase 1
             if (exec_ctx.execution_completed) {
                 continue;
@@ -831,7 +832,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             // Prepare execution and execute
             inst->prepare_execution();
 
-            inst->_execution_context.reset();  // free execution context
+            inst->_execution_context.original_outputs.clear();
 
             inst->execute();
 
@@ -844,6 +845,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 }
             }
         }
+        // get_memory_pool().dump(get_id(), ++num);
     } else { // static
         for (auto& inst : _exec_order) {
             NODE_DEBUG(*inst);
@@ -857,12 +859,15 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             inst->prepare_primitive();
             inst->execute();
         }
+        // get_memory_pool().dump(get_id(), ++num);
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
     get_stream().flush();
+
+    GPU_DEBUG_COUT << "Deferred allocation !!!!!" << std::endl;
 
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {
