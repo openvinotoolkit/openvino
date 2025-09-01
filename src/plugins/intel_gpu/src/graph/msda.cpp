@@ -9,8 +9,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(msda);
 
-namespace {
-
 template <typename ShapeType>
 std::vector<layout> msda_inst::calc_output_layouts(const msda_node& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<msda>();
