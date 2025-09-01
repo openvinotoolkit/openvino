@@ -339,7 +339,7 @@ public:
         : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
           m_data(data) {};
 
-    void translate(ov::Output<ov::Node>& output, bool convert_tensor_attrs_to_nodes = false);
+    void translate(ov::Output<ov::Node>& output);
 
     bool is_input() const override {
         return m_input_idx >= 0;
