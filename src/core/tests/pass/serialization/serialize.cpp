@@ -105,10 +105,15 @@ public:
     std::string m_out_bin_path;
 
     void CompareSerialized(std::function<void(const std::shared_ptr<ov::Model>&)> serializer) {
-        auto expected = ov::test::readModel(m_model_path, m_binary_path);
+        // auto expected = ov::test::readModel(m_model_path, m_binary_path);
+        auto expected = ov::Core().read_model(m_model_path, m_binary_path);
+        expected->get_rt_info()["__model_path"] = std::filesystem::path("path");
+        expected->get_rt_info()["__model_id_modifier"] = "dummy";
+        EXPECT_TRUE(expected->has_rt_info("__model_path"));
         auto orig = expected->clone();
         serializer(expected);
         auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+        EXPECT_FALSE(result->has_rt_info("__model_path"));
         const auto fc = FunctionsComparator::with_default()
                             .enable(FunctionsComparator::ATTRIBUTES)
                             .enable(FunctionsComparator::CONST_VALUES);

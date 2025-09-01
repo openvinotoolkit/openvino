@@ -58,4 +58,22 @@ void set_tensors_names(const AutoTag&,
     set_output_tensor_names(AUTO, model, outputs_names);
 }
 
+inline constexpr const char* MODEL_PATH_ATTRIBUTE = "__model_path";
+inline constexpr const char* MODEL_ID_MOD_ATTRIBUTE = "__model_id_modifier";
+
+bool is_model_cache_attr(const std::string& name) {
+    return name == MODEL_PATH_ATTRIBUTE || name == MODEL_ID_MOD_ATTRIBUTE;
+}
+
+std::pair<std::filesystem::path, std::string_view> get_model_cache_id_attr(const Model& model) {
+    std::pair<std::filesystem::path, std::string_view> path_attr;
+    if (model.has_rt_info(MODEL_PATH_ATTRIBUTE)) {
+        path_attr.first = model.get_rt_info<std::filesystem::path>(MODEL_PATH_ATTRIBUTE);
+    }
+    if (model.has_rt_info(MODEL_ID_MOD_ATTRIBUTE)) {
+        path_attr.second = model.get_rt_info<std::string>(MODEL_ID_MOD_ATTRIBUTE);
+    }
+
+    return path_attr;
+}
 }  // namespace ov::util

@@ -17,6 +17,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/binary_convolution.hpp"
@@ -1218,7 +1219,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     pugi::xml_node rt_info_node = netXml.append_child("rt_info");
     for (const auto& it : model.get_rt_info()) {
         // Skip IR version
-        if (it.first == "version" || it.first == "__weights_path")
+        if (it.first == "version" || it.first == "__weights_path" || ov::util::is_model_cache_attr(it.first))
             continue;
         serialize_rt_info(rt_info_node, it.first, it.second);
     }
