@@ -12,8 +12,8 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sqrt.hpp"
@@ -47,9 +47,6 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
         auto eps = ov::op::v0::Constant::create(data_precision, {}, {node->get_epsilon()});
         auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
         auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
-        // auto div_const = ov::op::v0::Constant::create(data_precision, {}, {-1});
-        // auto div = std::make_shared<ov::op::v1::Power>(sqrt, div_const);
-        // auto mul1 = std::make_shared<ov::op::v1::Multiply>(data, div);
         auto mul1 = std::make_shared<ov::op::v1::Divide>(data, sqrt);
         auto mul2 = std::make_shared<ov::op::v1::Multiply>(scale, mul1);
 
