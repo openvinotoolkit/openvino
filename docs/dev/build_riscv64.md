@@ -7,6 +7,7 @@ Cross compilation was tested on the following hosts:
 The software was validated on the following devices:
 - [Lichee Pi 4A](https://wiki.sipeed.com/hardware/en/lichee/th1520/lp4a.html) with RVV 0.7.1
 - [Banana Pi BPI-F3](https://www.banana-pi.org/en/banana-pi-sbcs/175.html) with RVV 1.0
+- [Orange Pi RV2](http://www.orangepi.org/) with RVV 1.0
 
 
 ## Software requirements
