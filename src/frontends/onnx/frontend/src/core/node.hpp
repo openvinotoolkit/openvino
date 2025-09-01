@@ -33,15 +33,13 @@ struct UnknownAttribute : ov::Exception {
 }  // namespace error
 
 // forward declaration
-namespace unify {
-class InputModel;
-}
 class Graph;
 class Subgraph;
 class Tensor;
 class SparseTensor;
 class Attribute;
 class DecoderBaseOperation;
+class TranslateSession;
 
 using ::ONNX_NAMESPACE::NodeProto;
 
@@ -50,7 +48,7 @@ public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
     Node(const NodeProto& node_proto, Graph* graph);
-    Node(const DecoderBaseOperation& decoder, unify::InputModel* model);
+    Node(const DecoderBaseOperation& decoder, TranslateSession* translate_session);
 
     Node(Node&&) noexcept;
     Node(const Node&);
@@ -108,6 +106,10 @@ public:
         return m_decoder != nullptr;
     }
 
+    TranslateSession* get_translate_session() const {
+        return m_translate_session;
+    }
+
 private:
     template <typename T>
     std::shared_ptr<ov::op::v0::Constant> get_decoder_attribute_as_constant(const std::string& name) const;
@@ -122,7 +124,7 @@ private:
     // default deleter due to incomple type.
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
     const DecoderBaseOperation* m_decoder;
-    unify::InputModel* m_parent_model;
+    TranslateSession* m_translate_session;
 };
 
 template <>
