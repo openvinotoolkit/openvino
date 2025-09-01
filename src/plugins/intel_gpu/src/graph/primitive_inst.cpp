@@ -2097,7 +2097,7 @@ void primitive_inst::execute() {
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
 
-    GPU_DEBUG_IF(get_config().get_validate_buffer_finding_inf()) {
+    GPU_DEBUG_IF(get_config().get_validate_output_buffer()) {
         get_network().get_stream().finish();
         auto &layout = _impl_params->get_output_layout(0);
         auto output_mem = output_memory_ptr(0);
@@ -2106,9 +2106,7 @@ void primitive_inst::execute() {
             for (size_t k = 0; k < lock.size(); k++) {
                 if (std::isinf(lock[k]) || std::isnan(lock[k])) {
                     std::string iter;
-                    #ifdef GPU_DEBUG_CONFIG
-                        iter = "at iteration " + std::to_string(get_network().get_current_iteration_num());
-                    #endif
+                    iter = "at iteration " + std::to_string(get_network().get_current_iteration_num());
                     std::string err_str = std::isinf(lock[k]) ? "inf " : "nan ";
                     OPENVINO_THROW(id() + " has " + err_str + iter);
                 }
