@@ -27,7 +27,7 @@ What's new
 
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
-	* New models supported: Phi-4-mini-reasoning, AFM-4.5B, Gemma-3-1B-it, Gemma-3-4B-it, and Gemma-3-1.
+	* New models supported: Phi-4-mini-reasoning, AFM-4.5B, Gemma-3-1B-it, Gemma-3-4B-it, and Gemma-3-12B.
 	* NPU support added for: Phi3.5 vision, Qwen3-1.7B, Qwen3-4B, Qwen3-8B.
 	* LLMs optimized for NPU now available on `OpenVINO Hugging Face collection <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__.
 	* Preview: Intel® Core™ Ultra Processor and Windows-based AI PCs can now leverage the
@@ -39,7 +39,7 @@ What's new
    * The NPU plug-in adds support for longer contexts of up to 8K tokens, dynamic prompts,
      and dynamic LoRA for improved LLM performance.
 	* The NPU plug-in now supports dynamic batch sizes by reshaping the model to a batch size
-     of 1 and concurrently managing multiple inference requests, enhancing performance a
+     of 1 and concurrently managing multiple inference requests, enhancing performance and
 	  optimizing memory utilization.
 	* Accuracy improvements for GenAI models on both built-in and discrete graphics achieved 
      through the implementation of the key cache compression per channel technique, in addition 
@@ -211,7 +211,7 @@ Neural Network Compression Framework
   (AWQ + Scale Estimation). This replaces the previous basic data-free compression 
   approach, enabling QAT to start with a more accurate model baseline and achieve better final accuracy.
 * External quantizers in the `quantize_pt2e` API have been enabled, including `XNNPACKQuantizer  <https://docs.pytorch.org/executorch/stable/backends-xnnpack.html>`__
-  and `CoreMLQuantizer  <https://docs.pytorch.org/executorch/stable/backends-coreml.html>`__.
+  and `CoreMLQuantizer <https://docs.pytorch.org/executorch/stable/backends-coreml.html>`__.
 * PyTorch 2.8 is now supported. 
 
 OpenVINO Tokenizers
@@ -242,35 +242,44 @@ OpenVINO GenAI
   (|) and Concat (+) operations for more flexible and complex output constraints.
 
 * GGUF 
+
   * Qwen3 architecture is now supported 
   * `enable_save_ov_model` property to serialize generated ov::Model as IR for faster 
     LLMPipeline construction next time 
 
 * LoRA  
+
   * Dynamic LoRA for NPU has been enabled.
   * Model weights can now be overridden from .safetensors 
 
-* Tokenizer   
-  * padding_side property has been added to specify left or right 
-  * add_second_input property to transform Tokenizer from one input to two inputs. 
-    Used for TextRerankPipeline 
-  
-* JavaScript bindings: 
+* Tokenizer
 
-  * JavaScript samples have been added: beam_search_causal_lm and multinomial_causal_lm.
-  * An interruption option for LLMPipeline streaming has been introduced.
-  
-* The following has been added:
+  * `padding_side property` has been added to specify padding direction (left or right) 
+  * `add_second_input` property to transform Tokenizer from one input to two inputs, 
+    used for TextRerankPipeline
 
-  * cache encryption samples demonstrating how to encode OpenVINO’s cached compiled model,
-  * LLM ReAct Agent sample capable of calling external functions during text generation,
-  * SD3 LoRA Adapter support for Text2ImagePipeline,
-  * `ov::genai::Tokenizer::get_vocab()` method for C++ and Python,
-  * `ov::Property` as arguments to the `ov_genai_llm_pipeline_create` function for the C API,
-  * support for the SnapKV method for more accurate KV cache eviction, enabled by default when 
-	 KV cache eviction is used,
-  * preview support for `GGUF models (GGML Unified Format) <https://huggingface.co/models?library=gguf>`__.
-	 See the `OpenVINO blog <https://blog.openvino.ai/blog-posts/openvino-genai-supports-gguf-models>`__ for details. 
+* JavaScript bindings:
+
+  * New pipeline: TextEmbeddingPipeline 
+  * PerfMetrics for the LLMPipeline 
+  * Implemented getTokenizer into LLMPipeline
+
+* Other changes:
+
+  * C API for WhisperPipeline has been added 
+  * gemma3-4b-it model is now supported in VLM Pipeline
+  * Performance metrics for speculative decoding have been extended
+  * Qwen2-VL and Qwen2.5-VL have been optimized for GPU 
+  * Dynamic prompts are now enabled by default on NPU: 
+
+  		* Longer contexts are available as preview feature on 32GB LNL 
+		  (with prompt size up to 8..12K tokens) 
+      * The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. 
+		  E.g., set it to 256 to see the effect on shorter prompts. 
+	   * `PREFILL_HINT` can be set to STATIC to bring back the old behavior.
+
+* Exporting stateful Whisper models are now supported on NPU out of the box, 
+using `--disable-stateful` is no longer required.
   
 
 Other Changes and Known Issues
@@ -280,12 +289,39 @@ Other Changes and Known Issues
 Jupyter Notebooks
 -----------------------------
 
-* ` <>`__
-* ` <>`__
-* 
+* `FLUX.1-Kontext-dev  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Image-to-image+generation+with+Flux.1+Kontext+and+OpenVINO>`__
+* `GLM-4.1V-9B-Thinking  <https://openvinotoolkit.github.io/openvino_notebooks/?search=GLM-4.1V-9B-Thinking>`__
+* `FLUX.1-Krea-dev  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Image+generation+with+Flux.1+and+OpenVINO>`__
+* `MiniCPM-V-4  <https://openvinotoolkit.github.io/openvino_notebooks/?search=MiniCPM-V>`__
+* `qwen3-embedding  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Text+Embedding+with+Qwen3+and+OpenVINO>`__
+* `qwen3-reranker  <https://openvinotoolkit.github.io/openvino_notebooks/?search=Text+Rerank+with+Qwen3+and+OpenVINO>`__
+* `ACE-Step  <https://openvinotoolkit.github.io/openvino_notebooks/?search=ACE+Step>`__
+
+
 Known Issues
 -----------------------------
 
+| **Component: NPU compiler**
+| ID: 169077
+| Description:
+|   miniCPM3-4B model is inaccurate with OV 2025.3 and NPU driver 32.0.100.4239 (latest one available 
+    as of OV 2025.3 release). The accuracy will be improved with the next driver release.
+
+| **Component: NPU plugin**
+| ID: 171934
+| Description:
+|   Whisper model is not functional with transformer v.4.53. Recommended workaround is to use 
+|   transformers=4.52 and optimum-intel=1.25.2 for Whisper model conversion.
+
+| **Component: NPU plugin**
+| ID: 169074
+| Description:
+|   phi-4-multimodal-instruct is not functional on NPU. Planned to be fixed with next releases.
+
+| **Component: CPU, GPU plugins**
+| ID: 171208
+| Description:
+|   ChatGLM-3-6B is inaccurate on CPU and GPU.
 
 .. Previous 2025 releases
 .. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1126,6 +1162,7 @@ Discontinued in 2025
   * The openvino-nightly PyPI module has been discontinued. End-users should proceed with the
 	 Simple PyPI nightly repo instead. More information in
 	 `Release Policy <https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/release-policy.html#nightly-releases>`__.
+	* Binary operations Node API has been removed from Python API after previous deprecation. 
 
 * Tools:
 
@@ -1149,7 +1186,7 @@ Discontinued in 2025
 * NNCF ``create_compressed_model()`` method is now deprecated. ``nncf.quantize()`` method is
   recommended for Quantization-Aware Training of PyTorch and TensorFlow models.
 
-* OpenVINO Model Server (OVMS) benchmark client in C++ using TensorFlow Serving API.
+* Deprecated OpenVINO Model Server (OVMS) benchmark client in C++ using TensorFlow Serving API.
 
 
 
@@ -1172,12 +1209,6 @@ Deprecated and to be removed in the future
   * `Installation guide - apt <https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-apt.html>`__
 
 * OpenCV binaries will be removed from Docker images in 2026.
-* Ubuntu 20.04 support will be deprecated in future OpenVINO releases due to the end of
-  standard support.
-* “auto shape” and “auto batch size” (reshaping a model in runtime) will be removed in the
-  future. OpenVINO's dynamic shape models are recommended instead.
-* MacOS x86 is no longer recommended for use due to the discontinuation of validation.
-  Full support will be removed later in 2025.
 * The `openvino` namespace of the OpenVINO Python API has been redesigned, removing the nested
   `openvino.runtime` module. The old namespace is now considered deprecated and will be
   discontinued in 2026.0. A new namespace structure is available for immediate migration.
