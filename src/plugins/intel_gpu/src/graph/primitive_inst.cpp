@@ -2106,7 +2106,9 @@ void primitive_inst::execute() {
             for (size_t k = 0; k < lock.size(); k++) {
                 if (std::isinf(lock[k]) || std::isnan(lock[k])) {
                     std::string iter;
-                    iter = "at iteration " + std::to_string(get_network().get_current_iteration_num());
+                    #ifdef GPU_DEBUG_CONFIG
+                        iter = "at iteration " + std::to_string(get_network().get_current_iteration_num());
+                    #endif
                     std::string err_str = std::isinf(lock[k]) ? "inf " : "nan ";
                     OPENVINO_THROW(id() + " has " + err_str + iter);
                 }
