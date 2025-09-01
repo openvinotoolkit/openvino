@@ -33,6 +33,9 @@ struct UnknownAttribute : ov::Exception {
 }  // namespace error
 
 // forward declaration
+namespace unify {
+class InputModel;
+}
 class Graph;
 class Subgraph;
 class Tensor;
@@ -47,7 +50,7 @@ public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
     Node(const NodeProto& node_proto, Graph* graph);
-    Node(const DecoderBaseOperation& decoder, std::map<std::string, Output<ov::Node>>& known_tensors);
+    Node(const DecoderBaseOperation& decoder, unify::InputModel* model);
 
     Node(Node&&) noexcept;
     Node(const Node&);
@@ -78,7 +81,7 @@ public:
 
     bool has_subgraphs() const;
     const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& get_subgraphs() const;
-    //const std::shared_ptr<ov::Model> get_subgraph(const std::string& name) const;
+    // const std::shared_ptr<ov::Model> get_subgraph(const std::string& name) const;
 
     template <typename T>
     T get_attribute_value(const std::string& name, T default_value) const;
@@ -101,6 +104,10 @@ public:
                                                                     T default_value,
                                                                     ov::element::Type type) const;
 
+    inline bool has_decoder() const {
+        return m_decoder != nullptr;
+    }
+
 private:
     template <typename T>
     std::shared_ptr<ov::op::v0::Constant> get_decoder_attribute_as_constant(const std::string& name) const;
@@ -115,7 +122,7 @@ private:
     // default deleter due to incomple type.
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
     const DecoderBaseOperation* m_decoder;
-    std::map<std::string, Output<ov::Node>>* m_known_tensors;
+    unify::InputModel* m_parent_model;
 };
 
 template <>
@@ -168,7 +175,8 @@ template <>
 std::vector<Graph> Node::get_attribute_value(const std::string& name, std::vector<Graph> default_value) const;
 
 template <>
-std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name, std::shared_ptr<ov::Model> default_value) const;
+std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name,
+                                                     std::shared_ptr<ov::Model> default_value) const;
 
 template <>
 float Node::get_attribute_value(const std::string& name) const;

@@ -16,7 +16,7 @@ struct ONNX_FRONTEND_API TensorMetaInfo {
     ov::PartialShape m_partial_shape;
     ov::element::Type m_element_type;
     const uint8_t* m_tensor_data;
-    std::string m_tensor_name;
+    const std::string* m_tensor_name;
 };
 
 class ONNX_FRONTEND_API DecoderBase : public ov::frontend::DecoderBase {
@@ -34,7 +34,7 @@ public:
     /// The tensor name uniqueness is provided by developer during GraphIterator construction.
     /// This method returns tensor name that comes to this operation node by input index idx
     /// If idx is out-of-range, it throws std::exception inherited exception
-    virtual std::string get_input_tensor_name(size_t idx) const = 0;
+    virtual const std::string& get_input_tensor_name(size_t idx) const = 0;
 
     /// \brief Get input tensor type by index
     /// If idx is out-of-range, it throws std::exception inherited exception
@@ -46,7 +46,7 @@ public:
     /// The tensor name uniqueness is provided by developer during GraphIterator construction.
     /// This method returns tensor name that outputs by output index idx from this operation
     /// If idx is out-of-range, it throws std::exception inherited exception
-    virtual std::string get_output_tensor_name(size_t idx) const = 0;
+    virtual const std::string& get_output_tensor_name(size_t idx) const = 0;
 
     /// \brief Get output tensor type by index
     /// If idx is out-of-range, it throws std::exception inherited exception

@@ -323,16 +323,16 @@ Node::Node(const NodeProto& node_proto, Graph* graph)
                   delete impl;
               }},
       m_decoder(nullptr),
-      m_known_tensors(nullptr) {}
-Node::Node(const DecoderBaseOperation& decoder, std::map<std::string, Output<ov::Node>>& known_tensors)
+      m_parent_model(nullptr) {}
+Node::Node(const DecoderBaseOperation& decoder, unify::InputModel* input_model)
     : m_pimpl{nullptr,
               [](Impl* impl) {
 
               }},
       m_decoder(&decoder),
-      m_known_tensors(&known_tensors) {}
+      m_parent_model(input_model) {}
 
-Node::Node(Node&& other) noexcept : m_pimpl{std::move(other.m_pimpl)}, m_decoder(nullptr), m_known_tensors(nullptr) {}
+Node::Node(Node&& other) noexcept : m_pimpl{std::move(other.m_pimpl)}, m_decoder(nullptr), m_parent_model(nullptr) {}
 
 Node::Node(const Node& other)
     : m_pimpl{new Impl{other.m_pimpl->node_proto(), other.m_pimpl->graph(), other.get_subgraphs()},
@@ -340,7 +340,7 @@ Node::Node(const Node& other)
                   delete impl;
               }},
       m_decoder(nullptr),
-      m_known_tensors(nullptr) {}
+      m_parent_model(nullptr) {}
 
 #include <stdexcept>  // For std::runtime_error
 
@@ -349,12 +349,19 @@ ov::OutputVector Node::get_ov_inputs() const {
         return m_pimpl->get_ov_inputs();
     } else if (m_decoder != nullptr) {
         ov::OutputVector result;
+        //auto& known_tensors = m_parent_model->get_tensor_values();
         for (size_t idx = 0; idx < m_decoder->get_input_size(); ++idx) {
             const std::string& name = m_decoder->get_input_tensor_name(idx);
-            auto it = m_known_tensors->find(name);
-            FRONT_END_GENERAL_CHECK(it != m_known_tensors->end());
-            if (!name.empty()) {
-                result.push_back(it->second);
+            if (name.empty()) {
+                continue;
+            }
+            auto tensor_value = m_parent_model->get_original_tensor_value(name);
+            if (tensor_value.get_node_shared_ptr() != nullptr) {
+            //auto it = known_tensors.find(name);
+            //FRONT_END_GENERAL_CHECK(it != known_tensors.end());
+            //if (!name.empty()) {
+                //result.push_back(it->second);
+                result.push_back(tensor_value);
             } else {
                 result.push_back(std::make_shared<NullNode>()->output(0));
             }
