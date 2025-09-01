@@ -77,7 +77,7 @@ Step 1: Download and Install the OpenVINO Core Components
                .. code-block:: sh
 
 
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.3/linux/openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz --output openvino_2025.3.0tgz
+                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.3/linux/openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz --output openvino_2025.3.0.tgz
                   tar -xf openvino_2025.3.0.tgz
                   sudo mv openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64 /opt/intel/openvino_2025.3.0
 
