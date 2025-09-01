@@ -2023,7 +2023,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                     axes[1] = 3;
                 }
             } else {
-                auto outputShape = getOutputShapeAtPort(0);
+                const auto& outputShape = getOutputShapeAtPort(0);
                 // For the static shapes, we can avoid reordering NHWC to NCHW
                 // if the last dimension of input and output shapes are equal.
                 auto avoidReorder = [](const auto& inputDataShape, const auto& outputShape) {
