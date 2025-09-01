@@ -20,7 +20,7 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
     const auto& ng_inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(ng_inputs.size() == 1, "If operator takes only one input");
 
-    auto if_node = std::make_shared<v8::If>(ng_inputs.at(0));
+    auto if_node = std::make_shared<v8::If>(ng_inputs[0]);
 
     if (!node.has_decoder()) {
         const auto& subgraphs = node.get_subgraphs();
@@ -34,6 +34,9 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
         const auto& else_params = else_subgraph->get_ng_parameters();
         auto else_branch =
             std::make_shared<ov::Model>(else_subgraph->get_ov_outputs(), else_params, else_subgraph->get_name());
+
+        if_node->set_then_body(then_branch);
+        if_node->set_else_body(else_branch);
 
         const auto then_branch_inputs_from_parent = then_subgraph->get_inputs_from_parent();
         FRONT_END_GENERAL_CHECK(then_branch_inputs_from_parent.size() == then_params.size(),
@@ -73,7 +76,7 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
 
         const auto& then_params = then_branch->get_parameters();
         const auto& else_params = else_branch->get_parameters();
-        
+
         for (auto& input : then_params) {
             auto known_input = tensor_values.find(input->get_friendly_name());
             if (known_input != tensor_values.end()) {
