@@ -272,20 +272,18 @@ public:
     void reset_events();
 
     void prepare_primitive();
-    void prepare_primitive2();
 
     // ExecutionContext structure for sharing data between preparation phases
     struct ExecutionContext {
-        bool valid_input = false;
-        bool prev_skipped = false;
-
-        // Execution control flags
         bool need_deferred_allocation = false;
+
         bool needs_immediate_execution = false;  // For shape-dependent primitives
         bool execution_completed = false;        // Track if execution is done
 
+        bool need_notify_mem_changed = false;  // After calling on_execute()
+
         // POC: Deferred memory information storage
-        struct DeferredMemoryInfo {
+        struct MemoryInfo {
             layout mem_layout;
             size_t output_idx;
             bool is_output_buffer;
@@ -293,25 +291,25 @@ public:
         };
 
         std::vector<memory::ptr> original_outputs;
-        std::vector<DeferredMemoryInfo> deferred_memory_list;
+        std::map<size_t, MemoryInfo> deferred_mem_infos;
+        std::map<size_t, MemoryInfo> prev;
 
         // Default constructor for container usage
         ExecutionContext() = default;
 
-        bool has_deferred() {
-            return !deferred_memory_list.empty();
+        bool is_deferred() const {
+            return need_deferred_allocation;
         }
 
-        // // Check if this primitive affects shape inference
-        // bool affects_shape_inference() const {
-        //     if (!inst_ptr) return false;
-        //     return inst_ptr->get_node().is_in_shape_of_subgraph() ||
-        //            inst_ptr->get_node().is_shape_infer_dep();
-        // }
+        allocation_type get_deferred_alloc_type(size_t idx) {
+            if (deferred_mem_infos.empty() || deferred_mem_infos.count(idx))
+                return allocation_type::unknown;
+            return deferred_mem_infos[idx].alloc_type;
+        }
     };
 
     // Optional execution context for dynamic execution
-    std::optional<ExecutionContext> _execution_context;
+    ExecutionContext _execution_context;
 
     // Split prepare_primitive2 into two phases
     void prepare_memory_and_impl();
@@ -399,6 +397,7 @@ public:
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
     kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
     bool all_dependencies_cpu_impl() const;
+    void clear_deferred_outputs();
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -560,6 +559,8 @@ protected:
 
     void clear_output_memory();
 
+    void release_memory(memory* mem);
+
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key
     // and store mapping onto original perf_clounter_key for further data analysis and dumps
@@ -578,30 +579,6 @@ private:
     void do_runtime_in_place_crop();
     void do_runtime_skip_scatter_update();
     void do_runtime_skip_lora();
-
-    // Shape dependency analysis
-    bool check_needs_immediate_execution() const;
-
-private:
-    // ======== 전처리 단계 함수들 ========
-    void init_execution_context();
-    void log_debug_info();
-    bool skip_execution();
-    void apply_runtime_optimizations();
-    bool validate_fusion();
-
-    // ======== 메모리 할당 단계 ========
-    void update_impl_and_allocate_memory();
-
-    // ======== 후처리 단계 함수들 ========
-    void handle_attention_update();
-    void verify_post_allocation();
-    bool check_dynamic_dependencies();
-    void setup_kernel_args();
-    void track_memory_changes(const std::vector<memory::ptr>& original_outputs);
-    void setup_execution_dependencies();
-    void handle_output_reset();
-    void manage_event_groups();
 };
 
 /*

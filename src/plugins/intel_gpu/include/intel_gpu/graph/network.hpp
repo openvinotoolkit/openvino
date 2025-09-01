@@ -247,6 +247,8 @@ private:
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
 
+    std::map<size_t, size_t> _primitives_with_size_cache;
+
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
