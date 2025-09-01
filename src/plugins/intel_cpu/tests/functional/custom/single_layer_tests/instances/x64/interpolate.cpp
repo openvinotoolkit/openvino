@@ -279,7 +279,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     return resCPUParams;
 }
 
-// 3Dims resize not supported for nChw16c and nChw8c layouts
+// 3Dims resize is not supported for nChw16c and nChw8c layouts
 std::vector<CPUSpecificParams> filterCPUInfoForDevice3DimResizeIn4D() {
     std::vector<CPUSpecificParams> resCPUParams;
     if (ov::with_cpu_x86_avx512f()) {
