@@ -86,7 +86,7 @@ jobs:
           lfs: true
 
       - name: Install deps
-        run: pip3 install PyGithub==2.2.0 requests==2.31.0
+        run: pip3 install PyGithub==2.2.0 requests==2.31.0 psycopg2-binary==2.9.9
 
       - name: Test Rerunner (Tests)
         env:
