@@ -50,7 +50,7 @@ ONNX_OP("Split", OPSET_RANGE(13, 18), ai_onnx::opset_13::split);
 
 namespace opset_18 {
 ov::OutputVector split(const ov::frontend::onnx::Node& node) {
-    if (node.has_attribute("num_outputs")){
+    if (node.has_attribute("num_outputs")) {
         const auto inputs = node.get_ov_inputs();
         const auto outputs_number = node.get_attribute_value<int64_t>("num_outputs", 0);
         const auto axis = node.get_attribute_value<int64_t>("axis", 0);
