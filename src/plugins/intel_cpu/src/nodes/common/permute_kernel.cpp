@@ -240,13 +240,15 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
         //  Result
         // The elimination of the Transpose node will not be performed
         // So copy from input buffer to output buffer without any permutation
-        auto arg = jit_args_permute();
+        {
+            auto arg = jit_args_permute();
 
-        arg.src = src_data;
-        arg.dst = dst_data;
+            arg.src = src_data;
+            arg.dst = dst_data;
 
-        (*permute_kernel)(&arg);
-        break;
+            (*permute_kernel)(&arg);
+            break;
+        }
     case 1:
         parallel_for(dst_dims[0], [&](int i0) {
             auto arg = jit_args_permute();
