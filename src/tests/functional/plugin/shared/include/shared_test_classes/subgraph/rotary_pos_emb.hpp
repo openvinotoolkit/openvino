@@ -27,6 +27,21 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
 };
 
+// class RoPETestQwenVL : public SubgraphBaseStaticTest, public testing::WithParamInterface<rope_params> {
+//     private:
+//         std::shared_ptr<ov::Model> buildROPE_QwenVL(int batch,
+//                                                     int seq_length,
+//                                                     int num_head,
+//                                                     int ndims,
+//                                                     ov::element::Type element_type);
+//     protected:
+//         void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+//         void SetUp() override;
+
+//     public:
+//         static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
+// };
+
 class RoPETestLlama2StridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
     std::shared_ptr<ov::Model> buildROPE_Llama2(int batch,

@@ -345,13 +345,6 @@ KERNEL(rope_opt)
         input_idx += SLICED_FROM_START;
     #endif
 #endif
-    // if (b == 0 && h == 0 && p == 0 && r == 0) {
-    //     printf("wzx debug b: %d, h: %d, p: %d, r: %d\n", b, h, p, r);
-    //     printf("wzx debug Half_rotary_ndims: %d\n", HALF_ROTARY_NDIMS);
-    //     printf("wzx debug input_idx: %d\n", input_idx);
-    //     printf("wzx debug INPUT1_BATCH_NUM: %d, INPUT1_FEATURE_NUM: %d, Y: %d, X:%d \n", INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X);
-    // }
-
 uint cos_sin_p = p;
 #ifdef ENABLE_GATHER
     uint gather_b = b < INPUT3_BATCH_NUM ? b : 0;
@@ -395,21 +388,52 @@ uint cos_sin_p = p;
     uint sin_idx = INPUT2_GET_INDEX(cos_sin_p, 0, 0, 0);
 #endif
 #elif INPUT1_DIMS == 3 && INPUT2_DIMS == 3
-    uint cos_sin_b = 0;
-    uint cos_sin_h = cos_sin_h < INPUT1_BATCH_NUM ? cos_sin_h : 0;
-    cos_sin_p = cos_sin_p < INPUT1_FEATURE_NUM ? cos_sin_p : 0;
+    // uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+    uint cos_sin_h = 0;
+    // cos_sin_p = cos_sin_p < INPUT1_FEATURE_NUM ? cos_sin_p : 0;
+    cos_sin_p = cos_sin_p < INPUT1_SIZE_Y ? cos_sin_p : 0;
  #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
-    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_h, cos_sin_p, 0, 0);
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_p, 0, 0);
+    // uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, 0, cos_sin_p, 0);
 
     uint cos_idx = cos_sin_idx;
     uint sin_idx = cos_sin_idx;
 #else
-    uint cos_idx = INPUT1_GET_INDEX(cos_sin_h, cos_sin_p, 0, 0);
-    uint sin_idx = INPUT2_GET_INDEX(cos_sin_h, cos_sin_p, 0, 0);   
+    uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_p, 0, 0);
+    uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_p, 0, 0);   
+
+    // uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, 0, cos_sin_p, 0);
+    // uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, 0, cos_sin_p, 0);   
 #endif
 #endif
 
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
+    // if (INPUT0_DIMS==3 && INPUT1_DIMS == 3 && INPUT2_DIMS == 3 && b == 0 && h == 0 && r == 0 && p == 0) {
+    //     printf("gws:%d, %d, %d\n", get_global_size(0), get_global_size(1), get_global_size(2));
+    //     printf("wzx debug input batch_num: %d, feature num: %d, input size y: %d, input_size_x: %d \n", INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X);
+    //     printf("wzx debug cos batch_num: %d, feature num: %d, cos size y: %d, cos size x: %d \n", INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X);
+    //     printf("wzx debug sin batch_num: %d, feature num: %d, sin size y: %d, sin size x: %d \n", INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_Y, INPUT2_SIZE_X);
+    //     printf("wzx debug Half_rotary_ndims: %d\n", HALF_ROTARY_NDIMS);
+    //     printf("wzx debug OUTPUT_BATCH_NUM: %d, OUTPUT_FEATURE_NUM: %d, Y: %d, X:%d \n", OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Y, OUTPUT_SIZE_X);
+    // }
+
+    // if (INPUT0_DIMS==3 && b == 0 && h == 0 && p == 3 && r == 0) {
+    //     printf("gws:%d, %d, %d\n", get_global_size(0), get_global_size(1), get_global_size(2));
+    //     printf("INPUT0_DIMS: %d, INPUT1_DIMS: %d, INPUT2_DIMS: %d\n", INPUT0_DIMS, INPUT1_DIMS, INPUT2_DIMS);
+    //     printf("wzx debug Half_rotary_ndims: %d\n", HALF_ROTARY_NDIMS);
+    // #ifdef ENABLE_SLICE
+    //     printf("wzx slice_from_start: %d\n", SLICED_FROM_START);
+    // #endif
+    //     printf("wzx debug b: %d, h: %d, p: %d, r: %d\n", b, h, p, r);
+    //     printf("wzx debug input_idx: %d\n", input_idx);
+    //     printf("wzx debug cos_sin_p: %d\n", cos_sin_p);
+    //     printf("wzx debug cos_sin_b: %d, cos_sin_h: %d, cos_sin_p: %d\n", cos_sin_b, cos_sin_h, cos_sin_p);
+    //     printf("wzx debug cos_idx: %d, sin_idx: %d\n", cos_idx, sin_idx);
+    //     printf("wzx debug input batch_num: %d, feature num: %d, input size y: %d, input_size_x: %d \n", INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X);
+    //     printf("wzx debug cos batch_num: %d, feature num: %d, cos size y: %d, cos size x: %d \n", INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X);
+    //     printf("wzx debug OUTPUT_BATCH_NUM: %d, OUTPUT_FEATURE_NUM: %d, Y: %d, X:%d \n", OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Y, OUTPUT_SIZE_X);
+    // }
 
 #if VEC_SIZE == 1
     INPUT0_TYPE in1 = input[input_idx + r];

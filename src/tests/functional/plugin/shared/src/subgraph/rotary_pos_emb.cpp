@@ -411,6 +411,31 @@ std::string RoPETestChatGLMStridedSlice::getTestCaseName(const testing::TestPara
     return result.str();
 }
 
+    // auto x = pattern::any_input(pattern::rank_equals(3));
+    // auto x_or_cos1 = pattern::any_input(pattern::rank_equals(3));
+    // auto x_or_cos2 = pattern::any_input(pattern::rank_equals(3));
+    // auto t_sin = pattern::any_input(pattern::rank_equals(3));
+
+    // auto int32_max = std::numeric_limits<std::int32_t>::max();
+
+    // auto x2 = ov::op::util::NewGenSlice(x, "half_ndims", int32_max, 1, 2);
+    // auto x2neg = pattern::wrap_type<v1::Multiply>({x2, -1.0f}, {{"auto_broadcast", "numpy"}});
+    // auto x1 = ov::op::util::NewGenSlice(x, 0, "half_ndims", 1, 2);
+    // auto x_rotate_half = pattern::wrap_type<v0::Concat>({x2neg, x1}, {{"axis", -1}});
+
+    // auto mul_cos = pattern::wrap_type<v1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
+    // auto mul_sin = pattern::wrap_type<v1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
+    // auto result = pattern::wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
+
+// std::shared_ptr<ov::Model> RoPETestQwenVL::buildROPE_QwenVL(int batch, int seq_length, int num_head, int ndims, ov::element::Type element_type) {
+//     auto x = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{-1, -1, 4096 + 4096 + 4096});
+//     auto x_or_cos1 = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, 1, 128});
+//     auto x_or_cos2 = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, 1, 128});
+//     auto t_sin = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, 1, 128});
+
+//     auto x2 = std::make_shared<opset1::VariadicSplit>({x, 2, {4096, 4096, -1}});
+// }
+
 std::shared_ptr<ov::Model> RoPETestQwen7bStridedSlice::buildROPE_QWen7b(bool specialReshape, ov::element::Type element_type) {
     auto input = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{-1, -1, 4096 + 4096 + 4096});
     auto cos_cache = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{1, -1, 1, 128});

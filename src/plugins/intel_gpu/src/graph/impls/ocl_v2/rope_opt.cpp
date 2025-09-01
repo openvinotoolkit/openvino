@@ -152,8 +152,12 @@ protected:
                     auto b = extract_channel(ChannelName::BATCH, out_l);
                     auto f = extract_channel(ChannelName::FEATURE, out_l);
                     auto y = extract_channel(ChannelName::Y, out_l);
-
                     wgs.global = {b, f, y * cfg.rotary_ndims / 2ul / vec_size};
+                    if (cfg.support_3d_rope) {
+                        wgs.global = {b * f, y, cfg.rotary_ndims / 2ul / vec_size};
+                        // std::cout << "wzx debug b=" << b << " f=" << f << " y=" << y << " head_cnt=" << cfg.head_cnt << " rotary_ndims=" << cfg.rotary_ndims
+                        //           << ", y*: " << y * cfg.rotary_ndims / 2ul / vec_size << std::endl;
+                    }
                 }
 
                 wgs.local = ov::intel_gpu::get_optimal_lws(wgs.global, params.get_device_info(), in_l.format, out_l.format, dims_by_gws);
