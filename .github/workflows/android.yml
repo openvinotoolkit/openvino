@@ -92,8 +92,8 @@ jobs:
             android_abi: arm64-v8a
           - arch: x64
             android_abi: x86_64
-          - arch: riscv64
-            android_abi: riscv64
+#          - arch: riscv64          # experimental
+#            android_abi: riscv64
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_android }}
       volumes:
@@ -202,6 +202,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_TBB=OFF \
+            -DTHREADING=TBB \
             -DTBB_DIR=${{ env.TBB_CMAKE_DIR }} \
             -DTBBROOT=${{ env.TBB_INSTALL }} \
             -DENABLE_FASTER_BUILD=ON \

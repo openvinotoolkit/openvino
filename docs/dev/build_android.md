@@ -48,7 +48,7 @@ _For Windows and Mac operating systems, the downloading and unpacking steps are 
     * `x86_64` for x64 build
     * `armeabi-v7a with NEON` for ARM with NEON support
     * `arm64-v8a` for ARM 64 bits
-    * `riscv64` for RISC-V 64 bits
+    * `riscv64` for RISC-V 64 bits (experimental)
 * `ANDROID_PLATFORM` specifies the Android API version.
 * `ANDROID_STL` indicates that a shared C++ runtime is used.
 
