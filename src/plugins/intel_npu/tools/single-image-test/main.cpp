@@ -1126,6 +1126,29 @@ bool checkBBoxOutputs(std::vector<utils::BoundingBox>& actualOutput, std::vector
     return true;
 }
 
+size_t getTensorBatchSize(const ov::Tensor& tensor, const std::string& tensorName, const LayoutMap &outputLayouts) {
+    // calculate batch_size using both tensor layout & shape information
+    auto batch_size = 1;
+    if(auto it = outputLayouts.find(tensorName); it != outputLayouts.end()) {
+        if (ov::layout::has_batch(it->second)) {
+            batch_size = tensor.get_shape()[ov::layout::batch_idx(it->second)];
+        }
+    }
+    return batch_size;
+}
+
+std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor& tensor, const std::string& tensorName, const LayoutMap &outputLayouts) {
+    std::list<ov::Tensor> outputDebatchedTensors;
+    size_t batch_size = getTensorBatchSize(tensor, tensorName, outputLayouts);
+    if (batch_size == 1) {
+        outputDebatchedTensors.push_back(tensor);
+    } else {
+        OPENVINO_ASSERT(outputLayouts.find(tensorName) != outputLayouts.end());
+        outputDebatchedTensors = npu::utils::splitBatchedTensor(tensor, outputLayouts.find(tensorName)->second, batch_size);
+    }
+    return outputDebatchedTensors;
+}
+
 //
 // Classification mode
 //
@@ -1185,13 +1208,7 @@ bool testClassification(const TensorMap& outputs, const TensorMap& references, c
     OPENVINO_ASSERT(outputFP32.get_shape() == referenceFP32.get_shape());
     OPENVINO_ASSERT(referenceFP32.get_element_type() == ov::element::Type_t::f32);
 
-    // calculate batch_size using both tensor layout & shape information
-    size_t batch_size = 1;
-    if(auto it = outputLayouts.find(outputs.begin()->first); it != outputLayouts.end()) {
-        if (ov::layout::has_batch(it->second)) {
-            batch_size = outputFP32.get_shape()[ov::layout::batch_idx(it->second)];
-        }
-    }
+    size_t batch_size = getTensorBatchSize(outputFP32, outputs.begin()->first, outputLayouts);
 
     auto probsBatch = parseClassificationBatch(outputFP32, batch_size);
     auto refProbsBatch = parseClassificationBatch(referenceFP32, batch_size);
@@ -1243,7 +1260,7 @@ bool testClassification(const TensorMap& outputs, const TensorMap& references, c
                 const auto probDiff = std::fabs(refElem.second - actualElem.second);
                 if (probDiff > FLAGS_prob_tolerance) {
                     std::cout << "Probability value mismatch for " << refElem.first << " : " << refElem.second << " vs "
-                              << actualElem.second;
+                              << actualElem.second << std::endl;
                     result = result && false;
                 }
             }
@@ -1293,12 +1310,7 @@ bool compareTensors(const ov::Tensor& output, const ov::Tensor& reference) {
     return true;
 }
 
-bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, size_t batch_size = 1) {
-    if (batch_size != 1) {
-        throw std::runtime_error(
-                "The testcase 'raw' doesn't support any `override_model_batch_size` values besides 1 yet");
-    }
-
+bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, const LayoutMap &outputLayouts) {
     if (outputTensors.size() != referenceTensors.size()) {
         std::cout << "The number of predicted outputs differ from the number of references" << std::endl;
         return false;
@@ -1308,9 +1320,23 @@ bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, 
         auto referenceTensorIterator = referenceTensors.find(tensorName);
         OPENVINO_ASSERT(referenceTensorIterator != referenceTensors.end());
 
-        std::cout << "Compare " << tensorName << " with reference" << std::endl;
-        if (!compareTensors(outputTensor, referenceTensorIterator->second)) {
-            return false;
+        std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(outputTensor, tensorName, outputLayouts);
+        std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referenceTensorIterator->second, tensorName, outputLayouts);
+        OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
+
+        auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
+        auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
+        for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
+             outputDebatchedTensorIterator != outputDebatchedTensors.end();
+             ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
+            if (batchBundleSize != 1) {
+                std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
+            } else {
+                std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
+            }
+            if (!compareTensors(*outputDebatchedTensorIterator, *referenceDebatchedTensorIterator)) {
+                return false;
+            }
         }
     }
 
@@ -1364,12 +1390,7 @@ bool compareCoSim(const ov::Tensor& output, const ov::Tensor& reference) {
     return similarity > FLAGS_cosim_threshold;
 }
 
-bool testCoSim(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
-    if (batch_size != 1) {
-        throw std::runtime_error(
-                "The testcase 'testCoSim' doesn't support any `override_model_batch_size` values besides 1 yet");
-    }
-
+bool testCoSim(const TensorMap& outputs, const TensorMap& references, const LayoutMap &outputLayouts) {
     if (outputs.size() != references.size()) {
         std::cout << "The outputs and references differ in the number of tensors" << std::endl;
         return false;
@@ -1379,9 +1400,23 @@ bool testCoSim(const TensorMap& outputs, const TensorMap& references, size_t bat
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
-        std::cout << "Compare " << tensorName << " with reference" << std::endl;
-        if (!compareCoSim(output, referencesIterator->second)) {
-            return false;
+        std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
+        std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
+        OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
+
+        auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
+        auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
+        for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
+             outputDebatchedTensorIterator != outputDebatchedTensors.end();
+             ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
+            if (batchBundleSize != 1) {
+                std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
+            } else {
+                std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
+            }
+            if (!compareCoSim(*outputDebatchedTensorIterator, *referenceDebatchedTensorIterator)) {
+                return false;
+            }
         }
     }
 
@@ -1432,12 +1467,7 @@ bool computeRRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return rrmseLoss <= FLAGS_rrmse_loss_threshold;
 }
 
-bool testRRMSE(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
-    if (batch_size != 1) {
-        throw std::runtime_error(
-                "The testcase 'rrmse' doesn't support any `override_model_batch_size` values besides 1 yet");
-    }
-
+bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const LayoutMap &outputLayouts) {
     if (outputs.size() != references.size()) {
         std::cout << "Actual and reference has different number of output blobs" << std::endl;
         return false;
@@ -1455,9 +1485,23 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
-        std::cout << "Compare " << tensorName << " with reference" << std::endl;
-        if (!computeRRMSE(output, referencesIterator->second)) {
-            return false;
+        std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
+        std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
+        OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
+
+        auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
+        auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
+        for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
+             outputDebatchedTensorIterator != outputDebatchedTensors.end();
+             ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
+            if (batchBundleSize != 1) {
+                std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
+            } else {
+                std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
+            }
+            if (!computeRRMSE(*outputDebatchedTensorIterator, *referenceDebatchedTensorIterator)) {
+                return false;
+            }
         }
     }
 
@@ -1533,12 +1577,7 @@ std::vector<float> softmax(std::vector<float>& tensor) {
     return results;
 }
 
-bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
-    if (batch_size != 1) {
-        throw std::runtime_error(
-                "The testcase 'nrmse' doesn't support any `override_model_batch_size` values besides 1 yet");
-    }
-
+bool testNRMSE(TensorMap& outputs, const TensorMap& references, const LayoutMap &outputLayouts) {
     if (outputs.size() != references.size()) {
         std::cout << "Actual and reference has different number of output blobs" << std::endl;
         return false;
@@ -1557,27 +1596,44 @@ bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_siz
         OPENVINO_ASSERT(referencesIterator != references.end());
         bool applySoftMax = FLAGS_apply_soft_max;
 
-        if (applySoftMax) {
-            std::vector<float> actOutput;
-            std::vector<float> refOutput;
+        std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
+        std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
+        OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
 
-            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actOutput));
-            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(), referencesIterator->second.get_size(),
-                std::back_insert_iterator(refOutput));
+        auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
+        auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
+        for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
+             outputDebatchedTensorIterator != outputDebatchedTensors.end();
+             ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
 
-            auto actSoftMax = softmax(actOutput);
-            auto refSoftMax = softmax(refOutput);
 
-            std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
-            // Why reference data is not updated?
-            std::copy_n(refSoftMax.begin(),
-                        referencesIterator->second.get_size(),
-                        const_cast<float*>(referencesIterator->second.data<float>()));
-        }
+            if (applySoftMax) {
+                std::vector<float> actOutput;
+                std::vector<float> refOutput;
 
-        std::cout << "Compare " << tensorName << " with reference" << std::endl;
-        if (!computeNRMSE(output, referencesIterator->second)) {
-            return false;
+                std::copy_n((npu::utils::toFP32(*outputDebatchedTensorIterator)).data<const float>(), outputDebatchedTensorIterator->get_size(), std::back_insert_iterator(actOutput));
+                std::copy_n((npu::utils::toFP32(*referenceDebatchedTensorIterator)).data<const float>(), referenceDebatchedTensorIterator->get_size(),
+                    std::back_insert_iterator(refOutput));
+
+                auto actSoftMax = softmax(actOutput);
+                auto refSoftMax = softmax(refOutput);
+
+                std::copy_n(actSoftMax.begin(), outputDebatchedTensorIterator->get_size(),
+                            outputDebatchedTensorIterator->data<float>());
+                // Why reference data is not updated?
+                std::copy_n(refSoftMax.begin(),
+                            referenceDebatchedTensorIterator->get_size(),
+                            const_cast<float*>(referenceDebatchedTensorIterator->data<float>()));
+            }
+
+            if (batchBundleSize != 1) {
+                std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
+            } else {
+                std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
+            }
+            if (!computeNRMSE(*outputDebatchedTensorIterator, *referenceDebatchedTensorIterator)) {
+                return false;
+            }
         }
     }
 
@@ -1591,12 +1647,7 @@ bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_siz
 // Direction of metric’s growth is higher-better. If the images are identical, the PSNR is infinite.
 //
 
-bool testPSNR(const TensorMap& outputs, const TensorMap& references, const int dstHeight, const int dstWidth,
-              size_t batch_size = 1) {
-    if (batch_size != 1) {
-        throw std::runtime_error(
-                "The testcase 'psnr' doesn't support any `override_model_batch_size` values besides 1 yet");
-    }
+bool testPSNR(const TensorMap& outputs, const TensorMap& references, const int dstHeight, const int dstWidth) {
     OPENVINO_ASSERT(outputs.size() == references.size(),
                     "Mismatch between the number of model outputs and the number of references");
 
@@ -1778,17 +1829,10 @@ static std::string toString(const std::vector<size_t>& vec) {
 }
 
 bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
-                      const TensorDescriptorMap& inputDescriptors, size_t batch_size = 1) {
-    if (batch_size != 1) {
-        throw std::runtime_error(
-                "The testcase 'ssd' doesn't support any `override_model_batch_size` values besides 1 yet");
-    }
-
+                      const TensorDescriptorMap& inputDescriptors, const LayoutMap &outputLayouts) {
     OPENVINO_ASSERT(outputs.size() == 1 && references.size() == 1);
     OPENVINO_ASSERT(!inputDescriptors.empty(), "No input descriptors received");
 
-    const ov::Tensor& output = outputs.begin()->second;
-    const ov::Tensor& reference = references.begin()->second;
     const TensorDescriptor& inputDescriptor = inputDescriptors.begin()->second;
 
     const auto imgWidth = inputDescriptor.dataShape.at(ov::layout::width_idx(inputDescriptor.layout));
@@ -1798,30 +1842,45 @@ bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
     auto probTolerance = FLAGS_prob_tolerance;
     auto boxTolerance = FLAGS_box_tolerance;
 
-    auto parsedOutput = utils::parseSSDOutput(output, imgWidth, imgHeight, static_cast<float>(confThresh));
-    auto parsedReference = utils::parseSSDOutput(reference, imgWidth, imgHeight, static_cast<float>(confThresh));
+    const auto& [tensorName, output] = *outputs.begin();
+    auto referencesIterator = references.find(tensorName);
+    OPENVINO_ASSERT(referencesIterator != references.end());
 
-    auto result = checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
-                                   static_cast<float>(probTolerance));
+    std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
+    std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
+    OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
 
-    return result;
+    auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
+    auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
+    for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
+         outputDebatchedTensorIterator != outputDebatchedTensors.end();
+         ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
+        if (batchBundleSize != 1) {
+            std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
+        } else {
+            std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
+        }
+
+        auto parsedOutput = utils::parseSSDOutput(*outputDebatchedTensorIterator, imgWidth, imgHeight, static_cast<float>(confThresh));
+        auto parsedReference = utils::parseSSDOutput(*referenceDebatchedTensorIterator, imgWidth, imgHeight, static_cast<float>(confThresh));
+
+
+        if(!checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
+                                static_cast<float>(probTolerance))) {
+            return false;
+        }
+    }
+    return true;
 }
 
 //
 // Yolo V2 mode
 //
-bool testYoloV2(const TensorMap& outputs, const TensorMap& references, const TensorDescriptorMap& inputDescriptors,
-                size_t batch_size = 1) {
-    if (batch_size != 1) {
-        throw std::runtime_error(
-                "The testcase 'yolo_v2' doesn't support any `override_model_batch_size` values besides 1 yet");
-    }
+bool testYoloV2(const TensorMap& outputs, const TensorMap& references, const TensorDescriptorMap& inputDescriptors, const LayoutMap &outputLayouts) {
     OPENVINO_ASSERT(inputDescriptors.size() == 1, "The YOLO v2 model accepts only a single input");
     OPENVINO_ASSERT(outputs.size() == 1, "The YOLO v2 model a single output");
     OPENVINO_ASSERT(outputs.size() == references.size(),
                     "Mismatch between the number of model outputs and the number of references");
-    const ov::Tensor& output = outputs.begin()->second;
-    const ov::Tensor& reference = references.begin()->second;
 
     const TensorDescriptor& inputDescriptor = inputDescriptors.begin()->second;
 
@@ -1832,25 +1891,43 @@ bool testYoloV2(const TensorMap& outputs, const TensorMap& references, const Ten
     double boxTolerance = FLAGS_box_tolerance;
     bool isTiny = FLAGS_is_tiny_yolo;
 
-    auto parsedOutput = utils::parseYoloOutput(npu::utils::toFP32(output), imgWidth, imgHeight,
-                                               static_cast<float>(confThresh), isTiny);
-    auto parsedReference = utils::parseYoloOutput(npu::utils::toFP32(reference), imgWidth, imgHeight,
-                                                  static_cast<float>(confThresh), isTiny);
+    const auto& [tensorName, output] = *outputs.begin();
+    auto referencesIterator = references.find(tensorName);
+    OPENVINO_ASSERT(referencesIterator != references.end());
 
-    bool result = checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
-                                   static_cast<float>(probTolerance));
-    return result;
+    std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
+    std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
+    OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
+
+    auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
+    auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
+    for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
+         outputDebatchedTensorIterator != outputDebatchedTensors.end();
+         ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
+        if (batchBundleSize != 1) {
+            std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
+        } else {
+            std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
+        }
+
+        auto parsedOutput = utils::parseYoloOutput(npu::utils::toFP32(*outputDebatchedTensorIterator), imgWidth, imgHeight,
+                                                   static_cast<float>(confThresh), isTiny);
+        auto parsedReference = utils::parseYoloOutput(npu::utils::toFP32(*referenceDebatchedTensorIterator), imgWidth, imgHeight,
+                                                      static_cast<float>(confThresh), isTiny);
+
+        if(!checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
+                                   static_cast<float>(probTolerance))) {
+            return false;
+        }
+    }
+    return true;
 }
 
 //
 // Yolo V3 mode
 //
 bool testYoloV3(const TensorMap& outputs, const TensorMap& references, const TensorDescriptorMap& inputDescriptors,
-                const LayoutMap& outputLayouts, size_t batch_size = 1) {
-    if (batch_size != 1) {
-        throw std::runtime_error(
-                "The testcase 'yolo_v3' doesn't support any `override_model_batch_size` values besides 1 yet");
-    }
+                const LayoutMap& outputLayouts) {
     OPENVINO_ASSERT(inputDescriptors.size() == 1, "The YOLO v3 model accepts only a single input");
     OPENVINO_ASSERT(outputs.size() == 3, "The YOLO v3 model has three outputs");
     OPENVINO_ASSERT(outputs.size() == references.size(),
@@ -1884,12 +1961,7 @@ bool testYoloV3(const TensorMap& outputs, const TensorMap& references, const Ten
 // Ref link: https://docs.openvino.ai/latest/omz_models_model_yolo_v4_tiny_tf.html
 //
 bool testYoloV4(const TensorMap& outputs, const TensorMap& references, const TensorDescriptorMap& inputDescriptors,
-                const LayoutMap& outputLayouts, size_t batch_size = 1) {
-    if (batch_size != 1) {
-        throw std::runtime_error(
-                "The testcase 'yolo_v4' doesn't support any `override_model_batch_size` values besides 1 yet");
-    }
-
+                const LayoutMap& outputLayouts) {
     OPENVINO_ASSERT(inputDescriptors.size() == 1, "The YOLO v4 model accepts only a single input");
     OPENVINO_ASSERT(outputs.size() == 2, "The YOLO v4 model has two outputs");
     OPENVINO_ASSERT(outputs.size() == references.size(),
@@ -1934,13 +2006,7 @@ bool testYoloV4(const TensorMap& outputs, const TensorMap& references, const Ten
 // Using sem_seg_classes, sem_seg_threshold flags and optionally sem_seg_ignore_label and dataset flags for validation
 // e.g. '--mode mean_iou --sem_seg_classes 12 --sem_seg_threshold 0.98 --sem_seg_ignore_label 11 --dataset camVid12'
 //
-bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts,
-                 size_t batch_size = 1) {
-    if (batch_size != 1) {
-        throw std::runtime_error(
-                "The testcase 'mean_iou' doesn't support any `override_model_batch_size` values besides 1 yet");
-    }
-
+bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
     OPENVINO_ASSERT(outputs.size() == 1, "The metric accepts only a single output");
     OPENVINO_ASSERT(outputs.size() == references.size(),
                     "Mismatch between the number of model outputs and the number of references");
@@ -1951,32 +2017,57 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     unsigned int classes = FLAGS_sem_seg_classes;
     auto semSegThreshold = static_cast<float>(FLAGS_sem_seg_threshold);
 
-    std::vector<uint8_t> parsedReferences;
-    std::vector<uint8_t> parsedOutputs;
     std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
-    if (skipArgMax) {
-        const ov::Tensor referenceU8 = npu::utils::toPrecision(references.begin()->second, ov::element::u8);
-        const ov::Tensor outputU8 = npu::utils::toPrecision(outputs.begin()->second, ov::element::u8);
+    const auto& [tensorName, output] = *outputs.begin();
+    auto referencesIterator = references.find(tensorName);
+    OPENVINO_ASSERT(referencesIterator != references.end());
+    auto outputLayoutIterator = outputLayouts.find(tensorName);
+    OPENVINO_ASSERT(outputLayoutIterator != outputLayouts.end());
 
-        const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayouts.begin()->second)];
-        const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayouts.begin()->second)];
-        const size_t W = referenceU8.get_shape()[ov::layout::width_idx(outputLayouts.begin()->second)];
+    std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
+    std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
+    OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
 
-        std::copy_n(referenceU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedReferences));
-        std::copy_n(outputU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedOutputs));
-    } else {
-        utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
-        utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
+    auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
+    for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
+         outputDebatchedTensorIterator != outputDebatchedTensors.end();
+         ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
+        if (batchBundleSize != 1) {
+            std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
+        } else {
+            std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
+        }
+
+        std::vector<uint8_t> parsedReferences;
+        std::vector<uint8_t> parsedOutputs;
+        if (skipArgMax) {
+            const ov::Tensor referenceU8 = npu::utils::toPrecision(*referenceDebatchedTensorIterator, ov::element::u8);
+            const ov::Tensor outputU8 = npu::utils::toPrecision(*outputDebatchedTensorIterator, ov::element::u8);
+
+            const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayoutIterator->second)];
+            const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayoutIterator->second)];
+            const size_t W = referenceU8.get_shape()[ov::layout::width_idx(outputLayoutIterator->second)];
+
+            std::copy_n(referenceU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedReferences));
+            std::copy_n(outputU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedOutputs));
+        } else {
+            utils::argMax_channels(*referenceDebatchedTensorIterator, parsedReferences, outputLayoutIterator->second);
+            utils::argMax_channels(*outputDebatchedTensorIterator, parsedOutputs, outputLayoutIterator->second);
+        }
+
+        if (parsedReferences.size() != parsedOutputs.size()) {
+            std::cout << "Reference size and output size are different" << std::endl;
+            return false;
+        }
+
+        iou = utils::mean_IoU(parsedOutputs, parsedReferences, classes, FLAGS_sem_seg_ignore_label);
+        if (!compare_mean_IoU(iou, semSegThreshold, classes)) {
+            return false;
+        }
     }
-
-    if (parsedReferences.size() != parsedOutputs.size()) {
-        std::cout << "Reference size and output size are different" << std::endl;
-        return false;
-    }
-    iou = utils::mean_IoU(parsedOutputs, parsedReferences, classes, FLAGS_sem_seg_ignore_label);
-
-    return compare_mean_IoU(iou, semSegThreshold, classes);
+    return true;
 }
 
 static ov::Shape parseDataShape(const std::string& dataShapeStr) {
@@ -2475,28 +2566,28 @@ static int runSingleImageTest() {
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "raw")) {
-                    if (testRAW(outputTensors, referenceTensors, FLAGS_override_model_batch_size)) {
+                    if (testRAW(outputTensors, referenceTensors, outputLayouts)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "cosim")) {
-                    if (testCoSim(outputTensors, referenceTensors, FLAGS_override_model_batch_size)) {
+                    if (testCoSim(outputTensors, referenceTensors, outputLayouts)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "rrmse")) {
-                    if (testRRMSE(outputTensors, referenceTensors, FLAGS_override_model_batch_size)) {
+                    if (testRRMSE(outputTensors, referenceTensors, outputLayouts)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "nrmse")) {
-                    if (testNRMSE(outputTensors, referenceTensors, FLAGS_override_model_batch_size)) {
+                    if (testNRMSE(outputTensors, referenceTensors, outputLayouts)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
@@ -2504,7 +2595,7 @@ static int runSingleImageTest() {
                     }
                 } else if (strEq(FLAGS_mode, "ssd")) {
                     if (testSSDDetection(outputTensors, referenceTensors, inputDescriptors,
-                                         FLAGS_override_model_batch_size)) {
+                                         outputLayouts)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
@@ -2512,23 +2603,21 @@ static int runSingleImageTest() {
                     }
                 } else if (strEq(FLAGS_mode, "yolo_v2")) {
                     if (testYoloV2(outputTensors, referenceTensors, inputDescriptors,
-                                   FLAGS_override_model_batch_size)) {
+                                   outputLayouts)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "yolo_v3")) {
-                    if (testYoloV3(outputTensors, referenceTensors, inputDescriptors, outputLayouts,
-                                   FLAGS_override_model_batch_size)) {
+                    if (testYoloV3(outputTensors, referenceTensors, inputDescriptors, outputLayouts)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "yolo_v4")) {
-                    if (testYoloV4(outputTensors, referenceTensors, inputDescriptors, outputLayouts,
-                                   FLAGS_override_model_batch_size)) {
+                    if (testYoloV4(outputTensors, referenceTensors, inputDescriptors, outputLayouts)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
@@ -2542,14 +2631,14 @@ static int runSingleImageTest() {
                     const size_t dstWidth = shape[ov::layout::width_idx(outputLayout)];
 
                     if (testPSNR(outputTensors, referenceTensors, static_cast<int>(dstHeight),
-                                 static_cast<int>(dstWidth), FLAGS_override_model_batch_size)) {
+                                 static_cast<int>(dstWidth))) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "mean_iou")) {
-                    if (testMeanIoU(outputTensors, referenceTensors, outputLayouts, FLAGS_override_model_batch_size)) {
+                    if (testMeanIoU(outputTensors, referenceTensors, outputLayouts)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;
