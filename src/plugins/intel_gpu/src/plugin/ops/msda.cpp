@@ -13,8 +13,6 @@
 namespace ov::intel_gpu {
 
 static void CreateMSDAOp(ProgramBuilder& p, const std::shared_ptr<op::internal::MSDA>& op) {
-    // validate_inputs_count(op, {4});
-
     auto inputs = p.GetInputInfo(op);
 
     const std::string layerName = layer_type_name_ID(op);
