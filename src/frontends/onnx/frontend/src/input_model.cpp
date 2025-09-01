@@ -570,19 +570,33 @@ public:
     InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                        const ov::frontend::InputModel& input_model,
                        const std::shared_ptr<TelemetryExtension>& telemetry);
+    InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
+                       const ov::frontend::InputModel& input_model,
+                       unify::InputModel* parent_model);
+
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
 
     /////  Searching for places  /////
-    std::vector<std::shared_ptr<OpPlace>> get_op_places() const {
+    std::vector<std::shared_ptr<OpPlace>>& get_op_places() {
         return m_op_places;
     }
-    std::map<std::string, std::shared_ptr<TensorONNXPlace>> get_tensor_places() const {
+    std::map<std::string, std::shared_ptr<TensorONNXPlace>>& get_tensor_places() {
         return m_tensor_places;
     }
     std::map<std::string, Output<ov::Node>> get_tensor_values() const {
         return m_tensor_values;
+    }
+    Output<ov::Node> get_original_tensor_value(const std::string& name) const {
+        if (m_parent_model != nullptr) {
+            return m_parent_model->_impl->get_original_tensor_value(name);
+        }
+        auto it = m_tensor_values.find(name);
+        if (it != m_tensor_values.end()) {
+            return it->second;
+        }
+        return {};
     }
 
     ///// Naming and annotation  /////
@@ -605,6 +619,9 @@ public:
 
     std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> get_subgraphs();
     std::shared_ptr<ov::Model> get_model();
+    std::shared_ptr<TelemetryExtension> get_telemetry_extension() const {
+        return m_telemetry;
+    }
 
 private:
     void load_model();
@@ -619,6 +636,7 @@ private:
 
     std::shared_ptr<GraphIterator> m_graph_iterator;
     const ov::frontend::InputModel& m_input_model;
+    ov::frontend::onnx::unify::InputModel* m_parent_model;
     std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> m_subgraphs;
     std::shared_ptr<TelemetryExtension> m_telemetry;
 };
@@ -631,7 +649,7 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
         std::make_shared<ov::frontend::onnx::TensorONNXPlace>(model,
                                                               tensor_meta_info.m_partial_shape,
                                                               tensor_meta_info.m_element_type,
-                                                              std::vector<std::string>{tensor_meta_info.m_tensor_name},
+                                                              std::vector<std::string>{*tensor_meta_info.m_tensor_name},
                                                               tensor_meta_info.m_tensor_data);
     return tensor_place;
 }
@@ -766,7 +784,8 @@ void InputModel::InputModelONNXImpl::load_model() {
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                                                    const ov::frontend::InputModel& input_model)
     : m_graph_iterator(graph_iterator),
-      m_input_model(input_model) {
+      m_input_model(input_model),
+      m_parent_model(nullptr) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     load_model();
 }
@@ -776,7 +795,19 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
                                                    const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
+      m_parent_model(nullptr),
       m_telemetry(telemetry) {
+    FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
+    load_model();
+}
+
+InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
+                                                   const ov::frontend::InputModel& input_model,
+                                                   unify::InputModel* parent_model)
+    : m_graph_iterator(graph_iterator),
+      m_input_model(input_model),
+      m_parent_model(parent_model),
+      m_telemetry(parent_model->_impl->get_telemetry_extension()) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     load_model();
 }
@@ -913,10 +944,9 @@ std::shared_ptr<ov::Model> InputModel::InputModelONNXImpl::get_model() {
     const OperatorsBridge translate_map;
     //    no_conversion ? ov::frontend::onnx::TranslatorDictionaryType{} : m_op_translators;
 
-    auto all_tensor_values = this->get_tensor_values();
     auto all_tensor_places = this->get_tensor_places();
 
-    for (auto& value : all_tensor_values) {
+    for (auto& value : m_tensor_values) {
         auto& output = value.second;
         FRONT_END_GENERAL_CHECK(ov::is_type<ov::op::v0::Constant>(output.get_node_shared_ptr()),
                                 "Unexpected constant data configuration at the beginning of graph translation");
@@ -937,8 +967,8 @@ std::shared_ptr<ov::Model> InputModel::InputModelONNXImpl::get_model() {
                                                                  input_tensor->get_partial_shape());
         parameter->set_friendly_name(name);
         parameters.push_back(parameter);
-        all_tensor_values[name] = parameter->output(0);
-        input_tensor->translate(all_tensor_values[name] /*, !no_conversion*/);
+        m_tensor_values[name] = parameter->output(0);
+        input_tensor->translate(m_tensor_values[name] /*, !no_conversion*/);
     }
 
     // operations
@@ -948,11 +978,11 @@ std::shared_ptr<ov::Model> InputModel::InputModelONNXImpl::get_model() {
         ov::OutputVector inputs(decoder->get_input_size());
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
             auto name = decoder->get_input_tensor_name(i);
-            FRONT_END_GENERAL_CHECK(all_tensor_values.find(name) != all_tensor_values.end(),
+            FRONT_END_GENERAL_CHECK(m_tensor_values.find(name) != m_tensor_values.end(),
                                     "Unknown tensor name: ",
                                     name,
                                     ".");
-            inputs[i] = all_tensor_values[name];
+            inputs[i] = m_tensor_values[name];
         }
 
         const auto& out_size = decoder->get_output_size();
@@ -969,7 +999,9 @@ std::shared_ptr<ov::Model> InputModel::InputModelONNXImpl::get_model() {
             // ov::frontend::onnx::NodeContext node_context(decoder, inputs, submodel_translation_functions);
             const NodeProto* node_def = nullptr;
             decoder->experimental_get_internal_structures(reinterpret_cast<const void**>(&node_def));
-            ov::frontend::onnx::Node node_context(*decoder, all_tensor_values);
+            ov::frontend::onnx::Node node_context(
+                *decoder,
+                const_cast<unify::InputModel*>(dynamic_cast<const unify::InputModel*>(&this->m_input_model)));
             ov_outputs = (*translator)(node_context);
         } catch (...) {
             /*
@@ -987,8 +1019,8 @@ std::shared_ptr<ov::Model> InputModel::InputModelONNXImpl::get_model() {
         }
         for (size_t i = 0; i < out_size; ++i) {
             const auto& name = decoder->get_output_tensor_name(i);
-            all_tensor_values[name] = ov_outputs[i];
-            all_tensor_places[name]->translate(all_tensor_values[name] /*, !no_conversion*/);
+            m_tensor_values[name] = ov_outputs[i];
+            all_tensor_places[name]->translate(m_tensor_values[name] /*, !no_conversion*/);
         }
     }
 
@@ -1000,10 +1032,10 @@ std::shared_ptr<ov::Model> InputModel::InputModelONNXImpl::get_model() {
         FRONT_END_GENERAL_CHECK(tensor != nullptr,
                                 "Inputs of ov::frontend::onnx::InputModel must be TensorLitePlace instances");
         const auto name = tensor->get_names()[0];
-        if (!all_tensor_values.count(name)) {
+        if (!m_tensor_values.count(name)) {
             continue;
         }
-        const auto& output_value = all_tensor_values[name];
+        const auto& output_value = m_tensor_values[name];
         const auto& result = std::make_shared<ov::op::v0::Result>(output_value);
         auto input = result->output(0);
         tensor->translate(input /*, !no_conversion*/);
@@ -1025,6 +1057,9 @@ std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> InputModel::
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, telemetry)} {}
 
+InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, InputModel* parent_model)
+    : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, parent_model)} {}
+
 std::vector<std::shared_ptr<ov::frontend::onnx::OpPlace>> InputModel::get_op_places() const {
     return _impl->get_op_places();
 }
@@ -1035,6 +1070,10 @@ std::map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>> Inpu
 
 std::map<std::string, Output<ov::Node>> InputModel::get_tensor_values() const {
     return _impl->get_tensor_values();
+}
+
+Output<ov::Node> InputModel::get_original_tensor_value(const std::string& name) const {
+    return _impl->get_original_tensor_value(name);
 }
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {

@@ -99,11 +99,14 @@ private:
     void reshape_model_inputs(std::shared_ptr<Model>& model);
 };
 
+// Forward declarations
 class FrontEnd;
+
 namespace unify {
 // Support of unified GraphIterator interface
 class InputModel : public ov::frontend::InputModel {
     friend class ov::frontend::onnx::FrontEnd;
+    friend class ov::frontend::onnx::Node;
     class InputModelONNXImpl;
     std::shared_ptr<InputModelONNXImpl> _impl;
 
@@ -117,6 +120,8 @@ class InputModel : public ov::frontend::InputModel {
 public:
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         const std::shared_ptr<TelemetryExtension>& telemetry = {});
+    explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
+                        InputModel* parent_model);
 
     /////  Searching for places  /////
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
@@ -143,6 +148,7 @@ public:
                           const std::vector<ov::frontend::Place::Ptr>& outputs) override;
 
     std::shared_ptr<ov::Model> get_model();
+    Output<ov::Node> InputModel::get_original_tensor_value(const std::string& name) const;
 };
 }  // namespace unify
 
