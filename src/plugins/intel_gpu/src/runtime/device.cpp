@@ -25,9 +25,8 @@ struct DeviceOps {
         add_ops_to_map(ops_mad,  ops, data_types::f16, 2);
         add_ops_to_map(ops_dpas, ops, data_types::f16, 3);
         add_ops_to_map(ops_dpas, ops, data_types::i8,  4);
-        add_ops_to_map(ops_dpas, ops, data_types::i4,  5);
-        add_ops_to_map(ops_dp4a, ops, data_types::f16, 6);
-        add_ops_to_map(ops_dp4a, ops, data_types::i8,  7);
+        add_ops_to_map(ops_dp4a, ops, data_types::f16, 5);
+        add_ops_to_map(ops_dp4a, ops, data_types::i8,  6);
     }
 
     std::string platform;
@@ -41,7 +40,7 @@ struct DeviceOps {
         return std::abs(value) <= std::numeric_limits<float>::epsilon();
     }
 
-    bool is_support(device_info& info) const {
+    bool match(device_info& info) const {
         if (dev_id_list.size() > 0) {
             return std::find(dev_id_list.begin(), dev_id_list.end(), info.device_id) != dev_id_list.end();
         }
@@ -56,15 +55,15 @@ struct DeviceOps {
 
     float get_ops(device_info& info, data_types dt) const {
         if (info.supports_immad) {
-            auto it = ops_dp4a.find(dt);
-            if (it != ops_dp4a.end()) {
+            auto it = ops_dpas.find(dt);
+            if (it != ops_dpas.end()) {
                 return it->second;
             }
         }
 
         if (info.supports_imad) {
-            auto it = ops_dpas.find(dt);
-            if (it != ops_dpas.end()) {
+            auto it = ops_dp4a.find(dt);
+            if (it != ops_dp4a.end()) {
                 return it->second;
             }
         }
@@ -85,18 +84,18 @@ struct DeviceOps {
 const uint8_t MAX_REVISION = 0xff;
 
 const std::vector<DeviceOps> device_ops_table = {
-//    | platform | device_id | gfx_ver                                 | MAD                   | DPAS (imad)           | DP4A (immad)  |
-//    |          |           |                                         |  fp64 |  fp32 |  fp16 |  fp16 |  int8 |  int4 |  fp16 |  int8 |
-    { "Legacy",   {},         { { 0,  0,  0}, {12,  9, MAX_REVISION} }, {     0,     16,     32,      0,      0,      0,      0,      0 } },    // TGL, ADL-S
-    { "DG1",      {},         { {12, 10,  0}                         }, {     0,     16,     32,      0,      0,      0,      0,      0 } },
-    { "DG2",      {},         { {12, 55,  0}, {12, 57, MAX_REVISION} }, {     0,     16,     32,      0,      0,      0,    128,    256 } },
-    { "PVC_XL",   {},         { {12, 60,  0}, {12, 60, 1}            }, {    16,     32,     64,      0,      0,      0,    512,   1024 } },
-    { "PVC_XT",   {},         { {12, 60,  3}, {12, 61, 7}            }, {    32,     32,     64,      0,      0,      0,    512,   1024 } },
-    { "MTL/ARL",  {},         { {12, 70,  0}, {12, 74, MAX_REVISION} }, {   0.5,     16,     32,    128,    256,      0,      0,     64 } },
-    { "ATS",      { 0x020A, 0x0210 },
-                              {},                                       {     0,     16,     32,    128,    256,    512,      0,      0 } },
-    { "BMG",      {},         { {20,  1,  0}, {20,  2, MAX_REVISION} }, {     1,     16,     32,    128,    256,    512,      0,      0 } },
-    { "LNL/PTL",  {},         { {20,  4,  0}, {30,  1, MAX_REVISION} }, {     1,     16,     32,    128,    256,    512,      0,      0 } },
+//    | gfx_ver                                 | MAD                   | DPAS (immad)  | DP4A (imad)   | device_id |
+//    |                                         |  fp64 |  fp32 |  fp16 |  fp16 |  int8 |  fp16 |  int8 |           |
+    { { { 0,  0,  0}, {12,  9, MAX_REVISION} }, {     0,     16,     32,      0,      0,      0,      0 }, {} },    // Legacy: TGL, ADL-S
+    { { {12, 10,  0}                         }, {     0,     16,     32,      0,      0,      0,      0 }, {} },    // DG1
+    { { {12, 55,  0}, {12, 57, MAX_REVISION} }, {     0,     16,     32,      0,      0,    128,    256 }, {} },    // DG2
+    { { {12, 60,  0}, {12, 60, 1}            }, {    16,     32,     64,      0,      0,    512,   1024 }, {} },    // PVC_XL
+    { { {12, 60,  3}, {12, 61, 7}            }, {    32,     32,     64,      0,      0,    512,   1024 }, {} },    // PVC_XT
+    { { {12, 70,  0}, {12, 71, MAX_REVISION} }, {     0.5,   16,     32,      0,      0,      0,     64 }, {} },    // MTL
+    { { {12, 74,  0}, {12, 74, MAX_REVISION} }, {     0.5,   16,     32,    128,    256,      0,     64 }, {} },    // ARL
+    { { {20,  1,  0}, {20,  2, MAX_REVISION} }, {     1,     16,     32,    128,    256,      0,      0 }, {} },    // BMG
+    { { {20,  4,  0}, {20,  4, MAX_REVISION} }, {     1,     16,     32,    128,    256,      0,      0 }, {} },    // LNL
+    { { {30,  0,  0}, {30,  1, MAX_REVISION} }, {     1,     16,     32,    128,    256,      0,      0 }, {} },    // PTL
 };
 
 float device::get_gops(data_types dt) const {
@@ -114,8 +113,8 @@ float device::get_gops(data_types dt) const {
     auto opsPerEU = 0.f;
 
     auto it = std::find_if(device_ops_table.begin(), device_ops_table.end(),
-        [&info](auto& ops) {
-            return ops.is_support(info);
+        [&info](auto& entry) {
+            return entry.match(info);
         });
     if (it != device_ops_table.end()) {
         opsPerEU = it->get_ops(info, dt);
