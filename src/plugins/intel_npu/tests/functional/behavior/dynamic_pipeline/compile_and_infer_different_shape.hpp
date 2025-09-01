@@ -237,7 +237,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelAndInferWithMaxSize) 
 
 // Plugin shall fix
 //  Compile model, process to fp16, set size smaller than min size
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRangeAndInferWithoutSet) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithRangeAndInferWithoutSet) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -265,7 +265,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRang
 }
 
 // Plugin need fix
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRangeAndInferWithoutSetUpdateShape) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithRangeAndInferWithoutSetUpdateShape) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -296,7 +296,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRang
 }
 
 // Test sync infers
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRangeAndSyncInfersWithoutSet) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithRangeAndSyncInfersWithoutSet) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -333,7 +333,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRang
 
 // Plugin shall fix
 //  Compile model, process to fp16, set size smaller than min size
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRangeAndInferWithIlegalSmallSize) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithRangeAndInferWithIlegalSmallSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -369,7 +369,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRang
 
 // Plugin shall fix
 // Compile model, process to fp16, set size larger than max size
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRangeAndInferWithIlegalMaxSize) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithRangeAndInferWithIlegalMaxSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -446,7 +446,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRang
 }
 
 // Compile model, process to fp16, infer with medium size
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRangeAndInferWithMediumSize) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithRangeAndInferWithMediumSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -486,7 +486,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRang
 }
 
 // Compile model, process to fp16, infer with max size
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRangeAndInferWithMaxSize) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithRangeAndInferWithMaxSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -526,7 +526,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRang
 }
 
 // Compile model, process to fp16, infer with size from small to large
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRangeAndInferWithIncreasedSize) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithRangeAndInferWithIncreasedSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -584,7 +584,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRang
 }
 
 // Compile model, process to fp16, infer with size from large to small
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRangeAndInferWithDecreasedSize) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithRangeAndInferWithDecreasedSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -642,7 +642,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRang
 }
 
 // Compile model, process to fp16, infer with random size
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRangeAndInferWithRandomSize) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithRangeAndInferWithRandomSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -709,7 +709,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithRang
 
 // compiler complain about upper bound not set
 //  Compile model, process to fp16, infer with random size
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithoutRangeAndInferWithRandomSize) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithoutRangeAndInferWithRandomSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -775,7 +775,7 @@ TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithoutR
 }
 
 // Compile model, process to fp16, infer with random size
-TEST_P(InferRequestDynamicShapeTests, DISABLED_CompileModelProcessToFp16WithN1AndInferWithRandomSize) {
+TEST_P(InferRequestDynamicShapeTests, CompileModelProcessToFp16WithN1AndInferWithRandomSize) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
