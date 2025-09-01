@@ -247,8 +247,8 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
             arg.dst = dst_data;
 
             (*permute_kernel)(&arg);
-            break;
         }
+        break;
     case 1:
         parallel_for(dst_dims[0], [&](int i0) {
             auto arg = jit_args_permute();
