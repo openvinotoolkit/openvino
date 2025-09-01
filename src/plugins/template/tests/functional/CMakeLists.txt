@@ -17,7 +17,7 @@ ov_add_test_target(
         LINK_LIBRARIES
             openvino::funcSharedTests
             openvino::runtime::dev
-        SOURCES
+        OBJECT_FILES
             "${OpenVINOTemplatePlugin_SOURCE_DIR}/src/cache_eviction.cpp"
             "${OpenVINOTemplatePlugin_SOURCE_DIR}/src/cache_manager.cpp"
         INCLUDES
