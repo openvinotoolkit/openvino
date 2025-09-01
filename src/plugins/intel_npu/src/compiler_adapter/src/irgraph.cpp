@@ -179,7 +179,8 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob,
         llvm::InitializeNativeTargetAsmParser();
         mlir::registerAllToLLVMIRTranslations(_registry);
 
-        _initializedMLIR = true;
+        // Need to call initialize each time, otherwise the engine can not find llvm dialect
+        //_initializedMLIR = true;
     }
 
     _context = std::make_unique<mlir::MLIRContext>(_registry);
