@@ -10,10 +10,11 @@ namespace cldnn {
 
 
 struct DeviceOps {
-    DeviceOps(std::string platform,
-              std::vector<uint32_t> dev_id_list,
-              std::vector<gfx_version> gfx_version_list,
-              std::vector<float> ops): platform(platform), dev_id_list(dev_id_list), gfx_version_list(gfx_version_list) {
+    DeviceOps(std::vector<gfx_version> gfx_version_list,
+              std::vector<float> ops,
+              std::vector<uint32_t> dev_id_list = {})
+              : gfx_version_list(gfx_version_list)
+              , dev_id_list(dev_id_list) {
         auto add_ops_to_map = [](std::map<data_types, float>& out_map, std::vector<float> ops, data_types dt, size_t index) -> void {
             if (!is_zero(ops[index])) {
                 out_map[dt] = ops[index];
@@ -29,9 +30,8 @@ struct DeviceOps {
         add_ops_to_map(ops_dp4a, ops, data_types::i8,  6);
     }
 
-    std::string platform;
-    std::vector<uint32_t> dev_id_list;
     std::vector<gfx_version> gfx_version_list;
+    std::vector<uint32_t> dev_id_list;
     std::map<data_types, float> ops_mad;
     std::map<data_types, float> ops_dpas;
     std::map<data_types, float> ops_dp4a;
