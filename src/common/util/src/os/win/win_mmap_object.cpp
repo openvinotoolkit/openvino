@@ -72,7 +72,12 @@ public:
     void set(const std::wstring& path) {
         // Note that file can't be changed (renamed/deleted) until it's unmapped. FILE_SHARE_DELETE flag allow
         // rename/deletion, but it doesn't work with FAT32 filesystem (works on NTFS)
-        auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        // auto h = ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        auto h = ::CreateFileW(path.c_str(), GENERIC_READ,
+                FILE_SHARE_READ, nullptr,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_OVERLAPPED,
+                nullptr);
         map(ov::util::wstring_to_string(path), h);
     }
 #endif
