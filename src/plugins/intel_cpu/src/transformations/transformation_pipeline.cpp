@@ -1264,12 +1264,12 @@ void Transformations::MainSnippets() {
         (any_of(config.inferencePrecision, ov::element::f16, ov::element::f32, ov::element::dynamic) &&
          ov::intel_cpu::brgemm_utils::is_fp16_supported());
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
-#else
+#elif defined(OPENVINO_ARCH_ARM64)
     const auto is_infer_prc_supported_by_brgemm =
         any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic);
-    // Note: Currently, MHASnippets is enabled only in tests
-    // TODO: Enable TokenizeMHASnippets on ARM for all scenarios
-    const bool isMHASupported = is_infer_prc_supported_by_brgemm && ignoreCallback;
+    const bool isMHASupported = is_infer_prc_supported_by_brgemm;
+#else
+    const bool isMHASupported = false;
 #endif
 
     if (!isMHASupported) {
