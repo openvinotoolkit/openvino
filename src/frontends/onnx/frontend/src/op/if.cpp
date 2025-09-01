@@ -8,6 +8,7 @@
 #include "core/operator_set.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "translate_session.hpp"
 using namespace ov::op;
 
 namespace ov {
@@ -65,30 +66,40 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
         auto then_branch = node.get_attribute_value<std::shared_ptr<ov::Model>>("then_branch", nullptr);
         auto else_branch = node.get_attribute_value<std::shared_ptr<ov::Model>>("else_branch", nullptr);
 
-        const auto& then_params = then_branch->get_parameters();
-        const auto& else_params = else_branch->get_parameters();
-
         if_node->set_then_body(then_branch);
         if_node->set_else_body(else_branch);
 
-        auto& graph_inputs = node.get_ov_inputs();
-        /*
-        FRONT_END_GENERAL_CHECK(graph_inputs.size() == then_params.size(),
-                                "Number of inputs to 'then_branch' is invalid. Expected " +
-                                    std::to_string(graph_inputs.size()) + ", actual " +
-                                    std::to_string(then_params.size()));
-        FRONT_END_GENERAL_CHECK(graph_inputs.size() == else_params.size(),
-                                "Number of inputs to 'else_branch' is invalid. Expected " +
-                                    std::to_string(graph_inputs.size()) + ", actual " +
-                                    std::to_string(else_params.size()));
-                                    */
+        auto& tensor_values = node.get_translate_session()->get_tensor_values();
 
-        // set inputs
-        for (int ind = 0; ind < graph_inputs.size(); ++ind) {
-            auto curr_input = graph_inputs[ind + 1];
-            auto then_param = then_params[ind];
-            auto else_param = else_params[ind];
-            if_node->set_input(curr_input, then_param, else_param);
+        const auto& then_params = then_branch->get_parameters();
+        const auto& else_params = else_branch->get_parameters();
+        
+        for (auto& input : then_params) {
+            auto known_input = tensor_values.find(input->get_friendly_name());
+            if (known_input != tensor_values.end()) {
+                if_node->set_input(known_input->second, input, nullptr);
+            } else {
+                FRONT_END_THROW("Non-existent connection in then-branch to " + input->get_friendly_name());
+            }
+        }
+
+        for (auto& input : else_params) {
+            auto known_input = tensor_values.find(input->get_friendly_name());
+            if (known_input != tensor_values.end()) {
+                if_node->set_input(known_input->second, nullptr, input);
+            } else {
+                FRONT_END_THROW("Non-existent connection in else-branch to " + input->get_friendly_name());
+            }
+        }
+
+        auto then_results = then_branch->get_results();
+        auto else_results = else_branch->get_results();
+        FRONT_END_GENERAL_CHECK(then_results.size() == else_results.size(),
+                                "[ONNX Frontend] Internal error or incorrect input model: number of result nodes in "
+                                "then and else branches do not match.");
+        int output_size = static_cast<int>(then_results.size());
+        for (int ind = 0; ind < output_size; ++ind) {
+            if_node->set_output(then_results[ind], else_results[ind]);
         }
     }
 
