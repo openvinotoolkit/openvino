@@ -35,6 +35,7 @@
 #include "openvino/op/result.hpp"
 #include "ops_bridge.hpp"
 #include "transformations/resolve_names_collisions.hpp"
+#include "translate_session.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
 
@@ -352,7 +353,14 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
                                std::shared_ptr<ov::Model>& ov_function) const {
     auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
-    ov_function = model_onnx->get_model();
+    auto translators_map = std::make_shared<OperatorsBridge>();
+    TranslateSession translate_session(input_model, translators_map, "model_name");
+    try {
+        ov_function = translate_session.get_converted_model();
+    } catch (const std::exception& e) {
+        throw;
+    }
+    normalize(ov_function);
     return;
 #if 0
     auto subgraphs_as_input_models = model_onnx->get_subgraphs();

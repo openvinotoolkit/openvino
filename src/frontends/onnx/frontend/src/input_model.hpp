@@ -106,13 +106,12 @@ namespace unify {
 // Support of unified GraphIterator interface
 class InputModel : public ov::frontend::InputModel {
     friend class ov::frontend::onnx::FrontEnd;
-    friend class ov::frontend::onnx::Node;
+    friend class ov::frontend::onnx::TranslateSession;
     class InputModelONNXImpl;
     std::shared_ptr<InputModelONNXImpl> _impl;
 
     std::vector<std::shared_ptr<ov::frontend::onnx::OpPlace>> get_op_places() const;
     std::map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>> get_tensor_places() const;
-    std::map<std::string, Output<ov::Node>> get_tensor_values() const;
 
     ////// Subgraph Handling /////
     std::vector<std::shared_ptr<unify::InputModel>> get_subgraphs() const;
@@ -120,8 +119,7 @@ class InputModel : public ov::frontend::InputModel {
 public:
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         const std::shared_ptr<TelemetryExtension>& telemetry = {});
-    explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
-                        InputModel* parent_model);
+    explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator, InputModel* parent_model);
 
     /////  Searching for places  /////
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
@@ -146,9 +144,6 @@ public:
     void override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) override;
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                           const std::vector<ov::frontend::Place::Ptr>& outputs) override;
-
-    std::shared_ptr<ov::Model> get_model();
-    Output<ov::Node> InputModel::get_original_tensor_value(const std::string& name) const;
 };
 }  // namespace unify
 

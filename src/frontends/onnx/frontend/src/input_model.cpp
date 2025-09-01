@@ -585,19 +585,6 @@ public:
     std::map<std::string, std::shared_ptr<TensorONNXPlace>>& get_tensor_places() {
         return m_tensor_places;
     }
-    std::map<std::string, Output<ov::Node>> get_tensor_values() const {
-        return m_tensor_values;
-    }
-    Output<ov::Node> get_original_tensor_value(const std::string& name) const {
-        if (m_parent_model != nullptr) {
-            return m_parent_model->_impl->get_original_tensor_value(name);
-        }
-        auto it = m_tensor_values.find(name);
-        if (it != m_tensor_values.end()) {
-            return it->second;
-        }
-        return {};
-    }
 
     ///// Naming and annotation  /////
     void set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name);
@@ -618,7 +605,6 @@ public:
                           const std::vector<ov::frontend::Place::Ptr>& outputs);
 
     std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> get_subgraphs();
-    std::shared_ptr<ov::Model> get_model();
     std::shared_ptr<TelemetryExtension> get_telemetry_extension() const {
         return m_telemetry;
     }
@@ -632,7 +618,6 @@ private:
     std::map<std::string, std::shared_ptr<TensorONNXPlace>> m_tensor_places;
     std::vector<ov::frontend::Place::Ptr> m_inputs;
     std::vector<ov::frontend::Place::Ptr> m_outputs;
-    std::map<std::string, Output<ov::Node>> m_tensor_values;
 
     std::shared_ptr<GraphIterator> m_graph_iterator;
     const ov::frontend::InputModel& m_input_model;
@@ -709,29 +694,6 @@ void InputModel::InputModelONNXImpl::load_model() {
             auto name = place->get_names()[0];
             if (m_tensor_places.count(name) == 0) {
                 m_tensor_places[name] = place;
-                if (auto data = place->get_data()) {
-                    auto constant = ov::op::v0::Constant::create(place->get_element_type(),
-                                                                 place->get_partial_shape().to_shape(),
-                                                                 data);
-                    constant->set_friendly_name(name);
-                    m_tensor_values[name] = constant;
-                } else if (place->get_partial_shape() == PartialShape{0}) {  // empty constant
-                    auto constant = ov::op::v0::Constant::create(place->get_element_type(),
-                                                                 place->get_partial_shape().to_shape(),
-                                                                 {});
-                    constant->set_friendly_name(name);
-                    m_tensor_values[name] = constant;
-                } else {
-                    FRONT_END_GENERAL_CHECK(false,
-                                            "This tensor should be either input, constant or ",
-                                            "should be already produced by previous operators: ",
-                                            name,
-                                            ". Error is encountered while working with operation of type ",
-                                            operation_decoder->get_op_type(),
-                                            " and name ",
-                                            operation_decoder->get_op_name(),
-                                            ".");
-                }
             }
         }
         for (size_t i = 0; i < operation_decoder->get_output_size(); ++i) {
@@ -870,7 +832,8 @@ void InputModel::InputModelONNXImpl::set_tensor_value(ov::frontend::Place::Ptr p
                             "TensorFlow Lite Frontend: define static size type for " + name + " to be frozen.");
     auto constant = ov::op::v0::Constant::create(type, p_shape.to_shape(), value);
     constant->set_friendly_name(name);
-    m_tensor_values[name] = constant;
+    // Possible issue
+    //m_tensor_values[name] = constant;
 }
 
 void InputModel::InputModelONNXImpl::set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) {
@@ -940,112 +903,6 @@ void InputModel::InputModelONNXImpl::extract_subgraph(const std::vector<ov::fron
     clean_up();
 }
 
-std::shared_ptr<ov::Model> InputModel::InputModelONNXImpl::get_model() {
-    const OperatorsBridge translate_map;
-    //    no_conversion ? ov::frontend::onnx::TranslatorDictionaryType{} : m_op_translators;
-
-    auto all_tensor_places = this->get_tensor_places();
-
-    for (auto& value : m_tensor_values) {
-        auto& output = value.second;
-        FRONT_END_GENERAL_CHECK(ov::is_type<ov::op::v0::Constant>(output.get_node_shared_ptr()),
-                                "Unexpected constant data configuration at the beginning of graph translation");
-        const auto& input_tensor = all_tensor_places.at(value.first);
-        FRONT_END_GENERAL_CHECK(input_tensor != nullptr, "Inputs must be TensorPlaces");
-        input_tensor->translate(output /*, !no_conversion*/);
-    }
-
-    // inputs
-    ParameterVector parameters;
-    parameters.reserve(this->get_inputs().size());
-    for (const auto& input : this->get_inputs()) {
-        const auto& input_tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(input);
-        FRONT_END_GENERAL_CHECK(input_tensor != nullptr,
-                                "Inputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
-        const auto name = input_tensor->get_names()[0];
-        auto parameter = std::make_shared<ov::op::v0::Parameter>(input_tensor->get_element_type(),
-                                                                 input_tensor->get_partial_shape());
-        parameter->set_friendly_name(name);
-        parameters.push_back(parameter);
-        m_tensor_values[name] = parameter->output(0);
-        input_tensor->translate(m_tensor_values[name] /*, !no_conversion*/);
-    }
-
-    // operations
-    for (const auto& op_place : this->get_op_places()) {
-        const auto& decoder = std::dynamic_pointer_cast<onnx::DecoderBaseOperation>(op_place->get_decoder());
-        FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be onnx::DecoderBase or its child");
-        ov::OutputVector inputs(decoder->get_input_size());
-        for (size_t i = 0; i < decoder->get_input_size(); ++i) {
-            auto name = decoder->get_input_tensor_name(i);
-            FRONT_END_GENERAL_CHECK(m_tensor_values.find(name) != m_tensor_values.end(),
-                                    "Unknown tensor name: ",
-                                    name,
-                                    ".");
-            inputs[i] = m_tensor_values[name];
-        }
-
-        const auto& out_size = decoder->get_output_size();
-        ov::OutputVector ov_outputs(out_size);
-        const Operator* translator =
-            translate_map.get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
-        try {
-            FRONT_END_OP_CONVERSION_CHECK(
-                translator != nullptr,
-                "No translator found for " + decoder->get_domain() + " " + decoder->get_op_type() + " node.");
-            // FRONT_END_OP_CONVERSION_CHECK(translate_map.count(decoder->get_op_type()),
-            //                               "No translator found for " + decoder->get_op_type() + " node.");
-            // auto op_fun = &(translate_map.at(decoder->get_op_type()));
-            // ov::frontend::onnx::NodeContext node_context(decoder, inputs, submodel_translation_functions);
-            const NodeProto* node_def = nullptr;
-            decoder->experimental_get_internal_structures(reinterpret_cast<const void**>(&node_def));
-            ov::frontend::onnx::Node node_context(
-                *decoder,
-                const_cast<unify::InputModel*>(dynamic_cast<const unify::InputModel*>(&this->m_input_model)));
-            ov_outputs = (*translator)(node_context);
-        } catch (...) {
-            /*
-            if (fail_fast) {
-                if (m_telemetry && translator == nullptr) {
-                    m_telemetry->send_event("error_cause", "tflite_" + decoder->get_op_type());
-                }
-                throw;
-            } else {
-                auto operation = std::make_shared<ov::frontend::onnx::FrameworkNode>(decoder, inputs, out_size);
-                operation->set_friendly_name(decoder->get_op_name());
-                ov_outputs = operation->outputs();
-            }
-            */
-        }
-        for (size_t i = 0; i < out_size; ++i) {
-            const auto& name = decoder->get_output_tensor_name(i);
-            m_tensor_values[name] = ov_outputs[i];
-            all_tensor_places[name]->translate(m_tensor_values[name] /*, !no_conversion*/);
-        }
-    }
-
-    // outputs
-    ResultVector results;
-    results.reserve(this->get_outputs().size());
-    for (const auto& output : this->get_outputs()) {
-        const auto& tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output);
-        FRONT_END_GENERAL_CHECK(tensor != nullptr,
-                                "Inputs of ov::frontend::onnx::InputModel must be TensorLitePlace instances");
-        const auto name = tensor->get_names()[0];
-        if (!m_tensor_values.count(name)) {
-            continue;
-        }
-        const auto& output_value = m_tensor_values[name];
-        const auto& result = std::make_shared<ov::op::v0::Result>(output_value);
-        auto input = result->output(0);
-        tensor->translate(input /*, !no_conversion*/);
-        result->set_friendly_name(name);
-        results.push_back(result);
-    }
-    auto model_name = "onnx_Frontend_IR";
-    return std::make_shared<ov::Model>(results, parameters, model_name);
-}
-
 void InputModel::InputModelONNXImpl::clean_up() {
     // TODO: remove all the unnecessary tensors and operations. Could be postponed as TF Lite is OOB type of FrontEnd
 }
@@ -1066,14 +923,6 @@ std::vector<std::shared_ptr<ov::frontend::onnx::OpPlace>> InputModel::get_op_pla
 
 std::map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>> InputModel::get_tensor_places() const {
     return _impl->get_tensor_places();
-}
-
-std::map<std::string, Output<ov::Node>> InputModel::get_tensor_values() const {
-    return _impl->get_tensor_values();
-}
-
-Output<ov::Node> InputModel::get_original_tensor_value(const std::string& name) const {
-    return _impl->get_original_tensor_value(name);
 }
 
 std::vector<ov::frontend::Place::Ptr> InputModel::get_inputs() const {
@@ -1139,10 +988,6 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
 
 std::vector<std::shared_ptr<InputModel>> InputModel::get_subgraphs() const {
     return _impl->get_subgraphs();
-}
-
-std::shared_ptr<ov::Model> InputModel::get_model() {
-    return _impl->get_model();
 }
 
 }  // namespace unify

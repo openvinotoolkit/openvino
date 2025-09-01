@@ -13,6 +13,7 @@
 #include "input_model.hpp"
 #include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
+#include "translate_session.hpp"
 
 namespace ov {
 namespace frontend {
@@ -323,16 +324,19 @@ Node::Node(const NodeProto& node_proto, Graph* graph)
                   delete impl;
               }},
       m_decoder(nullptr),
-      m_parent_model(nullptr) {}
-Node::Node(const DecoderBaseOperation& decoder, unify::InputModel* input_model)
+      m_translate_session(nullptr) {}
+Node::Node(const DecoderBaseOperation& decoder, TranslateSession* translate_session)
     : m_pimpl{nullptr,
               [](Impl* impl) {
 
               }},
       m_decoder(&decoder),
-      m_parent_model(input_model) {}
+      m_translate_session(translate_session) {}
 
-Node::Node(Node&& other) noexcept : m_pimpl{std::move(other.m_pimpl)}, m_decoder(nullptr), m_parent_model(nullptr) {}
+Node::Node(Node&& other) noexcept
+    : m_pimpl{std::move(other.m_pimpl)},
+      m_decoder(nullptr),
+      m_translate_session(nullptr) {}
 
 Node::Node(const Node& other)
     : m_pimpl{new Impl{other.m_pimpl->node_proto(), other.m_pimpl->graph(), other.get_subgraphs()},
@@ -340,7 +344,7 @@ Node::Node(const Node& other)
                   delete impl;
               }},
       m_decoder(nullptr),
-      m_parent_model(nullptr) {}
+      m_translate_session(nullptr) {}
 
 #include <stdexcept>  // For std::runtime_error
 
@@ -349,25 +353,21 @@ ov::OutputVector Node::get_ov_inputs() const {
         return m_pimpl->get_ov_inputs();
     } else if (m_decoder != nullptr) {
         ov::OutputVector result;
-        //auto& known_tensors = m_parent_model->get_tensor_values();
+        auto& known_tensors = m_translate_session->get_tensor_values();
         for (size_t idx = 0; idx < m_decoder->get_input_size(); ++idx) {
             const std::string& name = m_decoder->get_input_tensor_name(idx);
             if (name.empty()) {
                 continue;
             }
-            auto tensor_value = m_parent_model->get_original_tensor_value(name);
-            if (tensor_value.get_node_shared_ptr() != nullptr) {
-            //auto it = known_tensors.find(name);
-            //FRONT_END_GENERAL_CHECK(it != known_tensors.end());
-            //if (!name.empty()) {
-                //result.push_back(it->second);
-                result.push_back(tensor_value);
+            auto it = known_tensors.find(name);
+            FRONT_END_GENERAL_CHECK(it != known_tensors.end());
+            if (!name.empty()) {
+                result.push_back(it->second);
             } else {
                 result.push_back(std::make_shared<NullNode>()->output(0));
             }
         }
         return result;
-        // Add logic for m_decoder if applicable
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -721,7 +721,9 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name,
     } else if (m_decoder != nullptr) {
         auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
         auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator);
-        return input_model->get_model();
+        std::shared_ptr<ov::Model> ov_model(nullptr);
+        m_translate_session->translate_graph(input_model, ov_model);
+        return ov_model;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }

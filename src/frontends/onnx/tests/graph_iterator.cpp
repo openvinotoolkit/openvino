@@ -778,9 +778,12 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
 #include <openvino/openvino.hpp>
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
-    //    const std::string model_name = "abs.onnx";
-    //    const std::string model_name = "model_editor/subgraph_extraction_tests.onnx";
-    const std::string model_name = "controlflow/if_branches_with_same_inputs.onnx";
+    //const std::string model_name = "abs.onnx";
+    //const std::string model_name = "add_abc.onnx";
+    //const std::string model_name = "div.onnx";
+    //const std::string model_name = "model_editor/subgraph_extraction_tests.onnx";
+    //const std::string model_name = "controlflow/if_branches_with_same_inputs.onnx";
+    const std::string model_name = "controlflow/if_inside_if.onnx";
     const auto path =
         ov::util::path_join({ov::test::utils::getExecutableDirectory(),
                                            TEST_ONNX_MODELS_DIRNAME,
