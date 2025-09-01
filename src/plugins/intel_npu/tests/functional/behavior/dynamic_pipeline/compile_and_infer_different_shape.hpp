@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/openvino.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -92,78 +93,82 @@ TEST_P(InferRequestDynamicShapeTests, CompareDynamicAndUndefinedTypeNetwork) {
     // Customize a model with a dynamic shape
     std::string MaxPoolModelXmlString = R"V0G0N(<?xml version="1.0"?>
 <net name="MaxPool" version="11">
-	<layers>
-		<layer id="0" name="input1" type="Parameter" version="opset1">
-			<data shape="1,1,384,1024" element_type="f32" />
-			<rt_info>
-				<attribute name="fused_names" version="0" value="input1" />
-			</rt_info>
-			<output>
-				<port id="0" precision="FP32" names="input1">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>384</dim>
-					<dim>1024</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="1" name="MaxPool_2" type="MaxPool" version="opset1">
-			<data strides="1, 1" pads_begin="0, 0" pads_end="0, 0" kernel="1, 1" rounding_type="floor" auto_pad="explicit" />
-			<rt_info>
-				<attribute name="fused_names" version="0" value="MaxPool_2" />
-			</rt_info>
-			<input>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>384</dim>
-					<dim>1024</dim>
-				</port>
-			</input>
-			<output>
-				<port id="1" precision="FP32">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>384</dim>
-					<dim>1024</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="2" name="output" type="Result" version="opset1">
-			<rt_info>
-				<attribute name="fused_names" version="0" value="output" />
-			</rt_info>
-			<input>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>1</dim>
-					<dim>384</dim>
-					<dim>1024</dim>
-				</port>
-			</input>
-		</layer>
-	</layers>
-	<edges>
-		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
-		<edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
-	</edges>
-	<rt_info />
+        <layers>
+                <layer id="0" name="input1" type="Parameter" version="opset1">
+                        <data shape="1,1,384,1024" element_type="f32" />
+                        <rt_info>
+                                <attribute name="fused_names" version="0" value="input1" />
+                        </rt_info>
+                        <output>
+                                <port id="0" precision="FP32" names="input1">
+                                        <dim>1</dim>
+                                        <dim>1</dim>
+                                        <dim>384</dim>
+                                        <dim>1024</dim>
+                                </port>
+                        </output>
+                </layer>
+                <layer id="1" name="MaxPool_2" type="MaxPool" version="opset1">
+                        <data strides="1, 1" pads_begin="0, 0" pads_end="0, 0" kernel="1, 1" rounding_type="floor" auto_pad="explicit" />
+                        <rt_info>
+                                <attribute name="fused_names" version="0" value="MaxPool_2" />
+                        </rt_info>
+                        <input>
+                                <port id="0" precision="FP32">
+                                        <dim>1</dim>
+                                        <dim>1</dim>
+                                        <dim>384</dim>
+                                        <dim>1024</dim>
+                                </port>
+                        </input>
+                        <output>
+                                <port id="1" precision="FP32">
+                                        <dim>1</dim>
+                                        <dim>1</dim>
+                                        <dim>384</dim>
+                                        <dim>1024</dim>
+                                </port>
+                        </output>
+                </layer>
+                <layer id="2" name="output" type="Result" version="opset1">
+                        <rt_info>
+                                <attribute name="fused_names" version="0" value="output" />
+                        </rt_info>
+                        <input>
+                                <port id="0" precision="FP32">
+                                        <dim>1</dim>
+                                        <dim>1</dim>
+                                        <dim>384</dim>
+                                        <dim>1024</dim>
+                                </port>
+                        </input>
+                </layer>
+        </layers>
+        <edges>
+                <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+                <edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+        </edges>
+        <rt_info />
 </net>
-)V0G0N";
 
-    // std::stringstream dynamicTypeModelXmlStream, undefinedTypeModelXmlStream, dynamicTypeModelBinStream,
-    //     undefinedTypeModelBinStream;
+)V0G0N";
 
     // Test whether the serialization results of the two models are the same
     auto dynamicShapeModel = ie->read_model(MaxPoolModelXmlString, ov::Tensor());
-    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 780), 1280}});
+    dynamicShapeModel->reshape({{1, 16, ov::Dimension(10, 720), 1280}});
 
-    // // compile the serialized models
-    // ov::pass::Serialize(dynamicTypeModelXmlStream, dynamicTypeModelBinStream).run_on_model(dynamicTypeModel);
-    // ov::pass::Serialize(undefinedTypeModelXmlStream, undefinedTypeModelBinStream).run_on_model(undefinedTypeModel);
+    // Have to process to fp16, otherwise compilation will fail
+    auto preprocessor = ov::preprocess::PrePostProcessor(dynamicShapeModel);
+    const auto inputs = dynamicShapeModel->inputs();
+    const auto outputs = dynamicShapeModel->outputs();
 
-    // ASSERT_TRUE(dynamicTypeModelXmlStream.str() == undefinedTypeModelXmlStream.str())
-    //     << "Serialized XML files are different: dynamic type vs undefined type";
+    for (size_t i = 0; i < inputs.size(); i++) {
+        preprocessor.input(i).tensor().set_element_type(ov::element::f16);
+    }
+    for (size_t i = 0; i < outputs.size(); i++) {
+        preprocessor.output(i).tensor().set_element_type(ov::element::f16);
+    }
+    auto model = preprocessor.build();
 
     // Test whether the inference results of the two models are the same
     // set input and output names
@@ -171,11 +176,11 @@ TEST_P(InferRequestDynamicShapeTests, CompareDynamicAndUndefinedTypeNetwork) {
     const std::string outputName = "output";
 
     // create input tensor match the customized models
-    ov::Shape shape = {1, 16, 10, 1280};
-    ov::Tensor inTensor =
-        ov::test::utils::create_and_fill_tensor(dynamicShapeModel->input().get_element_type(), shape, 100, 0);
+    ov::Shape shape = {1, 16, 600, 1280};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
 
-    auto execNetDynamic = ie->compile_model(dynamicShapeModel, target_device, configuration);
+    ov::CompiledModel execNetDynamic;
+    OV_ASSERT_NO_THROW(execNetDynamic = ie->compile_model(model, target_device, configuration));
     ov::InferRequest reqDynamic1;
     OV_ASSERT_NO_THROW(reqDynamic1 = execNetDynamic.create_infer_request());
     OV_ASSERT_NO_THROW(reqDynamic1.set_tensor(inputName, inTensor));
@@ -183,10 +188,10 @@ TEST_P(InferRequestDynamicShapeTests, CompareDynamicAndUndefinedTypeNetwork) {
     ASSERT_EQ(shape, reqDynamic1.get_output_tensor().get_shape())
         << "Output tensor not has same shape with input tensor";
 
+    std::cout << __LINE__ << std::endl;
     // create input tensor match the customized models
     ov::Shape shape2 = {1, 16, 360, 1280};
-    ov::Tensor inTensor2 =
-        ov::test::utils::create_and_fill_tensor(dynamicShapeModel->input().get_element_type(), shape2, 100, 0);
+    ov::Tensor inTensor2 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     ov::InferRequest reqDynamic2;
     OV_ASSERT_NO_THROW(reqDynamic2 = execNetDynamic.create_infer_request());
     OV_ASSERT_NO_THROW(reqDynamic2.set_tensor(inputName, inTensor2));
@@ -194,17 +199,17 @@ TEST_P(InferRequestDynamicShapeTests, CompareDynamicAndUndefinedTypeNetwork) {
     ASSERT_EQ(shape2, reqDynamic2.get_output_tensor().get_shape())
         << "Output tensor of second inferrequest from model does not has same shape with input tensor";
 
+    std::cout << __LINE__ << std::endl;
     ov::Shape shape3 = {1, 16, 720, 1280};
-    ov::Tensor inTensor3 =
-        ov::test::utils::create_and_fill_tensor(dynamicShapeModel->input().get_element_type(), shape3, 100, 0);
+    ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape3, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic2.set_tensor(inputName, inTensor3));
     OV_ASSERT_NO_THROW(reqDynamic2.infer());
     ASSERT_EQ(shape3, reqDynamic2.get_output_tensor().get_shape())
         << "Output tensor of second inferrequest from model does not update output tensor shape with larger shape";
 
+    std::cout << __LINE__ << std::endl;
     ov::Shape shape4 = {1, 16, 720, 1280};
-    ov::Tensor inTensor4 =
-        ov::test::utils::create_and_fill_tensor(dynamicShapeModel->input().get_element_type(), shape4, 100, 0);
+    ov::Tensor inTensor4 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape4, 100, 0);
     ov::InferRequest reqDynamic3;
     OV_ASSERT_NO_THROW(reqDynamic3 = execNetDynamic.create_infer_request());
     OV_ASSERT_NO_THROW(reqDynamic3.set_tensor(inputName, inTensor4));
@@ -212,9 +217,9 @@ TEST_P(InferRequestDynamicShapeTests, CompareDynamicAndUndefinedTypeNetwork) {
     ASSERT_EQ(shape4, reqDynamic3.get_output_tensor().get_shape())
         << "Output tensor of third inferrequest from model does not has same shape with input tensor";
 
+    std::cout << __LINE__ << std::endl;
     ov::Shape shape5 = {1, 16, 360, 1280};
-    ov::Tensor inTensor5 =
-        ov::test::utils::create_and_fill_tensor(dynamicShapeModel->input().get_element_type(), shape5, 100, 0);
+    ov::Tensor inTensor5 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape5, 100, 0);
     OV_ASSERT_NO_THROW(reqDynamic3.set_tensor(inputName, inTensor5));
     OV_ASSERT_NO_THROW(reqDynamic3.infer());
     ASSERT_EQ(shape5, reqDynamic3.get_output_tensor().get_shape())
