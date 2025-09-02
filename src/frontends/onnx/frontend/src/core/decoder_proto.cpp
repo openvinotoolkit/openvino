@@ -61,6 +61,9 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             else
                 throw std::runtime_error("Attribute doesn't have value");
             break;
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_TENSOR:
+            return static_cast<ov::frontend::onnx::DecoderBase::Ptr>(
+                std::make_shared<DecoderProtoTensor>(&attr.t(), m_parent, 0, 0));
         default:
             throw std::runtime_error("Unsupported attribute type " +
                                      ::ONNX_NAMESPACE::AttributeProto_AttributeType_Name(attr.type()));

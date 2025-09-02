@@ -8,8 +8,20 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 
+Tensor::Tensor(const std::shared_ptr<TensorONNXPlace>& tensor_place) {
+    m_tensor_proto = nullptr;
+    m_shape = tensor_place->get_partial_shape().get_shape();
+    m_model_dir = "";
+    m_mmap_cache = nullptr;
+    m_tensor_place = tensor_place;
+}
+
 template <>
 std::vector<double> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<double>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<double>();
     }
@@ -24,6 +36,10 @@ std::vector<double> Tensor::get_data() const {
 
 template <>
 std::vector<float> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<float>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<float>();
     }
@@ -38,6 +54,10 @@ std::vector<float> Tensor::get_data() const {
 
 template <>
 std::vector<ov::float16> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<ov::float16>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<ov::float16>();
     }
@@ -62,6 +82,10 @@ std::vector<ov::float16> Tensor::get_data() const {
 
 template <>
 std::vector<ov::bfloat16> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<ov::bfloat16>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<ov::bfloat16>();
     }
@@ -76,6 +100,10 @@ std::vector<ov::bfloat16> Tensor::get_data() const {
 
 template <>
 std::vector<int8_t> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<int8_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<int8_t>();
     }
@@ -91,6 +119,10 @@ std::vector<int8_t> Tensor::get_data() const {
 
 template <>
 std::vector<int16_t> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<int16_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<int16_t>();
     }
@@ -105,6 +137,10 @@ std::vector<int16_t> Tensor::get_data() const {
 
 template <>
 std::vector<int32_t> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<int32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<int32_t>();
     }
@@ -119,6 +155,10 @@ std::vector<int32_t> Tensor::get_data() const {
 
 template <>
 std::vector<int64_t> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<int64_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<int64_t>();
     }
@@ -133,6 +173,10 @@ std::vector<int64_t> Tensor::get_data() const {
 
 template <>
 std::vector<uint8_t> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<uint8_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<uint8_t>();
     }
@@ -148,6 +192,10 @@ std::vector<uint8_t> Tensor::get_data() const {
 
 template <>
 std::vector<uint16_t> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<uint16_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<uint16_t>();
     }
@@ -162,6 +210,10 @@ std::vector<uint16_t> Tensor::get_data() const {
 
 template <>
 std::vector<uint32_t> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<uint32_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<uint32_t>();
     }
@@ -176,6 +228,10 @@ std::vector<uint32_t> Tensor::get_data() const {
 
 template <>
 std::vector<uint64_t> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<uint64_t>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<uint64_t>();
     }
@@ -190,6 +246,10 @@ std::vector<uint64_t> Tensor::get_data() const {
 
 template <>
 std::vector<ov::float8_e4m3> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<ov::float8_e4m3>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<ov::float8_e4m3>();
     }
@@ -214,6 +274,10 @@ std::vector<ov::float8_e4m3> Tensor::get_data() const {
 
 template <>
 std::vector<ov::float8_e5m2> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<ov::float8_e5m2>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     if (has_external_data()) {
         return get_external_data<ov::float8_e5m2>();
     }
@@ -238,6 +302,10 @@ std::vector<ov::float8_e5m2> Tensor::get_data() const {
 
 template <>
 std::vector<char> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        return detail::__get_data<char>(m_tensor_place->get_data(), m_tensor_place->get_data_size());
+    }
+
     // Boolean values are stored as char because std::vector<bool>
     // can behave differently from other vector containers.
     if (has_external_data()) {
@@ -254,6 +322,10 @@ std::vector<char> Tensor::get_data() const {
 
 template <>
 std::vector<std::string> Tensor::get_data() const {
+    if (m_tensor_place != nullptr) {
+        FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    }
+
     if (has_external_data()) {
         FRONT_END_THROW("External strings are not supported");
     }
@@ -267,10 +339,21 @@ std::vector<std::string> Tensor::get_data() const {
 }
 
 std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
+    std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
+    if (m_tensor_place != nullptr) {
+        constant = std::make_shared<ov::op::v0::Constant>(m_tensor_place->get_element_type(),
+                                                          m_tensor_place->get_partial_shape().get_shape(),
+                                                          m_tensor_place->get_data());
+        const auto& names = m_tensor_place->get_names();
+        if (names.size() > 0) {
+            constant->set_friendly_name(names[0]);
+            constant->get_default_output().set_names({names.begin(), names.end()});
+        }
+        return constant;
+    }
     if (m_tensor_proto->has_segment()) {
         FRONT_END_THROW("Loading segments isn't supported");
     }
-    std::shared_ptr<ov::op::v0::Constant> constant{nullptr};
     ov::element::Type ov_type = get_ov_type();
     size_t element_count = get_data_size();
     if (ov::element::is_nibble_type(ov_type)) {

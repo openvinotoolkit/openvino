@@ -635,7 +635,8 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
                                                               tensor_meta_info.m_partial_shape,
                                                               tensor_meta_info.m_element_type,
                                                               std::vector<std::string>{*tensor_meta_info.m_tensor_name},
-                                                              tensor_meta_info.m_tensor_data);
+                                                              tensor_meta_info.m_tensor_data,
+                                                              tensor_meta_info.m_tensor_data_size);
     return tensor_place;
 }
 
@@ -833,7 +834,7 @@ void InputModel::InputModelONNXImpl::set_tensor_value(ov::frontend::Place::Ptr p
     auto constant = ov::op::v0::Constant::create(type, p_shape.to_shape(), value);
     constant->set_friendly_name(name);
     // Possible issue
-    //m_tensor_values[name] = constant;
+    // m_tensor_values[name] = constant;
 }
 
 void InputModel::InputModelONNXImpl::set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) {

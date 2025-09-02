@@ -118,26 +118,32 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
         case TensorProto_DataType::TensorProto_DataType_FLOAT:
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->float_data().data()));
+            tensor_meta_info.m_tensor_data_size = tensor_info->float_data_size();
             break;
         case TensorProto_DataType::TensorProto_DataType_INT32:
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->int32_data().data()));
+            tensor_meta_info.m_tensor_data_size = tensor_info->int32_data_size();
             break;
         case TensorProto_DataType::TensorProto_DataType_INT64:
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->int64_data().data()));
+            tensor_meta_info.m_tensor_data_size = tensor_info->int64_data_size();
             break;
         case TensorProto_DataType::TensorProto_DataType_UINT64:
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->uint64_data().data()));
+            tensor_meta_info.m_tensor_data_size = tensor_info->uint64_data_size();
             break;
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->double_data().data()));
+            tensor_meta_info.m_tensor_data_size = tensor_info->double_data_size();
             break;
         case TensorProto_DataType::TensorProto_DataType_BOOL:
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->int32_data().data()));
+            tensor_meta_info.m_tensor_data_size = tensor_info->int32_data_size();
             break;
         default:
             throw std::runtime_error("Unsupported type " +
@@ -148,6 +154,7 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
         if (tensor_meta_info.m_tensor_data == nullptr && tensor_info->has_raw_data()) {
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->raw_data().data()));
+            tensor_meta_info.m_tensor_data_size = tensor_info->raw_data().size();
         }
     }
     return tensor_meta_info;

@@ -53,6 +53,19 @@ inline std::vector<T> __get_data(const Container& container) {
 }
 
 template <typename T>
+inline std::vector<T> __get_data(const void* data, const size_t data_size) {
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4267)
+#    pragma warning(disable : 4244)
+#endif
+    return std::vector<T>(static_cast<const T*>(data), static_cast<const T*>(data) + data_size);
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
+}
+
+template <typename T>
 inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_type) {
     auto it = reinterpret_cast<const T*>(raw_data.data());
     return std::vector<T>(it, it + (raw_data.size() / get_onnx_data_size(onnx_data_type)));
@@ -60,6 +73,55 @@ inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_
 
 }  // namespace
 }  // namespace detail
+
+class TensorONNXPlace : public ov::frontend::onnx::TensorPlace {
+public:
+    TensorONNXPlace(const ov::frontend::InputModel& input_model,
+                    const ov::PartialShape& pshape,
+                    ov::element::Type type,
+                    const std::vector<std::string>& names,
+                    const void* data,
+                    const size_t data_size)
+        : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
+          m_data(data),
+          m_data_size(data_size) {};
+
+    void translate(ov::Output<ov::Node>& output);
+
+    bool is_input() const override {
+        return m_input_idx >= 0;
+    }
+    size_t get_input_index() const {
+        FRONT_END_GENERAL_CHECK(is_input(), "This is not input TensorPlace. Can not deliver input index");
+        return static_cast<size_t>(m_input_idx);
+    }
+    bool is_output() const override {
+        return m_output_idx >= 0;
+    }
+    size_t get_output_index() const {
+        FRONT_END_GENERAL_CHECK(is_output(), "This is not output TensorPlace. Can not deliver output index");
+        return static_cast<size_t>(m_output_idx);
+    }
+    void set_input_index(const int64_t& idx) {
+        m_input_idx = idx;
+    }
+    void set_output_index(const int64_t& idx) {
+        m_output_idx = idx;
+    }
+
+    const void* get_data() const {
+        return m_data;
+    }
+
+    size_t get_data_size() const {
+        return m_data_size;
+    }
+
+protected:
+    int64_t m_input_idx = -1, m_output_idx = -1;
+    const void* m_data;
+    size_t m_data_size;
+};
 
 class Tensor {
 public:
@@ -90,6 +152,7 @@ public:
     Tensor() = delete;
     Tensor(const TensorProto& tensor, const std::string& model_dir, detail::MappedMemoryHandles mmap_cache)
         : m_tensor_proto{&tensor},
+          m_tensor_place(nullptr),
           m_shape{std::begin(tensor.dims()), std::end(tensor.dims())},
           m_model_dir{model_dir},
           m_mmap_cache{mmap_cache} {
@@ -100,6 +163,8 @@ public:
             m_shape = ov::Shape{};
         }
     }
+
+    Tensor(const std::shared_ptr<TensorONNXPlace>& tensor_place);
 
     Tensor(const Tensor&) = default;
     Tensor(Tensor&&) = default;
@@ -119,6 +184,12 @@ public:
     }
 
     const std::string& get_name() const {
+        if (m_tensor_place != nullptr) {
+            const auto& names = m_tensor_place->get_names();
+            if (names.size() <= 0)
+                FRONT_END_THROW("Tensor has no specified name");
+            return names[0];
+        }
         if (!m_tensor_proto->has_name()) {
             FRONT_END_THROW("Tensor has no specified name");
         }
@@ -126,6 +197,9 @@ public:
     }
 
     Type get_type() const {
+        if (m_tensor_place != nullptr) {
+            FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+        }
         if (!m_tensor_proto->has_data_type()) {
             FRONT_END_THROW("Tensor has no specified data type");
         }
@@ -133,6 +207,9 @@ public:
     }
 
     const ov::element::Type& get_ov_type() const {
+        if (m_tensor_place != nullptr) {
+            return m_tensor_place->get_element_type();
+        }
         if (!m_tensor_proto->has_data_type()) {
             FRONT_END_THROW("Tensor has no specified data type");
         }
@@ -191,6 +268,9 @@ public:
 
 private:
     bool has_external_data() const {
+        if (m_tensor_place != nullptr) {
+            return false;
+        }
         return m_tensor_proto->has_data_location() &&
                m_tensor_proto->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;
     }
@@ -213,6 +293,10 @@ private:
         if (has_external_data()) {
             FRONT_END_THROW("Unexpected usage of method for externally stored data");
         }
+        if (m_tensor_place != nullptr) {
+            return m_tensor_place->get_data();
+        }
+
         if (m_tensor_proto->has_raw_data()) {
             return m_tensor_proto->raw_data().data();
         }
@@ -232,6 +316,9 @@ private:
     }
 
     size_t get_data_size() const {
+        if (m_tensor_place != nullptr) {
+            return m_tensor_place->get_data_size();
+        }
         if (has_external_data()) {
             const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
             return ext_data.size() / get_onnx_data_size(m_tensor_proto->data_type());
@@ -272,6 +359,7 @@ private:
     }
 
     const TensorProto* m_tensor_proto;
+    std::shared_ptr<TensorONNXPlace> m_tensor_place;
     ov::Shape m_shape;
     std::string m_model_dir;
     detail::MappedMemoryHandles m_mmap_cache;
@@ -328,48 +416,6 @@ std::vector<char> Tensor::get_data() const;
 
 template <>
 std::vector<std::string> Tensor::get_data() const;
-
-class TensorONNXPlace : public ov::frontend::onnx::TensorPlace {
-public:
-    TensorONNXPlace(const ov::frontend::InputModel& input_model,
-                    const ov::PartialShape& pshape,
-                    ov::element::Type type,
-                    const std::vector<std::string>& names,
-                    const void* data)
-        : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
-          m_data(data) {};
-
-    void translate(ov::Output<ov::Node>& output);
-
-    bool is_input() const override {
-        return m_input_idx >= 0;
-    }
-    size_t get_input_index() const {
-        FRONT_END_GENERAL_CHECK(is_input(), "This is not input TensorPlace. Can not deliver input index");
-        return static_cast<size_t>(m_input_idx);
-    }
-    bool is_output() const override {
-        return m_output_idx >= 0;
-    }
-    size_t get_output_index() const {
-        FRONT_END_GENERAL_CHECK(is_output(), "This is not output TensorPlace. Can not deliver output index");
-        return static_cast<size_t>(m_output_idx);
-    }
-    void set_input_index(const int64_t& idx) {
-        m_input_idx = idx;
-    }
-    void set_output_index(const int64_t& idx) {
-        m_output_idx = idx;
-    }
-
-    const void* get_data() const {
-        return m_data;
-    }
-
-protected:
-    int64_t m_input_idx = -1, m_output_idx = -1;
-    const void* m_data;
-};
 
 }  // namespace onnx
 }  // namespace frontend

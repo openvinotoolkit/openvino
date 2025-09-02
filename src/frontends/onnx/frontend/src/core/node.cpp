@@ -785,7 +785,17 @@ Tensor Node::get_attribute_value(const std::string& name) const {
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<Tensor>(name);
     } else if (m_decoder != nullptr) {
-        // Non-applicable
+        auto& tensor_decoder = std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(
+            m_decoder->get_attribute(name).as<ov::frontend::onnx::DecoderBase::Ptr>());
+        const auto& tensor_meta_info = tensor_decoder->get_tensor_info();
+        auto tensor_place = std::make_shared<ov::frontend::onnx::TensorONNXPlace>(
+            *m_translate_session->get_input_model().get(),
+            tensor_meta_info.m_partial_shape,
+            tensor_meta_info.m_element_type,
+            std::vector<std::string>{*tensor_meta_info.m_tensor_name},
+            tensor_meta_info.m_tensor_data,
+            tensor_meta_info.m_tensor_data_size);
+        return {tensor_place};
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
