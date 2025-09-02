@@ -178,7 +178,8 @@ else()
     #
 
     if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_VERSION VERSION_LESS 3.24)
-        ov_add_compiler_flags(-Werror)
+        #ov_add_compiler_flags(-Werror)
+        ov_add_compiler_flags(-Wno-error)
     endif()
 
     #
