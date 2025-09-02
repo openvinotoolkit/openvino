@@ -49,8 +49,8 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     auto desc = impl_param.typed_desc<one_hot>();
     auto input_layout = impl_param.get_input_layout(0);
     auto dt = desc->output_data_types[0].value_or(input_layout.data_type);
-
-    ov::op::v1::OneHot op;
+//
+    ov::op::util::OneHotBase op;
     try {
         // set_axis also calls resolve_axis method which tries to get input0 partial shape
         // thus wrap this call with try/catch.
@@ -84,7 +84,7 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     }
 
     std::vector<ShapeType> output_shapes =
-        ov::op::v1::shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
+        ov::op::shape_infer_base(&op, input_shapes, ov::make_tensor_accessor(const_data));
     return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
 }
 

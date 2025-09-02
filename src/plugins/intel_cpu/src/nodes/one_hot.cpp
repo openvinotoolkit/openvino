@@ -29,14 +29,17 @@
 #include "shape_inference/custom/one_hot.hpp"
 
 namespace ov::intel_cpu::node {
-
+// 
 bool OneHot::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto oneHot = ov::as_type_ptr<const ov::op::v1::OneHot>(op);
-        if (!oneHot) {
-            errorMessage = "Only opset1 OneHot operation is supported";
+        if (none_of(op->get_type_info(),
+                    op::v1::OneHot::get_type_info_static(),
+                    op::v16::OneHot::get_type_info_static())) {
+            errorMessage = "Only OneHot operations from opset1 and opset16 are supported";
             return false;
         }
+
+        const auto* oneHot = ov::as_type<const op::util::OneHotBase>(op.get());
         if (ov::as_type_ptr<const ov::op::v0::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
             errorMessage = "Only const 'on_value' input is supported";
             return false;

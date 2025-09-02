@@ -61,6 +61,12 @@ void OneHotBase::set_axis(int64_t axis) {
     resolve_axis(this);
 }
 
+std::shared_ptr<Node> OneHotBase::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(util_OneHotBase_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return std::make_shared<OneHotBase>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
+}
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov
