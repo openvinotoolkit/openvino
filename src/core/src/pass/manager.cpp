@@ -337,7 +337,10 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
 
     profiler.start_timer(m_name);
     for (const auto& pass : m_pass_list) {
-        const auto& pass_name = pass->get_name();
+        const auto& pass_name0 = pass->get_name();
+        size_t location = pass_name0.find_last_of(":");
+        const auto& pass_name = (location == std::string::npos) ? pass_name0 : pass_name0.substr(location + 1);
+
 
         profiler.start_timer(pass_name);
         pass_changed_model = run_pass(pass, model, pass_changed_model);

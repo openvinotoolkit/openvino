@@ -85,7 +85,7 @@ TransposeFusion::TransposeFusion(bool supports_immad) {
     add_matcher<TransposeMatMulMatcher>(supports_immad);
     add_matcher<TransposeSDPAMatcher>();
     add_matcher<TransposeVLSDPAMatcher>();
-    add_matcher<TransposeConv1x1ConvertTransoposeMatcher>(supports_immad);
+    add_matcher<TransposeConv1x1ConvertTransposeMatcher>(supports_immad);
     add_matcher<ReshapeConv1x1ConvertReshapeMatcher>(supports_immad);
 
     
@@ -516,7 +516,7 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
     this->register_matcher(m, callback);
 }
 
-TransposeConv1x1ConvertTransoposeMatcher::TransposeConv1x1ConvertTransoposeMatcher(bool supports_immad) {
+TransposeConv1x1ConvertTransposeMatcher::TransposeConv1x1ConvertTransposeMatcher(bool supports_immad) {
     auto static_rank_gt_1 = [](const ov::Output<ov::Node>& output) {
         const auto& r = output.get_partial_shape().rank();
         return r.is_static() && r.get_length() > 1;
@@ -545,15 +545,16 @@ TransposeConv1x1ConvertTransoposeMatcher::TransposeConv1x1ConvertTransoposeMatch
     auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_subtract_m, ov::pass::pattern::any_input()});
     auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({transpose_activations_m, weight_mult_m});
 
-    auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({conv1x1_m});
+    auto convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({conv1x1_m});
 
     auto transpose_c_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({convert, transpose_c_order_m});  //, output_transpose_predicate);
+    auto transpose_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({convert_m, transpose_c_order_m});  //, output_transpose_predicate);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto conv1x1 = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map.at(conv1x1_m).get_node_shared_ptr());
+        auto convert = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(convert_m).get_node_shared_ptr());
         auto transpose_output = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(transpose_output_m).get_node_shared_ptr());
         auto transpose_activations = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(transpose_activations_m).get_node_shared_ptr());
         if (!conv1x1 || transformation_callback(conv1x1)) {
@@ -597,14 +598,15 @@ TransposeConv1x1ConvertTransoposeMatcher::TransposeConv1x1ConvertTransoposeMatch
         order_weight[1] = 0;
 
         auto gemm = std::make_shared<op::Gemm>(activation, Reshape_weight, order_activation, order_weight, order_c);
-        gemm->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), gemm);
-        ov::replace_node(m.get_match_root(), gemm);
+        auto convert_out = convert->clone_with_new_inputs({gemm});
+        convert_out->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ov::copy_runtime_info(m.get_matched_nodes(), convert_out);
+        ov::replace_node(m.get_match_root(), convert_out);
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_output_m, "TransposeConv1x1ConvertTransoposeMatcher");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_output_m, "TransposeConv1x1ConvertTransposeMatcher");
     this->register_matcher(m, callback);
 }
 
@@ -727,15 +729,16 @@ ReshapeConv1x1ConvertReshapeMatcher::ReshapeConv1x1ConvertReshapeMatcher(bool su
     auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_subtract_m, ov::pass::pattern::any_input()});
     auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({reshape_activations_m, weight_mult_m});
 
-    auto convert = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({conv1x1_m});
+    auto convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({conv1x1_m});
 
     auto reshape_c_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reshape_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({convert, reshape_c_order_m});  //, output_transpose_predicate);
+    auto reshape_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({convert_m, reshape_c_order_m});  //, output_transpose_predicate);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto conv1x1 = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map.at(conv1x1_m).get_node_shared_ptr());
+        auto convert = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(convert_m).get_node_shared_ptr());
         auto transpose_output = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(reshape_output_m).get_node_shared_ptr());
         auto transpose_activations = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(reshape_activations_m).get_node_shared_ptr());
         if (!conv1x1 || transformation_callback(conv1x1)) {
@@ -779,9 +782,10 @@ ReshapeConv1x1ConvertReshapeMatcher::ReshapeConv1x1ConvertReshapeMatcher(bool su
         order_weight[1] = 0;
 
         auto gemm = std::make_shared<op::Gemm>(activation, Reshape_weight, order_activation, order_weight, order_c);
-        gemm->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), gemm);
-        ov::replace_node(m.get_match_root(), gemm);
+        auto convert_out = convert->clone_with_new_inputs({gemm});
+        convert_out->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ov::copy_runtime_info(m.get_matched_nodes(), convert_out);
+        ov::replace_node(m.get_match_root(), convert_out);
 
         return true;
     };

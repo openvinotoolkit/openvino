@@ -42,10 +42,10 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("TransposeConv1x1TransposeMatcher");
     TransposeConv1x1TransposeMatcher(bool supports_immad);
 };
-class TransposeConv1x1ConvertTransoposeMatcher : public ov::pass::MatcherPass {
+class TransposeConv1x1ConvertTransposeMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("TransposeConv1x1ConvertTransoposeMatcher");
-    TransposeConv1x1ConvertTransoposeMatcher(bool supports_immad);
+    OPENVINO_MATCHER_PASS_RTTI("TransposeConv1x1ConvertTransposeMatcher");
+    TransposeConv1x1ConvertTransposeMatcher(bool supports_immad);
 };
 class ReshapeConv1x1ReshapeMatcher : public ov::pass::MatcherPass {
 public:
