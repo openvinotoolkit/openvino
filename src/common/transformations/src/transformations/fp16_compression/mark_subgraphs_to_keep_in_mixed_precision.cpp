@@ -283,8 +283,12 @@ public:
 
             disable_fp16_compression(node);
             for (const auto& output : node->outputs()) {
-                for (const auto& out_inputs : output.get_target_inputs()) {
-                    mark_as_precision_sensitive(out_inputs);
+                auto target_inputs = output.get_target_inputs();
+                for (const auto& input : target_inputs) {
+                    auto consumer_node = input.get_node();
+                    for (auto input : consumer_node->inputs()) {
+                        mark_as_precision_sensitive(input);
+                    }
                 }
             }
             return false;
