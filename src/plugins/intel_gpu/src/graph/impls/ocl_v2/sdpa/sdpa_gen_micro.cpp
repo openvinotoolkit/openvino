@@ -1352,10 +1352,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     // TODO: Remove once micro API is thread safe
     std::lock_guard<std::mutex> l(m);
 
-    bool is_paged_attention = false;
-    if (params.is_type<cldnn::paged_attention>()) {
-        is_paged_attention = true;
-    }
+    bool is_paged_attention = params.is_type<cldnn::paged_attention>();
 
     const auto& Q = params.input_layouts[0];
     const auto& K = (is_paged_attention && !is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
