@@ -96,10 +96,7 @@ NPU Device Plugin
   available with NPU driver 32.0.100.4181 or later. 
 * Accuracy of LLMs with RoPE on longer contexts has been improved. 
 * The NPU plug-in now supports dynamic batch sizes by reshaping the model to a batch size of 1 and concurrently managing multiple inference requests, enhancing performance and optimizing memory utilization. This requires driver 32.0.202.298 or later. 
-* Improvements on memory footprint:
-  
-  * NPU Plugin support for `import_model(ov::Tensor)` has been added, enabling blob files to be memory-mapped using `read_tensor_data()` and then passed without extra copies inside the plugin or driver. Starting with the NPU driver 32.0.100.4239, the driver can accept a page-aligned CPU VA and parse it without copies during graph initialization. The OpenVINO caching adds and then discards a proprietary header before passing the ROI tensor to device plugins. As a result, in case of a cache hit, the NPU Plugin receives a non-page-aligned address.
-  * The remote tensor interface has been extended to support tensor creation from files; recent NPU drivers now support memory-mapped inputs/outputs.
+* The remote tensor interface has been extended to support tensor creation from files; recent NPU drivers now support memory-mapped inputs/outputs.
 
 OpenVINO Python API
 ---------------------------------------------------------------------------------------------
