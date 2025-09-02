@@ -19,12 +19,31 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace std;
+
+TEST(nop_elimination, shared_const_einsum_after_common_optimizations) {
+    auto const_data = op::v0::Constant::create(element::f32, Shape{2, 2}, {1, 2, 3, 4});
+
+    auto einsum1 = std::make_shared<op::v7::Einsum>(OutputVector{const_data}, "ii->i");
+    auto einsum2 = std::make_shared<op::v7::Einsum>(OutputVector{const_data}, "ii->i");
+
+    auto model = std::make_shared<ov::Model>(OutputVector{einsum1, einsum2}, ov::ParameterVector{});
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::CommonOptimizations>();
+    pass_manager.run_passes(model);
+
+    auto einsum1_const = einsum1->input_value(0).get_node_shared_ptr();
+    auto einsum2_const = einsum2->input_value(0).get_node_shared_ptr();
+
+    ASSERT_EQ(einsum1_const, einsum2_const);
+}
 
 TEST(nop_elimination, eliminate_convert) {
     std::shared_ptr<ov::Model> f;
