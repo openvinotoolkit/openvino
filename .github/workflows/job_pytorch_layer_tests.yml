@@ -107,6 +107,7 @@ jobs:
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
 
       - name: Enable core dump
+        if: runner.os != 'Windows'
         run: |
           ulimit -c unlimited
           echo '/tmp/core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
