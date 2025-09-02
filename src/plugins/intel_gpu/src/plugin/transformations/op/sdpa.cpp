@@ -131,9 +131,8 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
 
         return transposed_pshape;
     };
-    std::vector<int64_t> order_k_tmp = {0, 1, 3, 2};
     auto shape_q_t = (order_q.size() > 1) ? transpose_pshape(shape_q, order_q) : shape_q;
-    auto shape_k_t = (order_k.size() > 1) ? transpose_pshape(shape_k, order_k_tmp) : shape_k;
+    auto shape_k_t = (order_k.size() > 1) ? transpose_pshape(shape_k, order_k) : shape_k;
     auto shape_v_t = (order_v.size() > 1) ? transpose_pshape(shape_v, order_v) : shape_v;
 
     const auto is_broadcastable = shape_k_t.rank().is_static() &&
