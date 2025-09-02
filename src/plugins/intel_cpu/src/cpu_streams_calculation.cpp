@@ -755,10 +755,9 @@ int get_model_prefer_threads(const int num_streams,
                                             networkToleranceForLowCache.ratio_mem_limited_gemms == 0.0f &&
                                             !(networkToleranceForLowCache.ratio_mem_limited_adds >= 0.28f ||
                                               networkToleranceForLowCache.max_mem_tolerance < 0.06f);
-                            static_case_4 =
-                                networkToleranceForLowCache.total_convs == 0 &&
-                                networkToleranceForLowCache.total_gemms / networkToleranceForLowCache.total_nodes <
-                                    0.05;
+                            static_case_4 = networkToleranceForLowCache.total_convs == 0 &&
+                                            networkToleranceForLowCache.total_gemms <
+                                                0.05f * networkToleranceForLowCache.total_nodes;
                         }
                         if (static_case_1 || static_case_2 || static_case_3 || static_case_4) {
                             config.tbbPartitioner = TbbPartitioner::STATIC;
