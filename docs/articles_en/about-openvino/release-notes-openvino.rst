@@ -30,12 +30,9 @@ What's new
   * New models supported: Phi-4-mini-reasoning, AFM-4.5B, Gemma-3-1B-it, Gemma-3-4B-it, and Gemma-3-12B.
   * NPU support added for: Phi3.5 vision, Qwen3-1.7B, Qwen3-4B, Qwen3-8B.
   * LLMs optimized for NPU now available on `OpenVINO Hugging Face collection <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__.
-  * Preview: Intel® Core™ Ultra Processor and Windows-based AI PCs can now leverage the
-	OpenVINO™ Execution Provider for Windows* ML for high-performance, off-the-shelf starting
-	experience on Windows*.
+  * Preview: Intel® Core™ Ultra Processor and Windows-based AI PCs can now leverage the OpenVINO™ Execution Provider for Windows* ML for high-performance, off-the-shelf starting experience on Windows*.
 
-* Broader LLM model support and more model compression optimization-techniques
-
+* Broader LLM model support and more model compression optimization-technique
   * The NPU plug-in adds support for longer contexts of up to 8K tokens, dynamic prompts,
     and dynamic LoRA for improved LLM performance.
   * The NPU plug-in now supports dynamic batch sizes by reshaping the model to a batch size
@@ -236,10 +233,10 @@ OpenVINO GenAI
   * Performance metrics for speculative decoding have been extended
   * Qwen2-VL and Qwen2.5-VL have been optimized for GPU 
   * Dynamic prompts are now enabled by default on NPU: 
-
-  	* Longer contexts are available as preview feature on 32GB LNL (with prompt size up to 8..12K tokens) 
-   * The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. E.g., set it to 256 to see the effect on shorter prompts. 
-	* `PREFILL_HINT` can be set to STATIC to bring back the old behavior.
+  
+  	 * Longer contexts are available as preview feature on 32GB LNL (with prompt size up to 8..12K tokens). 
+    * The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. E.g., set it to 256 to see the effect on shorter prompts. 
+	 * `PREFILL_HINT` can be set to STATIC to bring back the old behavior.
 
 * Exporting stateful Whisper models are now supported on NPU out of the box, using `--disable-stateful` is no longer required.
 
@@ -1125,8 +1122,7 @@ Discontinued in 2025
 * Tools:
 
   * The OpenVINO™ Development Tools package (pip install openvino-dev) is no longer available for OpenVINO releases in 2025.
-  * Model Optimizer is no longer available. Consider using the :doc:`new conversion methods <../openvino-workflow/model-preparation/convert-model-to-ir>` instead. For more details, see the
-	`model conversion transition guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api.html>`__.
+  * Model Optimizer is no longer available. Consider using the :doc:`new conversion methods <../openvino-workflow/model-preparation/convert-model-to-ir>` instead. For more details, see the `model conversion transition guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api.html>`__.
   * Intel® Streaming SIMD Extensions (Intel® SSE) are currently not enabled in the binary package by default. They are still supported in the source code form.
   * Legacy prefixes: ``l_``, ``w_``, and ``m_`` have been removed from OpenVINO archive names.
 
