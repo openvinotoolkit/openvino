@@ -308,8 +308,6 @@ Known Issues
 .. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. dropdown:: 2025.2 - 18 June 2025
-	:animate: fade-in-slide-down
-	:color: secondary
 
 	**OpenVINO™ Runtime**
 
