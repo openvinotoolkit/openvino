@@ -31,6 +31,9 @@
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/nop.hpp"
+#include "snippets/op/online_softmax.hpp"
+#include "snippets/op/online_softmax_update_max.hpp"
+#include "snippets/op/online_softmax_update_sum.hpp"
 #include "snippets/op/perf_count.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reduce.hpp"
@@ -78,11 +81,14 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
     SHAPE_INFER_PREDEFINED(op::Load, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(op::Store, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(op::Fill, PassThroughShapeInfer),
+    SHAPE_INFER_PREDEFINED(op::OnlineSoftmax, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v1::LogicalNot, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v0::PRelu, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(op::HorizonMax, HorizonOpShapeInfer),
     SHAPE_INFER_PREDEFINED(op::HorizonSum, HorizonOpShapeInfer),
+    SHAPE_INFER_PREDEFINED(op::OnlineSoftmaxUpdateMax, OnlineSoftmaxUpdateMaxShapeInfer),
+    SHAPE_INFER_PREDEFINED(op::OnlineSoftmaxUpdateSum, OnlineSoftmaxUpdateSumShapeInfer),
     //
     SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
     SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),

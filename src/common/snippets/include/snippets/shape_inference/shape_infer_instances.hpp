@@ -87,4 +87,20 @@ public:
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
+class OnlineSoftmaxUpdateMaxShapeInfer : public IShapeInferSnippets {
+public:
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of shapes to OnlineSoftmaxUpdateMaxShapeInfer.");
+        return {{input_shapes[0].get(), input_shapes[0].get()}, ShapeInferStatus::success};
+    }
+};
+
+class OnlineSoftmaxUpdateSumShapeInfer : public IShapeInferSnippets {
+public:
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Invalid number of shapes to OnlineSoftmaxUpdateSumShapeInfer.");
+        return {{input_shapes[0].get(), input_shapes[0].get()}, ShapeInferStatus::success};
+    }
+};
+
 }  // namespace ov::snippets
