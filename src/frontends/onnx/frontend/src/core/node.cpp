@@ -235,7 +235,7 @@ ov::OutputVector Node::Impl::get_ov_inputs() const {
         if (!name.empty()) {
             result.push_back(m_graph->get_ov_node_from_cache(name));
         } else {
-            result.push_back(std::make_shared<NullNode>()->output(0));
+            result.push_back(std::make_shared<NullNode>()->get_default_output());
         }
     }
     return result;
@@ -356,15 +356,12 @@ ov::OutputVector Node::get_ov_inputs() const {
         auto& known_tensors = m_translate_session->get_tensor_values();
         for (size_t idx = 0; idx < m_decoder->get_input_size(); ++idx) {
             const std::string& name = m_decoder->get_input_tensor_name(idx);
-            if (name.empty()) {
-                continue;
-            }
-            auto it = known_tensors.find(name);
-            FRONT_END_GENERAL_CHECK(it != known_tensors.end());
             if (!name.empty()) {
+                auto it = known_tensors.find(name);
+                FRONT_END_GENERAL_CHECK(it != known_tensors.end());
                 result.push_back(it->second);
             } else {
-                result.push_back(std::make_shared<NullNode>()->output(0));
+                result.push_back(std::make_shared<NullNode>()->get_default_output());
             }
         }
         return result;
@@ -413,7 +410,7 @@ const std::string& Node::get_name() const {
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
-const std::vector<std::reference_wrapper<const std::string>>& Node::get_output_names() const {
+const std::vector<std::reference_wrapper<const std::string>> Node::get_output_names() const {
     if (m_pimpl != nullptr) {
         return m_pimpl->get_output_names();
     } else if (m_decoder != nullptr) {
@@ -423,7 +420,7 @@ const std::vector<std::reference_wrapper<const std::string>>& Node::get_output_n
             const auto& name = m_decoder->get_output_tensor_name(idx);
             names.push_back(name);
         }
-        return names;
+        return {names.begin(), names.end()};
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -511,6 +508,7 @@ std::vector<std::string> Node::get_attribute_names() const {
                        });
         return attr_names;
     } else if (m_decoder != nullptr) {
+
         // Add logic for m_decoder if applicable
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);

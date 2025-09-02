@@ -130,16 +130,7 @@ protected:
     /// \brief Returns DecoderProtoTensor found in the current scope, or in a parent scope
     /// \param name Name of tensor
     /// \param owner Returns real owner of the tensor
-    std::shared_ptr<DecoderProtoTensor> get_tensor(const std::string& name, GraphIteratorProto** owner) {
-        if (m_tensors.count(name) == 0) {
-            if (m_parent == nullptr) {
-                throw std::runtime_error("Input tensor isn't found for node \"" + name + "\"");
-            }
-            return m_parent->get_tensor(name, owner);
-        }
-        *owner = this;
-        return m_tensors[name];
-    }
+    std::shared_ptr<DecoderProtoTensor> get_tensor(const std::string& name, GraphIteratorProto** owner);
 };
 
 }  // namespace onnx

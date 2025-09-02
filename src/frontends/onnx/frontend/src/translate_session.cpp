@@ -4,6 +4,7 @@
 
 #include "translate_session.hpp"
 
+#include "core/null_node.hpp"
 #include "input_model.hpp"
 #include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
@@ -60,32 +61,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         input_tensor->translate(m_tensor_values[name]);
     }
 
-    // constants
-    /*
-        for (const auto& tensor_place : model_onnx->get_tensor_places()) {
-            if (all_tensor_places.count(tensor_place.first) == 0) {
-                continue;
-            }
-            if (auto data = tensor_place.second->get_data()) {
-                auto constant = ov::op::v0::Constant::create(tensor_place.second->get_element_type(),
-                                                             tensor_place.second->get_partial_shape().to_shape(),
-                                                                data);
-                constant->set_friendly_name(tensor_place.first);
-                m_tensor_values[tensor_place.first] = constant;
-            } else if (tensor_place.second->get_partial_shape() == PartialShape{0}) {  // empty constant
-                auto constant = ov::op::v0::Constant::create(tensor_place.second->get_element_type(),
-                                                             tensor_place.second->get_partial_shape().to_shape(),
-                                                             {});
-                constant->set_friendly_name(tensor_place.first);
-                m_tensor_values[tensor_place.first] = constant;
-            }
-        }
-    */
     // operations
     for (const auto& op_place : model_onnx->get_op_places()) {
         const auto& decoder = std::dynamic_pointer_cast<onnx::DecoderBaseOperation>(op_place->get_decoder());
         FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be onnx::DecoderBase or its child");
-        ov::OutputVector inputs(decoder->get_input_size());
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
             const auto& name = decoder->get_input_tensor_name(i);
             if (name == "") {
@@ -103,7 +82,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                      data);
                         constant->set_friendly_name(place_it->first);
                         m_tensor_values[place_it->first] = constant;
-                        inputs[i] = constant;
                         continue;
                     } else if (place_it->second->get_partial_shape() == PartialShape{0}) {  // empty constant
                         auto constant = ov::op::v0::Constant::create(place_it->second->get_element_type(),
@@ -111,12 +89,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                      {});
                         constant->set_friendly_name(place_it->first);
                         m_tensor_values[place_it->first] = constant;
-                        inputs[i] = constant;
                         continue;
                     }
                 }
             }
-            inputs[i] = tensor_it->second;
         }
 
         const auto& out_size = decoder->get_output_size();
@@ -143,7 +119,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                     m_telemetry->send_event("error_cause", "onnx_" + decoder->get_op_type());
                 }
                 throw;
-            } else 
+            } else
             {
                 auto operation = std::make_shared<ov::frontend::onnx::FrameworkNode>(decoder, inputs, out_size);
                 operation->set_friendly_name(decoder->get_op_name());
