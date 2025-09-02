@@ -28,11 +28,11 @@ What's new
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
   * New models supported: Phi-4-mini-reasoning, AFM-4.5B, Gemma-3-1B-it, Gemma-3-4B-it, and Gemma-3-12B.
-  * NPU support added for: Phi3.5 vision, Qwen3-1.7B, Qwen3-4B, Qwen3-8B.
+  * NPU support added for: Qwen3-1.7B, Qwen3-4B, Qwen3-8B.
   * LLMs optimized for NPU now available on `OpenVINO Hugging Face collection <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__.
   * Preview: Intel® Core™ Ultra Processor and Windows-based AI PCs can now leverage the OpenVINO™ Execution Provider for Windows* ML for high-performance, off-the-shelf starting experience on Windows*.
 
-* Broader LLM model support and more model compression optimization-technique
+* Broader LLM model support and more model compression optimization technique
 
   * The NPU plug-in adds support for longer contexts of up to 8K tokens, dynamic prompts, and dynamic LoRA for improved LLM performance.
   * The NPU plug-in now supports dynamic batch sizes by reshaping the model to a batch size of 1 and concurrently managing multiple inference requests, enhancing performance and optimizing memory utilization.
@@ -41,6 +41,7 @@ What's new
 
 * More portability and performance to run AI at the edge, in the cloud or locally
 
+  * Announcing support for Intel® Arc™ Pro B-Series (B50 and B60).
   * Preview: Hugging Face models that are GGUF-enabled for OpenVINO GenAI are now supported by the OpenVINO™ Model Server for popular LLM model architectures such as DeepSeek Distill, Qwen2, Qwen2.5, and Llama 3. This functionality reduces memory footprint and simplifies integration for GenAI workloads. 
   * With improved reliability and tool call accuracy, the OpenVINO™ Model Server boosts support for agentic AI use cases on AI PCs, while enhancing performance on Intel CPUs, built-in GPUs, and NPUs.
   * int4 data-aware weights compression, now supported in the Neural Network Compression Framework (NNCF) for ONNX models, reduces memory footprint while maintaining accuracy and enables efficient deployment in resource-constrained environments. 
@@ -94,7 +95,11 @@ NPU Device Plugin
 * Optimizations for LLM vocabularies (LM Heads) compressed in INT8 asymmetric have been introduced, 
   available with NPU driver 32.0.100.4181 or later. 
 * Accuracy of LLMs with RoPE on longer contexts has been improved. 
-
+* The NPU plug-in now supports dynamic batch sizes by reshaping the model to a batch size of 1 and concurrently managing multiple inference requests, enhancing performance and optimizing memory utilization. This requires driver 32.0.202.298 or later. 
+* Improvements on memory footprint:
+  
+  * NPU Plugin support for `import_model(ov::Tensor)` has been added, enabling blob files to be memory-mapped using `read_tensor_data()` and then passed without extra copies inside the plugin or driver. Starting with the NPU driver 32.0.100.4239, the driver can accept a page-aligned CPU VA and parse it without copies during graph initialization. The OpenVINO caching adds and then discards a proprietary header before passing the ROI tensor to device plugins. As a result, in case of a cache hit, the NPU Plugin receives a non-page-aligned address.
+  * The remote tensor interface has been extended to support tensor creation from files; recent NPU drivers now support memory-mapped inputs/outputs.
 
 OpenVINO Python API
 ---------------------------------------------------------------------------------------------
@@ -228,13 +233,13 @@ OpenVINO GenAI
   * gemma3-4b-it model is now supported in VLM Pipeline
   * Performance metrics for speculative decoding have been extended
   * Qwen2-VL and Qwen2.5-VL have been optimized for GPU 
-  * Exporting stateful Whisper models are now supported on NPU out of the box, using `--disable-stateful` is no longer required.
+  * Exporting stateful Whisper models is now supported on NPU out of the box, using `--disable-stateful` is no longer required.
   
 * Dynamic prompts are now enabled by default on NPU: 
   	  
-	* Longer contexts are available as preview feature on 32GB LNL (with prompt size up to 8..12K tokens). 
-   * The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. E.g., set it to 256 to see the effect on shorter prompts. 
-	* `PREFILL_HINT` can be set to STATIC to bring back the old behavior.
+  * Longer contexts are available as preview feature on 32GB LNL (with prompt size up to 8..12K tokens). 
+  * The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. E.g., set it to 256 to see the effect on shorter prompts. 
+  * `PREFILL_HINT` can be set to STATIC to bring back the old behavior.
 
 
 Other Changes and Known Issues
@@ -271,12 +276,33 @@ Known Issues
 | **Component: NPU plugin**
 | ID: 169074
 | Description:
-|   phi-4-multimodal-instruct is not functional on NPU. Planned to be fixed with next releases.
+|   phi-4-multimodal-instruct is not functional on NPU. Planned to be fixed in future releases.
 
 | **Component: CPU, GPU plugins**
 | ID: 171208
 | Description:
 |   ChatGLM-3-6B is inaccurate on CPU and GPU.
+
+| **Component: GPU plugin**
+| ID: 172726
+| Description:
+|   Flux.1-schnell or Flux.1-dev model can functionally fail on MTL (Intel® Core™ Ultra). As a workaround, the model can be converted using OpenVINO 2025.2.
+
+| **Component: GPU plugin**
+| ID: 171017
+| Description:
+|   If `OV_GPU_DYNAMIC_QUANTIZATION_THRESHOLD` config is explicitly set to less than 64 on XMX-supporting platforms, functional failure can be observed with several GenAI models. 64 is the default value, and setting it to less than 64 is not normally recommended due to performance degradation.
+
+| **Component: CPU plugin**
+| ID: 172548
+| Description:
+|   Performance regression has been observed on Atom x7835RE with Ubuntu 22.04 OS. This is planned to be fixed in the next release.
+
+| **Component: CPU plugin**
+| ID: 172518
+| Description:
+|   Qwen2-VL-7b-instruct is inaccurate on Sapphire Rapids and Granite Rapids. As a workaround, the model can be converted using OpenVINO 2025.2.
+
 
 .. Previous 2025 releases
 .. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1158,8 +1184,8 @@ Deprecated and to be removed in the future
   `openvino.runtime` module. The old namespace is now considered deprecated and will be
   discontinued in 2026.0. A new namespace structure is available for immediate migration.
   Details will be provided through warnings and documentation.
-
-
+* Starting with the next release, manylinux2014 will be upgraded to manylinux_2_28. This aligns with modern toolchain requirements but also means that CentOS 7 will no longer be supported due to glibc incompatibility.
+* With the release of Node.js v22, updated Node.js bindings are now available and compatible with the latest LTS version. These bindings do not support CentOS 7, as they rely on newer system libraries unavailable on legacy systems.
 
 
 Legal Information
