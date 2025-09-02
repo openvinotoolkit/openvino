@@ -14,7 +14,9 @@ protected:
     void TearDown() override;
 
 public:
-    std::shared_ptr<zeroMemory::HostMemSharedAllocator> allocator;
+    std::shared_ptr<zeroMemory::HostMemSharedAllocator> sharedAllocator;
+
+    std::shared_ptr<zeroMemory::HostMemAllocator> allocator;
 
     static std::string getTestCaseName(testing::TestParamInfo<size_t> obj) {
         return std::to_string(obj.param);
