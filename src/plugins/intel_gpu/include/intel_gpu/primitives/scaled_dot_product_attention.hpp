@@ -62,9 +62,9 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                     quantization_attributes.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
                     data_inputs_num -= 2; // zp
             }
-            has_attn_mask_input = data_inputs_num > 3;
-            has_scale_input = data_inputs_num > 4;
-            has_sink_input = data_inputs_num > 5;
+            has_attn_mask_input = data_inputs_num > ScaledDotProductAttentionInputIdx::ATTN_MASK;
+            has_scale_input = data_inputs_num > ScaledDotProductAttentionInputIdx::SCALE;
+            has_sink_input = data_inputs_num > ScaledDotProductAttentionInputIdx::SINK;
         }
 
     bool is_causal = false;
