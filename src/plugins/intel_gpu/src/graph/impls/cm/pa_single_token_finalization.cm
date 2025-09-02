@@ -30,10 +30,16 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     #else
         float total_lse = 0.0;
         uint lse_offset = batch * total_partition_num + head * kv_partition_num;
+        constexpr float log2e = 1.4426950408889634f;
         float* lse_vec = lse + lse_offset;
+        float lse_max = lse_vec[0];
+        for(int k = 1; k < kv_partition_num; k ++) {
+            lse_max = cm_max<float>(lse_vec[k], lse_max);
+        }
         #pragma unroll
         for(int k = 0; k < kv_partition_num; k ++) {
-            total_lse += lse_vec[k];
+            float lse_value = cm_exp<float>((lse_vec[k] - lse_max)*log2e);
+            total_lse += lse_value;
         }
     #endif
 
@@ -45,7 +51,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         for(int k = 0; k < kv_partition_num; k ++) {
             cm_svm_block_read<half, REDUCE_SPLIT_SIZE>((svmptr_t)(input + input_offset), data_mat.format<half>());
             input_offset += HEAD_SIZE;
-            out_mat += cm_mul<half>(data_mat, (float)(lse_vec[k]/total_lse));
+            float lse_value = cm_exp<float>((lse_vec[k] - lse_max)*log2e);
+            out_mat += cm_mul<half>(data_mat, (float)(lse_value/total_lse));
         }
 
         // write output

@@ -104,8 +104,7 @@ public:
         std::vector<BufferDescriptor> internal_buffers;
 
         const auto desc = params.typed_desc<paged_attention>();
-        const auto indexes_dt = ov::element::u8;
-        const auto element_size = 4;  // 4 bytes
+        const auto indexes_dt = ov::element::f32;
         auto stage = PagedAttentionStage::UNKNOWN;
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
 
@@ -129,11 +128,10 @@ public:
             auto buf_elements_count = static_cast<int64_t>(total_tokens * desc->heads_num * num_of_partitions);
             auto tmp_out_elements_count = static_cast<int64_t>(total_tokens * desc->heads_num * desc->v_head_size * num_of_partitions);
 
-            internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 0: intermediate partition output
-            internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 1: softmax exp_sums
+            internal_buffers.emplace_back(tmp_out_elements_count, ov::element::f16);  // 0: intermediate partition output
+            internal_buffers.emplace_back(buf_elements_count, ov::element::f32);      // 1: softmax exp_sums
 
-            GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * element_size
-                                   << "  exp_sums=" << buf_elements_count * element_size << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 2 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
         } else {
             internal_buffers.emplace_back(16, indexes_dt);  // 0: intermediate partition output
             internal_buffers.emplace_back(16, indexes_dt);  // 1: softmax exp_sums

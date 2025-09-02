@@ -15,14 +15,12 @@
  *******************************************************************************/
 
 // xe-1:8, xe-2:16
-#if xe_arch==1
+#if XE_ARCH==1
 #define REG_N 8
 #define USE_LSC_BLOCK_2D_DESC 0
-// #define KV_STEP 8
 #else
 #define REG_N 16
 #define USE_LSC_BLOCK_2D_DESC 1
-// #define KV_STEP 16
 #endif
 
 #define SystolicDepth 8
@@ -48,6 +46,9 @@
 
 #define KV_SCALE_ZP_SIZE 0 // 4: scale/zp size
 
+
+#define DEBUG_ENABLE 0
+#if DEBUG_ENABLE
 template<typename T, int M, int N>
 void show(matrix<T, M, N> mat) {
     for(int m = 0; m < M; m ++) {
@@ -59,6 +60,7 @@ void show(matrix<T, M, N> mat) {
     }
     printf("]\n");
 }
+#endif
 
 
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
@@ -71,9 +73,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int* block_indices_begins [[type("svmptr_t")]],
     int* subsequence_begins [[type("svmptr_t")]],
     half* output [[type("svmptr_t")]],
-    // half* mask [[type("svmptr_t")]],
     float* lse [[type("svmptr_t")]],
-    // int* gws_subseq_mapping [[type("svmptr_t")]],
     int q_len// 1
     ) {
     //# batch=1, seq_num=1 or >1
@@ -125,7 +125,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         cm_svm_block_read<half, REG_M * REG_K>((svmptr_t)(query + qo_offset + k), Qmat[ri].format<half>());
     }
 
-    // if(wg_thread_id==0 && head_num_idx == 0) {
+    //if(head_num_idx==0 && partition_idx==1) {
     //    printf("Qmat loaded, wg_thread_id=%d\n", wg_thread_id);
     //    show(Qmat);
     //}
@@ -144,7 +144,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     }
 
     //# rS = Q @ Kt
-    //#  PARTITION_SUBBLOCK_NUM * [REG_M, REG_K] * [REG_K, REG_N] = PARTITION_SUBBLOCK_NUM * [REG_M, REG_N]
+    //# PARTITION_SUBBLOCK_NUM * [REG_M, REG_K] * [REG_K, REG_N] = PARTITION_SUBBLOCK_NUM * [REG_M, REG_N]
     matrix<float, REG_M * PARTITION_SUBBLOCK_NUM, REG_N> rS = 0;
     // # each WI can process multiple blocks
     for(uint block_idx = 0, ki = 0; block_idx < block_num; block_idx++) {
@@ -208,10 +208,10 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         }
     }
 
-    //if(wg_thread_id==1) {
-    //    printf("rS:\n");
-    //    show(rS);
-    //}
+    // if(head_num_idx==0 && partition_idx==1) {
+    //     printf("rS:\n");
+    //     show(rS);
+    // }
 
     // online softmax
     float cur_sum = 0.0f;
@@ -222,27 +222,28 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     matrix<half, PARTITION_SUBBLOCK_NUM * REG_M, REG_K> Pmat = 0;
     #endif
     {
-        //# Load Mask into register
-        // matrix<half, REG_M * PARTITION_SUBBLOCK_NUM, REG_N> MaskMat;
-        // uint mask_offset = seq_idx * q_len * kv_len + wg_thread_id * KV_PARTITION_SIZE;
-        // cm_svm_block_read<half, REG_M * PARTITION_SUBBLOCK_NUM * REG_N>((svmptr_t)(mask + mask_offset), MaskMat.format<half>());
-
         rS = cm_mul<float>(rS, (float)SCALE_FACTOR);  // convert scale_factor into (float), or it will be promoted to double
-        //rS = cm_add<float>(rS, MaskMat);
 
         // printf("leftover_size = %d, leftover_aligned_size = %d, XE_ARCH = %d, PARTITION_SUBBLOCK_NUM * REG_N = %d\n", leftover_size, leftover_aligned_size, XE_ARCH, PARTITION_SUBBLOCK_NUM * REG_N);
         if(leftover_size > 0) {
             auto Svec = rS.format<float>();
             for(int i = leftover_size; i < PARTITION_SUBBLOCK_NUM * REG_N; i++){
-                Svec[i] = -10000000000.0f;
+                Svec[i] = -3e38f;
             }
         }
 
         // compute lse
         constexpr float log2e = 1.4426950408889634f;
+        constexpr float loge2 = 0.6931471805599453f;
         vector<float, PARTITION_SUBBLOCK_NUM * REG_N> rS_exp = cm_exp(rS.format<float>()*log2e);
+        float cur_lse_0 = cm_sum<float>(rS_exp);
 
-        cur_lse += cm_sum<float>(rS_exp);
+        //if(head_num_idx==0 && partition_idx==1) {
+        //    uint lse_offset = seq_idx * HEADS_NUM * kv_partition_num + head_num_idx * kv_partition_num + wg_thread_id;
+        //    printf("LSE[%d]: %f\n", lse_offset, cur_lse);
+        //    printf("rS_exp:\n");
+        //    show(rS_exp.format<float, PARTITION_SUBBLOCK_NUM, REG_N>());
+        //}
 
         // compute row_max
         auto rSv = rS.format<float>();
@@ -256,6 +257,12 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         #else
         Pmat= cm_exp((rS - row_max)*log2e);
         #endif
+
+        vector<float, PARTITION_SUBBLOCK_NUM * REG_N> rS_exp_temp = cm_exp((rS.format<float>() - row_max)*log2e);
+        cur_lse = cm_sum<float>(rS_exp_temp.format<float>());
+        cur_lse = cm_log<float>(cur_lse) * loge2 + row_max; // log2(sum(exp(x))) = log2e * log(sum(exp(x)))
+        //float cur_lse_1 = cm_exp<float>(cur_lse * log2e);
+        //printf("row_max= %f, cur_lse =%f, cur_lse_0 = %f, cur_lse_1 = %f\n", row_max, cur_lse, cur_lse_0, cur_lse_1);
 
         // compute row sum of P
         auto rPv = Pmat.format<half, 1, PARTITION_SUBBLOCK_NUM * REG_N>();
@@ -339,4 +346,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     }
     uint lse_offset = seq_idx * HEADS_NUM * kv_partition_num + head_num_idx * kv_partition_num + wg_thread_id;
     lse[lse_offset] = cur_lse;
+
+    // printf("LSE[%d]: %f\n", lse_offset, cur_lse);
 }
