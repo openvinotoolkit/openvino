@@ -110,8 +110,8 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
-            '-DCMAKE_CXX_FLAGS_RELEASE="-fno-omit-frame-pointer"'
-            '-DCMAKE_C_FLAGS_RELEASE="-fno-omit-frame-pointer"'
+            '-DCMAKE_CXX_FLAGS_RELEASE="-Wno-error=abi -fno-omit-frame-pointer"'
+            '-DCMAKE_C_FLAGS_RELEASE="-Wno-error=abi -fno-omit-frame-pointer"'
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
