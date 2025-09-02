@@ -981,7 +981,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
         if (m_decoder->has_attribute(name)) {
             value = m_decoder->get_attribute(name).as<float>();
         }
-        return ov::op::v0::Constant::create(ov::element::f32, {0}, {value});
+        return ov::op::v0::Constant::create(ov::element::f32, {}, {value});
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -997,7 +997,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
         if (m_decoder->has_attribute(name)) {
             value = m_decoder->get_attribute(name).as<float>();
         }
-        return ov::op::v0::Constant::create(type == ov::element::dynamic ? ov::element::f32 : type, {0}, {value});
+        return ov::op::v0::Constant::create(type == ov::element::dynamic ? ov::element::f32 : type, {}, {value});
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
