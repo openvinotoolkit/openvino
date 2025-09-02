@@ -27,6 +27,7 @@
 #include "openvino/op/one_hot.hpp"
 #include "selective_build.h"
 #include "shape_inference/custom/one_hot.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 // 
