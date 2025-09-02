@@ -154,9 +154,7 @@ protected:
                     auto y = extract_channel(ChannelName::Y, out_l);
                     wgs.global = {b, f, y * cfg.rotary_ndims / 2ul / vec_size};
                     if (cfg.support_3d_rope) {
-                        wgs.global = {b * f, y, cfg.rotary_ndims / 2ul / vec_size};
-                        // std::cout << "wzx debug b=" << b << " f=" << f << " y=" << y << " head_cnt=" << cfg.head_cnt << " rotary_ndims=" << cfg.rotary_ndims
-                        //           << ", y*: " << y * cfg.rotary_ndims / 2ul / vec_size << std::endl;
+                        wgs.global = {b , f, cfg.rotary_ndims / 2ul / vec_size};
                     }
                 }
 
