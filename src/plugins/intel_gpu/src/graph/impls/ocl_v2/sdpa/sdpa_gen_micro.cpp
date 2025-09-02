@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef ENABLE_ONEDNN_FOR_GPU
-#define ENABLE_ONEDNN_FOR_GPU
-#endif
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // clang-format off
 // Put this file at first to avoid incorrect header files includes order.
@@ -38,8 +34,6 @@ size_t get_subgroup_size(gpu_arch arch) {
         return 0;
     }
 }
-
-constexpr size_t paged_attention_block_size = 16;
 
 inline size_t get_d_max(size_t head_size) {
     for (size_t i = 32; i <= 1024; i *= 2) {
@@ -998,7 +992,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         }
     } else {
         jit.make("WITH_ATTN_MASK", 0);
-        jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+        jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
     }
 
     if (config.has_const_scale_val) {
@@ -1081,16 +1075,16 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         if (pa_desc->is_key_by_channel) {
             jit.make("IS_KEY_BY_CHANNEL", 1);
             jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
-            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size + scales_zp_size);
         } else {
             jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size + scales_zp_size);
-            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
         }
         jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
     } else if (config.is_paged_attention) {
         jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
         jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size);
-        jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+        jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
     }
 
     jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(params.input_layouts[1].data_type));
@@ -1454,7 +1448,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
         auto pa_desc = params.typed_desc<paged_attention>();
         if (pa_desc->is_key_by_channel) {
-            problem_kq.aqGroupM = paged_attention_block_size * 16;
+            problem_kq.aqGroupM = config->unroll_m_kq * config->wg_m_kq;
             problem_kq.aqGroupK = 1;
         } else {
             problem_kq.aqGroupM = 1;
