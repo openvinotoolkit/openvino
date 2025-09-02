@@ -1158,6 +1158,12 @@ public:
         if (desc->has_alibi) {
             return false;
         }
+
+        // [TODO] sdpa_micro is temporarily disabled when sliding window is set.
+        if (desc->sliding_window > 0) {
+            return false;
+        }
+
         return true;
     }
 
@@ -1214,18 +1220,20 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+        // [TODO] sdpa_micro is temporarily disabled when sliding window is set.
         // Determine if sdpa_micro can be used based on sliding_window and aliged_seq_len
-        bool support_sliding_window =
-            desc->sliding_window == 0 || (desc->sliding_window > 0 && rt_params->paged_attention_aligned_seq_len < desc->sliding_window);
-        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && support_sliding_window;
+        // bool support_sliding_window =
+        //     desc->sliding_window == 0 || (desc->sliding_window > 0 && rt_params->paged_attention_aligned_seq_len < desc->sliding_window);
+        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && rt_params->stage != PagedAttentionStage::GENERATE;
 #else
         rt_params->use_micro_sdpa = false;
 #endif
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
-        if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            rt_params->use_gqa_kernel = false;//can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
-            rt_params->use_micro_sdpa = false;
+        if (rt_params->stage == PagedAttentionStage::GENERATE && !rt_params->use_micro_sdpa) {
+            rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
+        } else {
+            rt_params->use_gqa_kernel = false;
         }
         return;
     }
@@ -1278,7 +1286,7 @@ public:
 #endif
                     res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
             }
-            if (num_of_partitions > 1 && (!rt_params->use_micro_sdpa || rt_params->use_gqa_kernel)) {
+            if (num_of_partitions > 1 && !rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token_finalization : pa_single_token_finalization)};
             }
         }
@@ -1440,14 +1448,14 @@ public:
 
         // PREFILL stage without scores_output doesn't require additional buffers for softmax, exp_sums and max_logits.
         // GENERATE/MIXED stages require additional buffers for softmax, exp_sums and max_logits.
-        // if (!can_use_micro_sdpa && (stage != PagedAttentionStage::PREFILL || has_scores_output)) {
+        if (!can_use_micro_sdpa && (stage != PagedAttentionStage::PREFILL || has_scores_output)) {
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
             internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
-        // }
+        }
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
-        if (multi_tokens_mode || can_use_micro_sdpa) {
+        if (multi_tokens_mode && !can_use_micro_sdpa) {
             internal_buffers.emplace_back(total_tokens, softmax_accumulator_type, lockable);  // 9
         }
 
@@ -1552,7 +1560,7 @@ public:
         std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> sequential_gws_subseq_mapping_lock = nullptr;
         std::unique_ptr<mem_lock<int32_t, mem_lock_type::write>> micro_sdpa_block_starts_and_gws_mapping_lock = nullptr;
 
-        if (stage == PagedAttentionStage::MIXED) {
+        if (stage == PagedAttentionStage::MIXED && !use_micro_sdpa) {
             size_t sequential_gws_subseq_mapping_idx = 6;
             if (has_score_aggregation) {
                 sequential_gws_subseq_mapping_idx = 9;
@@ -1568,7 +1576,7 @@ public:
         }
 
         if (use_micro_sdpa) {
-            const auto memory_idx = 7;  // intermediate_idx for micro kernel
+            const auto memory_idx = 3;  // intermediate_idx for micro kernel
             auto memory = intermediates_memories[memory_idx];
             micro_sdpa_block_starts_and_gws_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(memory, stream));
         }
@@ -1619,7 +1627,7 @@ public:
                 }
             }
 
-            if (stage == PagedAttentionStage::MIXED) {
+            if (stage == PagedAttentionStage::MIXED && !use_micro_sdpa) {
                 for (int32_t idx = seq_start; idx < seq_end; idx++) {
                     sequential_gws_subseq_mapping_lock->operator[](idx) = static_cast<int32_t>(i);
                 }
