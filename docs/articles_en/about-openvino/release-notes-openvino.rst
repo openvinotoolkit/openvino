@@ -28,7 +28,7 @@ What's new
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
   * New models supported: Phi-4-mini-reasoning, AFM-4.5B, Gemma-3-1B-it, Gemma-3-4B-it, and Gemma-3-12B.
-  * NPU support added for: Qwen3-1.7B, Qwen3-4B, Qwen3-8B.
+  * NPU support added for: Qwen3-1.7B, Qwen3-4B, and Qwen3-8B.
   * LLMs optimized for NPU now available on `OpenVINO Hugging Face collection <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__.
   * Preview: Intel® Core™ Ultra Processor and Windows-based AI PCs can now leverage the OpenVINO™ Execution Provider for Windows* ML for high-performance, off-the-shelf starting experience on Windows*.
 
@@ -134,9 +134,9 @@ OpenVINO™ Model Server
   * Stream response has been implemented for Qwen3, Hermes3 and Llama3 models, enabling more interactive use with tools.
   * BREAKING CHANGE: Separation of tool parser and reasoning parser has been implemented. Instead of the `response_parser` parameter, use separate parameters: `tool_parser` and `reasoning_parser`, allowing more flexible implementation and configuration on the server. Parsers can now be shared independently between models. Currently, Qwen3 is the only reasoning parser implemented. 
   * Reading of the chat template has been changed from `template.jinja` to `chat_template.jinja` if the chat template is not included in `tokenizer_config.json`.
-  * Structured output is now supported with the addition of JSON schema-guided generation using the OpenAI `response_format` field. This parameter enables generation of JSON responses for automation purposes and improvements in response accuracy. See :doc:`Structured response in LLM models <./model-server/ovms_structured_output>` article for more details. A script testing the accuracy gain is also included.
+  * Structured output is now supported with the addition of JSON schema-guided generation using the OpenAI `response_format` field. This parameter enables generation of JSON responses for automation purposes and improvements in response accuracy. See `Structured response in LLM models <https://docs.openvino.ai/2025/model-server/ovms_structured_output.html>`__ article for more details. A script testing the accuracy gain is also included.
   * Enforcement of tool call generation has been implemented using the `tool_call=required` in chat/completions field. This feature forces the model to generate at least one tool response, increasing response reliability while not guaranteeing response validity.
-  * :doc:`MCP server demo <./model-server/ovms_demos_continuous_batching_agent>` has been updated to include available features.
+  * `MCP server demo <https://docs.openvino.ai/2025/model-server/ovms_demos_continuous_batching_agent.html>`__ has been updated to include available features.
 
 * New models and use cases supported:
    
@@ -234,8 +234,8 @@ OpenVINO GenAI
   
 * Dynamic prompts are now enabled by default on NPU: 
   	  
-  * Longer contexts are available as preview feature on 32GB LNL (with prompt size up to 8..12K tokens). 
-  * The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. E.g., set it to 256 to see the effect on shorter prompts. 
+  * Longer contexts are available as preview feature on 32GB Intel® Core™ Ultra Series 2 (with prompt size up to 8..12K tokens). 
+  * The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. For example, set it to 256 to see the effect on shorter prompts. 
   * `PREFILL_HINT` can be set to STATIC to bring back the old behavior.
 
 
@@ -288,7 +288,7 @@ Known Issues
 | **Component: GPU plugin**
 | ID: 172726
 | Description:
-|   Flux.1-schnell or Flux.1-dev model can functionally fail on MTL (Intel® Core™ Ultra). As a workaround, the model can be converted using OpenVINO 2025.2.
+|   Flux.1-schnell or Flux.1-dev model can functionally fail on Intel® Core™ Ultra Series 1. As a workaround, the model can be converted using OpenVINO 2025.2.
 
 | **Component: GPU plugin**
 | ID: 171017
@@ -303,7 +303,7 @@ Known Issues
 | **Component: CPU plugin**
 | ID: 172518
 | Description:
-|   Qwen2-VL-7b-instruct is inaccurate on Sapphire Rapids and Granite Rapids. As a workaround, the model can be converted using OpenVINO 2025.2.
+|   Qwen2-VL-7b-instruct is inaccurate on with 4th and 6th Gen Intel® Xeon® Scalable processors. As a workaround, the model can be converted using OpenVINO 2025.2.
 
 
 .. Previous 2025 releases
