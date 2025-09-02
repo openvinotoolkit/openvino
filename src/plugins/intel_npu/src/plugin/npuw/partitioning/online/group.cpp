@@ -405,13 +405,11 @@ std::pair<std::unordered_set<MetaInterconnect>, MetaInterconnectIO> Group::metaI
 
     MetaInterconnectIO mic_io;
     auto locked_snapshot = m_snapshot.lock();
-    if (locked_snapshot->m_ctx.experimental_rep_fusion) {
-        for (const auto& oi : m_input_layers) {
-            mic_io.output_imeta.insert(ov::npuw::online::util::getMetaDesc(oi));
-        }
-        for (const auto& oo : m_output_layers) {
-            mic_io.output_ometa.insert(ov::npuw::online::util::getMetaDesc(oo));
-        }
+    for (const auto& oi : m_input_layers) {
+        mic_io.output_imeta.insert(ov::npuw::online::util::getMetaDesc(oi));
+    }
+    for (const auto& oo : m_output_layers) {
+        mic_io.output_ometa.insert(ov::npuw::online::util::getMetaDesc(oo));
     }
 
     return {mics, mic_io};

@@ -88,15 +88,13 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
 // Interface to get online partitioning from the model
 class Compiler {
     enum class Pipeline {
-        NONE,              // Partitioning will consist of a single group with all the Ops
-        INIT,              // Initialize only. The hardest mode, every group has just 1 layer inside
-        JUST,              // "justParitioning" - combination of LHF + Remnants
-        REP,               // Repeated blocks pipeline - combination of repeatedBlocks and Remnants
-        REG,               // Regularized repeated blocks pipeline - same as REP, but with some strong hints first
-        REG_EXPERIMENTAL,  // Same as REG, but with additional tweaks to meta interconnect and repeated blocks fusion
-                           // order
-        COMPUTE,           // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
-        SPATIAL            // Similar to COMPUTE but allows folding
+        NONE,     // Partitioning will consist of a single group with all the Ops
+        INIT,     // Initialize only. The hardest mode, every group has just 1 layer inside
+        JUST,     // "justParitioning" - combination of LHF + Remnants
+        REP,      // Repeated blocks pipeline - combination of repeatedBlocks and Remnants
+        REG,      // Regularized repeated blocks pipeline - same as REP, but with some strong hints first
+        COMPUTE,  // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
+        SPATIAL   // Similar to COMPUTE but allows folding
     };
 
     template <class C>
@@ -121,8 +119,6 @@ class Compiler {
             return Pipeline::REP;
         } else if (pipeline_opt == "REG") {
             return Pipeline::REG;
-        } else if (pipeline_opt == "REG_EXPERIMENTAL") {
-            return Pipeline::REG_EXPERIMENTAL;
         } else if (pipeline_opt == "COMPUTE") {
             return Pipeline::COMPUTE;
         } else if (pipeline_opt == "SPATIAL") {
@@ -262,14 +258,6 @@ public:
             // NB: We ignore NO_FOLD everywhere except pipeline COMPUTE - this needs
             // to be aligned in the future
             ctx.isolates = getAllIsolates();
-            m_snapshot->setCtx(ctx);
-            reg();
-            break;
-        case Pipeline::REG_EXPERIMENTAL:
-            // Same as REG besides experimental_rep_fusion
-            warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
-            ctx.isolates = getAllIsolates();
-            ctx.experimental_rep_fusion = true;
             m_snapshot->setCtx(ctx);
             reg();
             break;

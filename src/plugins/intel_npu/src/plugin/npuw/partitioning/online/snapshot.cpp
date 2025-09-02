@@ -932,10 +932,6 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
             // later optimized by the plugin.
             return a.at(0).first->getId() > b.at(0).first->getId();
         }
-        if (this->m_ctx.experimental_rep_fusion) {
-            // Experimental only - try merging smaller blocks first
-            return a.size() < b.size();
-        }
         // Generally we prefer bigger blocks (in terms of number of layers)
         // to be merged first. For other cases check the comment above
         return a.size() > b.size();
