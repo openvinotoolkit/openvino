@@ -325,7 +325,9 @@ void GraphIteratorProto::reset() {
         const std::string& domain = node.has_domain() && node.domain() != "ai.onnx" ? node.domain() : DEFAULT_DOMAIN;
         int64_t opset = get_opset_version(domain);
         if (opset == -1) {
-            throw std::runtime_error("Operation version isn't found");
+            // Forcing a first opset instead of failing
+            opset = 1;
+            //throw std::runtime_error("Operation version isn't found");
         }
         auto decoder_node =
             std::make_shared<DecoderProto>(&node, static_cast<uint64_t>(opset), this, input_tensors, output_tensors);

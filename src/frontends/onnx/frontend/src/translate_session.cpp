@@ -103,11 +103,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             FRONT_END_OP_CONVERSION_CHECK(
                 translator != nullptr,
                 "No translator found for " + decoder->get_domain() + " " + decoder->get_op_type() + " node.");
-            //const NodeProto* node_def = nullptr;
-            //decoder->experimental_get_internal_structures(reinterpret_cast<const void**>(&node_def));
+            // const NodeProto* node_def = nullptr;
+            // decoder->experimental_get_internal_structures(reinterpret_cast<const void**>(&node_def));
             ov::frontend::onnx::Node node_context(*decoder, this);
             ov_outputs = (*translator)(node_context);
-            for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
+            for (size_t idx = 0; idx < ov_outputs.size() && idx < out_size; ++idx) {
                 const std::string& out_name = decoder->get_output_tensor_name(idx);
                 ov_outputs[idx].set_names({out_name});
                 ov_outputs[idx].get_node()->set_friendly_name(out_name);
@@ -127,7 +127,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             }
             */
         }
-        for (size_t i = 0; i < ov_outputs.size(); ++i) {
+        for (size_t i = 0; i < ov_outputs.size() && i < decoder->get_output_size(); ++i) {
             const auto& name = decoder->get_output_tensor_name(i);
             if (name == "") {
                 // Means - not connected
