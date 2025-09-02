@@ -72,7 +72,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int* block_indices [[type("svmptr_t")]],
     int* block_indices_begins [[type("svmptr_t")]],
     int* subsequence_begins [[type("svmptr_t")]],
-    half* output [[type("svmptr_t")]],
+    float* output [[type("svmptr_t")]],
     float* lse [[type("svmptr_t")]],
     int q_len// 1
     ) {
@@ -171,8 +171,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     #endif
 
         uint kv_pos_end = KV_BLOCK_SIZE;
-        if(block_idx == block_num - 1 && start_block_idx > 0) {
-            kv_pos_end = start_block_idx % KV_BLOCK_SIZE;
+        if(block_idx == block_num - 1 && leftover_aligned_size > 0) {
+            kv_pos_end = leftover_aligned_size;
         }
         for(int kv_pos = 0; kv_pos < kv_pos_end; kv_pos += KV_STEP, ki++) {
             auto rSvec = rS[ki].format<float>();
@@ -294,8 +294,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     #endif
     
         uint kv_pos_end = KV_BLOCK_SIZE;
-        if(block_idx == block_num - 1 && start_block_idx > 0) {
-            kv_pos_end = start_block_idx % KV_BLOCK_SIZE;
+        if(block_idx == block_num - 1 && leftover_aligned_size > 0) {
+            kv_pos_end = leftover_aligned_size;
         }
         for(int kv_pos =0; kv_pos < kv_pos_end; kv_pos += REG_K, ki++) {
             uint kv_offset_y = kv_pos;
@@ -331,18 +331,18 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     // }
 
     //# save Output
-    matrix<half, REG_M, REG_N> cur_O_f16;
+    matrix<float, REG_M, REG_N> cur_O;
     uint o_offset = seq_idx * kv_partition_num * HEADS_NUM * HEAD_SIZE + kv_partition_num * head_num_idx * HEAD_SIZE + wg_thread_id * HEAD_SIZE;
     float div_cur_sum = 1.0/cur_sum;
     #pragma unroll
     for(int k = 0, ri=0; k < HEAD_SIZE; k += REG_N, ri++) {
         auto cO = Omat[ri].format<float, REG_M, REG_N>();
         #if XE_ARCH==1
-        cur_O_f16= cm_mul<float>(cO, div_cur_sum);
+        cur_O= cm_mul<float>(cO, div_cur_sum);
         #else
-        cur_O_f16= cm_div_ieee(cO, cur_sum);
+        cur_O= cm_div_ieee(cO, cur_sum);
         #endif
-        cm_svm_block_write<half, REG_N>((svmptr_t)(output + o_offset + k),cur_O_f16.format<half>());
+        cm_svm_block_write<float, REG_N>((svmptr_t)(output + o_offset + k),cur_O.format<float>());
     }
     uint lse_offset = seq_idx * HEADS_NUM * kv_partition_num + head_num_idx * kv_partition_num + wg_thread_id;
     lse[lse_offset] = cur_lse;
