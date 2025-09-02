@@ -342,9 +342,8 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
 
         if (DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: "
-                      << "key_pitch: " << key_pitch << ", key_offset: " << key_offset
-                      << ", value_pitch: " << value_pitch << ", value_offset: " << value_offset
-                      << std::endl;
+                      << "kv_len: " << kv_len << ", key_pitch: " << key_pitch << ", key_offset: " << key_offset << ", value_pitch: " << value_pitch
+                      << ", value_offset: " << value_offset << ", "<< std::endl;
         }
 
         // TODO: support multiple sequences
@@ -527,9 +526,13 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         scalars.resize(scaler_value.size());
 
         if (DEBUG_ENABLED) {  // Debug
+            size_t kv_len = get_kv_len(params, PagedAttentionStage::GENERATE);
+            size_t max_context_len = get_max_context_len(params);
+            size_t past_len = get_past_len(params, 0);
             std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: "
-                      << "batch: " << batch << ", heads_num: " << heads_num << ", partition_num: " << partition_num << ", gws: [" << wgs.global[0] << ", "
-                      << wgs.global[1] << ", " << wgs.global[2] << "]"
+                      << "batch: " << batch << ", heads_num: " << heads_num << ", partition_num: " << partition_num << ", kv_len: " << kv_len
+                      << ", max_context_len = " << max_context_len << ", past_len = " << past_len << ", gws: [" << wgs.global[0] << ", " << wgs.global[1]
+                      << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
 

@@ -11,7 +11,7 @@
 //cm_sdpa_2nd_reduce
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
 // extern "C" _GENX_MAIN_ void cm_sdpa_2nd_reduce(
-    half* input [[type("svmptr_t")]], // 
+    float* input [[type("svmptr_t")]],
     half* output [[type("svmptr_t")]],
     float* lse [[type("svmptr_t")]],
     int kv_partition_num
@@ -44,16 +44,18 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     #endif
 
         // load input, total_partition_num = head_nums * kv_partition_num;
+        matrix<half, 1, REDUCE_SPLIT_SIZE> out_mat_f32 = 0;
         matrix<half, 1, REDUCE_SPLIT_SIZE> out_mat = 0;
-        matrix<half, 1, REDUCE_SPLIT_SIZE> data_mat;
+        matrix<float, 1, REDUCE_SPLIT_SIZE> data_mat;
         uint input_offset = batch * total_partition_num * HEAD_SIZE + head * kv_partition_num * HEAD_SIZE + offset;
         #pragma unroll
         for(int k = 0; k < kv_partition_num; k ++) {
-            cm_svm_block_read<half, REDUCE_SPLIT_SIZE>((svmptr_t)(input + input_offset), data_mat.format<half>());
+            cm_svm_block_read<float, REDUCE_SPLIT_SIZE>((svmptr_t)(input + input_offset), data_mat.format<float>());
             input_offset += HEAD_SIZE;
             float lse_value = cm_exp<float>((lse_vec[k] - lse_max)*log2e);
-            out_mat += cm_mul<half>(data_mat, (float)(lse_value/total_lse));
+            out_mat_f32 += cm_mul<half>(data_mat, (float)(lse_value/total_lse));
         }
+        out_mat = out_mat_f32.format<half>();
 
         // write output
         uint output_offset = batch * HEADS_NUM * HEAD_SIZE + head * HEAD_SIZE + offset;

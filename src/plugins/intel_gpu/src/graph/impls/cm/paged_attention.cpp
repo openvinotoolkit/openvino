@@ -128,10 +128,10 @@ public:
             auto buf_elements_count = static_cast<int64_t>(total_tokens * desc->heads_num * num_of_partitions);
             auto tmp_out_elements_count = static_cast<int64_t>(total_tokens * desc->heads_num * desc->v_head_size * num_of_partitions);
 
-            internal_buffers.emplace_back(tmp_out_elements_count, ov::element::f16);  // 0: intermediate partition output
+            internal_buffers.emplace_back(tmp_out_elements_count, ov::element::f32);  // 0: intermediate partition output
             internal_buffers.emplace_back(buf_elements_count, ov::element::f32);      // 1: softmax exp_sums
 
-            GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 2 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "  internal buffer sizes: tmp_out=" << tmp_out_elements_count * 4 << "  exp_sums=" << buf_elements_count * 4 << std::endl;
         } else {
             internal_buffers.emplace_back(16, indexes_dt);  // 0: intermediate partition output
             internal_buffers.emplace_back(16, indexes_dt);  // 1: softmax exp_sums
