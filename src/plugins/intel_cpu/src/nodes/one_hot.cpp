@@ -30,7 +30,7 @@
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
-// 
+
 bool OneHot::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (none_of(op->get_type_info(),

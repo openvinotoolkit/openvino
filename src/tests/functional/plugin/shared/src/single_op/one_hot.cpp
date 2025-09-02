@@ -38,7 +38,7 @@ std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHot
     result << "trgDev=" << targetDevice;
     return result.str();
 }
-
+///
 void OneHotLayerTest::SetUp() {
     const auto& [depth_type, depth_val, set_type, on_val, off_val, axis, model_type, shapes, _targetDevice] =
         this->GetParam();

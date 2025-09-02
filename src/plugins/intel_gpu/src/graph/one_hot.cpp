@@ -84,7 +84,7 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     }
 
     std::vector<ShapeType> output_shapes =
-        ov::op::utis::shape_infer_base(&op, input_shapes, ov::make_tensor_accessor(const_data));
+        ov::op::util::shape_infer_base(&op, input_shapes, ov::make_tensor_accessor(const_data));
     return {{output_shapes[0], dt, format::get_default_format(output_shapes[0].size())}};
 }
 
