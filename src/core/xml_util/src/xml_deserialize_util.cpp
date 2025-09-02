@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type.hpp"
@@ -911,7 +912,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
                            ", ",
                            ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3),
                            ", ",
-                           ov::element::get_memory_size(el_type, ov::shape_size(shape)));
+                           ov::util::get_memory_size(el_type, ov::shape_size(shape)));
         }
 
         auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
