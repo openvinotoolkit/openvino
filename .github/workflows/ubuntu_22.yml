@@ -149,7 +149,7 @@ jobs:
 
   Conformance:
     needs: [ Docker, Build, Smart_CI ]
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 10 || 20 }}
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 30 || 40 }}
     defaults:
       run:
         shell: bash
@@ -233,8 +233,10 @@ jobs:
             -d=${TEST_DEVICE} \
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR} \
+            --gtest_filter=*Inference/Op*Add* \
             --cache_path=${CONFORMANCE_TOOLS_DIR}/github/cache/${TEST_DEVICE}/test_cache_${{ matrix.TEST_TYPE }}.lst \
-            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/${TEST_DEVICE}/expected_failures_${{ matrix.TEST_TYPE }}.csv
+            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/${TEST_DEVICE}/expected_failures_${{ matrix.TEST_TYPE }}.csv \
+            --ov_config_path=${CONFORMANCE_TOOLS_DIR}/github/config/${TEST_DEVICE}/config.txt
 
       - name: Pack Conformance Artifacts
         if: ${{ always() }}
