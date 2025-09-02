@@ -269,6 +269,7 @@
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
+#    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
@@ -1247,14 +1248,16 @@ void Transformations::MainSnippets() {
     }
     CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     // Currently, Snippets don't provide efficient execution for single token inference in LLM case.
     // To avoid performance degradations, we disable MHA tokenization into Subgraphs in LLMs'.
     // We consider the presence of `ScaledDotProductAttentionWithKVCache` ops
     // in the model as a sign that this model is LLM.
     const auto is_LLM = ov::op::util::is_large_language_model(*model) ||
                         ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model);
+#endif  // OPENVINO_ARCH_X86_64 || OPENVINO_ARCH_ARM64
 
+#if defined(OPENVINO_ARCH_X86_64)
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16 BRGEMM
     const auto is_infer_prc_supported_by_brgemm =
         (any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic) &&
@@ -1264,12 +1267,12 @@ void Transformations::MainSnippets() {
         (any_of(config.inferencePrecision, ov::element::f16, ov::element::f32, ov::element::dynamic) &&
          ov::intel_cpu::brgemm_utils::is_fp16_supported());
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
-#else
+#elif defined(OPENVINO_ARCH_ARM64)
     const auto is_infer_prc_supported_by_brgemm =
         any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic);
-    // Note: Currently, MHASnippets is enabled only in tests
-    // TODO: Enable TokenizeMHASnippets on ARM for all scenarios
-    const bool isMHASupported = is_infer_prc_supported_by_brgemm && ignoreCallback;
+    const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
+#else
+    const bool isMHASupported = false;
 #endif
 
     if (!isMHASupported) {
