@@ -3,10 +3,7 @@
 //
 #include "llm_compiled_model.hpp"
 
-#include <cstddef>
-#include <cstdint>
 #include <openvino/core/parallel.hpp>
-#include <string>
 
 #include "intel_npu/config/npuw.hpp"
 #include "llm_infer_request.hpp"
@@ -1023,23 +1020,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
-    size_t rss_before = ov::npuw::util::get_current_rss();
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
     NPUW_ASSERT(m_kvcache_compiled && "Can't create ov::npuw::CompiledModel for passed kvcache "
                                       "model and its config, please check passed config.");
-    size_t rss_after = ov::npuw::util::get_current_rss();
-    // Log RSS statistics
-    std::cout << "RSS statistics for kvcache model: " << std::endl;
-    std::cout << "  RSS before: " << rss_before << " KB" << std::endl;
-    std::cout << "  RSS after:  " << rss_after << " KB" << std::endl;
-    std::cout << "  RSS delta:  " << static_cast<long long>(rss_after) - static_cast<long long>(rss_before) << " KB"
-              << std::endl;
 
     m_prefill_compiled.resize(prefill_models.size());
     // ov::parallel_for(prefill_models.size(), [&](size_t idx) {
     for (size_t idx = 0; idx < prefill_models.size(); idx++) {
-        size_t rss_before = ov::npuw::util::get_current_rss();
         auto prefill_model = prefill_models[idx];
         std::cout << "Start to compile prefill model: " << prefill_model->get_friendly_name() << std::endl;
         auto compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
@@ -1048,19 +1036,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                 "check passed config.");
         m_prefill_compiled[idx] = std::move(compiled);
         std::cout << "Finished compilation for prefill model: " << prefill_model->get_friendly_name() << std::endl;
-        size_t rss_after = ov::npuw::util::get_current_rss();
-
-        // Log RSS statistics
-        std::cout << "RSS statistics for prefill model " << idx << std::endl;
-        std::cout << "  RSS before: " << rss_before << " KB" << std::endl;
-        std::cout << "  RSS after:  " << rss_after << " KB" << std::endl;
-        std::cout << "  RSS delta:  " << static_cast<long long>(rss_after) - static_cast<long long>(rss_before) << " KB"
-                  << std::endl;
     }
     // });
 
     if (lm_head_model) {
-        size_t rss_before = ov::npuw::util::get_current_rss();
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
@@ -1069,14 +1048,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_lm_head_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
             ov::npuw::ICompiledModel::create(lm_head_model, plugin, lm_head_config));
         NPUW_ASSERT(m_lm_head_compiled);
-        size_t rss_after = ov::npuw::util::get_current_rss();
-
-        // Log RSS statistics
-        std::cout << "RSS statistics for llm head model: " << std::endl;
-        std::cout << "  RSS before: " << rss_before << " KB" << std::endl;
-        std::cout << "  RSS after:  " << rss_after << " KB" << std::endl;
-        std::cout << "  RSS delta:  " << static_cast<long long>(rss_after) - static_cast<long long>(rss_before) << " KB"
-                  << std::endl;
     }
 
     implement_properties();

@@ -4,6 +4,7 @@
 
 #include "util.hpp"
 
+#include <fstream>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -12,11 +13,10 @@
 #include <openvino/core/type/nf4.hpp>
 #include <regex>
 #include <sstream>
-#include <fstream>
 
 #ifdef _WIN32
-    #include <windows.h>
-    #include <psapi.h>
+#    include <windows.h>
+#    include <psapi.h>
 #endif
 
 #include "llm_lora_states.hpp"

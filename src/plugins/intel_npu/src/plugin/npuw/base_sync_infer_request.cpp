@@ -10,6 +10,7 @@
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
 #include "util.hpp"
 
 ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
@@ -191,11 +192,9 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
             // Later in runtime we rely on m_input_allocated to check if the memory is
             // allocated internally to prevent the copy. Here we need to check if the memory
             // is properly allocated externally, to prevent runtime copy as well.
-            if (std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(tensor._ptr) != nullptr ||
-                std::dynamic_pointer_cast<::intel_npu::ZeroHostTensor>(tensor._ptr) != nullptr) {
-                // ZeroRemoteTensor and ZeroHostTensor should guarantee the correct memory allocation
-                m_input_allocated.insert(tensor->data());
-            }
+            auto orig_tensor = get_tensor(port);
+            m_input_allocated.erase(orig_tensor->data());
+            m_input_allocated.insert(tensor->data());
         }
     }
 }

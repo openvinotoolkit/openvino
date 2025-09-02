@@ -5,13 +5,17 @@
 #include "llm_infer_request.hpp"
 
 #include <cstddef>
+#include <fstream>
 #include <iostream>
 #include <ostream>
 #include <regex>
 
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "util.hpp"
 #include "util_xarch.hpp"
 
 namespace {
@@ -276,10 +280,55 @@ void ov::npuw::LLMInferRequest::init_lora_states() {
     }
 }
 
+std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
+    bool pre_alloc_on_npu = true;
+    const auto& prefill_compiled = m_npuw_llm_compiled_model->m_prefill_compiled.front();
+    for (std::size_t idx = 0; idx < prefill_compiled->m_compiled_submodels.size(); ++idx) {
+        if (prefill_compiled->submodel_device(idx) != "NPU") {
+            pre_alloc_on_npu = false;
+            break;
+        }
+    }
+    m_pre_alloc_device = pre_alloc_on_npu ? "NPU" : "CPU";
+    return m_pre_alloc_device;
+}
+
+void ov::npuw::LLMInferRequest::bind_past_kv() {
+    for (size_t i = 0; i < m_prefill_requests.size(); ++i) {
+        auto& request = m_prefill_requests[i];
+        auto& in_ports = m_prefill_in_ports[i];
+
+        // Only reuse KV cache related tensors (past_key_values)
+        for (const auto& [input_name, input_port] : in_ports) {
+            // Only process KV cache inputs (past_key_values)
+            if (input_name.find("past_key_values") == std::string::npos) {
+                continue;
+            }
+
+            // Check if the last request has the same input port
+            if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+                continue;
+            }
+
+            auto kvcache_in_port = m_kvcache_in_ports.at(input_name);
+            auto kvcache_past_kv_in_tensor = m_kvcache_request->get_tensor(kvcache_in_port);
+            auto data = kvcache_past_kv_in_tensor->data();
+
+            auto origTensor = request->get_tensor(input_port);
+            auto new_tensor =
+                ov::get_tensor_impl(ov::Tensor(origTensor->get_element_type(), origTensor->get_shape(), data));
+            request->set_tensor(input_port, new_tensor);
+
+            // Record that we have already bind past_kv, will need data copy when update past kv in infer requests to
+            // ensure correct data layout
+            m_past_kv_binded = true;
+        }
+    }
+}
+
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_npuw_llm_compiled_model(compiled_model) {
-    std::cout << "LLMInferRequest::LLMInferRequest" << std::endl;
     for (const auto& input_port : m_npuw_llm_compiled_model->inputs()) {
         init_tensor(input_port);
     }
@@ -287,15 +336,18 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         init_tensor(output_port);
     }
 
+    m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
     // --- Unified prefill context setup ---
     auto setup_prefill_context = [&](auto& compiled_model_ref) {
         auto& prefill_models = compiled_model_ref->m_prefill_compiled;
         auto input_ids_port = find_port_by_name(prefill_models.back()->inputs(), layer_names::input_ids);
         m_input_ids_name = input_ids_port.has_value() ? layer_names::input_ids : layer_names::inputs_embeds;
-        for (auto model : prefill_models) {
-            auto request = model->create_infer_request();
+        for (auto it = prefill_models.rbegin(); it != prefill_models.rend(); ++it) {
+            auto request = (*it)->create_infer_request();
             m_prefill_requests.push_back(request);
         }
+        std::reverse(m_prefill_requests.begin(), m_prefill_requests.end());
+
         for (auto request : m_prefill_requests) {
             std::unordered_map<std::string, ov::Output<const ov::Node>> in_ports_map;
             for (const auto& input_port : request->get_compiled_model()->inputs()) {
@@ -310,7 +362,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
             m_prefill_out_ports.push_back(out_ports_map);
         }
     };
-    m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
     setup_prefill_context(compiled_model);
 
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
@@ -320,9 +371,11 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
     }
 
+    init_pre_alloc_device();
     init_lora_states();
 
     if (m_npuw_llm_compiled_model->m_use_chunk_prefill) {
+        bind_past_kv();
         clear_chunk_prefill_kv_cache();
     }
 
@@ -381,8 +434,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         }
     }
 
-    std::cout << "LLMInferRequest::LLMInferRequest is created" << std::endl;
-
     m_generate_initialized = false;
 }
 
@@ -409,16 +460,6 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
 
 void ov::npuw::LLMInferRequest::apply_lora() {
     uint32_t max_low_rank_dim_size = m_npuw_llm_compiled_model->m_max_lora_rank;
-
-    bool pre_alloc_on_npu = true;
-    const auto& prefill_compiled = m_npuw_llm_compiled_model->m_prefill_compiled.front();
-    for (std::size_t idx = 0; idx < prefill_compiled->m_compiled_submodels.size(); ++idx) {
-        if (prefill_compiled->submodel_device(idx) != "NPU") {
-            pre_alloc_on_npu = false;
-            break;
-        }
-    }
-    std::string device = pre_alloc_on_npu ? "NPU" : "CPU";
 
     for (auto state : m_variableStates) {
         auto state_name = state->get_name();
@@ -472,7 +513,7 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                 m_prefill_requests.front()->get_tensor(m_prefill_in_ports.front().at(state_name));
             auto new_infer_tensor = ov::npuw::util::allocMem(prefill_lora_in_tensor->get_element_type(),
                                                              prefill_lora_in_tensor->get_shape(),
-                                                             device,
+                                                             m_pre_alloc_device,
                                                              m_npuw_llm_compiled_model->get_plugin());
             bool has_padding = state_tensor_rank != target_lora_rank;
             if (has_padding) {
@@ -525,8 +566,6 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
-    std::cout << "apply_lora." << std::endl;
-
     apply_lora();
 }
 
@@ -568,10 +607,26 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             size_t src_prefill_model_index = m_prefill_requests.size() == 1 ? 0 : m_last_infer_chunk_idx;
             auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
             if (tokens_in_past_chunks > 0) {
+                // Create backup of past KV tensor when buffer sharing is enabled to prevent data corruption
+                // This is necessary because subsequent copy operations would overwrite the shared buffer
                 auto prefill_past_kv = m_prefill_requests[src_prefill_model_index]->get_tensor(
                     m_prefill_in_ports[src_prefill_model_index].at(input_name));
-                auto prefill_past_kv_chunks =
-                    make_tensor_slice(prefill_past_kv, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                ov::SoPtr<ov::ITensor> tmp_dense_kv_tensor;
+                ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
+                if (m_past_kv_binded) {
+                    tmp_dense_kv_tensor = ov::npuw::util::allocMem(prefill_past_kv->get_element_type(),
+                                                                   prefill_past_kv->get_shape(),
+                                                                   m_pre_alloc_device,
+                                                                   m_npuw_llm_compiled_model->get_plugin());
+                    prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
+                    prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
+                                                               kv_dim,
+                                                               0u,
+                                                               static_cast<uint32_t>(tokens_in_past_chunks));
+                } else {
+                    prefill_past_kv_chunks =
+                        make_tensor_slice(prefill_past_kv, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                }
 
                 auto kvcache_past_kv_chunks =
                     make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
@@ -673,6 +728,18 @@ void ov::npuw::LLMInferRequest::update_kvcache_between_chunks(uint32_t num_token
             continue;
         }
 
+        auto prev_past_kv_in_tensor = m_prefill_requests[chunk_idx]->get_tensor(cur_in_ports.at(input_name));
+        ov::SoPtr<ov::ITensor> tmp_dense_kv_tensor;
+        if (m_past_kv_binded && chunk_idx != 0) {
+            // Create backup of past KV tensor when buffer sharing is enabled to prevent data corruption
+            // This is necessary because subsequent copy operations would overwrite the shared buffer
+            tmp_dense_kv_tensor = ov::npuw::util::allocMem(prev_past_kv_in_tensor->get_element_type(),
+                                                           prev_past_kv_in_tensor->get_shape(),
+                                                           m_pre_alloc_device,
+                                                           m_npuw_llm_compiled_model->get_plugin());
+            prev_past_kv_in_tensor->copy_to(tmp_dense_kv_tensor._ptr);
+        }
+
         // Step 1: Copy present KV (newly computed tokens) from current chunk's output to next chunk's past KV input
         auto dst_tensor = m_prefill_requests[chunk_idx + 1]->get_tensor(next_in_ports.at(input_name));
         const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
@@ -704,7 +771,11 @@ void ov::npuw::LLMInferRequest::update_kvcache_between_chunks(uint32_t num_token
 
         // Step 2: Copy past KV (previously stored tokens) from current chunk's input to next chunk's past KV input
         auto past_dst_slice = make_tensor_slice(dst_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens - num_tokens);
-        auto past_src_tensor = m_prefill_requests[chunk_idx]->get_tensor(cur_in_ports.at(input_name));
+        auto past_src_tensor = !m_past_kv_binded ? prev_past_kv_in_tensor : tmp_dense_kv_tensor;
+
+        // Handle tensor layout differences between chunk models:
+        // Past KV data may be stored in dense format in the current chunk but with stride in the next chunk
+        // The backup dense tensor ensures correct data transfer regardless of memory layout
         if (past_src_tensor->get_shape()[kv_dim] != past_dst_slice->get_shape()[kv_dim]) {
             auto past_src_slice =
                 make_tensor_slice(past_src_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens - num_tokens);
@@ -720,6 +791,7 @@ void ov::npuw::LLMInferRequest::update_kvcache_between_chunks(uint32_t num_token
 void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     auto fill_chunk_kvcache = [&](auto& request, auto& in_ports) {
         auto model = request->get_compiled_model();
+        size_t total_size = 0;
         for (std::size_t i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
             const auto& output_name = model->outputs()[i].get_any_name();
             const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
@@ -728,13 +800,29 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
                 continue;
             }
             auto chunk_prefill_kvcache_in_tensor = request->get_tensor(in_ports.at(input_name));
+            total_size += chunk_prefill_kvcache_in_tensor->get_byte_size();
             fill_tensor<ov::float16>(chunk_prefill_kvcache_in_tensor, 0);
         }
+        std::cout << "fill_tensor size: " << total_size << std::endl;
     };
 
+    size_t rss_total_before = util::get_current_rss();
     for (size_t i = 0; i < m_prefill_requests.size(); ++i) {
+        size_t rss_before = util::get_current_rss();
         fill_chunk_kvcache(m_prefill_requests[i], m_prefill_in_ports[i]);
+        size_t rss_after = util::get_current_rss();
+        std::cout << "RSS statistics for prefill model " << i << std::endl;
+        std::cout << "  RSS before: " << rss_before << " KB" << std::endl;
+        std::cout << "  RSS after:  " << rss_after << " KB" << std::endl;
+        std::cout << "  RSS delta:  " << static_cast<long long>(rss_after) - static_cast<long long>(rss_before) << " KB"
+                  << std::endl;
     }
+    size_t rss_total_after = util::get_current_rss();
+    std::cout << "RSS statistics for all prefill models " << std::endl;
+    std::cout << "  RSS before: " << rss_total_before << " KB" << std::endl;
+    std::cout << "  RSS after:  " << rss_total_after << " KB" << std::endl;
+    std::cout << "  RSS delta:  " << static_cast<long long>(rss_total_after) - static_cast<long long>(rss_total_before)
+              << " KB" << std::endl;
 }
 
 void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
@@ -742,7 +830,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                                       ov::SoPtr<ov::ITensor> position_ids) {
     LOG_DEBUG("Calling chunked inference for prefill model.");
     LOG_BLOCK();
-    std::cout << "Calling chunked inference for prefill model." << std::endl;
 
     const auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
 
@@ -764,7 +851,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
 
-        std::cout << "Populate the attention mask for the present chunk" << std::endl;
         // Populate the attention mask for the present chunk
         // For the already processed tokens, they will be added into the attention mask after inference call
         size_t prefill_model_index = m_prefill_requests.size() == 1 ? 0 : chunk_id;
@@ -789,7 +875,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             prefilled_bytes *= input_ids->get_shape().back();
         }
 
-        std::cout << "Populate input ids" << std::endl;
         auto input_ids_in_tensor = m_prefill_requests[prefill_model_index]->get_tensor(
             m_prefill_in_ports[prefill_model_index].at(m_input_ids_name));
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
@@ -800,7 +885,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH,
         // SEQ_LEN]
         // Copy postion ids with considering the 3D position_ids
-        std::cout << "pad_position_ids" << std::endl;
         auto last_dim = position_ids->get_shape().size() - 1;
         auto actual_position_ids_slice =
             make_tensor_slice(position_ids,
@@ -811,7 +895,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             m_prefill_in_ports[prefill_model_index].at(layer_names::position_ids));
         pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
 
-        std::cout << "start infer" << std::endl;
+        auto& in_ports = m_prefill_in_ports[prefill_model_index];
+        for (const auto& [input_name, input_port] : in_ports) {
+            auto in_tensor = m_prefill_requests[prefill_model_index]->get_tensor(input_port);
+        }
         m_prefill_requests[prefill_model_index]->infer();
         // Record the last infer model index
         m_last_infer_chunk_idx = prefill_model_index;
@@ -897,7 +984,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> position_ids) {
     LOG_DEBUG("Calling inference for prefill model...");
     LOG_BLOCK();
-    std::cout << "Calling inference for prefill model..." << std::endl;
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > kvcache_desc.max_prompt_size) {
@@ -907,7 +993,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
     }
 
-    std::cout << "prepare_for_new_conversation..." << std::endl;
     prepare_for_new_conversation();
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
@@ -917,11 +1002,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         infer_whole_prefill(input_ids, attention_mask, position_ids);
     }
 
-    std::cout << "Prefill infer done..." << std::endl;
-
     if (m_lm_head_request) {
         LOG_DEBUG("Calling inference for LM head model.");
-        std::cout << "Calling inference for LM head model..." << std::endl;
         if (m_prefill_requests.size() > 1) {
             // For KV chunk, after chunked prefill, update the LM head request input tensor using the output embeddings
             // from the last chunk. This ensures the LM head receives the latest embeddings, and the KVCache infer
@@ -935,7 +1017,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         m_lm_head_request->infer();
         m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
     } else {
-        std::cout << "Not LLM head..." << std::endl;
         size_t prefill_model_index = m_prefill_requests.size() == 0 ? 0 : m_last_infer_chunk_idx;
         m_logits = m_prefill_requests[prefill_model_index]->get_tensor(
             m_prefill_out_ports[prefill_model_index].at(layer_names::logits));
@@ -944,7 +1025,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     m_generate_initialized = false;
 
     LOG_DEBUG("Done");
-    std::cout << "Done" << std::endl;
 }
 
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
@@ -952,8 +1032,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> position_ids) {
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
-
-    std::cout << "Calling inference for generate model" << std::endl;
 
     if (!m_generate_initialized) {
         LOG_DEBUG("Copy kv-cache from prefill to generate model.");
