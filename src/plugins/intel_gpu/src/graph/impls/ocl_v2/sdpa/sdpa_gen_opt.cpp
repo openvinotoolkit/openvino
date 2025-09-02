@@ -76,7 +76,6 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             jit.make("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(k_head_size)));
             jit.make("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(k_head_size)));
         }
-        // jit.make("NUM_KV_HEADS", -1);
         if (info.supports_immad && broadcast_axis == -1 && k_head_size >= 128) {
             jit.make("LOAD_KEY_LEFTOVERS_IN_CALC_LOOP", 1);
         }
