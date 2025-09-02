@@ -919,7 +919,7 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
         mics_vec.push_back(mic.second);
     }
 
-    std::sort(mics_vec.begin(), mics_vec.end(), [this](const auto& a, const auto& b) {
+    std::sort(mics_vec.begin(), mics_vec.end(), [](const auto& a, const auto& b) {
         if (a.size() == b.size()) {
             if (a.empty()) {
                 return false;  // doesn't matter for stability - no groups are fused
