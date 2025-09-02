@@ -77,7 +77,7 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
     auto x1 = any_input();
     // x / Sqrt(ReduceMean(x^2,axes)+eps)
     auto div_x = wrap_type<ov::op::v1::Divide>({x1, sqrt});
-    auto mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
+    auto mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{div_x, mul1});
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto gamma = wrap_type<ov::op::v0::Constant>();
