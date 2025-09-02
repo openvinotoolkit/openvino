@@ -25,8 +25,14 @@ using IndirectSDPA = ov::intel_gpu::op::IndirectSDPA;
 
 namespace ov::intel_gpu {
 
-const size_t attn_mask_idx = 3;
-const size_t scale_idx = 4;
+constexpr size_t value_idx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::VALUE;
+constexpr size_t mask_idx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK;
+constexpr size_t scale_idx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::SCALE;
+constexpr size_t sink_idx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::SINK;
+constexpr size_t cnt_inputs_with_qkv = value_idx + 1;
+constexpr size_t cnt_inputs_with_mask = mask_idx + 1;
+constexpr size_t cnt_inputs_with_scale = scale_idx + 1;
+constexpr size_t cnt_inputs_with_sink = sink_idx + 1;
 
 static std::shared_ptr<ov::op::v0::Constant> GetScalarConstInput(const std::shared_ptr<ov::op::Op>& op, size_t idx) {
     std::shared_ptr<ov::op::v0::Constant> constOp = nullptr;
@@ -77,12 +83,13 @@ static void GetNewOrder(ProgramBuilder&p, const std::shared_ptr<ov::op::internal
 
 static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::ScaledDotProductAttention>& op) {
     // if transpose fusion is disabled, this is used
-    validate_inputs_count(op, {3, 4, 5, 6});
+
+    validate_inputs_count(op, {cnt_inputs_with_qkv, cnt_inputs_with_mask, cnt_inputs_with_scale, cnt_inputs_with_sink});
     auto inputs = p.GetInputInfo(op);
     auto layerName = layer_type_name_ID(op);
 
     auto scalar_scale = GetScalarConstInput(op, scale_idx);
-    auto scalar_attn_mask = GetScalarConstInput(op, attn_mask_idx);
+    auto scalar_attn_mask = GetScalarConstInput(op, mask_idx);
 
     ReshapeInput(p, op, inputs);
 
@@ -109,12 +116,12 @@ static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shar
 }
 
 static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::SDPA>& op) {
-    validate_inputs_count(op, {3, 4, 5, 6});
+    validate_inputs_count(op, {cnt_inputs_with_qkv, cnt_inputs_with_mask, cnt_inputs_with_scale, cnt_inputs_with_sink});
     auto inputs = p.GetInputInfo(op);
     auto layerName = layer_type_name_ID(op);
 
     auto scalar_scale = GetScalarConstInput(op, scale_idx);
-    auto scalar_attn_mask = GetScalarConstInput(op, attn_mask_idx);
+    auto scalar_attn_mask = GetScalarConstInput(op, mask_idx);
 
     ReshapeInput(p, op, inputs);
 
@@ -148,7 +155,7 @@ static void CreateIndirectSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     auto layerName = layer_type_name_ID(op);
 
     auto scalar_scale = GetScalarConstInput(op, scale_idx);
-    auto scalar_attn_mask = GetScalarConstInput(op, attn_mask_idx);
+    auto scalar_attn_mask = GetScalarConstInput(op, mask_idx);
 
     ReshapeInput(p, op, inputs);
 
@@ -157,7 +164,8 @@ static void CreateIndirectSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
     bool is_causal = op->get_causal();
     const auto compression_inputs = op->get_compression_inputs_num();
-    validate_inputs_count(op, {4 + compression_inputs, 5 + compression_inputs, 6 + compression_inputs});
+    validate_inputs_count(op, {cnt_inputs_with_mask + compression_inputs,
+                            cnt_inputs_with_scale + compression_inputs, cnt_inputs_with_sink + compression_inputs});
 
     int64_t indirect_axis = op->get_indirect_axis();
     auto sdpa_prim = cldnn::scaled_dot_product_attention(layerName,

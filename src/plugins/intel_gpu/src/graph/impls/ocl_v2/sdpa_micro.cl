@@ -562,7 +562,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
         tile_vbroadcast_sub(&S_tile, S_max_tile);
-        // now S_tile = (qk * scale + mask - max
 /* Scale + exponentiate */
 #ifdef LOG_2_E_MUL_SCALE
 #define scaled_exp(x) native_vexp2(x * scale)
@@ -585,7 +584,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Accumulate sums. S tile is transposed for easy summation. */
         s_sum_tile_type S_sum_tile1;
-
         tile_fill(S_sum_tile1, 0.0f);
         tile_vreduce_add(S_tile, &S_sum_tile1);
 #ifdef HAS_SINK_INPUT
