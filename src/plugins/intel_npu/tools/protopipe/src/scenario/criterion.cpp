@@ -6,14 +6,40 @@
 #include "criterion.hpp"
 
 #include <chrono>
+#include <cstdint>
+#include <ostream>
+#include "utils/logger.hpp"
 
 #include "utils/utils.hpp"
+
+void ITermCriterion::setWorkloadTrigger(std::shared_ptr<WorkloadTypeInfo> workload_ptr) {
+    workload_type = workload_ptr;
+}
+void ITermCriterion::checkWorkloadTrigger() {
+    if(workload_type) {
+        if(customCheck(workload_type->workload_config.change_interval)) {
+            // update based on changes
+            uint64_t next_index = workload_index % workload_type->workload_config.changes.size();
+            std::string next_value = workload_type->workload_config.changes[next_index];
+            workload_index++;
+            LOG_INFO() << "Update workload type to " << next_value << " after " << workload_index * workload_type->workload_config.change_interval << " seconds/iterations" << std::endl;
+
+            workload_type->wl_onnx->notify(next_value);
+            workload_type->wl_ov->notify(next_value);
+        }
+    }
+}
+
 
 Iterations::Iterations(uint64_t num_iters): m_num_iters(num_iters), m_counter(0) {
 }
 
 bool Iterations::check() const {
     return m_counter != m_num_iters;
+}
+
+bool Iterations::customCheck(uint64_t value) {
+    return m_counter != 0 && m_counter % value == 0;
 }
 
 void Iterations::update() {
@@ -33,6 +59,15 @@ TimeOut::TimeOut(uint64_t time_in_us): m_time_in_us(time_in_us), m_start_ts(-1) 
 
 bool TimeOut::check() const {
     return utils::timestamp<std::chrono::microseconds>() - m_start_ts < m_time_in_us;
+}
+
+bool TimeOut::customCheck(uint64_t value) {
+    auto now = utils::timestamp<std::chrono::microseconds>() - m_start_ts;
+    if(now - last_update >= (value * 1'000'000)) {
+        last_update = now;
+        return true;
+    }
+    return false;
 }
 
 void TimeOut::update(){/* do nothing */};
@@ -55,6 +90,10 @@ CombinedCriterion::CombinedCriterion(const CombinedCriterion& other) {
 
 bool CombinedCriterion::check() const {
     return m_lhs->check() && m_rhs->check();
+}
+
+bool CombinedCriterion::customCheck(uint64_t value) {
+    return m_lhs->customCheck(value) && m_rhs->customCheck(value);
 }
 
 void CombinedCriterion::update() {
