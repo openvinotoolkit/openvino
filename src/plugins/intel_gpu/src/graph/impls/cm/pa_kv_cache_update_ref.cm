@@ -35,7 +35,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     half* key_cache [[type("svmptr_t")]],
     half* value_cache [[type("svmptr_t")]],    
     uint32_t key_pitch,
+    uint32_t key_offset,
     uint32_t value_pitch,
+    uint32_t value_offset,
     uint32_t batch_size_in_sequences) {
     // # key:   [batch_size_in_tokens, num_kv_heads * k_head_size]
     // # value  [batch_size_in_tokens, num_kv_heads * v_head_size]
@@ -85,7 +87,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     {
         uint block_k_base_offset = (block_indices[block_offset] * KV_HEADS_NUM + head_idx) * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
         uint key_out_offset = block_k_base_offset + token_start_pos * K_HEAD_SIZE;
-        uint key_in_offset = token_idx * key_pitch + head_idx * K_HEAD_SIZE;
+        uint key_in_offset = token_idx * key_pitch + head_idx * K_HEAD_SIZE + key_offset;
 
         vector<half, K_HEAD_SIZE> key_data;
         key_data.format<int>() = cm_ptr_load<int, K_HEAD_SIZE / 2>((int*)key, key_in_offset * (int)sizeof(half));
@@ -94,7 +96,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     {
         uint block_v_base_offset = (block_indices[block_offset] * KV_HEADS_NUM + head_idx) * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
         uint value_out_offset = block_v_base_offset + token_start_pos * V_HEAD_SIZE;
-        uint value_in_offset = token_idx * value_pitch + head_idx * V_HEAD_SIZE;
+        uint value_in_offset = token_idx * value_pitch + head_idx * V_HEAD_SIZE + value_offset;
+
+        //if(token_idx==0 && head_idx==0)
+        //{
+        //    printf("value_pitch = %d, value_in_offset: %d, value_out_offset: %d,V_HEAD_SIZE = %d, ADJUSTED_V_HEAD_SIZE = %d\n",
+        //            value_pitch, value_in_offset, value_out_offset, V_HEAD_SIZE, ADJUSTED_V_HEAD_SIZE);
+        //}
 
         vector<half, V_HEAD_SIZE> value_data;
         value_data.format<int>() = cm_ptr_load<int, V_HEAD_SIZE / 2>((int*)value, value_in_offset * (int)sizeof(half));

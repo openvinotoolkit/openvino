@@ -26,7 +26,7 @@ constexpr size_t WG_SIZE = 16;
 constexpr size_t reduce_split_step = 16;
 }  // namespace
 
-#define DEBUG_ENABLED 1
+#define DEBUG_ENABLED 0
 
 // This function returns the kv_step and kv_split_len based on the architecture.
 // return {kv_step, kv_split_len}
@@ -229,6 +229,9 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
     return jit;
 }
 
+//-----------------------------------------------------------------------------------------------------------------
+// KV cache update generator
+//-----------------------------------------------------------------------------------------------------------------
 JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
 
@@ -243,9 +246,6 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
     return jit;
 }
 
-//-----------------------------------------------------------------------------------------------------------------
-// KV cache update generator
-//-----------------------------------------------------------------------------------------------------------------
 Arguments PagedAttentionGeneratorKVCacheUpdate::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY});                   // queries
@@ -259,8 +259,10 @@ Arguments PagedAttentionGeneratorKVCacheUpdate::get_arguments_desc(const kernel_
 
     // scalar
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // key_pitch
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // value_pitch
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // batch_size_in_sequences
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // key_offset
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // value_pitch
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // value_offset
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // batch_size_in_sequences
     return args;
 }
 
@@ -284,6 +286,31 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         auto key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
         auto value_layout = params.input_layouts[PagedAttentionInputIdx::VALUE];
 
+        if (0) {  // Debug
+            std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: "
+                      << "key_layout: " << key_layout.to_string() << ", value_layout: " << value_layout.to_string() << std::endl;
+            std::cout << "\tkey_dims = [";
+            for (auto& it : key_layout.get_dims()) {
+                std::cout << static_cast<size_t>(it) << ", ";
+            }
+            std::cout << "]" << std::endl;
+            std::cout << "\tkey_pads = [";
+            for (auto& it : key_layout.get_padded_dims()) {
+                std::cout << static_cast<size_t>(it) << ", ";
+            }
+            std::cout << "]" << std::endl;
+            std::cout << "\tvalue_dims = [";
+            for (auto& it : value_layout.get_dims()) {
+                std::cout << static_cast<size_t>(it) << ", ";
+            }
+            std::cout << "]" << std::endl;
+            std::cout << "\tvalue_pads = [";
+            for (auto& it : value_layout.get_padded_dims()) {
+                std::cout << static_cast<size_t>(it) << ", ";
+            }
+            std::cout << "]" << std::endl;
+        }
+
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
             auto dims_padding = layout.get_padded_dims();
@@ -298,14 +325,31 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         key_pitch = get_simple_pitch(key_layout);
         value_pitch = get_simple_pitch(value_layout);
 
+        auto get_simple_offset = [](const layout& layout) {
+            size_t offset = 0;
+            const auto& data_padding = layout.data_padding;
+            const auto& lower_pads = data_padding._lower_size;
+            for (auto& it : lower_pads) {
+                if (it > 0) {
+                    offset = it;
+                    break;
+                }
+            }
+            return offset;
+        };
+        size_t key_offset = get_simple_offset(key_layout);
+        size_t value_offset = get_simple_offset(value_layout);
+
         if (DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: "
-                      << "key_pitch: " << key_pitch << ", value_pitch: " << value_pitch << std::endl;
+                      << "key_pitch: " << key_pitch << ", key_offset: " << key_offset
+                      << ", value_pitch: " << value_pitch << ", value_offset: " << value_offset
+                      << std::endl;
         }
 
         // TODO: support multiple sequences
         size_t batch_size_in_sequences = 1;
-        std::vector<size_t> scaler_value = {key_pitch, value_pitch, batch_size_in_sequences};
+        std::vector<size_t> scaler_value = {key_pitch, key_offset, value_pitch, value_offset, batch_size_in_sequences};
         scalars.resize(scaler_value.size());
 
         for (size_t i = 0; i < scaler_value.size(); ++i) {
@@ -371,7 +415,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
 
         auto query_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
 
-        if (DEBUG_ENABLED) {  // Debug
+        if (0 && DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: query_layout: " << query_layout.to_string() << std::endl;
             std::cout << "\tquery_dims = [";
             for (auto& it : query_layout.get_dims()) {
@@ -419,7 +463,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
 //-----------------------------------------------------------------------------------------------------------------
 JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
-    jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
+    // jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
     auto desc = params.typed_desc<paged_attention>();
     const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
     const size_t kv_partition_size = get_partition_size();
