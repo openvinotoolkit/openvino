@@ -928,6 +928,8 @@ public:
         if (p.kv_cache_compression)
             tolerance = 25e-3;
 
+        std::cout << "{ " << p.subsequences[0].num_tokens << " , " << p.subsequences[0].past_len << " } num_heads: " << p.num_heads << " k_head_size: " << p.k_head_size << std::endl;
+
         auto query_mem = pam.get_query_memory();
         auto key_mem = pam.get_key_memory();
         auto value_mem = pam.get_value_memory();
@@ -1313,7 +1315,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{256, 24}}, 32, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
     paged_attention_test_params{ {{232, 24}}, 32, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
     paged_attention_test_params{ {{84, 2}}, 32, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
-    paged_attention_test_params{ {{1008, 492}}, 32, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
+    paged_attention_test_params{ {{1008, 492}}, 32, 32, 32, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
+    paged_attention_test_params{ {{1008, 492}}, 16, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
+    paged_attention_test_params{ {{1008, 492}}, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
+    paged_attention_test_params{ {{1008, 492}}, 4, 256, 256, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
+    paged_attention_test_params{ {{232, 24}}, 2, 512, 512, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
     paged_attention_test_params{ {{1008, 592}}, 32, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching, works w/ by_token but not w/ by_channel
     paged_attention_test_params{ {{1008, 692}}, 32, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
     paged_attention_test_params{ {{1008, 792}}, 32, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: prefix caching
