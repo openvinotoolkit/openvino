@@ -71,6 +71,7 @@ public:
         m_tensor_meta_info.m_element_type = ov::element::dynamic;
         m_tensor_meta_info.m_partial_shape = ov::PartialShape::dynamic();
         m_tensor_meta_info.m_tensor_data = nullptr;
+        m_tensor_meta_info.m_tensor_data_size = 0;
     }
 
     const ov::frontend::onnx::TensorMetaInfo& get_tensor_info() const override {

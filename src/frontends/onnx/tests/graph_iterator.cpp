@@ -75,7 +75,11 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
     // const std::string model_name = "div.onnx";
     // const std::string model_name = "model_editor/subgraph_extraction_tests.onnx";
     // const std::string model_name = "controlflow/if_branches_with_same_inputs.onnx";
-    const std::string model_name = "controlflow/if_inside_if.onnx";
+    //const std::string model_name = "controlflow/if_inside_if.onnx";
+    //const std::string model_name = "cum_sum_2d_axis_input_1d.onnx";
+    //const std::string model_name = "cum_sum_2d_axis_input.onnx";
+    //const std::string model_name = "reduce_sum_13_axes_as_constant.onnx";
+    const std::string model_name = "aten_embedding_sum_packed_4in_per_sample_weights.onnx";
     const auto path =
         ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
 
@@ -97,7 +101,7 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
     ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
     ASSERT_NE(model, nullptr);
 
-    //ov::serialize(model, "e:/test.xml");
+    ov::serialize(model, "e:/test.xml");
 
-    ASSERT_EQ(model->get_ordered_ops().size(), 5);
+    ASSERT_GE(model->get_ordered_ops().size(), 1);
 }

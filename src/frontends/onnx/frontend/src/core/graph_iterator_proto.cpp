@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "decoder_proto.hpp"
+#include "graph_iterator_proto.hpp"
 
 #include <onnx/onnx_pb.h>
 
 #include <fstream>
 #include <openvino/frontend/graph_iterator.hpp>
 
+#include "decoder_proto.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
 
@@ -204,6 +205,24 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
     }
 }
 
+std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::string& name,
+                                                                   GraphIteratorProto** owner) {
+    if (m_tensors.count(name) == 0) {
+        if (name == empty_name) {
+            *owner = this;
+            const auto& tensor_decoder = std::make_shared<DecoderProtoTensor>(empty_name, this, -1, -1);
+            m_tensors[empty_name] = tensor_decoder;
+            return tensor_decoder;
+        }
+        if (m_parent == nullptr) {
+            throw std::runtime_error("Input tensor isn't found for node \"" + name + "\"");
+        }
+        return m_parent->get_tensor(name, owner);
+    }
+    *owner = this;
+    return m_tensors[name];
+}
+
 void GraphIteratorProto::reset() {
     node_index = 0;
     if (m_decoders.size() > 0 || m_model == nullptr || m_graph == nullptr)
@@ -251,16 +270,14 @@ void GraphIteratorProto::reset() {
         std::vector<const ov::frontend::onnx::TensorMetaInfo*> output_tensors{};
         input_tensors.reserve(node.input_size());
         output_tensors.reserve(node.output_size());
+        GraphIteratorProto* tensor_owner = nullptr;
         for (const auto& name : node.input()) {
-            if (name != "") {
-                GraphIteratorProto* tensor_owner = nullptr;
-                auto decoder_proto_tensor = this->get_tensor(name, &tensor_owner);
-                input_tensors.push_back(&decoder_proto_tensor->get_tensor_info());
-                if (tensor_owner != this) {
-                    // Need to insert parent's decoders on top of decoders
-                    m_decoders.insert(m_decoders.begin() + top_index, decoder_proto_tensor);
-                    ++top_index;
-                }
+            auto decoder_proto_tensor = this->get_tensor(name, &tensor_owner);
+            input_tensors.push_back(&decoder_proto_tensor->get_tensor_info());
+            if (tensor_owner != this) {
+                // Need to insert parent's decoders on top of decoders
+                m_decoders.insert(m_decoders.begin() + top_index, decoder_proto_tensor);
+                ++top_index;
             }
         }
         for (const auto& name : node.output()) {
@@ -293,6 +310,8 @@ void GraphIteratorProto::reset() {
                 } else {
                     output_tensors.push_back(&found_tensor->second->get_tensor_info());
                 }
+            } else {
+                output_tensors.push_back(&this->get_tensor(empty_name, &tensor_owner)->get_tensor_info());
             }
         }
         const std::string& domain = node.has_domain() && node.domain() != "ai.onnx" ? node.domain() : DEFAULT_DOMAIN;
