@@ -132,12 +132,6 @@ jobs:
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
 
-          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
-            # Find gomp lib
-            GOMP_LIB=$(find "${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/" -name '*libgomp-*so*')
-            export LD_PRELOAD=${GOMP_LIB}
-          fi
-
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/ovc_python_api_tests -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
