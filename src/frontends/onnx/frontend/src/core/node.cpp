@@ -953,11 +953,20 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) co
 
 // get_attribute_as_constant specializations
 
+// Calls get_decoder_attribute_as_constant is better to rewrite as ov::Any later
+// After GraphIterator will become a default interface
 template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::get_decoder_attribute_as_constant(const std::string& name) const {
     const auto value = get_attribute_value<T>(name);
     const ov::element::Type type = ov::element::from<T>();
     return std::make_shared<ov::op::v0::Constant>(type, ov::Shape{}, value);
+}
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_decoder_attribute_as_constant<std::vector<int64_t>>(
+    const std::string& name) const {
+    const auto values = get_attribute_value<std::vector<int64_t>>(name);
+    return std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{values.size()}, values);
 }
 
 template <typename T>
