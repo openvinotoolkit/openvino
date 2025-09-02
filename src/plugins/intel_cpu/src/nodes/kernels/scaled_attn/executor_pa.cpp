@@ -830,7 +830,8 @@ struct MHAHelper {
                               const PlainTensor& alibi_slopes,
                               float* score_output,
                               size_t q_start_idx_score,
-                              const ScoreAggregationInfo* score_info_ptr) {
+                              const ScoreAggregationInfo* score_info_ptr,
+                              const PlainTensor& mask) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -1513,7 +1514,8 @@ struct MHA {
                          const PlainTensor& block_indices,
                          const PlainTensor& block_indices_begins,
                          const PlainTensor& alibi_slopes,
-                         const PlainTensor& score_aggregation_window) {
+                         const PlainTensor& score_aggregation_window,
+                         const PlainTensor& mask) {
         auto Hk = v_cache.m_dims[1];
 
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
@@ -1767,7 +1769,8 @@ struct MHA {
                     alibi_slopes,
                     score_output,
                     q_start_idx_score,
-                    score_info_ptr);
+                    score_info_ptr,
+                    mask);
 #    endif
             }
         });
@@ -1804,7 +1807,8 @@ struct MHA {
                     const PlainTensor& block_indices,
                     const PlainTensor& block_indices_begins,
                     const PlainTensor& alibi_slopes,
-                    const PlainTensor& score_aggregation_window) {
+                    const PlainTensor& score_aggregation_window,
+                    const PlainTensor& mask) {
         _workitems
             .reset(query, past_lens, subsequence_begins, block_indices, block_indices_begins, _helper._block_size);
         if (output_score) {
@@ -1825,7 +1829,8 @@ struct MHA {
                             block_indices,
                             block_indices_begins,
                             alibi_slopes,
-                            score_aggregation_window);
+                            score_aggregation_window,
+                            mask);
         } else {
             _helper.exec_loop_bhl(query,
                                   present_key,
@@ -2228,7 +2233,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 block_indices,
                 block_indices_begins,
                 alibi_slopes,
-                score_aggregation_window);
+                score_aggregation_window,
+                mask);
     }
 };
 #endif
