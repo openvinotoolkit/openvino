@@ -1187,6 +1187,16 @@ std::shared_ptr<ov::Model> MHARankUpgradeToReductionFunction::initReference() co
     return std::make_shared<ov::Model>(results, parameters, "mha");
 }
 
+std::shared_ptr<ov::Model> MHASharedKVFunction::initOriginal() const {
+    auto param0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto param1 = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, param1, false, true);
+    const auto softMax = std::make_shared<ov::opset1::Softmax>(matMul0, input_shapes[0].size() - 1);
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, param1, false, false);
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(matMul1)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param0, param1}, "mha_shared_kv");
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

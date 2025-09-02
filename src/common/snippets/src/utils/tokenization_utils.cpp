@@ -443,7 +443,8 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     return true;
 }
 
-std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::NodeVector& ordered_ops) {
+std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::NodeVector& ordered_ops,
+                                                                   bool are_shared_internal_params_allowed) {
     OPENVINO_ASSERT(!ordered_ops.empty(), "Nothing to be tokenized!");
 
     ov::OutputVector subgraph_inputs;
@@ -475,7 +476,7 @@ std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::Nod
             } else if (std::find(ordered_ops.begin(), ordered_ops.end(), parent) == ordered_ops.end()) {
                 const auto& parent_output = input.get_source_output();
                 auto it = std::find(subgraph_inputs.begin(), subgraph_inputs.end(), parent_output);
-                if (it == subgraph_inputs.end()) {
+                if (!are_shared_internal_params_allowed || it == subgraph_inputs.end()) {
                     auto new_param =
                         std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_partial_shape());
                     new_param->set_friendly_name(input.get_node()->get_friendly_name());
