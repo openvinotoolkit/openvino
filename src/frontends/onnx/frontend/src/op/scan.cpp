@@ -130,40 +130,79 @@ ov::OutputVector import_onnx_scan(const ov::frontend::onnx::Node& node,
                                   int64_t default_axis,
                                   int64_t in_offset,
                                   std::string&& in_directions_attr_name) {
-    const auto& node_inputs = node.get_ov_inputs();
+    if (!node.has_decoder()) {
+        const auto& node_inputs = node.get_ov_inputs();
 
-    const auto& subgraphs = node.get_subgraphs();
-    auto body_graph = subgraphs.at("body");
-    auto body_outputs = body_graph->get_ov_outputs();
-    auto body_inputs = body_graph->get_ng_parameters();
+        const auto& subgraphs = node.get_subgraphs();
+        auto body_graph = subgraphs.at("body");
+        auto body_outputs = body_graph->get_ov_outputs();
+        auto body_inputs = body_graph->get_ng_parameters();
 
-    const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
-    const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
-    const size_t num_scan_outputs = body_outputs.size() - num_initial_values;
+        const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
+        const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
+        const size_t num_scan_outputs = body_outputs.size() - num_initial_values;
 
-    std::vector<int64_t> scan_input_axes =
-        node.get_attribute_value<std::vector<int64_t>>("scan_input_axes",
-                                                       std::vector<int64_t>(num_scan_inputs, default_axis));
-    std::vector<int64_t> scan_input_directions =
-        node.get_attribute_value<std::vector<int64_t>>(in_directions_attr_name,
-                                                       std::vector<int64_t>(num_scan_inputs, 0));
-    std::vector<int64_t> scan_output_axes =
-        node.get_attribute_value<std::vector<int64_t>>("scan_output_axes",
-                                                       std::vector<int64_t>(num_scan_outputs, default_axis));
-    std::vector<int64_t> scan_output_directions =
-        node.get_attribute_value<std::vector<int64_t>>("scan_output_directions",
-                                                       std::vector<int64_t>(num_scan_outputs, 0));
+        std::vector<int64_t> scan_input_axes =
+            node.get_attribute_value<std::vector<int64_t>>("scan_input_axes",
+                                                           std::vector<int64_t>(num_scan_inputs, default_axis));
+        std::vector<int64_t> scan_input_directions =
+            node.get_attribute_value<std::vector<int64_t>>(in_directions_attr_name,
+                                                           std::vector<int64_t>(num_scan_inputs, 0));
+        std::vector<int64_t> scan_output_axes =
+            node.get_attribute_value<std::vector<int64_t>>("scan_output_axes",
+                                                           std::vector<int64_t>(num_scan_outputs, default_axis));
+        std::vector<int64_t> scan_output_directions =
+            node.get_attribute_value<std::vector<int64_t>>("scan_output_directions",
+                                                           std::vector<int64_t>(num_scan_outputs, 0));
 
-    return scan_to_tensor_iterator(node_inputs,
-                                   body_inputs,
-                                   body_outputs,
-                                   num_scan_inputs,
-                                   scan_input_axes,
-                                   scan_input_directions,
-                                   scan_output_axes,
-                                   scan_output_directions,
-                                   in_offset,
-                                   node.get_description());
+        return scan_to_tensor_iterator(node_inputs,
+                                       body_inputs,
+                                       body_outputs,
+                                       num_scan_inputs,
+                                       scan_input_axes,
+                                       scan_input_directions,
+                                       scan_output_axes,
+                                       scan_output_directions,
+                                       in_offset,
+                                       node.get_description());
+    } else {
+        const auto& node_inputs = node.get_ov_inputs();
+
+        auto body_graph = node.get_attribute_value<std::shared_ptr<ov::Model>>("body");
+        OutputVector body_outputs{};
+        for (const auto& res : body_graph->get_results()) {
+            body_outputs.push_back(res->get_input_source_output(0));
+        }
+        auto body_inputs = body_graph->get_parameters();
+
+        const int64_t num_scan_inputs = node.get_attribute_value<int64_t>("num_scan_inputs");
+        const size_t num_initial_values = body_inputs.size() - num_scan_inputs;
+        const size_t num_scan_outputs = body_outputs.size() - num_initial_values;
+
+        std::vector<int64_t> scan_input_axes =
+            node.get_attribute_value<std::vector<int64_t>>("scan_input_axes",
+                                                           std::vector<int64_t>(num_scan_inputs, default_axis));
+        std::vector<int64_t> scan_input_directions =
+            node.get_attribute_value<std::vector<int64_t>>(in_directions_attr_name,
+                                                           std::vector<int64_t>(num_scan_inputs, 0));
+        std::vector<int64_t> scan_output_axes =
+            node.get_attribute_value<std::vector<int64_t>>("scan_output_axes",
+                                                           std::vector<int64_t>(num_scan_outputs, default_axis));
+        std::vector<int64_t> scan_output_directions =
+            node.get_attribute_value<std::vector<int64_t>>("scan_output_directions",
+                                                           std::vector<int64_t>(num_scan_outputs, 0));
+
+        return scan_to_tensor_iterator(node_inputs,
+                                       body_inputs,
+                                       body_outputs,
+                                       num_scan_inputs,
+                                       scan_input_axes,
+                                       scan_input_directions,
+                                       scan_output_axes,
+                                       scan_output_directions,
+                                       in_offset,
+                                       node.get_description());
+    }
 }
 
 }  // namespace
