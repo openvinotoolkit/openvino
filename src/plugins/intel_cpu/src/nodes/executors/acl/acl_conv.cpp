@@ -94,13 +94,18 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(arm_compute::QuantizationInfo(weightScale.empty() ? 1.0 : weightScale[0]));
-    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(arm_compute::QuantizationInfo(inputScale.empty() ? 1.0 : 1.0 / inputScale[0], inputShift.empty() ? 0 : inputShift[0], false));
+    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(arm_compute::QuantizationInfo(1.f));
+
+    dstTensorInfo = std::make_shared<arm_compute::TensorInfo>(aclMemoryInfos[ACLArgs::ACL_DST].get()->tensor_shape(),
+                                                              aclMemoryInfos[ACLArgs::ACL_DST].get()->num_channels(),
+                                                              aclMemoryInfos[ACLArgs::ACL_SRC_0].get()->data_type(),
+                                                              arm_compute::QuantizationInfo(inputScale.empty() ? 1.0 : 1.0 / inputScale[0], inputShift.empty() ? 0 : inputShift[0], false));
 
     arm_compute::Status s = arm_compute::NEConvolutionLayer::validate(
         aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
         aclMemoryInfos[ACLArgs::ACL_WEI].get(),
         aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
-        aclMemoryInfos[ACLArgs::ACL_DST].get(),
+        dstTensorInfo.get(),//aclMemoryInfos[ACLArgs::ACL_DST].get(),
         padStrideInfo,
         weightsInfo,
         dilation,
@@ -110,19 +115,33 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     return s;
 }
 
+ACLFunction ACLConvolutionExecutor::configureFunctionPostOp(const ACLTensors& aclMemoryTensors) {
+    auto neDeq = std::make_unique<arm_compute::NEDequantizationLayer>();
+    neDeq->configure(dstTensor.get(),
+                     aclMemoryTensors[ACLArgs::ACL_DST].get());
+    return neDeq;
+}
+
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
     auto neConv = std::make_unique<arm_compute::NEConvolutionLayer>();
+    dstTensor = std::make_shared<arm_compute::Tensor>();
+    dstTensor->allocator()->init(*dstTensorInfo);
 
     neConv->configure(aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
                       aclMemoryTensors[ACLArgs::ACL_WEI].get(),
                       aclMemoryTensors[ACLArgs::ACL_BIAS].get(),
-                      aclMemoryTensors[ACLArgs::ACL_DST].get(),
+                      dstTensor.get(),//aclMemoryTensors[ACLArgs::ACL_DST].get(),
                       padStrideInfo,
                       weightsInfo,
                       dilation,
                       activationLayerInfo,
                       enableFastMath);
+    dstTensor->allocator()->allocate();
     return neConv;
+}
+
+ACLConvolutionExecutor::~ACLConvolutionExecutor() {
+    dstTensor->allocator()->free();
 }
 
 std::shared_ptr<arm_compute::TensorInfo> ACLConvolutionExecutor::initTensorInfo(

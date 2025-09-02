@@ -400,7 +400,7 @@ std::tuple<VecMemoryDescs, MemoryDescPtr> Convolution::initMemoryDescriptors(ov:
             srcDescs.push_back(MemoryDescUtils::makeEmptyDesc());
             continue;
         }
-        auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcTypes[i], getInputShapeAtPort(i));
+        auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(/*one_of(dstType, ov::element::f32, ov::element::f16) ? dstType :*/ srcTypes[i], getInputShapeAtPort(i));
         srcDescs.push_back(srcDesc);
     }
 
@@ -493,6 +493,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         {ARG_DST, dstDesc},
     };
 
+    std::cout << "Before executor creation for node " << this->getName() << "(" << this->getOriginalLayers() << ")" << std::endl;
     m_factory = createExecutorFactory(descs, m_attrs);
 
     const std::vector<MemoryDescArgs> nodeDescriptorsList = m_factory->getProperMemoryDescriptors(descs);
@@ -568,7 +569,7 @@ bool Convolution::canFuse(const NodePtr& node) const {
     if (!fusedWith.empty())
         return false;
 #endif
-    return canFuseSimpleOperation(node);
+    return false;//canFuseSimpleOperation(node);
 }
 
 ov::element::Type Convolution::getRuntimePrecision() const {

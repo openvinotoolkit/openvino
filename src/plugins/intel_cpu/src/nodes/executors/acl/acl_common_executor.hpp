@@ -38,6 +38,9 @@ public:
     virtual void updateTensorsShapes(ACLShapes& aclMemoryShapes) = 0;
     virtual arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) = 0;
     virtual ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) = 0;
+    virtual ACLFunction configureFunctionPostOp (const ACLTensors& aclMemoryTensors) {
+        return nullptr;
+    }
     [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::acl;
     }
@@ -58,6 +61,7 @@ private:
     ACLTensors aclMemoryTensors;
     ACLInfos aclMemoryInfos;
     ACLFunction iFunction = nullptr;
+    ACLFunction iFunctionPostOp = nullptr;
 };
 
 using ACLCommonExecutorPtr = std::shared_ptr<ACLCommonExecutor>;
