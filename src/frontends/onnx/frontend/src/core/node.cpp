@@ -944,7 +944,11 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<float>(name, default_value);
     } else if (m_decoder != nullptr) {
-        return get_decoder_attribute_as_constant<float>(name, default_value);
+        float value = default_value;
+        if (m_decoder->has_attribute(name)) {
+            value = m_decoder->get_attribute(name).as<float>();
+        }
+        return ov::op::v0::Constant::create(ov::element::f32, {0}, {value});
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -956,7 +960,11 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<float>(name, default_value, std::move(type));
     } else if (m_decoder != nullptr) {
-        return get_decoder_attribute_as_constant<float>(name, default_value);
+        float value = default_value;
+        if (m_decoder->has_attribute(name)) {
+            value = m_decoder->get_attribute(name).as<float>();
+        }
+        return ov::op::v0::Constant::create(type == ov::element::dynamic ? ov::element::f32 : type, {0}, {value});
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -1000,7 +1008,11 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<double>(name, default_value, std::move(type));
     } else if (m_decoder != nullptr) {
-        return get_decoder_attribute_as_constant<double>(name, default_value);
+        double value = default_value;
+        if (m_decoder->has_attribute(name)) {
+            value = m_decoder->get_attribute(name).as<double>();
+        }
+        return ov::op::v0::Constant::create(type == ov::element::dynamic ? ov::element::f64 : type, {0}, {value});
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -1078,7 +1090,10 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vecto
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name, std::move(type));
     } else if (m_decoder != nullptr) {
-        return get_decoder_attribute_as_constant<std::vector<int64_t>>(name);
+        auto value = m_decoder->get_attribute(name).as<std::vector<int64_t>>();
+        return ov::op::v0::Constant::create(type == ov::element::dynamic ? ov::element::i64 : type,
+                                            {value.size()},
+                                            value);
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
