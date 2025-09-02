@@ -75,7 +75,7 @@ class TestUnsqueezeCopy(PytorchLayerTest):
 class TestUnsqueezeWithComplex(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(1, 3, 2).astype(np.float32),)
+        return (np.random.randn(2, 3, 2).astype(np.float32),)
     
     def create_model(self, inplace=False, dim=0):
         import torch
@@ -105,7 +105,7 @@ class TestUnsqueezeWithComplex(PytorchLayerTest):
         return model_class(dim), ref_net, op
 
     @pytest.mark.parametrize("inplace", [False, skip_if_export(True)])
-    @pytest.mark.parametrize("dim", [0, 1])
+    @pytest.mark.parametrize("dim", [0, 1, -1, -2])
     @pytest.mark.nightly
     @pytest.mark.precommit 
     @pytest.mark.precommit_torch_export
