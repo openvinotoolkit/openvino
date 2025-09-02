@@ -33,10 +33,16 @@ struct ONNX_FRONTEND_API TensorMetaInfo {
     */
 };
 
+
 class ONNX_FRONTEND_API DecoderBase : public ov::frontend::DecoderBase {
 public:
     using Ptr = std::shared_ptr<DecoderBase>;
     ~DecoderBase() override;
+};
+
+struct ONNX_FRONTEND_API SparseTensorInfo {
+    ov::PartialShape m_partial_shape;
+    ov::frontend::onnx::DecoderBase::Ptr m_values, m_indices;
 };
 
 // DecoderBaseOperation corresponds to operation node to retrieve its attributes and information about input and output

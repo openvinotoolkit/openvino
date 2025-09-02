@@ -532,6 +532,14 @@ const Attribute& Node::get_attribute(const std::string& name) const {
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
+ov::Any Node::get_attribute_any(const std::string& name) const {
+    if (m_pimpl != nullptr) {
+    } else if (m_decoder != nullptr) {
+        return m_decoder->get_attribute(name);
+    }
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+}
+
 template <>
 float Node::get_attribute_value(const std::string& name, float default_value) const {
     if (m_pimpl != nullptr) {
@@ -805,7 +813,32 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<SparseTensor>(name);
     } else if (m_decoder != nullptr) {
-        // Non-applicable
+        auto sparse_tensor_info = m_decoder->get_attribute(name).as<ov::frontend::onnx::SparseTensorInfo>();
+        FRONT_END_GENERAL_CHECK(sparse_tensor_info.m_indices && sparse_tensor_info.m_values,
+                                "Incomplete sparse tensors are not supported");
+
+        auto& values_decoder =
+            std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(sparse_tensor_info.m_values);
+        const auto& values_meta_info = values_decoder->get_tensor_info();
+        auto values_place = std::make_shared<ov::frontend::onnx::TensorONNXPlace>(
+            *m_translate_session->get_input_model().get(),
+            values_meta_info.m_partial_shape,
+            values_meta_info.m_element_type,
+            std::vector<std::string>{*values_meta_info.m_tensor_name},
+            values_meta_info.m_tensor_data,
+            values_meta_info.m_tensor_data_size);
+
+        auto& indices_decoder =
+            std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(sparse_tensor_info.m_indices);
+        const auto& indices_meta_info = indices_decoder->get_tensor_info();
+        auto indices_place = std::make_shared<ov::frontend::onnx::TensorONNXPlace>(
+            *m_translate_session->get_input_model().get(),
+            indices_meta_info.m_partial_shape,
+            indices_meta_info.m_element_type,
+            std::vector<std::string>{*indices_meta_info.m_tensor_name},
+            indices_meta_info.m_tensor_data,
+            indices_meta_info.m_tensor_data_size);
+        return {values_place, indices_place, sparse_tensor_info.m_partial_shape};
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }

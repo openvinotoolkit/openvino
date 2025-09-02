@@ -128,7 +128,6 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
         case TensorProto_DataType::TensorProto_DataType_UINT4:
         case TensorProto_DataType::TensorProto_DataType_UINT8:
         case TensorProto_DataType::TensorProto_DataType_UINT16:
-        case TensorProto_DataType::TensorProto_DataType_UINT32:
         case TensorProto_DataType::TensorProto_DataType_BOOL:
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         case TensorProto_DataType::TensorProto_DataType_FLOAT16:
@@ -143,6 +142,7 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->int64_data().data()));
             tensor_meta_info.m_tensor_data_size = tensor_info->int64_data_size();
             break;
+        case TensorProto_DataType::TensorProto_DataType_UINT32:
         case TensorProto_DataType::TensorProto_DataType_UINT64:
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->uint64_data().data()));
@@ -327,7 +327,7 @@ void GraphIteratorProto::reset() {
         if (opset == -1) {
             // Forcing a first opset instead of failing
             opset = 1;
-            //throw std::runtime_error("Operation version isn't found");
+            // throw std::runtime_error("Operation version isn't found");
         }
         auto decoder_node =
             std::make_shared<DecoderProto>(&node, static_cast<uint64_t>(opset), this, input_tensors, output_tensors);

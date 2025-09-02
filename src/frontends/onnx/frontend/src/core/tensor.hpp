@@ -52,14 +52,14 @@ inline std::vector<T> __get_data(const Container& container) {
 #endif
 }
 
-template <typename T>
+template <typename T, typename SRC>
 inline std::vector<T> __get_data(const void* data, const size_t data_size) {
 #if defined(_MSC_VER)
 #    pragma warning(push)
 #    pragma warning(disable : 4267)
 #    pragma warning(disable : 4244)
 #endif
-    return std::vector<T>(static_cast<const T*>(data), static_cast<const T*>(data) + data_size);
+    return std::vector<T>(static_cast<const SRC*>(data), static_cast<const SRC*>(data) + data_size);
 #if defined(_MSC_VER)
 #    pragma warning(pop)
 #endif
