@@ -56,7 +56,7 @@ public:
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
                            bool allowBinary = true);
-    void fuseInto(NodePtr& parentNode) override;
+    void fuseInto(const NodePtr& parentNode) override;
     ov::element::Type getRuntimePrecision() const override;
 
     float getAlpha() const {
@@ -105,6 +105,7 @@ private:
     static EltwiseBroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ov::Node>& op);
 
     size_t getOpInputsNum() const;
+    void init() override;
 
     void appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem);
     static void appendMemory(const std::vector<float>& data,

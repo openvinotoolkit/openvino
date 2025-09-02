@@ -577,6 +577,7 @@ template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset16
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::OneHot, ShapeInferTA, util::bit::mask(1)),
+    OV_OP_SHAPE_INFER_MASK_REG(op::v16::AvgPool, ShapeInferPaddingTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::ISTFT, ShapeInferTA, util::bit::mask(2, 3, 4)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::SegmentMax, ShapeInferTA, util::bit::mask(1, 2)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::SparseFillEmptyRows, ShapeInferTA, util::bit::mask(1, 2)),

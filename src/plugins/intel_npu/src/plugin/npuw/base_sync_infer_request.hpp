@@ -16,11 +16,12 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
 #include "spatial.hpp"
+#include "util.hpp"
 
 namespace ov {
 namespace npuw {
 
-using TensorPtr = ov::SoPtr<ov::ITensor>;
+using namespace ov::npuw::util;
 
 class CompiledModel;
 
@@ -47,6 +48,8 @@ public:
                      const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     void check_tensors() const override;
+
+    void handle_set_remote_input(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor);
 
     // Query APIs - some default implementations here
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
@@ -97,6 +100,11 @@ protected:
     // FROM(Every subrequests' output port) TO(Its output tensor)
     std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
 
+    struct QuantGatherTensors {
+        ov::Tensor w, z, s;
+    };
+    QuantGatherTensors m_quant_gather_tensors;
+
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
     // Another sparse vector. Represents populated spatial I/O parameters
@@ -143,6 +151,7 @@ protected:
     void unpack_closure(std::size_t idx, RqPtr request);
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);
+    void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
