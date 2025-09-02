@@ -213,7 +213,7 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
             const size_t target_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
             const size_t heads_num = get_num_heads(params.get_output_layout(0), extended_output_transpose_order);
             const size_t target_seq_len_block_size = get_target_seq_len_block_size();
-            const auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+            const size_t head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
@@ -231,7 +231,7 @@ Arguments SDPAOptGeneratorFinalization::get_arguments_desc(const kernel_impl_par
 }
 
 JitConstants SDPAOptGeneratorFinalization::get_jit_constants(const kernel_impl_params& params) const {
-    auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::SINGLE_TOKEN);
+    auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::FINALIZATION);
     jit.make("SDPA_STAGE_1", 1);
     jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", get_target_seq_len_block_size());
     return jit;
@@ -255,7 +255,7 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
             const size_t batch_size = get_batch_size(params.get_output_layout(0), extended_output_transpose_order);
             const size_t target_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
             const size_t heads_num = get_num_heads(params.get_output_layout(0), extended_output_transpose_order);
-            const size_t num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
+            const size_t num_of_partitions = get_partitions_num(params, SDPAStage::FINALIZATION);
             const size_t head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";

@@ -164,9 +164,8 @@ TEST_F(SubgraphCollectorTest, submodel_split_and_merge) {
     SubgraphCollector subgraph_collector(m_model, affinities);
     auto actual_subgraphs_ids = subgraph_collector.get_subgraph_ids();
     ASSERT_EQ(exptected_subgraphs_ids, actual_subgraphs_ids);
-    ov::hetero::SubgraphsVector actual_subgraphs;
-    ov::hetero::SubgraphsMappingInfo actual_mapping_info;
-    std::tie(actual_subgraphs, actual_mapping_info) = subgraph_collector.run();
+
+    const auto& [actual_subgraphs, actual_mapping_info] = subgraph_collector.run();
 
     ASSERT_EQ(3, actual_subgraphs.size());
     std::vector<std::shared_ptr<ov::Model>> actual_submodels;
@@ -338,9 +337,8 @@ TEST_F(SubgraphCollectorTest2, submodel_split_and_merge) {
     }
     // Collect subgraphs
     SubgraphCollector subgraph_collector(m_model, affinities);
-    ov::hetero::SubgraphsVector actual_subgraphs;
-    ov::hetero::SubgraphsMappingInfo actual_mapping_info;
-    std::tie(actual_subgraphs, actual_mapping_info) = subgraph_collector.run();
+
+    const auto& [actual_subgraphs, actual_mapping_info] = subgraph_collector.run();
 
     ASSERT_EQ(3, actual_subgraphs.size());
     std::vector<std::shared_ptr<ov::Model>> actual_submodels;
@@ -546,9 +544,8 @@ TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
     };
 
     auto supported_ops = supported_ops_with_affinity;
-    ov::hetero::SubgraphsVector ordered_subgraphs;
-    ov::hetero::SubgraphsMappingInfo actual_mapping_info;
-    std::tie(ordered_subgraphs, actual_mapping_info) = get_model_subgraphs(model, supported_ops, true, false);
+
+    const auto& [ordered_subgraphs, actual_mapping_info] = get_model_subgraphs(model, supported_ops, true, false);
     for (const auto& subgraph : ordered_subgraphs) {
         std::set<std::string> node_set;
         auto sub_model = std::make_shared<ov::Model>(subgraph._results, subgraph._sinks, subgraph._parameters);
@@ -600,9 +597,8 @@ TEST_F(SubgraphCollectorTest, merge_independent_submodel) {
     }
     // Collect subgraphs
     SubgraphCollector subgraph_collector(model, affinities);
-    ov::hetero::SubgraphsVector actual_subgraphs;
-    ov::hetero::SubgraphsMappingInfo actual_mapping_info;
-    std::tie(actual_subgraphs, actual_mapping_info) = subgraph_collector.run();
+
+    const auto& [actual_subgraphs, actual_mapping_info] = subgraph_collector.run();
 
     ASSERT_EQ(3, actual_subgraphs.size());
     std::vector<std::shared_ptr<ov::Model>> actual_submodels;

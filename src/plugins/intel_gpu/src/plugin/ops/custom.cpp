@@ -172,10 +172,11 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     auto dims = op->get_output_partial_shape(0);
     int iidx = customLayer->InputDimSourceIndex();
 
-    size_t N = (dims.size() > 0) ? dims[0].is_dynamic() ? -1 : dims[0].get_length() : 1;
-    size_t C = (dims.size() > 1) ? dims[1].is_dynamic() ? -1 : dims[1].get_length() : 1;
-    size_t H = (dims.size() > 2) ? dims[2].is_dynamic() ? -1 : dims[2].get_length() : 1;
-    size_t W = (dims.size() > 3) ? dims[3].is_dynamic() ? -1 : dims[3].get_length() : 1;
+    constexpr size_t kDynamic = std::numeric_limits<size_t>::max();
+    size_t N = (dims.size() > 0) ? dims[0].is_dynamic() ? kDynamic : dims[0].get_length() : 1;
+    size_t C = (dims.size() > 1) ? dims[1].is_dynamic() ? kDynamic : dims[1].get_length() : 1;
+    size_t H = (dims.size() > 2) ? dims[2].is_dynamic() ? kDynamic : dims[2].get_length() : 1;
+    size_t W = (dims.size() > 3) ? dims[3].is_dynamic() ? kDynamic : dims[3].get_length() : 1;
 
     cldnn::layout outputLayout;
     if (dims.is_dynamic()) {
