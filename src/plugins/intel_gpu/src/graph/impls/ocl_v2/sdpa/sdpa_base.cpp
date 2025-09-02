@@ -214,7 +214,10 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         } else {
             jit.make("HAS_ATTN_MASK_INPUT", data_inputs_num > attn_mask_id);
         }
-
+        if (desc->has_sink_input) {
+            jit.make("SINK_DATA_T", to_ocl_type(params.input_layouts[5].data_type));
+            jit.make("HAS_SINK_INPUT", 1);
+        }
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
         GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
