@@ -12,6 +12,7 @@
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
+#include "paged_attention_inst.h"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
 // clang-format on
@@ -945,7 +946,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         jit.add(make_tensors_jit_constants(params));
         if (desc->has_sink_input) {
-            jit.make("SINK_DATA_T", "half");
+            jit.make("SINK_DATA_T", to_ocl_type(params.input_layouts[5].data_type));
             jit.make("HAS_SINK_INPUT", 1);
         }
     }
@@ -1195,26 +1196,26 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
     auto data_inputs_num = micro_get_input_num(params, config);
 
-    args.push_back({ArgumentDescriptor::Types::INPUT, 1});   // K
-    args.push_back({ArgumentDescriptor::Types::INPUT, 0});   // Q
-    args.push_back({ArgumentDescriptor::Types::INPUT, 2});   // V
+    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});   // K
+    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});   // Q
+    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::VALUE});   // V
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
 
     if (config.is_paged_attention) {
-        args.push_back({ArgumentDescriptor::Types::INPUT, 6});  // subsequence_begins
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
         if (!config.has_const_scale_val)
-            args.push_back({ArgumentDescriptor::Types::INPUT, 9});        // scale
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});   // scale
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
     } else {
-        const uint32_t attn_mask_idx = 3;
-        const uint32_t scale_idx = 4;
-        const uint32_t sink_idx = 5;
+        const uint32_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
         if (config.input_num > attn_mask_idx && !config.has_const_attn_mask_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
+        const uint32_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
         if (config.input_num > scale_idx && !config.has_const_scale_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, scale_idx});  // Scale
+        const uint32_t sink_idx = ScaledDotProductAttentionInputIdx::SINK;
         if (config.input_num > sink_idx)
-            args.push_back({ArgumentDescriptor::Types::INPUT, sink_idx});  // Scale
+            args.push_back({ArgumentDescriptor::Types::INPUT, sink_idx});  // Sink
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // D
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
@@ -1522,6 +1523,5 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         throw;
     }
 }
-
 }  // namespace ov::intel_gpu::ocl
 #endif

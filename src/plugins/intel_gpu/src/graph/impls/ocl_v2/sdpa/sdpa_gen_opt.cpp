@@ -80,10 +80,6 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         if (info.supports_immad && broadcast_axis == -1 && k_head_size >= 128) {
             jit.make("LOAD_KEY_LEFTOVERS_IN_CALC_LOOP", 1);
         }
-        if (desc->has_sink_input) {
-            jit.make("HAS_SINK_INPUT", 1);
-            jit.make("SINK_DATA_T", "half");
-        }
     }
 
     if (unaligned_head_size(k_head_size, v_head_size, subgroup_size)) {
@@ -110,8 +106,8 @@ Arguments SDPAOptGeneratorBase::get_arguments_desc_impl(const kernel_impl_params
     size_t data_inputs_num = stage == SDPAStage::FINALIZATION ? 0 : get_data_inputs_num(*desc);
     auto has_zp_input_buffers = desc->get_compression_zp_inputs_num() > 0;
 
-    const size_t attn_mask_idx = 3;
-    const size_t scale_idx = 4;
+    const size_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
+    const size_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
     for (uint32_t i = 0; i < data_inputs_num; i++) {
         if (i == attn_mask_idx && desc->attn_mask_val.has_value())
             continue;
