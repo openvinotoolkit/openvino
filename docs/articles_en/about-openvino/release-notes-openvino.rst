@@ -275,6 +275,11 @@ Known Issues
 | Description:
 |   phi-4-multimodal-instruct is not functional on NPU. Planned to be fixed in future releases.
 
+| **Component: NPU plugin**
+| ID: 173053
+| Description:
+|   Transformers v4.53 introduce a performance regression for prompts smaller than 1K tokens. For optimal performance, it is recommended to use v4.51.
+
 | **Component: CPU, GPU plugins**
 | ID: 171208
 | Description:
@@ -313,85 +318,49 @@ Known Issues
 
 	*Common*
 
-	* Better developer experience with shorter build times, due to optimizations and source code 
-	refactoring. Code readability has been improved, helping developers understand the 
-	components included between different C++ files.
-	* Memory consumption has been optimized by expanding the usage of mmap for the GenAI
-	 component and introducing the delayed constant weights mechanism.
-	* Support for ISTFT operator for GPU has been expanded, improving support of text-to-speech,
-	 speech-to-text, and speech-to-speech models, like AudioShake and Kokoro.
-	* Models like Behavior Sequence Transformer are now supported, thanks to SparseFillEmptyRows
-	 and SegmentMax operators. 
-	* google/fnet-base, tf/InstaNet, and more models are now enabled, thanks to DFT operators
-	 (discrete Fourier transform) supporting dynamism.
-	* "COMPILED_BLOB" hint property is now available to speed up model compilation.
-	 The "COMPILED_BLOB" can be a regular or weightless model. For weightless models,
-	 the "WEIGHT_PATH" hint provides location of the model weights. 
+	* Better developer experience with shorter build times, due to optimizations and source code refactoring. Code readability has been improved, helping developers understand the components included between different C++ files.
+	* Memory consumption has been optimized by expanding the usage of mmap for the GenAI component and introducing the delayed constant weights mechanism.
+	* Support for ISTFT operator for GPU has been expanded, improving support of text-to-speech,speech-to-text, and speech-to-speech models, like AudioShake and Kokoro.
+	* Models like Behavior Sequence Transformer are now supported, thanks to SparseFillEmptyRows and SegmentMax operators. 
+	* google/fnet-base, tf/InstaNet, and more models are now enabled, thanks to DFT operators (discrete Fourier transform) supporting dynamism.
+	* "COMPILED_BLOB" hint property is now available to speed up model compilation. The "COMPILED_BLOB" can be a regular or weightless model. For weightless models, the "WEIGHT_PATH" hint provides location of the model weights. 
 	* Reading tensor data from file as copy or using mmap feature is now available. 
 
 	*AUTO Inference Mode*
 
-	* Memory footprint in model caching has been reduced by loading the model only for the selected 
-	 plugin, avoiding duplicate model objects.
+	* Memory footprint in model caching has been reduced by loading the model only for the selected plugin, avoiding duplicate model objects.
 
 	*CPU Device Plugin*
 	
-	* Per-channel INT8 KV cache compression is now enabled by default, helping LLMs
-  maintain accuracy while reducing memory consumption.
-	* Per-channel INT4 KV cache compression is supported and can be enabled using the properties
-	 `KEY_CACHE_PRECISION` and `KEY_CACHE_QUANT_MODE`.
-	 Some models may be sensitive to INT4 KV cache compression.
-	* Performance of encoder-based LLMs has been improved through additional graph-level optimizations,
-	 including QKV (Query, Key, and Value) projection and Multi-Head Attention (MHA).
-	* SnapKV support has been implemented in the CPU plugin to reduce KV cache size while
-	 maintaining comparable performance. It calculates attention scores in PagedAttention
-	 for both prefill and decode stages. This feature is enabled by default in OpenVINO GenAI when
-	 KV cache eviction is used.
+	* Per-channel INT8 KV cache compression is now enabled by default, helping LLMs maintain accuracy while reducing memory consumption.
+	* Per-channel INT4 KV cache compression is supported and can be enabled using the properties `KEY_CACHE_PRECISION` and `KEY_CACHE_QUANT_MODE`. Some models may be sensitive to INT4 KV cache compression.
+	* Performance of encoder-based LLMs has been improved through additional graph-level optimizations, including QKV (Query, Key, and Value) projection and Multi-Head Attention (MHA).
+	* SnapKV support has been implemented in the CPU plugin to reduce KV cache size while maintaining comparable performance. It calculates attention scores in PagedAttention for both prefill and decode stages. This feature is enabled by default in OpenVINO GenAI when KV cache eviction is used.
 
 	*GPU Device Plugin*
 	
-	* Performance of generative models (e.g. large language models, visual language models, image
-  generation models) has been improved on XMX-based platforms (Intel® Core™ Ultra Processor
-  Series 2 built-in GPUs and Intel® Arc™ B Series Graphics) with dynamic quantization and
-  optimization in GEMM and Convolution.
-	* 2nd token latency of INT4 generative models has been improved on Intel® Core™ Processors,
-	 Series 1.
-	* LoRa support has been optimized for Intel® Core™ Processor GPUs and its memory footprint
-	 improved, by optimizing the OPS nodes dependency.
-	* SnapKV cache rotation now supports accurate token eviction through re-rotation of cache
-	 segments that change position after token eviction.
-	* KV cache compression is now available for systolic platforms with an update to micro kernel
-	 implementation.
-	* Improvements to Paged Attention performance and functionality have been made, with support
-	 of different head sizes for Key and Value in KV-Cache inputs.
+	* Performance of generative models (e.g. large language models, visual language models, image generation models) has been improved on XMX-based platforms (Intel® Core™ Ultra Processor Series 2 built-in GPUs and Intel® Arc™ B Series Graphics) with dynamic quantization and optimization in GEMM and Convolution.
+	* 2nd token latency of INT4 generative models has been improved on Intel® Core™ Processors, Series 1.
+	* LoRa support has been optimized for Intel® Core™ Processor GPUs and its memory footprint improved, by optimizing the OPS nodes dependency.
+	* SnapKV cache rotation now supports accurate token eviction through re-rotation of cache segments that change position after token eviction.
+	* KV cache compression is now available for systolic platforms with an update to micro kernel implementation.
+	* Improvements to Paged Attention performance and functionality have been made, with support of different head sizes for Key and Value in KV-Cache inputs.
 	 
 	*NPU Device Plugin*
 
-	* The NPU Plugin can now retrieve options from the compiler and mark only the corresponding
-	 OpenVINO properties as supported.
-	* The model import path now supports passing precompiled models directly to the plugin using the
-	 `ov::compiled_blob` property (Tensor), removing the need for stream access.
-	* The `ov::intel_npu::turbo` property is now forwarded both to the compiler and the driver
-	 when supported. Using NPU_TURBO may result in longer compile time, increased memory footprint,
-	 changes in workload latency, and compatibility issues with older NPU drivers.
-	* The same Level Zero context is now used across OpenVINO Cores, enabling remote tensors created
-	 through one Core object to be used with inference requests created with another Core object.
-	* BlobContainer has been replaced with regular OpenVINO tensors, simplifying the underlying container
-	 for a compiled blob.
+	* The NPU Plugin can now retrieve options from the compiler and mark only the corresponding OpenVINO properties as supported.
+	* The model import path now supports passing precompiled models directly to the plugin using the `ov::compiled_blob` property (Tensor), removing the need for stream access.
+	* The `ov::intel_npu::turbo` property is now forwarded both to the compiler and the driver when supported. Using NPU_TURBO may result in longer compile time, increased memory footprint, changes in workload latency, and compatibility issues with older NPU drivers.
+	* The same Level Zero context is now used across OpenVINO Cores, enabling remote tensors created through one Core object to be used with inference requests created with another Core object.
+	* BlobContainer has been replaced with regular OpenVINO tensors, simplifying the underlying container for a compiled blob.
 	* Weightless caching and compilation for LLMs are now available when used with OpenVINO GenAI.
 	* LLM accuracy issues with BF16 models have been resolved.
-	* The NPU driver is now included in OpenVINO Docker images for Ubuntu, enabling out-of-the-box NPU 
-	 support without manual driver installation. For instructions, refer to the
-	 `OpenVINO Docker documentation <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/npu_accelerator.md>`__.
-	* NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models with up to 8B parameters is 
-	 enabled through symmetrical and channel-wise quantization, improving accuracy while maintaining performance 
-	 efficiency. FP16-NF4 is not supported on CPUs and GPUs.
+	* The NPU driver is now included in OpenVINO Docker images for Ubuntu, enabling out-of-the-box NPU support without manual driver installation. For instructions, refer to the `OpenVINO Docker documentation <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/npu_accelerator.md>`__.
+	* NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models with up to 8B parameters is enabled through symmetrical and channel-wise quantization, improving accuracy while maintaining performance efficiency. FP16-NF4 is not supported on CPUs and GPUs.
 
 	*OpenVINO Python API*
 
-	* Wheel package and source code now include type hinting support (.pyi files), to help
-	 Python developers work in IDE. By default, pyi files will be generated automatically but
-	 can be triggered manually by developers themselves.
+	* Wheel package and source code now include type hinting support (.pyi files), to help Python developers work in IDE. By default, pyi files will be generated automatically but can be triggered manually by developers themselves.
 	* The `compiled_blob` property has been added to improve work with compiled blobs for NPU.
 
 	*OpenVINO C API*
@@ -400,8 +369,7 @@ Known Issues
 
 	*OpenVINO Node.js API*
 
-	* OpenVINO GenAI has been expanded for JS package API compliance, to address future LangChain.js 
-	user requirements (defined by the LangChain adapter definition). 
+	* OpenVINO GenAI has been expanded for JS package API compliance, to address future LangChain.js user requirements (defined by the LangChain adapter definition). 
 	* A new sample has been added, demonstrating OpenVINO GenAI in JS. 
 
 	*PyTorch Framework Support*
@@ -412,21 +380,14 @@ Known Issues
 
 	* Major new features:
 
-	  * Image generation endpoint - this preview feature enables image generation based on text
-	 prompts. The endpoint is compatible with OpenAI API making it easy to integrate with the
-	 existing ecosystem.
-	  * Agentic AI enablement via support for tools in LLM models. This preview feature allows
-	 easy integration of OpenVINO serving with AI Agents.
-	  * Model management via OVMS CLI now includes automatic download of OpenVINO models from
-	 Hugging Face Hub. This makes it possible to deploy generative pipelines with just a
-	 single command and manage the models without extra scripts or manual steps. 
+	  * Image generation endpoint - this preview feature enables image generation based on text prompts. The endpoint is compatible with OpenAI API making it easy to integrate with the existing ecosystem.
+	  * Agentic AI enablement via support for tools in LLM models. This preview feature allows easy integration of OpenVINO serving with AI Agents.
+	  * Model management via OVMS CLI now includes automatic download of OpenVINO models from Hugging Face Hub. This makes it possible to deploy generative pipelines with just a single command and manage the models without extra scripts or manual steps. 
 
 	* Other improvements
 
-	  * VLM models with chat/completion endpoint can now support passing the images as URL or as
-	 path to a local file system.
-	  * Option to use C++ only server version with support for LLM models. This smaller deployment
-	 package can be used both for completion and chat/completions.
+	  * VLM models with chat/completion endpoint can now support passing the images as URL or as path to a local file system.
+	  * Option to use C++ only server version with support for LLM models. This smaller deployment package can be used both for completion and chat/completions.
 
 	* The following issues have been fixed:
 
@@ -434,31 +395,20 @@ Known Issues
 
 	* Known limitations
 
-	  * VLM models QuenVL2, QwenVL2.5 and Phi3_VL have low accuracy when deployed in a text
-	 generation pipeline with continuous batching. It is recommended to deploy these models
-	 in a stateful pipeline which processes the requests serially.
+	  * VLM models QuenVL2, QwenVL2.5 and Phi3_VL have low accuracy when deployed in a text generation pipeline with continuous batching. It is recommended to deploy these models in a stateful pipeline which processes the requests serially.
 
 	**Neural Network Compression Framework**
 
-	* Data-free AWQ (Activation-aware Weight Quantization) method for 4-bit weight compression,
-  nncf.compress_weights(), is now available for OpenVINO models. Now it is possible to
-  compress weights to 4-bit with AWQ even without the dataset.
-	* 8-bit and 4-bit data-free weight compression, nncf.compress_weights(), is now available
-  for models in ONNX format.
-  `See example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/onnx/tiny_llama>`__.
-	* 4-bit data-aware AWQ (Activation-aware Weight Quantization) and Scale Estimation methods
-  are now available for models in the TorchFX format.
-	* TorchFunctionMode-based model tracing is now enabled by default for PyTorch models in
-  nncf.quantize() and nncf.compress_weights().
-	* Neural Low-Rank Adapter Search (NLS) Quantization-Aware Training (QAT) for more
-  accurate 4-bit compression of LLMs on downstream tasks is now available.
-  `See example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/torch/downstream_qat_with_nls>`__.
+	* Data-free AWQ (Activation-aware Weight Quantization) method for 4-bit weight compression, nncf.compress_weights(), is now available for OpenVINO models. Now it is possible to compress weights to 4-bit with AWQ even without the dataset.
+	* 8-bit and 4-bit data-free weight compression, nncf.compress_weights(), is now available  for models in ONNX format. `See example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/onnx/tiny_llama>`__.
+	* 4-bit data-aware AWQ (Activation-aware Weight Quantization) and Scale Estimation methods are now available for models in the TorchFX format.
+	* TorchFunctionMode-based model tracing is now enabled by default for PyTorch models in nncf.quantize() and nncf.compress_weights().
+	* Neural Low-Rank Adapter Search (NLS) Quantization-Aware Training (QAT) for more accurate 4-bit compression of LLMs on downstream tasks is now available. `See example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/torch/downstream_qat_with_nls>`__.
 	* Weight compression time for NF4 data type has been reduced.
 
  **OpenVINO Tokenizers**
 
-	* Regex-based normalization and split operations have been optimized, resulting in significant 
-  speed improvements, especially for long input strings.
+	* Regex-based normalization and split operations have been optimized, resulting in significant speed improvements, especially for long input strings.
 	* Two-string inputs are now supported, enabling various tasks, including RAG reranking.
 	* Sentencepiece char-level tokenizers are now supported to enhance the SpeechT5 TTS model.
 	* The tokenization node factory has been exposed to enable OpenVINO GenAI GGUF support.
@@ -472,8 +422,7 @@ Known Issues
 
 	* Visual language modeling (VLMPipeline):
 
-	 * VLM prompt can now refer to specific images. For example, 
-		``<ov_genai_image_0>What’s in the image?`` will prepend the corresponding image to the prompt 
+	 * VLM prompt can now refer to specific images. For example, ``<ov_genai_image_0>What’s in the image?`` will prepend the corresponding image to the prompt 
 		while ignoring other images. See VLMPipeline’s docstrings for more details.
 	 * VLM uses continuous batching by default, improving performance.
 	 * VLMPipeline can now be constructed from in-memory `ov::Model`.
@@ -491,10 +440,8 @@ Known Issues
 	 * SD3 LoRA Adapter support for Text2ImagePipeline,
 	 * `ov::genai::Tokenizer::get_vocab()` method for C++ and Python,
 	 * `ov::Property` as arguments to the `ov_genai_llm_pipeline_create` function for the C API,
-	 * support for the SnapKV method for more accurate KV cache eviction, enabled by default when 
-		KV cache eviction is used,
-	 * preview support for `GGUF models (GGML Unified Format) <https://huggingface.co/models?library=gguf>`__.
-		See the `OpenVINO blog <https://blog.openvino.ai/blog-posts/openvino-genai-supports-gguf-models>`__ for details. 
+	 * support for the SnapKV method for more accurate KV cache eviction, enabled by default when KV cache eviction is used,
+	 * preview support for `GGUF models (GGML Unified Format) <https://huggingface.co/models?library=gguf>`__. See the `OpenVINO blog <https://blog.openvino.ai/blog-posts/openvino-genai-supports-gguf-models>`__ for details. 
 
 	**Other Changes and Known Issues**
 
