@@ -62,6 +62,7 @@ public:
     const std::string& get_name() const;
     std::vector<std::string> get_attribute_names() const;
     const Attribute& get_attribute(const std::string& name) const;
+    ov::Any get_attribute_any(const std::string& name) const;
 
     /// \brief Describe the ONNX Node to make debugging graphs easier
     /// Function will return the Node's name if it has one, or the names of its outputs.

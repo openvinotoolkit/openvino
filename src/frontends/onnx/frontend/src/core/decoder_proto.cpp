@@ -64,6 +64,21 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         case AttributeProto_AttributeType::AttributeProto_AttributeType_TENSOR:
             return static_cast<ov::frontend::onnx::DecoderBase::Ptr>(
                 std::make_shared<DecoderProtoTensor>(&attr.t(), m_parent, 0, 0));
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_SPARSE_TENSOR: {
+            ov::frontend::onnx::SparseTensorInfo sparse_tensor_info{};
+            auto& sparse_tensor = attr.sparse_tensor();
+            sparse_tensor_info.m_partial_shape =
+                ov::PartialShape{std::vector<int64_t>(sparse_tensor.dims().begin(), sparse_tensor.dims().end())};
+            if (sparse_tensor.has_values()) {
+                sparse_tensor_info.m_values = static_cast<ov::frontend::onnx::DecoderBase::Ptr>(
+                    std::make_shared<DecoderProtoTensor>(&sparse_tensor.values(), m_parent, 0, 0));
+            }
+            if (sparse_tensor.has_indices()) {
+                sparse_tensor_info.m_indices = static_cast<ov::frontend::onnx::DecoderBase::Ptr>(
+                    std::make_shared<DecoderProtoTensor>(&sparse_tensor.indices(), m_parent, 0, 0));
+            }
+            return sparse_tensor_info;
+        }
         default:
             throw std::runtime_error("Unsupported attribute type " +
                                      ::ONNX_NAMESPACE::AttributeProto_AttributeType_Name(attr.type()));
