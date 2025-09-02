@@ -116,6 +116,10 @@ ONNX_OP("Constant", OPSET_RANGE(1, 12), ai_onnx::opset_1::constant);
 
 namespace opset_13 {
 ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
+    if (node.has_decoder()) {
+        // Decoder may not have a full capabilities, just try to fallback
+        return opset_1::constant(node);
+    }
     auto attributes_names = node.get_attribute_names();
     FRONT_END_GENERAL_CHECK(attributes_names.size() == 1,
                             "The Constant op expects exactly one attribute."
