@@ -8,25 +8,56 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 void MemoryAllocator::SetUp() {
-    ov::Shape shape = {1, 1, 128};
-    std::vector<int8_t> input(100, 100);
-    std::shared_ptr<ov::ITensor> tensor = ov::make_tensor(ov::element::f32, shape, input.data());
-
-    this->allocator = std::make_shared<zeroMemory::HostMemSharedAllocator>(ZeroInitStructsHolder::getInstance(), tensor, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+    allocator = std::make_shared<zeroMemory::HostMemAllocator>(ZeroInitStructsHolder::getInstance(), ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
 }
 
 void MemoryAllocator::TearDown() {
 
 }
 
-TEST_P(MemoryAllocator, AllocateTwice) {
-    void* ptr;
-    size_t size = this->GetParam();
-    OV_ASSERT_NO_THROW(ptr = allocator->allocate(size));
-    ptr = allocator->allocate(size);
-    (void)ptr;
+TEST_F(MemoryAllocator, AllocateTwice) {
+    ov::Shape shape = {1, 1, 128};
+    auto byteSize = ov::shape_size(shape) * ov::element::f32.size();
+    float* data = static_cast<float*>(::operator new(byteSize, std::align_val_t(4096)));
+    std::shared_ptr<ov::ITensor> tensor = ov::make_tensor(ov::element::f32, shape, data);
+    ::operator delete(data, std::align_val_t(4096));
+
+    sharedAllocator = std::make_shared<zeroMemory::HostMemSharedAllocator>(ZeroInitStructsHolder::getInstance(), tensor, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+
+    size_t size = 1 << 10;
+    void* ptr = sharedAllocator->allocate(size);
+    EXPECT_NE(ptr, nullptr);
+
+    ptr = sharedAllocator->allocate(size);
+    EXPECT_NE(ptr, nullptr);
 }
 
-std::vector<size_t> aa = {10, 10000, 100000};
+TEST_F(MemoryAllocator, AllocateAboveMax) {
+    void* ptr = allocator->allocate(16'106'127'3608);
+    ASSERT_EQ(ptr, nullptr);
+}
 
-INSTANTIATE_TEST_SUITE_P(whatever, MemoryAllocator, ::testing::ValuesIn(aa), MemoryAllocator::getTestCaseName);
+TEST_F(MemoryAllocator, DeallocateNullHandle) {
+    void* ptr = nullptr;
+    bool result = allocator->deallocate(ptr, 0xBADBEEF);
+    ASSERT_EQ(result, false);
+}
+
+TEST_F(MemoryAllocator, AllocateThenDeallocate) {
+    void* ptr;
+    size_t size = 1 << 10;
+
+    ptr = allocator->allocate(size);
+    ASSERT_NE(ptr, nullptr);
+
+    bool result = allocator->deallocate(ptr, size);
+    ASSERT_EQ(result, true);
+}
+
+TEST_F(MemoryAllocator, DeallocateUnknownHandle) {
+    size_t size = 1 << 10;
+    void* ptr = ::operator new(size, std::align_val_t(4096));
+    
+    bool result = allocator->deallocate(ptr, size);
+    ASSERT_EQ(result, true);
+}
