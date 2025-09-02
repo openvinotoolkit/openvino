@@ -106,6 +106,11 @@ jobs:
           # pytorch test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
 
+      - name: Enable core dump
+        run: |
+          ulimit -c unlimited
+          echo '/tmp/core.%e.%p' | sudo tee /proc/sys/kernel/core_pattern
+
       - name: PyTorch Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
         # due to CVS-152795, parallel run is not possible on Windows
@@ -113,7 +118,7 @@ jobs:
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
-          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
+          PARALLEL: '-n 1'
 
       - name: PyTorch torch.export Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
