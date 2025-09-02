@@ -16,7 +16,7 @@
 #include "cpu_types.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/op/one_hot.hpp"
+#include "openvino/op/util/one_hot_base.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 
