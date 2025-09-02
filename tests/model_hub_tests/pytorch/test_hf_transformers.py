@@ -53,9 +53,7 @@ class TestTransformersModel(TestTorchConvertModel):
         self.infer_timeout = 1800
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-        self.image = Image.open(response.raw)
+        self.image = Image.open(requests.get(url, stream=True).raw)
 
     @retry(3, exceptions=(OSError,), delay=1)
     def load_model(self, name, type):

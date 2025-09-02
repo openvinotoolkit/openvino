@@ -17,9 +17,7 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
         import requests
 
         url = "http://images.cocodataset.org/val2017/000000039769.jpg"
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-        self.image = Image.open(response.raw)
+        self.image = Image.open(requests.get(url, stream=True).raw)
         self.image = self.image.resize([640, 480])
 
         subprocess.run([sys.executable, "-m", "pip", "install",

@@ -25,9 +25,7 @@ class TestTransformersModel(TestJaxConvertModel):
         model = FlaxAutoModel.from_pretrained(model_name)
         if model_name in ['google/vit-base-patch16-224-in21k']:
             url = "http://images.cocodataset.org/val2017/000000039769.jpg"
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
-            image = Image.open(response.raw)
+            image = Image.open(requests.get(url, stream=True).raw)
             image_processor = AutoImageProcessor.from_pretrained(model_name)
             self.example = image_processor(images=image, return_tensors="np")
         elif model_name in ['albert/albert-base-v2', 'facebook/bart-base', 'ksmcg/Mistral-tiny']:
@@ -36,9 +34,7 @@ class TestTransformersModel(TestJaxConvertModel):
         elif model_name in ['openai/clip-vit-base-patch32']:
             processor = AutoProcessor.from_pretrained(model_name)
             url = "http://images.cocodataset.org/val2017/000000039769.jpg"
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
-            image = Image.open(response.raw)
+            image = Image.open(requests.get(url, stream=True).raw)
             self.example = processor(text=["a photo of a cat", "a photo of a dog"],
                                      images=image, return_tensors="np", padding=True)
         if isinstance(self.example, BatchFeature):
