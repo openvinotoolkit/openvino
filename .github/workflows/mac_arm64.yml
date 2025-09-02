@@ -20,14 +20,14 @@ on:
    branches:
      - 'master'
      - 'releases/**'
-  # pull_request:
-  #  paths-ignore:
-  #    - '**/docs/**'
-  #    - 'docs/**'
-  #    - '**/**.md'
-  #    - '**.md'
-  #    - '**/layer_tests_summary/**'
-  #    - '**/conformance/**'
+  pull_request:
+   paths-ignore:
+     - '**/docs/**'
+     - 'docs/**'
+     - '**/**.md'
+     - '**.md'
+     - '**/layer_tests_summary/**'
+     - '**/conformance/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -392,7 +392,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: [ Build, Smart_CI ]
-    if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
+    # if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'macos-14'
