@@ -2952,7 +2952,7 @@ TEST(constant_folding, constant_v1_variadic_split_axis_1_3_splits_neg_length) {
               res3_values);
 }
 
-template<typename TOpFunc> 
+template <typename TOpFunc>
 void OneHotConstantFoldingGenericTest(const TOpFunc& op_func) {
     const vector<int64_t> indices{0, 1, 2};
     const float on_value = 1.123f;
