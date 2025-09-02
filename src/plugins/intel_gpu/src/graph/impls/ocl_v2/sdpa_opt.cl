@@ -448,7 +448,6 @@ KERNEL(sdpa_opt)(
                         qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len] = qk_val[seq_idx];
                     }
                 }
-
             }
         } // Gemm1 calculation end
 
