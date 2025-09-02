@@ -61,7 +61,7 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint f_block = (inner_f + outer_f * F_BLOCK_COUNT);
 
     // Feature axis of input tensor is smaller than inner block size : No need to calculate this block
-    if ((f_block*VEC_SIZE) > OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
+    if ((f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
         return;
     }
 
