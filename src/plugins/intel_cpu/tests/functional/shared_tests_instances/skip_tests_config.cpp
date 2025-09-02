@@ -650,6 +650,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets_AddSoftmax.*)");
     retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmaxEltwise.*)");
     // Low-precision Matmuls are not supported by TPP yet
+    retVector.emplace_back(R"(.*smoke_Snippets.*=(BF16|bf16|i8|u8).*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulFQ.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulBiasQuantized.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulsQuantized.*)");

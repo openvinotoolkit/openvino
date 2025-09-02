@@ -199,7 +199,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckSetSupportedRWMandatoryMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
-    ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+    ::testing::Combine(::testing::Values("MULTI:NPU", "AUTO:NPU"),
                        ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
                            {ov::log::level.name()}))),
     ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>);
