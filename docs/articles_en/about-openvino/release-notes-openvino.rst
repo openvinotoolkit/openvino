@@ -33,6 +33,7 @@ What's new
   * Preview: Intel® Core™ Ultra Processor and Windows-based AI PCs can now leverage the OpenVINO™ Execution Provider for Windows* ML for high-performance, off-the-shelf starting experience on Windows*.
 
 * Broader LLM model support and more model compression optimization-technique
+
   * The NPU plug-in adds support for longer contexts of up to 8K tokens, dynamic prompts, and dynamic LoRA for improved LLM performance.
   * The NPU plug-in now supports dynamic batch sizes by reshaping the model to a batch size of 1 and concurrently managing multiple inference requests, enhancing performance and optimizing memory utilization.
   * Accuracy improvements for GenAI models on both built-in and discrete graphics achieved through the implementation of the key cache compression per channel technique, in addition to the existing KV cache per-token compression method.
@@ -227,13 +228,14 @@ OpenVINO GenAI
   * gemma3-4b-it model is now supported in VLM Pipeline
   * Performance metrics for speculative decoding have been extended
   * Qwen2-VL and Qwen2.5-VL have been optimized for GPU 
-  * Dynamic prompts are now enabled by default on NPU: 
+  * Exporting stateful Whisper models are now supported on NPU out of the box, using `--disable-stateful` is no longer required.
+  
+* Dynamic prompts are now enabled by default on NPU: 
   	  
-	  * Longer contexts are available as preview feature on 32GB LNL (with prompt size up to 8..12K tokens). 
-     * The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. E.g., set it to 256 to see the effect on shorter prompts. 
-	  * `PREFILL_HINT` can be set to STATIC to bring back the old behavior.
+	* Longer contexts are available as preview feature on 32GB LNL (with prompt size up to 8..12K tokens). 
+   * The default chunk size is 1024 and can be controlled via property `NPUW_LLM_PREFILL_CHUNK_SIZE`. E.g., set it to 256 to see the effect on shorter prompts. 
+	* `PREFILL_HINT` can be set to STATIC to bring back the old behavior.
 
-* Exporting stateful Whisper models are now supported on NPU out of the box, using `--disable-stateful` is no longer required.
 
 Other Changes and Known Issues
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
