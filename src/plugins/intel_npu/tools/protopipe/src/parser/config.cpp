@@ -4,12 +4,15 @@
 //
 
 #include "parser/config.hpp"
+#include "scenario/criterion.hpp"
 
 #include "utils/error.hpp"
 #include "utils/logger.hpp"
 
+#include <cstdint>
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -649,6 +652,29 @@ static InferenceParams adjustParams(InferenceParams&& params, const GlobalOption
     return adjustParams(std::get<ONNXRTParams>(std::move(params)), opts);
 }
 
+static void parseWorkloadType(const YAML::Node& node, StreamDesc& stream) {
+    WorkloadTypeDesc workload_type;
+    if(node["initial_value"]) {
+        workload_type.initial_value = node["initial_value"].as<std::string>();
+    }
+    else {
+        THROW_ERROR("Missing workload type initial value");
+    }
+    if(node["change_interval"]) {
+        workload_type.change_interval = node["change_interval"].as<uint64_t>();
+    }
+    else {
+        THROW_ERROR("Missing workload type change interval");
+    }
+    if(node["change_to"]) {
+        workload_type.changes = node["change_to"].as<std::vector<std::string>>();
+    }
+    else {
+        THROW_ERROR("Missing workload type change values");
+    }
+    stream.workload_type = std::make_optional(workload_type);
+}
+
 static StreamDesc parseStream(const YAML::Node& node, const GlobalOptions& opts, const std::string& default_name,
                               const ReplaceBy& replace_by) {
     StreamDesc stream;
@@ -680,6 +706,10 @@ static StreamDesc parseStream(const YAML::Node& node, const GlobalOptions& opts,
     if (node["iteration_count"]) {
         const auto iteration_count = node["iteration_count"].as<uint64_t>();
         stream.criterion = std::make_shared<Iterations>(iteration_count);
+    }
+    if (node["workload_type"])
+    {
+        parseWorkloadType(node["workload_type"], stream);
     }
 
     auto networks_list = parseNetworks(node["network"]);
@@ -807,7 +837,10 @@ static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOption
         const auto iteration_count = node["iteration_count"].as<uint64_t>();
         stream.criterion = std::make_shared<Iterations>(iteration_count);
     }
-
+    if (node["workload_type"])
+    {
+        parseWorkloadType(node["workload_type"], stream);
+    }
     auto op_descs = node["op_desc"].as<std::vector<OpDesc>>();
     std::vector<std::vector<std::string>> connections;
     if (node["connections"]) {

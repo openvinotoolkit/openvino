@@ -6,20 +6,28 @@
 #pragma once
 
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "scenario/criterion.hpp"
 #include "scenario/inference.hpp"
 #include "scenario/scenario_graph.hpp"
 
+struct ITermCriterion;
+using ITermCriterionPtr = std::shared_ptr<ITermCriterion>;
+
+struct WorkloadTypeDesc {
+    std::string initial_value;
+    std::vector<std::string> changes;
+    uint64_t change_interval;
+};
 struct StreamDesc {
     // NB: Commons parameters for all modes
     std::string name;
     uint64_t frames_interval_in_us;
     ScenarioGraph graph;
     InferenceParamsMap infer_params_map;
-    ITermCriterion::Ptr criterion;
+    ITermCriterionPtr criterion;
     // Mode specific params
     ModelsAttrMap<IAccuracyMetric::Ptr> metrics_map;
     ModelsAttrMap<IRandomGenerator::Ptr> initializers_map;
@@ -27,6 +35,7 @@ struct StreamDesc {
     ModelsAttrMap<std::string> output_data_map;
     std::optional<double> target_latency;
     std::optional<std::filesystem::path> per_iter_outputs_path;
+    std::optional<WorkloadTypeDesc> workload_type;
 };
 
 struct ScenarioDesc {
