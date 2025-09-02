@@ -172,7 +172,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
         uint kv_pos_end = KV_BLOCK_SIZE;
         if(block_idx == block_num - 1 && leftover_aligned_size > 0) {
-            kv_pos_end = leftover_aligned_size;
+            kv_pos_end = leftover_size % KV_BLOCK_SIZE;
         }
         for(int kv_pos = 0; kv_pos < kv_pos_end; kv_pos += KV_STEP, ki++) {
             auto rSvec = rS[ki].format<float>();
@@ -295,7 +295,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     
         uint kv_pos_end = KV_BLOCK_SIZE;
         if(block_idx == block_num - 1 && leftover_aligned_size > 0) {
-            kv_pos_end = leftover_aligned_size;
+            kv_pos_end = leftover_size % KV_BLOCK_SIZE;
         }
         for(int kv_pos =0; kv_pos < kv_pos_end; kv_pos += REG_K, ki++) {
             uint kv_offset_y = kv_pos;
