@@ -44,6 +44,7 @@
 #include "transformations/utils/utils.hpp"
 #include "openvino/op/util/op_types.hpp"
 
+
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
 #undef DEVICE_TYPE
