@@ -704,7 +704,6 @@ private:
         auto query_layout = layout{query_shape, data_types::f16, format::bfyx};
         auto key_layout = layout{key_shape, data_types::f16, format::bfyx};
         auto value_layout = layout{value_shape, data_types::f16, format::bfyx};
-        auto scale_layout = cldnn::layout({1}, data_types::f16, format::bfyx);
 
         OPENVINO_ASSERT(query_layout.count() == query_data.size());
         OPENVINO_ASSERT(key_layout.count() == key_data.size());

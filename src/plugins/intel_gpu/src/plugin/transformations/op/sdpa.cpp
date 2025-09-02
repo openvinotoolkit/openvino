@@ -131,6 +131,7 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
 
         return transposed_pshape;
     };
+
     auto shape_q_t = (order_q.size() > 1) ? transpose_pshape(shape_q, order_q) : shape_q;
     auto shape_k_t = (order_k.size() > 1) ? transpose_pshape(shape_k, order_k) : shape_k;
     auto shape_v_t = (order_v.size() > 1) ? transpose_pshape(shape_v, order_v) : shape_v;
