@@ -166,6 +166,9 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             tensor_meta_info.m_tensor_data_size = tensor_info->raw_data().size();
         }
     }
+    if (tensor_meta_info.m_tensor_name == nullptr) {
+        tensor_meta_info.m_tensor_name = &empty_name;
+    }
     return tensor_meta_info;
 }
 
