@@ -152,7 +152,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_SCALE
         global SCALE_DATA_T *scale_ptr,
 #endif
-#if HAS_SINK_INPUT
+#ifdef HAS_SINK_INPUT
         const global SINK_DATA_T *sink_ptr,
 #endif
 #if IS_PAGED_ATTENTION
@@ -320,10 +320,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #endif
     const float log2_e = 1.442695f;
-#ifdef HAS_SINK_INPUT
-#define SCALE_LOG_2_E 0
-#else
-#define SCALE_LOG_2_E 1
+#if !defined(HAS_SINK_INPUT)
+#define LOG_2_E_MUL_SCALE 1
     scale *= log2_e;
 #endif
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
@@ -461,13 +459,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #elif WITH_ATTN_MASK
         mask_tile_type_float mask_tile_float;
         tile_copy(mask_tile, mask_tile_float);
-#if (SCALE_LOG_2_E == 0)
-#define scale(x) ((x)* scale)
-        tile_elementwise(S_tile, scale);
-#else
+#ifdef LOG_2_E_MUL_SCALE
 #define unscale(x) ((x)*iscale)
         tile_elementwise(mask_tile_float, unscale);
-#endif
+#else
+#define scale(x) ((x)* scale)
+        tile_elementwise(S_tile, scale);
+#endif // LOG_2_MUL_SCALE
         tile_binary(S_tile, mask_tile_float, binary_add);
 #endif
 
@@ -492,7 +490,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_atomic_max_full(
                 S_max_tile, S_max_slm, ugemm_kq_wg_tile_n, sg_j0_kq, 0);
         intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
-        #if HAS_SINK_INPUT
+        #ifdef HAS_SINK_INPUT
         const int head_idx = get_group_id(1);
         const float sink_val = convert_float(sink_ptr[head_idx]);
         float2 sink_val_vec = {sink_val, sink_val};
@@ -566,8 +564,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_vbroadcast_sub(&S_tile, S_max_tile);
         // now S_tile = (qk * scale + mask - max
 /* Scale + exponentiate */
-#if SCALE_LOG_2_E == 1
-#define scaled_exp(x) native_vexp2(x *scale)
+#ifdef LOG_2_E_MUL_SCALE
+#define scaled_exp(x) native_vexp2(x * scale)
 #else
 #define scaled_exp(x) native_vexp2(x * log2_e)
 #endif
@@ -613,10 +611,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Rescale existing accumulator and sums to match new maxima */
         if (!first) {
-#if (SCALE_LOG_2_E == 0)
-#define binary_exp_sub(x, y) native_vexp2(((x) - (y)) * log2_e)
-#else
+#ifdef LOG_2_E_MUL_SCALE
 #define binary_exp_sub(x, y) native_vexp2(scale *((x) - (y)))
+#else
+#define binary_exp_sub(x, y) native_vexp2(((x) - (y)) * log2_e)
 #endif
 #define binary_mul(x, y) ((x) * (y))
             tile_binary(S_max_tile_old, S_max_tile, binary_exp_sub);
