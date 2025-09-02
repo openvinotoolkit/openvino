@@ -37,6 +37,7 @@
 #include "transpose_kernel.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
+#include "xattention.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
@@ -2192,6 +2193,16 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              sinks,
              output_emb,
              output_score);
+
+        PlainTensor sum;
+        PlainTensor mask;
+        auto stride = 16;
+        auto block_size = 128;
+        auto threshold = 0.9f;
+
+        if (q.size(0) > 1) {
+            mask = xattn_estimate(q, k, block_size, stride, 1, threshold, true);
+        }
 
         if (rotated_block_indices) {
             // Rotate kv cache currently doesn't support quantized cache.
