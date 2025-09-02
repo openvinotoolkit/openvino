@@ -69,14 +69,18 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
         _graph->initialize(_config);
     }
 
-    const std::shared_ptr<SyncInferRequest>& syncInferRequest =
-        _device->createInferRequest(shared_from_this(), _config);
-    syncInferRequest->initialize_states();
+    // by avoiding dynamic cast here, we need to get "infer_async" and "get_result" from ZeroInferRequest
+    std::function<void(void)> inferAsyncF;
+    std::function<void(void)> getResultF;
+    const std::shared_ptr<ov::IInferRequest>& syncInferRequest =
+        _device->createInferRequest(shared_from_this(), _config, inferAsyncF, getResultF);
 
     return std::make_shared<AsyncInferRequest>(syncInferRequest,
                                                get_task_executor(),
                                                _resultExecutor,
-                                               get_callback_executor());
+                                               get_callback_executor(),
+                                               inferAsyncF,
+                                               getResultF);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {

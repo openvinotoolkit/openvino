@@ -32,8 +32,10 @@ public:
     std::map<ov::element::Type, float> getGops() const override;
     ov::device::Type getDeviceType() const override;
 
-    std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                                         const Config& config) override;
+    std::shared_ptr<ov::IInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
+                                                          const Config& config,
+                                                          std::function<void(void)>& inferAsyncF,
+                                                          std::function<void(void)>& getResultF) override;
     void updateInfo(const Config& config) override {
         log.setLevel(config.get<LOG_LEVEL>());
     }

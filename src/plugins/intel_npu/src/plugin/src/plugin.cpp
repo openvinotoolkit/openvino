@@ -699,7 +699,30 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
         stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
-        return parse(tensor, std::move(metadata), npu_plugin_properties);
+        auto compiledModel = parse(tensor, std::move(metadata), npu_plugin_properties);
+        _logger.debug(
+            "Parsed net with name: %s, having inputs:",
+            std::dynamic_pointer_cast<CompiledModel>(compiledModel)->get_graph()->get_metadata().name.c_str());
+        for (const auto& input :
+             std::dynamic_pointer_cast<CompiledModel>(compiledModel)->get_graph()->get_metadata().inputs) {
+            std::stringstream ss;
+            ss << input.shapeFromCompiler.get_shape();
+            _logger.debug("\t%s: %s = %d",
+                          input.nameFromCompiler.c_str(),
+                          ss.str().c_str(),
+                          ov::shape_size(input.shapeFromCompiler.get_shape()) * input.precision.size());
+        }
+        _logger.debug("and outputs:");
+        for (const auto& output :
+             std::dynamic_pointer_cast<CompiledModel>(compiledModel)->get_graph()->get_metadata().outputs) {
+            std::stringstream ss;
+            ss << output.shapeFromCompiler.get_shape();
+            _logger.debug("\t%s: %s = %d",
+                          output.nameFromCompiler.c_str(),
+                          ss.str().c_str(),
+                          ov::shape_size(output.shapeFromCompiler.get_shape()) * output.precision.size());
+        }
+        return compiledModel;
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
