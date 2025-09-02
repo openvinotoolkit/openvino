@@ -24,6 +24,7 @@ target_link_libraries(${TARGET_NAME}
     PUBLIC
         openvino::npu_logger_utils
         openvino::runtime::dev
+        openvino_xml_util
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
