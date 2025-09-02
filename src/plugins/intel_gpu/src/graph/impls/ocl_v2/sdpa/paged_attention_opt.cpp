@@ -1374,7 +1374,7 @@ public:
             const auto max_context_len = get_max_context_len(params);
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
-        bool can_use_micro_sdpa = false; //stage == PagedAttentionStage::PREFILL;
+        bool can_use_micro_sdpa = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
         can_use_micro_sdpa = has_stage(pa_sdpa_micro) && stage != PagedAttentionStage::GENERATE;
 #endif
@@ -1464,7 +1464,7 @@ public:
             const auto wg_tile_q = get_micro_tile_qsize(pa_sdpa_micro->kd);
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
-            internal_buffers.emplace_back(indexes_buf_size * 30, indexes_dt, lockable);
+            internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
         }
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: internal_buffers.size = " << internal_buffers.size() << std::endl;
