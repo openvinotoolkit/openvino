@@ -340,10 +340,8 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-        utils::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
-        utils::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
-#endif
+        utils::EltwiseTypes::SUBTRACT,
+        utils::EltwiseTypes::DIVIDE,
         utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::SQUARED_DIFF,
         utils::EltwiseTypes::MOD,
@@ -355,6 +353,8 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
+        utils::EltwiseTypes::SUBTRACT,
+        utils::EltwiseTypes::DIVIDE,
         utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::MOD,
         utils::EltwiseTypes::POWER,
@@ -375,9 +375,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinDyn() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinDyn = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) // TODO: Fix CVS-105430
         utils::EltwiseTypes::SUBTRACT,
-#endif
         utils::EltwiseTypes::SQUARED_DIFF,
     };
     return eltwiseOpTypesBinDyn;
@@ -451,10 +449,8 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesI32() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesI32 = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) // TODO: Fix CVS-105430
         utils::EltwiseTypes::SUBTRACT,
         utils::EltwiseTypes::DIVIDE,
-#endif
         utils::EltwiseTypes::SQUARED_DIFF,
     };
     return eltwiseOpTypesI32;
