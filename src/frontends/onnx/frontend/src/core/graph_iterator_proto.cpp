@@ -174,12 +174,15 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-GraphIteratorProto::GraphIteratorProto(const std::wstring& path)
-    : GraphIteratorProto(ov::util::wstring_to_string(path)) {}
+GraphIteratorProto::GraphIteratorProto(const std::wstring& path, const bool enable_mmap)
+    : GraphIteratorProto(ov::util::wstring_to_string(path), enable_mmap) {}
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-GraphIteratorProto::GraphIteratorProto(const std::string& path) : m_parent(nullptr) {
+GraphIteratorProto::GraphIteratorProto(const std::string& path, const bool enable_mmap)
+    : m_parent(nullptr),
+      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
+                               : nullptr} {
     // @TODO: This is a really bad thing - resource allocation in a constructor
     // Need to think about usage init()/reset() as a base for resource allocation
     try {
@@ -205,6 +208,7 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) : m_parent(nullp
 }
 
 GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def) {
+    m_mmap_cache = parent->m_mmap_cache;
     m_parent = parent;
     m_model = parent->m_model;
     m_graph = graph_def;
