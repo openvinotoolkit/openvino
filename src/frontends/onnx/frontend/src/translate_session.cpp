@@ -72,8 +72,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             }
             auto tensor_it = m_tensor_values.find(name);
             // If tensor wasn't found - probably we may need to find it another way
-            auto is_param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(tensor_it->second.get_node_shared_ptr());
-            if (tensor_it == m_tensor_values.end() || is_param) {
+            std::shared_ptr<ov::op::v0::Parameter> is_param = nullptr;
+            if (tensor_it == m_tensor_values.end() || (is_param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
+                                                           tensor_it->second.get_node_shared_ptr())) != nullptr) {
                 auto place_it = all_tensor_places.find(name);
                 if (place_it != all_tensor_places.end()) {
                     if (place_it->second->get_data_location() != nullptr) {
