@@ -52,25 +52,25 @@ uint64_t KVBlock::compute_block_hash(const std::vector<uint64_t>& token_hashes) 
 void KVBlock::print_block_info(bool verbose) const {
     constexpr size_t BYTES_IN_MB = 1024 * 1024;
 
-    LOG_INFO("Block information: ");
-    LOG_INFO("  Block size: " << m_block_size);
-    LOG_INFO("  Block hash: " << m_block_hash);
-    LOG_INFO("  Ref Count: " << m_ref_count);
-    LOG_INFO("  Status: " << (m_is_full ? "Full" : "Not Full"));
-    LOG_INFO("  Token start: " << m_token_start);
+    LOG_VERB("Block information: ");
+    LOG_VERB("  Block size: " << m_block_size);
+    LOG_VERB("  Block hash: " << m_block_hash);
+    LOG_VERB("  Ref Count: " << m_ref_count);
+    LOG_VERB("  Status: " << (m_is_full ? "Full" : "Not Full"));
+    LOG_VERB("  Token start: " << m_token_start);
 
-    LOG_INFO("  Children blocks: ");
+    LOG_VERB("  Children blocks: ");
     if (m_child_block_hashes.empty()) {
-        LOG_INFO("    Null");
+        LOG_VERB("    Null");
     } else {
         size_t index = 0;
         for (auto it = m_child_block_hashes.begin(); it != m_child_block_hashes.end(); ++it, ++index) {
-            LOG_INFO("    hash [" << index << "]: " << *it);
+            LOG_VERB("    hash [" << index << "]: " << *it);
         }
     }
 
     if (verbose) {
-        LOG_INFO("  KV cache stored in block: ");
+        LOG_VERB("  KV cache stored in block: ");
     }
     size_t total_size = 0;
     for (const auto& pair : m_kv_data) {
@@ -84,16 +84,16 @@ void KVBlock::print_block_info(bool verbose) const {
         }
 
         // Print KV cache stored in block verbosely
-        LOG_INFO("Name: " << name);
+        LOG_VERB("Name: " << name);
         if (tensor) {
-            LOG_INFO("Tensor Shape: " << tensor->get_shape().to_string());
+            LOG_VERB("Tensor Shape: " << tensor->get_shape().to_string());
         } else {
-            LOG_INFO("Tensor is null");
+            LOG_VERB("Tensor is null");
         }
-        LOG_INFO("----------------------------------------");
+        LOG_VERB("----------------------------------------");
     }
 
-    LOG_INFO("  KV cache tensor total size: " << total_size / BYTES_IN_MB << " MB");
+    LOG_VERB("  KV cache tensor total size: " << total_size / BYTES_IN_MB << " MB");
 }
 
 void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash) {
@@ -139,7 +139,7 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         // New added block is a leaf node
         update_lru_unsafe(block);
 
-        LOG_INFO("[Cache store]Got a full block. Token start: " << block->get_token_start()
+        LOG_VERB("[Cache store]Got a full block. Token start: " << block->get_token_start()
                                                                 << " block hash: " << block->get_block_hash());
     }
 }
@@ -159,7 +159,7 @@ bool PrefixCacheManager::evict_lru_block_unsafe() {
             continue;
         }
 
-        LOG_INFO("Cache is full, evict LRU block");
+        LOG_VERB("Cache is full, evict LRU block");
         lru_block->print_block_info(false);
 
         // Unlink LRU blocks
@@ -191,7 +191,7 @@ bool PrefixCacheManager::get_block(uint64_t combined_hash, std::shared_ptr<KVBlo
     return false;
 }
 
-std::shared_ptr<KVBlock> PrefixCacheManager::get_block_unsafe(uint64_t combined_hash) {
+std::shared_ptr<KVBlock> PrefixCacheManager::get_block_unsafe(uint64_t combined_hash) const {
     auto it = m_cache_map.find(combined_hash);
     if (it != m_cache_map.end()) {
         return it->second;
@@ -201,23 +201,23 @@ std::shared_ptr<KVBlock> PrefixCacheManager::get_block_unsafe(uint64_t combined_
 }
 
 void PrefixCacheManager::print_cache_status(bool verbose) const {
-    LOG_INFO("Cache Status:");
-    LOG_INFO("Max Cache Size: " << m_max_cache_size);
-    LOG_INFO("Number of Cached Blocks: " << m_cache_map.size());
-    LOG_INFO("----------------------------------------");
+    LOG_VERB("Cache Status:");
+    LOG_VERB("Max Cache Size: " << m_max_cache_size);
+    LOG_VERB("Number of Cached Blocks: " << m_cache_map.size());
+    LOG_VERB("----------------------------------------");
 
     // Print information of all blocks in cache
     for (const auto& pair : m_cache_map) {
         uint64_t key = pair.first;
         std::shared_ptr<KVBlock> block = pair.second;
 
-        LOG_INFO("Key Hash: " << key);
+        LOG_VERB("Key Hash: " << key);
         if (block) {
             block->print_block_info(verbose);
         } else {
-            LOG_INFO("  Block is null");
+            LOG_VERB("  Block is null");
         }
-        LOG_INFO("----------------------------------------");
+        LOG_VERB("----------------------------------------");
     }
 }
 

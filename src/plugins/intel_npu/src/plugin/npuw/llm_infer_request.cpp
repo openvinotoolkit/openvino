@@ -260,7 +260,8 @@ size_t adjust_chunk_size(size_t restored_token_num, size_t chunk_len) {
     // - The input prompt length is 1024, and the chunk size is 256. Initially, the present KV length in the inference
     // request is 256, and the past KV length is 768.
     // - Initially, 128 tokens have been restored from the cache, leaving 1024 - 128 = 896 tokens that need to be
-    // computed. Round 1:
+    // computed.
+    // Round 1:
     // - 128 tokens are stored in the past KV.
     // - Infer for 256 tokens in the present KV.
     // - After updating the KV cache, the past KV will hold 128 + 256 tokens, leaving 896 - 256 = 640 tokens.
@@ -268,7 +269,8 @@ size_t adjust_chunk_size(size_t restored_token_num, size_t chunk_len) {
     // - 128 + 256 tokens are stored in the past KV.
     // - Infer for another 256 tokens in the present KV.
     // - After updating the KV cache, the past KV will hold 128 + 256 + 256 tokens, leaving 896 - 256 - 256 = 384
-    // tokens. Round 3:
+    // tokens.
+    // Round 3:
     // - 128 + 256 + 256 tokens are stored in the past KV.
     // - Infer for another 256 tokens in the present KV.
     // - KV cache update would fail because the past KV cannot accommodate 128 + 256 + 256 + 256 tokens.
@@ -281,13 +283,13 @@ size_t adjust_chunk_size(size_t restored_token_num, size_t chunk_len) {
     // Round 2:
     // - 256 tokens are stored in the past KV.
     // - Infer for 256 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 256 + 256 tokens, leaving 896 - 128 - 256 = 512 tokens.
-    // Round 3:
+    // - After updating the KV cache, the past KV will hold 128 + 128 + 256 tokens, leaving 896 - 128 - 256 = 512
+    // tokens. Round 3:
     // - 256 + 256 tokens are stored in the past KV.
     // - Infer for 256 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 256 + 256 + 256 tokens, leaving 896 - 128 - 256 - 256 = 256
-    // tokens. Round 4:
-    // - 256 + 256 + 256 tokens are stored in the past KV.
+    // - After updating the KV cache, the past KV will hold 128 + 128 + 256 + 256 tokens, leaving 896 - 128 - 256 - 256
+    // = 256 tokens. Round 4:
+    // - 128 + 128 + 256 + 256 tokens are stored in the past KV.
     // - Infer for the last 256 tokens in the present KV, completing the prefill for all prompts.
 
     return chunk_len - restored_token_num % chunk_len;
@@ -556,6 +558,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             // The task is to copy both parts into the KV-cache input tensor for the decoding process
 
             // Copy part 1 KV results
+            // tokens_in_past_chunks may be 0 in case short prompts are prefilled in single chunk
             auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
             if (tokens_in_past_chunks > 0) {
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
@@ -687,7 +690,7 @@ uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(
 
         std::shared_ptr<KVBlock> retrieved_block;
         if (!m_prefix_cache->get_block(block_hash, retrieved_block)) {
-            LOG_INFO("[PrefixCache] No cache block found for hash " << block_hash
+            LOG_VERB("[PrefixCache] No cache block found for hash " << block_hash
                                                                     << ", will compute remaining tokens.");
             break;
         }
@@ -695,7 +698,7 @@ uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(
         // Cache hit
         auto token_start = retrieved_block->get_token_start();
         const KVData block_kv_data = retrieved_block->get_block_kv_data();
-        LOG_INFO("[PrefixCache] Cache hit for block hash " << block_hash << ", restored tokens start from position "
+        LOG_VERB("[PrefixCache] Cache hit for block hash " << block_hash << ", restored tokens start from position "
                                                            << token_start << ".");
         for (auto kv_per_layer : block_kv_data) {
             auto kv_out_name = kv_per_layer.first;
@@ -838,7 +841,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         auto restored_token_num =
             restore_cached_blocks(input_ids, prefix_caching_block_size, prompt_hashes, input_name_map);
         uint64_t scheduled_token_num = input_prompt_len - restored_token_num;
-        LOG_INFO("[PrefixCache] Successfully restored " << restored_token_num
+        LOG_VERB("[PrefixCache] Successfully restored " << restored_token_num
                                                         << " tokens from cache. "
                                                            "Will compute "
                                                         << scheduled_token_num << " tokens out of total input length "

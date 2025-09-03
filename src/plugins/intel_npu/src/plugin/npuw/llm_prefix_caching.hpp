@@ -32,7 +32,7 @@ public:
         m_token_hashes.reserve(m_block_size);
     }
 
-    bool is_full() {
+    bool is_full() const {
         return m_is_full;
     }
 
@@ -40,23 +40,23 @@ public:
         m_token_start = token_start;
     }
 
-    const size_t get_token_start() {
+    size_t get_token_start() const {
         return m_token_start;
     }
 
-    const uint64_t get_block_hash() {
+    uint64_t get_block_hash() const {
         return m_block_hash;
     }
 
-    const std::unordered_set<uint64_t>& get_child_block_hashes() {
+    const std::unordered_set<uint64_t>& get_child_block_hashes() const {
         return m_child_block_hashes;
     }
 
-    const uint64_t get_parent_block_hash() {
+    uint64_t get_parent_block_hash() const {
         return m_parent_block_hash;
     }
 
-    const KVData& get_block_kv_data() {
+    const KVData& get_block_kv_data() const {
         return m_kv_data;
     }
 
@@ -118,7 +118,7 @@ private:
     std::list<std::shared_ptr<KVBlock>> m_lru_list;
 
     // Retrieve a block from the cache by hash without holding a mutex
-    std::shared_ptr<KVBlock> get_block_unsafe(uint64_t combined_hash);
+    std::shared_ptr<KVBlock> get_block_unsafe(uint64_t combined_hash) const;
     void update_lru_unsafe(const std::shared_ptr<KVBlock>& block);
     // Evict the least recently used blocks with no children
     bool evict_lru_block_unsafe();
