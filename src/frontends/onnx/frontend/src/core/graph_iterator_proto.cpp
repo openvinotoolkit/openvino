@@ -88,7 +88,11 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         ov::util::get_absolute_file_path(ov::util::path_join({graph_iterator->get_model_dir(), ext_location}).string());
     const int64_t file_size = ov::util::file_size(full_path);
     if (file_size <= 0 || ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {
-        throw std::runtime_error("Invalid usage of method for externally stored data");
+        // not_existed_file.data, offset: 4096, data_length: 16)
+        std::stringstream ss;
+        ss << "Invalid usage of method for externally stored data in file (" << ext_location;
+        ss << ", offset: " << ext_data_offset << ", data_length: " << ext_data_length << ")";
+        throw std::runtime_error(ss.str());
     }
     auto memory_mode = graph_iterator->get_memory_management_mode();
     if (ext_location == "*/_ORT_MEM_ADDR_/*") {
