@@ -3,9 +3,12 @@
 //
 
 #include "memory.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+
+using namespace intel_npu;
 
 void MemoryAllocator::SetUp() {
     allocator = std::make_shared<zeroMemory::HostMemAllocator>(ZeroInitStructsHolder::getInstance(), ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
@@ -30,16 +33,25 @@ TEST_F(MemoryAllocator, AllocateTwice) {
 
     ptr = sharedAllocator->allocate(size);
     EXPECT_NE(ptr, nullptr);
+
+    bool result = zeroUtils::memory_was_allocated_in_the_same_l0_context(ZeroInitStructsHolder::getInstance()->getContext(), ptr);
+    ASSERT_EQ(result, true);
 }
 
 TEST_F(MemoryAllocator, AllocateAboveMax) {
-    void* ptr = allocator->allocate(16'106'127'3608);
+    void* ptr = allocator->allocate(161'061'273'608);
     ASSERT_EQ(ptr, nullptr);
+
+    bool result = zeroUtils::memory_was_allocated_in_the_same_l0_context(ZeroInitStructsHolder::getInstance()->getContext(), ptr);
+    ASSERT_EQ(result, false);
 }
 
 TEST_F(MemoryAllocator, DeallocateNullHandle) {
     void* ptr = nullptr;
-    bool result = allocator->deallocate(ptr, 0xBADBEEF);
+    bool result = allocator->deallocate(ptr, 0xDEADBEEF);
+    ASSERT_EQ(result, false);
+
+    result = zeroUtils::memory_was_allocated_in_the_same_l0_context(ZeroInitStructsHolder::getInstance()->getContext(), ptr);
     ASSERT_EQ(result, false);
 }
 
@@ -52,6 +64,9 @@ TEST_F(MemoryAllocator, AllocateThenDeallocate) {
 
     bool result = allocator->deallocate(ptr, size);
     ASSERT_EQ(result, true);
+
+    result = zeroUtils::memory_was_allocated_in_the_same_l0_context(ZeroInitStructsHolder::getInstance()->getContext(), ptr);
+    ASSERT_EQ(result, false);
 }
 
 TEST_F(MemoryAllocator, DeallocateUnknownHandle) {
@@ -60,4 +75,9 @@ TEST_F(MemoryAllocator, DeallocateUnknownHandle) {
     
     bool result = allocator->deallocate(ptr, size);
     ASSERT_EQ(result, true);
+
+    result = zeroUtils::memory_was_allocated_in_the_same_l0_context(ZeroInitStructsHolder::getInstance()->getContext(), ptr);
+    ASSERT_EQ(result, true);
+
+    ::operator delete(ptr, std::align_val_t(4096));
 }
