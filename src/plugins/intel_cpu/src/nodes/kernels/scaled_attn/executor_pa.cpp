@@ -8,6 +8,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstdint>
 #include <cstring>
+#include <iomanip>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -16,6 +17,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/reference/xattention.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -829,7 +831,8 @@ struct MHAHelper {
                               const PlainTensor& alibi_slopes,
                               float* score_output,
                               size_t q_start_idx_score,
-                              const ScoreAggregationInfo* score_info_ptr) {
+                              const ScoreAggregationInfo* score_info_ptr,
+                              const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& xattention_retained_block_indices) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -880,6 +883,10 @@ struct MHAHelper {
                 }
             }
 
+            DATA_TYPE* xattn_mask = nullptr;
+            std::vector<DATA_TYPE> xattn_mask_storage;
+
+
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
@@ -889,6 +896,12 @@ struct MHAHelper {
                     _params.is_sage_attn
                         ? _d_scale * reinterpret_cast<float*>(_quantized_q.ptr<int8_t>(ithr, m - q_start, 0))[0]
                         : _d_scale;
+                size_t cur_kv_len_padded = rnd_up(cur_kv_len, _block_size);
+                if (!xattention_retained_block_indices.empty()) {
+                    xattn_mask_storage = get_xattention_mask_for_token_in_block(xattention_retained_block_indices[h], q_blk, m - q_start, cur_kv_len_padded);
+                    xattn_mask = xattn_mask_storage.data();
+                }
+
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -901,11 +914,11 @@ struct MHAHelper {
                                                reinterpret_cast<DATA_TYPE*>(score) + start_idx,
                                                revised_d_scale,
                                                alibi_lookup,
-                                               nullptr,
+                                               reinterpret_cast<void*>(xattn_mask + start_idx),
                                                nullptr,
                                                false,
                                                new_causal,
-                                               rnd_up(cur_kv_len, _block_size) - start_idx,
+                                               cur_kv_len_padded - start_idx,
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value);
 
@@ -918,15 +931,16 @@ struct MHAHelper {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
                     }
+
                     attn_softmax_kernel<float>(score,
                                                reinterpret_cast<DATA_TYPE*>(score),
                                                revised_d_scale,
                                                alibi_lookup,
-                                               nullptr,
+                                               reinterpret_cast<void*>(xattn_mask),
                                                nullptr,
                                                false,
                                                ncausal,
-                                               rnd_up(cur_kv_len, _block_size),
+                                               cur_kv_len_padded,
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
                                                alibi_slope);
@@ -1015,7 +1029,8 @@ struct MHAHelper {
                                   const PlainTensor& alibi_slopes,
                                   float* score_output,
                                   size_t q_start_idx_score,
-                                  const ScoreAggregationInfo* score_info_ptr) {
+                                  const ScoreAggregationInfo* score_info_ptr,
+                                  const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& xattention_retained_block_indices) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -1052,6 +1067,9 @@ struct MHAHelper {
                 qkKernel.executeGemm(q_ptr, packedB_k.ptr<float16_t>(0), qk_out_ptr);
             }
 
+            DATA_TYPE* xattn_mask = nullptr;
+            std::vector<DATA_TYPE> xattn_mask_storage;
+
             for (size_t m = q_start; m < q_end; m++) {
                 // apply softmax in f32 precision
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
@@ -1065,6 +1083,15 @@ struct MHAHelper {
                                         rnd_up(cur_kv_len, _block_size));
                     soft_in = f32_cvt.ptr<float>(0);
                 }
+
+                size_t cur_kv_len_padded = rnd_up(cur_kv_len, _block_size);
+                if (!xattention_retained_block_indices.empty()) {
+                    size_t block_idx = pq / _block_size;
+                    size_t token_in_block = pq - block_idx * _block_size;
+                    xattn_mask_storage = get_xattention_mask_for_token_in_block(xattention_retained_block_indices[h], block_idx, token_in_block, cur_kv_len_padded);
+                    xattn_mask = xattn_mask_storage.data();
+                }
+
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -1077,11 +1104,11 @@ struct MHAHelper {
                                                reinterpret_cast<DATA_TYPE*>(score) + start_idx,
                                                _d_scale,
                                                alibi_lookup,
-                                               nullptr,
+                                               reinterpret_cast<void*>(xattn_mask + start_idx),
                                                nullptr,
                                                false,
                                                new_causal,
-                                               rnd_up(cur_kv_len, _block_size) - start_idx,
+                                               cur_kv_len_padded - start_idx,
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value);
 
@@ -1098,11 +1125,11 @@ struct MHAHelper {
                                                reinterpret_cast<DATA_TYPE*>(score),
                                                _d_scale,
                                                alibi_lookup,
-                                               nullptr,
+                                               reinterpret_cast<DATA_TYPE*>(xattn_mask),
                                                nullptr,
                                                false,
                                                ncausal,
-                                               rnd_up(cur_kv_len, _block_size),
+                                               cur_kv_len_padded,
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
                                                alibi_slope);
@@ -1155,7 +1182,8 @@ struct MHAHelper {
                             size_t q_len,
                             size_t cur_kv_len,
                             const PlainTensor& alibi_slopes,
-                            float* score_output) {
+                            float* score_output,
+                            const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& xattention_retained_block_indices) {
 #    if defined(OPENVINO_ARCH_X86_64)
         if (any_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
@@ -1203,8 +1231,17 @@ struct MHAHelper {
         }
 #    endif
 
+        DATA_TYPE* xattn_mask = nullptr;
+        std::vector<DATA_TYPE> xattn_mask_storage;
+
         for (size_t pq = 0; pq < q_len; pq++) {
             for (size_t h = hq_beg; h < hq_end; h++) {
+                if (!xattention_retained_block_indices.empty()) {
+                    size_t block_idx = pq / _block_size;
+                    size_t token_in_block = pq - block_idx * _block_size;
+                    xattn_mask_storage = get_xattention_mask_for_token_in_block(xattention_retained_block_indices[h], block_idx, token_in_block, cur_kv_len);
+                    xattn_mask = xattn_mask_storage.data();
+                }
                 // apply attention mask & sofmax
                 float* alibi_lookup = nullptr;
                 float alibi_slope = 0.F;
@@ -1216,7 +1253,7 @@ struct MHAHelper {
                                            _weight.ptr<float>(ithr, h - hq_beg, pq),
                                            _d_scale,
                                            alibi_lookup,
-                                           nullptr,
+                                           reinterpret_cast<void*>(xattn_mask),
                                            nullptr,
                                            false,
                                            cur_kv_len,
@@ -1289,7 +1326,8 @@ struct MHAHelper {
                        const PlainTensor& block_indices,
                        const PlainTensor& block_indices_begins,
                        const PlainTensor& alibi_slopes,
-                       const PlainTensor& score_aggregation_window) {
+                       const PlainTensor& score_aggregation_window,
+                       const std::vector<ov::reference::XAttentionRetainedBlockIndicesForAllHeads>& xattention_retained_block_indices_for_all_seqs) {
         auto B = past_lens.size(0);
         auto q_len = query.size(2);
         auto kv_len_in_blocks = div_up(max_context_len, _block_size);
@@ -1379,7 +1417,10 @@ struct MHAHelper {
             }
         };
 
+
         auto loop_softmax = [&](size_t b, size_t h, size_t pq) {
+            DATA_TYPE* xattn_mask = nullptr;
+            std::vector<DATA_TYPE> xattn_mask_storage;
             auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto ncausal = cur_kv_len;
             // apply attention mask & sofmax
@@ -1389,11 +1430,19 @@ struct MHAHelper {
                 alibi_slope = alibi_slopes.ptr<float>()[h];
                 alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
             }
+
+            size_t block_idx = pq / _block_size;
+            size_t token_in_block = pq - block_idx * _block_size;
+            if (!xattention_retained_block_indices_for_all_seqs[b].empty()) {
+                xattn_mask_storage = get_xattention_mask_for_token_in_block(xattention_retained_block_indices_for_all_seqs[b][h], block_idx, token_in_block, cur_kv_len);
+                xattn_mask = xattn_mask_storage.data();
+            }
+
             attn_softmax_kernel<float>(_weight_bhl.ptr<float>(b, h, pq),
                                        _weight_bhl.ptr<float>(b, h, pq),
                                        _d_scale,
                                        alibi_lookup,
-                                       nullptr,
+                                       reinterpret_cast<void*>(xattn_mask),
                                        nullptr,
                                        false,
                                        ncausal,
@@ -1484,6 +1533,33 @@ struct MHAHelper {
             attn_reduce(dst, temp, kv_len_in_blocks, SV, temp_stride);
         });
     }
+
+    std::vector<DATA_TYPE> get_xattention_mask_for_token_in_block(const ov::reference::XAttentionRetainedBlockIndices& pa_retained_block_indices, size_t logical_block_idx, [[ maybe_unused ]] size_t token_idx_in_block, size_t key_cache_length) {
+       // Expecting that pa_retained_block_indices specify block indices in units of PA block size, not xattn block size (were recalculated to do so)
+       // Indices out-of-bounds will be ignored when producing the mask
+       // Currently produces the same mask for all tokens in block, which is acceptable if xattention_block_size >= block_size (PA)
+        std::set<size_t> retained_key_blocks;
+        std::vector<DATA_TYPE> retval(key_cache_length, 0);
+        for (const auto& pa_block : pa_retained_block_indices) {
+            if (pa_block.first == logical_block_idx) {
+                retained_key_blocks.insert(pa_block.second);
+            }
+            for (size_t retained_key_block_idx : retained_key_blocks) {
+                if (retained_key_block_idx * _block_size >= key_cache_length) {
+                    continue;
+                }
+                auto it_start = retval.begin() + retained_key_block_idx * _block_size;
+                auto it_end = it_start + _block_size;
+                if (it_end >= retval.end()) {
+                    it_end = retval.end();
+                }
+                std::fill(it_start, it_end, 1);
+            }
+        }
+
+        size_t sum = std::accumulate(retval.begin(), retval.end(), 0);
+        return retval;
+    }
 };
 
 template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
@@ -1506,7 +1582,8 @@ struct MHA {
                          const PlainTensor& block_indices,
                          const PlainTensor& block_indices_begins,
                          const PlainTensor& alibi_slopes,
-                         const PlainTensor& score_aggregation_window) {
+                         const PlainTensor& score_aggregation_window,
+                         const std::vector<ov::reference::XAttentionRetainedBlockIndicesForAllHeads>& xattention_retained_block_indices_for_all_seqs) {
         auto Hk = v_cache.m_dims[1];
 
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
@@ -1667,7 +1744,8 @@ struct MHA {
                     1UL,
                     cur_kv_len,
                     alibi_slopes,
-                    score_output);
+                    score_output,
+                    xattention_retained_block_indices_for_all_seqs[batch_in_seq]);
             } else {
                 const auto batch_in_reorder = item.batch_in_reorder;
                 const auto q_blk = item.q_block_id;
@@ -1719,7 +1797,8 @@ struct MHA {
                         alibi_slopes,
                         score_output,
                         q_start_idx_score,
-                        score_info_ptr);
+                        score_info_ptr,
+                        xattention_retained_block_indices_for_all_seqs[batch_in_seq]);
                 } else {
                     _helper.exec_kernel_multiple(
                         sub_query,
@@ -1739,7 +1818,8 @@ struct MHA {
                         alibi_slopes,
                         score_output,
                         q_start_idx_score,
-                        score_info_ptr);
+                        score_info_ptr,
+                        xattention_retained_block_indices_for_all_seqs[batch_in_seq]);
                 }
 #    else
                 _helper.exec_kernel_multiple(
@@ -1760,7 +1840,8 @@ struct MHA {
                     alibi_slopes,
                     score_output,
                     q_start_idx_score,
-                    score_info_ptr);
+                    score_info_ptr,
+                    xattention_retained_block_indices_for_all_seqs[batch_in_seq]);
 #    endif
             }
         });
@@ -1797,7 +1878,8 @@ struct MHA {
                     const PlainTensor& block_indices,
                     const PlainTensor& block_indices_begins,
                     const PlainTensor& alibi_slopes,
-                    const PlainTensor& score_aggregation_window) {
+                    const PlainTensor& score_aggregation_window,
+                    const std::vector<ov::reference::XAttentionRetainedBlockIndicesForAllHeads>& xattention_retained_block_indices_for_all_seqs) {
         _workitems
             .reset(query, past_lens, subsequence_begins, block_indices, block_indices_begins, _helper._block_size);
         if (output_score) {
@@ -1818,7 +1900,8 @@ struct MHA {
                             block_indices,
                             block_indices_begins,
                             alibi_slopes,
-                            score_aggregation_window);
+                            score_aggregation_window,
+                            xattention_retained_block_indices_for_all_seqs);
         } else {
             _helper.exec_loop_bhl(query,
                                   present_key,
@@ -1831,7 +1914,8 @@ struct MHA {
                                   block_indices,
                                   block_indices_begins,
                                   alibi_slopes,
-                                  score_aggregation_window);
+                                  score_aggregation_window,
+                                  xattention_retained_block_indices_for_all_seqs);
         }
     }
 };
@@ -2189,6 +2273,13 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
 
+
+        std::vector<ov::reference::XAttentionRetainedBlockIndicesForAllHeads> xattention_retained_block_indices_for_all_seqs(past_lens.size(0));
+        if (xattention_threshold) {
+            xattention_retained_block_indices_for_all_seqs = get_xattention_sparse_block_sets(q, k_cache, past_lens, subsequence_begins, block_indices, block_indices_begins, xattention_threshold,
+                    xattention_block_size, xattention_stride);
+        }
+
         _kernel(q,
                 k_cache,
                 v_cache,
@@ -2200,7 +2291,187 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 block_indices,
                 block_indices_begins,
                 alibi_slopes,
-                score_aggregation_window);
+                score_aggregation_window,
+                xattention_retained_block_indices_for_all_seqs);
+    }
+
+    std::vector<ov::reference::XAttentionRetainedBlockIndicesForAllHeads> get_xattention_sparse_block_sets(
+            PlainTensor& q,
+            PlainTensor& k_cache,
+            PlainTensor& past_lens,
+            PlainTensor& subsequence_begins,
+            PlainTensor& block_indices,
+            PlainTensor& block_indices_begins,
+            PlainTensor& xattention_threshold,
+            size_t xattention_block_size,
+            size_t xattention_stride) {
+
+        static unsigned long long global_blocks_in_total = 0;
+        static unsigned long long global_blocks_kept = 0;
+
+        size_t num_seqs = past_lens.size(0);
+        std::vector<ov::reference::XAttentionRetainedBlockIndicesForAllHeads> retval(num_seqs);
+        for (size_t seq_idx = 0; seq_idx < num_seqs; seq_idx++) {
+            float seq_threshold = xattention_threshold.ptr<float>()[seq_idx];
+            if (seq_threshold == 0.0) {
+                continue;
+            }
+
+            ov::reference::XAttentionBlockSelector<DATA_TYPE> selector(seq_threshold, xattention_block_size, xattention_stride);
+
+            auto subsequence_begin = subsequence_begins.ptr<int32_t>()[seq_idx];
+            auto subsequence_length = subsequence_begins.ptr<int32_t>()[seq_idx + 1] - subsequence_begins.ptr<int32_t>()[seq_idx];
+            auto kv_len = past_lens.ptr<int32_t>()[seq_idx] + subsequence_length;
+
+            auto block_number_start = block_indices_begins.ptr<int32_t>()[seq_idx];
+            auto block_number_end = block_indices_begins.ptr<int32_t>()[seq_idx + 1];
+            OPENVINO_ASSERT(block_number_end >= block_number_start);
+            std::vector<size_t> physical_block_indices_for_this_seq;
+            physical_block_indices_for_this_seq.reserve(block_number_end - block_number_start);
+            for (auto block_idx = block_number_start; block_idx < block_number_end; block_idx++) {
+                physical_block_indices_for_this_seq.push_back(block_indices.ptr<int32_t>()[block_idx]);
+            }
+
+            OPENVINO_ASSERT((kv_len + _helper._block_size - 1) / _helper._block_size == physical_block_indices_for_this_seq.size());
+
+            PlainTensor gathered_key_cache;
+            gathered_key_cache.resize<DATA_TYPE>({q.m_dims[1], selector.pad_to_block(kv_len), k_cache.m_dims[3]}); // in GQA case, will duplicate the K head data for each group as necessary
+
+            gather_key_cache_from_blocks_and_pad(k_cache, gathered_key_cache, physical_block_indices_for_this_seq, kv_len, xattention_block_size);
+
+            PlainTensor gathered_query;
+            gathered_query.resize<DATA_TYPE>({q.m_dims[1], selector.pad_to_block(subsequence_length), q.m_dims[3]});
+            gather_query_and_pad(q, gathered_query, subsequence_begin, subsequence_length, xattention_block_size);
+
+            auto selected_xattn_blocks = selector.select_blocks(gathered_query.ptr<DATA_TYPE>(), gathered_query.shape(), gathered_key_cache.ptr<DATA_TYPE>(), gathered_key_cache.shape());
+
+            size_t num_heads = selected_xattn_blocks.size();
+            size_t num_blocks_in_total = num_heads * (gathered_query.m_dims[1] / xattention_block_size) * (gathered_key_cache.m_dims[1] / xattention_block_size);
+            size_t num_blocks_kept = 0;
+
+
+            for (const auto& blocks_kept_for_head : selected_xattn_blocks) {
+                num_blocks_kept += blocks_kept_for_head.size();
+            }
+            std::cout << "VSHAMPOR: for seq_idx " << seq_idx << " kept " << num_blocks_kept << "/" << num_blocks_in_total << " (" << std::setprecision(4) << (num_blocks_kept + 0.0) / num_blocks_in_total * 100 << "%)" << std::endl;
+            global_blocks_in_total += num_blocks_in_total;
+            global_blocks_kept += num_blocks_kept;
+
+            if (_helper._block_size != xattention_block_size) {
+                // Recalculate indices from xattn block size to PA block size
+                ov::reference::XAttentionRetainedBlockIndicesForAllHeads selected_pa_blocks;
+                selected_pa_blocks.reserve(selected_xattn_blocks.size());
+                for (const auto& head_retained_xattn_blocks : selected_xattn_blocks) {
+                    ov::reference::XAttentionRetainedBlockIndices head_retained_pa_blocks;
+                    for (const auto& xattn_block : head_retained_xattn_blocks) {
+                        if (_helper._block_size < xattention_block_size) {
+                            OPENVINO_ASSERT(xattention_block_size % _helper._block_size == 0);
+                            size_t scale_factor = xattention_block_size / _helper._block_size;
+                            for (size_t i = 0; i < scale_factor; i++) {
+                                for (size_t j = 0; j < scale_factor; j++) {
+                                    head_retained_pa_blocks.insert({xattn_block.first * scale_factor + i, xattn_block.second * scale_factor + j});
+                                }
+                            }
+                        } else {
+                            OPENVINO_ASSERT(_helper._block_size % xattention_block_size == 0);
+                            size_t scale_factor = _helper._block_size / xattention_block_size;
+                            // underlying set implementation will deduplicate
+                            head_retained_pa_blocks.insert({xattn_block.first / scale_factor, xattn_block.second / scale_factor});
+                        }
+                    }
+                    selected_pa_blocks.push_back(head_retained_pa_blocks);
+                }
+                retval[seq_idx] = selected_pa_blocks;
+            } else {
+                retval[seq_idx] = selected_xattn_blocks;
+            }
+        }
+
+        std::cout << "VSHAMPOR: global retained block percentage: " << std::setprecision(4) << (global_blocks_kept + 0.0) / global_blocks_in_total * 100 << "%" << std::endl;
+        return retval;
+    }
+
+    void gather_key_cache_from_blocks_and_pad(const PlainTensor& key_cache, PlainTensor& gathered_key_cache, const std::vector<size_t>& physical_block_indices, size_t key_length_in_tokens, size_t xattn_block_size) {
+
+        // num_k_heads and num_q_heads may differ to accomodated grouped-query mechanism
+        auto key_cache_shape = key_cache.shape();
+
+        auto key_cache_data = key_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>();
+        auto out_shape = gathered_key_cache.shape();
+        auto out_data = gathered_key_cache.ptr<DATA_TYPE>();
+
+        OPENVINO_ASSERT(key_cache_shape.size() == 4); // [cache_size_in_blocks, num_k_heads, cb_block_size, head_dim]
+        OPENVINO_ASSERT(out_shape.size() == 3); // [num_q_heads, pad(key_length_in_tokens, m_block_size), head_dim]
+
+        OPENVINO_ASSERT(out_shape[0] % key_cache_shape[1] == 0);
+        OPENVINO_ASSERT(out_shape[1] >= key_length_in_tokens);
+        OPENVINO_ASSERT(out_shape[1] % xattn_block_size == 0);
+        OPENVINO_ASSERT(out_shape[2] == key_cache_shape[3]);
+
+        size_t num_query_heads_per_key_head = out_shape[0] / key_cache_shape[1];
+        size_t cb_block_size = key_cache_shape[2];
+
+        if (key_length_in_tokens % cb_block_size == 0) {
+            OPENVINO_ASSERT(key_length_in_tokens / cb_block_size == physical_block_indices.size());
+        } else {
+            OPENVINO_ASSERT(key_length_in_tokens / cb_block_size + 1 == physical_block_indices.size());
+        }
+
+        for (size_t query_head_idx = 0; query_head_idx < out_shape[0]; query_head_idx++) {
+            size_t in_head_offset = (query_head_idx / num_query_heads_per_key_head) * key_cache_shape[2] * key_cache_shape[3];
+            size_t out_head_offset = query_head_idx * out_shape[1] * out_shape[2];
+
+            size_t num_tokens_processed = 0;
+            size_t out_key_token_len_offset = 0;
+            for (auto phys_block_id : physical_block_indices) {
+                size_t in_block_offset = phys_block_id * key_cache_shape[1] * key_cache_shape[2] * key_cache_shape[3];
+                size_t num_tokens_to_copy = cb_block_size;
+                if (key_length_in_tokens - num_tokens_processed < cb_block_size) {
+                    num_tokens_to_copy = key_length_in_tokens - num_tokens_processed;
+                }
+                size_t num_elts_to_copy = num_tokens_to_copy * key_cache_shape[3];
+                for (size_t elt_idx = 0; elt_idx < num_elts_to_copy; elt_idx++) {
+                    out_data[out_head_offset + out_key_token_len_offset + elt_idx] = static_cast<DATA_TYPE>(key_cache_data[in_block_offset + in_head_offset + elt_idx]);
+                }
+                num_tokens_processed += num_tokens_to_copy;
+                out_key_token_len_offset += num_elts_to_copy;
+            }
+            OPENVINO_ASSERT(num_tokens_processed == key_length_in_tokens);
+            if (key_length_in_tokens < out_shape[1]) {
+                size_t num_tokens_to_pad = out_shape[1] - key_length_in_tokens;
+                std::memset(out_data + out_head_offset + out_key_token_len_offset, 0, sizeof(DATA_TYPE) * num_tokens_to_pad * out_shape[2]);
+            }
+        }
+    }
+
+    void gather_query_and_pad(const PlainTensor& query, PlainTensor& gathered_query, size_t subsequence_begin, size_t subsequence_length, size_t xattn_block_size) {
+        auto query_shape = query.shape();
+        auto query_data = query.ptr<DATA_TYPE>();
+        auto out_shape = gathered_query.shape();
+        auto out_data = gathered_query.ptr<DATA_TYPE>();
+        OPENVINO_ASSERT(query_shape.size() == 4); // [num_tokens_for_all_seqs, num_heads, 1, head_dim]
+        OPENVINO_ASSERT(query_shape[2] == 1);
+
+        OPENVINO_ASSERT(out_shape.size() == 3); // [num_heads, pad(num_tokens_for_this_seq, m_block_size), head_dim]
+        OPENVINO_ASSERT(query_shape[1] == out_shape[0]);
+        OPENVINO_ASSERT(query_shape[3] == out_shape[2]);
+
+        OPENVINO_ASSERT(query_shape[0] >= subsequence_begin + subsequence_length);
+
+        OPENVINO_ASSERT(out_shape[1] >= subsequence_length); // will pad with zeroes if token length is not a multiple of m_block_size
+        OPENVINO_ASSERT(out_shape[1] % xattn_block_size == 0);
+
+        for (size_t head_idx = 0; head_idx < out_shape[0]; head_idx++) {
+            size_t out_head_offset = head_idx * out_shape[1] * out_shape[2];
+            size_t in_head_offset = head_idx * query_shape[2] * query_shape[3];
+            for (size_t token_idx = 0; token_idx < out_shape[1]; token_idx++) {
+                size_t in_token_offset = (subsequence_begin + token_idx) * query_shape[1] * query_shape[2] * query_shape[3];
+                size_t out_token_offset = token_idx * out_shape[2];
+                if (token_idx < subsequence_length) {
+                    std::memcpy(out_data + out_head_offset + out_token_offset, query_data + in_token_offset + in_head_offset, sizeof(DATA_TYPE) * out_shape[2]);
+                } else { std::memset(out_data + out_head_offset + out_token_offset, 0, sizeof(DATA_TYPE) * out_shape[2]); }
+            }
+        }
     }
 };
 #endif
