@@ -7,7 +7,7 @@
 #include <memory>
 #include <mutex>
 
-#include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/type/element_type_info.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -286,10 +286,10 @@ public:
                      shape,
                      [&shape, &element_type, &allocator] {
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-                         const auto byte_size = element::get_memory_size(element_type, shape_size(shape));
-                         auto data = const_cast<Allocator&>(allocator).allocate(byte_size);
-                         OPENVINO_ASSERT(byte_size == 0 || data != nullptr, "Failed to allocate memory");
-
+                         const auto byte_size = util::get_memory_size_safe(element_type, shape);
+                         OPENVINO_ASSERT(byte_size, bad_alloc_error_msg(element_type, shape));
+                         auto data = const_cast<Allocator&>(allocator).allocate(*byte_size);
+                         OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate memory");
                          initialize_elements(data, element_type, shape);
                          return data;
                      }()},
@@ -303,14 +303,15 @@ public:
         if (m_shape == new_shape)
             return;
 
+        const auto byte_size = util::get_memory_size_safe(m_element_type, new_shape);
+        OPENVINO_ASSERT(byte_size, bad_alloc_error_msg(m_element_type, new_shape));
         m_shape = std::move(new_shape);
 
-        if (get_size() > get_capacity()) {
+        if (*byte_size > get_bytes_capacity()) {
             destroy_memory();
-
             // allocate buffer and initialize objects from scratch
             m_capacity = m_shape;
-            m_ptr = m_allocator.allocate(get_bytes_capacity());
+            m_ptr = m_allocator.allocate(*byte_size);
             initialize_elements(m_ptr, m_element_type, m_shape);
         }
 
@@ -321,7 +322,7 @@ public:
 private:
     void destroy_elements(size_t begin_ind, size_t end_ind) {
         // it removes elements from tail
-        if (get_element_type() == element::Type_t::string) {
+        if (m_ptr != nullptr && get_element_type() == element::string) {
             auto strings = static_cast<std::string*>(m_ptr);
             for (size_t ind = begin_ind; ind < end_ind; ++ind) {
                 using std::string;
@@ -349,7 +350,11 @@ private:
     }
 
     size_t get_bytes_capacity() const {
-        return element::get_memory_size(get_element_type(), get_capacity());
+        return util::get_memory_size(get_element_type(), get_capacity());
+    }
+
+    static std::string bad_alloc_error_msg(const element::Type& element_type, const Shape& shape) {
+        return "Cannot allocate memory for type: " + element_type.to_string() + " and shape: " + shape.to_string();
     }
 
     Allocator m_allocator;

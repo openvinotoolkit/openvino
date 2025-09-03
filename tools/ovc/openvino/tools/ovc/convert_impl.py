@@ -10,7 +10,7 @@ import traceback
 import tracemalloc
 from collections import OrderedDict
 from pathlib import Path
-from typing import Iterable, Callable
+from collections.abc import Callable, Iterable
 
 try:
     import openvino_telemetry as tm

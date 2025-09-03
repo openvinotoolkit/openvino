@@ -92,18 +92,18 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
 
 bool ResampleKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::RESAMPLE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const resample_params& params = static_cast<const resample_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.inputs.size() == 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& input = params.inputs[0];
@@ -112,7 +112,7 @@ bool ResampleKernelBase::Validate(const Params& p) const {
         params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP &&
         params.resampleType != ResampleType::BILINEAR_INTERP &&
         params.resampleType != ResampleType::LINEAR_ONNX)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

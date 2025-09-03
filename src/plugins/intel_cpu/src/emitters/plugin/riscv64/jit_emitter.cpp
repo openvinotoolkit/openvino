@@ -4,16 +4,31 @@
 
 #include "jit_emitter.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <iterator>
+#include <memory>
+#include <set>
+#include <unordered_set>
+#include <vector>
+
+#include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#include "nodes/kernels/riscv64/jit_generator.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
+#include "xbyak_riscv/xbyak_riscv.hpp"
+
 namespace ov::intel_cpu::riscv64 {
 
 using namespace Xbyak_riscv;
 
-jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                          ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                          ov::element::Type exec_prc,
                          emitter_in_out_map in_out_type)
-    : Emitter(),
-      h(host),
+    : h(host),
       host_isa_(host_isa),
       exec_prc_(exec_prc),
       l_table(new Xbyak_riscv::Label()),
@@ -35,14 +50,14 @@ void jit_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
 
 void jit_emitter::emit_data() const {
     h->align(64);
-    h->L(*l_table.get());
+    h->L(*l_table);
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
     static_assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
-    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        const auto& te = (*it).second;  // get map entry for a given key
+    for (const auto& it : entry_map_) {
+        const auto& te = it.second;  // get map entry for a given key
         const auto len = sizeof(table_entry_val_t);
         for (size_t d = 0; d < len; d += sizeof(table_entry_val_t)) {
             h->append4B(te.val);
@@ -67,7 +82,8 @@ emitter_in_out_map jit_emitter::get_in_out_type() const {
     return in_out_type_;
 }
 
-std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 
@@ -217,19 +233,19 @@ void jit_emitter::emitter_postamble() const {
 }
 
 namespace {
-std::vector<size_t> get_caller_saved_gprs(const jit_generator* h,
-                                          const std::vector<size_t>& exclude_gpr_regs,
-                                          size_t count) {
+std::vector<size_t> get_caller_saved_gprs(const std::vector<size_t>& exclude_gpr_regs, size_t count) {
     std::vector<size_t> gprs;
     gprs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
-        const int i = static_cast<int>(j);
+        const auto i = static_cast<int>(j);
         if (std::find(exclude_gpr_regs.cbegin(), exclude_gpr_regs.cend(), i) != exclude_gpr_regs.cend()) {
             continue;
         }
-        if (std::find_if(std::begin(h->abi_save_gpr_regs), std::end(h->abi_save_gpr_regs), [i](const Reg& r) {
-                return r.getIdx() == i;
-            }) != std::end(h->abi_save_gpr_regs)) {
+        if (std::find_if(std::begin(ov::intel_cpu::riscv64::jit_generator_t::abi_save_gpr_regs),
+                         std::end(ov::intel_cpu::riscv64::jit_generator_t::abi_save_gpr_regs),
+                         [i](const Reg& r) {
+                             return r.getIdx() == i;
+                         }) != std::end(ov::intel_cpu::riscv64::jit_generator_t::abi_save_gpr_regs)) {
             continue;
         }
         if (i == zero.getIdx() || i == sp.getIdx() || i == gp.getIdx() || i == tp.getIdx()) {
@@ -239,32 +255,30 @@ std::vector<size_t> get_caller_saved_gprs(const jit_generator* h,
     }
     return gprs;
 }
-std::vector<size_t> get_caller_saved_fp_gprs(const jit_generator* h,
-                                             const std::vector<size_t>& exclude_fp_gpr_regs,
-                                             size_t count) {
+std::vector<size_t> get_caller_saved_fp_gprs(const std::vector<size_t>& exclude_fp_gpr_regs, size_t count) {
     std::vector<size_t> fp_gprs;
     fp_gprs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
-        const int i = static_cast<int>(j);
+        const auto i = static_cast<int>(j);
         if (std::find(exclude_fp_gpr_regs.cbegin(), exclude_fp_gpr_regs.cend(), i) != exclude_fp_gpr_regs.cend()) {
             continue;
         }
-        if (std::find_if(std::begin(h->abi_save_fp_gpr_regs), std::end(h->abi_save_fp_gpr_regs), [i](const FReg& r) {
-                return r.getIdx() == i;
-            }) != std::end(h->abi_save_fp_gpr_regs)) {
+        if (std::find_if(std::begin(ov::intel_cpu::riscv64::jit_generator_t::abi_save_fp_gpr_regs),
+                         std::end(ov::intel_cpu::riscv64::jit_generator_t::abi_save_fp_gpr_regs),
+                         [i](const FReg& r) {
+                             return r.getIdx() == i;
+                         }) != std::end(ov::intel_cpu::riscv64::jit_generator_t::abi_save_fp_gpr_regs)) {
             continue;
         }
         fp_gprs.push_back(i);
     }
     return fp_gprs;
 }
-std::vector<size_t> get_caller_saved_vec_gprs(const jit_generator* h,
-                                              const std::vector<size_t>& exclude_vec_regs,
-                                              size_t count) {
+std::vector<size_t> get_caller_saved_vec_gprs(const std::vector<size_t>& exclude_vec_regs, size_t count) {
     std::vector<size_t> vecs;
     vecs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
-        const int i = static_cast<int>(j);
+        const auto i = static_cast<int>(j);
         if (std::find(exclude_vec_regs.cbegin(), exclude_vec_regs.cend(), i) != exclude_vec_regs.cend()) {
             continue;
         }
@@ -277,17 +291,17 @@ std::vector<size_t> get_caller_saved_vec_gprs(const jit_generator* h,
 void jit_emitter::call_preamble(const std::vector<size_t>& exclude_gpr_regs,
                                 const std::vector<size_t>& exclude_fp_gpr_regs,
                                 const std::vector<size_t>& exclude_vec_regs) const {
-    store_context(get_caller_saved_gprs(h, exclude_gpr_regs, get_max_gpr_count()),
-                  get_caller_saved_fp_gprs(h, exclude_fp_gpr_regs, get_max_fp_gpr_count()),
-                  get_caller_saved_vec_gprs(h, exclude_vec_regs, get_max_vecs_count()));
+    store_context(get_caller_saved_gprs(exclude_gpr_regs, get_max_gpr_count()),
+                  get_caller_saved_fp_gprs(exclude_fp_gpr_regs, get_max_fp_gpr_count()),
+                  get_caller_saved_vec_gprs(exclude_vec_regs, get_max_vecs_count()));
 }
 
 void jit_emitter::call_postamble(const std::vector<size_t>& exclude_gpr_regs,
                                  const std::vector<size_t>& exclude_fp_gpr_regs,
                                  const std::vector<size_t>& exclude_vec_regs) const {
-    restore_context(get_caller_saved_gprs(h, exclude_gpr_regs, get_max_gpr_count()),
-                    get_caller_saved_fp_gprs(h, exclude_fp_gpr_regs, get_max_fp_gpr_count()),
-                    get_caller_saved_vec_gprs(h, exclude_vec_regs, get_max_vecs_count()));
+    restore_context(get_caller_saved_gprs(exclude_gpr_regs, get_max_gpr_count()),
+                    get_caller_saved_fp_gprs(exclude_fp_gpr_regs, get_max_fp_gpr_count()),
+                    get_caller_saved_vec_gprs(exclude_vec_regs, get_max_vecs_count()));
 }
 
 void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
@@ -372,8 +386,8 @@ void jit_emitter::prepare_table() {
     // expect the same order when injecting the table entries in
     // prepare_table.
     size_t off = 0;
-    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        auto& te = (*it).second;
+    for (auto& it : entry_map_) {
+        auto& te = it.second;
         te.off = off;
         off += sizeof(table_entry_val_t);
     }

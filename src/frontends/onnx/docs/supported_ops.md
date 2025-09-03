@@ -12,7 +12,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Acosh                                                   |9                       |22, 9                           |                                |
 |                        |Add                                                     |14, 13, 7, 6, 1         |14, 13, 7, 6, 1                 |                                |
 |                        |Affine                                                  |1                       |                                |                                |
-|                        |AffineGrid                                              |                        |20                              |                                |
+|                        |AffineGrid                                              |20                      |20                              |                                |
 |                        |And                                                     |7, 1                    |7, 1                            |                                |
 |                        |ArgMax                                                  |12, 1                   |13, 12, 11, 1                   |                                |
 |                        |ArgMin                                                  |12, 1                   |13, 12, 11, 1                   |                                |
@@ -132,7 +132,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Pow                                                     |1                       |15, 13, 12, 7, 1                |                                |
 |                        |QLinearConv                                             |10                      |10                              |                                |
 |                        |QLinearMatMul                                           |10                      |21, 10                          |                                |
-|                        |QuantizeLinear                                          |13, 10                  |21, 19, 13, 10                  |                                |
+|                        |QuantizeLinear                                          |21, 13, 10              |21, 19, 13, 10                  |                                |
 |                        |RNN                                                     |1                       |22, 14, 7, 1                    |                                |
 |                        |RandomNormal                                            |1                       |22, 1                           |                                |
 |                        |RandomNormalLike                                        |1                       |22, 1                           |                                |
@@ -298,7 +298,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |RemovePadding                                           |                        |1                               |                                |
 |com.microsoft           |RestorePadding                                          |                        |1                               |                                |
 |com.microsoft           |Rfft                                                    |                        |1                               |                                |
-|com.microsoft           |RotaryEmbedding                                         |                        |1                               |                                |
+|com.microsoft           |RotaryEmbedding                                         |1                       |1                               |                                |
 |com.microsoft           |SampleOp                                                |                        |1                               |                                |
 |com.microsoft           |Sampling                                                |                        |1                               |                                |
 |com.microsoft           |SimplifiedLayerNormalization                            |1                       |1                               |                                |

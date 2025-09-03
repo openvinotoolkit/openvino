@@ -40,6 +40,8 @@ jobs:
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
+      volumes:
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
     defaults:
       run:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
@@ -48,55 +50,37 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SOURCE_COMMAND: ${{ contains(inputs.runner, 'linux') && 'source' || '.' }}
-      SETUPVARS: ${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
+      SETUPVARS: ${{ github.workspace }}/install/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
     steps:
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download OpenVINO artifacts (package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables (Unix)
-        if: ${{ runner.os != 'Windows' }}
-        run: |
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} $GITHUB_WORKSPACE/install/${{ env.SETUPVARS }}" >> "$GITHUB_ENV"
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install pigz
-          
-      - name: Setup Variables (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        run: Add-Content -Path $env:GITHUB_ENV -Value "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} ${{ github.workspace }}/install/${{ env.SETUPVARS }}"
 
       - name: Extract OpenVINO packages (Unix)
         if: ${{ runner.os != 'Windows' }}
         run: |
-          pushd $INSTALL_DIR
-            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          popd
-          pushd $INSTALL_TEST_DIR
-            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          popd
+          pigz -dc openvino_package.tar.gz | tar -xf - -v
+          pigz -dc openvino_tests.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Extract OpenVINO packages (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
-          pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
-          popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
-          popd
+          Expand-Archive openvino_package.zip -DestinationPath . -Verbose
+          Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
+        working-directory: ${{ env.INSTALL_DIR }}
 
       #
       # Tests
@@ -105,50 +89,50 @@ jobs:
       - name: OpenVINO Core Unit Tests
         if: ${{ fromJSON(inputs.affected-components).Core.test && inputs.os != 'debian_10' }} # Ticket: 153150
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
         if: ${{ fromJSON(inputs.affected-components).inference.test && inputs.os != 'debian_10' }} # Ticket: 153151
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceFunc.xml
 
       - name: OpenVINO Inference Unit Tests
         if: fromJSON(inputs.affected-components).inference.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
         if: fromJSON(inputs.affected-components).LP_transformations.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
 
           ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
         if: fromJSON(inputs.affected-components).Core.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ConditionalCompilation.xml
 
       - name: IR frontend tests
         if: fromJSON(inputs.affected-components).IR_FE.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-IRFrontend.xml
 
       - name: PaddlePaddle frontend tests
         if: ${{ fromJSON(inputs.affected-components).PDPD_FE.test && runner.os != 'Windows' }} # Ticket: 149651
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
         if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280, 153161
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
@@ -156,128 +140,128 @@ jobs:
             fromJSON(inputs.affected-components).TFL_FE.test &&
             (runner.os != 'macOS' && runner.arch != 'ARM64')
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
         if: fromJSON(inputs.affected-components).TF_FE.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
         if: ${{ fromJSON(inputs.affected-components).TFL_FE.test }}
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
         if: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
       - name: Common test utils tests
         if: ${{ runner.os != 'macOS' }} # Ticket: 134469
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CommonUtilTests.xml
 
       - name: Snippets func tests
         if: fromJSON(inputs.affected-components).CPU.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
         if: fromJSON(inputs.affected-components).CPU.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
 
       - name: CPU plugin unit tests (vectorized)
         if: fromJSON(inputs.affected-components).CPU.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests_vectorized --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTestsVectorized.xml
 
       - name: NPU plugin unit tests 
         if: ${{fromJSON(inputs.affected-components).NPU.test && runner.os == 'Windows'}}
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_npu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-NPUUnitTests.xml
       
       - name: ov_subgraphs_dumper_tests tests
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_subgraphs_dumper_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_subgraphs_dumper_tests.xml
 
       - name: Template OpImpl tests
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpImplTests.xml
 
       - name: AUTO unit tests
         if: fromJSON(inputs.affected-components).AUTO.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
         if: fromJSON(inputs.affected-components).AUTO.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       # Disabled for debug build due to long execution time
       - name: Template plugin func tests
         if: ${{ fromJSON(inputs.affected-components).TEMPLATE.test && inputs.build-type != 'debug' }}
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateFuncTests.xml
 
       - name: OV utils unit tests
         if: ${{ runner.os != 'macOS' }} # Ticket: 134469
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_util_tests.xml
 
       - name: OpenVINO C API tests
         if: ${{ fromJSON(inputs.affected-components).C_API.test && inputs.os != 'debian_10' }} # Ticket: 153169
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
         if: fromJSON(inputs.affected-components).AUTO_BATCH.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_unit_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_unit_tests.xml
       
       # Disabled for debug build due to long execution time
       - name: AutoBatch func tests
         if: ${{ fromJSON(inputs.affected-components).AUTO_BATCH.test && inputs.build-type != 'debug' }}
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml --gtest_filter="*smoke*"
 
       - name: Proxy Plugin func tests
         if: fromJSON(inputs.affected-components).PROXY.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
 
       - name: Hetero unit tests
         if: fromJSON(inputs.affected-components).HETERO.test
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       # Disabled for debug build due to long execution time
       - name: Hetero func tests
         if: ${{ fromJSON(inputs.affected-components).HETERO.test && inputs.os != 'debian_10' && inputs.build-type != 'debug' }} # Ticket: 153170
         run: |
-          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
       - name: Upload Test Results

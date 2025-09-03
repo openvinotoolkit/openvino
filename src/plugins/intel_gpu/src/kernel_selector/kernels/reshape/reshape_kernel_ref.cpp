@@ -70,7 +70,7 @@ KernelsPriority ReshapeKernelRef::GetKernelsPriority(const Params& /*params*/) c
 
 bool ReshapeKernelRef::Validate(const Params& p) const {
     if (!KernelBaseOpenCL::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& rp = static_cast<const reshape_params&>(p);
 

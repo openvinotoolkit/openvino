@@ -23,11 +23,11 @@ public:
 
     void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) override;
 
-    std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
+    [[nodiscard]] std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
         return std::make_unique<GemmKernelKaiConfig>(*this);
     }
 
-    size_t hash() const override {
+    [[nodiscard]] size_t hash() const override {
         return m_hash;
     }
 
@@ -54,14 +54,19 @@ struct GemmCompiledKernel {
 
 class GemmKaiKernelExecutor : public snippets::KernelExecutor<GemmKernelKaiConfig, GemmCompiledKernel> {
 public:
+    struct call_args {
+        const void* A;
+        const void* B;
+        void* C;
+    };
+
     GemmKaiKernelExecutor(GemmKernelKaiConfig config);
 
     // No need kernel update, just update config is enough for update. The universal ukernel is reused with any config.
     void update_kernel(const GemmKernelKaiConfig& config,
                        std::shared_ptr<GemmCompiledKernel>& kernel) const override final;
-
-    // Function that will be called in runtime to execute the kernel
-    static void execute(const GemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0);
+    // ABI-compliant execute function that takes call_args structure
+    static void execute(const GemmKaiKernelExecutor* executor, const call_args* args);
 
 private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,

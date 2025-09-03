@@ -120,6 +120,7 @@
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
@@ -188,6 +189,9 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, UniqueDecomposition)
     decomp->set_name("ov::pass::CommonDecompositions");
 
+    REGISTER_PASS(manager, NopElimination, true)
+    REGISTER_PASS(manager, DeReshapeMatMul)
+    REGISTER_PASS(manager, DeReshapeFullyConnected)
     // CF is required after all decompositions
     REGISTER_PASS(manager, ConstantFolding)
 

@@ -21,7 +21,7 @@ class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("SnippetsMarkSkipped");
     SnippetsMarkSkipped() : ModelPass() {}
-    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
+    bool run_on_model([[maybe_unused]] const std::shared_ptr<ov::Model>& m) override;
 };
 
 /*
@@ -33,7 +33,7 @@ chain. Order of SnippetsNodeType is important!:
 * SnippetsNodeType >= FusedTerminator is a Fused chain
 * SnippetsNodeType > FusedTerminator is a Fused chain that may be continued
 */
-enum class NodeFusingType : int64_t {
+enum class NodeFusingType : int64_t {  // NOLINT(performance-enum-size)
     NotSet,
     FusedTerminator,
     FusedWithConvolution,

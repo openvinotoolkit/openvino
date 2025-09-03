@@ -5,8 +5,6 @@
 #include "snippets/generator.hpp"
 
 #include <memory>
-#include <string>
-#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -22,7 +20,6 @@
 #include "snippets/emitter.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/reg_manager.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/broadcastload.hpp"
@@ -31,7 +28,6 @@
 #include "snippets/op/fill.hpp"
 #include "snippets/op/horizon_max.hpp"
 #include "snippets/op/horizon_sum.hpp"
-#include "snippets/op/kernel.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/perf_count.hpp"
@@ -44,6 +40,14 @@
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/utils/reg_utils.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <string>
+#    include <vector>
+
+#    include "snippets/lowered/port_connector.hpp"
+#    include "snippets/op/kernel.hpp"
+#endif
 
 namespace ov::snippets {
 
@@ -61,7 +65,7 @@ LoweringResult Generator::generate(const lowered::LinearIRPtr& linear_ir, const 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     const auto kernel_op = op::Kernel::make_kernel(linear_ir->is_dynamic(), *linear_ir);
     kernel_op->compile_params = compile_params;
-    const lowered::RegManager& reg_manager(shared_from_this());
+    const lowered::RegManager reg_manager(shared_from_this());
     const auto kernel_expr = linear_ir->get_expr_factory()->build(kernel_op, std::vector<lowered::PortConnectorPtr>{});
     const auto kernel = target->get(kernel_expr->get_node()->get_type_info())(kernel_expr);
 

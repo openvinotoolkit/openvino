@@ -197,7 +197,8 @@ struct convert<UniformGenerator::Ptr> {
         if (!node["high"]) {
             THROW_ERROR("Uniform distribution must have \"high\" attribute");
         }
-        generator = std::make_shared<UniformGenerator>(node["low"].as<double>(), node["high"].as<double>());
+        int seed = node["seed"] ? node["seed"].as<int>() : 0xffffffff;
+        generator = std::make_shared<UniformGenerator>(node["low"].as<double>(), node["high"].as<double>(), seed);
         return true;
     }
 };
@@ -369,6 +370,10 @@ struct convert<OpenVINOParams> {
         // NB: Note, it should be handled after "config" is set above
         if (node["priority"]) {
             params.config.emplace("MODEL_PRIORITY", toPriority(node["priority"].as<std::string>()));
+        }
+
+        if (node["clamp_outputs"]) {
+            params.clamp_outputs = node["clamp_outputs"].as<bool>();
         }
 
         if (node["nireq"]) {

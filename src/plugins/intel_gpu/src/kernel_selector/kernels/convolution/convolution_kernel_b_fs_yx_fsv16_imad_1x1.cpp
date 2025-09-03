@@ -178,7 +178,7 @@ KernelsPriority Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsPriority(co
 
 bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     KernelData kd = KernelData::Default<convolution_params>(params);
@@ -187,28 +187,28 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params) c
     if ((conv_params.filterSize.x != conv_params.filterSize.y) ||
         conv_params.filterSize.x != 1) {
         // Fitler size needs to be 1x1
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (conv_params.groups != 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
         if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
             (conv_params.compensation.empty()))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
         if ((conv_params.activations_zero_points.empty()) &&
             (conv_params.compensation.empty()))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
         if (conv_params.weights_zero_points.empty())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else {
         if (!conv_params.activations_zero_points.empty() ||
             !conv_params.weights_zero_points.empty() ||
             !conv_params.compensation.empty())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

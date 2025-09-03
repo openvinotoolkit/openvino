@@ -16,11 +16,9 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "node.h"
-#include "nodes/kernels/x64/jit_kernel_base.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -29,6 +27,8 @@
 #include "utils/general_utils.h"
 #ifdef OPENVINO_ARCH_X86_64
 #    include "kernels/x64/rms_kernel.hpp"
+#    include "nodes/kernels/x64/jit_kernel_base.hpp"
+#    include "openvino/core/parallel.hpp"
 #endif
 
 #include <string>
@@ -138,7 +138,7 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
         return;
     }
     auto precision = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+    if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
     }
 
@@ -175,9 +175,7 @@ void RMSNorm::createPrimitive() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-    if (!result.first) {
-        OPENVINO_THROW("RMSNorm Executor creation fails with precision " + precision.to_string());
-    }
+    OPENVINO_ASSERT(result.first, "RMSNorm Executor creation fails with precision " + precision.to_string());
     m_executor = result.first;
 }
 

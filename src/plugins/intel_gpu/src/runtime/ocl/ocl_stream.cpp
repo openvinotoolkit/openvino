@@ -47,6 +47,15 @@ inline cl::NDRange toNDRange(const std::vector<size_t>& v) {
     }
 }
 
+
+cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, uint32_t size) {
+    if (size == 0)
+        return CL_INVALID_ARG_VALUE;
+
+    GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg " << idx << " local memory size : " << size << std::endl;
+    return kernel.setArg(idx, size, NULL);
+}
+
 cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr mem) {
     if (!mem)
         return CL_INVALID_ARG_VALUE;
@@ -174,6 +183,12 @@ void set_arguments_impl(ocl_kernel_type& kernel,
             case args_t::SHAPE_INFO:
                 status = set_kernel_arg(kernel, i, data.shape_info);
                 break;
+            case args_t::LOCAL_MEMORY_SIZE:
+                OPENVINO_ASSERT(args[i].index < data.local_memory_args->size() && data.local_memory_args->at(args[i].index),
+                                "The allocated local memory is necessary to set kernel arguments.");
+                status = set_kernel_arg(kernel, i,  data.local_memory_args->at(args[i].index));
+                break;
+                break;
             default:
                 break;
         }
@@ -271,12 +286,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     std::vector<cl::Event> dep_events;
     std::vector<cl::Event>* dep_events_ptr = nullptr;
     if (m_sync_method == SyncMethods::events) {
-        for (auto& dep : deps) {
-            if (auto ocl_base_ev = std::dynamic_pointer_cast<ocl_base_event>(dep)) {
-                if (ocl_base_ev->get().get() != nullptr)
-                    dep_events.push_back(ocl_base_ev->get());
-            }
-        }
+        dep_events = utils::get_cl_events(deps);
         dep_events_ptr = &dep_events;
     } else if (m_sync_method == SyncMethods::barriers) {
         sync_events(deps, is_output);
@@ -318,13 +328,7 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
 
     if (m_sync_method == SyncMethods::events) {
         cl::Event ret_ev;
-        std::vector<cl::Event> dep_events;
-        for (auto& dep : deps) {
-            if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get()))
-                if (ocl_base_ev->get().get() != nullptr)
-                    dep_events.push_back(ocl_base_ev->get());
-        }
-
+        std::vector<cl::Event> dep_events = utils::get_cl_events(deps);
         try {
             if (dep_events.empty()) {
                 return create_user_event(true);

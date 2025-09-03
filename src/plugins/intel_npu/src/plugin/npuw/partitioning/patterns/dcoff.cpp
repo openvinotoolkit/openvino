@@ -195,6 +195,24 @@ void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
                                      params[fsg._host_gather.dst_idx]};
     }
 
+    struct QuantUnpackGatherParams {
+        PPtr pdst;  // Parameter @ function body - gathered and unpacked ids
+
+        PPtr psrcw;  // Parameter @ function body - vocab tensor
+        PPtr psrcz;  // Parameter @ function body - vocab tensor zeropoint
+        PPtr psrcs;  // Parameter @ function body - vocab tensor scale
+
+        PPtr pidx;  // Parameter @ function body - input_ids
+    };
+    QuantUnpackGatherParams quant_unpack_gather_params;
+    if (fsg._quant_unpack_gather.dst_idx != -1) {
+        quant_unpack_gather_params = QuantUnpackGatherParams{params[fsg._quant_unpack_gather.dst_idx],
+                                                             params[fsg._quant_unpack_gather.src_w_idx],
+                                                             params[fsg._quant_unpack_gather.src_z_idx],
+                                                             params[fsg._quant_unpack_gather.src_s_idx],
+                                                             params[fsg._quant_unpack_gather.idx_idx]};
+    }
+
     for (auto&& p : m.params_to_remove) {
         LOG_DEBUG("Removing parameter " << p);
         LOG_BLOCK();
@@ -208,7 +226,19 @@ void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
         fsg._host_gather.dst_idx = fbody._model->get_parameter_index(gather_params.pdst);
     }
 
+    if (fsg._quant_unpack_gather.dst_idx != -1) {
+        // Update indices for gather
+        fsg._quant_unpack_gather.idx_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pidx);
+
+        fsg._quant_unpack_gather.src_w_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.psrcw);
+        fsg._quant_unpack_gather.src_z_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.psrcz);
+        fsg._quant_unpack_gather.src_s_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.psrcs);
+
+        fsg._quant_unpack_gather.dst_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pdst);
+    }
+
     fbody._model->validate_nodes_and_infer_types();
+
     LOG_DEBUG("DONE");
 }
 
@@ -301,7 +331,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             // Disconnect Multiply and Convert from their outputs
             auto matched_mulply = uat::_(node_to_output).at_or_at(transposeopt, mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
-            auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
+            auto drop_outputs = [](const std::shared_ptr<ov::Node>& node) {
                 for (auto&& node_outputs : node->outputs()) {
                     for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
                         node_outputs.remove_target_input(node_reader_port);

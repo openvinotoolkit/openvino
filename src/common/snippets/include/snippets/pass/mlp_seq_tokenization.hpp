@@ -32,7 +32,7 @@ namespace ov::snippets::pass {
 class TokenizeMLPSeqSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeMLPSeqSnippets");
-    TokenizeMLPSeqSnippets(const SnippetsTokenization::Config& config);
+    explicit TokenizeMLPSeqSnippets(const SnippetsTokenization::Config& config);
 
 private:
     static bool is_matmul_supported(const std::shared_ptr<ov::Node>& node);

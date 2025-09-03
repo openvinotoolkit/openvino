@@ -24,12 +24,7 @@ class GatherIndicesInputTest : public testing::WithParamInterface<GatherIndicesI
                      virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<GatherIndicesInputParams> obj) {
-        ov::Shape input_shape;
-        ov::Shape indices_shape;
-        std::tuple<int, int> axis_batch_idx;
-        ov::element::Type input_precision;
-
-        std::tie(input_shape, indices_shape, axis_batch_idx, input_precision) = obj.param;
+        const auto& [input_shape, indices_shape, axis_batch_idx, input_precision] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -46,9 +41,11 @@ protected:
     std::tuple<int, int> axis_batch_idx;
 
     void SetUp() override {
-        ov::element::Type input_precision;
         targetDevice = ov::test::utils::DEVICE_GPU;
-        std::tie(input_shape, indices_shape, axis_batch_idx, input_precision) = GetParam();
+        const auto& [_input_shape, _indices_shape, _axis_batch_idx, input_precision] = GetParam();
+        input_shape = _input_shape;
+        indices_shape = _indices_shape;
+        axis_batch_idx = _axis_batch_idx;
 
         int axis = std::get<0>(axis_batch_idx);
         int batch_idx = std::get<1>(axis_batch_idx);

@@ -353,6 +353,35 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }
 }
 
+void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
+                                            const ov::SoPtr<ov::ITensor>& tensor) {
+    // Check that it's I/O
+    NPUW_ASSERT(m_port_to_tensor.at(port).persistent);
+
+    // Assigning via .at() to ensure it is a known port
+    m_port_to_tensor.at(port).tensor = tensor;
+
+    // Check if setting output tensor
+    for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
+        if (m_npuw_model->outputs()[i] == port) {
+            const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
+            auto funcall_result_iter = m_funcall_result.find(from_submodel);
+            // This is a tricky case:
+            // 1) We already allocated an output tensor in m_funcall_result via FMM
+            // 2) We got an output tensor from outside
+            // m_funcall_result and m_port_to_tensor aren't connected, thus we will only write
+            // to m_funcall_result, but get_tensor() would return an empty tensor from m_port_to_tensor.
+            // Here we have to set the tensor to function's output, so the function will write to the correct tensor.
+            if (funcall_result_iter != m_funcall_result.end()) {
+                funcall_result_iter->second = tensor;
+            }
+        }
+    }
+
+    // Process setting input tensor
+    handle_set_remote_input(port, tensor);
+}
+
 ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) {
     const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
     auto funcall_result_iter = m_funcall_result.find(from_submodel);

@@ -212,6 +212,12 @@ static std::string GetIndicesIdxOrder(const gather_params& params, size_t axis, 
     return GetOrderString(idx_order);
 }
 
+static bool OutputBiasPositionCompatible(const gather_params& params) {
+    auto out = params.outputs[0];
+    auto bias = params.fused_ops[0].output_tensor;
+    return out.SameDims(bias);
+}
+
 CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) const {
     CommonDispatchData dispatchData;
     const auto& output = params.outputs[0];
@@ -272,10 +278,14 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
         std::vector<std::string> idx_order;
         if (params.inputs[0].GetDims().size() == 4 && GetGatherIndexDim(params).v == 0 && !params.inputs[1].is_dynamic() &&
             params.inputs[1].LogicalSize() == 1) {
-            idx_order = idx_order = {"(f)", "(y)", "(x)", "(1)"};
+            idx_order = {"(f)", "(y)", "(x)", "(1)"};
+        } else if (params.inputs[0].GetDims().size() == 4 && GetGatherChannelIndex(params) == 1 && !params.inputs[1].is_dynamic() &&
+                   params.inputs[1].LogicalSize() == 1 && !OutputBiasPositionCompatible(params)) {
+            idx_order = {"(b)", "(y)", "(x)", "(1)"};
         } else {
             idx_order = GetOrder(params.inputs[0].GetDims().size());
         }
+
         FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
@@ -321,14 +331,14 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
 
 bool GatherKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::GATHER) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const gather_params& params = static_cast<const gather_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.outputs[0].is_dynamic()) {
@@ -344,11 +354,11 @@ bool GatherKernelRef::Validate(const Params& p) const {
 
         for (auto& in : params.inputs) {
             if (!supported_tensor_layout(in))
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
         for (auto& out : params.outputs) {
             if (!supported_tensor_layout(out))
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

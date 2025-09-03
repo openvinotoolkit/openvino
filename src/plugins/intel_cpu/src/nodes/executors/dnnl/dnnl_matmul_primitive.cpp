@@ -11,7 +11,6 @@
 #include <common/primitive_attr.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -39,6 +38,10 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#endif
 
 namespace ov::intel_cpu {
 
@@ -155,7 +158,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
     const auto& dims = originalDims;
 
     auto isINT8 =
-        one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
+        any_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
     DnnlPostOpsComposer
@@ -172,7 +175,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
         // TODO: clarify oneDNN requirements on ZP precision
         auto zp = it->second;
         auto zpPrc = zp->getPrecision();
-        auto dstPrc = one_of(zpPrc, i32, i8, u8, i4, u4) ? zpPrc : i32;
+        auto dstPrc = any_of(zpPrc, i32, i8, u8, i4, u4) ? zpPrc : i32;
         dnnlpoc.appendDecompressionZeroPoints(zp, !weightsNonTransposed, dstPrc, normWeiDims);
     }
 
@@ -209,7 +212,7 @@ static dnnl::matmul::primitive_desc createDescriptorInternal(const dnnl::memory:
     auto wdt = idt;
     if (useWeightsDecompression) {
         wdt = weightDesc.get_data_type();
-    } else if (idt == dnnl::memory::data_type::u8 || idt == dnnl::memory::data_type::s8) {
+    } else if (any_of(idt, dnnl::memory::data_type::u8, dnnl::memory::data_type::s8)) {
         wdt = memory::data_type::s8;
     }
 
@@ -233,7 +236,7 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
     auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
 
     const bool found = DnnlExtensionUtils::find_implementation(prim_desc, [&](impl_desc_type implType) {
-        return contains(implPriorities, implType);
+        return any_of_values(implPriorities, implType);
     });
 
     if (found) {
@@ -282,7 +285,7 @@ bool DnnlMatMulPrimitive::useWeightsDecompressionImpl(const ov::element::Type in
     }
 #endif
 
-    return (one_of(inputType, f32, bf16, f16) && one_of(weightsType, u8, i8, u4, i4));
+    return (any_of(inputType, f32, bf16, f16) && any_of(weightsType, u8, i8, u4, i4));
 }
 
 DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAttrs& attrs,
