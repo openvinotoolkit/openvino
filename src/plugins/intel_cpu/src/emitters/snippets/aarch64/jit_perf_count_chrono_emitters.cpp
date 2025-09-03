@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "jit_binary_call_emitter.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/perf_count.hpp"
