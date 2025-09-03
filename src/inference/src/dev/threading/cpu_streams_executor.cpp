@@ -26,7 +26,7 @@ namespace ov {
 namespace threading {
 struct CPUStreamsExecutor::Impl {
     struct Stream {
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         struct Observer : public custom::task_scheduler_observer {
             CpuSet _mask;
             int _ncpus = 0;
@@ -66,7 +66,7 @@ struct CPUStreamsExecutor::Impl {
                                                ((_impl->_config.get_streams() + _impl->_usedNumaNodes.size() - 1) /
                                                 _impl->_usedNumaNodes.size()))
                     : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
             if (_impl->_config.get_streams_info_table().size() > 0) {
                 init_stream();
             }
@@ -91,14 +91,14 @@ struct CPUStreamsExecutor::Impl {
                 std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
                 _impl->_streamIdQueue.push(_streamId);
             }
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
             if (nullptr != _observer) {
                 _observer->observe(false);
             }
 #endif
         }
 
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         void create_tbb_task_arena(const int stream_id,
                                    const StreamCreateType stream_type,
                                    const int concurrency,
@@ -219,7 +219,7 @@ struct CPUStreamsExecutor::Impl {
         bool _execute = false;
         std::vector<int> _rank;
         std::queue<Task> _taskQueue;
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         std::unique_ptr<custom::task_arena> _taskArena;
         std::unique_ptr<Observer> _observer;
         std::vector<int> _cpu_ids;
@@ -408,7 +408,7 @@ struct CPUStreamsExecutor::Impl {
     }
 
     void Execute(const Task& task, Stream& stream) {
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         auto& arena = stream._taskArena;
         if (nullptr != arena) {
             arena->execute(std::move(task));

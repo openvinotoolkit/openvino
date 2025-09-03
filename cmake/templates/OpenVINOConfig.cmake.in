@@ -169,7 +169,7 @@ endmacro()
 
 macro(_ov_find_tbb)
     set(_ov_threading "@THREADING@")
-    if(_ov_threading STREQUAL "TBB" OR _ov_threading STREQUAL "TBB_AUTO" OR _ov_threading STREQUAL "TBB_PARTITIONER_AUTO")
+    if(_ov_threading STREQUAL "TBB" OR _ov_threading STREQUAL "TBB_AUTO" OR _ov_threading STREQUAL "TBB_ADAPTIVE")
         set(enable_pkgconfig_tbb "@tbb_FOUND@")
 
         # try tbb.pc
@@ -563,7 +563,7 @@ if(_ov_as_external_package)
 
     # WA for cmake version < 3.16 which does not export
     # IMPORTED_LINK_DEPENDENT_LIBRARIES_** properties if no PUBLIC dependencies for the library
-    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" OR THREADING STREQUAL "TBB_PARTITIONER_AUTO")
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" OR THREADING STREQUAL "TBB_ADAPTIVE")
         foreach(type RELEASE DEBUG RELWITHDEBINFO MINSIZEREL)
             foreach(tbb_target TBB::tbb TBB::tbbmalloc PkgConfig::tbb)
                 if(TARGET ${tbb_target})

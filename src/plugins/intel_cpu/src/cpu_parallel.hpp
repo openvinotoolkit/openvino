@@ -25,8 +25,8 @@ public:
 
     template <typename T0, typename F>
     void parallel_simple(const T0& D0, const F& func) const {
-#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
-        const int nthr = static_cast<size_t>(D0);  // NOLINT(bugprone-misplaced-widening-cast)
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        const int nthr = static_cast<int>(D0);
         if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             tbb::parallel_for(0, nthr, [&](int ithr) {
                 func(ithr, nthr);
@@ -47,15 +47,15 @@ public:
 
     template <typename T0, typename F>
     void cpu_parallel_for(const T0& D0, const F& func) const {
-#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
-        auto work_amount = static_cast<size_t>(D0);  // NOLINT(bugprone-misplaced-widening-cast)
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        auto work_amount = static_cast<int>(D0);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
         }
-        if (static_cast<size_t>(virtual_threads) > work_amount) {
-            virtual_threads = static_cast<int>(work_amount);
+        if (virtual_threads > work_amount) {
+            virtual_threads = work_amount;
         }
         if (virtual_threads == 1) {
             for_1d(0, 1, D0, func);
@@ -81,15 +81,15 @@ public:
 
     template <typename T0, typename T1, typename F>
     void cpu_parallel_for2d(const T0& D0, const T1& D1, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
-        auto work_amount = static_cast<size_t>(D0 * D1);  // NOLINT(bugprone-misplaced-widening-cast)
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        auto work_amount = static_cast<int>(D0 * D1);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
         }
-        if (static_cast<size_t>(virtual_threads) > work_amount) {
-            virtual_threads = static_cast<int>(work_amount);
+        if (virtual_threads > work_amount) {
+            virtual_threads = work_amount;
         }
         if (virtual_threads == 1) {
             for_2d(0, 1, D0, D1, func);
@@ -115,15 +115,15 @@ public:
 
     template <typename T0, typename T1, typename T2, typename F>
     void cpu_parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
-        auto work_amount = static_cast<size_t>(D0 * D1 * D2);  // NOLINT(bugprone-misplaced-widening-cast)
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        auto work_amount = static_cast<int>(D0 * D1 * D2);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
         }
-        if (static_cast<size_t>(virtual_threads) > work_amount) {
-            virtual_threads = static_cast<int>(work_amount);
+        if (virtual_threads > work_amount) {
+            virtual_threads = work_amount;
         }
         if (virtual_threads == 1) {
             for_3d(0, 1, D0, D1, D2, func);
@@ -149,15 +149,15 @@ public:
 
     template <typename T0, typename T1, typename T2, typename T3, typename F>
     void cpu_parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
-        auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3);  // NOLINT(bugprone-misplaced-widening-cast)
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        auto work_amount = static_cast<int>(D0 * D1 * D2 * D3);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
         }
-        if (static_cast<size_t>(virtual_threads) > work_amount) {
-            virtual_threads = static_cast<int>(work_amount);
+        if (virtual_threads > work_amount) {
+            virtual_threads = work_amount;
         }
         if (virtual_threads == 1) {
             for_4d(0, 1, D0, D1, D2, D3, func);
@@ -183,8 +183,8 @@ public:
 
     template <typename T0, typename T1, typename T2, typename T3, typename T4, typename F>
     void cpu_parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
-        auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4);  // NOLINT(bugprone-misplaced-widening-cast)
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        auto work_amount = static_cast<int>(D0 * D1 * D2 * D3 * D4);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
@@ -223,16 +223,15 @@ public:
                             const T4& D4,
                             const T5& D5,
                             const F& func) {
-#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
-        auto work_amount =
-            static_cast<size_t>(D0 * D1 * D2 * D3 * D4 * D5);  // NOLINT(bugprone-misplaced-widening-cast)
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        auto work_amount = static_cast<int>(D0 * D1 * D2 * D3 * D4 * D5);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
         if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
         }
-        if (static_cast<size_t>(virtual_threads) > work_amount) {
-            virtual_threads = static_cast<int>(work_amount);
+        if (virtual_threads > work_amount) {
+            virtual_threads = work_amount;
         }
         if (virtual_threads == 1) {
             for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);

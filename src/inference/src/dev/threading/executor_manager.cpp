@@ -7,7 +7,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
 #    if (TBB_INTERFACE_VERSION < 12000)
 #        include <tbb/task_scheduler_init.h>
 #    else
@@ -47,7 +47,7 @@ private:
     bool tbbTerminateFlag = false;
     mutable std::mutex global_mutex;
     bool tbbThreadsCreated = false;
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
 #    if (TBB_INTERFACE_VERSION < 12000)
     std::shared_ptr<tbb::task_scheduler_init> tbbTaskScheduler = nullptr;
 #    else
@@ -67,7 +67,7 @@ void ExecutorManagerImpl::set_property(const ov::AnyMap& properties) {
     for (const auto& it : properties) {
         if (it.first == ov::force_tbb_terminate.name()) {
             tbbTerminateFlag = it.second.as<bool>();
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
             if (tbbTerminateFlag) {
                 if (!tbbTaskScheduler) {
 #    if (TBB_INTERFACE_VERSION < 12000)
@@ -97,7 +97,7 @@ ov::Any ExecutorManagerImpl::get_property(const std::string& name) const {
 void ExecutorManagerImpl::reset_tbb() {
     std::lock_guard<std::mutex> guard(global_mutex);
     if (tbbTerminateFlag) {
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         if (tbbTaskScheduler && tbbThreadsCreated) {
 #    if (TBB_INTERFACE_VERSION < 12000)
             tbbTaskScheduler->terminate();

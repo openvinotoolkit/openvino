@@ -7,7 +7,7 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
-#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
 #    include <oneapi/dnnl/dnnl_config.h>
 
 #    include <common/dnnl_thread.hpp>
@@ -22,7 +22,7 @@ namespace ov::intel_cpu {
 
 dnnl::stream make_stream(const dnnl::engine& engine, const std::shared_ptr<ThreadPool>& thread_pool) {  // NOLINT
     dnnl::stream stream;
-#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
     static auto g_cpu_parallel = std::make_shared<CpuParallel>(ov::intel_cpu::TbbPartitioner::STATIC, 32);
     static auto g_thread_pool = std::make_shared<ThreadPool>(g_cpu_parallel);
     stream = dnnl::threadpool_interop::make_stream(engine, thread_pool ? thread_pool.get() : g_thread_pool.get());

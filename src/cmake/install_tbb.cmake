@@ -66,7 +66,7 @@ unset(_ov_dynamic_tbbbind_2_5_found)
 # install TBB
 
 # define variables for OpenVINOConfig.cmake
-if(THREADING MATCHES "^(TBB|TBB_AUTO|TBB_PARTITIONER_AUTO)$")
+if(THREADING MATCHES "^(TBB|TBB_AUTO|TBB_ADAPTIVE)$")
     set(OV_TBB_DIR "${TBB_DIR}")
     list(APPEND PATH_VARS "OV_TBB_DIR")
 endif()
@@ -80,7 +80,7 @@ endif()
 # - downloaded TBB should be a part of all packages
 # - custom TBB provided by users, needs to be a part of wheel packages
 # - system TBB also needs to be a part of wheel packages
-if(THREADING MATCHES "^(TBB|TBB_AUTO|TBB_PARTITIONER_AUTO)$" AND
+if(THREADING MATCHES "^(TBB|TBB_AUTO|TBB_ADAPTIVE)$" AND
        ( (DEFINED TBBROOT AND TBBROOT MATCHES ${TEMP}) OR
          (DEFINED TBBROOT OR DEFINED TBB_DIR OR DEFINED ENV{TBBROOT} OR
           DEFINED ENV{TBB_DIR}) OR ENABLE_SYSTEM_TBB ) )
