@@ -202,8 +202,12 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
     }
     if (tensor_info != nullptr) {
         tensor_meta_info.m_tensor_name = tensor_info->has_name() ? &tensor_info->name() : &empty_name;
-        tensor_meta_info.m_partial_shape =
-            ov::PartialShape{std::vector<int64_t>{tensor_info->dims().begin(), tensor_info->dims().end()}};
+        std::vector<int64_t> dims(tensor_info->dims().begin(), tensor_info->dims().end());
+        if (dims.size() == 0 || (dims.size() == 1 && dims[0] == 0)) {
+            tensor_meta_info.m_partial_shape = ov::PartialShape{};
+        } else {
+            tensor_meta_info.m_partial_shape = ov::PartialShape{dims};
+        }
         tensor_meta_info.m_element_type =
             tensor_info->has_data_type() ? get_ov_element_type(tensor_info->data_type()) : ov::element::dynamic;
         if (tensor_info->has_data_location() &&

@@ -668,10 +668,12 @@ std::vector<std::size_t> Node::get_attribute_value(const std::string& name,
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<std::vector<std::size_t>>(name, std::move(default_value));
     } else if (m_decoder != nullptr) {
-        if (m_decoder->has_attribute(name))
-            return m_decoder->get_attribute(name).as<std::vector<std::size_t>>();
-        else
+        if (m_decoder->has_attribute(name)) {
+            auto ints = m_decoder->get_attribute(name).as<std::vector<std::int64_t>>();
+            return {ints.begin(), ints.end()};
+        } else {
             return default_value;
+        }
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -982,6 +984,14 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_decoder_attribute_as_constant(co
     const auto value = get_attribute_value<T>(name, default_value);
     const ov::element::Type type = ov::element::from<T>();
     return std::make_shared<ov::op::v0::Constant>(type, ov::Shape{}, value);
+}
+
+template <>
+std::shared_ptr<ov::op::v0::Constant> Node::get_decoder_attribute_as_constant<std::vector<int64_t>>(
+    const std::string& name,
+    std::vector<int64_t> default_value) const {
+    const auto values = get_attribute_value<std::vector<int64_t>>(name, default_value);
+    return std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{values.size()}, values);
 }
 
 template <>
