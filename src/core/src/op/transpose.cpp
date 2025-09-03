@@ -95,20 +95,44 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
             int4_extract_t m_half;
         };
 
-        auto out_ptr = int4_iterator(static_cast<uint8_t*>(out.data()));
-        // The int4_iterator not supports const pointer but these data are not modified
-        auto in_ptr = int4_iterator(static_cast<uint8_t*>(const_cast<void*>(arg.data())));
-        if ((arg_type == ov::element::i4 || arg_type == ov::element::u4) && arg.get_shape().size() == 2) {
-            const auto out_shape_d0 = out_shape[0];
-            const auto out_shape_d1 = out_shape[1];
-
-            for (size_t i = 0; i < out_shape_d0; i++) {
-                size_t off = i;
-                for (size_t j = 0; j < out_shape_d1; j++) {
-                    out_ptr.copy_from(in_ptr + off);
-                    ++out_ptr;
-                    off += out_shape_d0;
+        if (arg_type == ov::element::i4 || arg_type == ov::element::u4) {
+            // The int4_iterator not supports const pointer but these data are not modified
+            auto transpose_xy =
+                [](int4_iterator& out_ptr, int4_iterator& in_ptr, size_t out_shape_d0, size_t out_shape_d1) {
+                    for (size_t i = 0; i < out_shape_d0; i++) {
+                        size_t off = i;
+                        for (size_t j = 0; j < out_shape_d1; j++) {
+                            out_ptr.copy_from(in_ptr + off);
+                            ++out_ptr;
+                            off += out_shape_d0;
+                        }
+                    }
+                };
+            if (arg.get_shape().size() == 2) {
+                auto out_ptr = int4_iterator(static_cast<uint8_t*>(out.data()));
+                auto in_ptr = int4_iterator(static_cast<uint8_t*>(const_cast<void*>(arg.data())));
+                const auto out_shape_d0 = out_shape[0];
+                const auto out_shape_d1 = out_shape[1];
+                transpose_xy(out_ptr, in_ptr, out_shape_d0, out_shape_d1);
+            } else if (arg.get_shape().size() == 3) {
+                OPENVINO_ASSERT(axes_order[0] == 0 && axes_order[1] == 2 && axes_order[2] == 1,
+                                "Unsupported transpose order for i4/u4 type");
+                const auto out_batch = out_shape[0];
+                const auto out_shape_d0 = out_shape[1];
+                const auto out_shape_d1 = out_shape[2];
+                OPENVINO_ASSERT((out_shape_d0 * out_shape_d1) % 2 == 0,
+                                "Only supports even number of i4/u4 data in each batch for transposing");
+                size_t batch_offset = 0;
+                for (size_t b = 0; b < out_batch; b++) {
+                    uint8_t* out_batch_base = static_cast<uint8_t*>(out.data()) + batch_offset / 2;
+                    uint8_t* in_batch_base = (static_cast<uint8_t*>(const_cast<void*>(arg.data()))) + batch_offset / 2;
+                    auto out_ptr = int4_iterator(out_batch_base);
+                    auto in_ptr = int4_iterator(in_batch_base);
+                    transpose_xy(out_ptr, in_ptr, out_shape_d0, out_shape_d1);
+                    batch_offset += out_shape_d0 * out_shape_d1;
                 }
+            } else {
+                OPENVINO_THROW("Transpose for i4/u4 dtype is supported only for ndims <= 3");
             }
         } else {
             reference::transpose(static_cast<const char*>(arg.data()),

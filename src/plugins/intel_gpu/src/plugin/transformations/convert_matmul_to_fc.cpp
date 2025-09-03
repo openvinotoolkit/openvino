@@ -13,10 +13,13 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov::intel_gpu {
 
-ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
+ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad) {
+    using namespace ov::pass::pattern;
     auto static_rank_gt_1 = [](const ov::Output<ov::Node>& output) {
         const auto& r = output.get_partial_shape().rank();
         return r.is_static() && r.get_length() > 1;
@@ -25,13 +28,58 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         const auto& pshape = output.get_partial_shape();
         return ov::op::util::is_on_constant_path(output) &&
                static_rank_gt_1(output) &&
-               pshape.is_static() &&
-               std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& x) { return x != 1; }) <= 2;
+               pshape.is_static();
+    };
+    // compressed path
+    auto compressed_constant = [](const ov::Output<ov::Node>& output) {
+        return (output.get_element_type() == ov::element::u8 ||
+                output.get_element_type() == ov::element::i8 ||
+                output.get_element_type() == ov::element::u4 ||
+                output.get_element_type() == ov::element::i4);
     };
 
+    auto reshape_squeeze = [](const ov::Output<ov::Node>& output) {
+        auto in_ps = output.get_node()->get_input_partial_shape(0);
+        auto out_ps = output.get_node()->get_output_partial_shape(0);
+        return in_ps.rank().is_static() && out_ps.rank().is_static() &&
+            ((in_ps.size() == 3 && out_ps.size() == 2) || (in_ps.size() == 4 && out_ps.size() == 3));
+    };
+
+    auto compressed_weights_m = wrap_type<ov::op::v0::Constant>(compressed_constant);
+    auto convert_m = wrap_type<ov::op::v0::Convert>({compressed_weights_m});
+
+    auto sub_const_m = wrap_type<ov::op::v0::Constant>();
+    auto sub_convert_const_m = wrap_type<ov::op::v0::Convert>({sub_const_m});
+    auto sub_with_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_convert_const_m});
+    auto sub_no_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m});
+    auto subtract_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub_with_convert_m, sub_no_convert_m});
+
+    auto mul_const_m = wrap_type<ov::op::v0::Constant>();
+    auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});
+    auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_m});
+    auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});
+
+    auto reshape_const_m = wrap_type<ov::op::v0::Constant>();
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({mul_m, reshape_const_m}, reshape_squeeze);
+    auto convert_reshape_m = wrap_type<ov::op::v0::Convert>({reshape_m});
+
+    auto mul2_const_m = wrap_type<ov::op::v0::Constant>();
+    auto mul2_m = wrap_type<ov::op::v1::Multiply>({reshape_m, mul2_const_m});
+
+    auto transpose_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_m, mul_m});
+    auto transpose_const_m = wrap_type<ov::op::v0::Constant>();
+    auto transpose_m = wrap_type<ov::op::v1::Transpose>({transpose_input, transpose_const_m});
+
     auto activations_m = ov::pass::pattern::any_input(static_rank_gt_1);
-    auto weights_m = ov::pass::pattern::any_input(weights_path);
-    auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({ activations_m, weights_m }, ov::pass::pattern::has_static_rank());
+    auto general_weights_m = ov::pass::pattern::any_input(weights_path);
+
+    auto compressed_weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(
+        ov::OutputVector{reshape_m, convert_reshape_m, transpose_m, mul_m, mul2_m, general_weights_m});
+
+    auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(
+        ov::OutputVector{compressed_weights_input_m, general_weights_m});
+    auto matmul_m =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m}, ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -86,7 +134,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
          *  for example: [2, 32, 64] [3, 64, 64] it will raise an exception.
          */
 
-        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
+        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul, &supports_immad](const bool is_compressed_weight)
+            -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
             ov::PartialShape shape_a_aligned(shape_a);
             ov::PartialShape shape_b_aligned(shape_b);
             size_t max_size = std::max(rank_a, rank_b);
@@ -108,7 +157,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
             for (size_t i = 0; i < max_size - 2; ++i) {
                 if (shape_b_aligned[i] == 1) {
                     shape_b_aligned[i] = shape_a_aligned[i];
-                } else {
+                } else if (!is_compressed_weight || !supports_immad) {
                     return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
                 }
             }
@@ -141,10 +190,11 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
             return transpose;
         };
 
+        bool is_compressed_weight = (pattern_map.at(compressed_weights_input_m).get_node_shared_ptr() != nullptr);
         bool success = true;
         ov::PartialShape shape_a_aligned;
         ov::PartialShape shape_b_aligned;
-        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes();
+        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes(is_compressed_weight);
         if (!success) {
             return false;
         }
