@@ -101,6 +101,8 @@ private:
 
 // Forward declarations
 class FrontEnd;
+using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
+using LocalStreamHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<std::ifstream>>>;
 
 namespace unify {
 // Support of unified GraphIterator interface
@@ -144,6 +146,9 @@ public:
                           const std::vector<ov::frontend::Place::Ptr>& outputs) override;
 
     bool is_enabled_mmap() const;
+
+    MappedMemoryHandles get_mmap_cache() const;
+    LocalStreamHandles get_stream_cache() const;
 };
 }  // namespace unify
 
