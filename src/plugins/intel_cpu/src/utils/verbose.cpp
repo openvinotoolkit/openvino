@@ -1,47 +1,21 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <algorithm>
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <utility>
+#include "verbose.h"
 
+#include "common/c_types_map.hpp"
+#include "common/verbose.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "onednn/iml_type_mapper.h"
-#include "utils/general_utils.h"
-#ifdef CPU_DEBUG_CAPS
-
-#    include <node.h>
-
-#    include <cstdlib>
-#    include <iostream>
-#    include <sstream>
-#    include <string>
-
-#    include "common/c_types_map.hpp"
-#    include "common/verbose.hpp"
-#    include "cpu_types.h"
-#    include "memory_desc/cpu_memory_desc_utils.h"
-#    include "verbose.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/version.hpp"
+#include "openvino/util/env_util.hpp"
 
 namespace ov::intel_cpu {
-
-bool Verbose::shouldBePrinted() const {
-    if (lvl < 1) {
-        return false;
-    }
-
-    if (lvl < 2 && any_of(node->getType(), Type::Input, Type::Output)) {
-        return false;
-    }
-
-    const bool low_level = lvl < 3;
-    const bool is_constant = node->isConstant();
-    const bool skip_node = low_level && is_constant;
-    return !skip_node;
-}
 
 /**
  * Print node verbose execution information to cout.
@@ -49,7 +23,7 @@ bool Verbose::shouldBePrinted() const {
  * Formating written in C using oneDNN format functions.
  * Can be rewritten in pure C++ if necessary
  */
-void Verbose::printInfo() {
+std::stringstream& printInfo(std::stringstream& stream, const NodePtr& node, bool colorUp) {
     enum Color : uint8_t { RED, GREEN, YELLOW, BLUE, PURPLE, CYAN };
 
     auto colorize = [&](const Color color, const std::string& str) {
@@ -185,17 +159,47 @@ void Verbose::printInfo() {
 
     stream << "ov_cpu_verbose" << ',' << "exec" << ',' << nodeImplementer << ',' << nodeName << ":" << nodeType << ":"
            << nodeAlg << ',' << nodePrimImplType << ',' << portsInfo << ',' << post_ops << ',';
+    return stream;
 }
 
-void Verbose::printDuration() {
+std::stringstream& printDuration(std::stringstream& stream, const NodePtr& node) {
     const auto& duration = node->PerfCounter().duration().count();
     stream << duration << "ms";
+    return stream;
 }
 
-void Verbose::flush() const {
-    std::cout << stream.rdbuf() << "\n";
+static void printPluginInfo() {
+    const auto& ov_version = ov::get_openvino_version();
+    const auto& dnnl_version = dnnl::version();
+    std::cout << "ov_cpu_verbose,info,intel_cpu_plugin,version: " << ov_version.buildNumber << '\n';
+    std::cout << "ov_cpu_verbose,info,onednn,version: " << dnnl_version->major << "." << dnnl_version->minor << "."
+              << dnnl_version->patch << " (commit " << dnnl_version->hash << ")" << '\n';
+    // @todo add more info regarding other backends if available
+    std::cout << "ov_cpu_verbose,info,isa: " << dnnl::impl::cpu::x64::get_isa_info() << '\n';
+    std::cout << "ov_cpu_verbose,info,intel_cpu_plugin,runtime: " << OV_THREAD_NAME << std::endl;
+}
+
+void printPluginInfoOnce() {
+    static std::atomic_flag info_printed = ATOMIC_FLAG_INIT;
+    if (info_printed.test_and_set()) {
+        return;
+    }
+
+    // @todo To avoid dealing with environment variables in multiple places
+    //       read them all in one place and pass to CPU plugin / config as a parameter
+    const auto& ov_cpu_verbose = ov::util::getenv_string("OV_CPU_VERBOSE");
+#if defined(CPU_DEBUG_CAPS)
+    // in case of debug caps enabled print info if OV_CPU_VERBOSE is set to any value
+    if (ov_cpu_verbose.empty()) {
+        return;
+    }
+#else
+    if (ov_cpu_verbose != "info") {
+        return;
+    }
+#endif
+
+    printPluginInfo();
 }
 
 }  // namespace ov::intel_cpu
-
-#endif  // CPU_DEBUG_CAPS

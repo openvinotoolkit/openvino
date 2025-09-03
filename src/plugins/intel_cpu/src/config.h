@@ -55,6 +55,7 @@ struct Config {
     SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot;
     std::string device_id;
+    std::string verbose;
     float fcSparseWeiDecompressionRate = 1.0F;
     uint64_t fcDynamicQuantizationGroupSize = 32;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
@@ -127,6 +128,7 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
+    void readEnvProperties();
     void readProperties(const ov::AnyMap& prop, ModelType modelType = ModelType::Unknown);
 
     void updateProperties();

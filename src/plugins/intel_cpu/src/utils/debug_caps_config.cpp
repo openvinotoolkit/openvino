@@ -38,10 +38,6 @@ void DebugCapsConfig::readProperties() {
         execGraphPath = envVarValue;
     }
 
-    if (const auto* envVarValue = readEnv("OV_CPU_VERBOSE")) {
-        verbose = envVarValue;
-    }
-
     if (const auto* envVarValue = readEnv("OV_CPU_BLOB_DUMP_DIR")) {
         blobDumpDir = envVarValue;
     }

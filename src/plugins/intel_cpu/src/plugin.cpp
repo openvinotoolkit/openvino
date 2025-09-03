@@ -16,6 +16,8 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include "utils/verbose.h"
 #if defined(__APPLE__)
 #    include <sys/sysctl.h>
 #    include <sys/types.h>
@@ -233,6 +235,7 @@ static std::string getDeviceFullName() {
 
 Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
+    printPluginInfoOnce();
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
     get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
