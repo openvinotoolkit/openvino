@@ -851,40 +851,38 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
     m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
-    const auto prompt_alignment = static_cast<uint32_t>(m_use_chunk_prefill ? m_prefill_chunk_size : 64u);
 
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
-    const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), prompt_alignment);
+    uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
     const uint32_t max_generation_token_len = m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
+
+    // If chunk size covers the entire prompt, just follow the static behavior.
+    // Otherwise, use chunking and align the prompt size to the chunk size.
+    if (m_use_chunk_prefill) {
+        if (m_prefill_chunk_size >= max_prompt_len) {
+            m_use_chunk_prefill = false;
+        } else {
+            const auto is_power_of_two = [](uint64_t n) {
+                return n > 0 && (n & (n - 1)) == 0;
+            };
+            if (!is_power_of_two(m_prefill_chunk_size)) {
+                OPENVINO_THROW("Configuration Error: chunk size (",
+                               m_prefill_chunk_size,
+                               ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
+            }
+            max_prompt_len = align_to(max_prompt_len, static_cast<uint32_t>(m_prefill_chunk_size));
+        }
+    }
 
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
-    auto is_power_of_two = [](uint64_t n) {
-        return n > 0 && (n & (n - 1)) == 0;
-    };
-    if (m_use_chunk_prefill) {
-        if (!is_power_of_two(m_prefill_chunk_size)) {
-            OPENVINO_THROW("Configuration Error: chunk size (",
-                           m_prefill_chunk_size,
-                           ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
-        }
+    m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
 
-        if (max_prompt_len % m_prefill_chunk_size) {
-            OPENVINO_THROW("Configuration Error: The maximum prompt length (",
-                           max_prompt_len,
-                           ") is not a multiple of chunk size (",
-                           m_prefill_chunk_size,
-                           "). Please adjust NPUW_LLM_MAX_PROMPT_LEN to be a multiple of NPUW_LLM_PREFILL_CHUNK_SIZE.");
-        }
-    }
-
-    m_kvcache_desc =
-        KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
     LOG_DEBUG("Make prefill model with static shapes");
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
     if (m_use_chunk_prefill) {

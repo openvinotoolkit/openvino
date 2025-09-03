@@ -632,6 +632,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     LOG_BLOCK();
 
     const auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+
+    // For LLM, model accepts 2d inputs_embeds[BATCH, SEQ_LEN]
+    // For VLM, model accepts 3d inputs_ids[BATCH, SEQ_LEN, EMB_SIZE]
+    bool is_input_embeds = input_ids->get_shape().size() == 2 ? false : true;
+
     const auto input_ids_elem_size = input_ids->get_element_type().size();
     auto input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
     const int64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
@@ -663,6 +668,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
         auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
+        if (is_input_embeds) {
+            current_prefill_bytes *= input_ids->get_shape().back();
+            prefilled_bytes *= input_ids->get_shape().back();
+        }
+
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
                     current_prefill_bytes,
                     reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -

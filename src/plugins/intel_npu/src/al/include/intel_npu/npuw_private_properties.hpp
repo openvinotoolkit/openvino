@@ -470,7 +470,7 @@ static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
  * Prompt chunk size for chunk prefill.
  * The chunk size should be a power of two.
  * Chunk prefill feature is disabled in case the value is 0.
- * Default value: 0.
+ * Default value: 1024.
  */
 static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
 
