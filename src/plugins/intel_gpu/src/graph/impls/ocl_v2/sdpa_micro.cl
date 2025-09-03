@@ -327,6 +327,15 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
     float masked_scale = iscale * STATIC_SCALAR_ATTN_MASK_VALUE;
 #endif
+#ifdef HAS_SINK_INPUT
+    const float sink_val = convert_float(sink_ptr[b0]);
+    #define MULTI_TOKENS_PER_WI ((ugemm_kq_sg_tile_n/SUBGROUP_SIZE) > 1)
+    #if MULTI_TOKENS_PER_WI
+        #define VEC_SIZE (ugemm_kq_sg_tile_n / SUBGROUP_SIZE)
+        typedef float __attribute__((ext_vector_type(VEC_SIZE))) s_sink_vec_type;
+        s_sink_vec_type sink_val_vec = sink_val;
+    #endif
+#endif
 
 #ifdef PREFETCH_K0
     /* Prefetch first K tile. */
@@ -490,14 +499,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_atomic_max_full(
                 S_max_tile, S_max_slm, ugemm_kq_wg_tile_n, sg_j0_kq, 0);
         intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
+
         #ifdef HAS_SINK_INPUT
-        const int head_idx = get_group_id(1);
-        const float sink_val = convert_float(sink_ptr[head_idx]);
-        float2 sink_val_vec = {sink_val, sink_val};
         const int cur_k = k - k0 - 1;
         const bool is_last_m_sg = last && (sg_i_kq == cur_k / ugemm_kq_sg_tile_m);
         if (is_last_m_sg) {
-        #if (ugemm_kq_sg_tile_n/SUBGROUP_SIZE) > 1
+        #if MULTI_TOKENS_PER_WI
             #define max_sink(x) (fmax(x, sink_val_vec))
             tile_elementwise(S_max_tile, max_sink);
             #undef max_sink
