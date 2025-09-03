@@ -190,8 +190,8 @@ public:
         if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
         }
-        if (static_cast<size_t>(virtual_threads) > work_amount) {
-            virtual_threads = static_cast<int>(work_amount);
+        if (virtual_threads > work_amount) {
+            virtual_threads = work_amount;
         }
         if (virtual_threads == 1) {
             for_5d(0, 1, D0, D1, D2, D3, D4, func);
