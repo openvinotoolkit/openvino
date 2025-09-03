@@ -492,7 +492,6 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
 
 ov::pass::RoPEFusionVIT3D::RoPEFusionVIT3D() {
     using namespace ov::op::util;
-    using namespace ov::op;
     MATCHER_SCOPE(RoPEFusionVIT3D);
 
     auto x = pattern::any_input(pattern::rank_equals(3));
@@ -516,8 +515,6 @@ ov::pass::RoPEFusionVIT3D::RoPEFusionVIT3D() {
     auto result = pattern::wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        // std::cout << "wzx debug hit return" << std::endl;
-        // return false;
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -559,7 +556,6 @@ ov::pass::RoPEFusionVIT3D::RoPEFusionVIT3D() {
 
         // this new node may match following additional matchers
         register_new_node(new_node);
-        // std::cout << "wzx debug hit3" << std::endl;
         return true;
     };
 
