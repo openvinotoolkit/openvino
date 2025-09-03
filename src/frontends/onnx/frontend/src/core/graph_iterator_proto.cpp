@@ -172,19 +172,19 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
     return tensor_meta_info;
 }
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-GraphIteratorProto::GraphIteratorProto(const std::wstring& path, const bool enable_mmap)
-    : GraphIteratorProto(ov::util::wstring_to_string(path), enable_mmap) {}
-
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-GraphIteratorProto::GraphIteratorProto(const std::string& path, const bool enable_mmap)
+GraphIteratorProto::GraphIteratorProto(const bool enable_mmap)
     : m_parent(nullptr),
       m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
-                               : nullptr} {
-    // @TODO: This is a really bad thing - resource allocation in a constructor
-    // Need to think about usage init()/reset() as a base for resource allocation
+                               : nullptr} {}
+
+GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def) {
+    m_mmap_cache = parent->m_mmap_cache;
+    m_parent = parent;
+    m_model = parent->m_model;
+    m_graph = graph_def;
+}
+
+void GraphIteratorProto::init(const std::string& path) {
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
         FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
@@ -207,18 +207,11 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path, const bool enabl
     }
 }
 
-GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def) {
-    m_mmap_cache = parent->m_mmap_cache;
-    m_parent = parent;
-    m_model = parent->m_model;
-    m_graph = graph_def;
-    if (m_graph != nullptr) {
-        try {
-            reset();
-        } catch (...) {
-        }
-    }
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+void GraphIteratorProto::init(const std::wstring& path) {
+    init(ov::util::wstring_to_string(path));
 }
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::string& name,
                                                                    GraphIteratorProto** owner) {

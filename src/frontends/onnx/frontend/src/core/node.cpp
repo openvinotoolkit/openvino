@@ -731,6 +731,7 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name,
             return default_value;
         }
         auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
+        graph_iterator->reset();
         auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator);
         std::shared_ptr<ov::Model> ov_model(nullptr);
         m_translate_session->translate_graph(input_model, ov_model);
@@ -943,6 +944,7 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) co
         return m_pimpl->template get_attribute_value<std::shared_ptr<ov::Model>>(name);
     } else if (m_decoder != nullptr) {
         auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
+        graph_iterator->reset();
         auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator);
         std::shared_ptr<ov::Model> ov_model(nullptr);
         m_translate_session->translate_graph(input_model, ov_model);
