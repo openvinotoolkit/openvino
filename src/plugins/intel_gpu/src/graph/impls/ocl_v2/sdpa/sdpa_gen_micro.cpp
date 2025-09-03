@@ -946,7 +946,12 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         jit.add(make_tensors_jit_constants(params));
         if (desc->has_sink_input) {
-            jit.make("SINK_DATA_T", to_ocl_type(params.input_layouts[5].data_type));
+            auto sink_layout = params.input_layouts[ScaledDotProductAttentionInputIdx::SINK];
+            std::cout << "sink_layout : " << sink_layout.to_short_string() << std::endl;
+            if (sink_layout.count() != micro_get_head_size(params, 0))
+                OPENVINO_THROW("Currently only supporting per-head sink.Sink_layout : ",
+                                sink_layout.to_short_string(), " heads_num  :", micro_get_head_size(params, 0));
+            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
             jit.make("HAS_SINK_INPUT", 1);
         }
     }
