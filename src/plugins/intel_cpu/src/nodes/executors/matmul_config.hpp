@@ -19,7 +19,7 @@ struct MatMulAttrs {
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
     uint64_t dynamicQuantizationGroupSize = 0;
-    bool nonConstantWeights = true;
+    bool constantWeights = false;
     bool fcSemantic = false;
 
     // DQ scales for quantization

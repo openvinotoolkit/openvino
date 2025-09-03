@@ -40,8 +40,8 @@ class DnnlConvolutionPrimitive {
 
         dnnl::primitive_attr attr;
 
-        bool fcSemantic;
-        bool nonConstantWeights;
+        bool fcSemantic = false;
+        bool constantWeights = true;
 
         [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;

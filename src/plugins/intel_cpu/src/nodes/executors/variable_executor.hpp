@@ -33,12 +33,12 @@ public:
                      Attrs attrs,
                      ExecutorContext::CPtr context,
                      std::vector<ExecutorImplementationRef> suitableImplementations,
-                     bool precreate)
+                     bool init)
         : m_attrs(std::move(attrs)),
           m_context(std::move(context)),
           m_suitableImplementations(std::move(suitableImplementations)),
           m_executors(m_suitableImplementations.size()) {
-        if (precreate) {
+        if (init) {
             const size_t implId = select(memory, 0);
             m_executors[implId] = create(implId, memory);
             m_implId = implId;
