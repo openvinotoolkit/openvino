@@ -290,7 +290,7 @@ GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphPr
     m_graph = graph_def;
 }
 
-void GraphIteratorProto::init(const std::string& path) {
+void GraphIteratorProto::initialize(const std::string& path) {
     m_model_dir = std::make_shared<std::string>(ov::util::get_directory(path).string());
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
@@ -314,8 +314,8 @@ void GraphIteratorProto::init(const std::string& path) {
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-void GraphIteratorProto::init(const std::wstring& path) {
-    init(ov::util::wstring_to_string(path));
+void GraphIteratorProto::initialize(const std::wstring& path) {
+    initialize(ov::util::wstring_to_string(path));
 }
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 

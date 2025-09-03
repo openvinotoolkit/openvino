@@ -823,7 +823,7 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
         FRONT_END_GENERAL_CHECK(sparse_tensor_info.m_indices && sparse_tensor_info.m_values,
                                 "Incomplete sparse tensors are not supported");
 
-        auto& values_decoder =
+        auto values_decoder =
             std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(sparse_tensor_info.m_values);
         const auto& values_meta_info = values_decoder->get_tensor_info();
         auto values_place = std::make_shared<ov::frontend::onnx::TensorONNXPlace>(
@@ -835,7 +835,7 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
             values_meta_info.m_tensor_data_size,
             values_meta_info.m_external_location);
 
-        auto& indices_decoder =
+        auto indices_decoder =
             std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(sparse_tensor_info.m_indices);
         const auto& indices_meta_info = indices_decoder->get_tensor_info();
         auto indices_place = std::make_shared<ov::frontend::onnx::TensorONNXPlace>(

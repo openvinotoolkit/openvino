@@ -132,10 +132,10 @@ public:
 
 protected:
     int64_t m_input_idx = -1, m_output_idx = -1;
+    const ov::frontend::InputModel& m_input_model;
     const void* m_data;
     size_t m_data_size;
     std::shared_ptr<std::string> m_data_location;
-    const ov::frontend::InputModel& m_input_model;
 };
 
 class Tensor {

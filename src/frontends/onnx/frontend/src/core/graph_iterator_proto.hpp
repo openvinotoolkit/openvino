@@ -8,6 +8,7 @@
 
 #include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
 
@@ -62,43 +63,43 @@ public:
     explicit GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def);
     ~GraphIteratorProto() = default;
 
-    void init(const std::string& path);
+    void initialize(const std::string& path);
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    void init(const std::wstring& path);
+    void initialize(const std::wstring& path);
 #endif
 
     /// Verifies file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
-        FRONT_END_GENERAL_CHECK(util::file_exists(path),
+        FRONT_END_GENERAL_CHECK(ov::util::file_exists(path),
                                 "Could not open the file: \"",
-                                util::path_to_string(path),
+                                ov::util::path_to_string(path),
                                 '"');
         try {
-            std::streamsize file_size = util::file_size(path);
+            std::streamsize file_size = ov::util::file_size(path);
             // Skip files which less than size of file identifier
             if (file_size < 1) {
                 return false;
             }
 #if defined(__MINGW32__) || defined(__MINGW64__)
-            std::ifstream tflite_stream(std::filesystem::path(path), std::ios::in | std::ifstream::binary);
+            std::ifstream onnx_stream(std::filesystem::path(path), std::ios::in | std::ifstream::binary);
 #else
-            std::ifstream tflite_stream(path, std::ios::in | std::ifstream::binary);
+            std::ifstream onnx_stream(path, std::ios::in | std::ifstream::binary);
 #endif
             // the model usually starts with a 0x08 byte indicating the ir_version value
             // so this checker expects at least 3 valid ONNX keys to be found in the validated model
             const size_t EXPECTED_FIELDS_FOUND = 3u;
-            std::unordered_set<::onnx::Field, std::hash<int>> onnx_fields_found = {};
+            std::unordered_set<::ONNX_NAMESPACE::Field, std::hash<int>> onnx_fields_found = {};
             try {
-                while (!model.eof() && onnx_fields_found.size() < EXPECTED_FIELDS_FOUND) {
-                    const auto field = ::onnx::decode_next_field(model);
+                while (onnx_stream.good() && !onnx_stream.eof() && onnx_fields_found.size() < EXPECTED_FIELDS_FOUND) {
+                    const auto field = ::ONNX_NAMESPACE::decode_next_field(onnx_stream);
 
                     if (onnx_fields_found.count(field.first) > 0) {
                         // if the same field is found twice, this is not a valid ONNX model
                         return false;
                     } else {
                         onnx_fields_found.insert(field.first);
-                        ::onnx::skip_payload(model, field.second);
+                        ::ONNX_NAMESPACE::skip_payload(onnx_stream, field.second);
                     }
                 }
 
