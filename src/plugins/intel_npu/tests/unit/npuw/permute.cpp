@@ -7,42 +7,54 @@
 
 namespace details {
 
-// Permute function
+// Permute function.
 template <typename T>
 void permute(const T* input, T* output, const std::vector<size_t>& dims, const std::vector<size_t>& order) {
     size_t ndim = dims.size();
     assert(order.size() == ndim);
 
-    // Compute new dims
+    // Compute new dims.
     std::vector<size_t> new_dims = details::reorder(dims, order);
 
-    // Compute strides
+    // Compute strides.
     std::vector<size_t> old_strides = details::compute_strides(dims);
     std::vector<size_t> new_strides = details::compute_strides(new_dims);
 
     size_t total = std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>());
 
-    // For each index in output, compute corresponding input index
-    // Use a flat index and unravel it to multi-index in new order, then map to old order
+    // For each index in output, compute corresponding input index.
+    // Use a flat index and unravel it to multi-index in new order, then map to old order.
     for (size_t out_idx = 0; out_idx < total; ++out_idx) {
-        // Unravel out_idx to multi-index in new_dims
+        // Unravel out_idx to multi-index in new_dims.
         std::vector<size_t> new_multi(ndim);
         size_t tmp = out_idx;
         for (size_t i = 0; i < ndim; ++i) {
             new_multi[i] = tmp / new_strides[i];
             tmp = tmp % new_strides[i];
         }
-        // Map new_multi to old_multi
+        // Map new_multi to old_multi.
         std::vector<size_t> old_multi(ndim);
         for (size_t i = 0; i < ndim; ++i)
             old_multi[order[i]] = new_multi[i];
 
-        // Compute flat input index
+        // Compute flat input index.
         size_t in_idx = 0;
         for (size_t i = 0; i < ndim; ++i)
             in_idx += old_multi[i] * old_strides[i];
 
-        output[out_idx] = input[in_idx];
+        if constexpr (std::is_same<T, int8_t>::value) {
+            uint8_t in_byte = input[in_idx / 2];
+            uint8_t in_val = (in_idx % 2 == 0) ? (in_byte & 0x0F) : ((in_byte >> 4) & 0x0F);
+
+            size_t out_byte_idx = out_idx / 2;
+            if (out_idx % 2 == 0) {
+                output[out_byte_idx] = (output[out_byte_idx] & 0xF0) | (in_val & 0x0F);
+            } else {
+                output[out_byte_idx] = (output[out_byte_idx] & 0x0F) | ((in_val & 0x0F) << 4);
+            }
+        } else {
+            output[out_idx] = input[in_idx];
+        }
     }
 }
 
@@ -120,59 +132,22 @@ void PermuteTestsBase::make_ref_output() {
     auto rows = input_shape[0] * input_shape[1];
     auto cols = input_shape[2];
 
-    if (type == ov::element::i4) {
-        for (size_t p = 0; p < input_shape[0]; p++) {
-            for (size_t r = 0; r < input_shape[1]; r++) {
-                for (size_t c = 0; c < input_shape[2]; c++) {
-                    if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
-                        details::write_4b(reinterpret_cast<uint8_t*>(ref_output.data()),
-                                          details::read_4b(reinterpret_cast<const uint8_t*>(input.data()),
-                                                           p * input_shape[1] + r,
-                                                           c,
-                                                           input_shape[2]),
-                                          c * input_shape[0] + p,
-                                          r,
-                                          input_shape[1]);
-                    } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
-                        details::write_4b(reinterpret_cast<uint8_t*>(ref_output.data()),
-                                          details::read_4b(reinterpret_cast<const uint8_t*>(input.data()),
-                                                           p * input_shape[1] + r,
-                                                           c,
-                                                           input_shape[2]),
-                                          p * input_shape[2] + c,
-                                          r,
-                                          input_shape[1]);
-                    } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
-                        details::write_4b(reinterpret_cast<uint8_t*>(ref_output.data()),
-                                          details::read_4b(reinterpret_cast<const uint8_t*>(input.data()),
-                                                           p * input_shape[1] + r,
-                                                           c,
-                                                           input_shape[2]),
-                                          r * input_shape[0] + p,
-                                          c,
-                                          input_shape[2]);
-                    }
-                }
-            }
-        }
+    std::vector<size_t> dims(input_shape.begin(), input_shape.end());
+    if (type == ov::element::f16) {
+        details::permute<uint16_t>(reinterpret_cast<const uint16_t*>(input.data()),
+                                   reinterpret_cast<uint16_t*>(ref_output.data()),
+                                   dims,
+                                   axes);
+    } else if (type == ov::element::f32) {
+        details::permute<float>(reinterpret_cast<const float*>(input.data()),
+                                reinterpret_cast<float*>(ref_output.data()),
+                                dims,
+                                axes);
     } else {
-        std::vector<size_t> dims(input_shape.begin(), input_shape.end());
-        if (type == ov::element::f16) {
-            details::permute<uint16_t>(reinterpret_cast<const uint16_t*>(input.data()),
-                                       reinterpret_cast<uint16_t*>(ref_output.data()),
-                                       dims,
-                                       axes);
-        } else if (type == ov::element::f32) {
-            details::permute<float>(reinterpret_cast<const float*>(input.data()),
-                                    reinterpret_cast<float*>(ref_output.data()),
-                                    dims,
-                                    axes);
-        } else {
-            details::permute<int8_t>(reinterpret_cast<const int8_t*>(input.data()),
-                                     reinterpret_cast<int8_t*>(ref_output.data()),
-                                     dims,
-                                     axes);
-        }
+        details::permute<int8_t>(reinterpret_cast<const int8_t*>(input.data()),
+                                 reinterpret_cast<int8_t*>(ref_output.data()),
+                                 dims,
+                                 axes);
     }
 }
 
