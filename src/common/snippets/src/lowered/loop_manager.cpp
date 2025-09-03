@@ -249,6 +249,46 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     }
 }
 
+size_t LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
+                              LinearIR::constExprIt loop_end_pos,
+                              size_t work_amount,
+                              size_t increment,
+                              const std::vector<LoopPort>& entries,
+                              const std::vector<LoopPort>& exits,
+                              bool set_default_handlers) {
+    const auto normalized_increment =
+        utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
+    const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits);
+    if (set_default_handlers) {
+        loop_info->set_handlers(
+            SpecificIterationHandlers(work_amount, normalized_increment, loop_info->get_dim_idx()));
+    }
+
+    const auto loop_id = this->add_loop_info(loop_info);
+    for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
+        insert_loop_id(*expr_it, loop_id);
+    }
+    return loop_id;
+}
+
+size_t LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
+                              LinearIR::constExprIt loop_end_pos,
+                              size_t work_amount,
+                              size_t increment,
+                              size_t dim_idx,
+                              const std::vector<ExpressionPort>& entries_expr_ports,
+                              const std::vector<ExpressionPort>& exits_expr_ports,
+                              bool set_default_handlers) {
+    std::vector<LoopPort> entries, exits;
+    for (const auto& port : entries_expr_ports) {
+        entries.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, dim_idx));
+    }
+    for (const auto& port : exits_expr_ports) {
+        exits.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, dim_idx));
+    }
+    return mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
+}
+
 size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
                                           LinearIR::constExprIt loop_begin_pos,
                                           LinearIR::constExprIt loop_end_pos,

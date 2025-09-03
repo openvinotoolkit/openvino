@@ -37,22 +37,6 @@ LoopInfo::LoopInfo(size_t work_amount,
       m_input_ports(entries),
       m_output_ports(exits) {}
 
-LoopInfo::LoopInfo(size_t work_amount,
-                   size_t increment,
-                   const std::vector<ExpressionPort>& entries,
-                   const std::vector<ExpressionPort>& exits)
-    : m_work_amount(work_amount),
-      m_increment(increment) {
-    m_input_ports.reserve(entries.size());
-    m_output_ports.reserve(exits.size());
-    for (const auto& port : entries) {
-        m_input_ports.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, 0));
-    }
-    for (const auto& port : exits) {
-        m_output_ports.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, 0));
-    }
-}
-
 bool LoopInfo::is_dynamic() const {
     return utils::is_dynamic_value(m_work_amount) || utils::is_dynamic_value(m_increment);
 }
@@ -121,16 +105,6 @@ void LoopInfo::set_work_amount(size_t work_amount) {
 
 void LoopInfo::set_increment(size_t increment) {
     m_increment = increment;
-}
-
-void LoopInfo::set_dim_idx(size_t dim_idx) {
-    auto setter = [dim_idx](LoopPort& port) {
-        if (port.is_processed()) {
-            port.set_dim_idx(dim_idx);
-        }
-    };
-    std::for_each(m_input_ports.begin(), m_input_ports.end(), setter);
-    std::for_each(m_output_ports.begin(), m_output_ports.end(), setter);
 }
 
 template <>
@@ -254,18 +228,6 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  size_t increment,
                                  const std::vector<LoopPort>& entries,
                                  const std::vector<LoopPort>& exits,
-                                 SpecificIterationHandlers handlers)
-    : LoopInfo(work_amount, increment, entries, exits),
-      m_handlers(std::move(handlers)),
-      m_input_port_descs(std::vector<LoopPortDesc>(entries.size())),
-      m_output_port_descs(std::vector<LoopPortDesc>(exits.size())) {
-    sort_ports();
-}
-
-UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
-                                 size_t increment,
-                                 const std::vector<ExpressionPort>& entries,
-                                 const std::vector<ExpressionPort>& exits,
                                  SpecificIterationHandlers handlers)
     : LoopInfo(work_amount, increment, entries, exits),
       m_handlers(std::move(handlers)),
