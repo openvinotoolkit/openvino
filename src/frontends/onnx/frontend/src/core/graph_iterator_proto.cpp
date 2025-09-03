@@ -121,7 +121,19 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->float_data().data()));
             tensor_meta_info.m_tensor_data_size = tensor_info->float_data_size();
             break;
+        case TensorProto_DataType::TensorProto_DataType_INT4:
+        case TensorProto_DataType::TensorProto_DataType_INT8:
+        case TensorProto_DataType::TensorProto_DataType_INT16:
         case TensorProto_DataType::TensorProto_DataType_INT32:
+        case TensorProto_DataType::TensorProto_DataType_UINT4:
+        case TensorProto_DataType::TensorProto_DataType_UINT8:
+        case TensorProto_DataType::TensorProto_DataType_UINT16:
+        case TensorProto_DataType::TensorProto_DataType_UINT32:
+        case TensorProto_DataType::TensorProto_DataType_BOOL:
+        case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
+        case TensorProto_DataType::TensorProto_DataType_FLOAT16:
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->int32_data().data()));
             tensor_meta_info.m_tensor_data_size = tensor_info->int32_data_size();
@@ -141,12 +153,8 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->double_data().data()));
             tensor_meta_info.m_tensor_data_size = tensor_info->double_data_size();
             break;
-        case TensorProto_DataType::TensorProto_DataType_BOOL:
-            tensor_meta_info.m_tensor_data =
-                static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->int32_data().data()));
-            tensor_meta_info.m_tensor_data_size = tensor_info->int32_data_size();
-            break;
         default:
+            std::cout << ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type());
             throw std::runtime_error("Unsupported type " +
                                      ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type()));
             break;

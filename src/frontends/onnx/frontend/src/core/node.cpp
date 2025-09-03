@@ -339,12 +339,14 @@ Node::Node(Node&& other) noexcept
       m_translate_session(nullptr) {}
 
 Node::Node(const Node& other)
-    : m_pimpl{new Impl{other.m_pimpl->node_proto(), other.m_pimpl->graph(), other.get_subgraphs()},
+    : m_pimpl{other.m_pimpl != nullptr
+                  ? new Impl{other.m_pimpl->node_proto(), other.m_pimpl->graph(), other.get_subgraphs()}
+                  : nullptr,
               [](Impl* impl) {
                   delete impl;
               }},
-      m_decoder(nullptr),
-      m_translate_session(nullptr) {}
+      m_decoder(other.m_decoder),
+      m_translate_session(other.m_translate_session) {}
 
 #include <stdexcept>  // For std::runtime_error
 
@@ -394,7 +396,8 @@ const std::string& Node::get_description() const {
     if (m_pimpl != nullptr) {
         return m_pimpl->description();
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        // Workaround
+        return m_decoder->get_output_tensor_name(0);
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -508,7 +511,6 @@ std::vector<std::string> Node::get_attribute_names() const {
                        });
         return attr_names;
     } else if (m_decoder != nullptr) {
-
         // Add logic for m_decoder if applicable
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
@@ -853,7 +855,8 @@ std::vector<std::size_t> Node::get_attribute_value(const std::string& name) cons
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<std::vector<std::size_t>>(name);
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_attribute(name).as<std::vector<std::size_t>>();
+        auto ints = m_decoder->get_attribute(name).as<std::vector<std::int64_t>>();
+        return {ints.begin(), ints.end()};
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
