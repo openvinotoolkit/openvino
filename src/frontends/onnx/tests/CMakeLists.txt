@@ -85,7 +85,12 @@ set(SRC
     model_support_tests.cpp
     onnx_ops_registration.cpp
     onnx_reader_external_data.cpp
-    skip_tests_config.cpp)
+    skip_tests_config.cpp
+    ../frontend/src/core/graph_iterator_proto.cpp
+    ../frontend/src/core/decoder_proto.cpp
+    ../frontend/src/core/graph_iterator_proto.hpp
+    ../frontend/src/core/decoder_proto.hpp
+)
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC)
     if(IS_ABSOLUTE "${src}")

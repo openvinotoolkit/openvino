@@ -20,6 +20,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "core/graph_iterator_proto.hpp"
 #include "input_model.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
 #include "onnx_framework_node.hpp"
@@ -45,6 +46,7 @@ using namespace ov::frontend::onnx::common;
 using ::ONNX_NAMESPACE::ModelProto;
 using ::ONNX_NAMESPACE::Version;
 
+bool ONNX_ITERATOR = std::getenv("ONNX_ITERATOR") != nullptr;
 namespace {
 // !!! Experimental feature, it may be changed or removed in the future !!!
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
@@ -90,12 +92,22 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
-        return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
+        if (!ONNX_ITERATOR) {
+            return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
+        }
+        std::cout << "[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!\n";
+        GraphIteratorProto::Ptr graph_iterator = std::make_shared<GraphIteratorProto>(path);
+        return std::make_shared<unify::InputModel>(graph_iterator);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
-        return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
+        if (!ONNX_ITERATOR) {
+            return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
+        }
+        std::cout << "[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!\n";
+        GraphIteratorProto::Ptr graph_iterator = std::make_shared<GraphIteratorProto>(path);
+        return std::make_shared<unify::InputModel>(graph_iterator);
     }
 #endif
     if (variants[0].is<std::istream*>()) {
