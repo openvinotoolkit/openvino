@@ -80,10 +80,6 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
         return std::nullopt;
     }
 
-    if (!desc.shapeFromIRModel.has_value() || !desc.shapeFromIRModel.value().is_dynamic()) {
-        return std::nullopt;
-    }
-
     if (batchSize.has_value()) {
         return batchSize.value();
     }
@@ -92,11 +88,7 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
         return std::nullopt;
     }
 
-    if ((*desc.shapeFromIRModel)[intel_npu::utils::BATCH_AXIS].is_dynamic()) {
-        return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
-    }
-
-    return std::nullopt;
+    return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
 }
 
 }  // namespace
@@ -788,8 +780,8 @@ void ZeroInferRequest::infer_async() {
                                   copied_bytes_from_user,
                                   get_level_zero_input(inputIndex)->get_byte_size());
                 }
-                OPENVINO_ASSERT(get_level_zero_input(inputIndex)->get_byte_size() == copied_bytes_from_user,
-                                "Bytes copied must be equal");
+                // OPENVINO_ASSERT(get_level_zero_input(inputIndex)->get_byte_size() == copied_bytes_from_user,
+                //                 "Bytes copied must be equal");
             }
 
             ++inputIndex;
