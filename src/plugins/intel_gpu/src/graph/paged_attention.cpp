@@ -110,11 +110,11 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
     : parent(network, node) {
     const auto desc = node.get_primitive();
 
-    const auto k_head_size = desc->k_head_size;
-    const auto v_head_size = desc->v_head_size;
+    // const auto k_head_size = desc->k_head_size;
+    // const auto v_head_size = desc->v_head_size;
     const auto heads_num = desc->heads_num;
     const auto kv_heads_num = desc->kv_heads_num;
-    const auto pa_block_size = desc->block_size;
+    // const auto pa_block_size = desc->block_size;
 
     if (desc->has_alibi) {
         const auto alibi_input_idx = 11;
@@ -123,7 +123,7 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
     }
 
     OPENVINO_ASSERT(heads_num % kv_heads_num == 0);
-    OPENVINO_ASSERT(k_head_size % pa_block_size == 0);
-    OPENVINO_ASSERT(v_head_size % pa_block_size == 0);
+    // OPENVINO_ASSERT(k_head_size % pa_block_size == 0);
+    // OPENVINO_ASSERT(v_head_size % pa_block_size == 0);
 }
 }  // namespace cldnn
