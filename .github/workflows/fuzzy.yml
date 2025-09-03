@@ -131,7 +131,7 @@ jobs:
 
   Fuzzy_Tests:
     needs: [ Docker, Build, Smart_CI ]
-    timeout-minutes: ${{ matrix.TEST_TYPE == 10 }}
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
