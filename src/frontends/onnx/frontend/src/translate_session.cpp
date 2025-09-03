@@ -72,16 +72,31 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             }
             auto tensor_it = m_tensor_values.find(name);
             // If tensor wasn't found - probably we may need to find it another way
-            if (tensor_it == m_tensor_values.end() ||
-                std::dynamic_pointer_cast<ov::op::v0::Parameter>(tensor_it->second.get_node_shared_ptr())) {
+            auto is_param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(tensor_it->second.get_node_shared_ptr());
+            if (tensor_it == m_tensor_values.end() || is_param) {
                 auto place_it = all_tensor_places.find(name);
                 if (place_it != all_tensor_places.end()) {
-                    if (auto data = place_it->second->get_data()) {
+                    if (place_it->second->get_data_location() != nullptr) {
+                        Tensor tensor = Tensor(place_it->second);
+                        auto constant = tensor.get_ov_constant();
+                        m_tensor_values[place_it->first] = constant;
+                        if (is_param) {
+                            auto it = std::find(parameters.begin(), parameters.end(), is_param);
+                            if (it != parameters.end())
+                                parameters.erase(it);
+                        }
+                        continue;
+                    } else if (auto data = place_it->second->get_data()) {
                         auto constant = ov::op::v0::Constant::create(place_it->second->get_element_type(),
                                                                      place_it->second->get_partial_shape().to_shape(),
                                                                      data);
                         constant->set_friendly_name(place_it->first);
                         m_tensor_values[place_it->first] = constant;
+                        if (is_param) {
+                            auto it = std::find(parameters.begin(), parameters.end(), is_param);
+                            if (it != parameters.end())
+                                parameters.erase(it);
+                        }
                         continue;
                     } else if (place_it->second->get_partial_shape() == PartialShape{0}) {  // empty constant
                         auto constant = ov::op::v0::Constant::create(place_it->second->get_element_type(),
@@ -89,6 +104,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                                                      {});
                         constant->set_friendly_name(place_it->first);
                         m_tensor_values[place_it->first] = constant;
+                        if (is_param) {
+                            auto it = std::find(parameters.begin(), parameters.end(), is_param);
+                            if (it != parameters.end())
+                                parameters.erase(it);
+                        }
                         continue;
                     }
                 }
