@@ -64,7 +64,7 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto oneHot = ov::as_type_ptr<const ov::op::v1::OneHot>(op);
+    const auto oneHot = ov::as_type_ptr<const ov::op::util::OneHotBase>(op);
     const auto depthNode = ov::as_type_ptr<const ov::op::v0::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
     if (depthNode) {
         depth = depthNode->cast_vector<uint32_t>()[0];
