@@ -113,9 +113,6 @@ class InputModel : public ov::frontend::InputModel {
     std::vector<std::shared_ptr<ov::frontend::onnx::OpPlace>> get_op_places() const;
     std::map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>> get_tensor_places() const;
 
-    ////// Subgraph Handling /////
-    std::vector<std::shared_ptr<unify::InputModel>> get_subgraphs() const;
-
 public:
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         const std::shared_ptr<TelemetryExtension>& telemetry = {});

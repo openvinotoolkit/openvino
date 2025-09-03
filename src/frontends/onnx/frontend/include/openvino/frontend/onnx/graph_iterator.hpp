@@ -43,14 +43,6 @@ public:
     /// \brief Return a pointer to a decoder of the current node
     virtual std::shared_ptr<DecoderBase> get_decoder() const = 0;
 
-    /// \brief Returns the number of sub-graphs that can be enumerated with get_subgraph
-    virtual size_t get_subgraph_size() const = 0;
-
-    /// \brief Returns iterator for a subgraph created on demand
-    /// If there is no query for specific sub-graph iterator shouldn't be created
-    /// idx should be in range 0..get_subgraph_size()-1
-    virtual std::shared_ptr<GraphIterator> get_subgraph(size_t idx) const = 0;
-
     /// \brief Returns opset version of requested domain, stored in a ModelProto
     /// If there are no domain found returns -1
     virtual int64_t get_opset_version(const std::string& domain) const = 0;
