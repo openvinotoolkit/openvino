@@ -825,12 +825,12 @@ void InputModel::InputModelONNXImpl::set_tensor_value(ov::frontend::Place::Ptr p
     auto p_shape = tensor_place->get_partial_shape();
     auto type = tensor_place->get_element_type();
     FRONT_END_GENERAL_CHECK(tensor_place->get_names().size() > 0,
-                            "TensorFlow Lite Frontend: place to be frozen must have the name.");
+                            "ONNX Frontend: place to be frozen must have the name.");
     auto name = tensor_place->get_names()[0];
     FRONT_END_GENERAL_CHECK(p_shape.is_static(),
-                            "TensorFlow Lite Frontend: specify static shape for " + name + " to be frozen.");
+                            "ONNX: specify static shape for " + name + " to be frozen.");
     FRONT_END_GENERAL_CHECK(type.is_static(),
-                            "TensorFlow Lite Frontend: define static size type for " + name + " to be frozen.");
+                            "ONNX Frontend: define static size type for " + name + " to be frozen.");
     auto constant = ov::op::v0::Constant::create(type, p_shape.to_shape(), value);
     constant->set_friendly_name(name);
     // Possible issue
@@ -856,52 +856,16 @@ void InputModel::InputModelONNXImpl::set_name_for_operation(const Place::Ptr& op
 }
 
 void InputModel::InputModelONNXImpl::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
-    for (const auto& input_place : m_inputs) {
-        auto input_lite_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(input_place);
-        FRONT_END_GENERAL_CHECK(input_lite_place != nullptr, "Input Model has unexpected place as input");
-        input_lite_place->set_input_index(-1);
-    }
-    m_inputs.clear();
-    for (const auto& input_place : inputs) {
-        m_inputs.push_back(castToTensorPlace(input_place));
-    }
-    clean_up();
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 void InputModel::InputModelONNXImpl::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    for (const auto& output_place : m_outputs) {
-        auto output_lite_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output_place);
-        FRONT_END_GENERAL_CHECK(output_lite_place != nullptr, "Input Model has unexpected place as output");
-        output_lite_place->set_output_index(-1);
-    }
-    m_outputs.clear();
-    for (const auto& output_place : outputs) {
-        m_outputs.push_back(castToTensorPlace(output_place));
-    }
-    clean_up();
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 void InputModel::InputModelONNXImpl::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                                                       const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    for (const auto& output_place : m_outputs) {
-        auto output_lite_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output_place);
-        FRONT_END_GENERAL_CHECK(output_lite_place != nullptr, "Input Model has unexpected place as output");
-        output_lite_place->set_output_index(-1);
-    }
-    m_inputs.clear();
-    for (const auto& input_place : inputs) {
-        m_inputs.push_back(castToTensorPlace(input_place));
-    }
-    for (const auto& output_place : m_outputs) {
-        auto output_lite_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output_place);
-        FRONT_END_GENERAL_CHECK(output_lite_place != nullptr, "Input Model has unexpected place as output");
-        output_lite_place->set_output_index(-1);
-    }
-    m_outputs.clear();
-    for (const auto& output_place : outputs) {
-        m_outputs.push_back(castToTensorPlace(output_place));
-    }
-    clean_up();
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 void InputModel::InputModelONNXImpl::clean_up() {

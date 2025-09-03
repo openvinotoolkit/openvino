@@ -103,8 +103,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             FRONT_END_OP_CONVERSION_CHECK(
                 translator != nullptr,
                 "No translator found for " + decoder->get_domain() + " " + decoder->get_op_type() + " node.");
-            const NodeProto* node_def = nullptr;
-            decoder->experimental_get_internal_structures(reinterpret_cast<const void**>(&node_def));
+            //const NodeProto* node_def = nullptr;
+            //decoder->experimental_get_internal_structures(reinterpret_cast<const void**>(&node_def));
             ov::frontend::onnx::Node node_context(*decoder, this);
             ov_outputs = (*translator)(node_context);
             for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
@@ -113,12 +113,12 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 ov_outputs[idx].get_node()->set_friendly_name(out_name);
             }
         } catch (...) {
+            throw;
             /*
             if (fail_fast) {
                 if (m_telemetry && translator == nullptr) {
                     m_telemetry->send_event("error_cause", "onnx_" + decoder->get_op_type());
                 }
-                throw;
             } else
             {
                 auto operation = std::make_shared<ov::frontend::onnx::FrameworkNode>(decoder, inputs, out_size);
