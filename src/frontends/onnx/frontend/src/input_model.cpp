@@ -615,11 +615,11 @@ public:
         return m_enable_mmap;
     }
 
-    MappedMemoryHandles get_mmap_cache() const {
+    detail::MappedMemoryHandles get_mmap_cache() const {
         return m_mmap_cache;
     }
 
-    LocalStreamHandles get_stream_cache() const {
+    detail::LocalStreamHandles get_stream_cache() const {
         return m_stream_cache;
     }
 
@@ -641,9 +641,9 @@ private:
     bool m_enable_mmap;
 
     // This is used for keeping MMAP cache handles
-    MappedMemoryHandles m_mmap_cache;
+    detail::MappedMemoryHandles m_mmap_cache;
     // This is used for keeping a readed external data without MMAP
-    LocalStreamHandles m_stream_cache;
+    detail::LocalStreamHandles m_stream_cache;
 };
 
 namespace {
@@ -982,11 +982,11 @@ bool InputModel::is_enabled_mmap() const {
     return _impl->is_enabled_mmap();
 }
 
-MappedMemoryHandles InputModel::get_mmap_cache() const {
+detail::MappedMemoryHandles InputModel::get_mmap_cache() const {
     return _impl->get_mmap_cache();
 }
 
-LocalStreamHandles InputModel::get_stream_cache() const {
+detail::LocalStreamHandles InputModel::get_stream_cache() const {
     return _impl->get_stream_cache();
 }
 
