@@ -74,6 +74,9 @@ inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_
 }  // namespace
 }  // namespace detail
 
+using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
+using LocalStreamHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<std::ifstream>>>;
+
 class TensorONNXPlace : public ov::frontend::onnx::TensorPlace {
 public:
     TensorONNXPlace(const ov::frontend::InputModel& input_model,
@@ -84,6 +87,7 @@ public:
                     const size_t data_size,
                     std::shared_ptr<std::string> data_location)
         : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
+          m_input_model(input_model),
           m_data(data),
           m_data_size(data_size),
           m_data_location(data_location) {};
@@ -119,11 +123,19 @@ public:
         return m_data_size;
     }
 
+    std::shared_ptr<std::string> get_data_location() const {
+        return m_data_location;
+    }
+
+    detail::MappedMemoryHandles get_mmap_cache();
+    detail::LocalStreamHandles get_stream_cache();
+
 protected:
     int64_t m_input_idx = -1, m_output_idx = -1;
     const void* m_data;
     size_t m_data_size;
     std::shared_ptr<std::string> m_data_location;
+    const ov::frontend::InputModel& m_input_model;
 };
 
 class Tensor {
@@ -272,7 +284,7 @@ public:
 private:
     bool has_external_data() const {
         if (m_tensor_place != nullptr) {
-            //return m_tensor_place->get_data_location() != nullptr;
+            return m_tensor_place->get_data_location() != nullptr;
         }
         return m_tensor_proto->has_data_location() &&
                m_tensor_proto->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;
@@ -280,7 +292,11 @@ private:
 
     template <typename T>
     std::vector<T> get_external_data() const {
-        const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
+        const auto ext_data = m_tensor_place != nullptr
+                                  ? detail::TensorExternalData(*m_tensor_place->get_data_location(),
+                                                               reinterpret_cast<size_t>(m_tensor_place->get_data()),
+                                                               m_tensor_place->get_data_size())
+                                  : detail::TensorExternalData(*m_tensor_proto);
         std::shared_ptr<ov::AlignedBuffer> buffer = nullptr;
         if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
             buffer = ext_data.load_external_mem_data();

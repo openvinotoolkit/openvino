@@ -732,7 +732,8 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name,
         }
         auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
         graph_iterator->reset();
-        auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator, false); // enable_mmap doesn't matter
+        auto input_model =
+            std::make_shared<onnx::unify::InputModel>(graph_iterator, m_translate_session->get_input_model().get());
         std::shared_ptr<ov::Model> ov_model(nullptr);
         m_translate_session->translate_graph(input_model, ov_model);
         return ov_model;
@@ -948,7 +949,8 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) co
     } else if (m_decoder != nullptr) {
         auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
         graph_iterator->reset();
-        auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator, false); //enable_mmap doesn't matter here
+        auto input_model =
+            std::make_shared<onnx::unify::InputModel>(graph_iterator, m_translate_session->get_input_model().get());
         std::shared_ptr<ov::Model> ov_model(nullptr);
         m_translate_session->translate_graph(input_model, ov_model);
         return ov_model;

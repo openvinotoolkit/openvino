@@ -97,7 +97,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         }
         std::cout << "[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!\n";
         GraphIteratorProto::Ptr graph_iterator =
-            std::make_shared<GraphIteratorProto>(enable_mmap ? External_MMAP : External_Stream);
+            std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->init(path);
         graph_iterator->reset();
         return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap);
@@ -110,7 +110,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         }
         std::cout << "[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!\n";
         GraphIteratorProto::Ptr graph_iterator =
-            std::make_shared<GraphIteratorProto>(enable_mmap ? External_MMAP : External_Stream);
+            std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->init(path);
         graph_iterator->reset();
         return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap);

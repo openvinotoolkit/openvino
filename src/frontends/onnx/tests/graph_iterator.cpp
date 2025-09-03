@@ -73,7 +73,8 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
     // const std::string model_name = "cum_sum_2d_axis_input_1d.onnx";
     // const std::string model_name = "cum_sum_2d_axis_input.onnx";
     // const std::string model_name = "reduce_sum_13_axes_as_constant.onnx";
-    const std::string model_name = "aten_embedding_sum_packed_4in_per_sample_weights.onnx";
+    // const std::string model_name = "aten_embedding_sum_packed_4in_per_sample_weights.onnx";
+    const std::string model_name = "external_data/external_data.onnx";
     const auto path =
         ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
 
