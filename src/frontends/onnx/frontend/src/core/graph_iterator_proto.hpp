@@ -28,6 +28,8 @@ namespace onnx {
 
 class DecoderProtoTensor;
 using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
+using LocalMemoryHandles = std::shared_ptr<std::vector<std::shared_ptr<uint8_t>>>;
+using LocalStreamHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<std::ifstream>>>;
 
 class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     size_t node_index = 0;
@@ -36,7 +38,12 @@ class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     GraphIteratorProto* m_parent;
     std::vector<std::shared_ptr<ov::frontend::onnx::DecoderBase>> m_decoders{};
     std::map<std::string, std::shared_ptr<DecoderProtoTensor>> m_tensors{};
-    ov::frontend::onnx::MappedMemoryHandles m_mmap_cache;
+    std::shared_ptr<std::string> m_model_dir;
+    // This is used for keeping MMAP cache handles
+    MappedMemoryHandles m_mmap_cache;
+    // This is used for keeping a readed external data without MMAP
+    LocalStreamHandles m_stream_cache;
+    LocalMemoryHandles m_data_holder;
 
 public:
     using Ptr = std::shared_ptr<GraphIteratorProto>;
@@ -127,6 +134,30 @@ public:
     }
 
     std::int64_t get_opset_version(const std::string& domain) const override;
+
+    std::string get_model_dir() const {
+        return *m_model_dir;
+    }
+
+    bool is_mmap_enabled() const {
+        return m_mmap_cache != nullptr;
+    }
+
+    MappedMemoryHandles get_mmap_cache() const {
+        return m_mmap_cache;
+    }
+
+    LocalStreamHandles get_stream_cache() const {
+        return m_stream_cache;
+    }
+
+    std::shared_ptr<uint8_t> allocate_data(const size_t size) {
+        std::shared_ptr<uint8_t> data(new uint8_t[size], [](uint8_t* p) {
+            delete[] p;
+        });
+        m_data_holder->push_back(data);
+        return data;
+    }
 
 protected:
     /// \brief Returns DecoderProtoTensor found in the current scope, or in a parent scope

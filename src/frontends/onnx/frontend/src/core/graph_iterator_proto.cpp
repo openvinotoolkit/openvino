@@ -11,6 +11,7 @@
 
 #include "decoder_proto.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
 
 namespace {
@@ -66,7 +67,8 @@ namespace onnx {
 
 ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* tensor_info,
                                                             const ValueInfoProto* value_info,
-                                                            const GraphProto* graph_def) {
+                                                            GraphIteratorProto* graph_iterator) {
+    auto graph_def = graph_iterator->get_graph();
     ov::frontend::onnx::TensorMetaInfo tensor_meta_info{};
     if ((tensor_info == nullptr && value_info == nullptr) || graph_def == nullptr) {
         throw std::runtime_error("Wrong usage");
@@ -113,7 +115,80 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             tensor_info->has_data_type() ? get_ov_element_type(tensor_info->data_type()) : ov::element::dynamic;
         if (tensor_info->has_data_location() &&
             tensor_info->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
-            throw std::runtime_error("Unexpected usage of method for externally stored data");
+            std::string ext_location{};
+            uint64_t ext_data_offset = 0;
+            uint64_t ext_data_length = 0;
+            std::string m_sha1_digest{};  // for future use
+            for (const auto& entry : tensor_info->external_data()) {
+                if (entry.key() == "location") {
+                    ext_location = ov::util::sanitize_path(entry.value());
+                } else if (entry.key() == "offset") {
+                    ext_data_offset = std::stoull(entry.value());
+                } else if (entry.key() == "length") {
+                    ext_data_length = std::stoull(entry.value());
+                } else if (entry.key() == "checksum") {
+                    m_sha1_digest = entry.value();
+                }
+            }
+            const auto full_path = ov::util::get_absolute_file_path(
+                ov::util::path_join({graph_iterator->get_model_dir(), ext_location}).string());
+            const int64_t file_size = ov::util::file_size(full_path);
+            if (file_size <= 0 || ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {
+                throw std::runtime_error("Invalid usage of method for externally stored data");
+            }
+            if (ext_location == "*/_ORT_MEM_ADDR_/*") {
+                // Specific ONNX Runtime Case when it passes a model with self-managed data
+                tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
+                tensor_meta_info.m_tensor_data_size = ext_data_length;
+                return tensor_meta_info;
+            } else if (graph_iterator->is_mmap_enabled()) {
+                auto cache = graph_iterator->get_mmap_cache();
+                auto cached_mapped_memory = cache->find(full_path);
+                std::shared_ptr<ov::MappedMemory> mapped_memory;
+                if (cached_mapped_memory != cache->end()) {
+                    mapped_memory = cached_mapped_memory->second;
+                } else {
+                    mapped_memory = ov::load_mmap_object(full_path);
+                    (*cache)[full_path] = mapped_memory;
+                }
+                tensor_meta_info.m_tensor_data =
+                    static_cast<uint8_t*>(static_cast<void*>(mapped_memory->data() + ext_data_offset));
+                tensor_meta_info.m_tensor_data_size =
+                    ext_data_length > 0 ? ext_data_length : static_cast<size_t>(file_size) - ext_data_length;
+                return tensor_meta_info;
+            } else {
+                auto cache = graph_iterator->get_stream_cache();
+                auto cached_stream = cache->find(full_path);
+                std::shared_ptr<std::ifstream> external_data_stream;
+                if (cached_stream != cache->end()) {
+                    external_data_stream = cached_stream->second;
+                } else {
+                    external_data_stream = {
+                        new std::ifstream(full_path.c_str(), std::ios::binary | std::ios::in | std::ios::ate),
+                        [](std::ifstream* p) {
+                            p->close();
+                            delete[] p;
+                        }};
+                    (*cache)[full_path] = external_data_stream;
+                }
+
+                if (external_data_stream->fail() || !external_data_stream->good()) {
+                    throw std::runtime_error("Failed to open external data stream");
+                }
+
+                tensor_meta_info.m_tensor_data_size =
+                    ext_data_length > 0 ? ext_data_length : static_cast<size_t>(file_size) - ext_data_length;
+                uint8_t* data_ptr = graph_iterator->allocate_data(tensor_meta_info.m_tensor_data_size).get();
+                tensor_meta_info.m_tensor_data = data_ptr;
+
+                // default value of m_offset is 0
+                external_data_stream->seekg(ext_data_offset, std::ios::beg);
+
+                external_data_stream->read(static_cast<char*>(static_cast<void*>(data_ptr)),
+                                           tensor_meta_info.m_tensor_data_size);
+                return tensor_meta_info;
+            }
+            throw std::runtime_error("Unsupported method for externally stored data");
         }
         switch (tensor_info->data_type()) {
         case TensorProto_DataType::TensorProto_DataType_FLOAT:
@@ -174,17 +249,25 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
 
 GraphIteratorProto::GraphIteratorProto(const bool enable_mmap)
     : m_parent(nullptr),
+      m_model_dir(nullptr),
       m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
-                               : nullptr} {}
+                               : nullptr},
+      m_data_holder{enable_mmap ? nullptr : std::make_shared<std::vector<std::shared_ptr<uint8_t>>>()},
+      m_stream_cache{enable_mmap ? nullptr
+                                 : std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>()} {}
 
 GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def) {
+    m_model_dir = parent->m_model_dir;
     m_mmap_cache = parent->m_mmap_cache;
+    m_data_holder = parent->m_data_holder;
+    m_stream_cache = parent->m_stream_cache;
     m_parent = parent;
     m_model = parent->m_model;
     m_graph = graph_def;
 }
 
 void GraphIteratorProto::init(const std::string& path) {
+    m_model_dir = std::make_shared<std::string>(ov::util::get_directory(path).string());
     try {
         std::ifstream model_file(path, std::ios::binary | std::ios::in);
         FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
@@ -198,7 +281,6 @@ void GraphIteratorProto::init(const std::string& path) {
             m_graph = nullptr;
             return;
         }
-        reset();
     } catch (...) {
         m_model.reset();
         m_graph = nullptr;
@@ -232,6 +314,13 @@ std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::st
 }
 
 void GraphIteratorProto::reset() {
+    // In case we have any stored external data - free it before beginning
+    if (m_data_holder != nullptr) {
+        m_data_holder->clear();
+    }
+    if (m_stream_cache != nullptr) {
+        m_stream_cache->clear();
+    }
     node_index = 0;
     if (m_decoders.size() > 0 || m_model == nullptr || m_graph == nullptr)
         return;
@@ -266,7 +355,7 @@ void GraphIteratorProto::reset() {
         if (decoder != m_decoders.end()) {
             *const_cast<ov::frontend::onnx::TensorMetaInfo*>(
                 &std::dynamic_pointer_cast<DecoderProtoTensor>(*decoder)->get_tensor_info()) =
-                extract_tensor_meta_info(&initializer, nullptr, m_graph);
+                extract_tensor_meta_info(&initializer, nullptr, this);
             continue;
         }
         const auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, this, -1, -1);
@@ -332,6 +421,11 @@ void GraphIteratorProto::reset() {
         auto decoder_node =
             std::make_shared<DecoderProto>(&node, static_cast<uint64_t>(opset), this, input_tensors, output_tensors);
         m_decoders.push_back(decoder_node);
+    }
+    // If it is a topmost GraphIterator object, and we are not working in Enable MMAP Mode
+    // Then we can close all opened streams which are used for accessing to external data files
+    if (m_stream_cache != nullptr && m_parent == nullptr) {
+        m_stream_cache->clear();
     }
 }
 
