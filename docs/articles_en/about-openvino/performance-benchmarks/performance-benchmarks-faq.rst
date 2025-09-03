@@ -59,11 +59,15 @@ Performance Information F.A.Q.
         - THUDM
         - Transformer
         - 128K
-      * - `Gemma-2-9B-it <https://huggingface.co/google/gemma-2-9b-it>`__
+      * - `Gemma-3-1B-it <https://huggingface.co/google/gemma-3-1b-it>`__
         - Hugginface
         - Text-To-Text Decoder-only
-        - 8K
+        - 128K
       * - `Llama-2-7b-chat <https://www.llama.com/>`__
+        - Meta AI
+        - Auto regressive language
+        - 4K
+      * - `Llama-3-8b <https://www.llama.com/>`__
         - Meta AI
         - Auto regressive language
         - 4K
@@ -87,15 +91,11 @@ Performance Information F.A.Q.
         - Huggingface
         - Auto regressive language
         - 128K
-      * - `Qwen-2.5-VL-3B-Instruct <https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct>`__
+      * - `Qwen-3-8B <https://huggingface.co/Qwen/Qwen3-8B>`__
         - Huggingface
         - Auto regressive language
         - 32K
-      * - `Qwen-2.5-1.5B-Instruct <https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct>`__
-        - Huggingface
-        - Auto regressive language
-        - 32K
-      * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
+     * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model
         - 77
