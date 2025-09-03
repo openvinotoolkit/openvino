@@ -157,17 +157,17 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
     model_stream.seekg(hdr_pos, std::istream::beg);
 
     pass::StreamSerialize::DataHeader hdr = {};
-    model_stream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
+    model_stream.read(reinterpret_cast<char*>(&hdr), sizeof(hdr));
 
     // Check if model header contains valid data.
-    bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr) + hdr_pos) &&
+    bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr)) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
                           ((hdr.model_size = file_size - hdr.model_offset) != 0U);
     OPENVINO_ASSERT(is_valid_model, "[CPU] Could not deserialize by device xml header.");
 
     // read model input/output precisions
-    model_stream.seekg(hdr.custom_data_offset);
+    model_stream.seekg(hdr.custom_data_offset + hdr_pos);
 
     pugi::xml_document xmlInOutDoc;
     if (hdr.custom_data_size > 0) {
@@ -181,14 +181,14 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
 
     // read blob content
     auto data_blob = std::make_shared<ov::Tensor>(ov::element::u8, ov::Shape({hdr.consts_size}));
-    model_stream.seekg(hdr.consts_offset);
+    model_stream.seekg(hdr.consts_offset + hdr_pos);
     if (hdr.consts_size) {
         model_stream.read(static_cast<char*>(data_blob->data(ov::element::u8)), hdr.consts_size);
     }
 
     // read XML content
     auto xml_string = std::make_shared<std::string>();
-    model_stream.seekg(hdr.model_offset);
+    model_stream.seekg(hdr.model_offset + hdr_pos);
     xml_string->resize(hdr.model_size);
     model_stream.read(const_cast<char*>(xml_string->data()), hdr.model_size);
     if (m_cache_decrypt) {

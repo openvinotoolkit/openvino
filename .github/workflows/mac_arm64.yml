@@ -18,6 +18,7 @@ on:
      - '**/layer_tests_summary/**'
      - '**/conformance/**'
    branches:
+     - 'master'
      - 'releases/**'
   # pull_request:
   #  paths-ignore:
@@ -353,6 +354,7 @@ jobs:
 
   Samples:
     needs: [ Build, Smart_CI ]
+    if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'macos-14'
@@ -361,7 +363,7 @@ jobs:
   JS_API:
     name: OpenVINO JS API
     needs: [ Build, Smart_CI ]
-    if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+    if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API && (github.event_name != 'push' || github.ref_name != 'master')
     uses: ./.github/workflows/job_openvino_js.yml
     with:
       runner: 'macos-14'
@@ -376,7 +378,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
       target-branch: ${{ inputs.target-branch }}
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS && (github.event_name != 'push' || github.ref_name != 'master')
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -390,6 +392,7 @@ jobs:
   Python_Unit_Tests:
     name: Python unit tests
     needs: [ Build, Smart_CI ]
+    if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'macos-14'
@@ -399,6 +402,7 @@ jobs:
   Python_API_Tests:
     name: Python API tests
     needs: [ Build, Smart_CI ]
+    if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_python_api_tests.yml
     strategy:
       fail-fast: false
@@ -412,6 +416,7 @@ jobs:
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'macos-14'
@@ -421,6 +426,7 @@ jobs:
   Pytorch_Layer_Tests:
     name: Pytorch Layer Tests
     needs: [ Build, Smart_CI ]
+    if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
     with:
       runner: 'macos-14'
@@ -430,6 +436,7 @@ jobs:
   Pytorch_FX_Layer_Tests:
     name: Pytorch FX Layer Tests
     needs: [ Build, Smart_CI ]
+    if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
     with:
       runner: 'macos-14'
@@ -439,6 +446,7 @@ jobs:
   JAX_Layer_Tests:
     name: JAX Layer Tests
     needs: [ Build, Smart_CI ]
+    if: ${{ github.event_name != 'push' || github.ref_name != 'master' }}
     uses: ./.github/workflows/job_jax_layer_tests.yml
     with:
       runner: 'macos-14'
@@ -447,7 +455,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test && (github.event_name != 'push' || github.ref_name != 'master')
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
@@ -486,37 +494,37 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO developer package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_developer_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO JS package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_js_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO Node NPM package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_node_npm_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO package manifest
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_package_manifest
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO wheels
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_wheels
           path: ${{ env.WHEELS_DIR }}

@@ -300,14 +300,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Hetero_BehaviorTests,
-    OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,
-    ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_HETERO) + ":" +
-                                         ov::test::utils::DEVICE_NPU),
-                       ::testing::ValuesIn(heteroCompiledModelConfigs + allModelPriorities)),
-    ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY>);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Hetero_BehaviorTests,
     OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY,
     ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_HETERO) + ":" +
                                          ov::test::utils::DEVICE_NPU),

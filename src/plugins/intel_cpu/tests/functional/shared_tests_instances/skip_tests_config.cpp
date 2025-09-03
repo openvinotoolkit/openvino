@@ -511,10 +511,7 @@ std::vector<std::string> disabledTestPatterns() {
 #if defined(OPENVINO_ARCH_ARM64)
     // Tests to be enabled on ARM64
     retVector.emplace_back(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)");
-    retVector.emplace_back(R"(smoke_Snippets_GatedMLP.*)");
     retVector.emplace_back(R"(smoke_Snippets_GroupNormalization.*)");
-    retVector.emplace_back(R"(smoke_Snippets_MHA.*)");
-    retVector.emplace_back(R"(smoke_Snippets_MLP_SEQ.*)");
     retVector.emplace_back(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)");
 #endif
 #if defined(_WIN32)
@@ -653,6 +650,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets_AddSoftmax.*)");
     retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmaxEltwise.*)");
     // Low-precision Matmuls are not supported by TPP yet
+    retVector.emplace_back(R"(.*smoke_Snippets.*=(BF16|bf16|i8|u8).*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulFQ.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulBiasQuantized.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulsQuantized.*)");

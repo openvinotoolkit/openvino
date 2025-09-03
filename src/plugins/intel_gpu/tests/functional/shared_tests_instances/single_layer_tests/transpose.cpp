@@ -3,7 +3,9 @@
 //
 
 #include "single_op_tests/transpose.hpp"
+
 #include "common_test_utils/test_constants.hpp"
+#include "shared_test_classes/single_op/transpose.hpp"
 
 namespace {
 using ov::test::TransposeLayerTest;
@@ -114,3 +116,76 @@ INSTANTIATE_TEST_SUITE_P(smoke_Transpose_8D,
                          TransposeLayerTest::getTestCaseName);
 
 }  // namespace
+
+namespace ov {
+namespace test {
+
+transposeParams make7DTransposeParams();
+transposeParams make8DTransposeParams();
+
+class TransposeInferTwiceBaseTest : public TransposeLayerTest {
+protected:
+    void run_infer_twice() {
+        compile_model();
+        auto infer_request = compiledModel.create_infer_request();
+
+        generate_inputs(targetStaticShapes[0]);
+        for (const auto& input : inputs) {
+            infer_request.set_tensor(input.first, input.second);
+        }
+        infer_request.infer();
+        auto actual_output1 = infer_request.get_output_tensor(0);
+        auto expected_outputs1 = calculate_refs();
+        ASSERT_EQ(expected_outputs1.size(), 1);
+        compare(expected_outputs1, {actual_output1});
+
+        inputs.clear();
+        generate_inputs(targetStaticShapes[1]);
+        for (const auto& input : inputs) {
+            infer_request.set_tensor(input.first, input.second);
+        }
+        infer_request.infer();
+        auto actual_output2 = infer_request.get_output_tensor(0);
+        auto expected_outputs2 = calculate_refs();
+        ASSERT_EQ(expected_outputs2.size(), 1);
+        compare(expected_outputs2, {actual_output2});
+    }
+};
+
+transposeParams make8DTransposeParams() {
+    std::vector<size_t> input_order = {7, 6, 5, 4, 3, 2, 1, 0};
+    ov::element::Type model_type = ov::element::f32;
+    ov::PartialShape dynamic_shape = ov::PartialShape::dynamic(8);
+    std::vector<ov::Shape> static_shapes = {{2, 3, 4, 5, 6, 7, 8, 9}, {2, 2, 4, 6, 6, 7, 2, 8}};
+    std::vector<InputShape> input_shapes = {{dynamic_shape, static_shapes}};
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    return {input_order, model_type, input_shapes, target_device};
+}
+
+class Transpose8DInferTwiceTest : public TransposeInferTwiceBaseTest {};
+
+TEST_P(Transpose8DInferTwiceTest, infer_twice_diff_shapes_same_request) {
+    run_infer_twice();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Transpose_8D_Infer_Twice, Transpose8DInferTwiceTest, ::testing::Values(make8DTransposeParams()));
+
+transposeParams make7DTransposeParams() {
+    std::vector<size_t> input_order = {6, 5, 4, 3, 2, 1, 0};
+    ov::element::Type model_type = ov::element::f32;
+    ov::PartialShape dynamic_shape = ov::PartialShape::dynamic(7);
+    std::vector<ov::Shape> static_shapes = {{2, 3, 4, 5, 6, 7, 8}, {2, 3, 4, 5, 6, 8, 7}};
+    std::vector<InputShape> input_shapes = {{dynamic_shape, static_shapes}};
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    return {input_order, model_type, input_shapes, target_device};
+}
+
+class Transpose7DInferTwiceTest : public TransposeInferTwiceBaseTest {};
+
+TEST_P(Transpose7DInferTwiceTest, infer_twice_diff_shapes_same_request) {
+    run_infer_twice();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Transpose_7D_Infer_Twice, Transpose7DInferTwiceTest, ::testing::Values(make7DTransposeParams()));
+}  // namespace test
+}  // namespace ov

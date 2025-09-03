@@ -15,22 +15,23 @@ This article describes how to build OpenVINO for Android operating systems.
   ```sh
   mkdir openvino-android
   export OPV_HOME_DIR=${PWD}/openvino-android
+  export HOST_OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]') # linux/darwin
   ```
 
 ### Download and unpack Android packages 
 * Download and unpack [Android NDK](https://developer.android.com/ndk/downloads)
   ```sh
-  wget https://dl.google.com/android/repository/android-ndk-r26d-linux.zip --directory-prefix $OPV_HOME_DIR
+  wget https://dl.google.com/android/repository/android-ndk-r26d-${HOST_OS_TYPE}.zip --directory-prefix $OPV_HOME_DIR
 
-  unzip $OPV_HOME_DIR/android-ndk-r26d-linux.zip -d $OPV_HOME_DIR
+  unzip $OPV_HOME_DIR/android-ndk-r26d-${HOST_OS_TYPE}.zip -d $OPV_HOME_DIR
   mv $OPV_HOME_DIR/android-ndk-r26d $OPV_HOME_DIR/android-ndk
   export ANDROID_NDK_PATH=$OPV_HOME_DIR/android-ndk
   ```
 * Download and unpack [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools)
   ```sh
-  wget https://dl.google.com/android/repository/platform-tools-latest-linux.zip --directory-prefix $OPV_HOME_DIR
+  wget https://dl.google.com/android/repository/platform-tools-latest-${HOST_OS_TYPE}.zip --directory-prefix $OPV_HOME_DIR
 
-  unzip $OPV_HOME_DIR/platform-tools-latest-linux.zip -d $OPV_HOME_DIR
+  unzip $OPV_HOME_DIR/platform-tools-latest-${HOST_OS_TYPE}.zip -d $OPV_HOME_DIR
   export ANDROID_TOOLS_PATH=$OPV_HOME_DIR/platform-tools
   ```
 _For Windows and Mac operating systems, the downloading and unpacking steps are similar._
@@ -111,7 +112,7 @@ _This example is demonstrated for aarch64 architecture_
   # Copy OneTBB libraries to android device
   $ANDROID_TOOLS_PATH/adb push --sync $OPV_HOME_DIR/one-tbb-install/lib/* /data/local/tmp/
   # Copy shared STL library to android device
-  $ANDROID_TOOLS_PATH/adb push --sync $ANDROID_NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so /data/local/tmp/
+  $ANDROID_TOOLS_PATH/adb push --sync $ANDROID_NDK_PATH/toolchains/llvm/prebuilt/$HOST_OS_TYPE-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so /data/local/tmp/
   # Copy example model files
   $ANDROID_TOOLS_PATH/adb push --sync $OPV_HOME_DIR/mobelinet-v3-tf /data/local/tmp/
   # Copy OpenVINO™ benchmark_app tool to android device

@@ -390,7 +390,6 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
 
     // last line(s): fused layers
     os << " " << node.getOriginalLayers();
-    os << " " << node.getParallelDomain();
 
     if (node.PerfCounter().count()) {
         os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();

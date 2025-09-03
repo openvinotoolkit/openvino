@@ -71,9 +71,7 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(true);
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLMHF>();
     }
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(0);
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(1);
-
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
     return symbolic_optimizations.run_on_model(model);
 }
@@ -82,7 +80,7 @@ static std::shared_ptr<ov::Node> gen_chatglm_const() {
     using namespace pattern;
 
     auto pred = value_matches("-1, head_cnt, 1, ndims/2, 1") || value_matches("1, -1, head_cnt, ndims/2, 1") ||
-                value_matches("0, 0, 0, ndims/2, 1");
+                value_matches("0, 0, 0, ndims/2, 1") || value_matches("-1, batch, head_cnt, ndims/2, 1");
     return wrap_type<v0::Constant>(pred);
 }
 
@@ -843,7 +841,7 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     this->register_matcher(m, callback);
 }
 
-ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
+ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
     using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionQwen);
 
@@ -857,10 +855,9 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         pattern::wrap_type<v1::VariadicSplit>({qkv_proj, 2, {"head_cnt*head_size", "head_cnt*head_size", "?"}});
     ListUnpack_410_VariadicSplit->set_output_size(3);
     // B,L,H,S
-    auto view_Reshape_424 =
-        pattern::wrap_type<v1::Reshape>({ListUnpack_410_VariadicSplit->output(split_output_id), pattern::any_input()},
-                                        pattern::shape_matches("[?, ?, head_cnt, head_size]"),
-                                        {{"special_zero", true}});
+    auto view_Reshape_424 = pattern::wrap_type<v1::Reshape>({ListUnpack_410_VariadicSplit, pattern::any_input()},
+                                                            pattern::shape_matches("[?, ?, head_cnt, head_size]"),
+                                                            {{"special_zero", true}});
     auto slice_Slice_543 = NewGenSlice(view_Reshape_424, 0, "head_size", 1, 3);
 
     auto ShapeOf_485735 = pattern::wrap_type<ov::op::util::ShapeOfBase>({pattern::any_input()}, {});
@@ -946,6 +943,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         auto head_size = symbols["head_size"];
         auto head_size_over_2 = symbols["head_size/2"];
         auto head_cnt_by_head_size = symbols["head_cnt*head_size"];
+
         if (!head_cnt.is_integer() || !head_size.is_integer() || !head_size_over_2.is_integer() ||
             !head_cnt_by_head_size.is_integer() || head_size_over_2.i() * 2 != head_size.i() ||
             head_cnt.i() * head_size.i() != head_cnt_by_head_size.i()) {
@@ -958,14 +956,19 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         config.head_size = static_cast<size_t>(head_size.i());
         config.rotary_ndims = config.head_size;
 
-        if (split_output_id == 0) {
-            // query : split_output_id == 0
+        const auto& qkv_proj_split_node = pattern_map.at(ListUnpack_410_VariadicSplit);
+        const size_t qkv_proj_split_id = qkv_proj_split_node.get_index();
+        if (qkv_proj_split_id == 0) {
+            // query : split output id == 0
             config.slice_start = 0;
             config.slice_stop = config.head_cnt * config.head_size;
-        } else {
-            // key : split_output_id == 1
+            ;
+        } else if (qkv_proj_split_id == 1) {
+            // key : split output id == 1
             config.slice_start = config.head_cnt * config.head_size;
             config.slice_stop = config.slice_start + config.head_cnt * config.head_size;
+        } else {
+            return false;
         }
 
         new_args.push_back(pattern_map.at(qkv_proj));

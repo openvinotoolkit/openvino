@@ -223,6 +223,10 @@ format format::get_default_format(size_t rank, bool is_weights, bool is_grouped)
     return default_fmt;
 }
 
+format format::get_default_format() const {
+    return get_default_format(dimension(value));
+}
+
 bool format::is_default_format(const format& fmt) {
     return fmt == get_default_format(dimension(fmt));
 }

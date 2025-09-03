@@ -108,7 +108,7 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelAxis::SetDefault(const arg_max_
         size_t sort_size = params.argMaxMinSortType == ArgMaxMinSortType::VALUE ? getSortSize(params) : 1;
 
         dispatchData.gws = { ops_size, sort_size, 1 };
-        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+        dispatchData.lws = { 1, 1, 1};
     }
 
     return dispatchData;
@@ -123,19 +123,49 @@ void ArgMaxMinKernelAxis::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
-        const size_t elem_size = prim_params.inputs[0].ElementSize();
-        const size_t iav_type_size = elem_size + 4;
-        const size_t sort_size = getSortSize(prim_params);
-        const size_t ops_size = getOperationNumber(prim_params);
-        const size_t group_size = prim_params.topK >= 8 ? prim_params.topK : 8;
-        const size_t group_num = ((sort_size - 1) / group_size) + 1;
-
-        kd.internalBuffers.clear();
-        kd.internalBuffers.push_back(iav_type_size * sort_size * ops_size * 2);
-        kd.internalBuffers.push_back(4 * group_num * ops_size * 2);
-        kd.internalBuffers.push_back(ops_size * elem_size);
-        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+        auto bufferSizeVec = GetTempBufferVec(prim_params, 1);
+        const size_t total_buffer_size = std::accumulate(bufferSizeVec.begin(), bufferSizeVec.end(), 0);
+        if (total_buffer_size < params.engineInfo.maxLocalMemSize) {
+            kd.kernels[0].params.local_memory_args.clear();
+            kd.kernels[0].params.local_memory_args.push_back(bufferSizeVec.at(0));
+            kd.kernels[0].params.local_memory_args.push_back(bufferSizeVec.at(1));
+            kd.kernels[0].params.local_memory_args.push_back(bufferSizeVec.at(2));
+        } else {
+            kd.internalBuffers.clear();
+            kd.internalBuffers.push_back(bufferSizeVec.at(0));
+            kd.internalBuffers.push_back(bufferSizeVec.at(1));
+            kd.internalBuffers.push_back(bufferSizeVec.at(2));
+            kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+        }
     };
+}
+
+
+std::vector<size_t> ArgMaxMinKernelAxis::GetTempBufferVec(const arg_max_min_params& params, bool dynamic) const {
+    std::vector<size_t> buffer_size;
+
+    const size_t elem_size = params.inputs[0].ElementSize();
+    const size_t iav_type_size = elem_size + 4;
+    const size_t sort_size = getSortSize(params);
+    const size_t ops_size = getOperationNumber(params);
+    const size_t group_size = params.topK >= 8 ? params.topK : 8;
+    const size_t group_num = ((sort_size - 1) / group_size) + 1;
+
+    if (dynamic) {
+        const size_t buffer0_size = iav_type_size * sort_size * 2;
+        const size_t buffer1_size = iav_type_size * sort_size * 2;
+        const size_t buffer2_size = group_num;
+
+        buffer_size.assign({buffer0_size, buffer1_size, buffer2_size});
+    } else {
+        const size_t buffer0_size = iav_type_size * sort_size * ops_size * 2;
+        const size_t buffer1_size = 4 * group_num * ops_size * 2;
+        const size_t buffer2_size = ops_size * elem_size;
+
+        buffer_size.assign({buffer0_size, buffer1_size, buffer2_size});
+    }
+
+    return buffer_size;
 }
 
 KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
@@ -148,6 +178,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
     auto dispatchData = SetDefault(orgParams);
     KernelData kd = KernelData::Default<arg_max_min_params>(params);
     GetUpdateDispatchDataFunc(kd);
+    auto bufferSizeVec = GetTempBufferVec(orgParams, orgParams.has_dynamic_tensors());
 
     auto cldnn_jit = GetJitConstants(orgParams);
     auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
@@ -168,13 +199,23 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
                      orgParams.outputs_num,
                      orgParams.is_shape_agnostic);
 
-    if (is_dynamic || getSortSize(orgParams) * orgParams.inputs[0].ElementSize() > 4096) {
+    const size_t total_buffer_size = std::accumulate(bufferSizeVec.begin(),
+            bufferSizeVec.end(), 0);
+
+    if (is_dynamic) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 2});
+        kd.kernels[0].params.local_memory_args.push_back(bufferSizeVec.at(0));
+        kd.kernels[0].params.local_memory_args.push_back(bufferSizeVec.at(1));
+        kd.kernels[0].params.local_memory_args.push_back(bufferSizeVec.at(2));
+    } else if (total_buffer_size > orgParams.engineInfo.maxLocalMemSize) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(bufferSizeVec.at(0));
+        kd.internalBuffers.push_back(bufferSizeVec.at(1));
+        kd.internalBuffers.push_back(bufferSizeVec.at(2));
         kd.internalBufferDataType = orgParams.inputs[0].GetDType();
     }
 
@@ -187,6 +228,7 @@ KernelsPriority ArgMaxMinKernelAxis::GetKernelsPriority(const Params& /*params*/
 
 JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& params) const {
     auto jit = ArgMaxMinKernelBase::GetJitConstants(params);
+    auto bufferSizeVec = GetTempBufferVec(params, params.has_dynamic_tensors());
 
     if (params.has_dynamic_tensors()) {
         const std::string operation_num = getOperationNumberString(params);
@@ -203,7 +245,16 @@ JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& para
     if (params.values_first)
         jit.AddConstant(MakeJitConstant("TOP_K_ORDER", 1));
 
-    if (params.has_dynamic_tensors() || getSortSize(params) * params.inputs[0].ElementSize() > 4096) {
+    const size_t total_buffer_size = std::accumulate(bufferSizeVec.begin(),
+            bufferSizeVec.end(), 0);
+
+    // For dynamic case, total_buffer_size will be 0.  If larger buffer are
+    // requested during runtime and greater than local memory size
+    // the kernel will have incorrect data
+    // total_buffer_size only for static case
+    if (params.has_dynamic_tensors()) {
+        jit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY", 1));
+    } else if (total_buffer_size > params.engineInfo.maxLocalMemSize) {
         jit.AddConstant(MakeJitConstant("USE_INTERNAL_BUFFERS", 1));
     }
 

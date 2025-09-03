@@ -25,9 +25,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -43,18 +41,7 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto gemm_repack = ov::as_type_ptr<GemmCopyB>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(gemm_repack, "expects GemmCopyB node");
-    const auto& child_gemms = ov::intel_cpu::aarch64::gemm_utils::repacking::get_gemm_exprs(expr);
-    size_t n_blk_size = 0;
-    for (const auto& child_gemm : child_gemms) {
-        const auto& gemm_in1_subtensor = ov::snippets::utils::get_projected_subtensor(child_gemm->get_input_port(1));
-        const auto& current_block = *gemm_in1_subtensor.rbegin();
-        if (current_block != snippets::utils::get_dynamic_value<size_t>() && current_block > n_blk_size) {
-            n_blk_size = current_block;
-        }
-    }
-    OV_CPU_JIT_EMITTER_ASSERT(n_blk_size > 0, "n_blk_size of gemm_repack is expected to be greater than 0.");
-    GemmCopyBKernelKaiConfig kernel_config(n_blk_size);
-    m_kernel_executor = kernel_table->register_kernel<GemmCopyBKaiKernelExecutor>(expr, kernel_config);
+    m_kernel_executor = kernel_table->register_kernel<GemmCopyBKaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
 
     // Initialize memory offsets similar to x64 brgemm_copy_b implementation
     m_memory_offsets = {gemm_repack->get_offset_in(), gemm_repack->get_offset_out()};

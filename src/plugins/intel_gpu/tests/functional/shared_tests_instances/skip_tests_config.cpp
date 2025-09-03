@@ -250,6 +250,9 @@ std::vector<std::string> disabledTestPatterns() {
         returnVal.push_back(R"(.*smoke_MatmulWeightsDecompressionQuantizeConvolution_basic.*)");
         returnVal.push_back(R"(.*smoke_Nms9LayerTest/Nms9LayerTest.Inference/num_batches=2_num_boxes=50.*)");
         returnVal.push_back(R"(.*smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/n.*)");
+    } else {
+        // CVS-172342
+        returnVal.push_back(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)");
     }
     return returnVal;
 }

@@ -12,9 +12,9 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 #define USE_SINGLE_THREADED_RUN_INIT 0
@@ -171,9 +171,10 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
-      _model(model) {
+      _model(model),
+      _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
-        _logger.info("Graph initialize is deferred from the \"WeightlessGraph\" constructor");
+        _wgLogger.info("Graph initialize is deferred from the \"WeightlessGraph\" constructor");
         return;
     }
 
@@ -211,11 +212,11 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         stream.write(reinterpret_cast<const char*>(blobRawPtr), static_cast<std::streamsize>(blobSize));
 
         if (!stream) {
-            _logger.error("Write blob to stream failed. Blob is broken!");
+            _wgLogger.error("Write blob to stream failed. Blob is broken!");
             return 0;
         }
 
-        if (_logger.level() >= ov::log::Level::INFO) {
+        if (_wgLogger.level() >= ov::log::Level::INFO) {
             std::uint32_t result = 1171117u;
             for (const uint8_t* it = blobRawPtr; it != blobRawPtr + blobSize; ++it) {
                 result = ((result << 7) + result) + static_cast<uint32_t>(*it);
@@ -229,7 +230,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
             } else {
                 str << "Init part " << blobIndex << " blob size " << blobSize << ", hash " << std::hex << result;
             }
-            _logger.info(str.str().c_str());
+            _wgLogger.info(str.str().c_str());
         }
 
         size_t size = utils::align_size_to_standard_page_size(blobSize);
@@ -238,11 +239,11 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
             std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
 
             if (!stream) {
-                _logger.error("Write padding to stream failed. Blob is broken!");
+                _wgLogger.error("Write padding to stream failed. Blob is broken!");
                 return 0;
             }
 
-            _logger.info("Blob size with padding: %ld", size);
+            _wgLogger.info("Blob size with padding: %ld", size);
         }
 
         return size;
@@ -267,9 +268,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 
     std::stringstream str;
     str << "Blob size: " << totalBlobSize << ", hash: " << std::hex << totalResult;
-    _logger.info(str.str().c_str());
+    _wgLogger.info(str.str().c_str());
 
-    _logger.info("Write blob to stream successfully.");
+    _wgLogger.info("Write blob to stream successfully.");
     return std::make_pair(totalBlobSize, initSizes);
 }
 
@@ -283,20 +284,20 @@ void WeightlessGraph::initialize(const Config& config) {
     _initsFences.resize(numberOfInits);
 
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
-        _logger.debug("WeightlessGraph initialize start, init schedule ", initIndex);
+        _wgLogger.debug("WeightlessGraph initialize start, init schedule ", initIndex);
         std::vector<ArgumentDescriptor>& initInputDescriptors = _initsInputDescriptors.at(initIndex);
         std::vector<ArgumentDescriptor>& initOutputDescriptors = _initsOutputDescriptors.at(initIndex);
         uint32_t& initCommandQueueOrdinal = _initsCommandQueueOrdinals.at(initIndex);
 
         // Code similar to "Graph::initialize"
-        _logger.debug("performing pfnGetProperties");
+        _wgLogger.debug("performing pfnGetProperties");
         ze_graph_properties_t props{};
         props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
         auto result =
             _zeroInitStruct->getGraphDdiTable().pfnGetProperties(_initsGraphDesc.at(initIndex)._handle, &props);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
 
-        _logger.debug("performing pfnGetArgumentProperties3");
+        _wgLogger.debug("performing pfnGetArgumentProperties3");
         for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
             ze_graph_argument_properties_3_t arg3{};
             arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
@@ -320,7 +321,7 @@ void WeightlessGraph::initialize(const Config& config) {
                                                                           ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
         _zeGraphExt->initializeGraph(_initsGraphDesc.at(initIndex), initCommandQueueOrdinal);
-        _logger.debug("WeightlessGraph initialize finish, init schedule ", initIndex);
+        _wgLogger.debug("WeightlessGraph initialize finish, init schedule ", initIndex);
 
         //  We are allowed to release the original blob because weights were loaded in NPU memory during
         //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
@@ -336,7 +337,7 @@ void WeightlessGraph::initialize(const Config& config) {
     uint32_t commandQueueOptions = 0;
     if (config.has<TURBO>() && config.get<TURBO>()) {
         if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in init command queue options");
+            _wgLogger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in init command queue options");
             commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
@@ -392,7 +393,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
 
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
         initInputsByteSize +=
-            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
     // Due to the large number of init inputs, allocating a single buffer for all of them is more efficient. "View
@@ -410,7 +411,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
             static_cast<unsigned char*>(const_cast<void*>(initInputsAllocatedTensor->data(ov::element::Type_t::u8))) +
             offset;
         const size_t currentInputSize =
-            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
 
         std::shared_ptr<ov::op::v0::Constant> constant;
         const size_t id = std::stoi(descriptor.nameFromCompiler);
@@ -439,7 +440,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
 
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).outputs) {
         initOutputsByteSize +=
-            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
     const ov::SoPtr<ZeroHostTensor> initOutputsAllocatedTensor = {
@@ -460,15 +461,14 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
 
         initOutputsViewTensorsVector.push_back(hostTensor._ptr);
         initOutputsViewTensorsMap.emplace(descriptor.nameFromCompiler, hostTensor._ptr);
-        offset +=
-            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+        offset += ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
     return {initOutputsViewTensorsVector, initOutputsAllocatedTensor, initOutputsViewTensorsMap};
 }
 
 void WeightlessGraph::run_init_single_threaded() {
-    auto constants = get_all_constants_in_topological_order(_model, _logger);
+    auto constants = get_all_constants_in_topological_order(_model, _wgLogger);
 
     for (size_t initIndex = 0; initIndex < _initsGraphDesc.size(); ++initIndex) {
         auto [initInputsViewTensors, initInputsAllocatedTensor] = allocate_inputs(initIndex, constants);
@@ -490,7 +490,7 @@ void WeightlessGraph::run_init_single_threaded() {
 
 void WeightlessGraph::run_init_multi_threaded() {
     if (_initsGraphDesc.size() == 1) {
-        _logger.info("::run_init_multi_threaded() for single init - fallback to ::runInit()");
+        _wgLogger.info("::run_init_multi_threaded() for single init - fallback to ::runInit()");
         run_init_single_threaded();
         return;
     }
@@ -530,7 +530,7 @@ void WeightlessGraph::run_init_multi_threaded() {
             merge_two_maps(_mainInputsViewTensors, data.outputs.tensorsMap);
             _mainInputsAllocatedTensors.push_back(data.outputs.hostTensor);
         },
-        _logger);
+        _wgLogger);
 
     multiThreadedRunner.callForAllAndWait(_initsGraphDesc.size());
     _model = nullptr;
@@ -539,7 +539,7 @@ void WeightlessGraph::run_init_multi_threaded() {
 void WeightlessGraph::create_pipeline(const size_t initIndex,
                                       const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
                                       const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors) {
-    _logger.debug("Init Pipeline - initialize started");
+    _wgLogger.debug("Init Pipeline - initialize started");
 
     if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
@@ -565,19 +565,19 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
         static_cast<ze_graph_handle_t>(_initsGraphDesc.at(initIndex)._handle),
         nullptr);
 
-    _logger.debug("Init Pipeline - initialize completed");
+    _wgLogger.debug("Init Pipeline - initialize completed");
 }
 
 void WeightlessGraph::run_pipeline(const size_t initIndex) {
-    _logger.debug("Init Pipeline - push() started");
+    _wgLogger.debug("Init Pipeline - push() started");
     _initsCommandLists.at(initIndex)->close();
 
     _initsCommandQueue->executeCommandList(*_initsCommandLists.at(initIndex), *_initsFences.at(initIndex));
-    _logger.debug("Init Pipeline - push() completed");
+    _wgLogger.debug("Init Pipeline - push() completed");
 
-    _logger.debug("Init Pipeline - pull() started");
+    _wgLogger.debug("Init Pipeline - pull() started");
     _initsFences.at(initIndex)->hostSynchronize();
-    _logger.debug("Init Pipeline - pull() completed");
+    _wgLogger.debug("Init Pipeline - pull() completed");
 }
 
 void WeightlessGraph::set_weights_inputs() {
@@ -597,7 +597,7 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex) {
-    if (_initsGraphDesc.at(initIndex)._data || _blobIsPersistent || _initBlobs == std::nullopt ||
+    if (_initsGraphDesc.at(initIndex)._memoryPersistent || _blobIsPersistent || _initBlobs == std::nullopt ||
         _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8)) {
         return;
     }
@@ -611,7 +611,7 @@ void WeightlessGraph::release_init_blob(const size_t initIndex) {
     }
 
     _initBlobs->at(initIndex) = ov::Tensor();
-    _logger.debug("Init blob is released");
+    _wgLogger.debug("Init blob is released");
 }
 
 void WeightlessGraph::release_graphs() {
@@ -627,7 +627,7 @@ void WeightlessGraph::release_graphs() {
             initIndex++;
         }
     }
-    _logger.debug("Init graphs are destroyed");
+    _wgLogger.debug("Init graphs are destroyed");
 }
 
 WeightlessGraph::~WeightlessGraph() {

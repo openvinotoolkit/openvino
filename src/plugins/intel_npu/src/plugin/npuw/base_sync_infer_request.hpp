@@ -16,11 +16,12 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
 #include "spatial.hpp"
+#include "util.hpp"
 
 namespace ov {
 namespace npuw {
 
-using TensorPtr = ov::SoPtr<ov::ITensor>;
+using namespace ov::npuw::util;
 
 class CompiledModel;
 
@@ -47,6 +48,8 @@ public:
                      const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     void check_tensors() const override;
+
+    void handle_set_remote_input(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor);
 
     // Query APIs - some default implementations here
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;

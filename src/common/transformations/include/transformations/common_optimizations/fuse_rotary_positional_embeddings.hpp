@@ -58,7 +58,7 @@ public:
 class ov::pass::RoPEFusionQwen : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionQwen");
-    RoPEFusionQwen(int split_output_id);
+    RoPEFusionQwen();
 };
 
 class ov::pass::RoPEFusionIOSlicing : public ov::pass::MatcherPass {
