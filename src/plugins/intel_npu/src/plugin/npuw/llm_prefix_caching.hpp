@@ -17,7 +17,18 @@
 namespace ov {
 namespace npuw {
 
-// KV cache tensors for all layers per block
+/**
+ * @brief KV cache data container for storing tensor pairs per layer
+ *
+ * This type alias defines a container that stores KV cache tensors organized by layer.
+ * Each element in the vector represents one layer's KV cache data as a pair of:
+ * - string: Tensor name/identifier (e.g., "past_key_values.0.key", "past_key_values.0.values")
+ * - ov::SoPtr<ov::ITensor>: Smart pointer to the actual KV cache tensor data
+ *
+ * The container holds all KV cache tensors for a specific block of tokens,
+ * enabling efficient storage and retrieval of cached computation results
+ * in the prefix caching system.
+ */
 using KVData = std::vector<std::pair<std::string, ov::SoPtr<ov::ITensor>>>;
 
 class KVBlock {
@@ -124,11 +135,97 @@ private:
     bool evict_lru_block_unsafe();
 };
 
+/**
+ * @brief Calculate hash values for each token in the input sequence
+ *
+ * This function computes cumulative hash values for tokens in the input tensor.
+ * Each token's hash is calculated based on all preceding tokens, creating a
+ * unique fingerprint for each position in the sequence that can be used for
+ * prefix caching lookup and storage.
+ *
+ * @param input_ids Input token tensor containing the token sequence
+ * @return Vector of hash values, one for each token position
+ */
 std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
 
+/**
+ * @brief Create mapping from output tensor names to input tensor names for KV cache
+ *
+ * This function creates a mapping between the output KV cache tensor names from the
+ * prefill model and the corresponding input tensor names that will receive the cached
+ * data. This mapping is essential for correctly routing cached KV tensors during
+ * prefix cache restoration.
+ *
+ * @param compiled_model The compiled model containing output port information
+ * @param in_ports Map of input port names to their corresponding node outputs
+ * @return Mapping from output tensor names to input tensor names
+ */
 std::unordered_map<std::string, std::string> create_output_to_input_name_mapping(
     const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports);
+
+class LLMInferRequest;
+
+/**
+ * @brief Restore cached KV blocks from prefix cache to avoid redundant computation
+ *
+ * This function attempts to restore previously computed KV cache blocks from the prefix cache
+ * based on the input token sequence. It processes tokens in blocks and checks if each block's
+ * KV cache data is available in the cache. If found, it copies the cached KV tensors to the
+ * corresponding input tensors, significantly reducing computation time for repeated prefixes.
+ *
+ * @param input_ids Input token tensor containing the token sequence
+ * @param block_size Size of each cache block (number of tokens per block)
+ * @param prompt_hashes Hash values for each token in the prompt sequence
+ * @param input_name_map Mapping from output tensor names to input tensor names for KV cache
+ * @param request Reference to LLMInferRequest containing cache manager and model configuration
+ * @return Number of tokens successfully restored from cache
+ *
+ * @note The function processes tokens sequentially in blocks. If a block is not found in cache,
+ *       it stops processing and returns the number of tokens restored up to that point.
+ */
+uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
+                               size_t block_size,
+                               const std::vector<uint64_t>& prompt_hashes,
+                               const std::unordered_map<std::string, std::string>& input_name_map,
+                               LLMInferRequest& request);
+
+/**
+ * @brief Store computed KV cache blocks into prefix cache for future reuse
+ *
+ * This function stores the KV cache tensors computed during inference into the prefix cache
+ * organized in blocks. It processes the output tensors from the prefill stage and creates
+ * cache blocks that can be retrieved later for the same token sequences, enabling prefix
+ * caching optimization for LLM inference.
+ *
+ * @param chunk_size Size of the current chunk being processed
+ * @param block_size Size of each cache block (number of tokens per block)
+ * @param prompt_hashes Hash values for each token in the prompt sequence
+ * @param token_idx Reference to current token index, updated as blocks are processed
+ * @param request Reference to LLMInferRequest containing cache manager and model configuration
+ *
+ * @note The function only processes chunks that are at least as large as the block size.
+ *       It creates cache blocks from the KV output tensors and stores them with proper
+ *       parent-child relationships for efficient cache management.
+ */
+void store_blocks_in_cache(size_t chunk_size,
+                           size_t block_size,
+                           const std::vector<uint64_t>& prompt_hashes,
+                           size_t& token_idx,
+                           LLMInferRequest& request);
+
+/**
+ * @brief Adjust chunk size to optimize prefix caching block alignment
+ *
+ * This utility function adjusts the processing chunk size to ensure optimal alignment
+ * with prefix caching block boundaries. It helps maximize cache efficiency by ensuring
+ * that chunks are processed in sizes that align well with the cached block structure.
+ *
+ * @param restored_token_num Number of tokens that were successfully restored from cache
+ * @param chunk_len Original chunk length to be adjusted
+ * @return Adjusted chunk size optimized for prefix caching
+ */
+size_t adjust_chunk_size_for_prefix_caching(size_t restored_token_num, size_t chunk_len);
 
 }  // namespace npuw
 }  // namespace ov

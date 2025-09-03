@@ -101,14 +101,17 @@ private:
 
     // Support prefix caching
     std::shared_ptr<PrefixCacheManager> m_prefix_cache;
-    uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
-                                   size_t block_size,
-                                   const std::vector<size_t>& prompt_hashes,
-                                   const std::unordered_map<std::string, std::string>& input_name_map);
-    void store_blocks_in_cache(size_t chunk_size,
-                               size_t block_size,
-                               const std::vector<size_t>& prompt_hashes,
-                               size_t& token_idx);
+
+    friend uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
+                                          size_t block_size,
+                                          const std::vector<uint64_t>& prompt_hashes,
+                                          const std::unordered_map<std::string, std::string>& input_name_map,
+                                          LLMInferRequest& request);
+    friend void store_blocks_in_cache(size_t chunk_size,
+                                      size_t block_size,
+                                      const std::vector<uint64_t>& prompt_hashes,
+                                      size_t& token_idx,
+                                      LLMInferRequest& request);
 };
 
 }  // namespace npuw

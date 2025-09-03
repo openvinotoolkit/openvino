@@ -24,111 +24,6 @@ void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     std::fill_n(tensor_data, tensor->get_byte_size(), fill_val);
 }
 
-ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
-                                         uint32_t dim,
-                                         uint32_t start_pos,
-                                         uint32_t end_pos) {
-    ov::Shape start_shape(std::vector<size_t>(tensor->get_shape().size(), 0u));
-    start_shape[dim] = start_pos;
-    ov::Shape end_shape = tensor->get_shape();
-    end_shape[dim] = end_pos;
-    return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
-}
-
-void copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor) {
-    // [1, H, S1, E] -> [1, H, S2, E]
-    const int N = 0;
-    const int H = 1;
-    const int S = 2;
-    const int E = 3;
-
-    OPENVINO_ASSERT(src_tensor->get_shape()[N] == dst_tensor->get_shape()[N]);
-    OPENVINO_ASSERT(src_tensor->get_shape()[H] == dst_tensor->get_shape()[H]);
-    OPENVINO_ASSERT(src_tensor->get_shape()[E] == dst_tensor->get_shape()[E]);
-    OPENVINO_ASSERT(src_tensor->get_element_type() == dst_tensor->get_element_type());
-    OPENVINO_ASSERT(src_tensor->get_shape()[N] == 1u);
-    OPENVINO_ASSERT(src_tensor->get_shape().size() == 4u);
-
-    const auto* src_tensor_data = reinterpret_cast<uint8_t*>(src_tensor->data());
-    auto* dst_tensor_data = reinterpret_cast<uint8_t*>(dst_tensor->data());
-
-    const auto num_planes = src_tensor->get_shape()[H];
-    const auto src_plane_stride = src_tensor->get_strides()[H];
-    const auto dst_plane_stride = dst_tensor->get_strides()[H];
-    const auto plane_size_in_bytes = src_tensor->get_strides()[S] * src_tensor->get_shape()[S];
-
-    for (size_t i = 0; i < num_planes; ++i) {
-        std::copy_n(src_tensor_data, plane_size_in_bytes, dst_tensor_data);
-        dst_tensor_data += dst_plane_stride;
-        src_tensor_data += src_plane_stride;
-    }
-}
-
-void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
-    /*
-      src/dst layout: [1, heads, emb_size, seq_len]
-
-      X[*,i] - embedding for i-th token,
-      Instead of copy columns, copy rows X[i,*]
-
-      [[X00 X01 ... X0n]      [[X00 X01 ... X0n]
-       [X10 X11 ... X1n]       [X10 X11 ... X1n]
-       [X20 X21 ... X2n]  ...  [X20 X21 ... X2n]
-             ...                     ...
-       [Xm0 Xm1 ... Xmn]]      [Xm0 Xm1 ... Xmn]]
-    */
-
-    const auto& src_shape = src->get_shape();
-
-    OPENVINO_ASSERT(src_shape.size() == 4u);
-    OPENVINO_ASSERT(src_shape == dst->get_shape());
-    OPENVINO_ASSERT(src->get_byte_size() == dst->get_byte_size());
-
-    const auto& src_strides = src->get_strides();
-    const auto& dst_strides = dst->get_strides();
-    const auto elem_size = src->get_byte_size() / src->get_size();
-
-    const auto C = src_shape[1];
-    const auto H = src_shape[2];
-    const auto W = src_shape[3];
-
-    const auto IS_H = src_strides[2];
-    const auto OS_H = dst_strides[2];
-
-    const size_t chunk_byte_size = W * elem_size;
-
-    const auto* src_p = static_cast<uint8_t*>(src->data());
-    auto* dst_p = static_cast<uint8_t*>(dst->data());
-
-    for (size_t i = 0; i < C * H; ++i) {
-        const size_t src_offset = i * IS_H;
-        const size_t dst_offset = i * OS_H;
-        std::copy_n(src_p + src_offset, chunk_byte_size, dst_p + dst_offset);
-    }
-}
-
-void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim) {
-    if (kv_dim == 3u) {
-        // Asserting that we work with last dimenston here:
-        const auto& src_shape = src_tensor->get_shape();
-        OPENVINO_ASSERT(src_shape.size() == 4);
-        // If last dimenstion of src_tensor is equal to 1, then we can squeeze
-        // src_shape from [1, heads, d_v, seq_len=1] to [heads, d_v].
-        // We can then treat src_tensor as a continuous tensor of row value vectors
-        // for multiple heads, while dst_tensor will still have [1, heads, d_v, seq_len!=1],
-        // shape, awaiting updates at column dimension, as value vectors are columns now.
-        if (src_shape[kv_dim] == 1 && src_tensor->is_continuous()) {
-            ov::npuw::util::XARCH::copy_row_as_column(src_tensor, dst_tensor);
-        } else {
-            copy_columns_by_row_chunks(src_tensor, dst_tensor);
-        }
-    } else if (kv_dim == 2u) {
-        copy_by_planes(src_tensor, dst_tensor);
-    } else {
-        src_tensor->copy_to(dst_tensor._ptr);
-    }
-}
-
 std::optional<ov::Output<const ov::Node>> find_port_by_name(const std::vector<ov::Output<const ov::Node>>& ports,
                                                             const std::string& name) {
     auto it = std::find_if(ports.begin(), ports.end(), [&](const auto& port) {
@@ -249,50 +144,6 @@ std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_nam
     }
 
     return std::make_pair(low_rank_dim, full_rank_dim);
-}
-
-size_t adjust_chunk_size(size_t restored_token_num, size_t chunk_len) {
-    // This function calculates the number of tokens needed to complete a full chunk
-    // based on the current restored token number and the chunk prompt length.
-
-    // Ensure that the past KV in the inference request can accommodate a full chunk after the first inference run.
-    // Consider the scenario when prefix caching is enabled:
-    // - The input prompt length is 1024, and the chunk size is 256. Initially, the present KV length in the inference
-    // request is 256, and the past KV length is 768.
-    // - Initially, 128 tokens have been restored from the cache, leaving 1024 - 128 = 896 tokens that need to be
-    // computed.
-    // Round 1:
-    // - 128 tokens are stored in the past KV.
-    // - Infer for 256 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 128 + 256 tokens, leaving 896 - 256 = 640 tokens.
-    // Round 2:
-    // - 128 + 256 tokens are stored in the past KV.
-    // - Infer for another 256 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 128 + 256 + 256 tokens, leaving 896 - 256 - 256 = 384
-    // tokens.
-    // Round 3:
-    // - 128 + 256 + 256 tokens are stored in the past KV.
-    // - Infer for another 256 tokens in the present KV.
-    // - KV cache update would fail because the past KV cannot accommodate 128 + 256 + 256 + 256 tokens.
-
-    // To address this issue, ensure that the past KV can hold a full chunk after round 1:
-    // Round 1:
-    // - 128 tokens are stored in the past KV.
-    // - Infer for 128 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 128 + 128 tokens, leaving 896 - 128 = 768 tokens.
-    // Round 2:
-    // - 256 tokens are stored in the past KV.
-    // - Infer for 256 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 128 + 128 + 256 tokens, leaving 896 - 128 - 256 = 512
-    // tokens. Round 3:
-    // - 256 + 256 tokens are stored in the past KV.
-    // - Infer for 256 tokens in the present KV.
-    // - After updating the KV cache, the past KV will hold 128 + 128 + 256 + 256 tokens, leaving 896 - 128 - 256 - 256
-    // = 256 tokens. Round 4:
-    // - 128 + 128 + 256 + 256 tokens are stored in the past KV.
-    // - Infer for the last 256 tokens in the present KV, completing the prefill for all prompts.
-
-    return chunk_len - restored_token_num % chunk_len;
 }
 
 }  // anonymous namespace
@@ -501,7 +352,7 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                     return;
                 }
 
-                auto new_tensor_slice = make_tensor_slice(infer_tensor, low_rank_dim, 0u, state_tensor_rank);
+                auto new_tensor_slice = util::make_tensor_slice(infer_tensor, low_rank_dim, 0u, state_tensor_rank);
                 if (low_rank_dim == 1) {
                     copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
                 } else {
@@ -563,36 +414,40 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             if (tokens_in_past_chunks > 0) {
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
                 auto prefill_past_kv_chunks =
-                    make_tensor_slice(prefill_past_kv, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                    util::make_tensor_slice(prefill_past_kv, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
 
-                auto kvcache_past_kv_chunks =
-                    make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                auto kvcache_past_kv_chunks = util::make_tensor_slice(kvcache_in_tensor,
+                                                                      kv_dim,
+                                                                      0u,
+                                                                      static_cast<uint32_t>(tokens_in_past_chunks));
 
-                copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, kv_dim);
+                util::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, kv_dim);
             }
 
             // Copy part 2 KV results
             auto prefill_present_kv_chunk =
-                make_tensor_slice(prefill_out_tensor,
-                                  kv_dim,
-                                  static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk),
-                                  static_cast<uint32_t>(prefill_chunk_size));
+                util::make_tensor_slice(prefill_out_tensor,
+                                        kv_dim,
+                                        static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk),
+                                        static_cast<uint32_t>(prefill_chunk_size));
 
-            auto kvcache_last_kv_chunk = make_tensor_slice(kvcache_in_tensor,
-                                                           kv_dim,
-                                                           static_cast<uint32_t>(tokens_in_past_chunks),
-                                                           kvcache_desc.num_stored_tokens);
+            auto kvcache_last_kv_chunk = util::make_tensor_slice(kvcache_in_tensor,
+                                                                 kv_dim,
+                                                                 static_cast<uint32_t>(tokens_in_past_chunks),
+                                                                 kvcache_desc.num_stored_tokens);
 
-            copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, kv_dim);
+            util::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, kv_dim);
         } else {
-            auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
-                                                       kv_dim,
-                                                       kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                                       kvcache_desc.max_prompt_size);
+            auto prefill_out_slice =
+                util::make_tensor_slice(prefill_out_tensor,
+                                        kv_dim,
+                                        kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                        kvcache_desc.max_prompt_size);
 
-            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
+            auto kvcache_in_slice =
+                util::make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
 
-            copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, kv_dim);
+            util::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, kv_dim);
         }
     }
     LOG_DEBUG("Done.");
@@ -621,21 +476,22 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
         const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
                                  ? 3u
                                  : kvcache_desc.dim;
-        auto dst_slice = make_tensor_slice(dst_tensor,
-                                           kv_dim,
-                                           kvcache_desc.num_stored_tokens - num_tokens,
-                                           kvcache_desc.num_stored_tokens);
+        auto dst_slice = util::make_tensor_slice(dst_tensor,
+                                                 kv_dim,
+                                                 kvcache_desc.num_stored_tokens - num_tokens,
+                                                 kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
         if (src_tensor->get_shape()[kv_dim] != dst_slice->get_shape()[kv_dim]) {
             // When prefix caching is enabled, there might be padding data on the left side after the first chunking
             // inference
-            auto src_slice = make_tensor_slice(src_tensor,
-                                               kv_dim,
-                                               static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]) - num_tokens,
-                                               static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]));
-            copy_tensor_by_dim(src_slice, dst_slice, kv_dim);
+            auto src_slice =
+                util::make_tensor_slice(src_tensor,
+                                        kv_dim,
+                                        static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]) - num_tokens,
+                                        static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]));
+            util::copy_tensor_by_dim(src_slice, dst_slice, kv_dim);
         } else {
-            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+            util::copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
         }
     }
     LOG_DEBUG("Done.");
@@ -656,147 +512,6 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
         auto chunk_prefill_kvcache_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
 
         fill_tensor<ov::float16>(chunk_prefill_kvcache_in_tensor, 0);
-    }
-}
-
-uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(
-    const ov::SoPtr<ov::ITensor>& input_ids,
-    size_t block_size,
-    const std::vector<uint64_t>& prompt_hashes,
-    const std::unordered_map<std::string, std::string>& input_name_map) {
-    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-
-    size_t actual_token_num = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM];
-    size_t num_blocks = (actual_token_num + block_size - 1) / block_size;  // Calculate number of blocks
-
-    uint64_t restored_token_num = 0;
-    size_t token_idx = 0;
-
-    uint64_t max_restored_token_num = kvcache_desc.max_prompt_size - m_npuw_llm_compiled_model->m_prefill_chunk_size;
-    for (size_t block_index = 0; block_index < num_blocks; ++block_index) {
-        if ((actual_token_num - block_index * block_size) < block_size) {
-            // Not a full block, skip it
-            break;
-        }
-
-        std::vector<uint64_t> token_hashes(block_size);
-        for (size_t i = 0; i < block_size; ++i) {
-            token_hashes[i] = prompt_hashes[token_idx];
-            token_idx++;
-        }
-
-        // block hash is the hash of last token in block
-        uint64_t block_hash = token_hashes.back();
-
-        std::shared_ptr<KVBlock> retrieved_block;
-        if (!m_prefix_cache->get_block(block_hash, retrieved_block)) {
-            LOG_VERB("[PrefixCache] No cache block found for hash " << block_hash
-                                                                    << ", will compute remaining tokens.");
-            break;
-        }
-
-        // Cache hit
-        auto token_start = retrieved_block->get_token_start();
-        const KVData block_kv_data = retrieved_block->get_block_kv_data();
-        LOG_VERB("[PrefixCache] Cache hit for block hash " << block_hash << ", restored tokens start from position "
-                                                           << token_start << ".");
-        for (auto kv_per_layer : block_kv_data) {
-            auto kv_out_name = kv_per_layer.first;
-            const auto& kv_in_name = input_name_map.at(kv_out_name);
-
-            auto kv_tensor = kv_per_layer.second;
-            const auto& kv_dim = (kv_out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                     ? 3u
-                                     : kvcache_desc.dim;
-
-            auto kv_dst_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(kv_in_name));
-            auto kv_dst_slice = make_tensor_slice(kv_dst_tensor,
-                                                  kv_dim,
-                                                  static_cast<uint32_t>(token_start),
-                                                  static_cast<uint32_t>(token_start + block_size));
-            copy_tensor_by_dim(kv_tensor, kv_dst_slice, kv_dim);
-        }
-
-        restored_token_num += block_size;
-
-        // Ensure the cached tokens can be loaded into infer request
-        if (restored_token_num + block_size > max_restored_token_num) {
-            break;
-        }
-
-        // At least we should infer "1" token to generate "logit"
-        if (restored_token_num == actual_token_num) {
-            restored_token_num -= block_size;
-            break;
-        }
-    }
-
-    return restored_token_num;
-}
-
-void ov::npuw::LLMInferRequest::store_blocks_in_cache(size_t chunk_size,
-                                                      size_t block_size,
-                                                      const std::vector<uint64_t>& prompt_hashes,
-                                                      size_t& token_idx) {
-    if (chunk_size < block_size) {
-        return;
-    }
-
-    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    const auto& prefill_compiled = m_prefill_request->get_compiled_model();
-
-    // Process input chunk in blocks
-    const uint64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
-    size_t offset = chunk_size < chunk_prompt_len ? chunk_prompt_len - chunk_size : 0;
-    for (size_t block_start = offset; block_start < chunk_prompt_len; block_start += block_size) {
-        if ((chunk_prompt_len - block_start) < block_size) {
-            // Not a full block, drop it.
-            break;
-        }
-
-        // 1. Get token hashes in a new block
-        std::vector<size_t> token_hashes(block_size);
-        for (size_t i = 0; i < block_size; ++i) {
-            token_hashes[i] = prompt_hashes[token_idx];
-            token_idx++;
-        }
-
-        // 2. Allocate KV cache tensors for a new block
-        auto kvcache_data = KVData();
-        for (std::size_t i = layer_ids::kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
-            const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
-
-            const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                     ? 3u
-                                     : kvcache_desc.dim;
-
-            auto kv_src_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
-            auto kv_src_slice = make_tensor_slice(kv_src_tensor,
-                                                  kv_dim,
-                                                  static_cast<uint32_t>(block_start),
-                                                  static_cast<uint32_t>(block_start + block_size));
-
-            auto new_tensor_elem_type = kv_src_slice->get_element_type();
-            auto new_tensor_shape = kv_src_slice->get_shape();
-            auto new_kv_tensor = ov::get_tensor_impl(ov::Tensor(new_tensor_elem_type, new_tensor_shape));
-            copy_tensor_by_dim(kv_src_slice, new_kv_tensor, kv_dim);
-
-            kvcache_data.push_back(std::make_pair(output_name, new_kv_tensor));
-        }
-
-        // 3. Create a new KVBlock with token hashes and KV cache tensors
-        auto block = std::make_shared<KVBlock>(block_size);
-        block->set_token_start(token_idx - block_size);
-        block->add_block(token_hashes, kvcache_data);
-
-        // 4. Store block in cache
-        uint64_t prev_block_hash = 0;
-        if (block->get_token_start() > 0) {
-            size_t last_token_id_in_prev_block = block->get_token_start() - 1;
-            prev_block_hash = prompt_hashes[last_token_id_in_prev_block];
-        }
-
-        m_prefix_cache->put_block(block, prev_block_hash);
     }
 }
 
@@ -839,7 +554,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         // Try to restore prefilled prompts from cache
         auto restored_token_num =
-            restore_cached_blocks(input_ids, prefix_caching_block_size, prompt_hashes, input_name_map);
+            restore_cached_blocks(input_ids, prefix_caching_block_size, prompt_hashes, input_name_map, *this);
         uint64_t scheduled_token_num = input_prompt_len - restored_token_num;
         LOG_VERB("[PrefixCache] Successfully restored " << restored_token_num
                                                         << " tokens from cache. "
@@ -860,7 +575,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
         if (enable_prefix_caching && current_prompts_len == chunk_prompt_len && is_first_chunk) {
-            auto token_num_to_a_full_chunk = adjust_chunk_size(kvcache_desc.num_stored_tokens, chunk_prompt_len);
+            auto token_num_to_a_full_chunk =
+                adjust_chunk_size_for_prefix_caching(kvcache_desc.num_stored_tokens, chunk_prompt_len);
             current_prompts_len = token_num_to_a_full_chunk;
             is_first_chunk = false;
         }
@@ -906,16 +622,16 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // Copy postion ids with considering the 3D position_ids
         auto last_dim = position_ids->get_shape().size() - 1;
         auto actual_position_ids_slice =
-            make_tensor_slice(position_ids,
-                              static_cast<uint32_t>(last_dim),
-                              kvcache_desc.num_stored_tokens,
-                              kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
+            util::make_tensor_slice(position_ids,
+                                    static_cast<uint32_t>(last_dim),
+                                    kvcache_desc.num_stored_tokens,
+                                    kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
         pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
 
         m_prefill_request->infer();
 
         if (enable_prefix_caching) {
-            store_blocks_in_cache(current_prompts_len, prefix_caching_block_size, prompt_hashes, token_idx);
+            store_blocks_in_cache(current_prompts_len, prefix_caching_block_size, prompt_hashes, token_idx, *this);
         }
 
         remaining_prompts -= current_prompts_len;
