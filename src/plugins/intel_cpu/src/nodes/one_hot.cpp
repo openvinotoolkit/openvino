@@ -25,6 +25,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/one_hot.hpp"
+#include "openvino/op/util/one_hot_base.hpp"
 #include "selective_build.h"
 #include "shape_inference/custom/one_hot.hpp"
 #include "utils/general_utils.h"
