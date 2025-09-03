@@ -26,7 +26,7 @@ public:
     template <typename T0, typename F>
     void parallel_simple(const T0& D0, const F& func) const {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-        const int nthr = static_cast<int>(D0);
+        const auto nthr = static_cast<int>(D0);
         if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             tbb::parallel_for(0, nthr, [&](int ithr) {
                 func(ithr, nthr);
