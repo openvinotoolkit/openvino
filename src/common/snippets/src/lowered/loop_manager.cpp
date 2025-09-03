@@ -260,8 +260,7 @@ size_t LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
     const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits);
     if (set_default_handlers) {
-        loop_info->set_handlers(
-            SpecificIterationHandlers(work_amount, normalized_increment, loop_info->get_dim_idx()));
+        loop_info->set_handlers(SpecificIterationHandlers(work_amount, normalized_increment, loop_info->get_dim_idx()));
     }
 
     const auto loop_id = this->add_loop_info(loop_info);
