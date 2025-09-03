@@ -80,12 +80,13 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
         return std::nullopt;
     }
 
-    if (batchSize.has_value()) {
-        return batchSize.value();
+    // Make sure that PLUGIN batch mode is currently active
+    if (*desc.shapeFromCompiler.begin() != intel_npu::utils::DEFAULT_BATCH_SIZE) {
+        return std::nullopt;
     }
 
-    if (tensor->get_shape().empty() || *desc.shapeFromCompiler.begin() != intel_npu::utils::DEFAULT_BATCH_SIZE) {
-        return std::nullopt;
+    if (batchSize.has_value()) {
+        return batchSize.value();
     }
 
     return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
