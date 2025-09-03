@@ -82,7 +82,7 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
 
     auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
         ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_MMAP);
-    iter->init(path);
+    iter->initialize(path);
     iter->reset();
 
     auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
