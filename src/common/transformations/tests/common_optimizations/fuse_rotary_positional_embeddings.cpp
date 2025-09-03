@@ -313,7 +313,7 @@ static std::shared_ptr<ov::Model> buildROPE_VIT(const int seq_length,
     auto rotary_ndims_s = static_cast<size_t>(rotary_ndims);
     auto num_heads_s = static_cast<size_t>(num_heads);
     auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
-                                                         ov::Shape{seq_length_s, num_heads_s, rotary_ndims});
+                                                         ov::Shape{seq_length_s, num_heads_s, rotary_ndims_s});
     auto Constant_396096 = makeConst(ov::element::f32,
             ov::Shape({
                 1,
@@ -328,55 +328,20 @@ static std::shared_ptr<ov::Model> buildROPE_VIT(const int seq_length,
         std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_length_s, 1, rotary_ndims_s});
     ov::Output<ov::Node> cat_Concat;
     if (is_split) {
-        auto split = makeOP<ov::opset1::VariadicSplit>({input, {-1}, {rotary_ndims / 2, -1}});
+        auto split = makeOP<ov::opset1::VariadicSplit>({input, {2}, {rotary_ndims / 2, rotary_ndims / 2}});
         auto neg_Multiply = makeOP<ov::opset1::Multiply>({split->output(1), Constant_396096}, {{"auto_broadcast", "numpy"}});
         cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, split->output(0)}, {{"axis", -1}});
     } else {
-        auto sice_right_part = makeOP<opset8::Slice>({input, {rotary_ndims_s / 2}, {INT_MAX}, {1}, {2}});
-        auto sice_left_part = makeOP<opset8::Slice>({input, {0}, {rotary_ndims_s / 2}, {1}, {2}});
-        auto neg_Multiply = makeOP<ov::opset1::Multiply>({sice_right_part, Constant_396096}, {{"auto_broadcast", "numpy"}});
-        cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, sice_left_part}, {{"axis", -1}});
+        auto slice_right_part = makeOP<ov::opset8::Slice>({input, {rotary_ndims / 2}, {INT_MAX}, {1}, {2}});
+        auto slice_left_part = makeOP<ov::opset8::Slice>({input, {0}, {rotary_ndims / 2}, {1}, {2}});
+        auto neg_Multiply = makeOP<ov::opset1::Multiply>({slice_right_part, Constant_396096}, {{"auto_broadcast", "numpy"}});
+        cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, slice_left_part}, {{"axis", -1}});
     }
     auto mul_sin_Multiply = makeOP<ov::opset1::Multiply>({cat_Concat, param_sin}, {{"auto_broadcast", "numpy"}});
     auto mul_cos_Multiply = makeOP<ov::opset1::Multiply>({input, param_cos}, {{"auto_broadcast", "numpy"}});
     auto add_Add = makeOP<ov::opset1::Add>({mul_cos_Multiply, mul_sin_Multiply}, {{"auto_broadcast", "numpy"}});
-    ov::ParameterVector parameters = ov::ParameterVector{input, mul_cos_Multiply, mul_sin_Multiply};
+    ov::ParameterVector parameters = ov::ParameterVector{input, param_cos, param_sin};
     return std::make_shared<ov::Model>(ov::OutputVector{add_Add}, parameters);
-}
-
-TEST_F(TransformationTestsF, ConvertToROPE_VIT) {
-    disable_rt_info_check();
-    const int seq_len = 16;
-    const int num_heads = 32;
-    const int rotary_ndims = 80;
-    const int max_position_embeddings = 2048;
-
-    model = buildROPE_VIT(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, false);
-    manager.register_pass<ov::pass::RoPEFusion>();
-    {
-        auto input =
-            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{batch, seq_len, num_heads, ndims * 3});
-        auto param_cos =
-            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1, seq_len, rotary_ndims});
-        auto param_sin =
-            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 1, seq_len, rotary_ndims});
-        auto rope = makeOP<ov::op::internal::RoPE>({input, param_cos, param_sin},
-                                                   {{"config.slice_start", 0},
-                                                    {"config.slice_stop", ndims},
-                                                    {"config.input_trans0213", true},
-                                                    {"config.output_trans0213", false},
-                                                    {"config.is_interleaved", false},
-                                                    {"config.is_chatglm", false},
-                                                    {"config.support_2d_rope", false},
-                                                    {"config.is_qwen", false},
-                                                    {"config.use_rope_cache", false},
-                                                    {"config.head_cnt", 0},
-                                                    {"config.head_size", 0},
-                                                    {"config.rotary_ndims", rotary_ndims},
-                                                    {"config.gather_position_arg_id", 0}});
-        model_ref =
-            std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
-    }
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
@@ -790,7 +755,7 @@ TEST_P(ConvertToROPETestVIT, ConvertToROPE_qwen) {
     const int num_heads = 32;
     const int rotary_ndims = 80;
     const int is_split = GetParam();
-    model = buildROPE_VIT(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, is_split);
+    model = buildROPE_VIT(seq_len, num_heads, rotary_ndims, is_split);
     manager.register_pass<ov::pass::RoPEFusionVIT3D>();
     {
         auto input =
@@ -819,8 +784,7 @@ TEST_P(ConvertToROPETestVIT, ConvertToROPE_qwen) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(TransformationTestsF, ConvertToROPETestVIT, ::testing::ValuesIn((false, true}));
-
+INSTANTIATE_TEST_SUITE_P(TransformationTestsF, ConvertToROPETestVIT, ::testing::ValuesIn({false, true}));
 
 TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
     disable_rt_info_check();
