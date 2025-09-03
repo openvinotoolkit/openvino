@@ -81,10 +81,12 @@ public:
                     ov::element::Type type,
                     const std::vector<std::string>& names,
                     const void* data,
-                    const size_t data_size)
+                    const size_t data_size,
+                    std::shared_ptr<std::string> data_location)
         : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
           m_data(data),
-          m_data_size(data_size) {};
+          m_data_size(data_size),
+          m_data_location(data_location) {};
 
     void translate(ov::Output<ov::Node>& output);
 
@@ -121,6 +123,7 @@ protected:
     int64_t m_input_idx = -1, m_output_idx = -1;
     const void* m_data;
     size_t m_data_size;
+    std::shared_ptr<std::string> m_data_location;
 };
 
 class Tensor {
@@ -269,7 +272,7 @@ public:
 private:
     bool has_external_data() const {
         if (m_tensor_place != nullptr) {
-            return false;
+            //return m_tensor_place->get_data_location() != nullptr;
         }
         return m_tensor_proto->has_data_location() &&
                m_tensor_proto->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL;

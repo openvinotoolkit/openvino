@@ -22,6 +22,7 @@ using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_pt
 class TensorExternalData {
 public:
     TensorExternalData(const TensorProto& tensor);
+    TensorExternalData(const std::string& location, size_t offset, size_t size);
 
     /// \brief      Load external data from tensor passed to constructor
     ///

@@ -31,13 +31,6 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
         std::shared_ptr<ov::frontend::onnx::DecoderBase> get_decoder() const override {
             return nullptr;
         };
-        size_t get_subgraph_size() const override {
-            return 0;
-        };
-
-        std::shared_ptr<GraphIterator> get_subgraph(size_t idx) const override {
-            return nullptr;
-        };
 
         int64_t get_opset_version(const std::string& domain) const {
             return 1;
@@ -67,6 +60,7 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
 }
 
 #include <openvino/openvino.hpp>
+
 #include "../frontend/src/core/graph_iterator_proto.hpp"
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
@@ -75,17 +69,18 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
     // const std::string model_name = "div.onnx";
     // const std::string model_name = "model_editor/subgraph_extraction_tests.onnx";
     // const std::string model_name = "controlflow/if_branches_with_same_inputs.onnx";
-    //const std::string model_name = "controlflow/if_inside_if.onnx";
-    //const std::string model_name = "cum_sum_2d_axis_input_1d.onnx";
-    //const std::string model_name = "cum_sum_2d_axis_input.onnx";
-    //const std::string model_name = "reduce_sum_13_axes_as_constant.onnx";
+    // const std::string model_name = "controlflow/if_inside_if.onnx";
+    // const std::string model_name = "cum_sum_2d_axis_input_1d.onnx";
+    // const std::string model_name = "cum_sum_2d_axis_input.onnx";
+    // const std::string model_name = "reduce_sum_13_axes_as_constant.onnx";
     const std::string model_name = "aten_embedding_sum_packed_4in_per_sample_weights.onnx";
     const auto path =
         ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
 
     ov::frontend::FrontEnd::Ptr fe;
 
-    auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(false);
+    auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_MMAP);
     iter->init(path);
     iter->reset();
 

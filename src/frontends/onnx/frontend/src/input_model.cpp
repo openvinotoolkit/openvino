@@ -566,10 +566,13 @@ namespace unify {
 
 class InputModel::InputModelONNXImpl {
 public:
-    InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator, const ov::frontend::InputModel& input_model);
     InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                        const ov::frontend::InputModel& input_model,
-                       const std::shared_ptr<TelemetryExtension>& telemetry);
+                       const bool enable_mmap);
+    InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
+                       const ov::frontend::InputModel& input_model,
+                       const std::shared_ptr<TelemetryExtension>& telemetry,
+                       const bool enable_mmap);
     InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                        const ov::frontend::InputModel& input_model,
                        unify::InputModel* parent_model);
@@ -608,6 +611,10 @@ public:
         return m_telemetry;
     }
 
+    bool is_enabled_mmap() const {
+        return m_enable_mmap;
+    }
+
 private:
     void load_model();
     void clean_up();
@@ -623,6 +630,7 @@ private:
     ov::frontend::onnx::unify::InputModel* m_parent_model;
     std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> m_subgraphs;
     std::shared_ptr<TelemetryExtension> m_telemetry;
+    bool m_enable_mmap;
 };
 
 namespace {
@@ -635,7 +643,8 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
                                                               tensor_meta_info.m_element_type,
                                                               std::vector<std::string>{*tensor_meta_info.m_tensor_name},
                                                               tensor_meta_info.m_tensor_data,
-                                                              tensor_meta_info.m_tensor_data_size);
+                                                              tensor_meta_info.m_tensor_data_size,
+                                                              tensor_meta_info.m_external_location);
     return tensor_place;
 }
 
@@ -733,21 +742,25 @@ void InputModel::InputModelONNXImpl::load_model() {
 }
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
-                                                   const ov::frontend::InputModel& input_model)
+                                                   const ov::frontend::InputModel& input_model,
+                                                   const bool enable_mmap)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
-      m_parent_model(nullptr) {
+      m_parent_model(nullptr),
+      m_enable_mmap(enable_mmap) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     load_model();
 }
 
 InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& graph_iterator,
                                                    const ov::frontend::InputModel& input_model,
-                                                   const std::shared_ptr<TelemetryExtension>& telemetry)
+                                                   const std::shared_ptr<TelemetryExtension>& telemetry,
+                                                   const bool enable_mmap)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
       m_parent_model(nullptr),
-      m_telemetry(telemetry) {
+      m_telemetry(telemetry),
+      m_enable_mmap(enable_mmap) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     load_model();
 }
@@ -758,7 +771,8 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
       m_parent_model(parent_model),
-      m_telemetry(parent_model->_impl->get_telemetry_extension()) {
+      m_telemetry(parent_model->_impl->get_telemetry_extension()),
+      m_enable_mmap(parent_model->is_enabled_mmap()) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     load_model();
 }
@@ -815,10 +829,8 @@ void InputModel::InputModelONNXImpl::set_tensor_value(ov::frontend::Place::Ptr p
     FRONT_END_GENERAL_CHECK(tensor_place->get_names().size() > 0,
                             "ONNX Frontend: place to be frozen must have the name.");
     auto name = tensor_place->get_names()[0];
-    FRONT_END_GENERAL_CHECK(p_shape.is_static(),
-                            "ONNX: specify static shape for " + name + " to be frozen.");
-    FRONT_END_GENERAL_CHECK(type.is_static(),
-                            "ONNX Frontend: define static size type for " + name + " to be frozen.");
+    FRONT_END_GENERAL_CHECK(p_shape.is_static(), "ONNX: specify static shape for " + name + " to be frozen.");
+    FRONT_END_GENERAL_CHECK(type.is_static(), "ONNX Frontend: define static size type for " + name + " to be frozen.");
     auto constant = ov::op::v0::Constant::create(type, p_shape.to_shape(), value);
     constant->set_friendly_name(name);
     // Possible issue
@@ -860,8 +872,10 @@ void InputModel::InputModelONNXImpl::clean_up() {
     // TODO: remove all the unnecessary tensors and operations. Could be postponed as TF Lite is OOB type of FrontEnd
 }
 
-InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, const std::shared_ptr<TelemetryExtension>& telemetry)
-    : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, telemetry)} {}
+InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
+                       const bool enable_mmap,
+                       const std::shared_ptr<TelemetryExtension>& telemetry)
+    : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, telemetry, enable_mmap)} {}
 
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, InputModel* parent_model)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, parent_model)} {}
@@ -933,6 +947,10 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
 void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                                   const std::vector<ov::frontend::Place::Ptr>& outputs) {
     _impl->extract_subgraph(inputs, outputs);
+}
+
+bool InputModel::is_enabled_mmap() const {
+    return _impl->is_enabled_mmap();
 }
 
 }  // namespace unify

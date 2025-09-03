@@ -732,7 +732,7 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name,
         }
         auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
         graph_iterator->reset();
-        auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator);
+        auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator, false); // enable_mmap doesn't matter
         std::shared_ptr<ov::Model> ov_model(nullptr);
         m_translate_session->translate_graph(input_model, ov_model);
         return ov_model;
@@ -806,7 +806,8 @@ Tensor Node::get_attribute_value(const std::string& name) const {
             tensor_meta_info.m_element_type,
             std::vector<std::string>{*tensor_meta_info.m_tensor_name},
             tensor_meta_info.m_tensor_data,
-            tensor_meta_info.m_tensor_data_size);
+            tensor_meta_info.m_tensor_data_size,
+            tensor_meta_info.m_external_location);
         return {tensor_place};
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
@@ -830,7 +831,8 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
             values_meta_info.m_element_type,
             std::vector<std::string>{*values_meta_info.m_tensor_name},
             values_meta_info.m_tensor_data,
-            values_meta_info.m_tensor_data_size);
+            values_meta_info.m_tensor_data_size,
+            values_meta_info.m_external_location);
 
         auto& indices_decoder =
             std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(sparse_tensor_info.m_indices);
@@ -841,7 +843,8 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
             indices_meta_info.m_element_type,
             std::vector<std::string>{*indices_meta_info.m_tensor_name},
             indices_meta_info.m_tensor_data,
-            indices_meta_info.m_tensor_data_size);
+            indices_meta_info.m_tensor_data_size,
+            values_meta_info.m_external_location);
         return {values_place, indices_place, sparse_tensor_info.m_partial_shape};
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
@@ -945,7 +948,7 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) co
     } else if (m_decoder != nullptr) {
         auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
         graph_iterator->reset();
-        auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator);
+        auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator, false); //enable_mmap doesn't matter here
         std::shared_ptr<ov::Model> ov_model(nullptr);
         m_translate_session->translate_graph(input_model, ov_model);
         return ov_model;
