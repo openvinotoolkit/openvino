@@ -46,10 +46,10 @@ LoopInfo::LoopInfo(size_t work_amount,
     m_input_ports.reserve(entries.size());
     m_output_ports.reserve(exits.size());
     for (const auto& port : entries) {
-        m_input_ports.push_back(LoopPort::create<LoopPort::Type::Incremented>(port));
+        m_input_ports.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, 0));
     }
     for (const auto& port : exits) {
-        m_output_ports.push_back(LoopPort::create<LoopPort::Type::Incremented>(port));
+        m_output_ports.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, 0));
     }
 }
 
