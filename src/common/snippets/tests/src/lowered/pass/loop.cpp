@@ -46,14 +46,14 @@ static void init_linear_ir(const std::vector<ov::Shape>& in_shapes, LinearIR& li
                                             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_input_port(0), 1),
                                                                   LoopPort::create<PortType::NotProcessed>((*matmul.first)->get_input_port(1))},
                                             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_output_port(0), 1)});
-    linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].back(), vector_size, 0,
+    linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].back(), vector_size,
                                             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
                                                                   LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
                                             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)});
-    linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].front(), 1, 1,
-                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
-                                                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
-                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)});
+    linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].front(), 1,
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 1),
+                                                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 1)},
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1)});
 }
 
 static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& config) {
