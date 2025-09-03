@@ -112,10 +112,13 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     : _compiledModel(compiledModel),
       _initStructs(initStructs),
       _graph(compiledModel->get_graph()),
+      _metadata(compiledModel->get_graph()->get_metadata()),
       _config(config),
       _logger("ZeroInferRequest", config.get<LOG_LEVEL>()),
       _graphInputDescriptors(_graph->get_input_descriptors()),
       _graphOutputDescriptors(_graph->get_output_descriptors()),
+      _userInputTensors(_metadata.inputs.size(), std::vector<ov::SoPtr<ov::ITensor>>(1, {nullptr})),
+      _userOutputTensors(_metadata.outputs.size(), {nullptr}),
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr) {
     OPENVINO_ASSERT(_compiledModel);
