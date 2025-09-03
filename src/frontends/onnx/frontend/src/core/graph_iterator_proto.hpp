@@ -121,14 +121,6 @@ public:
     /// Return Decoder for the current node that iterator points to
     std::shared_ptr<ov::frontend::onnx::DecoderBase> get_decoder() const override;
 
-    /// \brief Returns the number of sub-graphs that can be enumerated with get_subgraph
-    size_t get_subgraph_size() const override;
-
-    /// \brief Returns iterator for a subgraph created on demand
-    /// If there is no query for specific sub-graph iterator shouldn't be created
-    /// idx should be in range 0..get_subgraph_size()-1
-    std::shared_ptr<ov::frontend::onnx::GraphIterator> get_subgraph(size_t idx) const override;
-
     const GraphProto* get_graph() const {
         return m_graph;
     }

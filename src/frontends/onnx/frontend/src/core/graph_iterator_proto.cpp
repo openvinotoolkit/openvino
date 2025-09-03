@@ -439,30 +439,6 @@ void GraphIteratorProto::reset() {
     }
 }
 
-size_t GraphIteratorProto::get_subgraph_size() const {
-    return 0;
-}
-
-std::shared_ptr<ov::frontend::onnx::GraphIterator> GraphIteratorProto::get_subgraph(size_t idx) const {
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
-    /*
-    FRONT_END_GENERAL_CHECK(0 == idx, "There is no subgraph with idx ", idx);
-    auto iterator = std::make_shared<GraphIteratorProto>();
-    iterator->node_index = 0;
-    iterator->m_model = m_model;
-    iterator->m_subgraphs = {};  // TODO: check if we need to pass all sub-graphs here (while in a while situation)
-    iterator->m_graph = m_subgraphs[idx];
-    const auto operators = iterator->m_graph->operators();
-    auto operators_vec = std::vector<const tflite::Operator*>{operators->begin(), operators->end()};
-    iterator->m_nodes.assign(operators_vec.begin(), operators_vec.end());
-    auto outputs = iterator->m_graph->outputs();
-    auto inputs = iterator->m_graph->inputs();
-    iterator->m_nodes.insert(iterator->m_nodes.begin(), outputs->begin(), outputs->end());
-    iterator->m_nodes.insert(iterator->m_nodes.begin(), inputs->begin(), inputs->end());
-    return iterator;
-    */
-}
-
 std::shared_ptr<ov::frontend::onnx::DecoderBase> GraphIteratorProto::get_decoder() const {
     return m_decoders[node_index];
 }

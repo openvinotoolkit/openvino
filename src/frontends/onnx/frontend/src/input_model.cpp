@@ -604,7 +604,6 @@ public:
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                           const std::vector<ov::frontend::Place::Ptr>& outputs);
 
-    std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> get_subgraphs();
     std::shared_ptr<TelemetryExtension> get_telemetry_extension() const {
         return m_telemetry;
     }
@@ -728,18 +727,7 @@ void InputModel::InputModelONNXImpl::load_model() {
 
     if (m_telemetry) {
         for (const auto& op : op_statistics) {
-            m_telemetry->send_event("op_count", "tflite_" + op.first, static_cast<int>(op.second));
-        }
-    }
-
-    size_t subgraph_size = m_graph_iterator->get_subgraph_size();
-    if (subgraph_size > 1) {
-        m_subgraphs.reserve(subgraph_size);
-        m_subgraphs.push_back(nullptr);  // no main graph
-        for (size_t i = 1; i < subgraph_size; ++i) {
-            m_subgraphs.push_back(
-                std::make_shared<ov::frontend::onnx::unify::InputModel>(m_graph_iterator->get_subgraph(i),
-                                                                        m_telemetry));
+            m_telemetry->send_event("op_count", "onnx_" + op.first, static_cast<int>(op.second));
         }
     }
 }
@@ -872,10 +860,6 @@ void InputModel::InputModelONNXImpl::clean_up() {
     // TODO: remove all the unnecessary tensors and operations. Could be postponed as TF Lite is OOB type of FrontEnd
 }
 
-std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> InputModel::InputModelONNXImpl::get_subgraphs() {
-    return m_subgraphs;
-}
-
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelONNXImpl>(graph_iterator, *this, telemetry)} {}
 
@@ -949,10 +933,6 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
 void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                                   const std::vector<ov::frontend::Place::Ptr>& outputs) {
     _impl->extract_subgraph(inputs, outputs);
-}
-
-std::vector<std::shared_ptr<InputModel>> InputModel::get_subgraphs() const {
-    return _impl->get_subgraphs();
 }
 
 }  // namespace unify
