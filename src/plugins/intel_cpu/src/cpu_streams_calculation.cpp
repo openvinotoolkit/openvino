@@ -728,36 +728,36 @@ int get_model_prefer_threads(const int num_streams,
                         bool static_case_2 = networkToleranceForLowCache.total_convs > 0 &&
                                              static_cast<float>(networkToleranceForLowCache.total_light_convs) /
                                                      static_cast<float>(networkToleranceForLowCache.total_convs) >
-                                                 0.6f;
+                                                 0.6F;
                         bool static_case_3 = false;
                         bool static_case_4 = false;
                         if (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) {
                             static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
                                             static_cast<float>(networkToleranceForLowCache.total_light_convs) /
                                                     static_cast<float>(networkToleranceForLowCache.total_convs) <=
-                                                0.6f &&
+                                                0.6F &&
                                             networkToleranceForLowCache.ratio_compute_convs +
                                                     networkToleranceForLowCache.ratio_mem_limited_convs <
-                                                0.9f &&
-                                            networkToleranceForLowCache.ratio_mem_limited_convs < 0.11f &&
-                                            networkToleranceForLowCache.ratio_mem_limited_gemms == 0.0f &&
-                                            networkToleranceForLowCache.ratio_mem_limited_adds < 0.15f &&
+                                                0.9F &&
+                                            networkToleranceForLowCache.ratio_mem_limited_convs < 0.11F &&
+                                            networkToleranceForLowCache.ratio_mem_limited_gemms == 0.0F &&
+                                            networkToleranceForLowCache.ratio_mem_limited_adds < 0.15F &&
                                             networkToleranceForLowCache.total_gemms > 0;
                         } else {
                             static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
                                             static_cast<float>(networkToleranceForLowCache.total_light_convs) /
                                                     static_cast<float>(networkToleranceForLowCache.total_convs) <=
-                                                0.6f &&
+                                                0.6F &&
                                             networkToleranceForLowCache.ratio_compute_convs +
                                                     networkToleranceForLowCache.ratio_mem_limited_convs <
-                                                0.9f &&
-                                            networkToleranceForLowCache.ratio_mem_limited_convs < 0.2f &&
-                                            networkToleranceForLowCache.ratio_mem_limited_gemms == 0.0f &&
-                                            !(networkToleranceForLowCache.ratio_mem_limited_adds >= 0.28f ||
-                                              networkToleranceForLowCache.max_mem_tolerance < 0.06f);
+                                                0.9F &&
+                                            networkToleranceForLowCache.ratio_mem_limited_convs < 0.2F &&
+                                            networkToleranceForLowCache.ratio_mem_limited_gemms == 0.0F &&
+                                            !(networkToleranceForLowCache.ratio_mem_limited_adds >= 0.28F ||
+                                              networkToleranceForLowCache.max_mem_tolerance < 0.06F);
                             static_case_4 = networkToleranceForLowCache.total_convs == 0 &&
                                             networkToleranceForLowCache.total_gemms <
-                                                0.05f * networkToleranceForLowCache.total_nodes;
+                                                0.05F * networkToleranceForLowCache.total_nodes;
                         }
                         if (static_case_1 || static_case_2 || static_case_3 || static_case_4) {
                             config.tbbPartitioner = TbbPartitioner::STATIC;
