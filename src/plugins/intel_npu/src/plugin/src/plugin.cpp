@@ -540,9 +540,110 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     return _properties->get_property(name, npu_plugin_properties);
 }
 
+bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger logger) {
+    std::set<ov::Output<const ov::Node>> batchedInputs;
+    std::set<ov::Output<const ov::Node>> batchedOutputs;
+    std::set<size_t> sBatchSize;
+
+    const auto& params = model->get_parameters();
+    for (size_t input_id = 0; input_id < params.size(); input_id++) {
+        const auto& input = params[input_id];
+        const auto& shape = input->get_partial_shape();
+        ov::Layout layout = ov::layout::get_layout(input);
+
+        // Batching on plugin is working only when batching is found on 0th dimension
+        if ((shape.size() && shape[0].get_max_length() > 1) ||
+            (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == 0)) {
+            const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : input->get_shape();
+            batchedInputs.insert(params[input_id]->output(0));
+
+            if (shape.rank().is_dynamic()) {
+                OPENVINO_THROW("Shapes with dynamic rank are not supported.");
+            } else {
+                sBatchSize.insert(staticShape[0]);
+            }
+        } else {
+            // gather some diagnostic info
+            std::optional<size_t> batch_dim_index_detected;
+            for (size_t i = 1; i < shape.size(); i++) {
+                if (shape[i].has_symbol()) {
+                    batch_dim_index_detected = i;
+                    break;
+                }
+            }
+            std::stringstream sstream;
+            sstream << "Only networks with inputs batched by 0th dimension are supported. ";
+            if (batch_dim_index_detected.has_value()) {
+                sstream << "The batch has been detected on: " << batch_dim_index_detected.value()
+                        << " dimension instead. ";
+            } else {
+                sstream << "The batch hasn't been detected at all. ";
+            }
+            sstream << "Please check input id: " << input_id << " by the name: " << input->get_friendly_name()
+                    << ", layout: " << layout.to_string() << ", is_dynamic: " << shape.is_dynamic();
+            logger.info("%s", sstream.str());
+            return false;
+        }
+    }
+    for (const auto& output : model->get_results()) {
+        const auto& shape = output->get_output_partial_shape(0);
+        ov::Layout layout = ov::layout::get_layout(output);
+
+        // Batching on plugin is working only when batching is found on 0th dimension
+        if ((shape.size() && shape[0].get_max_length() > 1) ||
+            (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == 0)) {
+            const auto& node = output->input_value(0);
+            const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : output->get_shape();
+            batchedOutputs.insert(ov::Output<const ov::Node>(node.get_node(), node.get_index()));
+
+            if (shape.rank().is_dynamic()) {
+                OPENVINO_THROW("Shapes with dynamic rank are not supported.");
+            } else {
+                sBatchSize.insert(staticShape[0]);
+            }
+        } else {
+            logger.info("Only networks with outputs batched by 0th dimension are supported. Please check an output by "
+                        "the name: %s, layout: %s",
+                        output->get_friendly_name(),
+                        layout.to_string());
+            return false;
+        }
+    }
+    if (!batchedInputs.size() || !batchedOutputs.size()) {
+        logger.info(
+            "Only networks with inputs/outputs featuring batched dim are supported! Got inputs: %ld, outputs: %ld",
+            batchedInputs.size(),
+            batchedOutputs.size());
+        return false;
+    }
+
+    if (sBatchSize.size() != 1) {
+        logger.info("Batching size shall have same value for all tensors! Got unique batch sizes number: %ld",
+                    sBatchSize.size());
+        return false;
+    }
+
+    auto node_info_printer = [&logger](const auto& ov_node, std::string nodeType) {
+        logger.info("%s: %s has shape value: %s",
+                    nodeType,
+                    ov_node.get_any_name(),
+                    ov_node.get_partial_shape().to_string());
+    };
+
+    for (const auto& ov_node : batchedInputs) {
+        node_info_printer(ov_node, "Input");
+    }
+    for (const auto& ov_node : batchedOutputs) {
+        node_info_printer(ov_node, "Output");
+    }
+
+    return true;
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
+    auto modelForCompilation = model->clone();
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -590,11 +691,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
+    auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
+        std::stringstream strStream;
+        strStream << mode;
+        _logger.info("Setting batching mode to %s.", strStream.str());
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    };
+
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) &&
         !localConfig.has(ov::intel_npu::batch_mode.name())) {
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::AUTO;
-        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+        updateBatchMode(ov::intel_npu::BatchMode::AUTO);
     }
 
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) && !model->get_variables().empty()) {
@@ -602,9 +708,24 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on the plugin");
         }
 
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::COMPILER;
-        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+        updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+    }
+
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name())) {
+        bool autoOrPluginBatch = localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN ||
+                                 localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::AUTO;
+        bool pluginBatchingIsSupported = validateModelBatch(modelForCompilation, _logger);
+        if (autoOrPluginBatch && pluginBatchingIsSupported) {
+            try {
+                _logger.info("Attempting to handle batching on the plugin side.");
+                ov::set_batch(modelForCompilation, 1);
+            } catch (const std::exception& ex) {
+                _logger.info("Couldn't reshape the model. Batching will be handed by compiler.", ex.what());
+            }
+            updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+        } else {
+            _logger.info("Unable to manage batching on the plugin side, so the compiler will take care of it.");
+        }
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
@@ -655,10 +776,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.debug("performing compile");
 
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            graph = compiler->compile(model->clone(), localConfig);
+            graph = compiler->compile(modelForCompilation->clone(), localConfig);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            graph = compiler->compileWS(model->clone(), localConfig);
+            graph = compiler->compileWS(modelForCompilation->clone(), localConfig);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
