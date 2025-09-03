@@ -28,10 +28,6 @@ target_link_libraries(${TARGET_NAME}
         openvino_npu_level_zero_backend
 )
 
-if(ENABLE_IMD_BACKEND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_IMD_BACKEND)
-endif()
-
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
 endif()
