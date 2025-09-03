@@ -800,7 +800,7 @@ Tensor Node::get_attribute_value(const std::string& name) const {
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<Tensor>(name);
     } else if (m_decoder != nullptr) {
-        auto& tensor_decoder = std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(
+        auto tensor_decoder = std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBaseTensor>(
             m_decoder->get_attribute(name).as<ov::frontend::onnx::DecoderBase::Ptr>());
         const auto& tensor_meta_info = tensor_decoder->get_tensor_info();
         auto tensor_place = std::make_shared<ov::frontend::onnx::TensorONNXPlace>(

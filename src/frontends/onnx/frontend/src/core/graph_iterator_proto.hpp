@@ -40,6 +40,8 @@ enum GraphIteratorProtoMemoryManagementMode : int {
     Internal_MMAP = 4,
 };
 
+bool is_valid_model(std::istream& model);
+
 class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     size_t node_index = 0;
     std::shared_ptr<ModelProto> m_model;
@@ -86,27 +88,7 @@ public:
 #else
             std::ifstream onnx_stream(path, std::ios::in | std::ifstream::binary);
 #endif
-            // the model usually starts with a 0x08 byte indicating the ir_version value
-            // so this checker expects at least 3 valid ONNX keys to be found in the validated model
-            const size_t EXPECTED_FIELDS_FOUND = 3u;
-            std::unordered_set<::ONNX_NAMESPACE::Field, std::hash<int>> onnx_fields_found = {};
-            try {
-                while (onnx_stream.good() && !onnx_stream.eof() && onnx_fields_found.size() < EXPECTED_FIELDS_FOUND) {
-                    const auto field = ::ONNX_NAMESPACE::decode_next_field(onnx_stream);
-
-                    if (onnx_fields_found.count(field.first) > 0) {
-                        // if the same field is found twice, this is not a valid ONNX model
-                        return false;
-                    } else {
-                        onnx_fields_found.insert(field.first);
-                        ::ONNX_NAMESPACE::skip_payload(onnx_stream, field.second);
-                    }
-                }
-
-                return onnx_fields_found.size() == EXPECTED_FIELDS_FOUND;
-            } catch (...) {
-                return false;
-            }
+            return is_valid_model(onnx_stream);
         } catch (...) {
             return false;
         }
