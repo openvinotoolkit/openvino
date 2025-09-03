@@ -615,6 +615,14 @@ public:
         return m_enable_mmap;
     }
 
+    MappedMemoryHandles get_mmap_cache() const {
+        return m_mmap_cache;
+    }
+
+    LocalStreamHandles get_stream_cache() const {
+        return m_stream_cache;
+    }
+
 private:
     void load_model();
     void clean_up();
@@ -631,6 +639,11 @@ private:
     std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> m_subgraphs;
     std::shared_ptr<TelemetryExtension> m_telemetry;
     bool m_enable_mmap;
+
+    // This is used for keeping MMAP cache handles
+    MappedMemoryHandles m_mmap_cache;
+    // This is used for keeping a readed external data without MMAP
+    LocalStreamHandles m_stream_cache;
 };
 
 namespace {
@@ -749,6 +762,13 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
       m_parent_model(nullptr),
       m_enable_mmap(enable_mmap) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
+    if (m_enable_mmap) {
+        m_mmap_cache = std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>();
+        m_stream_cache = nullptr;
+    } else {
+        m_mmap_cache = nullptr;
+        m_stream_cache = std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>();
+    }
     load_model();
 }
 
@@ -762,6 +782,13 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
       m_telemetry(telemetry),
       m_enable_mmap(enable_mmap) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
+    if (m_enable_mmap) {
+        m_mmap_cache = std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>();
+        m_stream_cache = nullptr;
+    } else {
+        m_mmap_cache = nullptr;
+        m_stream_cache = std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>();
+    }
     load_model();
 }
 
@@ -772,7 +799,9 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
       m_input_model(input_model),
       m_parent_model(parent_model),
       m_telemetry(parent_model->_impl->get_telemetry_extension()),
-      m_enable_mmap(parent_model->is_enabled_mmap()) {
+      m_enable_mmap(parent_model->is_enabled_mmap()),
+      m_mmap_cache(parent_model->_impl->m_mmap_cache),
+      m_stream_cache(parent_model->_impl->m_stream_cache) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     load_model();
 }
@@ -951,6 +980,14 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
 
 bool InputModel::is_enabled_mmap() const {
     return _impl->is_enabled_mmap();
+}
+
+MappedMemoryHandles InputModel::get_mmap_cache() const {
+    return _impl->get_mmap_cache();
+}
+
+LocalStreamHandles InputModel::get_stream_cache() const {
+    return _impl->get_stream_cache();
 }
 
 }  // namespace unify
