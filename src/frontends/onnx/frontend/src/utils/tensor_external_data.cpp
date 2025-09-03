@@ -33,6 +33,11 @@ TensorExternalData::TensorExternalData(const TensorProto& tensor) {
     }
 #endif
 }
+TensorExternalData::TensorExternalData(const std::string& location, size_t offset, size_t size) {
+    m_data_location = ov::util::sanitize_path(location);
+    m_offset = offset;
+    m_data_length = size;
+}
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
                                                                      MappedMemoryHandles cache) const {

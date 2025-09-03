@@ -90,12 +90,13 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
     if (file_size <= 0 || ext_data_offset + ext_data_length > static_cast<uint64_t>(file_size)) {
         throw std::runtime_error("Invalid usage of method for externally stored data");
     }
+    auto memory_mode = graph_iterator->get_memory_management_mode();
     if (ext_location == "*/_ORT_MEM_ADDR_/*") {
         // Specific ONNX Runtime Case when it passes a model with self-managed data
         tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
         tensor_meta_info.m_tensor_data_size = ext_data_length;
         return true;
-    } else if (graph_iterator->is_mmap_enabled()) {
+    } else if (memory_mode == External_MMAP) {
         auto cache = graph_iterator->get_mmap_cache();
         auto cached_mapped_memory = cache->find(full_path);
         std::shared_ptr<ov::MappedMemory> mapped_memory;
@@ -110,7 +111,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         tensor_meta_info.m_tensor_data_size =
             ext_data_length > 0 ? ext_data_length : static_cast<size_t>(file_size) - ext_data_length;
         return true;
-    } else {
+    } else if (memory_mode == External_Stream) {
         auto cache = graph_iterator->get_stream_cache();
         auto cached_stream = cache->find(full_path);
         std::shared_ptr<std::ifstream> external_data_stream;
@@ -141,6 +142,13 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         external_data_stream->read(static_cast<char*>(static_cast<void*>(data_ptr)),
                                    tensor_meta_info.m_tensor_data_size);
         return true;
+    } else if (memory_mode == Internal_MMAP || memory_mode == Internal_Stream) {
+        tensor_meta_info.m_external_location = std::make_shared<std::string>(full_path);
+        tensor_meta_info.m_tensor_data = reinterpret_cast<uint8_t*>(ext_data_offset);
+        tensor_meta_info.m_tensor_data_size = ext_data_length;
+        return true;
+    } else {
+        throw std::runtime_error("Unsupported memory management mode");
     }
 }
 }  // namespace
@@ -150,6 +158,7 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
                                                             GraphIteratorProto* graph_iterator) {
     auto graph_def = graph_iterator->get_graph();
     ov::frontend::onnx::TensorMetaInfo tensor_meta_info{};
+    tensor_meta_info.m_external_location = nullptr;
     if ((tensor_info == nullptr && value_info == nullptr) || graph_def == nullptr) {
         throw std::runtime_error("Wrong usage");
     }
@@ -257,14 +266,15 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
     return tensor_meta_info;
 }
 
-GraphIteratorProto::GraphIteratorProto(const bool enable_mmap)
+GraphIteratorProto::GraphIteratorProto(const GraphIteratorProtoMemoryManagementMode mode)
     : m_parent(nullptr),
       m_model_dir(nullptr),
-      m_mmap_cache{enable_mmap ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
-                               : nullptr},
-      m_data_holder{enable_mmap ? nullptr : std::make_shared<std::vector<std::shared_ptr<uint8_t>>>()},
-      m_stream_cache{enable_mmap ? nullptr
-                                 : std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>()} {}
+      m_mode(mode),
+      m_mmap_cache{mode == External_MMAP ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
+                                         : nullptr},
+      m_data_holder{mode == External_Stream ? std::make_shared<std::vector<std::shared_ptr<uint8_t>>>() : nullptr},
+      m_stream_cache{mode == External_Stream ? std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>()
+                                             : nullptr} {}
 
 GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def) {
     m_model_dir = parent->m_model_dir;

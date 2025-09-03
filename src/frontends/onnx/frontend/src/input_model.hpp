@@ -115,6 +115,7 @@ class InputModel : public ov::frontend::InputModel {
 
 public:
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
+                        const bool enable_mmap,
                         const std::shared_ptr<TelemetryExtension>& telemetry = {});
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator, InputModel* parent_model);
 
@@ -141,6 +142,8 @@ public:
     void override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) override;
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                           const std::vector<ov::frontend::Place::Ptr>& outputs) override;
+
+    bool is_enabled_mmap() const;
 };
 }  // namespace unify
 

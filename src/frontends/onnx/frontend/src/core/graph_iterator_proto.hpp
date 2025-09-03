@@ -31,6 +31,14 @@ using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_pt
 using LocalMemoryHandles = std::shared_ptr<std::vector<std::shared_ptr<uint8_t>>>;
 using LocalStreamHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<std::ifstream>>>;
 
+enum GraphIteratorProtoMemoryManagementMode : int {
+    Undefined = 0,
+    External_Stream = 1,
+    External_MMAP = 2,
+    Internal_Stream = 3,
+    Internal_MMAP = 4,
+};
+
 class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     size_t node_index = 0;
     std::shared_ptr<ModelProto> m_model;
@@ -44,12 +52,13 @@ class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     // This is used for keeping a readed external data without MMAP
     LocalStreamHandles m_stream_cache;
     LocalMemoryHandles m_data_holder;
+    GraphIteratorProtoMemoryManagementMode m_mode;
 
 public:
     using Ptr = std::shared_ptr<GraphIteratorProto>;
 
     GraphIteratorProto() = default;
-    explicit GraphIteratorProto(const bool enable_mmap);
+    explicit GraphIteratorProto(const GraphIteratorProtoMemoryManagementMode mode);
     explicit GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def);
     ~GraphIteratorProto() = default;
 
@@ -131,8 +140,8 @@ public:
         return *m_model_dir;
     }
 
-    bool is_mmap_enabled() const {
-        return m_mmap_cache != nullptr;
+    GraphIteratorProtoMemoryManagementMode get_memory_management_mode() const {
+        return m_mode;
     }
 
     MappedMemoryHandles get_mmap_cache() const {
