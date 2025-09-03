@@ -527,7 +527,7 @@ TEST_P(BatchingRunTests, SetInputTensorInfer) {
 
     inference_request.infer();  // Adds '1' to each element
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 }
 
@@ -554,7 +554,7 @@ TEST_P(BatchingRunTests, SetInputTensorAsync) {
     inference_request.start_async();  // Adds '1' to each element
     inference_request.wait_for(std::chrono::milliseconds(1000));
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 }
 
@@ -583,7 +583,7 @@ TEST_P(BatchingRunTests, SetInputTensorInfer_Caching) {
 
     inference_request.infer();  // Adds '1' to each element
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 
     delete[] buffer;
@@ -612,7 +612,7 @@ TEST_P(BatchingRunTests, CheckTwoRunsInfer) {
     }
     inference_request.infer();  // Adds '1' to each element
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 
     auto l0_host_input_tensor = context.create_host_tensor(ov::element::f32, batch_shape);
@@ -630,7 +630,7 @@ TEST_P(BatchingRunTests, CheckTwoRunsInfer) {
     auto* actual_host_tensor = l0_host_output_tensor.data();
     actual = reinterpret_cast<float*>(actual_host_tensor);
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 
     delete[] buffer;
