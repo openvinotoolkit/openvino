@@ -49,7 +49,7 @@ std::vector<layout> one_hot_inst::calc_output_layouts(const one_hot_node& /*node
     auto desc = impl_param.typed_desc<one_hot>();
     auto input_layout = impl_param.get_input_layout(0);
     auto dt = desc->output_data_types[0].value_or(input_layout.data_type);
-//
+
     ov::op::util::OneHotBase op;
     try {
         // set_axis also calls resolve_axis method which tries to get input0 partial shape
