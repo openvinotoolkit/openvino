@@ -75,6 +75,9 @@ PlainTensor xattn_estimate(PlainTensor& query,
 
     PlainTensor attn_sum_temp;
     attn_sum_temp.resize({q_num_strided, H, L, k_num_strided}, sizeof(float), ov::element::Type_t::f32);
+    parallel_for3d(q_num_strided, H, L, [&](size_t b, size_t h, size_t l) {
+        memset(attn_sum_temp.ptr<float>(b, h, l, 0), 0, k_num_strided * sizeof(float));
+    });
 
     int n_block_size = 32;
     auto in_type = query.m_dt;
@@ -163,7 +166,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
 
     // Find blocks
     PlainTensor mask;
-    mask.resize({H, L, q_num_blocks, k_num_blocks}, sizeof(bool), ov::element::Type_t::boolean);
+    mask.resize({H, q_num_blocks, k_num_blocks}, sizeof(bool), ov::element::Type_t::boolean);
     parallel_for3d(q_num_blocks, H, L, [&](size_t b, size_t h, size_t l) {
         auto* row = attn_sum.ptr<float>(b, h, l, 0);
         float required_sum = std::accumulate(row, row + k_num_blocks, 0.0f, std::plus<>()) * threshold;
@@ -175,6 +178,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
 
         if (causal) {
             values_with_index[b].first += 100000.0f;
+            values_with_index[0].first += 100000.0f;
         }
 
         std::sort(values_with_index.begin(),
@@ -184,6 +188,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
                   });
 
         if (causal) {
+            values_with_index[1].first += values_with_index[0].first - 100000.0f * 2;
             values_with_index[0].first = 0.0f;
         }
 
@@ -203,7 +208,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
                 value = true;
             }
 
-            *(mask.ptr<bool>(h, l, b, values_with_index[i].second)) = value;
+            *(mask.ptr<bool>(h, b, values_with_index[i].second)) = value;
         }
     });
 
