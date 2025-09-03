@@ -145,7 +145,6 @@ target_link_libraries(ov_onnx_frontend_tests PRIVATE
     frontend_shared_test_classes
     openvino::frontend::onnx
     func_test_utils
-    openvino_tensorflow_lite_frontend
 )
 
 if(OV_COMPILER_IS_CLANG)

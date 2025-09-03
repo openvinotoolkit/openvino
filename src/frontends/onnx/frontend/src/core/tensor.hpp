@@ -17,6 +17,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "place.hpp"
 #include "utils/common.hpp"
 #include "utils/tensor_external_data.hpp"
 
@@ -327,6 +328,48 @@ std::vector<char> Tensor::get_data() const;
 
 template <>
 std::vector<std::string> Tensor::get_data() const;
+
+class TensorONNXPlace : public ov::frontend::onnx::TensorPlace {
+public:
+    TensorONNXPlace(const ov::frontend::InputModel& input_model,
+                    const ov::PartialShape& pshape,
+                    ov::element::Type type,
+                    const std::vector<std::string>& names,
+                    const void* data)
+        : ov::frontend::onnx::TensorPlace(input_model, pshape, type, names),
+          m_data(data) {};
+
+    void translate(ov::Output<ov::Node>& output, bool convert_tensor_attrs_to_nodes = false);
+
+    bool is_input() const override {
+        return m_input_idx >= 0;
+    }
+    size_t get_input_index() const {
+        FRONT_END_GENERAL_CHECK(is_input(), "This is not input TensorPlace. Can not deliver input index");
+        return static_cast<size_t>(m_input_idx);
+    }
+    bool is_output() const override {
+        return m_output_idx >= 0;
+    }
+    size_t get_output_index() const {
+        FRONT_END_GENERAL_CHECK(is_output(), "This is not output TensorPlace. Can not deliver output index");
+        return static_cast<size_t>(m_output_idx);
+    }
+    void set_input_index(const int64_t& idx) {
+        m_input_idx = idx;
+    }
+    void set_output_index(const int64_t& idx) {
+        m_output_idx = idx;
+    }
+
+    const void* get_data() const {
+        return m_data;
+    }
+
+protected:
+    int64_t m_input_idx = -1, m_output_idx = -1;
+    const void* m_data;
+};
 
 }  // namespace onnx
 }  // namespace frontend

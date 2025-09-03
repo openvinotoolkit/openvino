@@ -368,6 +368,11 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     return constant;
 }
 
+void ov::frontend::onnx::TensorONNXPlace::translate(ov::Output<ov::Node>& output,
+                                                               bool convert_tensor_attrs_to_nodes) {
+    output.set_names({*get_names().begin()});
+}
+
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
