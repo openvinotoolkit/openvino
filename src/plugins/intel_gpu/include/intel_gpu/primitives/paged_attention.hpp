@@ -38,7 +38,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         XATTENTION_STRIDE = 19,
     };
 
-    static constexpr size_t block_size = 16;
+    static constexpr size_t block_size = 256;
 
     paged_attention() : primitive_base("", {}) {}
 
