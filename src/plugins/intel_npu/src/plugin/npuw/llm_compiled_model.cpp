@@ -503,8 +503,9 @@ void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model,
                                    const uint32_t& batch_dim,
                                    std::size_t max_generation_token_len) {
     // We have only one input with dynamic shapes: output embeds.
-    // Output embeds should have "max_generation_token_len" for dimension representing number of embeddings
-    // to send to the matmul. Batch size should be equal "1" for NPU.
+    // Output embeds should have "max_generation_token_len" for dimension representing
+    // number of embeddings to send to the matmul. Batch size should be equal to "1"
+    // for NPU.
     const auto& input = lm_head_model->input(0);
     const auto& partial_shape = input.get_partial_shape();
     NPUW_ASSERT(partial_shape.size() == 3);
@@ -537,12 +538,12 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model,
     if (embed_result) {
         auto shape = embed_result->input(0).get_shape();
         // If shape.size() is 3, then last axis should be the Vocab size.
-        // But 1st and 2nd axis can mean different things.
+        // But 1st and 2nd axes can mean different things.
         // 1st axis can represent the batch size, while 2nd - the number of embeddings,
         // or vice-versa (in chatglm)
         if (shape.size() == 3) {
             uint32_t num_embeds_dim = 1 - batch_dim;
-            if (shape[num_embeds_dim] > 1) {
+            if (shape[num_embeds_dim] > max_generation_token_len) {
                 std::vector<int32_t> start_pos{
                     static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - max_generation_token_len)),
                     static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - max_generation_token_len)),
@@ -1106,6 +1107,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.total_size);
         write(model_stream, m_kvcache_desc.num_stored_tokens);
         write(model_stream, m_kvcache_desc.dim);
+        write(model_stream, m_kvcache_desc.max_generation_token_len);
         write(model_stream, m_kvcache_desc.v_tensors_transposed);
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
@@ -1314,6 +1316,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.total_size);
         read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
         read(model_stream, compiled->m_kvcache_desc.dim);
+        read(model_stream, compiled->m_kvcache_desc.max_generation_token_len);
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
