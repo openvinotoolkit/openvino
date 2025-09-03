@@ -196,9 +196,10 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
                 //     std::dynamic_pointer_cast<ov::op::v0::Parameter>(known_input->second.get_node_shared_ptr()),
                 //     input);
             } else {
-                FRONT_END_THROW("Non-existent connection in body-graph to " + in_from_parent_it->get()->get_friendly_name());
+                FRONT_END_THROW("Non-existent connection in body-graph to " +
+                                in_from_parent_it->get()->get_friendly_name());
             }
-//            loop->set_invariant_input(*body_inputs_it, *in_from_parent_it);
+            //            loop->set_invariant_input(*body_inputs_it, *in_from_parent_it);
         }
 
         /* for (auto& input : body_inputs) {
