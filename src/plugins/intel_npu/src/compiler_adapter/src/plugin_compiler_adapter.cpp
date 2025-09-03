@@ -143,7 +143,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         return starts_with(name, "main");
     };
 
-    _logger.info("SEPARATE_WEIGHTS_VERSION: ", config.get<SEPARATE_WEIGHTS_VERSION>());
+    _logger.info("SEPARATE_WEIGHTS_VERSION: {0}", config.get<SEPARATE_WEIGHTS_VERSION>());
 
     int64_t compile_model_mem_start = 0;
     if (_logger.level() >= ov::log::Level::INFO) {
