@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/type.hpp"
@@ -116,7 +117,13 @@ TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const SnippetsTokenization::C
         }
 
         const auto ordered_ops = ov::NodeVector{fc_gate, fc_up, act, mul, fc_down};
-        const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops);
+        const bool allow_shared_params = [&]() {
+            const auto mm_gate = ov::as_type_ptr<ov::op::v0::MatMul>(fc_gate);
+            const auto mm_up = ov::as_type_ptr<ov::op::v0::MatMul>(fc_up);
+            OPENVINO_ASSERT(mm_gate && mm_up, "fc_gate and fc_up must have MatMul type");
+            return mm_gate->get_transpose_a() == mm_up->get_transpose_a();
+        }();
+        const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops, allow_shared_params);
 
         // mark the Subgraph as Completed to not allow Snippets to include any nodes into this Subgraph in common
         // Tokenization

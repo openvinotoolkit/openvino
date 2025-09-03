@@ -246,6 +246,10 @@ std::shared_ptr<SnippetsFunctionBase> MHAWithDynamicMul::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAWithDynamicMulFunction>(inputDynamicShapes, m_input_types);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHASharedKV::get_subgraph() const {
+    return std::make_shared<ov::test::snippets::MHASharedKVFunction>(inputDynamicShapes, m_input_types);
+}
+
 TEST_P(MHA, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
@@ -326,6 +330,12 @@ TEST_P(MHARankUpgradeToReductionReshape, CompareWithRefImpl) {
 }
 
 TEST_P(MHAWithDynamicMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHASharedKV, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

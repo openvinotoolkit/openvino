@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "fake_quantize_helper.hpp"
 #include "subgraph_mha.hpp"
 
-#include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include <snippets/op/subgraph.hpp>
 #include "common_test_utils/node_builders/constant.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "fake_quantize_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "snippets/op/subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -133,7 +133,7 @@ std::shared_ptr<ov::Model> MHAFunction::initReference() const {
         subgraph_parent1 = std::make_shared<ov::op::v1::Multiply>(transpose1, mulConst);
     }
 
-    NodeVector subgraph_inputs = {data0, subgraph_parent1, data2, data3};
+    OutputVector subgraph_inputs = {data0, subgraph_parent1, data2, data3};
 
     auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(subgraph_parent1->get_element_type(), subgraph_parent1->get_output_partial_shape(0));
@@ -193,7 +193,7 @@ std::shared_ptr<ov::Model> MHA2DFunction::initReference() const {
 
     const auto rank = input_shapes[0].size();
 
-    NodeVector subgraph_inputs = {data0, data1, data2, data3};
+    OutputVector subgraph_inputs = {data0, data1, data2, data3};
 
     auto param0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
@@ -244,7 +244,7 @@ std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
     auto reshape1 = make_reshape(subgraph_parent1, reshapes[1]);
     auto reshape2 = make_reshape(data2, reshapes[2]);
     auto reshape3 = make_reshape(data3, reshapes[3]);
-    NodeVector subgraph_inputs = {reshape0, reshape1, reshape2, reshape3};
+    OutputVector subgraph_inputs = {reshape0, reshape1, reshape2, reshape3};
 
     auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], reshape0->get_shape());
     auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], reshape1->get_shape());
@@ -376,7 +376,7 @@ std::shared_ptr<ov::Model> MHAMatMul0TransposeFunction::initReference() const {
     const auto transposeBConst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{rank}, transposed_b_order);
     const auto transposeB = std::make_shared<ov::op::v1::Transpose>(mul, transposeBConst);
 
-    NodeVector subgraph_inputs = {data0, transposeB, data2, data3};
+    OutputVector subgraph_inputs = {data0, transposeB, data2, data3};
 
     auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(transposeB->get_element_type(), transposeB->get_output_partial_shape(0));
@@ -570,7 +570,7 @@ std::shared_ptr<ov::Model> MHASelectSplitMFunction::initReference() const {
 
     const auto subgraph =
             std::make_shared<ov::snippets::op::Subgraph>(
-                    ov::NodeVector{reshape0, reshape1, reshapeAdd, reshapeSelect, reshape2},
+                    ov::OutputVector{reshape0, reshape1, reshapeAdd, reshapeSelect, reshape2},
                     std::make_shared<ov::Model>(ov::OutputVector{matMul1}, ov::ParameterVector{data0, data1, dataAdd, dataSelect, data2}));
     auto reshape3 = make_reshape(subgraph, reshapes[5]);
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(reshape3)};
@@ -637,7 +637,7 @@ std::shared_ptr<ov::Model> MHAWOTransposeSplitMFunction::initReference() const {
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, data2);
 
-    const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{reshape0, reshape1, reshape2},
+    const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::OutputVector{reshape0, reshape1, reshape2},
                                                                        std::make_shared<ov::Model>(ov::OutputVector{matMul1},
                                                                                                    ov::ParameterVector{data0, data1, data2}));
     auto reshape3 = make_reshape(subgraph, reshapes[3]);
@@ -881,7 +881,7 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
     const auto transpose1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, decomposed_order);
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(fq1, transpose1Const);
 
-    NodeVector subgraph_inputs = {fq0, transpose1, data2, fq2};
+    OutputVector subgraph_inputs = {fq0, transpose1, data2, fq2};
 
     const auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precision, input_shapes[0]);
     const auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(transpose1->get_element_type(), transpose1->get_output_partial_shape(0));
@@ -1116,7 +1116,7 @@ std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initReference() cons
 
     auto subgraph_model =
         std::make_shared<ov::Model>(OutputVector{matmul_1}, ov::ParameterVector{param_0, param_1, param_2, param_3});
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{data_0, data_1, reshape, data_4}, subgraph_model);
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::OutputVector{data_0, data_1, reshape, data_4}, subgraph_model);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(subgraph)};
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
@@ -1185,6 +1185,16 @@ std::shared_ptr<ov::Model> MHARankUpgradeToReductionFunction::initReference() co
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(subgraph)};
     return std::make_shared<ov::Model>(results, parameters, "mha");
+}
+
+std::shared_ptr<ov::Model> MHASharedKVFunction::initOriginal() const {
+    auto param0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto param1 = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, param1, false, true);
+    const auto softMax = std::make_shared<ov::opset1::Softmax>(matMul0, input_shapes[0].size() - 1);
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, param1, false, false);
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(matMul1)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param0, param1}, "mha_shared_kv");
 }
 
 }  // namespace snippets

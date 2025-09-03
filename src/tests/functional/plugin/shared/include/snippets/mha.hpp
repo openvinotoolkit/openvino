@@ -134,6 +134,11 @@ protected:
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
 };
 
+class MHASharedKV : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

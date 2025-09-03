@@ -69,7 +69,7 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initReference() const {
                                                                               ov::element::u8);
     auto fq2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(fq1, ov::element::f32, fq2_data);
     auto subgraph1 = std::make_shared<ov::snippets::op::Subgraph>(
-        NodeVector{data0},
+        OutputVector{data0},
         std::make_shared<ov::Model>(OutputVector{fq2}, ParameterVector{indata0}));
 
     return std::make_shared<ov::Model>(OutputVector{subgraph1}, ParameterVector{data0});
