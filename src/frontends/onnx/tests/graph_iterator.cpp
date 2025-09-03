@@ -66,6 +66,8 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
     ASSERT_EQ(model->get_ordered_ops().size(), 0);
 }
 
+#if 0
+
 using ::ONNX_NAMESPACE::AttributeProto_AttributeType;
 using ::ONNX_NAMESPACE::GraphProto;
 using ::ONNX_NAMESPACE::NodeProto;
@@ -230,9 +232,9 @@ public:
     GraphIteratorProto() = default;
     explicit GraphIteratorProto(const std::string& path);
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     explicit GraphIteratorProto(const std::wstring& path);
-#endif
+#    endif
 
     explicit GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def);
 
@@ -253,11 +255,11 @@ public:
             if (file_size < 1) {
                 return false;
             }
-#if defined(__MINGW32__) || defined(__MINGW64__)
+#    if defined(__MINGW32__) || defined(__MINGW64__)
             std::ifstream tflite_stream(std::filesystem::path(path), std::ios::in | std::ifstream::binary);
-#else
+#    else
             std::ifstream tflite_stream(path, std::ios::in | std::ifstream::binary);
-#endif
+#    endif
             // the model usually starts with a 0x08 byte indicating the ir_version value
             // so this checker expects at least 3 valid ONNX keys to be found in the validated model
             const size_t EXPECTED_FIELDS_FOUND = 3u;
@@ -580,12 +582,12 @@ std::vector<::tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const
 }
 */
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 GraphIteratorProto::GraphIteratorProto(const std::wstring& path)
     : GraphIteratorProto(ov::util::wstring_to_string(path)) {}
 
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#    endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 GraphIteratorProto::GraphIteratorProto(const std::string& path) : m_parent(nullptr) {
     // @TODO: This is a really bad thing - resource allocation in a constructor
@@ -774,25 +776,58 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
 }
 
 }  // namespace test_iterator
-
 #include <openvino/openvino.hpp>
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
-    //const std::string model_name = "abs.onnx";
-    //const std::string model_name = "add_abc.onnx";
-    //const std::string model_name = "div.onnx";
-    //const std::string model_name = "model_editor/subgraph_extraction_tests.onnx";
-    //const std::string model_name = "controlflow/if_branches_with_same_inputs.onnx";
+    // const std::string model_name = "abs.onnx";
+    // const std::string model_name = "add_abc.onnx";
+    // const std::string model_name = "div.onnx";
+    // const std::string model_name = "model_editor/subgraph_extraction_tests.onnx";
+    // const std::string model_name = "controlflow/if_branches_with_same_inputs.onnx";
     const std::string model_name = "controlflow/if_inside_if.onnx";
     const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(),
-                                           TEST_ONNX_MODELS_DIRNAME,
-                                           model_name})
-                          .string();
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
 
     ov::frontend::FrontEnd::Ptr fe;
 
     auto iter = std::make_shared<test_iterator::GraphIteratorProto>(path);
+
+    auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework("onnx"))
+        << "Could not create the ONNX FE using a pointer GraphIterator";
+    ASSERT_NE(m_frontEnd, nullptr);
+
+    ASSERT_EQ(m_frontEnd->supported(graph_iter), true);
+
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(graph_iter)) << "Could not load the model";
+    ASSERT_NE(m_inputModel, nullptr);
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
+    ASSERT_NE(model, nullptr);
+
+    ov::serialize(model, "e:/test.xml");
+
+    ASSERT_EQ(model->get_ordered_ops().size(), 3);
+}
+#endif
+
+#include <openvino/openvino.hpp>
+#include "../frontend/src/core/graph_iterator_proto.hpp"
+
+TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
+    // const std::string model_name = "abs.onnx";
+    // const std::string model_name = "add_abc.onnx";
+    // const std::string model_name = "div.onnx";
+    // const std::string model_name = "model_editor/subgraph_extraction_tests.onnx";
+    // const std::string model_name = "controlflow/if_branches_with_same_inputs.onnx";
+    const std::string model_name = "controlflow/if_inside_if.onnx";
+    const auto path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
+
+    ov::frontend::FrontEnd::Ptr fe;
+
+    auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(path);
 
     auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework("onnx"))
