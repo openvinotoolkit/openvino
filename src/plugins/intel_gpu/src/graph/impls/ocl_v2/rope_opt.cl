@@ -331,7 +331,6 @@ KERNEL(rope_opt)
  const __global INPUT3_TYPE* gather,
 #endif
  __global OUTPUT_TYPE* output) {
-    // printf("wzx debug hit ocl\n");
     const uint b = get_global_id(0);
     const uint h = get_global_id(1);
     const uint p = ((uint)get_global_id(2) * VEC_SIZE) / HALF_ROTARY_NDIMS;
@@ -399,34 +398,11 @@ uint cos_sin_p = p;
     uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, 0, 0);
     uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_h, 0, 0);   
 #endif
+#else
+#   error "rope_opt.cl - 4 or 2 of INPUT1_DIMS/INPUT2_DIMS is supported only"
 #endif
 
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
-    // if (INPUT0_DIMS==3 && INPUT1_DIMS == 3 && INPUT2_DIMS == 3 && b == 0 && h == 0 && r == 0 && p == 0) {
-    //     printf("gws:%d, %d, %d\n", get_global_size(0), get_global_size(1), get_global_size(2));
-    //     printf("wzx debug input batch_num: %d, feature num: %d, input size y: %d, input_size_x: %d \n", INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X);
-    //     printf("wzx debug cos batch_num: %d, feature num: %d, cos size y: %d, cos size x: %d \n", INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X);
-    //     printf("wzx debug sin batch_num: %d, feature num: %d, sin size y: %d, sin size x: %d \n", INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_Y, INPUT2_SIZE_X);
-    //     printf("wzx debug Half_rotary_ndims: %d\n", HALF_ROTARY_NDIMS);
-    //     printf("wzx debug OUTPUT_BATCH_NUM: %d, OUTPUT_FEATURE_NUM: %d, Y: %d, X:%d \n", OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Y, OUTPUT_SIZE_X);
-    // }
-
-    // if (INPUT0_DIMS==3 && b == 0 && h == 0 && p == 3 && r == 0) {
-    //     printf("gws:%d, %d, %d\n", get_global_size(0), get_global_size(1), get_global_size(2));
-    //     printf("INPUT0_DIMS: %d, INPUT1_DIMS: %d, INPUT2_DIMS: %d\n", INPUT0_DIMS, INPUT1_DIMS, INPUT2_DIMS);
-    //     printf("wzx debug Half_rotary_ndims: %d\n", HALF_ROTARY_NDIMS);
-    // #ifdef ENABLE_SLICE
-    //     printf("wzx slice_from_start: %d\n", SLICED_FROM_START);
-    // #endif
-    //     printf("wzx debug b: %d, h: %d, p: %d, r: %d\n", b, h, p, r);
-    //     printf("wzx debug input_idx: %d\n", input_idx);
-    //     printf("wzx debug cos_sin_p: %d\n", cos_sin_p);
-    //     printf("wzx debug cos_sin_b: %d, cos_sin_h: %d, cos_sin_p: %d\n", cos_sin_b, cos_sin_h, cos_sin_p);
-    //     printf("wzx debug cos_idx: %d, sin_idx: %d\n", cos_idx, sin_idx);
-    //     printf("wzx debug input batch_num: %d, feature num: %d, input size y: %d, input_size_x: %d \n", INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X);
-    //     printf("wzx debug cos batch_num: %d, feature num: %d, cos size y: %d, cos size x: %d \n", INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X);
-    //     printf("wzx debug OUTPUT_BATCH_NUM: %d, OUTPUT_FEATURE_NUM: %d, Y: %d, X:%d \n", OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Y, OUTPUT_SIZE_X);
-    // }
 
 #if VEC_SIZE == 1
     INPUT0_TYPE in1 = input[input_idx + r];
