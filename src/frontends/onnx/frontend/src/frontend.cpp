@@ -22,6 +22,7 @@
 
 #include "input_model.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
+#include "onnx_framework_node.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -30,6 +31,8 @@
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "ops_bridge.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "utils/common.hpp"
@@ -77,7 +80,7 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
     return res;
 }
 
-InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     if (variants.empty()) {
         return nullptr;
     }
@@ -119,10 +122,18 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return std::make_shared<InputModel>(std::make_shared<ModelProto>(*model_proto_ptr), m_extensions);
     }
     // !!! End of Experimental feature
+    if (variants[0].is<GraphIterator::Ptr>()) {
+        auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
+        return std::make_shared<unify::InputModel>(graph_iterator);
+    }
     return nullptr;
 }
 
-std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& input_model) const {
+std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& input_model) const {
+    auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(input_model);
+    if (unify_model != nullptr) {
+        return convert_partially_unify(unify_model);
+    }
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
 
@@ -159,6 +170,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model) const {
+    auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(input_model);
+    if (unify_model != nullptr) {
+        return convert_unify(unify_model);
+    }
+
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
 
@@ -193,7 +209,11 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) co
     normalize(partially_converted);
 }
 
-std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr& model) const {
+    auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(model);
+    if (unify_model != nullptr) {
+        return decode_unify(unify_model);
+    }
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();
@@ -270,7 +290,183 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return true;
     }
     // !!! End of Experimental feature
+    if (variants[0].is<GraphIterator::Ptr>()) {
+        return true;
+    }
     return false;
+}
+
+std::shared_ptr<ov::Model> FrontEnd::convert_unify(const InputModel::Ptr& input_model) const {
+    std::shared_ptr<ov::Model> ov_model;
+    if (!m_transformation_extensions.empty()) {
+        auto ov_model = decode(input_model);
+
+        ov::pass::Manager manager("Frontend:TFLite:convert");
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(ov_model);
+        convert(ov_model);
+        return ov_model;
+    }
+
+    translate_graph(input_model, true, false, ov_model);
+    normalize(ov_model);
+
+    for (const auto& node : ov_model->get_ordered_ops()) {
+        if (const auto& fw_node = ov::as_type_ptr<ov::frontend::onnx::ONNXFrameworkNode>(node)) {
+            /*
+            auto op_type = fw_node->get_decoder()->get_op_type();
+            auto op_name = fw_node->get_decoder()->get_op_name();
+            FRONT_END_OP_CONVERSION_CHECK(false,
+                                          "The translation is incomplete due to operation ",
+                                          op_name,
+                                          " of type ",
+                                          op_type);
+                                          */
+        }
+    }
+    return ov_model;
+}
+
+std::shared_ptr<ov::Model> FrontEnd::convert_partially_unify(const InputModel::Ptr& input_model) const {
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode_unify(input_model);
+        ov::pass::Manager manager("Frontend:ONNX:convert_partially");
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
+    std::shared_ptr<ov::Model> f;
+    translate_graph(input_model, false, false, f);
+    normalize(f);
+    return f;
+}
+void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
+                               bool fail_fast,
+                               bool no_conversion,
+                               std::shared_ptr<ov::Model>& ov_function) const {
+    auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
+    FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
+    auto subgraphs_as_input_models = model_onnx->get_subgraphs();
+    auto input_to_ov_model = [&](const std::shared_ptr<ov::frontend::onnx::unify::InputModel>& in_model) {
+        auto simple_lambda = [&]() -> std::shared_ptr<ov::Model> {
+            std::shared_ptr<ov::Model> model;
+            if (in_model)
+                translate_graph(in_model, fail_fast, no_conversion, model);
+            return model;
+        };
+        return simple_lambda;
+    };
+    std::vector<std::function<std::shared_ptr<ov::Model>()>> submodel_translation_functions;
+    submodel_translation_functions.reserve(subgraphs_as_input_models.size());
+    for (const auto& subgraph : subgraphs_as_input_models) {
+        submodel_translation_functions.push_back(input_to_ov_model(subgraph));
+    }
+
+    // const auto& translate_map =
+    //    no_conversion ? ov::frontend::onnx::TranslatorDictionaryType{} : m_op_translators;
+
+    auto all_tensor_values = model_onnx->get_tensor_values();
+    auto all_tensor_places = model_onnx->get_tensor_places();
+
+    for (auto& value : all_tensor_values) {
+        auto& output = value.second;
+        FRONT_END_GENERAL_CHECK(ov::is_type<ov::op::v0::Constant>(output.get_node_shared_ptr()),
+                                "Unexpected constant data configuration at the beginning of graph translation");
+        const auto& input_tensor = all_tensor_places.at(value.first);
+        FRONT_END_GENERAL_CHECK(input_tensor != nullptr, "Inputs must be TensorPlaces");
+        input_tensor->translate(output, !no_conversion);
+    }
+
+    // inputs
+    ParameterVector parameters;
+    parameters.reserve(model_onnx->get_inputs().size());
+    for (const auto& input : model_onnx->get_inputs()) {
+        const auto& input_tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(input);
+        FRONT_END_GENERAL_CHECK(input_tensor != nullptr,
+                                "Inputs of ov::frontend::onnx::InputModel must be TensorLitePlace instances");
+        const auto name = input_tensor->get_names()[0];
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(input_tensor->get_element_type(),
+                                                                 input_tensor->get_partial_shape());
+        parameter->set_friendly_name(name);
+        parameters.push_back(parameter);
+        all_tensor_values[name] = parameter->output(0);
+        input_tensor->translate(all_tensor_values[name], !no_conversion);
+    }
+
+    // operations
+    for (const auto& op_place : model_onnx->get_op_places()) {
+        const auto& decoder = std::dynamic_pointer_cast<onnx::DecoderBaseOperation>(op_place->get_decoder());
+        FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be onnx::DecoderBase or its child");
+        ov::OutputVector inputs(decoder->get_input_size());
+        for (size_t i = 0; i < decoder->get_input_size(); ++i) {
+            auto name = decoder->get_input_tensor_name(i);
+            FRONT_END_GENERAL_CHECK(all_tensor_values.find(name) != all_tensor_values.end(),
+                                    "Unknown tensor name: ",
+                                    name,
+                                    ".");
+            inputs[i] = all_tensor_values[name];
+        }
+
+        const auto& out_size = decoder->get_output_size();
+        ov::OutputVector ov_outputs(out_size);
+        try {
+            // FRONT_END_OP_CONVERSION_CHECK(translate_map.count(decoder->get_op_type()),
+            //                               "No translator found for " + decoder->get_op_type() + " node.");
+            // auto op_fun = &(translate_map.at(decoder->get_op_type()));
+            // ov::frontend::onnx::NodeContext node_context(decoder, inputs, submodel_translation_functions);
+            // ov_outputs = (*op_fun)(node_context);
+        } catch (...) {
+            if (fail_fast) {
+                /*
+                if (m_telemetry && translate_map.count(decoder->get_op_type()) == 0) {
+                    m_telemetry->send_event("error_cause", "tflite_" + decoder->get_op_type());
+                }
+                */
+                throw;
+            } else {
+                // auto operation = std::make_shared<ov::frontend::onnx::FrameworkNode>(decoder, inputs, out_size);
+                // operation->set_friendly_name(decoder->get_op_name());
+                // ov_outputs = operation->outputs();
+            }
+        }
+        for (size_t i = 0; i < out_size; ++i) {
+            const auto& name = decoder->get_output_tensor_name(i);
+            all_tensor_values[name] = ov_outputs[i];
+            all_tensor_places[name]->translate(all_tensor_values[name], !no_conversion);
+        }
+    }
+
+    // outputs
+    ResultVector results;
+    results.reserve(model_onnx->get_outputs().size());
+    for (const auto& output : model_onnx->get_outputs()) {
+        const auto& tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output);
+        FRONT_END_GENERAL_CHECK(tensor != nullptr,
+                                "Inputs of ov::frontend::onnx::InputModel must be TensorLitePlace instances");
+        const auto name = tensor->get_names()[0];
+        if (!all_tensor_values.count(name)) {
+            continue;
+        }
+        const auto& output_value = all_tensor_values[name];
+        const auto& result = std::make_shared<ov::op::v0::Result>(output_value);
+        auto input = result->output(0);
+        tensor->translate(input, !no_conversion);
+        results.push_back(result);
+    }
+    auto model_name = "onnx_Frontend_IR";
+    ov_function = std::make_shared<ov::Model>(results, parameters, model_name);
+}
+
+std::shared_ptr<ov::Model> FrontEnd::decode_unify(const InputModel::Ptr& model) const {
+    std::shared_ptr<ov::Model> ov_model;
+    translate_graph(model, false, true, ov_model);
+    return ov_model;
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {

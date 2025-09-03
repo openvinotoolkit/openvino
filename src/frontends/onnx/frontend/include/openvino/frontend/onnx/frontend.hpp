@@ -18,17 +18,25 @@ namespace onnx {
 class ONNX_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
-    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override;
+    std::shared_ptr<ov::Model> convert(const ov::frontend::InputModel::Ptr& model) const override;
     void convert(const std::shared_ptr<ov::Model>& partially_converted) const override;
-    std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& input_model) const override;
-    std::shared_ptr<ov::Model> decode(const InputModel::Ptr& input_model) const override;
+    std::shared_ptr<ov::Model> convert_partially(const ov::frontend::InputModel::Ptr& input_model) const override;
+    std::shared_ptr<ov::Model> decode(const ov::frontend::InputModel::Ptr& input_model) const override;
     std::string get_name() const override;
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
     void normalize(const std::shared_ptr<ov::Model>& model) const override;
 
 protected:
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
+    ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
+
+    void translate_graph(const InputModel::Ptr& model,
+                         bool fail_fast,
+                         bool no_conversion,
+                         std::shared_ptr<ov::Model>& ng_function) const;
+    std::shared_ptr<ov::Model> convert_unify(const InputModel::Ptr& model) const;
+    std::shared_ptr<ov::Model> convert_partially_unify(const InputModel::Ptr& input_model) const;
+    std::shared_ptr<ov::Model> decode_unify(const InputModel::Ptr& input_model) const;
 
     // m_other_extensions should be the first member here,
     // m_other_extensions can contain SO Extension (holder for other Extensions),
