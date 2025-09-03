@@ -139,7 +139,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_debian_10_arm
-    needs: [Smart_CI, Build, CXX_Unit_Tests]
+    needs: [Smart_CI, Build, CXX_Unit_Tests, CPU_Functional_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

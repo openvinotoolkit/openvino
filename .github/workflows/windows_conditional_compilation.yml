@@ -318,7 +318,7 @@ jobs:
 
   CC_Build:
     name: Conditional Compilation
-    timeout-minutes: 25
+    timeout-minutes: 40
     needs: [Build, Smart_CI]
     defaults:
       run:
@@ -443,7 +443,7 @@ jobs:
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
