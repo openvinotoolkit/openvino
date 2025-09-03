@@ -270,7 +270,7 @@ TEST_F(TransformationTestsF, RMSNormFusionTest8) {
         auto comp = std::make_shared<ov::opset10::Convert>(mul, ov::element::f16);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{comp}, ov::ParameterVector{input});
-        manager.register_pass<RMSFusion>();
+        manager.register_pass<RMSFusion>(false, true);
     }
     {
         auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2, 6});

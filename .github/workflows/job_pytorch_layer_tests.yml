@@ -113,7 +113,7 @@ jobs:
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
-          PARALLEL: '-n 1'
+          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
 
       - name: PyTorch torch.export Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287

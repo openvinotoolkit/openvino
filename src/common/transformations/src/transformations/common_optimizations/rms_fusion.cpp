@@ -37,7 +37,7 @@ static std::function<bool(ov::Output<ov::Node>)> constant_value(const float targ
     };
 }
 
-RMSFusion::RMSFusion(bool force_tail_convert) {
+RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
     using namespace ov::pass::pattern;
 
     // Detect RMS decomposition pattern
@@ -74,9 +74,15 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
     auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div_or_pow});
 
-    // x / Sqrt(ReduceMean(x^2,axes)+eps)
-    auto div_x = wrap_type<ov::op::v1::Divide>({x, sqrt});
-    auto mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
+    std::shared_ptr<pattern::op::Or> mul_or_div;
+    // TODO: Check div_x pattern failed in CPU CI Pytorch layer test.
+    if (enable_div_x) {
+        // x / Sqrt(ReduceMean(x^2,axes)+eps)
+        auto div_x = wrap_type<ov::op::v1::Divide>({x, sqrt});
+        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
+    } else {
+        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1});
+    }
 
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto gamma = wrap_type<ov::op::v0::Constant>();
