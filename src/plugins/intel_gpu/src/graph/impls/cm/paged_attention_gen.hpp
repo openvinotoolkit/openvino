@@ -33,8 +33,16 @@ constexpr auto get_pa_build_options() {
 // BLOCK_SIZE can be 16/32/64/128/256
 #define PA_KV_CACHE_BLOCK_SIZE 256
 // sparse attention block size is set to 1 to disable sparse attention support in CM kernels
-#define PA_SPARSE_BLOCK_SIZE 1
+#define PA_SPARSE_BLOCK_SIZE 128
 
+constexpr uint BLOCK_SG_M = 64; //32
+constexpr uint BLOCK_SG_N = 32;
+constexpr uint SG_M = 4;
+constexpr uint SG_N = 8;
+constexpr uint BLOCK_WG_M = BLOCK_SG_M * SG_M;
+constexpr uint BLOCK_WG_N = BLOCK_SG_N * SG_N;
+constexpr int STRIDE = 16;
+constexpr float THRESH = 0.9;
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
@@ -45,12 +53,19 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t paged_attention_aligned_seq_len;
 };
 
+
+//-----------------------------------------------------------------------------------------------------------------
+// Helpers of XAttention
+//-----------------------------------------------------------------------------------------------------------------
 int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size);
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 size_t get_max_context_len(const kernel_impl_params& params);
 size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
 size_t get_partition_size();
 size_t get_partition_num(const size_t kv_len);
+
+
+inline size_t get_xattn_block_size() { return PA_SPARSE_BLOCK_SIZE; }
 
 class PagedAttentionGeneratorBase : public KernelGenerator {
 public:
@@ -89,6 +104,33 @@ class PagedAttentionGeneratorSingleTokenFinalization : public PagedAttentionGene
 public:
     PagedAttentionGeneratorSingleTokenFinalization() : PagedAttentionGeneratorBase("pa_single_token_finalization") {}
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+};
+
+//-----------------------------------------------------------------------------------------------------------------
+// XAttention Estimate generators
+//-----------------------------------------------------------------------------------------------------------------
+class XAttentionEstimateGeneratorBase : public KernelGenerator {
+public:
+    explicit XAttentionEstimateGeneratorBase(std::string_view kernel_name, std::string_view stage_suffix = "_cm") : KernelGenerator(kernel_name, stage_suffix) {}
+    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
+        return KernelGenerator::get_build_options(params) + get_pa_build_options();
+    }
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+};
+class XAttentionEstimateGEMMQK : public XAttentionEstimateGeneratorBase {
+public:
+    XAttentionEstimateGEMMQK() : XAttentionEstimateGeneratorBase("xattn_gemm_qk") {}
+    // [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+};
+
+class XAttentionEstimateFindBlock : public XAttentionEstimateGeneratorBase {
+public:
+    XAttentionEstimateFindBlock() : XAttentionEstimateGeneratorBase("xattn_find_block") {}
+    // [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 };
