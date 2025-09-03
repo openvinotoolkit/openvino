@@ -31,7 +31,7 @@ constexpr auto get_pa_build_options() {
 }
 
 // BLOCK_SIZE can be 16/32/64/128/256
-#define PA_KV_CACHE_BLOCK_SIZE 16
+#define PA_KV_CACHE_BLOCK_SIZE 256
 // sparse attention block size is set to 1 to disable sparse attention support in CM kernels
 #define PA_SPARSE_BLOCK_SIZE 1
 
