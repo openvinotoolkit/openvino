@@ -9,6 +9,7 @@
 
 #include "op/brgemm_copy_b.hpp"
 #include "op/brgemm_cpu.hpp"
+#include "op/fa.hpp"
 #include "op/load_convert.hpp"
 #include "op/perf_count_rdtsc.hpp"
 #include "op/store_convert.hpp"
@@ -56,6 +57,7 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
 #endif
     make_specific_external<ov::intel_cpu::BrgemmCPU, BrgemmShapeInfer>(),
     make_specific<ov::intel_cpu::BrgemmCopyB>(),
+    make_specific_external<ov::intel_cpu::FACPU, FAShapeInfer>(),
 };
 
 }  // namespace ov::snippets
