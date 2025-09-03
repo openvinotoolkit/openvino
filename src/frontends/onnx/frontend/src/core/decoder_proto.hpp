@@ -28,7 +28,7 @@ namespace onnx {
 
 ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* tensor_info,
                                                             const ValueInfoProto* value_info,
-                                                            const GraphProto* graph_def);
+                                                            GraphIteratorProto* graph_iterator);
 
 extern const std::string empty_name;
 extern const std::string DEFAULT_DOMAIN;
@@ -49,7 +49,7 @@ public:
         : m_parent(parent),
           m_input_idx(input_idx),
           m_output_idx(output_idx) {
-        m_tensor_meta_info = extract_tensor_meta_info(tensor_info, nullptr, parent->get_graph());
+        m_tensor_meta_info = extract_tensor_meta_info(tensor_info, nullptr, parent);
     }
     DecoderProtoTensor(const ValueInfoProto* value_info,
                        GraphIteratorProto* parent,
@@ -58,7 +58,7 @@ public:
         : m_parent(parent),
           m_input_idx(input_idx),
           m_output_idx(output_idx) {
-        m_tensor_meta_info = extract_tensor_meta_info(nullptr, value_info, parent->get_graph());
+        m_tensor_meta_info = extract_tensor_meta_info(nullptr, value_info, parent);
     }
     DecoderProtoTensor(const std::string& name,
                        GraphIteratorProto* parent,
