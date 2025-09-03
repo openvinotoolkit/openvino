@@ -169,7 +169,7 @@ void EltwiseLayerCPUTest::SetUp() {
 #if defined(OPENVINO_ARCH_ARM)
     // ARM32-only: Sub/Div may be decomposed or routed to different implementations
     // causing variability (binary->unary or ACL/ref). Keep tests stable but localized here.
-    if (eltwiseType == utils::EltwiseTypes::SUBTRACT || eltwiseType == utils::EltwiseTypes::DIVIDE) {
+    if (ov::intel_cpu::any_of(eltwiseType, utils::EltwiseTypes::SUBTRACT, utils::EltwiseTypes::DIVIDE)) {
         // If format expectations specify two inputs, but transforms reduce arity, limit to single input.
         if (inFmts.size() > 1) {
             inFmts.resize(1);
