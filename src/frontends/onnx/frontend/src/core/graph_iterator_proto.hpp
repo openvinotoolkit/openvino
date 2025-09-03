@@ -39,18 +39,17 @@ class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     ov::frontend::onnx::MappedMemoryHandles m_mmap_cache;
 
 public:
-    GraphIteratorProto() = default;
-    explicit GraphIteratorProto(const std::string& path, const bool enable_mmap);
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    explicit GraphIteratorProto(const std::wstring& path, const bool enable_mmap);
-#endif
-
-    explicit GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def);
-
     using Ptr = std::shared_ptr<GraphIteratorProto>;
 
+    GraphIteratorProto() = default;
+    explicit GraphIteratorProto(const bool enable_mmap);
+    explicit GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def);
     ~GraphIteratorProto() = default;
+
+    void init(const std::string& path);
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    void init(const std::wstring& path);
+#endif
 
     /// Verifies file is supported
     template <typename T>

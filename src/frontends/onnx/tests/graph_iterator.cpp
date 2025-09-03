@@ -85,7 +85,9 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
 
     ov::frontend::FrontEnd::Ptr fe;
 
-    auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(path, false);
+    auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(false);
+    iter->init(path);
+    iter->reset();
 
     auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework("onnx"))

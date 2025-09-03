@@ -96,7 +96,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
         }
         std::cout << "[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!\n";
-        GraphIteratorProto::Ptr graph_iterator = std::make_shared<GraphIteratorProto>(path, enable_mmap);
+        GraphIteratorProto::Ptr graph_iterator = std::make_shared<GraphIteratorProto>(enable_mmap);
+        graph_iterator->init(path);
+        graph_iterator->reset();
         return std::make_shared<unify::InputModel>(graph_iterator);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -106,7 +108,9 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
         }
         std::cout << "[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!\n";
-        GraphIteratorProto::Ptr graph_iterator = std::make_shared<GraphIteratorProto>(path, enable_mmap);
+        GraphIteratorProto::Ptr graph_iterator = std::make_shared<GraphIteratorProto>(enable_mmap);
+        graph_iterator->init(path);
+        graph_iterator->reset();
         return std::make_shared<unify::InputModel>(graph_iterator);
     }
 #endif
