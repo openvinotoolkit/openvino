@@ -372,7 +372,7 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
     auto output_tensor = inference_request.get_output_tensor(0);
     auto* output_data = output_tensor.data<float>();
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data[i] << " for index " << i;
+        ASSERT_NEAR(output_data[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data[i] << " for index " << i;
     }
 
     float* buffer = new float[shape_size];
@@ -385,11 +385,11 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
     inference_request.set_input_tensor(tensor);
     inference_request.infer();  // Adds '1' to each element
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data[i] << " for index " << i;
+        ASSERT_NEAR(output_data[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data[i] << " for index " << i;
     }
 
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
+        ASSERT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
     }
 
     delete[] buffer;
@@ -419,7 +419,7 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
     auto output_tensor0 = inference_request0.get_output_tensor(0);
     auto* output_data0 = output_tensor0.data<float>();
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
+        ASSERT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
     }
 
     inference_request1.set_input_tensor(output_tensor0);
@@ -428,7 +428,7 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
     auto output_tensor1 = inference_request1.get_output_tensor(0);
     auto* output_data1 = output_tensor1.data<float>();
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data1[i], 7.f, 1e-5) << "Expected=7, actual=" << output_data1[i] << " for index " << i;
+        ASSERT_NEAR(output_data1[i], 7.f, 1e-5) << "Expected=7, actual=" << output_data1[i] << " for index " << i;
     }
 
     float* buffer = new float[shape_size];
@@ -442,15 +442,15 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
     inference_request1.infer();  // Adds '1' to each element
 
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data1[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data1[i] << " for index " << i;
+        ASSERT_NEAR(output_data1[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data1[i] << " for index " << i;
     }
 
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
+        ASSERT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
     }
 
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
+        ASSERT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
     }
 
     delete[] buffer;
