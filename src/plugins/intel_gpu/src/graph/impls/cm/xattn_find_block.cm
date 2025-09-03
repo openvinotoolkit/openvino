@@ -1,0 +1,65 @@
+/*******************************************************************************
+ * Copyright (c) 2022-2025 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+namespace KERNEL_NAME {
+#include "find_block.hpp"
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#define ATTR_BUF [[type("buffer_t")]]
+#endif
+
+// _GENX_MAIN_ void find_block(
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    svmptr_t kq_max_wg ATTR,
+    svmptr_t kq_exp_partial_sum ATTR,
+    svmptr_t block_mask ATTR,
+    uint q_stride, uint q_stride_pad, uint k_block_pad,
+    uint causal_start_index, float thresh
+#if DEBUG_ACC == 1
+    , svmptr_t kq_sum ATTR
+#endif
+) {
+    // kq_max_wg:          [b, hq, n_groups, q_stride_pad]
+    // kq_exp_partial_sum: [b, hq, q_stride_pad, k_block_pad]
+    // kq_sum:             [b, hq, q_stride_pad/TOKEN_IN_BLOCK, k_block_pad]
+    // block_mask:         [b, hq, q_stride_pad/TOKEN_IN_BLOCK, k_block_pad]
+    // [1, 32, 256], [1, 32, 64, 256], [1, 32, 256, 64 * 16], A_sum:[1, 32, 32, 64 * 16]
+    // global:            [q_stride_pad/TOKEN_IN_BLOCK, hq, b]
+    const int TOKEN_IN_BLOCK = BLOCK_SIZE / STRIDE;
+    const int TOKEN_SHARE_MAX = BLOCK_SHARE_MAX / TOKEN_IN_BLOCK;
+    uint m = cm_group_id(0);
+    uint hq = cm_group_id(1);
+    uint b = cm_group_id(2);
+    kq_max_wg += (b * HQ + hq) * (k_block_pad / TOKEN_SHARE_MAX) * q_stride_pad * (uint)sizeof(half);
+    kq_exp_partial_sum += (b * HQ + hq) * q_stride_pad * k_block_pad * (uint)sizeof(half);
+#if DEBUG_ACC == 1
+    kq_sum += (b * HQ + hq) * q_stride_pad / TOKEN_IN_BLOCK * k_block_pad * (uint)sizeof(half);
+#endif
+    block_mask += (b * HQ + hq) * q_stride_pad / TOKEN_IN_BLOCK * k_block_pad;
+
+    const uint slm_size = 32 * 16 * sizeof(ushort);
+    cm_slm_init(slm_size);
+    auto slm = cm_slm_alloc(slm_size);
+
+    find(slm, m, kq_max_wg, kq_exp_partial_sum, block_mask, q_stride, q_stride_pad, k_block_pad, thresh, causal_start_index
+#if DEBUG_ACC == 1
+    , kq_sum
+#endif
+    );
+}
+
+}  // NAMESPACE

@@ -375,7 +375,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block_indices_begins
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence_begins
 #if PA_SPARSE_BLOCK_SIZE > 1
-    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SPARSE_BLOCK_MASK});  // sparse_block_mask
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // sparse_block_mask
 #endif
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
@@ -604,6 +604,247 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
             scalars[i].t = ScalarDescriptor::Types::INT32;
             scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
         }
+    }};
+}
+
+
+//-----------------------------------------------------------------------------------------------------------------
+// Helpers of XAttention
+//-----------------------------------------------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------------------------------------------
+// Base generator of XAttention
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = KernelGenerator::get_jit_constants(params);
+    jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
+
+    auto desc = params.typed_desc<paged_attention>();
+
+    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size)) / STRIDE;
+
+    jit.make("STRIDE", STRIDE);
+    jit.make("HQ", desc->heads_num);
+    jit.make("HK", desc->kv_heads_num);
+    jit.make("HEAD_SIZE", desc->k_head_size);
+    jit.make("SG_M", SG_M);
+    jit.make("SG_N", SG_N);
+    jit.make("BLOCK_SG_M", BLOCK_SG_M);
+    jit.make("BLOCK_SG_N", BLOCK_SG_N);
+    jit.make("BLOCK_SIZE", get_xattn_block_size());
+    jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+    jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
+    jit.make("BLOCK_SHARE_MAX", BLOCK_WG_N);
+    jit.make("USE_KQ", 1);
+    jit.make("IS_CAUSAL", 1);
+    jit.make("USE_INT8", 0);
+    jit.make("HEAD_SIZE_KEY", desc->k_head_size);
+
+    return jit;
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// XAttention Estimate gemm_qk generator
+//-----------------------------------------------------------------------------------------------------------------
+Arguments XAttentionEstimateGEMMQK::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});             // keys cache
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QUERY});                 // queries
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block indices
+    args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block indices begins
+
+    // outputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});  // kq_max_wg
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // kq_exp_partial_sum
+
+    // scalar
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // M
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // N
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // K
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // query_pitch
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // slice_no
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 5});  // slice
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 6});  // q_start_strided
+
+    return args;
+}
+
+DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
+    return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        assert(!params.is_dynamic());
+        const auto desc = params.typed_desc<paged_attention>();
+
+        // XAttention estimate is following afer kvcache_update.
+        const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
+        // const size_t kv_heads_num = desc->kv_heads_num;
+        const size_t heads_num = desc->heads_num;
+        const size_t head_size = desc->k_head_size;
+
+        auto querry_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
+        auto key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
+
+        if (DEBUG_ENABLED) {  // Debug
+            std::cout << "XAttentionEstimateGEMMQK::get_dispatch_data_func: "
+                      << "key_layout: " << key_layout.to_string() << ", querry_layout: " << querry_layout.to_string() << std::endl;
+            std::cout << "\tkey_dims = [";
+            for (auto& it : key_layout.get_dims()) {
+                std::cout << static_cast<size_t>(it) << ", ";
+            }
+            std::cout << "]" << std::endl;
+            std::cout << "\tkey_pads = [";
+            for (auto& it : key_layout.get_padded_dims()) {
+                std::cout << static_cast<size_t>(it) << ", ";
+            }
+            std::cout << "]" << std::endl;
+            std::cout << "\tquery_dims = [";
+            for (auto& it : querry_layout.get_dims()) {
+                std::cout << static_cast<size_t>(it) << ", ";
+            }
+            std::cout << "]" << std::endl;
+            std::cout << "\ttquery_pads = [";
+            for (auto& it : querry_layout.get_padded_dims()) {
+                std::cout << static_cast<size_t>(it) << ", ";
+            }
+            std::cout << "]" << std::endl;
+        }
+
+        auto out_shape = params.output_layouts[0].get_shape();
+        const size_t q_len = out_shape[0];
+
+        const uint M = q_len / STRIDE;   //# will slient drop the tails which is less than `stride`
+        const uint N = kv_len / STRIDE;
+        const uint K = STRIDE * head_size;
+        auto get_simple_pitch = [](const layout& layout) {
+            size_t pitch = 1;
+            auto dims_padding = layout.get_padded_dims();
+            for(size_t i = dims_padding.size() - 1; i > 0; --i) {
+                pitch = dims_padding[i];
+                if(pitch > 1) {
+                    break;
+                }
+            }
+            return pitch;
+        };
+        const uint query_pitch = get_simple_pitch(querry_layout);
+        const uint slice_no = 0, slice = 0;
+
+        const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
+        const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+
+        auto& wgs = kd.params.workGroups;
+        wgs.global = {N_kq_groups * (q_stride_pad / BLOCK_WG_M) * SG_N, SG_M, heads_num};
+        wgs.local = {SG_N, SG_M, 1};
+
+        const uint q_start_strided = N - M;
+        OPENVINO_ASSERT(N > M, "length of key cache must be greater or equal than query");
+
+        auto& scalars = kd.params.scalars;
+        std::vector<size_t> scaler_value = {M, N, K, query_pitch, slice_no, slice, q_start_strided};
+        scalars.resize(scaler_value.size());
+
+        if (DEBUG_ENABLED) {  // Debug
+            size_t kv_len = get_kv_len(params, PagedAttentionStage::PREFILL);
+            size_t max_context_len = get_max_context_len(params);
+            size_t past_len = get_past_len(params, 0);
+            std::cout << "XAttentionEstimateGEMMQK::get_dispatch_data_func: "
+                      << "N_kq_groups: " << N_kq_groups << ", q_stride_pad: " << q_stride_pad << ", q_start_strided: " << q_start_strided << ", kv_len: " << kv_len
+                      << ", max_context_len = " << max_context_len << ", past_len = " << past_len << ", gws: [" << wgs.global[0] << ", " << wgs.global[1]
+                      << ", " << wgs.global[2] << "]"
+                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+        }
+
+        for (size_t i = 0; i < scaler_value.size(); ++i) {
+            scalars[i].t = ScalarDescriptor::Types::UINT32;
+            scalars[i].v.u32 = static_cast<u_int32_t>(scaler_value[i]);
+        }
+    }};
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// XAttention Estimate find_block generator
+//-----------------------------------------------------------------------------------------------------------------
+Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+
+    // inputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});  // kq_max_wg
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // kq_exp_partial_sum
+
+    // outputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // block_mask
+
+    // scalar
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_stride
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_stride_pad
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // causal_start_index
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // thresh
+
+    return args;
+}
+
+DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
+    return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        assert(!params.is_dynamic());
+        auto& wgs = kd.params.workGroups;
+
+        const auto desc = params.typed_desc<paged_attention>();
+        // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+
+        assert(rt_params != nullptr);
+
+        const uint wg_k = BLOCK_WG_M;
+        const uint wg_q = BLOCK_WG_N;
+        const size_t block_size = get_xattn_block_size();
+        OPENVINO_ASSERT(wg_k % block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
+        OPENVINO_ASSERT(wg_q % block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
+
+        const size_t sum_per_n_token_in_block = block_size / STRIDE;
+
+        const size_t batch = params.input_layouts[PagedAttentionInputIdx::QUERY].get_partial_shape()[0].get_length();
+        const size_t heads_num = desc->heads_num;
+        // const size_t head_size = desc->k_head_size;
+
+        auto out_shape = params.output_layouts[0].get_shape();
+        const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
+        const size_t q_len = out_shape[0];
+        const uint M = q_len / STRIDE;   //# will slient drop the tails which is less than `stride`
+        const uint N = kv_len / STRIDE;
+        const uint q_stride = M;
+        const uint k_stride = N;
+        const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
+        const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+
+        const uint sum_per_token_in_block = block_size / STRIDE;
+        const uint k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
+        const uint k_block_pad = k_block_in_group * N_kq_groups;
+
+        const uint q_block = ceil_div(q_stride, sum_per_n_token_in_block);
+        const uint k_block = ceil_div(k_stride, sum_per_n_token_in_block);
+
+        wgs.global = {q_stride_pad / sum_per_n_token_in_block, heads_num, batch};
+        wgs.local = {1, 1, 1};
+
+        auto& scalars = kd.params.scalars;
+        std::vector<size_t> scaler_value = {q_stride, q_stride_pad, k_block_pad, k_block - q_block};
+        scalars.resize(scaler_value.size() + 1);
+
+        if (DEBUG_ENABLED) {  // Debug
+            std::cout << "XAttentionEstimateFindBlock::get_dispatch_data_func: "
+                      << "k_block: " << k_block << ", q_block: " << q_block
+                      << "q_stride: " << q_stride << ", q_stride_pad: " << q_stride_pad << ", k_block_pad: " << k_block_pad << ", gws: [" << wgs.global[0] << ", "
+                      << wgs.global[1] << ", " << wgs.global[2] << "]"
+                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
+        }
+
+        for (size_t i = 0; i < scaler_value.size(); ++i) {
+            scalars[i].t = ScalarDescriptor::Types::UINT32;
+            scalars[i].v.u32 = static_cast<uint32_t>(scaler_value[i]);
+        }
+        scalars[scaler_value.size()].t = ScalarDescriptor::Types::FLOAT32;  // the last is for thresh with f32 dtype
+        scalars[scaler_value.size()].v.f32 = static_cast<float>(THRESH);
     }};
 }
 

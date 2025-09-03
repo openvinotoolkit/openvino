@@ -135,6 +135,32 @@ public:
         } else {
             internal_buffers.emplace_back(16, indexes_dt);  // 0: intermediate partition output
             internal_buffers.emplace_back(16, indexes_dt);  // 1: softmax exp_sums
+
+            // internal buffer for XAttention
+            auto out_shape = params.output_layouts[0].get_shape();
+            const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
+            const size_t q_len = out_shape[0];
+            const uint M = q_len / STRIDE;   //# will slient drop the tails which is less than `stride`
+            const uint N = kv_len / STRIDE;
+            const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
+            const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+
+            auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * N_kq_groups * q_stride_pad);
+            internal_buffers.emplace_back(count_kq_max_wg, ov::element::f16);                // 2: kq_max_wg
+
+            const size_t block_size = get_xattn_block_size();
+            if (block_size > 1) {
+                OPENVINO_ASSERT(block_size % STRIDE == 0, "sparse block_size must be devidable by stride.");
+                const size_t sum_per_n_token_in_block = block_size / STRIDE;  // FIXME
+                const uint sum_per_token_in_block = block_size / STRIDE;
+                const uint k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
+                const uint k_block_pad = k_block_in_group * N_kq_groups;
+                auto count_kq_exp_partial_sum = static_cast<int64_t>(desc->heads_num * q_stride_pad * k_block_pad);
+                internal_buffers.emplace_back(count_kq_exp_partial_sum, ov::element::f16);       // 3: kq_exp_partial_sum
+
+                auto count_elements_mask = static_cast<int64_t>(desc->heads_num * (q_stride_pad / sum_per_n_token_in_block) * k_block_pad);
+                internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);        // 4: sparse_block_mask
+            }
         }
 
         return internal_buffers;
