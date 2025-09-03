@@ -66,7 +66,7 @@ void registerNPUWLLMOptions(OptionsDesc& desc);
 #define DEFINE_ANYMAP_OPT(Name, PropertyKey)                         \
     struct Name final : OptionBase<Name, ov::AnyMap> {               \
         static std::string_view key() {                              \
-            return ov::intel_npu::npuw::llm::prefill_config.name();  \
+            return ov::intel_npu::PropertyKey.name();                \
         }                                                            \
                                                                      \
         static constexpr std::string_view getTypeName() {            \
