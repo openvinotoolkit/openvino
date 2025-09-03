@@ -78,6 +78,7 @@ jobs:
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
   Build:
+    name: Build ${{ matrix.arch }}
     needs: [Smart_CI, Docker]
     if: "!needs.smart_ci.outputs.skip_workflow"
     timeout-minutes: 150
