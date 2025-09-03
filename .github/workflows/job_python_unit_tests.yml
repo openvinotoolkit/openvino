@@ -152,7 +152,7 @@ jobs:
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/py_frontend_tests -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: TensorFlow Lite Layer Tests - TFL FE
-        if: fromJSON(inputs.affected-components).TFL_FE.test
+        if: ${{ fromJSON(inputs.affected-components).TFL_FE.test && (runner.arch != 'ARM64' && runner.os != 'macOS') }} # Ticket: 173019
         run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/tensorflow_lite_tests/ -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
