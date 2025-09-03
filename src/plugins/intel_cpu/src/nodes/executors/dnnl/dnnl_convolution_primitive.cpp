@@ -98,7 +98,7 @@ DnnlConvolutionPrimitive::IntermediateReorders::IntermediateReorders(const Key& 
             createIfNotEqual(key.dst->getDnnlDesc(), primDesc.dst_desc(), AllocateMemoryFor::Dst, engine);
     }
 
-    if (key.nonConstantWeights && key.wei->getDnnlDesc() != primDesc.weights_desc()) {
+    if (!key.constantWeights && key.wei->getDnnlDesc() != primDesc.weights_desc()) {
         m_inputReorders[DNNL_ARG_WEIGHTS] =
             createIfNotEqual(key.wei->getDnnlDesc(), primDesc.weights_desc(), AllocateMemoryFor::Dst, engine);
     }
@@ -142,7 +142,7 @@ size_t DnnlConvolutionPrimitive::Key::hash() const {
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, fcSemantic);
-    seed = hash_combine(seed, nonConstantWeights);
+    seed = hash_combine(seed, constantWeights);
 
     return seed;
 }
@@ -168,7 +168,7 @@ bool DnnlConvolutionPrimitive::Key::operator==(const Key& rhs) const {
 
     result = result && *attr.get() == *rhs.attr.get();
     result = result && fcSemantic == rhs.fcSemantic;
-    result = result && nonConstantWeights == rhs.nonConstantWeights;
+    result = result && constantWeights == rhs.constantWeights;
 
     return result;
 }
@@ -858,7 +858,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
                           paddingR,
                           shapeAgnosticData->m_primAttrs.attr,
                           attrs.fcSemantic,
-                          attrs.nonConstantWeights};
+                          attrs.constantWeights};
 
     const auto defaultImplType = shapeAgnosticData->m_implType;
 

@@ -543,7 +543,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
                                               useWeightsDecompression,
                                               attrs.fcSemantic);
 
-    if (!attrs.nonConstantWeights && cacheWeights) {
+    if (attrs.constantWeights && cacheWeights) {
         const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
         auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
 
