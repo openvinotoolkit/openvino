@@ -8,6 +8,7 @@
 
 #include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "openvino/util/wstring_convert_util.hpp"
 
 using ::ONNX_NAMESPACE::AttributeProto_AttributeType;
@@ -26,6 +27,7 @@ namespace frontend {
 namespace onnx {
 
 class DecoderProtoTensor;
+using MappedMemoryHandles = std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>;
 
 class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     size_t node_index = 0;
@@ -34,13 +36,14 @@ class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     GraphIteratorProto* m_parent;
     std::vector<std::shared_ptr<ov::frontend::onnx::DecoderBase>> m_decoders{};
     std::map<std::string, std::shared_ptr<DecoderProtoTensor>> m_tensors{};
+    ov::frontend::onnx::MappedMemoryHandles m_mmap_cache;
 
 public:
     GraphIteratorProto() = default;
-    explicit GraphIteratorProto(const std::string& path);
+    explicit GraphIteratorProto(const std::string& path, const bool enable_mmap);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-    explicit GraphIteratorProto(const std::wstring& path);
+    explicit GraphIteratorProto(const std::wstring& path, const bool enable_mmap);
 #endif
 
     explicit GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def);
