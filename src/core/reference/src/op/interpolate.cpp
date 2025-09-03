@@ -144,15 +144,9 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_i
 
     std::size_t spatial_rank = input_shape.size() - 2;
 
-    if (input_rank == 4) {
-        auto channel_iter = std::find(m_axes.begin(), m_axes.end(), 1);
-        if (channel_iter != m_axes.end()) {
-            auto channel_idx = std::distance(m_axes.begin(), channel_iter);
-            if (m_scales[channel_idx] != 1.0) {
-                spatial_rank = 3;
-                num_channels = 1;
-            }
-        }
+    if (input_rank == 4 && input_shape[1] != output_shape[1]) {
+        spatial_rank = 3;
+        num_channels = 1;
     }
 
     std::vector<int64_t> input_index_multipliers(spatial_rank);
