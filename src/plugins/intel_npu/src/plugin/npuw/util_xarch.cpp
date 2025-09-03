@@ -1517,71 +1517,89 @@ void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& fro
 
 void ov::npuw::util::XARCH::transpose_i4(const uint8_t* src, uint8_t* dst, size_t rows, size_t cols) {
 #if defined(HAVE_AVX2)
-    constexpr size_t PACK = 64;  // 32 bytes = 256 bits = 64 int4
-    for (size_t r = 0; r < rows; ++r) {
-        size_t c = 0;
-        for (; c + PACK - 1 < cols; c += PACK) {
-            // get 32 bytes each time.
-            const uint8_t* src_ptr = src + (r * cols + c) / 2;
-            __m256i packed = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src_ptr));
-            __m256i vout0, vout1;
-            avx2_i4toi8(packed, &vout0, &vout1);
-            int8_t unpacked[64];
-            __m256i* tmpv0 = reinterpret_cast<__m256i*>(unpacked);
-            __m256i* tmpv1 = reinterpret_cast<__m256i*>(unpacked + 32);
-            _mm256_storeu_si256(tmpv0, vout0);
-            _mm256_storeu_si256(tmpv1, vout1);
-            // Write transposed block
-            for (size_t k = 0; k < PACK; ++k) {
-                size_t dst_offset = (c + k) * rows + r;
-                size_t dst_byte = dst_offset / 2;
-                if (dst_offset % 2 == 0) {
-                    dst[dst_byte] = (dst[dst_byte] & 0xF0) | (unpacked[k] & 0x0F);
-                } else {
-                    dst[dst_byte] = (dst[dst_byte] & 0x0F) | ((unpacked[k] & 0x0F) << 4);
-                }
-            }
-        }
-
-        // Handle tail
-        for (; c < cols; c += 2) {
-            uint8_t low, high;
-            // Read a uint8 data and obtain two int4 values.
-            tread_2x4b(src, r, c, cols, low, high);
-            twrite_4b(dst, low, c, r, rows);
-            twrite_4b(dst, high, c + 1, r, rows);
-        }
-    }
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
-}
-
-void ov::npuw::util::XARCH::transpose_i4_8x8(const uint8_t* src, uint8_t* dst, size_t rows, size_t cols) {
-#if defined(HAVE_AVX2)
-    const int32_t* src_32 = reinterpret_cast<const int32_t*>(src);
-    int32_t* dst_32 = reinterpret_cast<int32_t*>(dst);
-
     size_t c_step = 8;
     size_t r_step = 8;
 
     size_t cols32 = cols / c_step;
     size_t rows32 = rows / r_step;
 
+    // lambda: get int32 pointer for each row of src.
+    auto get_src_int32 = [&](size_t i) {
+        return reinterpret_cast<const int32_t*>(src + (i * cols / 2));
+    };
+    // lambda: get int32 pointer for each column of dst.
+    auto get_dst_int32 = [&](size_t j) {
+        return reinterpret_cast<int32_t*>(dst + (j * rows / 2));
+    };
+
+    // Main block processing.
     for (size_t c = 0; c < cols32; ++c) {
         for (size_t r = 0; r < rows32; ++r) {
-            __m256i column = _mm256_set_epi32(src_32[(r * r_step + 7) * cols32 + c],
-                                              src_32[(r * r_step + 6) * cols32 + c],
-                                              src_32[(r * r_step + 5) * cols32 + c],
-                                              src_32[(r * r_step + 4) * cols32 + c],
-                                              src_32[(r * r_step + 3) * cols32 + c],
-                                              src_32[(r * r_step + 2) * cols32 + c],
-                                              src_32[(r * r_step + 1) * cols32 + c],
-                                              src_32[(r * r_step + 0) * cols32 + c]);
+            // For each row of src, recalculate the pointer.
+            const int32_t* src_row0 = get_src_int32(r * r_step + 0);
+            const int32_t* src_row1 = get_src_int32(r * r_step + 1);
+            const int32_t* src_row2 = get_src_int32(r * r_step + 2);
+            const int32_t* src_row3 = get_src_int32(r * r_step + 3);
+            const int32_t* src_row4 = get_src_int32(r * r_step + 4);
+            const int32_t* src_row5 = get_src_int32(r * r_step + 5);
+            const int32_t* src_row6 = get_src_int32(r * r_step + 6);
+            const int32_t* src_row7 = get_src_int32(r * r_step + 7);
+
+            __m256i column = _mm256_set_epi32(src_row7[c],
+                                              src_row6[c],
+                                              src_row5[c],
+                                              src_row4[c],
+                                              src_row3[c],
+                                              src_row2[c],
+                                              src_row1[c],
+                                              src_row0[c]);
 
             for (int i = 0; i < 8; ++i) {
                 __m256i shifted = _mm256_srli_epi32(column, 4 * i);
-                dst_32[(c * c_step + i) * rows32 + r] = pack_4bit_avx2_reduction(shifted);
+                int32_t* dst_col = get_dst_int32(c * c_step + i);
+                dst_col[r] = pack_4bit_avx2_reduction(shifted);
+            }
+        }
+    }
+
+    size_t tail_cols = cols % c_step;
+    size_t tail_rows = rows % r_step;
+
+    // Tail columns (excluding tail rows region).
+    if (tail_cols > 0) {
+        for (size_t r = 0; r < rows - tail_rows; ++r) {
+            for (size_t c = cols - tail_cols; c < cols; ++c) {
+                size_t src_idx = r * cols + c;
+                uint8_t val = (src[src_idx / 2] >> ((src_idx % 2) * 4)) & 0x0F;
+                size_t dst_idx = c * rows + r;
+                dst[dst_idx / 2] &= (dst_idx % 2 == 0) ? 0xF0 : 0x0F;
+                dst[dst_idx / 2] |= (dst_idx % 2 == 0) ? (val & 0x0F) : ((val & 0x0F) << 4);
+            }
+        }
+    }
+
+    // Tail rows (excluding tail columns region).
+    if (tail_rows > 0) {
+        for (size_t c = 0; c < cols - tail_cols; ++c) {
+            for (size_t r = rows - tail_rows; r < rows; ++r) {
+                size_t src_idx = r * cols + c;
+                uint8_t val = (src[src_idx / 2] >> ((src_idx % 2) * 4)) & 0x0F;
+                size_t dst_idx = c * rows + r;
+                dst[dst_idx / 2] &= (dst_idx % 2 == 0) ? 0xF0 : 0x0F;
+                dst[dst_idx / 2] |= (dst_idx % 2 == 0) ? (val & 0x0F) : ((val & 0x0F) << 4);
+            }
+        }
+    }
+
+    // Bottom-right corner cross region (both tail rows and tail columns).
+    if (tail_cols > 0 && tail_rows > 0) {
+        for (size_t r = rows - tail_rows; r < rows; ++r) {
+            for (size_t c = cols - tail_cols; c < cols; ++c) {
+                size_t src_idx = r * cols + c;
+                uint8_t val = (src[src_idx / 2] >> ((src_idx % 2) * 4)) & 0x0F;
+                size_t dst_idx = c * rows + r;
+                dst[dst_idx / 2] &= (dst_idx % 2 == 0) ? 0xF0 : 0x0F;
+                dst[dst_idx / 2] |= (dst_idx % 2 == 0) ? (val & 0x0F) : ((val & 0x0F) << 4);
             }
         }
     }

@@ -637,11 +637,7 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
         NPUW_ASSERT(shape[2] % 2 == 0);
         const uint8_t* src = static_cast<const uint8_t*>(t.data());
         uint8_t* dst = static_cast<uint8_t*>(tnew.data());
-        if ((IN_ROWS % 8 == 0) && (IN_COLS % 8 == 0)) {
-            ov::npuw::util::XARCH::transpose_i4_8x8(src, dst, IN_ROWS, IN_COLS);
-        } else {
-            ov::npuw::util::XARCH::transpose_i4(src, dst, IN_ROWS, IN_COLS);
-        }
+        ov::npuw::util::XARCH::transpose_i4(src, dst, IN_ROWS, IN_COLS);
         break;
     }
     case ov::element::f32: {
@@ -675,11 +671,7 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
             ov::parallel_for(shape[0], [&](size_t p) {
                 const uint8_t* src_ptr = src + p * shape[1] * shape[2];
                 uint8_t* dst_ptr = dst + p * shape[1] * shape[2];
-                if ((shape[1] % 8 == 0) && (shape[2] % 8 == 0)) {
-                    ov::npuw::util::XARCH::transpose_i4_8x8(src, dst, shape[1], shape[2]);
-                } else {
-                    ov::npuw::util::XARCH::transpose_i4(src_ptr, dst_ptr, shape[1], shape[2]);
-                }
+                ov::npuw::util::XARCH::transpose_i4(src_ptr, dst_ptr, shape[1], shape[2]);
             });
             break;
         }
