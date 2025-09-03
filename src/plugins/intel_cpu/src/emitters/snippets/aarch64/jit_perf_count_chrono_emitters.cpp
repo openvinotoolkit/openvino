@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,7 @@ jit_perf_count_chrono_start_emitter::jit_perf_count_chrono_start_emitter(
     const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_binary_call_emitter(host, host_isa, expr->get_live_regs()) {
     m_start_node = ov::as_type_ptr<ov::snippets::op::PerfCountBegin>(expr->get_node());
+    OPENVINO_ASSERT(m_start_node, "PerfCountBegin node is null");
 }
 
 void jit_perf_count_chrono_start_emitter::set_start_time(ov::snippets::op::PerfCountBegin* start_node) {
@@ -54,13 +55,12 @@ void jit_perf_count_chrono_start_emitter::emit_impl([[maybe_unused]] const std::
     restore_context({});
 }
 
-///////////////////////////////////////////
-
 jit_perf_count_chrono_end_emitter::jit_perf_count_chrono_end_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                                                      const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_binary_call_emitter(host, host_isa, expr->get_live_regs()) {
     m_end_node = ov::as_type_ptr<ov::snippets::op::PerfCountEnd>(expr->get_node());
+    OPENVINO_ASSERT(m_end_node, "PerfCountEnd node is null");
 }
 
 void jit_perf_count_chrono_end_emitter::set_accumulated_time(ov::snippets::op::PerfCountEnd* end_node) {

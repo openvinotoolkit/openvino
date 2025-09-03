@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,9 +27,6 @@ public:
 
     size_t get_inputs_count() const override {
         return 0;
-    }
-    size_t get_aux_gprs_count() const override {
-        return 1;
     }
 
 private:
