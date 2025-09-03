@@ -115,6 +115,9 @@ OpenVINO Node.js API
 * `Model.reshape` method has been exposed, including type conversion ability and type validation helpers, useful for reshaping LLMs.
 * Support for ov-node types in TypeScript part of bindings has been extended, enabling  direct integration with the JavaScript API. 
 * Wrapping of `compileModel()` method has been fixed to allow checking type of returned objects.  
+* The version of LLMPipeline.generate() that returns strings is now deprecated. 
+  Starting with 2026.0.0 LLMPipeline.generate() will return DecodedResults by default.
+  To use the new behavior with current release, set ``["return_decoded_results": true]`` in GenerationConfig.
 
 
 PyTorch Framework Support 
