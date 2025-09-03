@@ -37,8 +37,8 @@ extern const std::string EMPTY_OP_TYPE;
 
 class DecoderProtoTensor : public ov::frontend::onnx::DecoderBaseTensor {
     ov::frontend::onnx::TensorMetaInfo m_tensor_meta_info;
-    int64_t m_input_idx, m_output_idx;
     GraphIteratorProto* m_parent;
+    int64_t m_input_idx, m_output_idx;
 
 public:
     DecoderProtoTensor(const TensorProto* tensor_info,
