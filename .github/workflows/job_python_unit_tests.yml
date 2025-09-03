@@ -126,7 +126,7 @@ jobs:
         run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: OVC Python API Tests
-        if: fromJSON(inputs.affected-components).OVC.test
+        if: ${{ fromJSON(inputs.affected-components).OVC.test && (runner.arch != 'ARM64' && runner.os != 'macOS') }} # Ticket: 173019
         run: |
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
@@ -146,7 +146,7 @@ jobs:
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/py_frontend_tests -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: TensorFlow Lite Layer Tests - TFL FE
-        if: fromJSON(inputs.affected-components).TFL_FE.test
+        if: ${{ fromJSON(inputs.affected-components).TFL_FE.test && (runner.arch != 'ARM64' && runner.os != 'macOS') }} # Ticket: 173019
         run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/tensorflow_lite_tests/ -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
