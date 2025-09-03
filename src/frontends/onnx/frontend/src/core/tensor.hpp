@@ -198,7 +198,7 @@ public:
         ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(), "[nothing expected]");
     }
 
-    const std::string& get_name() const {
+    const std::string get_name() const {
         if (m_tensor_place != nullptr) {
             const auto& names = m_tensor_place->get_names();
             if (names.size() <= 0)
