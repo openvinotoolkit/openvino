@@ -143,7 +143,10 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     // !!! End of Experimental feature
     if (variants[0].is<GraphIterator::Ptr>()) {
         auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
-        return std::make_shared<unify::InputModel>(graph_iterator, false); //enable_mmap doesn't matter here
+        return std::make_shared<unify::InputModel>(
+            graph_iterator,
+            enable_mmap);  // enable_mmap is a hint for a fallback in case external GraphIterator cannot work with
+                           // external data
     }
     return nullptr;
 }

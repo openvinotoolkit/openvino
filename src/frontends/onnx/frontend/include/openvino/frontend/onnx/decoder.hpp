@@ -34,7 +34,6 @@ struct ONNX_FRONTEND_API TensorMetaInfo {
     */
 };
 
-
 class ONNX_FRONTEND_API DecoderBase : public ov::frontend::DecoderBase {
 public:
     using Ptr = std::shared_ptr<DecoderBase>;
