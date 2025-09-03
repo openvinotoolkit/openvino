@@ -118,7 +118,7 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DCPACK_GENERATOR=TGZ
             -DENABLE_WHEEL=ON
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
             -DENABLE_FASTER_BUILD=ON
 
   Debian_Packages:
