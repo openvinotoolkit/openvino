@@ -29,9 +29,9 @@
 namespace ov::Extensions::Cpu::XARCH {
 
 // avx512/avx2 register length in byte
-static constexpr size_t vec_len_avx512 = 64lu;
-static constexpr size_t vec_len_avx2 = 32lu;
-static constexpr size_t vec_len_neon = 16lu;
+static constexpr size_t vec_len_avx512 = 64LU;
+static constexpr size_t vec_len_avx2 = 32LU;
+static constexpr size_t vec_len_neon = 16LU;
 // avx512/avx2 register length in float
 static constexpr size_t vec_len_f32_avx512 = vec_len_avx512 / sizeof(float);
 static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
