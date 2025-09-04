@@ -503,13 +503,16 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)");
     // Issue: 170863
     retVector.emplace_back(R"(smoke_Model_Distribution_MatMul_NoTranspose.*)");
-    // smoke_Snippets test cases are not supported on arm32 platforms
-#if !defined(OPENVINO_ARCH_ARM64)
+#endif
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64)
+    // smoke_Snippets test cases are on platforms except x64 and aarch64/arm64
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
-    // smoke_Snippets test cases are not supported on arm64 platforms, except for listed below
-    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_Transpose|_FQDecomposition_|_BroadcastSelect|_Select|_MatMul/|_MatMulBias|_Reduce|_Softmax|_AddSoftmax).*)");
-    retVector.emplace_back(R"(smoke_Snippets_TransposeMatMulBias.*)");
+#if defined(OPENVINO_ARCH_ARM64)
+    // Tests to be enabled on ARM64
+    retVector.emplace_back(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)");
+    retVector.emplace_back(R"(smoke_Snippets_GroupNormalization.*)");
+    retVector.emplace_back(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
@@ -647,6 +650,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets_AddSoftmax.*)");
     retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmaxEltwise.*)");
     // Low-precision Matmuls are not supported by TPP yet
+    retVector.emplace_back(R"(.*smoke_Snippets.*=(BF16|bf16|i8|u8).*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulFQ.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulBiasQuantized.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulsQuantized.*)");
