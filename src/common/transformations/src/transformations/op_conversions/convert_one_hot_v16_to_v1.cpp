@@ -30,7 +30,7 @@ ov::pass::ConvertOneHot16To1::ConvertOneHot16To1() {
                                                                     one_hot_v16_node->input_value(2),
                                                                     one_hot_v16_node->input_value(4),
                                                                     one_hot_v16_node->get_axis());
-                                                                    
+
         one_hot_v1_node->set_friendly_name(one_hot_v16_node->get_friendly_name());
         ov::copy_runtime_info(one_hot_v16_node, one_hot_v1_node);
         ov::replace_node(one_hot_v16_node, one_hot_v1_node);
