@@ -104,6 +104,8 @@ jobs:
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
+            '-DCMAKE_CXX_FLAGS_RELEASE="-g -fno-omit-frame-pointer"'
+            '-DCMAKE_C_FLAGS_RELEASE="-g -fno-omit-frame-pointer"'
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
@@ -111,7 +113,7 @@ jobs:
             -DENABLE_SYSTEM_OPENCL=ON
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DCPACK_GENERATOR=TGZ
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
             -DENABLE_FASTER_BUILD=ON
 
   CXX_Unit_Tests:

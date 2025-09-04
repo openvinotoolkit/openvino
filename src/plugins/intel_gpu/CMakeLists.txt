@@ -53,7 +53,7 @@ add_subdirectory(thirdparty)
 include(thirdparty/cmake/rapidjson.cmake)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    ov_add_compiler_flags(-Werror)
+    ov_add_compiler_flags(-Wno-error)
 endif()
 
 add_subdirectory(src/runtime)

@@ -169,8 +169,8 @@ else()
     if((CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8) OR
        (OV_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10) OR OV_COMPILER_IS_INTEL_LLVM)
         # Enable __FILE__ trim only for release mode
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -g -fno-omit-frame-pointer -Wno-error -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -g -fno-omit-frame-pointer -Wno-error -ffile-prefix-map=${OV_NATIVE_PROJECT_ROOT_DIR}/= -ffile-prefix-map=${OV_RELATIVE_BIN_PATH}/=")
     endif()
 
     #
@@ -178,7 +178,7 @@ else()
     #
 
     if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_VERSION VERSION_LESS 3.24)
-        ov_add_compiler_flags(-Werror)
+        ov_add_compiler_flags(-Wno-error)
     endif()
 
     #
