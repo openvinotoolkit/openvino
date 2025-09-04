@@ -38,7 +38,7 @@ std::shared_ptr<v0::Constant> transposition_axis_order(const ov::Rank& input_ran
 }  // namespace
 
 PoolingFactory::PoolingFactory(const Node& node)
-    : m_onnx_node{node},
+    : m_onnx_node{&node},
       m_inputs{node.get_ov_inputs()},
       m_kernel_shape(node.get_attribute_value<std::vector<std::size_t>>("kernel_shape")),
       m_strides{convpool::get_strides(node, m_kernel_shape.size())},
@@ -54,7 +54,7 @@ PoolingFactory::PoolingFactory(const Node& node)
 }
 
 ov::OutputVector PoolingFactory::make_avg_pool() const {
-    const bool count_include_pad = m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
+    const bool count_include_pad = m_onnx_node->get_attribute_value<std::int64_t>("count_include_pad", 0);
 
     if (std::all_of(m_dilations.begin(), m_dilations.end(), [](size_t d) {
             return d == static_cast<size_t>(1);
