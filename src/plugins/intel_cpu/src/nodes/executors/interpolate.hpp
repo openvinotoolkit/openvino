@@ -17,6 +17,7 @@
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/interpolate_config.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -24,46 +25,6 @@
 static constexpr int MAX_INPUT_INTERPOLATE = 8;
 
 namespace ov::intel_cpu {
-
-enum InterpolateLayoutType : uint8_t { planar, block, by_channel };
-
-enum InterpolateMode : uint8_t { nearest, linear, linear_onnx, cubic, bilinear_pillow, bicubic_pillow };
-
-enum InterpolateCoordTransMode : uint8_t {
-    half_pixel,
-    pytorch_half_pixel,
-    asymmetric,
-    tf_half_pixel_for_nn,
-    align_corners
-};
-
-enum class InterpolateNearestMode : uint8_t { round_prefer_floor, round_prefer_ceil, floor, ceil, simple };
-
-enum class InterpolateShapeCalcMode : uint8_t { sizes, scales };
-
-struct InterpolateAttrs {
-    InterpolateShapeCalcMode shapeCalcMode = InterpolateShapeCalcMode::sizes;
-    InterpolateMode mode = InterpolateMode::nearest;
-    InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
-    InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;
-    bool antialias = false;
-    float cubeCoeff = -0.75;
-    std::vector<int> padBegin;
-    std::vector<int> padEnd;
-    ov::element::Type inPrc;
-    ov::element::Type outPrc;
-    InterpolateLayoutType layout = InterpolateLayoutType::planar;
-    std::vector<float> dataScales;
-    bool hasPad = false;
-    // Some FEs or preprocessing step resize spatial dimension for tensors with NHWC layout memory,
-    // but import them with a planar layout[abcd] with axis[1,2] for convenience. In this case, for pillow modes without
-    // pad, the nhwc layout path and the specific kernel(nhwc layout executor) can be used for this planar layout and
-    // axis settings(NCHWAsNHWC is true) to get better perf. To this end the following mapping is used:
-    // 1. logical shape alignment [abcd-nhwc] to [adbc-nchw].
-    // 2. axis alignment [1,2] to [2,3].
-    // 3. config planar layout support and treated it as channel_first layout.
-    bool NCHWAsNHWC = false;
-};
 
 inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
                                       const std::vector<int>& padBegin,
@@ -123,7 +84,7 @@ static inline float triangleCoeff(float x) {
     return (std::max)(0.0F, 1 - std::abs(x));
 }
 
-class InterpolateExecutor {
+class InterpolateExecutor : public Executor {
 public:
     static constexpr size_t DATA_ID = 0;
     static constexpr size_t TARGET_SHAPE_ID = 1;
@@ -136,10 +97,58 @@ public:
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
                       const dnnl::primitive_attr& attr);
+    
+    // Old exec interface for backward compatibility
     virtual void exec(const std::vector<MemoryCPtr>& src,
                       const std::vector<MemoryPtr>& dst,
-                      const void* post_ops_data_) = 0;
+                      const void* post_ops_data_) {
+        // Default implementation - derived classes should override one of the exec methods
+        OPENVINO_THROW("InterpolateExecutor: exec not implemented");
+    }
+    
+    // New exec interface that uses MemoryArgs directly
+    virtual void exec(const MemoryArgs& memory) {
+        // For backward compatibility, convert to old interface
+        // New executors should override this method directly
+        std::vector<MemoryCPtr> srcMemory;
+        std::vector<MemoryPtr> dstMemory;
+        
+        // Extract destination memory
+        auto dstIt = memory.find(ARG_DST);
+        if (dstIt != memory.end()) {
+            dstMemory.push_back(dstIt->second);
+        }
+        
+        // Extract source memories in correct order (0, 1, 2, 3, ...)
+        for (size_t i = 0; i < memory.size(); ++i) {
+            auto srcIt = memory.find(i);
+            if (srcIt != memory.end()) {
+                srcMemory.push_back(std::const_pointer_cast<const IMemory>(srcIt->second));
+            }
+        }
+        
+        exec(srcMemory, dstMemory, nullptr);
+    }
+    
+    // Bring base class exec into scope to avoid hiding
+    using Executor::exec;
     [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
+    
+    // Update method for dynamic shape/parameter updates
+    bool update(const MemoryArgs& memory) override {
+        // Default implementation does nothing
+        // Derived classes can override to perform necessary updates
+        return true;
+    }
+    
+    // Executor interface
+    void execute(const MemoryArgs& memory) override {
+        exec(memory);
+    }
+    
+    [[nodiscard]] impl_desc_type implType() const override {
+        return getImplType();
+    }
 
     virtual ~InterpolateExecutor() = default;
     [[nodiscard]] VectorDims getSrcDimPad5d() const {
