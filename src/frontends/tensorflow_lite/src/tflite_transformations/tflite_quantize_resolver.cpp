@@ -45,13 +45,15 @@ pass::TFLQuantizeConvert::TFLQuantizeConvert() {
         auto tfl_quantize = ov::as_type_ptr<TFLQuantize>(tfl_quantize_node);
         if (!tfl_quantize)
             return false;
+        if (tfl_quantize->get_output_target_inputs(0).size() != 1)
+            return false;
         tfl_quantize->set_type(type);
         convert->output(0).replace(tfl_quantize->output(0));
         return true;
     };
 
     auto m =
-        std::make_shared<pattern::Matcher>(convert_label, "ov::frontend::tensorflow_lite::pass::TFLQuantizeResolver");
+        std::make_shared<pattern::Matcher>(convert_label, "ov::frontend::tensorflow_lite::pass::TFLQuantizeConvert");
     register_matcher(m, callback);
 }
 
