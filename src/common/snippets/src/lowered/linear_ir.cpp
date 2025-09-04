@@ -591,9 +591,7 @@ double LinearIR::get_inserted_expr_exec_num(constExprIt insertion_pos) const {
     right_order = right_pos->get()->get_exec_num();
     OPENVINO_ASSERT(right_order > left_order, "Incorrect expression enumeration!");
 
-    // sync point to enumerate expressions
-    // 10 * eps - is to avoid meaningless result after (right_order + left_order) / 2 below
-    if (std::abs(1 - left_order / right_order) <= 10 * std::numeric_limits<double>::epsilon()) {
+    if (std::nextafter(left_order, right_order) >= right_order) {
         enumerate_expressions();
         left_order = left_pos->get()->get_exec_num();
         right_order = right_pos->get()->get_exec_num();
