@@ -32,7 +32,7 @@ static std::vector<ConfigParams> testConfigs;
 
 class LoadNetworkWithSecondaryConfigsMockTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [deviceName, targetDevices, deviceConfigs] = obj.param;
         std::ostringstream result;
         result << "_virtual_device_" << deviceName;
@@ -231,7 +231,7 @@ using PropertyTestParams = std::tuple<std::string,                  // virtual d
 
 class CompiledModelPropertyMockTest : public tests::AutoTest, public ::testing::TestWithParam<PropertyTestParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PropertyTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<PropertyTestParams>& obj) {
         const auto& [deviceName, devicePriorities, isSupportProperty, properties] = obj.param;
         std::ostringstream result;
         result << "_virtual_device_" << deviceName;
