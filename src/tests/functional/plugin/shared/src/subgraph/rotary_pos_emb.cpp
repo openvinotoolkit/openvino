@@ -150,7 +150,7 @@ std::shared_ptr<ov::Model> RoPETestQwenVL::buildROPE_QwenVL(ov::element::Type el
 
 void RoPETestQwenVL::SetUp() {
     const auto& [element_type, _targetDevice] = this->GetParam();
-    targetDevice = ov::test::utils::DEVICE_GPU;
+    targetDevice = _targetDevice;
     ov::PartialShape input_shape = PartialShape({-1, 16, 80});
     ov::PartialShape cos_shape = PartialShape({-1, 1, 80});
     ov::PartialShape sin_shape = PartialShape({-1, 1, 80});
