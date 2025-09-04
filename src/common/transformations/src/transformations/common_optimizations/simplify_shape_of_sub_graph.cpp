@@ -164,7 +164,14 @@ pass::AbsSinking::AbsSinking() {
             abs_ops.erase(abs_ops.begin());
             graph_got_changed = true;
         }
+        // We don't handle the case where Abs is applied directly to a constant
+        // This is intentionally left to ConstantFolding pass which is better suited for this task
         for (const auto& abs : abs_ops) {
+            // Skip Abs operations applied to constants - let ConstantFolding handle them
+            if (ov::is_type<v0::Constant>(abs->get_input_node_ptr(0))) {
+                continue;
+            }
+
             auto bounds = ov::util::evaluate_both_bounds(abs->input_value(0));
             if (ov::util::reduce_and(ov::util::greater_equal(bounds.first, 0))) {
                 replace_output_update_name(abs->output(0), abs->input_value(0));
