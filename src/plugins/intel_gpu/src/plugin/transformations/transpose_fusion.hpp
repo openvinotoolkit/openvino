@@ -42,20 +42,5 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("TransposeConv1x1TransposeMatcher");
     TransposeConv1x1TransposeMatcher(bool supports_immad);
 };
-class TransposeConv1x1ConvertTransposeMatcher : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("TransposeConv1x1ConvertTransposeMatcher");
-    TransposeConv1x1ConvertTransposeMatcher(bool supports_immad);
-};
-class ReshapeConv1x1ReshapeMatcher : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("ReshapeConv1x1ReshapeMatcher");
-    ReshapeConv1x1ReshapeMatcher(bool supports_immad);
-};
-class ReshapeConv1x1ConvertReshapeMatcher : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("ReshapeConv1x1ConvertReshapeMatcher");
-    ReshapeConv1x1ConvertReshapeMatcher(bool supports_immad);
-};
 
 }  // namespace ov::intel_gpu

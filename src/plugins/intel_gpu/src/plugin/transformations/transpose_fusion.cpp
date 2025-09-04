@@ -80,17 +80,10 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
 
 TransposeFusion::TransposeFusion(bool supports_immad) {
     add_matcher<TransposeConv1x1TransposeMatcher>(supports_immad);
-    add_matcher<ReshapeConv1x1ReshapeMatcher>(supports_immad);
     add_matcher<TransposeMatMulTransposeMatcher>(supports_immad);
     add_matcher<TransposeMatMulMatcher>(supports_immad);
     add_matcher<TransposeSDPAMatcher>();
     add_matcher<TransposeVLSDPAMatcher>();
-    add_matcher<TransposeConv1x1ConvertTransposeMatcher>(supports_immad);
-    add_matcher<ReshapeConv1x1ConvertReshapeMatcher>(supports_immad);
-
-    
-    
-    
 }
 
 TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
@@ -441,143 +434,45 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
 
     
     auto first_input_m = ov::pass::pattern::any_input();
-    auto transpose_a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({first_input_m, transpose_a_order_m}); //, input_transpose_predicate);
+    auto a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto transpose_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({first_input_m, a_order_m});        //, input_transpose_predicate);
+    auto reshape_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m});      //, input_transpose_predicate);
+    auto a_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
 
     auto weights_m = ov::pass::pattern::any_input(weights_path);  // weights
+    auto weights_scales_m = ov::pass::pattern::any_input();
+    auto weights_zp_m = ov::pass::pattern::any_input();
     auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
-    auto weight_subtract_m = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, ov::pass::pattern::any_input()});
-    auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_subtract_m, ov::pass::pattern::any_input()});
-    auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({transpose_activations_m, weight_mult_m});
-
-    auto transpose_c_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({conv1x1_m, transpose_c_order_m}); //, output_transpose_predicate);
-
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-
-        auto conv1x1 = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map.at(conv1x1_m).get_node_shared_ptr());
-        auto transpose_output = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(transpose_output_m).get_node_shared_ptr());
-        auto transpose_activations = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(transpose_activations_m).get_node_shared_ptr());
-        if (!conv1x1 || transformation_callback(conv1x1)) {
-            return false;
-        }
-
-        auto weight = pattern_map.at(weights_m).get_node_shared_ptr();
-        auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();
-        
-        auto order_activation = op::Gemm::default_order(conv1x1->get_input_partial_shape(0).size());  // activation
-
-        order_activation[0] = 0;
-        order_activation[1] = 1;
-        order_activation[2] = 2;
-        //2;
-        order_activation[3] = 3;
-        //3;
-        
-
-        auto order_c = order_activation;
-        order_c[0] = 0;
-        order_c[1] = 1;
-        order_c[2] = 2;
-        order_c[3] = 3;
-        
-        // add reshape after weight 9216 x 3072 x 1 x --> 9216 x 3072
-        std::vector<int> values_reshape_b;
-        auto shape_b = weight->get_output_partial_shape(0);
-        for (auto i = 0; i < shape_b.size(); i++)
-            if (shape_b.to_shape()[i] != 1) {
-                values_reshape_b.push_back(shape_b.to_shape()[i]);
-            }
-
-         
-
-        auto reshape_weight_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_b);  //{9216, 3072});
-        auto Reshape_weight = std::make_shared<ov::op::v1::Reshape>(weight, reshape_weight_const, false);
-        MatcherPass::register_new_node(Reshape_weight);
-        Reshape_weight->set_friendly_name(weight->get_friendly_name() + "_Reshape_weight");
-        ov::disable_constant_folding(Reshape_weight);
-        auto order_weight = op::Gemm::default_order(Reshape_weight->get_output_partial_shape(0).size());  // weight
-
-        order_weight[0] = 1;
-        order_weight[1] = 0;
-        
-
-        auto gemm = std::make_shared<op::Gemm>(activation, Reshape_weight, order_activation, order_weight, order_c);
-        gemm->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), gemm);
-        ov::replace_node(m.get_match_root(), gemm);
-
-   
-        return true;
-    };
-
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_output_m, "TransposeConv1x1TransposeMatcher");
-    this->register_matcher(m, callback);
-}
-
-TransposeConv1x1ConvertTransposeMatcher::TransposeConv1x1ConvertTransposeMatcher(bool supports_immad) {
-    auto static_rank_gt_1 = [](const ov::Output<ov::Node>& output) {
-        const auto& r = output.get_partial_shape().rank();
-        return r.is_static() && r.get_length() > 1;
-    };
-    auto weights_path = [&static_rank_gt_1](const ov::Output<ov::Node>& output) {
-        const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_constant_path(output) && static_rank_gt_1(output) && pshape.is_static() &&
-               std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& x) {
-                   return x == 1;
-               }) == 2;
-    };
-    auto input_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
-        return has_optimized_version(output, supports_immad, false);
-    };
-    auto output_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
-        return has_optimized_version(output, supports_immad, true);
-    };
-
-    auto first_input_m = ov::pass::pattern::any_input();
-    auto transpose_a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({first_input_m, transpose_a_order_m});  //, input_transpose_predicate);
-
-    auto weights_m = ov::pass::pattern::any_input(weights_path);  // weights
-    auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
-    auto weight_subtract_m = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, ov::pass::pattern::any_input()});
-    auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_subtract_m, ov::pass::pattern::any_input()});
-    auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({transpose_activations_m, weight_mult_m});
+    auto weight_subtract_m = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, weights_zp_m});
+    // Make zp subtraction optional to account for symmetrical quantization cases
+    auto weight_dequantized_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_convert_m, weight_subtract_m});
+    auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_dequantized_m, weights_scales_m});
+    auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_mult_m});
 
     auto convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({conv1x1_m});
+    auto conv_out_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv1x1_m, convert_m});
 
-    auto transpose_c_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({convert_m, transpose_c_order_m});  //, output_transpose_predicate);
+    auto c_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto transpose_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({conv_out_m, c_order_m});            //, output_transpose_predicate);
+    auto reshape_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({conv_out_m, c_order_m});  //, output_transpose_predicate);
+    auto output_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_output_m, reshape_output_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto conv1x1 = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map.at(conv1x1_m).get_node_shared_ptr());
-        auto convert = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(convert_m).get_node_shared_ptr());
-        auto transpose_output = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(transpose_output_m).get_node_shared_ptr());
-        auto transpose_activations = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(transpose_activations_m).get_node_shared_ptr());
+        auto weight_convert = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weight_convert_m).get_node_shared_ptr());
+        auto weight_sub = (pattern_map.count(weight_subtract_m) > 0) ? pattern_map.at(weight_subtract_m).get_node_shared_ptr() : nullptr;
+        auto weight_mult = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(weight_mult_m).get_node_shared_ptr());
+        auto convert_out = (pattern_map.count(convert_m) > 0) ? pattern_map.at(convert_m).get_node_shared_ptr() : nullptr;
         if (!conv1x1 || transformation_callback(conv1x1)) {
             return false;
         }
 
         auto weight = pattern_map.at(weights_m).get_node_shared_ptr();
-        auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();
-
-        auto order_activation = op::Gemm::default_order(conv1x1->get_input_partial_shape(0).size());  // activation
-
-        order_activation[0] = 0;
-        order_activation[1] = 1;
-        order_activation[2] = 2;
-        // 2;
-        order_activation[3] = 3;
-        // 3;
-
-        auto order_c = order_activation;
-        order_c[0] = 0;
-        order_c[1] = 1;
-        order_c[2] = 2;
-        order_c[3] = 3;
+        auto scale = pattern_map.at(weights_scales_m).get_node_shared_ptr();
+        auto zp = (pattern_map.count(weights_zp_m) > 0) ? pattern_map.at(weights_zp_m).get_node_shared_ptr() : nullptr;
+        auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();        
 
         // add reshape after weight 9216 x 3072 x 1 x --> 9216 x 3072
         std::vector<int> values_reshape_b;
@@ -586,211 +481,70 @@ TransposeConv1x1ConvertTransposeMatcher::TransposeConv1x1ConvertTransposeMatcher
             if (shape_b.to_shape()[i] != 1) {
                 values_reshape_b.push_back(shape_b.to_shape()[i]);
             }
-
         auto reshape_weight_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_b);  //{9216, 3072});
         auto Reshape_weight = std::make_shared<ov::op::v1::Reshape>(weight, reshape_weight_const, false);
         MatcherPass::register_new_node(Reshape_weight);
         Reshape_weight->set_friendly_name(weight->get_friendly_name() + "_Reshape_weight");
-        ov::disable_constant_folding(Reshape_weight);
-        auto order_weight = op::Gemm::default_order(Reshape_weight->get_output_partial_shape(0).size());  // weight
+        // FixMe: this is a point of interest - it protects quantized weights from being inflated by constant-folded conversion
+        // ov::disable_constant_folding(Reshape_weight);
+        auto weight_squeezed_convert = weight_convert->clone_with_new_inputs({Reshape_weight});
+        ov::disable_constant_folding(weight_squeezed_convert);
 
-        order_weight[0] = 1;
-        order_weight[1] = 0;
+        // add reshape after scales
+        std::vector<int> values_reshape_bs;
+        auto shape_bs = scale->get_output_partial_shape(0);
+        for (auto i = 0; i < shape_bs.size(); i++)
+            if (shape_bs.to_shape()[i] != 1) {
+                values_reshape_bs.push_back(shape_bs.to_shape()[i]);
+            }
+        // Add broadcast dimensions
+        while (values_reshape_bs.size() < 2) {
+            values_reshape_bs.push_back(1);
+        }
+        auto reshape_scale_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_bs);  //{9216, 3072});
+        auto Reshape_scale = std::make_shared<ov::op::v1::Reshape>(scale, reshape_scale_const, false);
+        MatcherPass::register_new_node(Reshape_scale);
+        Reshape_scale->set_friendly_name(scale->get_friendly_name() + "_Reshape_scale");
 
-        auto gemm = std::make_shared<op::Gemm>(activation, Reshape_weight, order_activation, order_weight, order_c);
-        auto convert_out = convert->clone_with_new_inputs({gemm});
-        convert_out->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), convert_out);
-        ov::replace_node(m.get_match_root(), convert_out);
+        auto scaled_weight = weight_mult->clone_with_new_inputs({weight_squeezed_convert, Reshape_scale});
+        if (zp) {
+            // add reshape after zero points
+            std::vector<int> values_reshape_zp;
+            auto shape_zp = zp->get_output_partial_shape(0);
+            for (auto i = 0; i < shape_zp.size(); i++)
+                if (shape_zp.to_shape()[i] != 1) {
+                    values_reshape_zp.push_back(shape_zp.to_shape()[i]);
+                }
+            // Add broadcast dimensions
+            while (values_reshape_zp.size() < 2) {
+                values_reshape_zp.push_back(1);
+            }
+            auto reshape_zp_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_zp);  //{9216, 3072});
+            auto Reshape_zp = std::make_shared<ov::op::v1::Reshape>(zp, reshape_zp_const, false);
+            MatcherPass::register_new_node(Reshape_zp);
+            Reshape_zp->set_friendly_name(zp->get_friendly_name() + "_Reshape_zp");
+            auto zero_adjusted_weight = weight_sub->clone_with_new_inputs({weight_squeezed_convert, Reshape_zp});
+            scaled_weight = weight_mult->clone_with_new_inputs({zero_adjusted_weight, Reshape_scale});
+        }
+        ov::disable_constant_folding(scaled_weight);
 
-        return true;
-    };
-
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_output_m, "TransposeConv1x1ConvertTransposeMatcher");
-    this->register_matcher(m, callback);
-}
-
-ReshapeConv1x1ReshapeMatcher::ReshapeConv1x1ReshapeMatcher(bool supports_immad) {
-    auto static_rank_gt_1 = [](const ov::Output<ov::Node>& output) {
-        const auto& r = output.get_partial_shape().rank();
-        return r.is_static() && r.get_length() > 1;
-    };
-    auto weights_path = [&static_rank_gt_1](const ov::Output<ov::Node>& output) {
-        const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_constant_path(output) && static_rank_gt_1(output) && pshape.is_static() &&
-               std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& x) {
-                   return x == 1;
-               }) == 2;
-    };
-    auto input_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
-        return has_optimized_version(output, supports_immad, false);
-    };
-    auto output_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
-        return has_optimized_version(output, supports_immad, true);
-    };
-
-    auto first_input_m = ov::pass::pattern::any_input();
-    auto Reshape_a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto Reshape_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, Reshape_a_order_m});  //, input_transpose_predicate);
-
-    auto weights_m = ov::pass::pattern::any_input(weights_path);  // weights
-    auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
-    auto weight_subtract_m = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, ov::pass::pattern::any_input()});
-    auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_subtract_m, ov::pass::pattern::any_input()});
-    auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({Reshape_activations_m, weight_mult_m});
-
-    auto Reshape_c_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto Reshape_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({conv1x1_m, Reshape_c_order_m});  //, output_transpose_predicate);
-
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-
-        auto conv1x1 = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map.at(conv1x1_m).get_node_shared_ptr());
-        auto transpose_output = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(Reshape_output_m).get_node_shared_ptr());
-        auto transpose_activations = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(Reshape_activations_m).get_node_shared_ptr());
-        if (!conv1x1 || transformation_callback(conv1x1)) {
-            return false;
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, scaled_weight, false, true);
+        // ToDo: handle out conversion if it exists
+        if (convert_out) {
+            auto convert_final = convert_out->clone_with_new_inputs({matmul});
+            convert_final->set_friendly_name(m.get_match_root()->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), convert_final);
+            ov::replace_node(m.get_match_root(), convert_final);
+        } else {
+            matmul->set_friendly_name(m.get_match_root()->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), matmul);
+            ov::replace_node(m.get_match_root(), matmul);
         }
 
-        auto weight = pattern_map.at(weights_m).get_node_shared_ptr();
-        auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();
-
-        auto order_activation = op::Gemm::default_order(conv1x1->get_input_partial_shape(0).size());  // activation
-
-        order_activation[0] = 0;
-        order_activation[1] = 1;
-        order_activation[2] = 2;
-        // 2;
-        order_activation[3] = 3;
-        // 3;
-
-        auto order_c = order_activation;
-        order_c[0] = 0;
-        order_c[1] = 1;
-        order_c[2] = 2;
-        order_c[3] = 3;
-
-        // add reshape after weight 9216 x 3072 x 1 x --> 9216 x 3072
-        std::vector<int> values_reshape_b;
-        auto shape_b = weight->get_output_partial_shape(0);
-        for (auto i = 0; i < shape_b.size(); i++)
-            if (shape_b.to_shape()[i] != 1) {
-                values_reshape_b.push_back(shape_b.to_shape()[i]);
-            }
-
-        auto reshape_weight_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_b);  //{9216, 3072});
-        auto Reshape_weight = std::make_shared<ov::op::v1::Reshape>(weight, reshape_weight_const, false);
-        MatcherPass::register_new_node(Reshape_weight);
-        Reshape_weight->set_friendly_name(weight->get_friendly_name() + "_Reshape_weight");
-        ov::disable_constant_folding(Reshape_weight);
-        auto order_weight = op::Gemm::default_order(Reshape_weight->get_output_partial_shape(0).size());  // weight
-
-        order_weight[0] = 1;
-        order_weight[1] = 0;
-
-        auto gemm = std::make_shared<op::Gemm>(activation, Reshape_weight, order_activation, order_weight, order_c);
-        gemm->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), gemm);
-        ov::replace_node(m.get_match_root(), gemm);
-
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(Reshape_output_m, "ReshapeConv1x1ReshapeMatcher");
-    this->register_matcher(m, callback);
-}
-
-ReshapeConv1x1ConvertReshapeMatcher::ReshapeConv1x1ConvertReshapeMatcher(bool supports_immad) {
-    auto static_rank_gt_1 = [](const ov::Output<ov::Node>& output) {
-        const auto& r = output.get_partial_shape().rank();
-        return r.is_static() && r.get_length() > 1;
-    };
-    auto weights_path = [&static_rank_gt_1](const ov::Output<ov::Node>& output) {
-        const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_constant_path(output) && static_rank_gt_1(output) && pshape.is_static() &&
-               std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& x) {
-                   return x == 1;
-               }) == 2;
-    };
-    auto input_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
-        return has_optimized_version(output, supports_immad, false);
-    };
-    auto output_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
-        return has_optimized_version(output, supports_immad, true);
-    };
-
-    auto first_input_m = ov::pass::pattern::any_input();
-    auto reshape_a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reshape_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, reshape_a_order_m});  //, input_transpose_predicate);
-
-    auto weights_m = ov::pass::pattern::any_input(weights_path);  // weights
-    auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
-    auto weight_subtract_m = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, ov::pass::pattern::any_input()});
-    auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_subtract_m, ov::pass::pattern::any_input()});
-    auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({reshape_activations_m, weight_mult_m});
-
-    auto convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({conv1x1_m});
-
-    auto reshape_c_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto reshape_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({convert_m, reshape_c_order_m});  //, output_transpose_predicate);
-
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-
-        auto conv1x1 = ov::as_type_ptr<ov::op::v1::Convolution>(pattern_map.at(conv1x1_m).get_node_shared_ptr());
-        auto convert = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(convert_m).get_node_shared_ptr());
-        auto transpose_output = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(reshape_output_m).get_node_shared_ptr());
-        auto transpose_activations = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(reshape_activations_m).get_node_shared_ptr());
-        if (!conv1x1 || transformation_callback(conv1x1)) {
-            return false;
-        }
-
-        auto weight = pattern_map.at(weights_m).get_node_shared_ptr();
-        auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();
-
-        auto order_activation = op::Gemm::default_order(conv1x1->get_input_partial_shape(0).size());  // activation
-
-        order_activation[0] = 0;
-        order_activation[1] = 1;
-        order_activation[2] = 2;
-        // 2;
-        order_activation[3] = 3;
-        // 3;
-
-        auto order_c = order_activation;
-        order_c[0] = 0;
-        order_c[1] = 1;
-        order_c[2] = 2;
-        order_c[3] = 3;
-
-        // add reshape after weight 9216 x 3072 x 1 x --> 9216 x 3072
-        std::vector<int> values_reshape_b;
-        auto shape_b = weight->get_output_partial_shape(0);
-        for (auto i = 0; i < shape_b.size(); i++)
-            if (shape_b.to_shape()[i] != 1) {
-                values_reshape_b.push_back(shape_b.to_shape()[i]);
-            }
-
-        auto reshape_weight_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_b);  //{9216, 3072});
-        auto Reshape_weight = std::make_shared<ov::op::v1::Reshape>(weight, reshape_weight_const, false);
-        MatcherPass::register_new_node(Reshape_weight);
-        Reshape_weight->set_friendly_name(weight->get_friendly_name() + "_Reshape_weight");
-        ov::disable_constant_folding(Reshape_weight);
-        auto order_weight = op::Gemm::default_order(Reshape_weight->get_output_partial_shape(0).size());  // weight
-
-        order_weight[0] = 1;
-        order_weight[1] = 0;
-
-        auto gemm = std::make_shared<op::Gemm>(activation, Reshape_weight, order_activation, order_weight, order_c);
-        auto convert_out = convert->clone_with_new_inputs({gemm});
-        convert_out->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ov::copy_runtime_info(m.get_matched_nodes(), convert_out);
-        ov::replace_node(m.get_match_root(), convert_out);
-
-        return true;
-    };
-
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(reshape_output_m, "ReshapeConv1x1ConvertReshapeMatcher");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(output_m, "TransposeConv1x1TransposeMatcher");
     this->register_matcher(m, callback);
 }
 
