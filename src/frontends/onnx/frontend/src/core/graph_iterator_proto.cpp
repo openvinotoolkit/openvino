@@ -275,23 +275,25 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
 }
 
 GraphIteratorProto::GraphIteratorProto(const GraphIteratorProtoMemoryManagementMode mode)
-    : m_parent(nullptr),
+    : m_graph(nullptr),
+      m_parent(nullptr),
       m_model_dir(nullptr),
       m_mode(mode),
       m_mmap_cache{mode == External_MMAP ? std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>()
                                          : nullptr},
-      m_data_holder{mode == External_Stream ? std::make_shared<std::vector<std::shared_ptr<uint8_t>>>() : nullptr},
       m_stream_cache{mode == External_Stream ? std::make_shared<std::map<std::string, std::shared_ptr<std::ifstream>>>()
-                                             : nullptr} {}
+                                             : nullptr},
+      m_data_holder{mode == External_Stream ? std::make_shared<std::vector<std::shared_ptr<uint8_t>>>() : nullptr} {}
 
 GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def) {
-    m_model_dir = parent->m_model_dir;
-    m_mmap_cache = parent->m_mmap_cache;
-    m_data_holder = parent->m_data_holder;
-    m_stream_cache = parent->m_stream_cache;
-    m_parent = parent;
-    m_model = parent->m_model;
     m_graph = graph_def;
+    m_parent = parent;
+    m_model_dir = parent->m_model_dir;
+    m_mode = parent->m_mode;
+    m_mmap_cache = parent->m_mmap_cache;
+    m_stream_cache = parent->m_stream_cache;
+    m_data_holder = parent->m_data_holder;
+    m_model = parent->m_model;
 }
 
 void GraphIteratorProto::initialize(const std::string& path) {
