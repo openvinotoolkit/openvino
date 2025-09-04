@@ -44,6 +44,7 @@ ov_add_test_target(
             Threads::Threads
             openvino::conditional_compilation
             openvino::runtime::dev
+            openvino::xml_util
         ADD_CLANG_FORMAT
         LABELS
             OV UNIT CORE

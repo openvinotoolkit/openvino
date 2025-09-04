@@ -1061,10 +1061,6 @@ bool XmlSerializer::append_node_attributes(ov::Node& node) {
     return node.visit_attributes(*this);
 }
 
-// util::ConstantWriter& XmlSerializer::get_constant_write_handler() {
-//     return m_constant_node_write_handler.get();
-// }
-
 std::string get_ir_precision_name(const element::Type& precision) {
     switch (precision) {
     case ov::element::dynamic:
