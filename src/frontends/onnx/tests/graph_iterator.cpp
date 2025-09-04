@@ -123,6 +123,6 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalMMAP) {
 
     ASSERT_EQ(iter->get_stream_cache(), nullptr);
     ASSERT_NE(iter->get_mmap_cache(), nullptr);
-    ASSERT_EQ(iter->get_mmap_cache()->size(), 1); // MMAP handle must be in cache after work finished
+    ASSERT_EQ(iter->get_mmap_cache()->size(), 1);  // MMAP handle must be in cache after work finished
     ASSERT_EQ(model->get_ordered_ops().size(), 6);
 }
