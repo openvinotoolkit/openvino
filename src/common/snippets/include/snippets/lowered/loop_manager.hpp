@@ -80,80 +80,36 @@ public:
     static std::vector<size_t> get_common_outer_loops(const std::vector<ExpressionPtr>& exprs);
 
     /**
-     * @brief Create new LoopInfo and mark all expressions in loop bounds by new loop ID
+     * @brief Automatically marks new loops, number of which is defined by `loop_depth` parameter.
+     * Loop increments for the most inner loop is defined by `vector_size` parameter.
+     * The increment for the rest loops is equal to 1.
      * @param loop_begin_pos the first expression iterator
      * @param loop_end_pos the next iterator after last expression
      * @param loop_depth count of loops for marking
-     * @param vector_size increment of loop
+     * @param vector_size increment of most-inner loop
      */
     void mark_loop(LinearIR::constExprIt loop_begin_pos,
                    LinearIR::constExprIt loop_end_pos,
                    size_t loop_depth,
                    size_t vector_size);
     /**
-     * @brief Create new UnifiedLoopInfo and mark all expressions in loop bounds by new loop ID with more manual
-     * parameters
+     * @brief Creates new UnifiedLoopInfo and marks all expressions in loop bounds by new loop ID.
      * @param loop_begin_pos the first expression iterator
      * @param loop_end_pos the next iterator after last expression
      * @param work_amount work amount of the loop
      * @param increment the step of loop counter increment
      * @param entries input loop ports
      * @param exits output loop ports
-     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or
-     * not
+     * @param set_default_handlers defines whether default set of SpecificIterationHandlers should be set
      * @return new loop ID
      */
-    template <typename T>
     size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
                      LinearIR::constExprIt loop_end_pos,
                      size_t work_amount,
                      size_t increment,
-                     const std::vector<T>& entries,
-                     const std::vector<T>& exits,
-                     bool set_default_handlers = true) {
-        const auto normalized_increment =
-            utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
-        const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits);
-        if (set_default_handlers) {
-            loop_info->set_handlers(
-                SpecificIterationHandlers(work_amount, normalized_increment, loop_info->get_dim_idx()));
-        }
-
-        const auto loop_id = this->add_loop_info(loop_info);
-        for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
-            insert_loop_id(*expr_it, loop_id);
-        }
-        return loop_id;
-    }
-    /**
-     * @brief Create new UnifiedLoopInfo and mark all expressions in loop bounds by new loop ID with more manual
-     * parameters
-     * @param loop_begin_pos the first expression iterator
-     * @param loop_end_pos the next iterator after last expression
-     * @param work_amount work amount of the loop
-     * @param increment the step of loop counter increment
-     * @param dim_idx loop iterates by this index of dimension
-     * @param entries input loop ports
-     * @param exits output loop ports
-     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or
-     *                             not
-     * @return new loop ID
-     */
-    template <typename T>
-    size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
-                     LinearIR::constExprIt loop_end_pos,
-                     size_t work_amount,
-                     size_t increment,
-                     size_t dim_idx,
-                     const std::vector<T>& entries,
-                     const std::vector<T>& exits,
-                     bool set_default_handlers = true) {
-        const auto loop_id =
-            mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
-        const auto loop_info = get_loop_info<UnifiedLoopInfo>(loop_id);
-        loop_info->set_dim_idx(dim_idx);
-        return loop_id;
-    }
+                     const std::vector<LoopPort>& entries,
+                     const std::vector<LoopPort>& exits,
+                     bool set_default_handlers = true);
     /**
      * @brief Create new Loop and replace with it: add new LoopInfo, update loop IDs in expressions and
      *        remove the old LoopInfo from the map if no one expression isn't mark by this `old_id`

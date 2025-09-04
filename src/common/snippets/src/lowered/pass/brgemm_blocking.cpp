@@ -150,8 +150,8 @@ bool BrgemmBlockingBase::mark_blocking_loops(LinearIR& linear_ir,
     }
     if (!is_full_dim_value(n_block)) {
         const std::vector<LoopPort> entries{LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_input_port(0)),
-                                            LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1))};
-        const std::vector<LoopPort> exits{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0))};
+                                            LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1), 0)};
+        const std::vector<LoopPort> exits{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 0)};
         mark_n_blocking(loop_manager, brgemm_it, std::next(brgemm_it), entries, exits, n_block);
     }
     if (!is_full_dim_value(m_block)) {
