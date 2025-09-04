@@ -165,20 +165,19 @@ TEST_F(SplitLoopsTest, BrgemmAdd) {
             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1)},
             blocking_m_loop);
         const auto add_m_split_loop_id = loop_manager->add_loop_info(add_m_split_loop);
-        blocking_m_loop->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
-        blocking_m_loop->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
+        blocking_m_loop
+            ->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
+        blocking_m_loop
+            ->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
 
-        // Note: since it's impossible to set the desired loop id during loop info creation,
-        // we have to reorder the loop ids in reference LIR to make them match the actual LIR
-        const std::map<size_t, size_t> loop_ids_mapper = {
-            {inner_add_loop_id, 0},
-            {blocking_n_loop_id, 2},
-            {blocking_m_loop_id, 3},
-            {add_m_split_loop_id, 5}
-        };
-        loop_manager->reorder_identifiers(loop_ids_mapper);
-        (*add.first)->set_loop_ids({3, 5, 0});
-        (*brgemm.first)->set_loop_ids({3, 2});
+        const std::map<ExpressionPtr, std::vector<size_t>> expr_to_loop_ids = {
+            {*add.first, {blocking_m_loop_id, add_m_split_loop_id, inner_add_loop_id}},
+            {*brgemm.first, {blocking_m_loop_id, blocking_n_loop_id}}};
+        const std::map<size_t, size_t> loop_ids_mapper = {{inner_add_loop_id, 0},
+                                                          {blocking_n_loop_id, 2},
+                                                          {blocking_m_loop_id, 3},
+                                                          {add_m_split_loop_id, 5}};
+        assign_loop_ids(expr_to_loop_ids, loop_ids_mapper);
     }
 }
 
@@ -291,20 +290,19 @@ TEST_F(SplitLoopsTest, AddBrgemm) {
             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1)},
             blocking_m_loop);
         const auto add_m_split_loop_id = loop_manager->add_loop_info(add_m_split_loop);
-        blocking_m_loop->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
-        blocking_m_loop->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
+        blocking_m_loop
+            ->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
+        blocking_m_loop
+            ->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
 
-        // Note: since it's impossible to set the desired loop id during loop info creation,
-        // we have to reorder the loop ids in reference LIR to make them match the actual LIR
-        const std::map<size_t, size_t> loop_ids_mapper = {
-            {inner_add_loop_id, 0},
-            {blocking_m_loop_id, 4},
-            {blocking_n_loop_id, 2},
-            {add_m_split_loop_id, 5}
-        };
-        loop_manager->reorder_identifiers(loop_ids_mapper);
-        (*add.first)->set_loop_ids({4, 5, 0});
-        (*brgemm.first)->set_loop_ids({4, 2});
+        const std::map<ExpressionPtr, std::vector<size_t>> expr_to_loop_ids = {
+            {*add.first, {blocking_m_loop_id, add_m_split_loop_id, inner_add_loop_id}},
+            {*brgemm.first, {blocking_m_loop_id, blocking_n_loop_id}}};
+        const std::map<size_t, size_t> loop_ids_mapper = {{inner_add_loop_id, 0},
+                                                          {blocking_m_loop_id, 4},
+                                                          {blocking_n_loop_id, 2},
+                                                          {add_m_split_loop_id, 5}};
+        assign_loop_ids(expr_to_loop_ids, loop_ids_mapper);
     }
 }
 
@@ -460,22 +458,21 @@ TEST_F(SplitLoopsTest, BrgemmAddBrgemm) {
             std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1)},
             blocking_m_loop);
         const auto add_m_split_loop_id = loop_manager->add_loop_info(add_m_split_loop);
-        blocking_m_loop->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
-        blocking_m_loop->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
+        blocking_m_loop
+            ->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
+        blocking_m_loop
+            ->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
 
-        // Note: since it's impossible to set the desired loop id during loop info creation,
-        // we have to reorder the loop ids in reference LIR to make them match the actual LIR
-        const std::map<size_t, size_t> loop_ids_mapper = {
-            {brgemm1_blocking_n_loop_id, 2},
-            {brgemm2_blocking_n2_loop_id, 4},
-            {blocking_m_loop_id, 3},
-            {inner_add_loop_id, 0},
-            {add_m_split_loop_id, 7}
-        };
-        loop_manager->reorder_identifiers(loop_ids_mapper);
-        (*brgemm1.first)->set_loop_ids({3, 2});
-        (*add.first)->set_loop_ids({3, 7, 0});
-        (*brgemm2.first)->set_loop_ids({3, 4});
+        const std::map<ExpressionPtr, std::vector<size_t>> expr_to_loop_ids = {
+            {*brgemm1.first, {blocking_m_loop_id, brgemm1_blocking_n_loop_id}},
+            {*add.first, {blocking_m_loop_id, add_m_split_loop_id, inner_add_loop_id}},
+            {*brgemm2.first, {blocking_m_loop_id, brgemm2_blocking_n2_loop_id}}};
+        const std::map<size_t, size_t> loop_ids_mapper = {{brgemm1_blocking_n_loop_id, 2},
+                                                          {brgemm2_blocking_n2_loop_id, 4},
+                                                          {blocking_m_loop_id, 3},
+                                                          {inner_add_loop_id, 0},
+                                                          {add_m_split_loop_id, 7}};
+        assign_loop_ids(expr_to_loop_ids, loop_ids_mapper);
     }
 }
 
