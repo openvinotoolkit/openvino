@@ -10,7 +10,6 @@
 
 #include "openvino/core/log_util.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 
