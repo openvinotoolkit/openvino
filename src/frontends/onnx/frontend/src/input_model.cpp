@@ -635,7 +635,7 @@ private:
 
     std::shared_ptr<GraphIterator> m_graph_iterator;
     const ov::frontend::InputModel& m_input_model;
-    ov::frontend::onnx::unify::InputModel* m_parent_model;
+    // ov::frontend::onnx::unify::InputModel* m_parent_model; //  For future use
     std::vector<std::shared_ptr<ov::frontend::onnx::unify::InputModel>> m_subgraphs;
     std::shared_ptr<TelemetryExtension> m_telemetry;
     bool m_enable_mmap;
@@ -759,7 +759,7 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
                                                    const bool enable_mmap)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
-      m_parent_model(nullptr),
+      // m_parent_model(nullptr),
       m_enable_mmap(enable_mmap) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     if (m_enable_mmap) {
@@ -778,7 +778,7 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
                                                    const bool enable_mmap)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
-      m_parent_model(nullptr),
+      // m_parent_model(nullptr),
       m_telemetry(telemetry),
       m_enable_mmap(enable_mmap) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
@@ -797,7 +797,7 @@ InputModel::InputModelONNXImpl::InputModelONNXImpl(const GraphIterator::Ptr& gra
                                                    unify::InputModel* parent_model)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
-      m_parent_model(parent_model),
+      // m_parent_model(parent_model),
       m_telemetry(parent_model->_impl->get_telemetry_extension()),
       m_enable_mmap(parent_model->is_enabled_mmap()),
       m_mmap_cache(parent_model->_impl->m_mmap_cache),
