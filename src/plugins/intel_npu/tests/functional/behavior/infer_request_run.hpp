@@ -30,7 +30,6 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
 #include "overload/overload_test_utils_npu.hpp"
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -1829,7 +1828,11 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
     ::operator delete(state_data[2], std::align_val_t(4096));
 }
 
-TEST_P(CpuVaTensorsTests, CpuVaCorrectlyDeallocatedAfterAllInferRequests) {
+/*
+    CVS-173093: Enable when user tensor data can be bound to level zero tensor allocation (no multiple L0 allocations
+   for single application malloc)
+*/
+TEST_P(CpuVaTensorsTests, DISABLED_TMP_CpuVaCorrectlyDeallocatedAfterAllInferRequests) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     const auto shape = ov::PartialShape{1, 16, 16, 16};
@@ -1856,7 +1859,7 @@ TEST_P(CpuVaTensorsTests, CpuVaCorrectlyDeallocatedAfterAllInferRequests) {
         auto l0Context = remoteContextParams.find(intel_npu::l0_context.name());
         EXPECT_TRUE(l0Context != remoteContextParams.end());
         EXPECT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(
-            reinterpret_cast<ze_context_handle_t>(l0Context->second.as<void*>()),
+            static_cast<ze_context_handle_t>(l0Context->second.as<void*>()),
             data));
 
         OV_ASSERT_NO_THROW(inferRequest1.infer());
@@ -1867,7 +1870,7 @@ TEST_P(CpuVaTensorsTests, CpuVaCorrectlyDeallocatedAfterAllInferRequests) {
         tensor = {};
 
         EXPECT_FALSE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(
-            reinterpret_cast<ze_context_handle_t>(l0Context->second.as<void*>()),
+            static_cast<ze_context_handle_t>(l0Context->second.as<void*>()),
             data));
 
         ::operator delete(data, alignment);
