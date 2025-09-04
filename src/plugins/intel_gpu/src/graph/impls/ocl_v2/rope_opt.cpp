@@ -154,7 +154,7 @@ protected:
                     auto y = extract_channel(ChannelName::Y, out_l);
                     wgs.global = {b, f, y * cfg.rotary_ndims / 2ul / vec_size};
                     if (cfg.support_3d_rope) {
-                        wgs.global = {b , f, cfg.rotary_ndims / 2ul / vec_size};
+                        wgs.global = {b, f, cfg.rotary_ndims / 2ul / vec_size};
                     }
                 }
 
