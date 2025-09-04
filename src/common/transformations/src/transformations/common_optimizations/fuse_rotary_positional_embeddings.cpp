@@ -428,68 +428,6 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
     this->register_matcher(m, callback);
 }
 
-// ov::pass::RoPEFusionVIT3D::RoPEFusionVIT3D() {
-//     using namespace ov::op;
-//     MATCHER_SCOPE(RoPEFusionVIT3D);
-//
-//     auto x = pattern::any_input(pattern::rank_equals(4));
-//     auto x_or_cos1 = pattern::any_input(pattern::rank_equals(3));
-//     auto x_or_cos2 = pattern::any_input(pattern::rank_equals(3));
-//     auto t_sin = pattern::any_input(pattern::rank_equals(3));
-//
-//     auto x2 = ov::op::util::NewGenSlice(x, "half_ndims", int32_max, 1, 2);
-//     auto x2neg = pattern::wrap_type<v1::Multiply>({x2, -1.0f}, {{"auto_broadcast", "numpy"}});
-//     auto x1 = ov::op::util::NewGenSlice(x, 0, "half_ndims", 1, 2);
-//     auto x_rotate_half = pattern::wrap_type<v0::Concat>({x2neg, x1}, {{"axis", -1}});
-//
-//     auto mul_cos = pattern::wrap_type<v1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
-//     auto mul_sin = pattern::wrap_type<v1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
-//     auto result = pattern::wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
-//
-//     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-//         const auto& pattern_map = m.get_pattern_value_map();
-//         auto root = m.get_match_root();
-//
-//         Output<Node> v_cos;
-//         if (pattern_map.at(x_or_cos1) == pattern_map.at(x)) {
-//             v_cos = pattern_map.at(x_or_cos2);
-//         } else if (pattern_map.at(x_or_cos2) == pattern_map.at(x)) {
-//             v_cos = pattern_map.at(x_or_cos1);
-//         } else {
-//             return false;
-//         }
-//
-//         auto symbols = m.get_symbols();
-//         auto half_ndims = symbols["half_ndims"];
-//         if (!half_ndims.is_integer()) {
-//             return false;
-//         }
-//
-//         op::internal::RoPE::Config config;
-//         OutputVector new_args;
-//         config.rotary_ndims = 2ul * static_cast<size_t>(half_ndims.i());
-//
-//         new_args.push_back(pattern_map.at(x));
-//         new_args.push_back(v_cos);
-//         new_args.push_back(pattern_map.at(t_sin));
-//         auto old_node = root;
-//         auto new_node = std::make_shared<internal::RoPE>(new_args, config);
-//         new_node->set_friendly_name(old_node->get_friendly_name());
-//         ov::copy_runtime_info({pattern_map.at(x2neg).get_node_shared_ptr(),
-//                                pattern_map.at(x_rotate_half).get_node_shared_ptr(),
-//                                pattern_map.at(mul_cos).get_node_shared_ptr(),
-//                                pattern_map.at(mul_sin).get_node_shared_ptr(),
-//                                pattern_map.at(result).get_node_shared_ptr()},
-//                               new_node);
-//         ov::replace_node(old_node, new_node);
-//         register_new_node(new_node);
-//         return true;
-//     };
-//
-//     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
-//     this->register_matcher(m, callback);
-// }
-
 ov::pass::RoPEFusionVIT3D::RoPEFusionVIT3D() {
     using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionVIT3D);
