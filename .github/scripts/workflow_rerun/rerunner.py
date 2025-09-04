@@ -109,12 +109,6 @@ if __name__ == '__main__':
         else:
             LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
 
-        # Needed to run a step after for statistics
-        with open(file=os.environ['GITHUB_ENV'],
-                  mode='a') as fh:
-            fh.write('PIPELINE_RETRIGGERED=true\n')
-            fh.write(f'FOUND_ERROR_TICKET={log_analyzer.found_error_ticket}\n')
-
         # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
         sys.exit(not status)
     else:
