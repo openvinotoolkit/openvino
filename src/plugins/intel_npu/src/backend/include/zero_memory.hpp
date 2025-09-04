@@ -38,7 +38,7 @@ public:
      * @param handle Pointer to allocated data
      * @return false if handle cannot be released, otherwise - true.
      */
-    bool deallocate(void* handle, const size_t bytes, size_t alignment = utils::STANDARD_PAGE_SIZE) noexcept;
+    virtual bool deallocate(void* handle, const size_t bytes, size_t alignment = utils::STANDARD_PAGE_SIZE) noexcept;
 
     bool is_equal(const HostMemAllocator& other) const;
 

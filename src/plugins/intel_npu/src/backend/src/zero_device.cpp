@@ -169,8 +169,23 @@ ov::device::Type ZeroDevice::getDeviceType() const {
     return ov::device::Type::INTEGRATED;
 }
 
-std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
+std::shared_ptr<ov::IInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
-    const Config& config) {
-    return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
+    const Config& config,
+    std::function<void(void)>& inferAsyncF,
+    std::function<void(void)>& getResultF) {
+    auto inferRequest = std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
+    inferAsyncF = [&inferRequest]() {
+        if (!inferRequest) {
+            OPENVINO_THROW("ZeroInferRequest object was destroyed!");
+        }
+        inferRequest->infer_async();
+    };
+    getResultF = [&inferRequest]() {
+        if (!inferRequest) {
+            OPENVINO_THROW("ZeroInferRequest object was destroyed!");
+        }
+        inferRequest->get_result();
+    };
+    return inferRequest;
 }
