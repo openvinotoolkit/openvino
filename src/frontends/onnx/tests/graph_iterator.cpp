@@ -63,17 +63,39 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
 
 #include "../frontend/src/core/graph_iterator_proto.hpp"
 
-TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
-    // const std::string model_name = "abs.onnx";
-    // const std::string model_name = "add_abc.onnx";
-    // const std::string model_name = "div.onnx";
-    // const std::string model_name = "model_editor/subgraph_extraction_tests.onnx";
-    // const std::string model_name = "controlflow/if_branches_with_same_inputs.onnx";
-    // const std::string model_name = "controlflow/if_inside_if.onnx";
-    // const std::string model_name = "cum_sum_2d_axis_input_1d.onnx";
-    // const std::string model_name = "cum_sum_2d_axis_input.onnx";
-    // const std::string model_name = "reduce_sum_13_axes_as_constant.onnx";
-    // const std::string model_name = "aten_embedding_sum_packed_4in_per_sample_weights.onnx";
+TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalStreams) {
+    const std::string model_name = "external_data/external_data.onnx";
+    const auto path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
+
+    ov::frontend::FrontEnd::Ptr fe;
+
+    auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_Stream);
+    iter->initialize(path);
+    iter->reset();
+
+    auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework("onnx"))
+        << "Could not create the ONNX FE using a pointer GraphIterator";
+    ASSERT_NE(m_frontEnd, nullptr);
+
+    ASSERT_EQ(m_frontEnd->supported(graph_iter), true);
+
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(graph_iter)) << "Could not load the model";
+    ASSERT_NE(m_inputModel, nullptr);
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
+    ASSERT_NE(model, nullptr);
+
+    ASSERT_EQ(iter->get_mmap_cache(), nullptr);
+    ASSERT_NE(iter->get_stream_cache(), nullptr);
+    ASSERT_EQ(iter->get_stream_cache()->size(), 0);  // All streams must be closed after work
+    ASSERT_EQ(model->get_ordered_ops().size(), 6);
+}
+
+TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalMMAP) {
     const std::string model_name = "external_data/external_data.onnx";
     const auto path =
         ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, model_name}).string();
@@ -99,7 +121,8 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
     ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
     ASSERT_NE(model, nullptr);
 
-    ov::serialize(model, "e:/test.xml");
-
-    ASSERT_GE(model->get_ordered_ops().size(), 1);
+    ASSERT_EQ(iter->get_stream_cache(), nullptr);
+    ASSERT_NE(iter->get_mmap_cache(), nullptr);
+    ASSERT_EQ(iter->get_mmap_cache()->size(), 1); // MMAP handle must be in cache after work finished
+    ASSERT_EQ(model->get_ordered_ops().size(), 6);
 }
