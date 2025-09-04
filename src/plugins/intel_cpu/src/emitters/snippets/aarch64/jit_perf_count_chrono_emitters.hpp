@@ -46,9 +46,6 @@ public:
     size_t get_inputs_count() const override {
         return 0;
     }
-    size_t get_aux_gprs_count() const override {
-        return 1;
-    }
 
 private:
     void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const override;
