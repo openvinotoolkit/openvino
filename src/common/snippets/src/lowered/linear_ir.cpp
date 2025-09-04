@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -578,21 +579,19 @@ double LinearIR::get_inserted_expr_exec_num(constExprIt insertion_pos) const {
         if (right_pos->get()->get_exec_num() == -1 * std::numeric_limits<double>::max()) {
             enumerate_expressions();
         }
-        return right_pos->get()->get_exec_num() - 1;
+        return std::nextafter(right_pos->get()->get_exec_num(), -std::numeric_limits<double>::infinity());
     }
     if (right_pos == cend()) {  // On the list end
         if (left_pos->get()->get_exec_num() == std::numeric_limits<double>::max()) {
             enumerate_expressions();
         }
-        return left_pos->get()->get_exec_num() + 1;
+        return std::nextafter(left_pos->get()->get_exec_num(), std::numeric_limits<double>::infinity());
     }  // In the list middle
     left_order = left_pos->get()->get_exec_num();
     right_order = right_pos->get()->get_exec_num();
     OPENVINO_ASSERT(right_order > left_order, "Incorrect expression enumeration!");
 
-    // sync point to enumerate expressions
-    // 10 * eps - is to avoid meaningless result after (right_order + left_order) / 2 below
-    if (std::abs(1 - left_order / right_order) <= 10 * std::numeric_limits<double>::epsilon()) {
+    if (std::nextafter(left_order, right_order) >= right_order) {
         enumerate_expressions();
         left_order = left_pos->get()->get_exec_num();
         right_order = right_pos->get()->get_exec_num();
