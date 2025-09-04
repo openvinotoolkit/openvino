@@ -119,8 +119,8 @@ def test_properties_rw_base():
         (
             intel_cpu.TbbPartitioner,
             (
-                (intel_cpu.TbbPartitioner.STATIC, "TbbPartitioner.STATIC", 0),
-                (intel_cpu.TbbPartitioner.AUTO, "TbbPartitioner.AUTO", 1),
+                (intel_cpu.TbbPartitioner.STATIC, "TbbPartitioner.STATIC", 1),
+                (intel_cpu.TbbPartitioner.AUTO, "TbbPartitioner.AUTO", 2),
             ),
         ),
         (
