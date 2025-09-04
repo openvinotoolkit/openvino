@@ -37,6 +37,20 @@ bool SplitLoops::can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const Uni
 
 bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SplitLoops")
+    auto can_be_fused_after_splitting =
+        [](const UnifiedLoopInfoPtr& parent_loop, const UnifiedLoopInfoPtr& loop, bool split_parent) {
+        // Note: we make a copy of loop infos to imitate the successfull splitting
+        // and check if such loops could be fused
+        const auto upper_loop = std::make_shared<UnifiedLoopInfo>(*parent_loop);
+        const auto lower_loop = std::make_shared<UnifiedLoopInfo>(*loop);
+        if (split_parent) {
+            upper_loop->set_increment(loop->get_increment());
+        } else {
+            lower_loop->set_increment(parent_loop->get_increment());
+        }
+        return FuseLoops::can_be_fused(upper_loop, lower_loop);
+    };
+
     const auto& loop_manager = linear_ir.get_loop_manager();
     bool loop_was_split = false;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
@@ -62,20 +76,15 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
 
             const auto& parent_loop_id = parent_loop_ids.front();
             const auto parent_loop = loop_manager->get_loop_info<UnifiedLoopInfo>(parent_loop_id);
-
             const bool split_parent = parent_loop->get_increment() < loop->get_increment();
-            const auto upper_loop = std::make_shared<UnifiedLoopInfo>(*parent_loop);
-            const auto lower_loop = std::make_shared<UnifiedLoopInfo>(*loop);
-            if (split_parent) {
-                upper_loop->set_increment(loop->get_increment());
-            } else {
-                lower_loop->set_increment(parent_loop->get_increment());
+            // We don't split loop which are not compatible with parent loop because such loops will not be fused
+            if (!can_be_fused_after_splitting(parent_loop, loop, split_parent)) {
+                continue;
             }
 
             const auto& loop_to_split = split_parent ? parent_loop : loop;
             const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
-            // We don't split loop which are not compatible with parent loop because such loops will not be fused
-            if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
+            if (can_be_split(loop_to_split, loop_to_fuse)) {
                 split(linear_ir, split_parent ? parent_loop_id : loop_id, loop_to_fuse->get_increment());
                 loop_was_split = true;
                 break;
