@@ -32,7 +32,8 @@ struct ConvAttrs {
     // @todo can we just check for port precisions instead?
     bool isGraphQuantized = false;
     bool fcSemantic = false;
-    bool nonConstantWeights = false;
+    // there are models with non-constant weights
+    bool constantWeights = true;
     ZeroPointsType inputZeroPointsType = ZeroPointsType::None;
     std::vector<float> dqScales;
 
