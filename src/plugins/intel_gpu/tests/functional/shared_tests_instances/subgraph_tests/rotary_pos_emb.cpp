@@ -14,6 +14,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestFlux,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RoPETestFlux::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_RoPEQwenVL,
+                         RoPETestQwenVL,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         RoPETestQwenVL::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                          RoPETestChatGLMStridedSlice,
                          ::testing::Combine(
