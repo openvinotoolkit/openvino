@@ -42,7 +42,7 @@ sphinx==7.3.7; python_version < "3.10"
 sphinx-copybutton==0.5.2
 sphinx-design==0.5.0
 sphinx-inline-tabs==2023.4.21
-sphinx-sitemap==2.6.0
+sphinx-sitemap==2.8.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
 sphinxcontrib-htmlhelp==2.1.0
