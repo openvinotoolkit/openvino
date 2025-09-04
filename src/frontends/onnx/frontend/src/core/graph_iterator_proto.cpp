@@ -126,7 +126,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
                 new std::ifstream(full_path.c_str(), std::ios::binary | std::ios::in | std::ios::ate),
                 [](std::ifstream* p) {
                     p->close();
-                    delete[] p;
+                    delete p;
                 }};
             (*cache)[full_path] = external_data_stream;
         }
