@@ -39,11 +39,6 @@ public:
     SplitLoops() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
-private:
-    static bool can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const UnifiedLoopInfoPtr& loop_to_fuse);
-
-    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment);
-
     /**
      * @interface TransformInnerSplitLoop
      * @brief The pass replace existing inner splitted LoopInfo with new InnerSplittedUnifiedLoopInfo and
@@ -57,6 +52,10 @@ private:
         bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
         std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
     };
+
+private:
+    static bool can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const UnifiedLoopInfoPtr& loop_to_fuse);
+    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment);
 };
 
 }  // namespace ov::snippets::lowered::pass
