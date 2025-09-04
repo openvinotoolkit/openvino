@@ -458,7 +458,13 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel) {
     runParallel(
         [&]() {
             auto value = counter++;
+            try {
             (void)core.compile_model(models[value % models.size()], target_device);
+            }
+            catch (const ov::Exception& ex) {
+                std::cout << "Error at iteration: " << value << " \nError is: " << ex.what() << "\n";
+                throw std::runtime_error("CoreThreading failed!");
+            }
         },
         numIterations,
         numThreads);
