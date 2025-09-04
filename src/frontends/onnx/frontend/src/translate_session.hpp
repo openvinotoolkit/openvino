@@ -32,12 +32,21 @@ public:
         return m_tensor_values;
     }
 
+    void set_fail_fast(const bool fail_fast) {
+        m_fail_fast = fail_fast;
+    }
+
+    bool get_fail_fast() const {
+        return m_fail_fast;
+    }
+
 private:
     const ov::frontend::InputModel::Ptr m_input_model;
     const std::shared_ptr<OperatorsBridge> m_translator_map;
     const std::string m_model_name;
     std::shared_ptr<ov::Model> m_ov_model;
     std::map<std::string, Output<ov::Node>> m_tensor_values;
+    bool m_fail_fast;
 };
 }  // namespace onnx
 }  // namespace frontend

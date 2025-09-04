@@ -6,6 +6,7 @@
 
 #include "core/null_node.hpp"
 #include "input_model.hpp"
+#include "onnx_framework_node.hpp"
 #include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "ops_bridge.hpp"
@@ -19,7 +20,8 @@ TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_mo
     : m_input_model(input_model),
       m_translator_map(translator_map),
       m_model_name(model_name),
-      m_ov_model(nullptr) {}
+      m_ov_model(nullptr),
+      m_fail_fast(false) {}
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {
@@ -120,33 +122,55 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         ov::OutputVector ov_outputs(out_size);
         const Operator* translator =
             translate_map.get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
+        ov::frontend::onnx::Node node_context(*decoder, this);
+        std::string error_message{};
         try {
-            FRONT_END_OP_CONVERSION_CHECK(
-                translator != nullptr,
-                "No translator found for " + decoder->get_domain() + " " + decoder->get_op_type() + " node.");
-            // const NodeProto* node_def = nullptr;
-            // decoder->experimental_get_internal_structures(reinterpret_cast<const void**>(&node_def));
-            ov::frontend::onnx::Node node_context(*decoder, this);
-            ov_outputs = (*translator)(node_context);
+            if (translator == nullptr) {
+                ov_outputs = std::make_shared<ov::frontend::onnx::ONNXFrameworkNode>(node_context)->outputs();
+            } else {
+                ov_outputs = (*translator)(node_context);
+            }
             for (size_t idx = 0; idx < ov_outputs.size() && idx < out_size; ++idx) {
                 const std::string& out_name = decoder->get_output_tensor_name(idx);
                 ov_outputs[idx].set_names({out_name});
                 ov_outputs[idx].get_node()->set_friendly_name(out_name);
             }
+        } catch (const ::ov::frontend::onnx::error::OnnxNodeValidationFailure& e) {
+            error_message = e.what();
+        } catch (const std::exception& exc) {
+            error_message = error::detail::get_error_msg_prefix(node_context);
+            error_message += ": " + std::string{exc.what()};
         } catch (...) {
-            throw;
-            /*
-            if (fail_fast) {
-                if (m_telemetry && translator == nullptr) {
-                    m_telemetry->send_event("error_cause", "onnx_" + decoder->get_op_type());
+            error_message = error::detail::get_error_msg_prefix(node_context);
+            // Since we do not know anything about current exception data type we can only
+            // notify user in this way.
+            error_message += "Unhandled exception type. \n";
+        }
+        if (!error_message.empty()) {
+            auto telemetry = model_onnx->get_telemetry_extension();
+            if (m_fail_fast) {
+                if (telemetry && translator == nullptr) {
+                    telemetry->send_event("error_cause", "onnx_" + decoder->get_op_type());
                 }
-            } else
-            {
-                auto operation = std::make_shared<ov::frontend::onnx::FrameworkNode>(decoder, inputs, out_size);
+                throw;
+            } else {
+                if (telemetry && !error_message.empty()) {
+                    std::string onnx_domain = decoder->get_domain();
+                    uint64_t opset_version = decoder->get_op_set();
+                    error_message = "[ONNX Frontend] Conversion failed for " +
+                                    (onnx_domain != "" ? "***." + decoder->get_op_type() + "-X"
+                                                       : decoder->get_op_type() + "-" + std::to_string(opset_version)) +
+                                    "\n" + error_message;
+                }
+                auto operation =
+                    std::make_shared<ov::frontend::onnx::NotSupportedONNXNode>(node_context.get_ov_inputs(),
+                                                                               decoder->get_output_size(),
+                                                                               decoder->get_domain(),
+                                                                               decoder->get_op_type(),
+                                                                               error_message);
                 operation->set_friendly_name(decoder->get_op_name());
                 ov_outputs = operation->outputs();
             }
-            */
         }
         for (size_t i = 0; i < ov_outputs.size() && i < decoder->get_output_size(); ++i) {
             const auto& name = decoder->get_output_tensor_name(i);

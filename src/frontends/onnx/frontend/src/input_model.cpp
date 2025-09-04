@@ -978,6 +978,10 @@ void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& i
     _impl->extract_subgraph(inputs, outputs);
 }
 
+std::shared_ptr<TelemetryExtension> InputModel::get_telemetry_extension() {
+    return _impl->get_telemetry_extension();
+}
+
 bool InputModel::is_enabled_mmap() const {
     return _impl->is_enabled_mmap();
 }

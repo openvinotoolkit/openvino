@@ -32,8 +32,8 @@ protected:
 
     void translate_graph(const InputModel::Ptr& model,
                          bool fail_fast,
-                         bool no_conversion,
-                         std::shared_ptr<ov::Model>& ng_function) const;
+                         bool /* no_conversion */,  // future use
+                         std::shared_ptr<ov::Model>& ov_model) const;
     std::shared_ptr<ov::Model> convert_unify(const InputModel::Ptr& model) const;
     std::shared_ptr<ov::Model> convert_partially_unify(const InputModel::Ptr& input_model) const;
     std::shared_ptr<ov::Model> decode_unify(const InputModel::Ptr& input_model) const;

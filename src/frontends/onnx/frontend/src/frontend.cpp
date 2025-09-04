@@ -332,22 +332,14 @@ std::shared_ptr<ov::Model> FrontEnd::convert_unify(const InputModel::Ptr& input_
         return ov_model;
     }
 
-    translate_graph(input_model, true, false, ov_model);
-    normalize(ov_model);
+    translate_graph(input_model, false, false, ov_model);
 
-    for (const auto& node : ov_model->get_ordered_ops()) {
-        if (const auto& fw_node = ov::as_type_ptr<ov::frontend::onnx::ONNXFrameworkNode>(node)) {
-            /*
-            auto op_type = fw_node->get_decoder()->get_op_type();
-            auto op_name = fw_node->get_decoder()->get_op_name();
-            FRONT_END_OP_CONVERSION_CHECK(false,
-                                          "The translation is incomplete due to operation ",
-                                          op_name,
-                                          " of type ",
-                                          op_type);
-                                          */
-        }
+    std::stringstream error_messages;
+    if (ov::frontend::onnx::common::collect_translation_exceptions(ov_model, m_extensions.telemetry, &error_messages)) {
+        FRONT_END_THROW(error_messages.str());
     }
+
+    normalize(ov_model);
     return ov_model;
 }
 
@@ -363,25 +355,28 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially_unify(const InputModel::P
         return function;
     }
 
-    std::shared_ptr<ov::Model> f;
-    translate_graph(input_model, false, false, f);
-    normalize(f);
-    return f;
+    std::shared_ptr<ov::Model> ov_model;
+    translate_graph(input_model, false, false, ov_model);
+
+    ov::frontend::onnx::common::collect_translation_exceptions(ov_model, m_extensions.telemetry);
+
+    normalize(ov_model);
+    return ov_model;
 }
 void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
                                bool fail_fast,
-                               bool no_conversion,
-                               std::shared_ptr<ov::Model>& ov_function) const {
+                               bool /* no_conversion */,
+                               std::shared_ptr<ov::Model>& ov_model) const {
     auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
     auto translators_map = std::make_shared<OperatorsBridge>();
     TranslateSession translate_session(input_model, translators_map, "model_name");
+    translate_session.set_fail_fast(fail_fast);
     try {
-        ov_function = translate_session.get_converted_model();
+        ov_model = translate_session.get_converted_model();
     } catch (const std::exception& e) {
         throw e;
     }
-    normalize(ov_function);
     return;
 }
 

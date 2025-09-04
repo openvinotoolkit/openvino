@@ -143,8 +143,9 @@ public:
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                           const std::vector<ov::frontend::Place::Ptr>& outputs) override;
 
-    bool is_enabled_mmap() const;
+    std::shared_ptr<TelemetryExtension> get_telemetry_extension();
 
+    bool is_enabled_mmap() const;
     detail::MappedMemoryHandles get_mmap_cache() const;
     detail::LocalStreamHandles get_stream_cache() const;
 };
