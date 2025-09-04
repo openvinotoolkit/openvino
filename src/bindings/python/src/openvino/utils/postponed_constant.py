@@ -47,8 +47,8 @@ class PostponedConstant(Op):
         self.m_maker = maker
         if name is not None:
             self.friendly_name = name
-        
-        if hasattr(self.m_maker, "__call__") and hasattr(self.m_maker.__call__, "__code__") and self.m_maker.__call__.__code__.co_argcount > 1:
+
+        if callable(self.m_maker) and hasattr(self.m_maker.__call__, "__code__") and self.m_maker.__call__.__code__.co_argcount > 1:
             from openvino._pyopenvino.util import deprecation_warning
             deprecation_warning(
                 "PostponedConstant.__init__ with Callable[[Tensor], None]",
@@ -56,7 +56,7 @@ class PostponedConstant(Op):
                 "Please use PostponedConstant's 'maker' argument as Callable[[], Tensor] instead of Callable[[Tensor], None].",
                 3
             )
-            
+
         self.constructor_validate_and_infer_types()
 
     def evaluate(self, outputs: TensorVector, _: list[Tensor]) -> bool:  # type: ignore
