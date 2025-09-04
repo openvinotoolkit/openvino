@@ -1296,6 +1296,31 @@ std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor& tensor, const std::st
     return outputDebatchedTensors;
 }
 
+using BlobTestMethod = std::function<bool(const ov::Tensor&, const ov::Tensor&)>;
+bool test_blobs_in_batch(const std::string &tensorName,
+                          const std::list<ov::Tensor> &outputDebatchedTensors,
+                          const std::list<ov::Tensor> &referenceDebatchedTensors,
+                          BlobTestMethod testTensors) {
+    OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
+    auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
+    auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
+    for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
+         outputDebatchedTensorIterator != outputDebatchedTensors.end();
+         ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
+        if (batchBundleSize != 1) {
+            std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
+        } else {
+            std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
+        }
+
+        if (!testTensors(*outputDebatchedTensorIterator, *referenceDebatchedTensorIterator)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 //
 // Classification mode
 //
@@ -1467,26 +1492,13 @@ bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, 
         auto referenceTensorIterator = referenceTensors.find(tensorName);
         OPENVINO_ASSERT(referenceTensorIterator != referenceTensors.end());
 
-        std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(outputTensor, tensorName, outputLayouts);
-        std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referenceTensorIterator->second, tensorName, outputLayouts);
-        OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
-
-        auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
-        auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
-        for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
-             outputDebatchedTensorIterator != outputDebatchedTensors.end();
-             ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
-            if (batchBundleSize != 1) {
-                std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
-            } else {
-                std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
-            }
-            if (!compareTensors(*outputDebatchedTensorIterator, *referenceDebatchedTensorIterator)) {
-                return false;
-            }
+        if (!test_blobs_in_batch(tensorName,
+                                  splitBatchedTensor(outputTensor, tensorName, outputLayouts),
+                                  splitBatchedTensor(referenceTensorIterator->second, tensorName, outputLayouts),
+                                  compareTensors)) {
+            return false;
         }
     }
-
     return true;
 }
 
@@ -1547,23 +1559,11 @@ bool testCoSim(const TensorMap& outputs, const TensorMap& references, const Layo
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
-        std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
-        std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
-        OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
-
-        auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
-        auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
-        for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
-             outputDebatchedTensorIterator != outputDebatchedTensors.end();
-             ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
-            if (batchBundleSize != 1) {
-                std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
-            } else {
-                std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
-            }
-            if (!compareCoSim(*outputDebatchedTensorIterator, *referenceDebatchedTensorIterator)) {
-                return false;
-            }
+        if (!test_blobs_in_batch(tensorName,
+                                  splitBatchedTensor(output, tensorName, outputLayouts),
+                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                  compareCoSim)) {
+            return false;
         }
     }
 
@@ -1632,23 +1632,11 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
 
-        std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
-        std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
-        OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
-
-        auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
-        auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
-        for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
-             outputDebatchedTensorIterator != outputDebatchedTensors.end();
-             ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
-            if (batchBundleSize != 1) {
-                std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
-            } else {
-                std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
-            }
-            if (!computeRRMSE(*outputDebatchedTensorIterator, *referenceDebatchedTensorIterator)) {
-                return false;
-            }
+        if (!test_blobs_in_batch(tensorName,
+                                 splitBatchedTensor(output, tensorName, outputLayouts),
+                                 splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                 computeRRMSE)) {
+            return false;
         }
     }
 
@@ -1747,40 +1735,33 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
         OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
 
-        auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
-        auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
-        for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
-             outputDebatchedTensorIterator != outputDebatchedTensors.end();
-             ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
+        BlobTestMethod blobComparator = [applySoftMax] (ov::Tensor outputTensor, ov::Tensor referenceTensor) {
+                                        if (applySoftMax) {
+                                            std::vector<float> actOutput;
+                                            std::vector<float> refOutput;
 
+                                            std::copy_n((npu::utils::toFP32(outputTensor)).data<const float>(), outputTensor.get_size(),
+                                                std::back_insert_iterator(actOutput));
+                                            std::copy_n((npu::utils::toFP32(referenceTensor)).data<const float>(), referenceTensor.get_size(),
+                                                std::back_insert_iterator(refOutput));
 
-            if (applySoftMax) {
-                std::vector<float> actOutput;
-                std::vector<float> refOutput;
+                                            auto actSoftMax = softmax(actOutput);
+                                            auto refSoftMax = softmax(refOutput);
 
-                std::copy_n((npu::utils::toFP32(*outputDebatchedTensorIterator)).data<const float>(), outputDebatchedTensorIterator->get_size(), std::back_insert_iterator(actOutput));
-                std::copy_n((npu::utils::toFP32(*referenceDebatchedTensorIterator)).data<const float>(), referenceDebatchedTensorIterator->get_size(),
-                    std::back_insert_iterator(refOutput));
-
-                auto actSoftMax = softmax(actOutput);
-                auto refSoftMax = softmax(refOutput);
-
-                std::copy_n(actSoftMax.begin(), outputDebatchedTensorIterator->get_size(),
-                            outputDebatchedTensorIterator->data<float>());
-                // Why reference data is not updated?
-                std::copy_n(refSoftMax.begin(),
-                            referenceDebatchedTensorIterator->get_size(),
-                            const_cast<float*>(referenceDebatchedTensorIterator->data<float>()));
-            }
-
-            if (batchBundleSize != 1) {
-                std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
-            } else {
-                std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
-            }
-            if (!computeNRMSE(*outputDebatchedTensorIterator, *referenceDebatchedTensorIterator)) {
-                return false;
-            }
+                                            std::copy_n(actSoftMax.begin(), outputTensor.get_size(),
+                                                        outputTensor.data<float>());
+                                            // Why reference data is not updated?
+                                            std::copy_n(refSoftMax.begin(),
+                                                        referenceTensor.get_size(),
+                                                        const_cast<float*>(referenceTensor.data<float>()));
+                                        }
+                                        return computeNRMSE(outputTensor, referenceTensor);
+                                    };
+        if (!test_blobs_in_batch(tensorName,
+                                  splitBatchedTensor(output, tensorName, outputLayouts),
+                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                  blobComparator)) {
+            return false;
         }
     }
 
@@ -1958,31 +1939,17 @@ bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
     auto referencesIterator = references.find(tensorName);
     OPENVINO_ASSERT(referencesIterator != references.end());
 
-    std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
-    std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
-    OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
-
-    auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
-    auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
-    for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
-         outputDebatchedTensorIterator != outputDebatchedTensors.end();
-         ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
-        if (batchBundleSize != 1) {
-            std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
-        } else {
-            std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
-        }
-
-        auto parsedOutput = utils::parseSSDOutput(*outputDebatchedTensorIterator, imgWidth, imgHeight, static_cast<float>(confThresh));
-        auto parsedReference = utils::parseSSDOutput(*referenceDebatchedTensorIterator, imgWidth, imgHeight, static_cast<float>(confThresh));
-
-
-        if(!checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
-                                static_cast<float>(probTolerance))) {
-            return false;
-        }
-    }
-    return true;
+    BlobTestMethod blobComparator =
+    [imgWidth, imgHeight, confThresh, probTolerance, boxTolerance] (const ov::Tensor &outputTensor, const ov::Tensor &referenceTensor) {
+        auto parsedOutput = utils::parseSSDOutput(outputTensor, imgWidth, imgHeight, static_cast<float>(confThresh));
+        auto parsedReference = utils::parseSSDOutput(referenceTensor, imgWidth, imgHeight, static_cast<float>(confThresh));
+        return checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
+                                static_cast<float>(probTolerance));
+    };
+    return test_blobs_in_batch(tensorName,
+                                splitBatchedTensor(output, tensorName, outputLayouts),
+                                splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                blobComparator);
 }
 
 //
@@ -2007,32 +1974,16 @@ bool testYoloV2(const TensorMap& outputs, const TensorMap& references, const Ten
     auto referencesIterator = references.find(tensorName);
     OPENVINO_ASSERT(referencesIterator != references.end());
 
-    std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
-    std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
-    OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
-
-    auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
-    auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
-    for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
-         outputDebatchedTensorIterator != outputDebatchedTensors.end();
-         ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
-        if (batchBundleSize != 1) {
-            std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
-        } else {
-            std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
-        }
-
-        auto parsedOutput = utils::parseYoloOutput(npu::utils::toFP32(*outputDebatchedTensorIterator), imgWidth, imgHeight,
-                                                   static_cast<float>(confThresh), isTiny);
-        auto parsedReference = utils::parseYoloOutput(npu::utils::toFP32(*referenceDebatchedTensorIterator), imgWidth, imgHeight,
-                                                      static_cast<float>(confThresh), isTiny);
-
-        if(!checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
-                                   static_cast<float>(probTolerance))) {
-            return false;
-        }
-    }
-    return true;
+    BlobTestMethod blobComparator = [imgWidth, imgHeight, confThresh, probTolerance, boxTolerance, isTiny] (const ov::Tensor &outputTensor, const ov::Tensor &referenceTensor) {
+        auto parsedOutput = utils::parseYoloOutput(npu::utils::toFP32(outputTensor), imgWidth, imgHeight, static_cast<float>(confThresh), isTiny);
+        auto parsedReference = utils::parseYoloOutput(npu::utils::toFP32(referenceTensor), imgWidth, imgHeight, static_cast<float>(confThresh), isTiny);
+        return checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
+                                static_cast<float>(probTolerance));
+    };
+    return test_blobs_in_batch(tensorName,
+                                splitBatchedTensor(output, tensorName, outputLayouts),
+                                splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                blobComparator);
 }
 
 //
@@ -2141,22 +2092,11 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
     OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
 
-    auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
-    auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
-    for (auto outputDebatchedTensorIterator = outputDebatchedTensors.begin();
-         outputDebatchedTensorIterator != outputDebatchedTensors.end();
-         ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
-        if (batchBundleSize != 1) {
-            std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
-        } else {
-            std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
-        }
-
-        std::vector<uint8_t> parsedReferences;
-        std::vector<uint8_t> parsedOutputs;
+    BlobTestMethod blobComparator = [skipArgMax, outputLayoutIterator, classes, semSegThreshold, &iou] (const ov::Tensor &outputTensor, const ov::Tensor &referenceTensor) {
+        std::vector<uint8_t> parsedReferences, parsedOutputs;
         if (skipArgMax) {
-            const ov::Tensor referenceU8 = npu::utils::toPrecision(*referenceDebatchedTensorIterator, ov::element::u8);
-            const ov::Tensor outputU8 = npu::utils::toPrecision(*outputDebatchedTensorIterator, ov::element::u8);
+            const ov::Tensor referenceU8 = npu::utils::toPrecision(referenceTensor, ov::element::u8);
+            const ov::Tensor outputU8 = npu::utils::toPrecision(outputTensor, ov::element::u8);
 
             const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayoutIterator->second.getAnyLayout())];
             const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayoutIterator->second.getAnyLayout())];
@@ -2165,8 +2105,8 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
             std::copy_n(referenceU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedReferences));
             std::copy_n(outputU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedOutputs));
         } else {
-            utils::argMax_channels(*referenceDebatchedTensorIterator, parsedReferences, outputLayoutIterator->second.getAnyLayout());
-            utils::argMax_channels(*outputDebatchedTensorIterator, parsedOutputs, outputLayoutIterator->second.getAnyLayout());
+            utils::argMax_channels(referenceTensor, parsedReferences, outputLayoutIterator->second.getAnyLayout());
+            utils::argMax_channels(outputTensor, parsedOutputs, outputLayoutIterator->second.getAnyLayout());
         }
 
         if (parsedReferences.size() != parsedOutputs.size()) {
@@ -2175,11 +2115,13 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
         }
 
         iou = utils::mean_IoU(parsedOutputs, parsedReferences, classes, FLAGS_sem_seg_ignore_label);
-        if (!compare_mean_IoU(iou, semSegThreshold, classes)) {
-            return false;
-        }
-    }
-    return true;
+        return compare_mean_IoU(iou, semSegThreshold, classes);
+    };
+
+    return test_blobs_in_batch(tensorName,
+                                splitBatchedTensor(output, tensorName, outputLayouts),
+                                splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                blobComparator);
 }
 
 static ov::Shape parseDataShape(const std::string& dataShapeStr) {
