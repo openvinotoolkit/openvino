@@ -9,6 +9,7 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
+#include "convolution_shape_inference.hpp"
 
 #include "utils.hpp"
 
@@ -31,11 +32,6 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
     auto weights_layout = impl_params.get_input_layout(1);
     auto output_layout = impl_params.get_output_layout();
     auto auto_pad = prim->auto_pad;
-
-    dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
-    dnnl::memory::dims dilation(prim->dilation.begin(), prim->dilation.end());
-    dnnl::memory::dims pad_l(prim->padding_begin.begin(), prim->padding_begin.end());
-    dnnl::memory::dims pad_r(prim->padding_end.begin(), prim->padding_end.end());
 
     // issue: it could not find the implementation for 1d kernel GroupConvolution from onednn.
     // root-cause: 3d tensor of input/output is changed to 4d via ngraph.
@@ -61,26 +57,45 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
 
     auto [input_md, weights_md, output_md] = onednn::get_conv_memory_descs(input_layout, weights_layout, output_layout, tag_in_out);
 
-    // adjust_conv_dilation_pad(dilation, stride, pad_l, pad_r, input_md, output_md, weights_md, grouped_weights);
-    for (size_t i = 0; i < dilation.size(); i++) {
-        dilation[i]--;
-        int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
-        auto os = output_md.get_dims()[2 + i];
-        auto is = input_md.get_dims()[2 + i];
-        auto ks = weights_md.get_dims()[weights_offset];
-        auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
-        // Calculate total padding
-        auto padding = (os - 1) * stride[i] - is + kernel_range;
-        if (auto_pad == ov::op::PadType::SAME_UPPER) {
-            pad_l[i] = padding / 2;
-            pad_r[i] = padding - pad_l[i];
-        } else if (auto_pad == ov::op::PadType::SAME_LOWER) {
-            pad_r[i] = padding / 2;
-            pad_l[i] = padding - pad_r[i];
-        } else {
-            pad_r[i] = padding - pad_l[i];
+    dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
+    dnnl::memory::dims dilation(prim->dilation.begin(), prim->dilation.end());
+    dnnl::memory::dims pad_l(prim->padding_begin.begin(), prim->padding_begin.end());
+    dnnl::memory::dims pad_r(prim->padding_end.begin(), prim->padding_end.end());
+
+    if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
+        ov::op::v1::Convolution op;
+        op.set_dilations(prim->dilation);
+        op.set_strides(prim->stride);
+        op.set_auto_pad(auto_pad);
+        const auto spatial_rank = input_layout.get_spatial_rank();
+
+        ov::PartialShape kernel;
+        for (int32_t i = static_cast<int32_t>(spatial_rank) - 1; i >= 0; i--) {
+            kernel.emplace_back(weights_layout.spatial(i));
+        }
+
+        ov::op::convolution::apply_auto_pad(&op,
+                                            input_layout.get_partial_shape(),
+                                            kernel,
+                                            pad_l.begin(),
+                                            pad_r.begin());
+        for (size_t i = 0; i < dilation.size(); i++) {
+            dilation[i]--;
+        }
+    } else {
+        // adjust_conv_dilation_pad(dilation, stride, pad_l, pad_r, input_md, output_md, weights_md, grouped_weights);
+        for (size_t i = 0; i < dilation.size(); i++) {
+            dilation[i]--;
+            int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
+            auto os = output_md.get_dims()[2 + i];
+            auto is = input_md.get_dims()[2 + i];
+            auto ks = weights_md.get_dims()[weights_offset];
+            auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
+            pad_r[i] = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
         }
     }
+
+
 
     // Extend conv parameters in case if spatials rank of output memory doesn't match size of parameters
     int64_t insert_count = static_cast<int64_t>(output_md.get_dims().size()) - 2 - stride.size();
