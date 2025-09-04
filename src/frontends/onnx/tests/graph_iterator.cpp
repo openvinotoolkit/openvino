@@ -32,7 +32,7 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
             return nullptr;
         };
 
-        int64_t get_opset_version(const std::string& domain) const {
+        int64_t get_opset_version(const std::string& domain) const override {
             return 1;
         }
 
