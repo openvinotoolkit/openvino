@@ -494,8 +494,11 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
 #include <unordered_set>
 #include <vector>
 
-namespace {
+namespace ov {
+namespace frontend {
 namespace onnx {
+namespace detail {
+namespace {
 enum Field {
     IR_VERSION = 1,
     PRODUCER_NAME = 2,
@@ -634,27 +637,24 @@ ONNXField decode_next_field(std::istream& model) {
 inline void skip_payload(std::istream& model, uint32_t payload_size) {
     model.seekg(payload_size, std::ios::cur);
 }
-}  // namespace onnx
 }  // namespace
+}  // namespace detail
 
-namespace ov {
-namespace frontend {
-namespace onnx {
 bool is_valid_model(std::istream& model) {
     // the model usually starts with a 0x08 byte indicating the ir_version value
     // so this checker expects at least 3 valid ONNX keys to be found in the validated model
     const size_t EXPECTED_FIELDS_FOUND = 3u;
-    std::unordered_set<::onnx::Field, std::hash<int>> onnx_fields_found = {};
+    std::unordered_set<detail::Field, std::hash<int>> onnx_fields_found = {};
     try {
         while (!model.eof() && onnx_fields_found.size() < EXPECTED_FIELDS_FOUND) {
-            const auto field = ::onnx::decode_next_field(model);
+            const auto field = detail::decode_next_field(model);
 
             if (onnx_fields_found.count(field.first) > 0) {
                 // if the same field is found twice, this is not a valid ONNX model
                 return false;
             } else {
                 onnx_fields_found.insert(field.first);
-                ::onnx::skip_payload(model, field.second);
+                detail::skip_payload(model, field.second);
             }
         }
 
