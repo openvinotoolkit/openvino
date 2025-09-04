@@ -36,6 +36,7 @@
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/buffer.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
@@ -65,6 +66,9 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
         // passes. After these passes we must call pass MoveScalarToConsumer() to have a correct accuracy. For more
         // details, please see the pass description
         if (const auto& scalar = as_type_ptr<op::Scalar>(n)) {
+            insertion_pos = std::next(last_param);
+        }
+        if (const auto& buffer = as_type_ptr<op::Buffer>(n)) {
             insertion_pos = std::next(last_param);
         }
 
