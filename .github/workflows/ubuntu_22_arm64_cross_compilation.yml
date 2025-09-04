@@ -59,7 +59,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-staging
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -90,7 +90,7 @@ jobs:
   
   Docker_arm64:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-8gb-arm-docker-build
+    runs-on: aks-linux-4-cores-8gb-arm-docker-build-staging
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -123,7 +123,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-32gb'
+      runner: 'aks-linux-16-cores-32gb-staging'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64_cross_compilation }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
@@ -159,7 +159,7 @@ jobs:
     needs: [ Build, Smart_CI, Docker_arm64 ]
     uses: ./.github/workflows/job_python_api_tests.yml
     with:
-      runner: 'aks-linux-8-cores-16gb-arm'
+      runner: 'aks-linux-8-cores-16gb-arm-staging'
       image: ${{ fromJSON(needs.docker_arm64.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
@@ -170,7 +170,7 @@ jobs:
     needs: [ Build, Smart_CI, Docker_arm64 ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       image: ${{ fromJSON(needs.docker_arm64.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       python-version: '3.11'
       scope: 'smoke'
