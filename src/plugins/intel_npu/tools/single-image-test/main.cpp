@@ -1174,21 +1174,21 @@ static std::string toString(const std::vector<size_t>& vec) {
  * the blob comparison process.
  * The class provides two important methods: @getDeterministicLayout and @getAnyLayout, which
  * are used by single-image-test in the comparison process with a different level of trust.
- * If any layouts is provied by the user through command-line agruments, it is treated as deterministic,
- * and @getDeterministicLayout returns either theuser-specified layout for tensors or
+ * If any layouts are provided by the user through command-line arguments, they are treated as deterministic,
+ * and @getDeterministicLayout returns either the user-specified layout for tensors or
  * the user-specified layout for the model.
  * If none of these layouts are provided, then @getDeterministicLayout returns nothing and the
  * auto-deducted layout will be returned from @getAnyLayout function. Contrary, if anyone from
- * deterministic layout set is provided,the fucntion @getAnyLayout will behave the same as @getDeterministicLayout
+ * deterministic layout set is provided, the fucntion @getAnyLayout will behave the same as @getDeterministicLayout
  *
  *
- * @example Consider a batched resnet50 with N=2,which results in a result blob containing 2000 elements.
+ * @example Consider a batched resnet50 with N=2, which results in a result blob containing 2000 elements.
  * In this case:
  *      1000 elements belongs to part [1/2] of the blob
  *      another 1000 elements to the second part [2/2] of the initial batched blob.
  *
  * If we compare these result blobs in non-batched mode (where the layout is unspecified),
- * we extract Tthe OP_K elements from the entire 2000-element blob. However,
+ * we extract the TOP_K elements from the entire 2000-element blob. However,
  * if the classification probabilities for parts [1/2] and [2/2] differ significantly, say:
  *      Part [1/2] has classes with probabilities in the range [15..20]
  *      Part [2/2] has classes with probabilities in the range [9..14]
@@ -1235,7 +1235,7 @@ public:
     }
 
     ov::Layout getAnyLayout() const {
-        // prefer deterministica layouts over the auto-deducted
+        // prefer deterministic layouts over the auto-deducted
         return hasDeterministicLayout() ? getDeterministicLayout() : autoDeductedLayout;
     }
 
