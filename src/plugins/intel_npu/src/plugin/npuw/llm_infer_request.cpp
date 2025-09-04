@@ -179,6 +179,10 @@ void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const o
     OPENVINO_ASSERT(position_shape.size() <= 3);
 
     size_t diff_dim = position_shape.size() - 1;
+    for (size_t i = 0; i < diff_dim; ++i) {
+        OPENVINO_ASSERT(padded_shape[i] == position_shape[i]);
+    }
+
     size_t keep_elements = padded_shape[diff_dim] - position_shape[diff_dim];
 
     size_t batch_size = 1;
@@ -841,13 +845,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     //       units of length of the current prompt on the right (for present
     //       kv layers) and the set of "1" units of number of previously calculated
     //       tokens on the left (for past kv layers).
-    auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
     std::copy_n(attention_mask->data<int64_t>(),
                 attention_mask->get_size() - input_tokens_len,
                 kv_attn_mask->data<int64_t>());
     std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 
-    auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
     pad_position_ids(kv_pos_ids, position_ids);
 
     m_kvcache_request->infer();
