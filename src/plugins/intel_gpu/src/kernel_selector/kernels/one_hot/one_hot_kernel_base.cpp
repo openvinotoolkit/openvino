@@ -14,7 +14,8 @@ JitConstants OneHotKernelBase::GetJitConstants(const one_hot_params& params) con
          MakeJitConstant("ONE_HOT_AXIS", params.one_hot_axis),
          MakeJitConstant("ONE_HOT_LIMIT", params.one_hot_limit),
          MakeJitConstant("ON_VALUE", params.on_value),
-         MakeJitConstant("OFF_VALUE", params.off_value)
+         MakeJitConstant("OFF_VALUE", params.off_value),
+         MakeJitConstant("INDICES_NORMALIZE_MODE", params.indices_normalize_mode)
     });
 
     return jit;
