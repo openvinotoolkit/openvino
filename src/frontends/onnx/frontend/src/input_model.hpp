@@ -111,7 +111,7 @@ class InputModel : public ov::frontend::InputModel {
     std::shared_ptr<InputModelONNXImpl> _impl;
 
     std::vector<std::shared_ptr<ov::frontend::onnx::OpPlace>> get_op_places() const;
-    std::map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>> get_tensor_places() const;
+    std::map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>>& get_tensor_places() const;
 
 public:
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
