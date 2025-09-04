@@ -32,7 +32,7 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model) {
     const OperatorsBridge translate_map;
-    const auto& model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
+    const auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
 
     auto& all_tensor_places = model_onnx->get_tensor_places();
 
@@ -42,7 +42,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ParameterVector parameters;
     parameters.reserve(model_onnx->get_inputs().size());
     for (const auto& input : model_onnx->get_inputs()) {
-        const auto& input_tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(input);
+        const auto input_tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(input);
         FRONT_END_GENERAL_CHECK(input_tensor != nullptr,
                                 "Inputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
         const auto name = input_tensor->get_names()[0];
@@ -63,7 +63,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     // operations
     for (const auto& op_place : model_onnx->get_op_places()) {
-        const auto& decoder = std::dynamic_pointer_cast<onnx::DecoderBaseOperation>(op_place->get_decoder());
+        const auto decoder = std::dynamic_pointer_cast<onnx::DecoderBaseOperation>(op_place->get_decoder());
         FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be onnx::DecoderBase or its child");
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
             const auto& name = decoder->get_input_tensor_name(i);
@@ -116,7 +116,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             }
         }
 
-        const auto& out_size = decoder->get_output_size();
+        const auto out_size = decoder->get_output_size();
         ov::OutputVector ov_outputs(out_size);
         const Operator* translator =
             translate_map.get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
@@ -163,7 +163,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ResultVector results;
     results.reserve(model_onnx->get_outputs().size());
     for (const auto& output : model_onnx->get_outputs()) {
-        const auto& tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output);
+        const auto tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(output);
         FRONT_END_GENERAL_CHECK(tensor != nullptr,
                                 "Inputs of ov::frontend::onnx::InputModel must be TensorLitePlace instances");
         const auto name = tensor->get_names()[0];
@@ -171,7 +171,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             continue;
         }
         const auto& output_value = m_tensor_values[name];
-        const auto& result = std::make_shared<ov::op::v0::Result>(output_value);
+        const auto result = std::make_shared<ov::op::v0::Result>(output_value);
         auto input = result->output(0);
         tensor->translate(input);
         result->set_friendly_name(name + "/sink_port_0");
