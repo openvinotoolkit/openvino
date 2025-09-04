@@ -65,6 +65,7 @@ void ov::auto_plugin::tests::AutoFuncTests::SetUp() {
     }
     model_can_batch = create_model_with_batch_possible();
     model_cannot_batch = create_model_with_reshape();
+    model_stateful = create_stateful_model();
     auto hash = std::hash<std::string>()(::testing::UnitTest::GetInstance()->current_test_info()->name());
     std::stringstream ss;
     ss << std::this_thread::get_id();
@@ -114,6 +115,25 @@ std::shared_ptr<ov::Model> ov::auto_plugin::tests::AutoFuncTests::create_model_w
     auto result = std::make_shared<ov::opset11::Result>(reshape);
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+}
+
+std::shared_ptr<ov::Model> ov::auto_plugin::tests::AutoFuncTests::create_stateful_model() {
+    auto arg = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, 1});
+    auto init_const = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, 1}, {0});
+    const std::string variable_name("variable0");
+    auto variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{init_const->get_shape(), ov::element::f32, variable_name});
+    auto read = std::make_shared<ov::opset11::ReadValue>(init_const, variable);
+    auto add = std::make_shared<ov::opset11::Add>(arg, read);
+    add->set_friendly_name("add_sum");
+    auto assign = std::make_shared<ov::opset11::Assign>(add, variable);
+    assign->set_friendly_name("save");
+    auto res = std::make_shared<ov::opset11::Result>(add);
+    res->set_friendly_name("res");
+
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
+    return model;
 }
 
 // Mock plugins
@@ -499,7 +519,8 @@ public:
                                     const ov::AnyMap& properties) const override {
         OPENVINO_ASSERT(model);
 
-        std::unordered_set<std::string> supported_ops = {"Parameter", "Result", "Add", "Constant", "Reshape"};
+        std::unordered_set<std::string> supported_ops =
+            {"Parameter", "Result", "Add", "Constant", "Reshape", "ReadValue", "Assign"};
 
         ov::SupportedOpsMap res;
         for (const auto& op : model->get_ordered_ops()) {
