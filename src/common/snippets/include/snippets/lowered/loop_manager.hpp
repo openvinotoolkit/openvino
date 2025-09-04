@@ -111,29 +111,6 @@ public:
                      const std::vector<LoopPort>& exits,
                      bool set_default_handlers = true);
     /**
-     * @brief Creates new UnifiedLoopInfo and marks all expressions in loop bounds by new loop ID.
-     * @note: This helper takes entry/exit ports with ExpressionPort type.
-     * In this case, an additional `dim_idx` parameter must be set: it will be set to each LoopPort of the new loop.
-     * @param loop_begin_pos the first expression iterator
-     * @param loop_end_pos the next iterator after last expression
-     * @param work_amount work amount of the loop
-     * @param increment the step of loop counter increment
-     * @param dim_idx loop iterates by this index of dimension
-     * @param entries_expr_ports input loop ports
-     * @param exits_expr_ports output loop ports
-     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or
-     *                             not
-     * @return new loop ID
-     */
-    size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
-                     LinearIR::constExprIt loop_end_pos,
-                     size_t work_amount,
-                     size_t increment,
-                     size_t dim_idx,
-                     const std::vector<ExpressionPort>& entries_expr_ports,
-                     const std::vector<ExpressionPort>& exits_expr_ports,
-                     bool set_default_handlers = true);
-    /**
      * @brief Create new Loop and replace with it: add new LoopInfo, update loop IDs in expressions and
      *        remove the old LoopInfo from the map if no one expression isn't mark by this `old_id`
      * @param linear_ir linear IR

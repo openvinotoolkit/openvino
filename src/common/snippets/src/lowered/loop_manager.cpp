@@ -245,7 +245,14 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
         const auto work_amount = *(loop_tensor.rbegin() + dim_idx);
         const auto increment = subtensor_value;
-        mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, dim_idx, loop_input_ports, loop_output_ports);
+        std::vector<LoopPort> entries, exits;
+        for (const auto& port : loop_input_ports) {
+            entries.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, dim_idx));
+        }
+        for (const auto& port : loop_output_ports) {
+            exits.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, dim_idx));
+        }
+        mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits);
     }
 }
 
@@ -268,24 +275,6 @@ size_t LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         insert_loop_id(*expr_it, loop_id);
     }
     return loop_id;
-}
-
-size_t LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
-                              LinearIR::constExprIt loop_end_pos,
-                              size_t work_amount,
-                              size_t increment,
-                              size_t dim_idx,
-                              const std::vector<ExpressionPort>& entries_expr_ports,
-                              const std::vector<ExpressionPort>& exits_expr_ports,
-                              bool set_default_handlers) {
-    std::vector<LoopPort> entries, exits;
-    for (const auto& port : entries_expr_ports) {
-        entries.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, dim_idx));
-    }
-    for (const auto& port : exits_expr_ports) {
-        exits.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, dim_idx));
-    }
-    return mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
 }
 
 size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
