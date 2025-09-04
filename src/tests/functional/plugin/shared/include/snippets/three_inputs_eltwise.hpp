@@ -22,7 +22,7 @@ typedef std::tuple<
 class ThreeInputsEltwise : public testing::WithParamInterface<ov::test::snippets::ThreeInputsEltwiseParams>,
                            virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseParams>& obj);
 
 protected:
     void SetUp() override;
