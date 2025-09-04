@@ -160,9 +160,8 @@ struct hash<ov::npuw::online::MetaInterconnectIO> {
 
 // FIXME: hash<MetaInterconnect> defined above. This hash should be available by default
 template <>
-struct hash<std::pair<std::vector<ov::npuw::online::MetaInterconnect>, ov::npuw::online::MetaInterconnectIO>> {
-    inline size_t operator()(const std::pair<std::vector<ov::npuw::online::MetaInterconnect>,
-                                             ov::npuw::online::MetaInterconnectIO>& p) const {
+struct hash<ov::npuw::online::detail::PairMICVecIO> {
+    inline size_t operator()(const ov::npuw::online::detail::PairMICVecIO& p) const {
         std::size_t seed = p.first.size();
         for (const auto& mic : p.first) {
             seed ^= std::hash<ov::npuw::online::MetaInterconnect>()(mic) + 0x9e3779b9 + (seed << 6) + (seed >> 2);

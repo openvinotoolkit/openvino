@@ -20,6 +20,8 @@ using ov::npuw::online::MetaInterconnect;
 using ov::npuw::online::MetaInterconnectIO;
 using ov::npuw::online::Repeated;
 using ov::npuw::online::detail::isOp;
+using ov::npuw::online::detail::MICSet;
+using ov::npuw::online::detail::PairMICSetIO;
 
 Group::Group(const std::shared_ptr<ov::Node>& node,
              size_t gid,
@@ -389,9 +391,8 @@ void Group::setRepeated(const std::shared_ptr<Repeated>& rep) {
     }
 }
 
-std::pair<std::unordered_set<MetaInterconnect>, MetaInterconnectIO> Group::metaInterconnect(
-    const Group::GPtr& gptr_prod) const {
-    std::unordered_set<MetaInterconnect> mics;
+PairMICSetIO Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
+    MICSet mics;
 
     auto ics = interconnect(gptr_prod);
     for (const auto& ic : ics) {

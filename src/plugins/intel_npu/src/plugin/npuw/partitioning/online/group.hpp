@@ -72,8 +72,7 @@ public:
     const detail::Reptrack& getReptrack(const detail::OVNodePtr& node_ptr) const;
     void setRepeated(const std::shared_ptr<Repeated>& rep);
     std::shared_ptr<Repeated> repeated() const;
-    std::pair<std::unordered_set<MetaInterconnect>, MetaInterconnectIO> metaInterconnect(
-        const Group::GPtr& gptr_prod) const;
+    detail::PairMICSetIO metaInterconnect(const Group::GPtr& gptr_prod) const;
     std::unordered_set<Interconnect> interconnect(const Group::GPtr& gptr_prod) const;
     // FIXME: unify avoid and isolate
     void avoid(const std::string& device);
