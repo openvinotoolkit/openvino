@@ -32,6 +32,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
@@ -41,13 +42,11 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
-#include "openvino/op/mish.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
@@ -275,7 +274,6 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "openvino/op/gru_sequence.hpp"
 #    include "openvino/op/lstm_sequence.hpp"
-#    include "openvino/op/softmax.hpp"
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
@@ -1169,6 +1167,8 @@ void Transformations::MainSnippets() {
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
 #elif defined(OPENVINO_ARCH_ARM64)
         return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return true;  // RISC-V with Vector Extension supports snippets
 #endif
         return false;
     };
@@ -1219,6 +1219,11 @@ void Transformations::MainSnippets() {
         }
         return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(input_precision);
     };
+#elif defined(OPENVINO_ARCH_RISCV64)
+    // RISC-V has 32 gprs. Similar to ARM, conservatively use 23 available registers.
+    size_t data_ptr_gpr_count = 23;
+    // RISC-V doesn't support advanced MatMul post-op fusion yet
+    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #else
     size_t data_ptr_gpr_count = 0;
     snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
@@ -1390,6 +1395,9 @@ void Transformations::MainSnippets() {
                                        ov::op::v0::Xor>(n));
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
+#elif defined(OPENVINO_ARCH_RISCV64)
+        // Limit general tokenization on RISC-V to Add only for now
+        return ov::is_type<const ov::op::v1::Add>(n);
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
