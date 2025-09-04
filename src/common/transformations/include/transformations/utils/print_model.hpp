@@ -413,10 +413,12 @@ public:
 
         std::ofstream ofs(m_file_name);
         if (!ofs) {
+            std::cout << "mode dump fail" << m_file_name << std::endl;
             return false;
         }
         detail::dump_cpp_style(ofs, model);
         ofs.close();
+        std::cout << "Model dumped to " << m_file_name << std::endl;
         return true;
     }
 
