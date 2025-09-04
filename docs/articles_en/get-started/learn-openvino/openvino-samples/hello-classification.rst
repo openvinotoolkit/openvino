@@ -18,7 +18,7 @@ Synchronous Inference Request API. Before using the sample, refer to the followi
 How It Works
 ####################
 
-At startup, the sample application sets log message capturing callback reads command-line parameters.
+At startup, the sample application sets log message capturing callback and reads command-line parameters.
 Then it prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous
 inference, and processes output data, logging each step in a standard output stream.
 
