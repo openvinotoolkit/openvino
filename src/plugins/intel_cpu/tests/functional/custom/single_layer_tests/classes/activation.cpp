@@ -239,6 +239,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::IsInf) ||
             (activation_type == utils::ActivationTypes::IsNaN) ||
             (activation_type == utils::ActivationTypes::Negative) ||
+            (activation_type == utils::ActivationTypes::SoftPlus) ||
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
             (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
