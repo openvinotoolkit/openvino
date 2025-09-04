@@ -47,7 +47,7 @@ public:
 
     const std::vector<NodeTypeInfo>& get_wrapped_types() const;
     std::ostream& write_type_description(std::ostream& out) const override;
-    
+
     // Track when multiple outputs are expected
     void set_wrapped_output_size(size_t size) {
         set_output_size(size);
