@@ -329,10 +329,12 @@ sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 8, 2, 32, 2};
 sdpa_config_t xehpg_h512 = {8, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpg_h512_2nd = {8, 8, 32, 8, 16, 1, 16, 1};
 
+sdpa_config_t xehpc_h32_pa =  {16, 16, 16, 16, 4, 4, 4, 4};
 sdpa_config_t xehpc_h32 = {16, 64, 32, 16, 4, 2, 1, 8};
 sdpa_config_t xehpc_h32_s32 = {16, 16, 16, 16, 2, 4, 2, 4};
 sdpa_config_t xehpc_h32_2nd = {16, 64, 16, 16, 8, 1, 2, 4};
 
+sdpa_config_t xehpc_h64_pa = {16, 16, 16, 16, 4, 4, 4, 4};
 sdpa_config_t xehpc_h64 = {16, 64, 32, 16, 8, 2, 2, 8};
 sdpa_config_t xehpc_h64_s64 = {32, 32, 32, 16, 4, 2, 2, 4};
 sdpa_config_t xehpc_h64_s32 = {16, 16, 16, 16, 4, 2, 4, 2};
@@ -349,6 +351,7 @@ sdpa_config_t xehpc_q_h64_s256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t xehpc_q_h64_s1152_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t xehpc_q_h64_2nd = {64, 16, 16, 16, 16, 2, 16, 2};
 
+sdpa_config_t xehpc_h128_pa = {16, 16, 16, 16, 8, 2, 8, 2};
 sdpa_config_t xehpc_h128 = {16, 64, 32, 16, 16, 2, 4, 8};
 sdpa_config_t xehpc_h128_s64 = {16, 32, 32, 32, 4, 2, 4, 2};
 sdpa_config_t xehpc_h128_s32 = {16, 16, 16, 16, 8, 2, 8, 2};
@@ -364,10 +367,12 @@ sdpa_config_t xehpc_q_h128_2nd_integrated = {16, 16, 16, 16, 8, 1, 8, 1};
 sdpa_config_t xehpc_q_h128_s96_2nd = {16, 16, 16, 16, 8, 1, 8, 1};
 sdpa_config_t xehpc_q_h128_s512_2nd = {16, 16, 16, 16, 16, 2, 8, 2};
 
+sdpa_config_t xehpc_h256_pa = {16, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t xehpc_h256 = {16, 32, 32, 32, 8, 4, 8, 4};
 sdpa_config_t xehpc_h256_s64 = {16, 32, 32, 32, 8, 1, 8, 1};
 sdpa_config_t xehpc_h256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 
+sdpa_config_t xehpc_h512_pa = {16, 16, 16, 16, 16, 1, 32, 1};
 sdpa_config_t xehpc_h512 = {32, 16, 64, 16, 8, 4, 8, 4};
 sdpa_config_t xehpc_h512_s64 = {16, 16, 64, 16, 8, 2, 8, 2};
 sdpa_config_t xehpc_h512_s128_2nd = {16, 16, 64, 16, 8, 1, 8, 1};
@@ -555,7 +560,7 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
 sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa) {
     if (head_size <= 32) {
         if (seq <= 0 && is_pa)
-            return &xehpc_h32;
+            return &xehpc_h32_pa;
         if (thin_q)
             return &xehpc_h32_2nd;
         if (seq <= 32)
@@ -563,7 +568,7 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         return &xehpc_h32;
     } else if (head_size <= 64) {
         if (seq <= 0 && is_pa)
-            return &xehpc_h64;
+            return &xehpc_h64_pa;
         if (thin_q) {
             if (quantized) {
                 if (seq <= 96)
@@ -595,7 +600,7 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         return &xehpc_h64;
     } else if (head_size <= 128) {
         if (seq <= 0 && is_pa)
-            return &xehpc_h128;
+            return &xehpc_h128_pa;
         if (quantized) {
             if (thin_q) {
                 if (is_integrated) {
@@ -629,7 +634,7 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         return &xehpc_h128;
     } else if (head_size <= 256) {
         if (seq <= 0 && is_pa)
-            return &xehpc_h256;
+            return &xehpc_h256_pa;
         if (thin_q)
             return &xehpc_h256_2nd;
         if (seq <= 64)
@@ -637,7 +642,7 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         return &xehpc_h256;
     } else if (head_size <= 512) {
         if (seq <= 0 && is_pa)
-            return &xehpc_h512;
+            return &xehpc_h512_pa;
         if (thin_q) {
             if (quantized) {
                 if (is_integrated) {
@@ -696,6 +701,9 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
 }
 
 sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa) {
+    if (seq <= 0 && is_pa) {
+        return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa);
+    }
     if (head_size <= 64) {
         if (quantized) {
             if (thin_q) {
