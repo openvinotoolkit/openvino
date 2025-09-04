@@ -81,7 +81,11 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     // only Sigmoid is supported in the current version of AUGRUCell
     auto sigmoid = wrap_type<ov::op::v0::Sigmoid>({add_1});
     auto split = wrap_type<ov::op::v1::Split>({sigmoid, any_input()});
-    auto multiply = wrap_type<ov::op::v1::Multiply>({split, any_input()});
+    split->set_output_size(2);
+    // Split outputs can be at either index
+    auto split_out_any = make_shared<pattern::op::Or>(OutputVector{split->output(0), split->output(1)});
+    auto split_out_any2 = make_shared<pattern::op::Or>(OutputVector{split->output(0), split->output(1)});
+    auto multiply = wrap_type<ov::op::v1::Multiply>({split_out_any, any_input()});
 
     auto concat_2 = wrap_type<ov::op::v0::Concat>({any_input(), multiply});
     auto matmul_2 = wrap_type<ov::op::v0::MatMul>({concat_2, any_input(is_first_dim_static)});
@@ -90,7 +94,7 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     auto tanh = wrap_type<ov::op::v0::Tanh>({add_2});
 
     auto subtract_1 = wrap_type<ov::op::v1::Subtract>({any_input(), any_input()});
-    auto multiply_2 = wrap_type<ov::op::v1::Multiply>({subtract_1, split});
+    auto multiply_2 = wrap_type<ov::op::v1::Multiply>({subtract_1, split_out_any2});
     auto subtract_2 = wrap_type<ov::op::v1::Subtract>({any_input(), multiply_2});
     auto multiply_3 = wrap_type<ov::op::v1::Multiply>({subtract_2, tanh});
 

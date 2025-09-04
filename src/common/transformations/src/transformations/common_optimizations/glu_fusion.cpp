@@ -39,18 +39,24 @@ GLUFusion::GLUFusion() {
     auto variadic_split_m = wrap_type<ov::op::v1::VariadicSplit>({data_m, axis_const_m, split_lengths_const_m});
     variadic_split_m->set_output_size(2);
 
-    // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
-    auto swish_m = wrap_type<ov::op::v4::Swish>({variadic_split_m->output(0)});
-    auto gelu_m = wrap_type<ov::op::v7::Gelu>({variadic_split_m->output(0)});
+    // The activation (Swish/Gelu) can be on either output of the split
+    auto swish_m0 = wrap_type<ov::op::v4::Swish>({variadic_split_m->output(0)});
+    auto gelu_m0 = wrap_type<ov::op::v7::Gelu>({variadic_split_m->output(0)});
+    auto swish_m1 = wrap_type<ov::op::v4::Swish>({variadic_split_m->output(1)});
+    auto gelu_m1 = wrap_type<ov::op::v7::Gelu>({variadic_split_m->output(1)});
 
-    // Mul(Xw, Xv) = Swish(Xw) * Xv
-    auto glu_m = std::make_shared<Or>(OutputVector{swish_m, gelu_m});
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({glu_m, variadic_split_m->output(1)});
+    // The activation can be on either split output
+    auto glu_m = std::make_shared<Or>(OutputVector{swish_m0, gelu_m0, swish_m1, gelu_m1});
+    
+    // Multiply can have operands in any order, and the other operand should be the other split output
+    auto split_out_any = std::make_shared<Or>(OutputVector{variadic_split_m->output(0), variadic_split_m->output(1)});
+    auto mul_m = wrap_type<ov::op::v1::Multiply>({glu_m, split_out_any});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         OPENVINO_ASSERT(pattern_map.count(mul_m));
-        OPENVINO_ASSERT(pattern_map.count(swish_m) || pattern_map.count(gelu_m));
+        OPENVINO_ASSERT(pattern_map.count(swish_m0) || pattern_map.count(gelu_m0) || 
+                        pattern_map.count(swish_m1) || pattern_map.count(gelu_m1));
         OPENVINO_ASSERT(pattern_map.count(variadic_split_m));
         OPENVINO_ASSERT(pattern_map.count(split_lengths_const_m));
         OPENVINO_ASSERT(pattern_map.count(axis_const_m));
@@ -58,13 +64,14 @@ GLUFusion::GLUFusion() {
         if (!mul || transformation_callback(mul))
             return false;
 
-        auto isSwiGLU = pattern_map.count(swish_m);
-        auto isGeGLU = pattern_map.count(gelu_m);
+        auto isSwiGLU = pattern_map.count(swish_m0) || pattern_map.count(swish_m1);
+        auto isGeGLU = pattern_map.count(gelu_m0) || pattern_map.count(gelu_m1);
         size_t split_to_glu_idx = 0;
         ov::op::internal::GLU::GluType glu_type = ov::op::internal::GLU::GluType::Swish;
 
         if (isSwiGLU) {
-            auto swish = ov::as_type_ptr<ov::op::v4::Swish>(pattern_map.at(swish_m).get_node_shared_ptr());
+            auto swish_key = pattern_map.count(swish_m0) ? swish_m0 : swish_m1;
+            auto swish = ov::as_type_ptr<ov::op::v4::Swish>(pattern_map.at(swish_key).get_node_shared_ptr());
             glu_type = ov::op::internal::GLU::GluType::Swish;
             split_to_glu_idx = swish->input_value(0).get_index();
 
@@ -72,7 +79,8 @@ GLUFusion::GLUFusion() {
             if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
         } else if (isGeGLU) {
-            auto gelu = ov::as_type_ptr<ov::op::v7::Gelu>(pattern_map.at(gelu_m).get_node_shared_ptr());
+            auto gelu_key = pattern_map.count(gelu_m0) ? gelu_m0 : gelu_m1;
+            auto gelu = ov::as_type_ptr<ov::op::v7::Gelu>(pattern_map.at(gelu_key).get_node_shared_ptr());
             glu_type = (gelu->get_approximation_mode() == ov::op::GeluApproximationMode::ERF)
                            ? ov::op::internal::GLU::GluType::Gelu
                            : ov::op::internal::GLU::GluType::Gelu_Tanh;

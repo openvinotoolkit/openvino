@@ -94,17 +94,23 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
     auto optional_bias_add_1 = make_shared<pattern::op::Or>(OutputVector{matmul_1, add_1});
     auto activation_1 = wrap_type<ov::op::v0::Relu, ov::op::v0::Tanh, ov::op::v0::Sigmoid>({optional_bias_add_1});
     auto split = wrap_type<ov::op::v1::Split>({activation_1, any_input()});
+    split->set_output_size(2);
+    
+    // Create patterns that can match either split output order
+    auto split_out_0_or_1 = make_shared<pattern::op::Or>(OutputVector{split->output(0), split->output(1)});
+    auto split_out_0_or_1_2 = make_shared<pattern::op::Or>(OutputVector{split->output(0), split->output(1)});
+    auto split_out_0_or_1_3 = make_shared<pattern::op::Or>(OutputVector{split->output(0), split->output(1)});
 
-    auto multiply_1 = wrap_type<ov::op::v1::Multiply>({split, any_input()});
+    auto multiply_1 = wrap_type<ov::op::v1::Multiply>({split_out_0_or_1, any_input()});
     auto concat_2 = wrap_type<ov::op::v0::Concat>({any_input(), multiply_1});
     auto matmul_2 = wrap_type<ov::op::v0::MatMul>({concat_2, any_input(is_first_dim_static)});
     auto add_2 = wrap_type<ov::op::v1::Add>({matmul_2, any_input()});
     auto optional_bias_add_2 = make_shared<pattern::op::Or>(OutputVector{matmul_2, add_2});
     auto activation_2 = wrap_type<ov::op::v0::Relu, ov::op::v0::Tanh, ov::op::v0::Sigmoid>({optional_bias_add_2});
 
-    auto subtract = wrap_type<ov::op::v1::Subtract>({any_input(), split});
+    auto subtract = wrap_type<ov::op::v1::Subtract>({any_input(), split_out_0_or_1_2});
     auto multiply_2 = wrap_type<ov::op::v1::Multiply>({subtract, activation_2});
-    auto multiply_3 = wrap_type<ov::op::v1::Multiply>({split, any_input()});
+    auto multiply_3 = wrap_type<ov::op::v1::Multiply>({split_out_0_or_1_3, any_input()});
     auto add = wrap_type<ov::op::v1::Add>({multiply_2, multiply_3});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
