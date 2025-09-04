@@ -1,0 +1,100 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+set(current_dir_sources
+  activation.cpp
+  adaptive_pooling.cpp
+  batch_norm.cpp
+  batch_to_space.cpp
+  binary_convolution.cpp
+  broadcast.cpp
+  bucketize.cpp
+  clamp.cpp
+  comparison.cpp
+  concat.cpp
+  constant.cpp
+  conversion.cpp
+  convert_color_i420.cpp
+  convert_color_nv12.cpp
+  convolution_backprop_data.cpp
+  convolution.cpp
+  ctc_greedy_decoder.cpp
+  ctc_greedy_decoder_seq_len.cpp
+  ctc_loss.cpp
+  cum_sum.cpp
+  deformable_convolution.cpp
+  deformable_psroi_pooling.cpp
+  depth_to_space.cpp
+  detection_output.cpp
+  dft.cpp
+  eltwise.cpp
+  embedding_bag_offsets_sum.cpp
+  embedding_bag_packed_sum.cpp
+  embedding_segments_sum.cpp
+  experimental_detectron_detection_output.cpp
+  experimental_detectron_generate_proposals_single_image.cpp
+  experimental_detectron_prior_grid_generator.cpp
+  experimental_detectron_roifeatureextractor.cpp
+  experimental_detectron_topkrois.cpp
+  extract_image_patches.cpp
+  fake_convert.cpp
+  fake_quantize.cpp
+  gather.cpp
+  gather_elements.cpp
+  gather_nd.cpp
+  gather_tree.cpp
+  generate_proposals.cpp
+  grn.cpp
+  group_convolution_backprop_data.cpp
+  group_convolution.cpp
+  group_normalization.cpp
+  gru_cell.cpp
+  gru_sequence.cpp
+  interpolate.cpp
+  is_inf.cpp
+  istft.cpp
+  logical.cpp
+  log_softmax.cpp
+  loop.cpp
+  lrn.cpp
+  lstm_cell.cpp
+  lstm_sequence.cpp
+  mat_mul.cpp
+  matrix_nms.cpp
+  memory.cpp
+  minimum_maximum.cpp
+  multiclass_nms.cpp
+  mvn.cpp
+  non_max_suppression.cpp
+  nonzero.cpp
+  normalize_l2.cpp
+  one_hot.cpp
+  pad.cpp
+  pooling.cpp
+  prior_box_clustered.cpp
+  prior_box.cpp
+  proposal.cpp
+  psroi_pooling.cpp
+  range.cpp
+  rdft.cpp
+  reduce_ops.cpp
+  region_yolo.cpp
+  reorg_yolo.cpp
+  reshape.cpp
+  result.cpp
+  reverse_sequence.cpp
+  rnn_cell.cpp
+  rnn_sequence.cpp
+  roi_align.cpp
+  roi_pooling.cpp
+  roll.cpp
+  scatter_elements_update.cpp
+  scatter_ND_update.cpp
+  scatter_update.cpp
+  variadic_split.cpp
+)
+list(TRANSFORM current_dir_sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
+
+get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
+list(APPEND all_cpu_functional_test_sources ${current_dir_sources})
+set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "${all_cpu_functional_test_sources}")
