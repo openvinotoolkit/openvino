@@ -8,8 +8,10 @@
 namespace details {
 
 // Permute function.
-template <typename T>
+template <typename T, bool Int4 = false>
 void permute(const T* input, T* output, const std::vector<size_t>& dims, const std::vector<size_t>& order) {
+    static_assert(!Int4 || (Int4 && std::is_same_v<T, uint8_t>), "For int4 data input data must be of type uint8_t");
+
     size_t ndim = dims.size();
     assert(order.size() == ndim);
 
@@ -42,7 +44,7 @@ void permute(const T* input, T* output, const std::vector<size_t>& dims, const s
         for (size_t i = 0; i < ndim; ++i)
             in_idx += old_multi[i] * old_strides[i];
 
-        if constexpr (std::is_same<T, int8_t>::value) {
+        if constexpr (Int4) {
             uint8_t in_byte = input[in_idx / 2];
             uint8_t in_val = (in_idx % 2 == 0) ? (in_byte & 0x0F) : ((in_byte >> 4) & 0x0F);
 
@@ -143,11 +145,13 @@ void PermuteTestsBase::make_ref_output() {
                                 reinterpret_cast<float*>(ref_output.data()),
                                 dims,
                                 axes);
+    } else if (type == ov::element::i4) {
+        details::permute<uint8_t, true>(reinterpret_cast<const uint8_t*>(input.data()),
+                                        reinterpret_cast<uint8_t*>(ref_output.data()),
+                                        dims,
+                                        axes);
     } else {
-        details::permute<int8_t>(reinterpret_cast<const int8_t*>(input.data()),
-                                 reinterpret_cast<int8_t*>(ref_output.data()),
-                                 dims,
-                                 axes);
+        throw std::runtime_error("Unsupported element type in PermuteTestsBase::make_ref_output");
     }
 }
 

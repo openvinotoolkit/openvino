@@ -39,29 +39,6 @@ inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
-inline void tread_2x4b(const uint8_t* src,
-                       std::size_t r,
-                       std::size_t c,
-                       std::size_t cols,
-                       uint8_t& low,
-                       uint8_t& high) {
-    size_t offset = r * cols + c;
-    const uint8_t* telem = src + offset / 2;
-    uint8_t byte = *telem;
-    low = byte & 0x0F;
-    high = (byte >> 4) & 0x0F;
-}
-
-inline void twrite_4b(uint8_t* dst, uint8_t value, std::size_t r, std::size_t c, std::size_t cols) {
-    size_t offset = r * cols + c;
-    uint8_t* telem = dst + offset / 2;
-    if (offset % 2 == 0) {
-        *telem = (hi4(*telem) << 4) | lo4(value);
-    } else {
-        *telem = (lo4(value) << 4) | lo4(*telem);
-    }
-}
-
 inline int32_t pack_4bit_avx2_reduction(__m256i ymm) {
     __m256i mask = _mm256_set1_epi32(0xF);
     ymm = _mm256_and_si256(ymm, mask);
@@ -1524,40 +1501,30 @@ void ov::npuw::util::XARCH::transpose_i4(const uint8_t* src, uint8_t* dst, size_
     size_t rows32 = rows / r_step;
 
     // lambda: get int32 pointer for each row of src.
-    auto get_src_int32 = [&](size_t i) {
-        return reinterpret_cast<const int32_t*>(src + (i * cols / 2));
+    auto get_src_int32 = [&](size_t r, size_t c, size_t i) {
+        return reinterpret_cast<const int32_t*>(&src[(r * r_step + i) * (cols / 2)])[c];
     };
     // lambda: get int32 pointer for each column of dst.
-    auto get_dst_int32 = [&](size_t j) {
-        return reinterpret_cast<int32_t*>(dst + (j * rows / 2));
+    auto get_dst_int32 = [&](size_t r, size_t c, size_t i) {
+        return reinterpret_cast<int32_t*>(&dst[(c * c_step + i) * (rows / 2)]) + r;
     };
 
     // Main block processing.
     for (size_t c = 0; c < cols32; ++c) {
         for (size_t r = 0; r < rows32; ++r) {
             // For each row of src, recalculate the pointer.
-            const int32_t* src_row0 = get_src_int32(r * r_step + 0);
-            const int32_t* src_row1 = get_src_int32(r * r_step + 1);
-            const int32_t* src_row2 = get_src_int32(r * r_step + 2);
-            const int32_t* src_row3 = get_src_int32(r * r_step + 3);
-            const int32_t* src_row4 = get_src_int32(r * r_step + 4);
-            const int32_t* src_row5 = get_src_int32(r * r_step + 5);
-            const int32_t* src_row6 = get_src_int32(r * r_step + 6);
-            const int32_t* src_row7 = get_src_int32(r * r_step + 7);
-
-            __m256i column = _mm256_set_epi32(src_row7[c],
-                                              src_row6[c],
-                                              src_row5[c],
-                                              src_row4[c],
-                                              src_row3[c],
-                                              src_row2[c],
-                                              src_row1[c],
-                                              src_row0[c]);
+            __m256i column = _mm256_set_epi32(get_src_int32(r, c, 7),
+                                              get_src_int32(r, c, 6),
+                                              get_src_int32(r, c, 5),
+                                              get_src_int32(r, c, 4),
+                                              get_src_int32(r, c, 3),
+                                              get_src_int32(r, c, 2),
+                                              get_src_int32(r, c, 1),
+                                              get_src_int32(r, c, 0));
 
             for (int i = 0; i < 8; ++i) {
                 __m256i shifted = _mm256_srli_epi32(column, 4 * i);
-                int32_t* dst_col = get_dst_int32(c * c_step + i);
-                dst_col[r] = pack_4bit_avx2_reduction(shifted);
+                *get_dst_int32(r, c, i) = pack_4bit_avx2_reduction(shifted);
             }
         }
     }
@@ -1565,43 +1532,26 @@ void ov::npuw::util::XARCH::transpose_i4(const uint8_t* src, uint8_t* dst, size_
     size_t tail_cols = cols % c_step;
     size_t tail_rows = rows % r_step;
 
-    // Tail columns (excluding tail rows region).
+    auto naive_transpose = [&](size_t r_start, size_t r_end, size_t c_start, size_t c_end) {
+        for (size_t r = r_start; r < r_end; ++r) {
+            for (size_t c = c_start; c < c_end; ++c) {
+                size_t src_idx = r * cols + c;
+                uint8_t val = (src[src_idx / 2] >> ((src_idx % 2) * 4)) & 0x0F;
+                size_t dst_idx = c * rows + r;
+                dst[dst_idx / 2] &= (dst_idx % 2 == 0) ? 0xF0 : 0x0F;
+                dst[dst_idx / 2] |= (dst_idx % 2 == 0) ? (val & 0x0F) : ((val & 0x0F) << 4);
+            }
+        }
+    };
+
     if (tail_cols > 0) {
-        for (size_t r = 0; r < rows - tail_rows; ++r) {
-            for (size_t c = cols - tail_cols; c < cols; ++c) {
-                size_t src_idx = r * cols + c;
-                uint8_t val = (src[src_idx / 2] >> ((src_idx % 2) * 4)) & 0x0F;
-                size_t dst_idx = c * rows + r;
-                dst[dst_idx / 2] &= (dst_idx % 2 == 0) ? 0xF0 : 0x0F;
-                dst[dst_idx / 2] |= (dst_idx % 2 == 0) ? (val & 0x0F) : ((val & 0x0F) << 4);
-            }
-        }
+        naive_transpose(0, rows - tail_rows, cols - tail_cols, cols);
     }
-
-    // Tail rows (excluding tail columns region).
     if (tail_rows > 0) {
-        for (size_t c = 0; c < cols - tail_cols; ++c) {
-            for (size_t r = rows - tail_rows; r < rows; ++r) {
-                size_t src_idx = r * cols + c;
-                uint8_t val = (src[src_idx / 2] >> ((src_idx % 2) * 4)) & 0x0F;
-                size_t dst_idx = c * rows + r;
-                dst[dst_idx / 2] &= (dst_idx % 2 == 0) ? 0xF0 : 0x0F;
-                dst[dst_idx / 2] |= (dst_idx % 2 == 0) ? (val & 0x0F) : ((val & 0x0F) << 4);
-            }
-        }
+        naive_transpose(rows - tail_rows, rows, 0, cols - tail_cols);
     }
-
-    // Bottom-right corner cross region (both tail rows and tail columns).
     if (tail_cols > 0 && tail_rows > 0) {
-        for (size_t r = rows - tail_rows; r < rows; ++r) {
-            for (size_t c = cols - tail_cols; c < cols; ++c) {
-                size_t src_idx = r * cols + c;
-                uint8_t val = (src[src_idx / 2] >> ((src_idx % 2) * 4)) & 0x0F;
-                size_t dst_idx = c * rows + r;
-                dst[dst_idx / 2] &= (dst_idx % 2 == 0) ? 0xF0 : 0x0F;
-                dst[dst_idx / 2] |= (dst_idx % 2 == 0) ? (val & 0x0F) : ((val & 0x0F) << 4);
-            }
-        }
+        naive_transpose(rows - tail_rows, rows, cols - tail_cols, cols);
     }
 #else
     OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
