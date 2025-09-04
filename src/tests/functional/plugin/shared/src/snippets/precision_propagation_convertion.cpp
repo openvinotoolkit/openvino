@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string PrecisionPropagationConvertion::getTestCaseName(testing::TestParamInfo<PrecisionPropagationParams> obj) {
+std::string PrecisionPropagationConvertion::getTestCaseName(const testing::TestParamInfo<PrecisionPropagationParams>& obj) {
     const auto& [input_shapes, fake_quantize_intervals, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;

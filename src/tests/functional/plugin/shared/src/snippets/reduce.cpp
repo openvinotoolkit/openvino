@@ -12,7 +12,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string Reduce::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ReduceParams> obj) {
+std::string Reduce::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ReduceParams>& obj) {
     const auto& [input_shape, reduce_type, axes, keep_dims, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;

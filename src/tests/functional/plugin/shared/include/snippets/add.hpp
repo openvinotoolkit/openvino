@@ -39,7 +39,7 @@ typedef std::tuple<
 class Add : public testing::WithParamInterface<ov::test::snippets::AddParams>,
             virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::AddParams>& obj);
 
 protected:
     void SetUp() override;
@@ -48,7 +48,7 @@ protected:
 class AddConst : public testing::WithParamInterface<ov::test::snippets::AddConstParams>,
                  virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::AddConstParams>& obj);
 protected:
     void SetUp() override;
 };
@@ -61,7 +61,7 @@ protected:
 class AddPair : public testing::WithParamInterface<ov::test::snippets::AddParamsPair>,
                 virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddParamsPair> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::AddParamsPair>& obj);
 protected:
     void SetUp() override;
 };

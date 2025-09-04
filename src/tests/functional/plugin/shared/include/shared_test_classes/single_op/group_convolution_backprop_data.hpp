@@ -33,7 +33,7 @@ using  groupConvBackpropLayerTestParamsSet = std::tuple<
 class GroupConvBackpropLayerTest : public testing::WithParamInterface<groupConvBackpropLayerTestParamsSet>,
                                        virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<groupConvBackpropLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<groupConvBackpropLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

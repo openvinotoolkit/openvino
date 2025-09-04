@@ -117,7 +117,7 @@ void LoraPatternBase::run_test_random_tensors(ov::element::Type net_type, size_t
     }
 }
 
-std::string LoraPatternMatmul::getTestCaseName(testing::TestParamInfo<LoraMatMulParams> obj) {
+std::string LoraPatternMatmul::getTestCaseName(const testing::TestParamInfo<LoraMatMulParams>& obj) {
     const auto& [device_name, net_type, M, N, K, lora_rank] = obj.param;
 
     std::ostringstream result;
@@ -176,7 +176,7 @@ void LoraPatternMatmul::SetUp() {
                                            ov::ParameterVector({param_y, param_w}));
 }
 
-std::string LoraPatternConvolution::getTestCaseName(testing::TestParamInfo<LoraConvolutionParams> obj) {
+std::string LoraPatternConvolution::getTestCaseName(const testing::TestParamInfo<LoraConvolutionParams>& obj) {
     const auto& [device_name, net_type, num_channels, lora_rank] = obj.param;
 
     std::ostringstream result;

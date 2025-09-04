@@ -14,7 +14,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-    std::string CodegenGelu::getTestCaseName(testing::TestParamInfo<ov::test::snippets::CodegenGeluParams> obj) {
+    std::string CodegenGelu::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::CodegenGeluParams>& obj) {
         const auto& [netPrecision, inputShapes0, inputShapes1, useSubgraph, targetDevice] = obj.param;
 
         std::ostringstream result;

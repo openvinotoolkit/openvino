@@ -18,8 +18,8 @@
 namespace ExecutionGraphTests {
 
 std::string ExecGrapDecomposeNormalizeL2::getTestCaseName(
-    testing::TestParamInfo<std::string> obj) {
-  std::string targetDevice = obj.param;
+    const testing::TestParamInfo<std::string>& obj) {
+  const std::string& targetDevice = obj.param;
   return "Dev=" + targetDevice;
 }
 

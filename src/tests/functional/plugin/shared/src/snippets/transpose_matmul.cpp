@@ -13,7 +13,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string TransposeMatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMatMulParams> obj) {
+std::string TransposeMatMul::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::TransposeMatMulParams>& obj) {
     const auto& [input_shapes, transpose_position, elem_types, matmul_type, num_nodes, num_subgraphs, targetDevice] =
         obj.param;
     std::ostringstream result;

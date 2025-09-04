@@ -21,7 +21,7 @@ class EnforcePrecisionTest :
     public testing::WithParamInterface<EnforcePrecisionTestParams>,
     virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EnforcePrecisionTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<EnforcePrecisionTestParams>& obj);
 
 protected:
     void SetUp() override;
