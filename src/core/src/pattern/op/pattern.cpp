@@ -59,7 +59,6 @@ std::ostream& Pattern::write_description(std::ostream& out, uint32_t depth) cons
     return out;
 }
 
-
 }  // namespace op
 
 PatternMap as_pattern_map(const PatternValueMap& pattern_value_map) {

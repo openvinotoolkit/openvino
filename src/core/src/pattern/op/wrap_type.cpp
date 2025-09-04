@@ -16,12 +16,11 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
     // (i.e., when set_wrapped_output_size() was called with size > 1)
     // This ensures patterns like split->output(1) only match the correct output
     // while maintaining backward compatibility for existing patterns
-    if (m_explicit_output_size > 1 && 
-        graph_value.get_node_shared_ptr()->get_output_size() > 1 &&
+    if (m_explicit_output_size > 1 && graph_value.get_node_shared_ptr()->get_output_size() > 1 &&
         pattern_value.get_index() != graph_value.get_index()) {
         return false;
     }
-    
+
     if (std::none_of(m_wrapped_types.begin(), m_wrapped_types.end(), [&](const NodeTypeInfo& type_info) {
             return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
         })) {
