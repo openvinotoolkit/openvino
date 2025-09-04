@@ -55,8 +55,8 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
     bool loop_was_split = false;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
-        const auto& loop_ids = expr->get_loop_ids();
-        if (loop_ids.empty()) {
+        const auto original_loop_ids = expr->get_loop_ids();
+        if (original_loop_ids.empty()) {
             continue;
         }
 
@@ -64,17 +64,18 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         // Note: we currently consider only the outermost loops for splitting
         // Splitting could also be done in a more general case, but the splitted loop and its parent must always
         // be in the same set of outer loops. Otherwise they won't be fused.
-        const auto& loop_id = loop_ids.front();
+        const auto& loop_id = original_loop_ids.front();
         const auto loop = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
+        std::vector<std::pair<size_t, size_t>> vec_loops_to_split; // <loop_id, requested_increment>
         for (const auto& input_port : loop->get_input_ports()) {
             const auto& parent_port = input_port.get_expr_port()->get_port_connector_ptr()->get_source();
             const auto& parent_expr = parent_port.get_expr();
-            const auto& parent_loop_ids = parent_expr->get_loop_ids();
-            if (parent_loop_ids.empty()) {
+            const auto original_parent_loop_ids = parent_expr->get_loop_ids();
+            if (original_parent_loop_ids.empty()) {
                 continue;
             }
 
-            const auto& parent_loop_id = parent_loop_ids.front();
+            const auto& parent_loop_id = original_parent_loop_ids.front();
             const auto parent_loop = loop_manager->get_loop_info<UnifiedLoopInfo>(parent_loop_id);
             const bool split_parent = parent_loop->get_increment() < loop->get_increment();
             // We don't split loop which are not compatible with parent loop because such loops will not be fused
@@ -85,10 +86,65 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
             const auto& loop_to_split = split_parent ? parent_loop : loop;
             const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
             if (can_be_split(loop_to_split, loop_to_fuse)) {
-                split(linear_ir, split_parent ? parent_loop_id : loop_id, loop_to_fuse->get_increment());
-                loop_was_split = true;
+                const auto& to_split = split_parent ? parent_loop_id : loop_id;
+                OPENVINO_ASSERT(std::find_if(vec_loops_to_split.begin(),
+                                             vec_loops_to_split.end(),
+                                             [to_split](const auto& p) {
+                                                 return p.first == to_split;
+                                             }) == vec_loops_to_split.end(),
+                                "Loop with ID ",
+                                to_split,
+                                " has already been marked for splitting!");
+                vec_loops_to_split.emplace_back(to_split, loop_to_fuse->get_increment());
+                // split(linear_ir, split_parent ? parent_loop_id : loop_id, loop_to_fuse->get_increment());
+                // loop_was_split = true;
+
+                // After successfully splitting the outermost loop, try to split inner loops (from outer to inner)
+                for (size_t i = 1; i < original_loop_ids.size(); ++i) {
+                    if (original_parent_loop_ids.size() <= i) {
+                        break;
+                    }
+
+                    const auto& inner_loop_id = original_loop_ids[i];
+                    const auto& inner_parent_loop_id = original_parent_loop_ids[i];
+                    const auto inner_loop = loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loop_id);
+                    const auto inner_parent_loop = loop_manager->get_loop_info<UnifiedLoopInfo>(inner_parent_loop_id);
+
+                    const bool split_inner_parent = inner_parent_loop->get_increment() < inner_loop->get_increment();
+
+                    // Check if these inner loops can be fused after splitting
+                    if (!can_be_fused_after_splitting(inner_parent_loop, inner_loop, split_inner_parent)) {
+                        break;  // Stop trying to split further inner loops if this pair can't be fused
+                    }
+
+                    const auto& inner_loop_to_split = split_inner_parent ? inner_parent_loop : inner_loop;
+                    const auto& inner_loop_to_fuse = !split_inner_parent ? inner_parent_loop : inner_loop;
+
+                    if (can_be_split(inner_loop_to_split, inner_loop_to_fuse)) {
+                        const auto& to_split = split_inner_parent ? inner_parent_loop_id : inner_loop_id;
+                        OPENVINO_ASSERT(std::find_if(vec_loops_to_split.begin(),
+                                                     vec_loops_to_split.end(),
+                                                     [to_split](const auto& p) {
+                                                         return p.first == to_split;
+                                                     }) == vec_loops_to_split.end(),
+                                        "Loop with ID ",
+                                        to_split,
+                                        " has already been marked for splitting!");
+                        vec_loops_to_split.emplace_back(to_split, inner_loop_to_fuse->get_increment());
+                        // split(linear_ir, split_inner_parent ? inner_parent_loop_id : inner_loop_id, inner_loop_to_fuse->get_increment());
+                    } else {
+                        break;  // Stop trying to split further inner loops if this pair can't be split
+                    }
+                }
                 break;
             }
+        }
+        if (!vec_loops_to_split.empty()) {
+            // Split all marked loops from outer to inner
+            for (auto it = vec_loops_to_split.rbegin(); it != vec_loops_to_split.rend(); ++it) {
+                split(linear_ir, it->first, it->second);
+            }
+            loop_was_split = true;
         }
     }
     // Ticket: 113666
