@@ -228,7 +228,12 @@ public:
     SplitConcat(NodeVector& nodes_to_fuse) {
         MATCHER_SCOPE(SplitConcat);
         auto split_p = pattern::wrap_type<ov::op::v1::Split>();
-        auto pattern_root = pattern::wrap_type<ov::op::v0::Concat>({split_p, split_p, split_p});
+        split_p->set_output_size(3);
+        // Concat can take split outputs in any order
+        auto split_out_any1 = std::make_shared<pattern::op::Or>(OutputVector{split_p->output(0), split_p->output(1), split_p->output(2)});
+        auto split_out_any2 = std::make_shared<pattern::op::Or>(OutputVector{split_p->output(0), split_p->output(1), split_p->output(2)});
+        auto split_out_any3 = std::make_shared<pattern::op::Or>(OutputVector{split_p->output(0), split_p->output(1), split_p->output(2)});
+        auto pattern_root = pattern::wrap_type<ov::op::v0::Concat>({split_out_any1, split_out_any2, split_out_any3});
 
         auto callback = [=, &nodes_to_fuse](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -643,7 +648,12 @@ public:
         MATCHER_SCOPE(EraseSplitConcat);
         auto input_p = pattern::any_input();
         auto split_p = pattern::wrap_type<ov::op::v1::Split>({input_p, pattern::any_input()});
-        auto pattern_root = pattern::wrap_type<ov::op::v0::Concat>({split_p, split_p, split_p}, need_to_erase_ric);
+        split_p->set_output_size(3);
+        // Concat can take split outputs in any order
+        auto split_out_any1 = std::make_shared<pattern::op::Or>(OutputVector{split_p->output(0), split_p->output(1), split_p->output(2)});
+        auto split_out_any2 = std::make_shared<pattern::op::Or>(OutputVector{split_p->output(0), split_p->output(1), split_p->output(2)});
+        auto split_out_any3 = std::make_shared<pattern::op::Or>(OutputVector{split_p->output(0), split_p->output(1), split_p->output(2)});
+        auto pattern_root = pattern::wrap_type<ov::op::v0::Concat>({split_out_any1, split_out_any2, split_out_any3}, need_to_erase_ric);
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
