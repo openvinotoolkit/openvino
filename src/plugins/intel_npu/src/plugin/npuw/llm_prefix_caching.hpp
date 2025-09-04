@@ -109,7 +109,7 @@ private:
 
 class PrefixCacheManager {
 public:
-    PrefixCacheManager(size_t max_cache_size = 100) : m_max_cache_size(max_cache_size) {}
+    PrefixCacheManager(size_t max_cache_size) : m_max_cache_size(max_cache_size) {}
 
     // Add a block to the cache
     void put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash);
