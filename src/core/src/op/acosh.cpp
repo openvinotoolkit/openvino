@@ -62,6 +62,7 @@ bool ov::op::v3::Acosh::has_evaluate() const {
     case element::u64:
     case element::f16:
     case element::f32:
+    case element::f64:
         return true;
     default:
         return false;
