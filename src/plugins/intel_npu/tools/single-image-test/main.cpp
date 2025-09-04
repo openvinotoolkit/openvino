@@ -39,7 +39,6 @@ struct TensorDescriptor {
 };
 
 using TensorDescriptorMap = std::unordered_map<std::string, TensorDescriptor>;
-using LayoutMap = std::unordered_map<std::string, ov::Layout>;
 
 /**
  * @brief Provides a caseless equality function for STL algorithms.
@@ -1126,12 +1125,157 @@ bool checkBBoxOutputs(std::vector<utils::BoundingBox>& actualOutput, std::vector
     return true;
 }
 
+// FIXME: User must provide layout explicitly.
+// No "default" layout for IRv11 models.
+static ov::Layout getLayoutByRank(const size_t rank) {
+    switch (rank) {
+    case 0:
+        return ov::Layout::scalar();
+    case 1:
+        return ov::Layout("C");
+    case 2:
+        return ov::Layout("NC");
+    case 3:
+        return ov::Layout("CHW");
+    case 4:
+        return ov::Layout("NCHW");
+    case 5:
+        return ov::Layout("NCDHW");
+    }
+    throw std::logic_error("Failed to get layout for rank equal to " + std::to_string(rank));
+}
+
+static std::string toString(const std::vector<size_t>& vec) {
+    std::stringstream ss;
+    if (!vec.empty()) {
+        ss << "[";
+        for (size_t i = 0; i < vec.size() - 1; ++i) {
+            ss << vec[i] << ",";
+        }
+        ss << vec[vec.size() - 1];
+        ss << "]";
+    } else {
+        ss << "SCALAR";
+    }
+    return ss.str();
+}
+
+/**
+ * @brief This class is designed to gather and manage layout-related information and hints.
+ * It consolidates various layout parameters such as user-defined layouts, model-defined layouts, etc.
+ * which are provided as command-line arguments.
+ * @details As you can see there are several layout-affiliated parameters among the command line arguments:
+ * user-defined layout, model-defined layout etc. To maintain a consistent user experience,
+ * the single-image-test does not require explicit layout specification at the moment.
+ * Instead, it uses auto-deduction for the layout based on a shape ranks, as implemetned in
+ * the @getLayoutByRank function. While this approach works for a majority of models,
+ * it may fail for certain edge cases, leading to incorrect layout deductions.
+ * This can cause misinterpretation of the batch dimension, resulting in errors during
+ * the blob comparison process.
+ * The class provides two important methods: @getDeterministicLayout and @getAnyLayout, which
+ * are used by single-image-test in the comparison process with a different level of trust.
+ * If any layouts is provied by the user through command-line agruments, it is treated as deterministic,
+ * and @getDeterministicLayout returns either theuser-specified layout for tensors or
+ * the user-specified layout for the model.
+ * If none of these layouts are provided, then @getDeterministicLayout returns nothing and the
+ * auto-deducted layout will be returned from @getAnyLayout function. Contrary, if anyone from
+ * deterministic layout set is provided,the fucntion @getAnyLayout will behave the same as @getDeterministicLayout
+ *
+ *
+ * @example Consider a batched resnet50 with N=2,which results in a result blob containing 2000 elements.
+ * In this case:
+ *      1000 elements belongs to part [1/2] of the blob
+ *      another 1000 elements to the second part [2/2] of the initial batched blob.
+ *
+ * If we compare these result blobs in non-batched mode (where the layout is unspecified),
+ * we extract Tthe OP_K elements from the entire 2000-element blob. However,
+ * if the classification probabilities for parts [1/2] and [2/2] differ significantly, say:
+ *      Part [1/2] has classes with probabilities in the range [15..20]
+ *      Part [2/2] has classes with probabilities in the range [9..14]
+ *
+ * Then the TOP_K tests classes will be constituted from elements of the part [1/2] only.
+ * Consequently, the results from part [2/2] will not be involved as parameters to validate
+ * in that classification process. Additionally, slightly different blobs
+ * may give us comparison mismatch even if they all fit with a requested probability_tolerance.
+ *
+ * @param tensorLayout The layout specified by user for tensors
+ * @param modelLayout The layout specified by user for a model
+ * @param autoDeductedLayout The layout determined from shape
+ */
+class LayoutDescription {
+    std::optional<ov::Layout> tensorLayout;
+    std::optional<ov::Layout> modelLayout;
+    ov::Layout autoDeductedLayout;
+    LayoutDescription(std::optional<ov::Layout> &&userLayout, std::optional<ov::Layout>&& modelLayout,
+                      ov::Layout &&deductedLayout) :
+        tensorLayout(std::move(userLayout)),
+        modelLayout(std::move(modelLayout)),
+        autoDeductedLayout(std::move(deductedLayout)) {
+    }
+public:
+    ~LayoutDescription() = default;
+    LayoutDescription(const LayoutDescription&) = default;
+    LayoutDescription(LayoutDescription&&) = default;
+    LayoutDescription &operator=(const LayoutDescription&) = default;
+    LayoutDescription &operator=(LayoutDescription&&) = default;
+
+    bool hasDeterministicLayout() const {
+        return tensorLayout.has_value() || modelLayout.has_value();
+    }
+
+    const ov::Layout &getDeterministicLayout() const {
+        if (tensorLayout.has_value()) {
+            return tensorLayout.value() ;
+        }
+        if (modelLayout.has_value()) {
+            return modelLayout.value() ;
+        }
+        throw std::invalid_argument("LayoutDescription has no any deterministic layout");
+    }
+
+    ov::Layout getAnyLayout() const {
+        // prefer deterministica layouts over the auto-deducted
+        return hasDeterministicLayout() ? getDeterministicLayout() : autoDeductedLayout;
+    }
+
+    static LayoutDescription create(const std::string &inputOutputName,
+                                    const std::map<RegexPtr, ov::Layout> &userDefinedLayouts,
+                                    const std::map<RegexPtr, ov::Layout> &modelLayouts,
+                                    const ov::Shape &shape) {
+        std::optional<ov::Layout> userLayout =
+                                getRegexSubstitutionIfExist(inputOutputName, userDefinedLayouts);
+        std::optional<ov::Layout> modelLayout =
+                                getRegexSubstitutionIfExist(inputOutputName, modelLayouts);
+        auto deductedLayout = getLayoutByRank(shape.size());
+        if (!userLayout.has_value() && !modelLayout.has_value()) {
+            std::cout << "WARNING: Since --oml option isn't set, output model layout for layer \""
+                      << inputOutputName << "\" is infered from shape: " << toString(shape) << " rank ("
+                      << shape.size() << ") as " << deductedLayout.to_string() << std::endl;
+        }
+        return LayoutDescription{std::move(userLayout), std::move(modelLayout), std::move(deductedLayout)};
+    }
+};
+
+using LayoutMap = std::unordered_map<std::string, LayoutDescription>;
+std::unordered_map<std::string, ov::Layout> transformLayoutDescriptionToAnyLayoutsMap(const LayoutMap &layoutDescrMap) {
+    std::unordered_map<std::string, ov::Layout> ret;
+    for (auto [name, description] : layoutDescrMap) {
+        ret[name] = description.getAnyLayout();
+    }
+    return ret;
+}
+
 size_t getTensorBatchSize(const ov::Tensor& tensor, const std::string& tensorName, const LayoutMap &outputLayouts) {
-    // calculate batch_size using both tensor layout & shape information
+    // calculate batch_size by taking into account only deterministic layout information
+    // We cannot rely on the layout deducted from a shape, as it is incorrect in majority of cases
     auto batch_size = 1;
     if(auto it = outputLayouts.find(tensorName); it != outputLayouts.end()) {
-        if (ov::layout::has_batch(it->second)) {
-            batch_size = tensor.get_shape()[ov::layout::batch_idx(it->second)];
+        const LayoutDescription &description = it->second;
+        if (description.hasDeterministicLayout()) {
+            const ov::Layout &layout = description.getDeterministicLayout();
+            if (ov::layout::has_batch(layout)) {
+                batch_size = tensor.get_shape()[ov::layout::batch_idx(layout)];
+            }
         }
     }
     return batch_size;
@@ -1144,7 +1288,10 @@ std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor& tensor, const std::st
         outputDebatchedTensors.push_back(tensor);
     } else {
         OPENVINO_ASSERT(outputLayouts.find(tensorName) != outputLayouts.end());
-        outputDebatchedTensors = npu::utils::splitBatchedTensor(tensor, outputLayouts.find(tensorName)->second, batch_size);
+        outputDebatchedTensors =
+                    npu::utils::splitBatchedTensor(tensor,
+                        outputLayouts.find(tensorName)->second.getDeterministicLayout(),
+                        batch_size);
     }
     return outputDebatchedTensors;
 }
@@ -1577,7 +1724,7 @@ std::vector<float> softmax(std::vector<float>& tensor) {
     return results;
 }
 
-bool testNRMSE(TensorMap& outputs, const TensorMap& references, const LayoutMap &outputLayouts) {
+bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const LayoutMap &outputLayouts) {
     if (outputs.size() != references.size()) {
         std::cout << "Actual and reference has different number of output blobs" << std::endl;
         return false;
@@ -1793,41 +1940,6 @@ std::pair<TensorMap, ProfVec> runInfer(ov::InferRequest& inferRequest, ov::Compi
     return std::make_pair(out, profData);
 }
 
-// FIXME: User must provide layout explicitly.
-// No "default" layout for IRv11 models.
-static ov::Layout getLayoutByRank(const size_t rank) {
-    switch (rank) {
-    case 0:
-        return ov::Layout::scalar();
-    case 1:
-        return ov::Layout("C");
-    case 2:
-        return ov::Layout("NC");
-    case 3:
-        return ov::Layout("CHW");
-    case 4:
-        return ov::Layout("NCHW");
-    case 5:
-        return ov::Layout("NCDHW");
-    }
-    throw std::logic_error("Failed to get layout for rank equal to " + std::to_string(rank));
-}
-
-static std::string toString(const std::vector<size_t>& vec) {
-    std::stringstream ss;
-    if (!vec.empty()) {
-        ss << "[";
-        for (size_t i = 0; i < vec.size() - 1; ++i) {
-            ss << vec[i] << ",";
-        }
-        ss << vec[vec.size() - 1];
-        ss << "]";
-    } else {
-        ss << "SCALAR";
-    }
-    return ss.str();
-}
-
 bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
                       const TensorDescriptorMap& inputDescriptors, const LayoutMap &outputLayouts) {
     OPENVINO_ASSERT(outputs.size() == 1 && references.size() == 1);
@@ -1947,9 +2059,9 @@ bool testYoloV3(const TensorMap& outputs, const TensorMap& references, const Ten
                                   45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
 
     auto parsedOutput = utils::parseYoloV3Output(outputs, imgWidth, imgHeight, classes, coords, num, anchors,
-                                                 static_cast<float>(confThresh), outputLayouts);
+                                                 static_cast<float>(confThresh), transformLayoutDescriptionToAnyLayoutsMap(outputLayouts));
     auto parsedReference = utils::parseYoloV3Output(references, imgWidth, imgHeight, classes, coords, num, anchors,
-                                                    static_cast<float>(confThresh), outputLayouts);
+                                                    static_cast<float>(confThresh), transformLayoutDescriptionToAnyLayoutsMap(outputLayouts));
 
     bool result = checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
                                    static_cast<float>(probTolerance));
@@ -1993,9 +2105,9 @@ bool testYoloV4(const TensorMap& outputs, const TensorMap& references, const Ten
     }
 
     auto refOutput = utils::parseYoloV4Output(references, imgWidth, imgHeight, classes, coords, num, masked_anchors,
-                                              static_cast<float>(confThresh), outputLayouts);
+                                              static_cast<float>(confThresh), transformLayoutDescriptionToAnyLayoutsMap(outputLayouts));
     auto actOutput = utils::parseYoloV4Output(outputs, imgWidth, imgHeight, classes, coords, num, masked_anchors,
-                                              static_cast<float>(confThresh), outputLayouts);
+                                              static_cast<float>(confThresh), transformLayoutDescriptionToAnyLayoutsMap(outputLayouts));
     bool result = checkBBoxOutputs(actOutput, refOutput, imgWidth, imgHeight, static_cast<float>(boxTolerance),
                                    static_cast<float>(probTolerance));
     return result;
@@ -2046,15 +2158,15 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
             const ov::Tensor referenceU8 = npu::utils::toPrecision(*referenceDebatchedTensorIterator, ov::element::u8);
             const ov::Tensor outputU8 = npu::utils::toPrecision(*outputDebatchedTensorIterator, ov::element::u8);
 
-            const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayoutIterator->second)];
-            const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayoutIterator->second)];
-            const size_t W = referenceU8.get_shape()[ov::layout::width_idx(outputLayoutIterator->second)];
+            const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayoutIterator->second.getAnyLayout())];
+            const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayoutIterator->second.getAnyLayout())];
+            const size_t W = referenceU8.get_shape()[ov::layout::width_idx(outputLayoutIterator->second.getAnyLayout())];
 
             std::copy_n(referenceU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedReferences));
             std::copy_n(outputU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedOutputs));
         } else {
-            utils::argMax_channels(*referenceDebatchedTensorIterator, parsedReferences, outputLayoutIterator->second);
-            utils::argMax_channels(*outputDebatchedTensorIterator, parsedOutputs, outputLayoutIterator->second);
+            utils::argMax_channels(*referenceDebatchedTensorIterator, parsedReferences, outputLayoutIterator->second.getAnyLayout());
+            utils::argMax_channels(*outputDebatchedTensorIterator, parsedOutputs, outputLayoutIterator->second.getAnyLayout());
         }
 
         if (parsedReferences.size() != parsedOutputs.size()) {
@@ -2515,28 +2627,10 @@ static int runSingleImageTest() {
                     std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
 
-                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullPath);
-                    referenceTensors.emplace(tensorName, referenceTensor);
+                    referenceTensors.emplace(tensorName, loadTensor(precision, shape, blobFileFullPath));
 
                     // Determine the output layout
-                    ov::Layout outputLayout;
-
-                    if (std::optional<ov::Layout> outUserLayout =
-                                getRegexSubstitutionIfExist(tensorName, outUserLayouts);
-                        outUserLayout.has_value()) {
-                        outputLayout = outUserLayout.value();
-                    } else if (std::optional<ov::Layout> outModelLayout =
-                                       getRegexSubstitutionIfExist(tensorName, outModelLayouts);
-                               outModelLayout.has_value()) {
-                        outputLayout = outModelLayout.value();
-                    } else {
-                        outputLayout = getLayoutByRank(shape.size());
-                        std::cout << "WARNING: Since --oml option isn't set, output model layout for layer \""
-                                  << tensorName << "\" is infered from shape: " << toString(shape) << " rank ("
-                                  << shape.size() << ") as " << outputLayout.to_string() << std::endl;
-                    }
-
-                    outputLayouts.emplace(tensorName, outputLayout);
+                    outputLayouts.emplace(tensorName, LayoutDescription::create(tensorName, outUserLayouts, outModelLayouts, shape));
 
                     ++outputInd;
                 }
@@ -2557,97 +2651,56 @@ static int runSingleImageTest() {
                     ++outputInd;
                 }
 
-                // Compare the outputs with their references using the chosen metric
-                if (strEq(FLAGS_mode, "classification")) {
-                    if (testClassification(outputTensors, referenceTensors, outputLayouts)) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else if (strEq(FLAGS_mode, "raw")) {
-                    if (testRAW(outputTensors, referenceTensors, outputLayouts)) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else if (strEq(FLAGS_mode, "cosim")) {
-                    if (testCoSim(outputTensors, referenceTensors, outputLayouts)) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else if (strEq(FLAGS_mode, "rrmse")) {
-                    if (testRRMSE(outputTensors, referenceTensors, outputLayouts)) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else if (strEq(FLAGS_mode, "nrmse")) {
-                    if (testNRMSE(outputTensors, referenceTensors, outputLayouts)) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else if (strEq(FLAGS_mode, "ssd")) {
-                    if (testSSDDetection(outputTensors, referenceTensors, inputDescriptors,
-                                         outputLayouts)) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else if (strEq(FLAGS_mode, "yolo_v2")) {
-                    if (testYoloV2(outputTensors, referenceTensors, inputDescriptors,
-                                   outputLayouts)) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else if (strEq(FLAGS_mode, "yolo_v3")) {
-                    if (testYoloV3(outputTensors, referenceTensors, inputDescriptors, outputLayouts)) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else if (strEq(FLAGS_mode, "yolo_v4")) {
-                    if (testYoloV4(outputTensors, referenceTensors, inputDescriptors, outputLayouts)) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else if (strEq(FLAGS_mode, "psnr")) {
-                    const auto& [firstOutputName, firstOutput] = *outputTensors.begin();
-                    const ov::Shape& shape = firstOutput.get_shape();
-                    const ov::Layout& outputLayout = outputLayouts.at(firstOutputName);
-                    const size_t dstHeight = shape[ov::layout::height_idx(outputLayout)];
-                    const size_t dstWidth = shape[ov::layout::width_idx(outputLayout)];
+                using ResultStatus = std::tuple<std::string, int>;
+                std::array<ResultStatus, 2> resultStatuses{{
+                            {"FAILED", EXIT_FAILURE},
+                            {"PASSED", EXIT_SUCCESS}
+                }};
 
-                    if (testPSNR(outputTensors, referenceTensors, static_cast<int>(dstHeight),
-                                 static_cast<int>(dstWidth))) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else if (strEq(FLAGS_mode, "mean_iou")) {
-                    if (testMeanIoU(outputTensors, referenceTensors, outputLayouts)) {
-                        std::cout << "PASSED" << std::endl;
-                    } else {
-                        std::cout << "FAILED" << std::endl;
-                        return EXIT_FAILURE;
-                    }
-                } else {
+                std::string mode(FLAGS_mode);
+                std::transform(mode.begin(), mode.end(), mode.begin(), [](unsigned char c){
+                    return std::tolower(c);
+                });
+                using TestMethod = std::function<bool(const TensorMap&, const TensorMap&, const LayoutMap&)>;
+                std::map<std::string, TestMethod> testMethods {{
+                    {"classification", &testClassification},
+                    {"cosim", &testCoSim},
+                    {"mean_iou", &testMeanIoU},
+                    {"nrmse", &testNRMSE},
+                    {"raw", &testRAW},
+                    {"rrmse", &testRRMSE},
+                    {"ssd", [inputDescriptors] (const TensorMap &oTensors, const TensorMap& rTensors, const LayoutMap &oLayouts) {
+                        return testSSDDetection(oTensors, rTensors, inputDescriptors, oLayouts);}},
+                    {"yolo_v2", [inputDescriptors] (const TensorMap &oTensors, const TensorMap& rTensors, const LayoutMap &oLayouts) {
+                        return testYoloV2(oTensors, rTensors, inputDescriptors, oLayouts);}},
+                    {"yolo_v3", [inputDescriptors] (const TensorMap &oTensors, const TensorMap& rTensors, const LayoutMap &oLayouts) {
+                        return testYoloV3(oTensors, rTensors, inputDescriptors, oLayouts);}},
+                    {"yolo_v4", [inputDescriptors] (const TensorMap &oTensors, const TensorMap& rTensors, const LayoutMap &oLayouts) {
+                        return testYoloV4(oTensors, rTensors, inputDescriptors, oLayouts);}},
+                    {"psnr", [inputDescriptors] (const TensorMap &oTensors, const TensorMap& rTensors, const LayoutMap &oLayouts) {
+                                    const auto& [firstOutputName, firstOutput] = *oTensors.begin();
+                                    const ov::Shape& shape = firstOutput.get_shape();
+                                    auto oAnyLayouts = transformLayoutDescriptionToAnyLayoutsMap(oLayouts);
+                                    const ov::Layout& outputLayout = oAnyLayouts.at(firstOutputName);
+                                    const size_t dstHeight = shape[ov::layout::height_idx(outputLayout)];
+                                    const size_t dstWidth = shape[ov::layout::width_idx(outputLayout)];
+
+                                    return testPSNR(oTensors, rTensors, static_cast<int>(dstHeight),
+                                              static_cast<int>(dstWidth));
+                                }}
+                }};
+
+                // Compare the outputs with their references using the chosen metric
+                auto testMethodsIt = testMethods.find(mode);
+                if (testMethodsIt == testMethods.end()) {
                     std::cout << "Unknown mode " << FLAGS_mode << std::endl;
                     return EXIT_FAILURE;
                 }
+
+                auto testFunc = testMethodsIt->second;
+                auto [message, exitCode] = resultStatuses[testFunc(outputTensors, referenceTensors, outputLayouts)];
+                std::cout << message << std::endl;
+                return exitCode;
             } else {
                 size_t outputInd = 0;
                 for (const auto& out : compiledModel.outputs()) {
