@@ -26,8 +26,7 @@ struct DeviceOps {
         add_ops_to_map(ops_mad,  ops, data_types::f16, 2);
         add_ops_to_map(ops_dpas, ops, data_types::f16, 3);
         add_ops_to_map(ops_dpas, ops, data_types::i8,  4);
-        add_ops_to_map(ops_dp4a, ops, data_types::f16, 5);
-        add_ops_to_map(ops_dp4a, ops, data_types::i8,  6);
+        add_ops_to_map(ops_dp4a, ops, data_types::i8,  5);
     }
 
     std::vector<gfx_version> gfx_version_list;
@@ -101,7 +100,7 @@ const std::vector<DeviceOps> device_ops_table = {
 
 float device::get_gops(data_types dt) const {
     // WA: The u8 type isn't accounted for in the device_ops_table, since it's the same as i8.
-    dt = dt == data_types::u8 ? data_types::i8 : dt;
+    dt = (dt == data_types::u8) ? data_types::i8 : dt;
 
     auto info = get_info();
     if (info.vendor_id != INTEL_VENDOR_ID) {
