@@ -22,6 +22,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
