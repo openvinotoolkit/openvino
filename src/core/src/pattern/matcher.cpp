@@ -138,19 +138,6 @@ bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Outpu
 bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVector& args) {
     for (size_t i = 0; i < args.size(); i++) {
         OPENVINO_LOG_MATCHER2(this, i, pattern_args.at(i));
-        
-        // Check output indices when both pattern and graph nodes have multiple outputs
-        // This ensures that patterns like split->output(1) only match the correct output
-        // while still allowing flexible matching for single-output nodes
-        auto pattern_node = pattern_args.at(i).get_node_shared_ptr();
-        auto graph_node = args.at(i).get_node_shared_ptr();
-        if (pattern_node->get_output_size() > 1 && 
-            graph_node->get_output_size() > 1 &&
-            pattern_args.at(i).get_index() != args.at(i).get_index()) {
-            OPENVINO_LOG_MATCHER3(this, i);
-            return false;
-        }
-        
         if (!match_value(pattern_args.at(i), args.at(i))) {
             OPENVINO_LOG_MATCHER3(this, i);
             return false;
