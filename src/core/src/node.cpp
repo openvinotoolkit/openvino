@@ -20,6 +20,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/util/log.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
