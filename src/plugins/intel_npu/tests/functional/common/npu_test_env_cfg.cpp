@@ -178,7 +178,7 @@ std::string getDeviceNameID(const std::string& str) {
 }  // namespace ov::test::utils
 
 namespace InferRequestParamsAnyMapTestName {
-std::string getTestCaseName(testing::TestParamInfo<ov::test::behavior::InferRequestParams> obj) {
+std::string getTestCaseName(const testing::TestParamInfo<ov::test::behavior::InferRequestParams>& obj) {
     std::string targetDevice;
     ov::AnyMap configuration;
     std::tie(targetDevice, configuration) = obj.param;
@@ -199,7 +199,7 @@ std::string getTestCaseName(testing::TestParamInfo<ov::test::behavior::InferRequ
 
 namespace InferRequestParamsMapTestName {
 
-std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
+std::string getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj) {
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
     std::tie(targetDevice, configuration) = obj.param;
