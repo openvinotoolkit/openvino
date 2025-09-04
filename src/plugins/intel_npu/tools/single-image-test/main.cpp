@@ -264,7 +264,7 @@ void parseCommandLine(int argc, char* argv[]) {
         std::cout << "    Reference files directory:                "
                   << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
                   << std::endl;
-        std::cout << "    Reference file(s):                        " << FLAGS_ref_results<< std::endl;
+        std::cout << "    Reference file(s):                        " << FLAGS_ref_results << std::endl;
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
@@ -431,7 +431,7 @@ struct BatchIndexer {
 
     std::string to_string() const {
         std::stringstream sstream;
-        sstream << "["  << index << "/" << size << "]";
+        sstream << "[" << index << "/" << size << "]";
         return sstream.str();
     }
 };
@@ -1206,29 +1206,30 @@ class LayoutDescription {
     std::optional<ov::Layout> tensorLayout;
     std::optional<ov::Layout> modelLayout;
     ov::Layout autoDeductedLayout;
-    LayoutDescription(std::optional<ov::Layout> &&userLayout, std::optional<ov::Layout>&& modelLayout,
-                      ov::Layout &&deductedLayout) :
-        tensorLayout(std::move(userLayout)),
-        modelLayout(std::move(modelLayout)),
-        autoDeductedLayout(std::move(deductedLayout)) {
-    }
+    LayoutDescription(std::optional<ov::Layout>&& userLayout,
+                      std::optional<ov::Layout>&& modelLayout,
+                      ov::Layout&& deductedLayout)
+        : tensorLayout(std::move(userLayout)),
+          modelLayout(std::move(modelLayout)),
+          autoDeductedLayout(std::move(deductedLayout)) {}
+
 public:
     ~LayoutDescription() = default;
     LayoutDescription(const LayoutDescription&) = default;
     LayoutDescription(LayoutDescription&&) = default;
-    LayoutDescription &operator=(const LayoutDescription&) = default;
-    LayoutDescription &operator=(LayoutDescription&&) = default;
+    LayoutDescription& operator=(const LayoutDescription&) = default;
+    LayoutDescription& operator=(LayoutDescription&&) = default;
 
     bool hasDeterministicLayout() const {
         return tensorLayout.has_value() || modelLayout.has_value();
     }
 
-    const ov::Layout &getDeterministicLayout() const {
+    const ov::Layout& getDeterministicLayout() const {
         if (tensorLayout.has_value()) {
-            return tensorLayout.value() ;
+            return tensorLayout.value();
         }
         if (modelLayout.has_value()) {
-            return modelLayout.value() ;
+            return modelLayout.value();
         }
         throw std::invalid_argument("LayoutDescription has no any deterministic layout");
     }
@@ -1238,26 +1239,24 @@ public:
         return hasDeterministicLayout() ? getDeterministicLayout() : autoDeductedLayout;
     }
 
-    static LayoutDescription create(const std::string &inputOutputName,
-                                    const std::map<RegexPtr, ov::Layout> &userDefinedLayouts,
-                                    const std::map<RegexPtr, ov::Layout> &modelLayouts,
-                                    const ov::Shape &shape) {
-        std::optional<ov::Layout> userLayout =
-                                getRegexSubstitutionIfExist(inputOutputName, userDefinedLayouts);
-        std::optional<ov::Layout> modelLayout =
-                                getRegexSubstitutionIfExist(inputOutputName, modelLayouts);
+    static LayoutDescription create(const std::string& inputOutputName,
+                                    const std::map<RegexPtr, ov::Layout>& userDefinedLayouts,
+                                    const std::map<RegexPtr, ov::Layout>& modelLayouts,
+                                    const ov::Shape& shape) {
+        std::optional<ov::Layout> userLayout = getRegexSubstitutionIfExist(inputOutputName, userDefinedLayouts);
+        std::optional<ov::Layout> modelLayout = getRegexSubstitutionIfExist(inputOutputName, modelLayouts);
         auto deductedLayout = getLayoutByRank(shape.size());
         if (!userLayout.has_value() && !modelLayout.has_value()) {
-            std::cout << "WARNING: Since --oml option isn't set, output model layout for layer \""
-                      << inputOutputName << "\" is infered from shape: " << toString(shape) << " rank ("
-                      << shape.size() << ") as " << deductedLayout.to_string() << std::endl;
+            std::cout << "WARNING: Since --oml option isn't set, output model layout for layer \"" << inputOutputName
+                      << "\" is infered from shape: " << toString(shape) << " rank (" << shape.size() << ") as "
+                      << deductedLayout.to_string() << std::endl;
         }
         return LayoutDescription{std::move(userLayout), std::move(modelLayout), std::move(deductedLayout)};
     }
 };
 
 using LayoutMap = std::unordered_map<std::string, LayoutDescription>;
-std::unordered_map<std::string, ov::Layout> transformLayoutDescriptionToAnyLayoutsMap(const LayoutMap &layoutDescrMap) {
+std::unordered_map<std::string, ov::Layout> transformLayoutDescriptionToAnyLayoutsMap(const LayoutMap& layoutDescrMap) {
     std::unordered_map<std::string, ov::Layout> ret;
     for (auto [name, description] : layoutDescrMap) {
         ret[name] = description.getAnyLayout();
@@ -1265,14 +1264,14 @@ std::unordered_map<std::string, ov::Layout> transformLayoutDescriptionToAnyLayou
     return ret;
 }
 
-size_t getTensorBatchSize(const ov::Tensor& tensor, const std::string& tensorName, const LayoutMap &outputLayouts) {
+size_t getTensorBatchSize(const ov::Tensor& tensor, const std::string& tensorName, const LayoutMap& outputLayouts) {
     // calculate batch_size by taking into account only deterministic layout information
     // We cannot rely on the layout deducted from a shape, as it is incorrect in majority of cases
     auto batch_size = 1;
-    if(auto it = outputLayouts.find(tensorName); it != outputLayouts.end()) {
-        const LayoutDescription &description = it->second;
+    if (auto it = outputLayouts.find(tensorName); it != outputLayouts.end()) {
+        const LayoutDescription& description = it->second;
         if (description.hasDeterministicLayout()) {
-            const ov::Layout &layout = description.getDeterministicLayout();
+            const ov::Layout& layout = description.getDeterministicLayout();
             if (ov::layout::has_batch(layout)) {
                 batch_size = tensor.get_shape()[ov::layout::batch_idx(layout)];
             }
@@ -1281,7 +1280,9 @@ size_t getTensorBatchSize(const ov::Tensor& tensor, const std::string& tensorNam
     return batch_size;
 }
 
-std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor& tensor, const std::string& tensorName, const LayoutMap &outputLayouts) {
+std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor& tensor,
+                                         const std::string& tensorName,
+                                         const LayoutMap& outputLayouts) {
     std::list<ov::Tensor> outputDebatchedTensors;
     size_t batch_size = getTensorBatchSize(tensor, tensorName, outputLayouts);
     if (batch_size == 1) {
@@ -1289,18 +1290,18 @@ std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor& tensor, const std::st
     } else {
         OPENVINO_ASSERT(outputLayouts.find(tensorName) != outputLayouts.end());
         outputDebatchedTensors =
-                    npu::utils::splitBatchedTensor(tensor,
-                        outputLayouts.find(tensorName)->second.getDeterministicLayout(),
-                        batch_size);
+            npu::utils::splitBatchedTensor(tensor,
+                                           outputLayouts.find(tensorName)->second.getDeterministicLayout(),
+                                           batch_size);
     }
     return outputDebatchedTensors;
 }
 
 using BlobTestMethod = std::function<bool(const ov::Tensor&, const ov::Tensor&)>;
-bool test_blobs_in_batch(const std::string &tensorName,
-                          const std::list<ov::Tensor> &outputDebatchedTensors,
-                          const std::list<ov::Tensor> &referenceDebatchedTensors,
-                          BlobTestMethod testTensors) {
+bool test_blobs_in_batch(const std::string& tensorName,
+                         const std::list<ov::Tensor>& outputDebatchedTensors,
+                         const std::list<ov::Tensor>& referenceDebatchedTensors,
+                         BlobTestMethod testTensors) {
     OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
     auto [batch, batchBundleSize] = std::make_tuple(0, outputDebatchedTensors.size());
     auto referenceDebatchedTensorIterator = referenceDebatchedTensors.begin();
@@ -1308,7 +1309,8 @@ bool test_blobs_in_batch(const std::string &tensorName,
          outputDebatchedTensorIterator != outputDebatchedTensors.end();
          ++outputDebatchedTensorIterator, ++referenceDebatchedTensorIterator, ++batch) {
         if (batchBundleSize != 1) {
-            std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize << " batch) with reference" << std::endl;
+            std::cout << "Compare \"" << tensorName << "\"(" << batch << "/" << batchBundleSize
+                      << " batch) with reference" << std::endl;
         } else {
             std::cout << "Compare \"" << tensorName << "\" with reference" << std::endl;
         }
@@ -1369,7 +1371,7 @@ std::vector<std::vector<std::pair<int, float>>> parseClassificationBatch(const o
     return ret;
 }
 
-bool testClassification(const TensorMap& outputs, const TensorMap& references, const LayoutMap &outputLayouts) {
+bool testClassification(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(outputs.size() == references.size());
 
@@ -1482,7 +1484,7 @@ bool compareTensors(const ov::Tensor& output, const ov::Tensor& reference) {
     return true;
 }
 
-bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, const LayoutMap &outputLayouts) {
+bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, const LayoutMap& outputLayouts) {
     if (outputTensors.size() != referenceTensors.size()) {
         std::cout << "The number of predicted outputs differ from the number of references" << std::endl;
         return false;
@@ -1493,9 +1495,9 @@ bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, 
         OPENVINO_ASSERT(referenceTensorIterator != referenceTensors.end());
 
         if (!test_blobs_in_batch(tensorName,
-                                  splitBatchedTensor(outputTensor, tensorName, outputLayouts),
-                                  splitBatchedTensor(referenceTensorIterator->second, tensorName, outputLayouts),
-                                  compareTensors)) {
+                                 splitBatchedTensor(outputTensor, tensorName, outputLayouts),
+                                 splitBatchedTensor(referenceTensorIterator->second, tensorName, outputLayouts),
+                                 compareTensors)) {
             return false;
         }
     }
@@ -1549,7 +1551,7 @@ bool compareCoSim(const ov::Tensor& output, const ov::Tensor& reference) {
     return similarity > FLAGS_cosim_threshold;
 }
 
-bool testCoSim(const TensorMap& outputs, const TensorMap& references, const LayoutMap &outputLayouts) {
+bool testCoSim(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
     if (outputs.size() != references.size()) {
         std::cout << "The outputs and references differ in the number of tensors" << std::endl;
         return false;
@@ -1560,9 +1562,9 @@ bool testCoSim(const TensorMap& outputs, const TensorMap& references, const Layo
         OPENVINO_ASSERT(referencesIterator != references.end());
 
         if (!test_blobs_in_batch(tensorName,
-                                  splitBatchedTensor(output, tensorName, outputLayouts),
-                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
-                                  compareCoSim)) {
+                                 splitBatchedTensor(output, tensorName, outputLayouts),
+                                 splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                 compareCoSim)) {
             return false;
         }
     }
@@ -1614,7 +1616,7 @@ bool computeRRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return rrmseLoss <= FLAGS_rrmse_loss_threshold;
 }
 
-bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const LayoutMap &outputLayouts) {
+bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
     if (outputs.size() != references.size()) {
         std::cout << "Actual and reference has different number of output blobs" << std::endl;
         return false;
@@ -1712,7 +1714,7 @@ std::vector<float> softmax(std::vector<float>& tensor) {
     return results;
 }
 
-bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const LayoutMap &outputLayouts) {
+bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
     if (outputs.size() != references.size()) {
         std::cout << "Actual and reference has different number of output blobs" << std::endl;
         return false;
@@ -1731,36 +1733,33 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         OPENVINO_ASSERT(referencesIterator != references.end());
         bool applySoftMax = FLAGS_apply_soft_max;
 
-        std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
-        std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
-        OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
+        BlobTestMethod blobComparator = [applySoftMax](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
+            if (applySoftMax) {
+                std::vector<float> actOutput;
+                std::vector<float> refOutput;
 
-        BlobTestMethod blobComparator = [applySoftMax] (ov::Tensor outputTensor, ov::Tensor referenceTensor) {
-                                        if (applySoftMax) {
-                                            std::vector<float> actOutput;
-                                            std::vector<float> refOutput;
+                std::copy_n((npu::utils::toFP32(outputTensor)).data<const float>(),
+                            outputTensor.get_size(),
+                            std::back_insert_iterator(actOutput));
+                std::copy_n((npu::utils::toFP32(referenceTensor)).data<const float>(),
+                            referenceTensor.get_size(),
+                            std::back_insert_iterator(refOutput));
 
-                                            std::copy_n((npu::utils::toFP32(outputTensor)).data<const float>(), outputTensor.get_size(),
-                                                std::back_insert_iterator(actOutput));
-                                            std::copy_n((npu::utils::toFP32(referenceTensor)).data<const float>(), referenceTensor.get_size(),
-                                                std::back_insert_iterator(refOutput));
+                auto actSoftMax = softmax(actOutput);
+                auto refSoftMax = softmax(refOutput);
 
-                                            auto actSoftMax = softmax(actOutput);
-                                            auto refSoftMax = softmax(refOutput);
-
-                                            std::copy_n(actSoftMax.begin(), outputTensor.get_size(),
-                                                        outputTensor.data<float>());
-                                            // Why reference data is not updated?
-                                            std::copy_n(refSoftMax.begin(),
-                                                        referenceTensor.get_size(),
-                                                        const_cast<float*>(referenceTensor.data<float>()));
-                                        }
-                                        return computeNRMSE(outputTensor, referenceTensor);
-                                    };
+                std::copy_n(actSoftMax.begin(), outputTensor.get_size(), outputTensor.data<float>());
+                // Why reference data is not updated?
+                std::copy_n(refSoftMax.begin(),
+                            referenceTensor.get_size(),
+                            const_cast<float*>(referenceTensor.data<float>()));
+            }
+            return computeNRMSE(outputTensor, referenceTensor);
+        };
         if (!test_blobs_in_batch(tensorName,
-                                  splitBatchedTensor(output, tensorName, outputLayouts),
-                                  splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
-                                  blobComparator)) {
+                                 splitBatchedTensor(output, tensorName, outputLayouts),
+                                 splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                 blobComparator)) {
             return false;
         }
     }
@@ -1939,17 +1938,23 @@ bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
     auto referencesIterator = references.find(tensorName);
     OPENVINO_ASSERT(referencesIterator != references.end());
 
-    BlobTestMethod blobComparator =
-    [imgWidth, imgHeight, confThresh, probTolerance, boxTolerance] (const ov::Tensor &outputTensor, const ov::Tensor &referenceTensor) {
+    BlobTestMethod blobComparator = [imgWidth, imgHeight, confThresh, probTolerance, boxTolerance](
+                                        const ov::Tensor& outputTensor,
+                                        const ov::Tensor& referenceTensor) {
         auto parsedOutput = utils::parseSSDOutput(outputTensor, imgWidth, imgHeight, static_cast<float>(confThresh));
-        auto parsedReference = utils::parseSSDOutput(referenceTensor, imgWidth, imgHeight, static_cast<float>(confThresh));
-        return checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
+        auto parsedReference =
+            utils::parseSSDOutput(referenceTensor, imgWidth, imgHeight, static_cast<float>(confThresh));
+        return checkBBoxOutputs(parsedOutput,
+                                parsedReference,
+                                imgWidth,
+                                imgHeight,
+                                static_cast<float>(boxTolerance),
                                 static_cast<float>(probTolerance));
     };
     return test_blobs_in_batch(tensorName,
-                                splitBatchedTensor(output, tensorName, outputLayouts),
-                                splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
-                                blobComparator);
+                               splitBatchedTensor(output, tensorName, outputLayouts),
+                               splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                               blobComparator);
 }
 
 //
@@ -1974,16 +1979,30 @@ bool testYoloV2(const TensorMap& outputs, const TensorMap& references, const Ten
     auto referencesIterator = references.find(tensorName);
     OPENVINO_ASSERT(referencesIterator != references.end());
 
-    BlobTestMethod blobComparator = [imgWidth, imgHeight, confThresh, probTolerance, boxTolerance, isTiny] (const ov::Tensor &outputTensor, const ov::Tensor &referenceTensor) {
-        auto parsedOutput = utils::parseYoloOutput(npu::utils::toFP32(outputTensor), imgWidth, imgHeight, static_cast<float>(confThresh), isTiny);
-        auto parsedReference = utils::parseYoloOutput(npu::utils::toFP32(referenceTensor), imgWidth, imgHeight, static_cast<float>(confThresh), isTiny);
-        return checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
+    BlobTestMethod blobComparator = [imgWidth, imgHeight, confThresh, probTolerance, boxTolerance, isTiny](
+                                        const ov::Tensor& outputTensor,
+                                        const ov::Tensor& referenceTensor) {
+        auto parsedOutput = utils::parseYoloOutput(npu::utils::toFP32(outputTensor),
+                                                   imgWidth,
+                                                   imgHeight,
+                                                   static_cast<float>(confThresh),
+                                                   isTiny);
+        auto parsedReference = utils::parseYoloOutput(npu::utils::toFP32(referenceTensor),
+                                                      imgWidth,
+                                                      imgHeight,
+                                                      static_cast<float>(confThresh),
+                                                      isTiny);
+        return checkBBoxOutputs(parsedOutput,
+                                parsedReference,
+                                imgWidth,
+                                imgHeight,
+                                static_cast<float>(boxTolerance),
                                 static_cast<float>(probTolerance));
     };
     return test_blobs_in_batch(tensorName,
-                                splitBatchedTensor(output, tensorName, outputLayouts),
-                                splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
-                                blobComparator);
+                               splitBatchedTensor(output, tensorName, outputLayouts),
+                               splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                               blobComparator);
 }
 
 //
@@ -2055,11 +2074,29 @@ bool testYoloV4(const TensorMap& outputs, const TensorMap& references, const Ten
         }
     }
 
-    auto refOutput = utils::parseYoloV4Output(references, imgWidth, imgHeight, classes, coords, num, masked_anchors,
-                                              static_cast<float>(confThresh), transformLayoutDescriptionToAnyLayoutsMap(outputLayouts));
-    auto actOutput = utils::parseYoloV4Output(outputs, imgWidth, imgHeight, classes, coords, num, masked_anchors,
-                                              static_cast<float>(confThresh), transformLayoutDescriptionToAnyLayoutsMap(outputLayouts));
-    bool result = checkBBoxOutputs(actOutput, refOutput, imgWidth, imgHeight, static_cast<float>(boxTolerance),
+    auto refOutput = utils::parseYoloV4Output(references,
+                                              imgWidth,
+                                              imgHeight,
+                                              classes,
+                                              coords,
+                                              num,
+                                              masked_anchors,
+                                              static_cast<float>(confThresh),
+                                              transformLayoutDescriptionToAnyLayoutsMap(outputLayouts));
+    auto actOutput = utils::parseYoloV4Output(outputs,
+                                              imgWidth,
+                                              imgHeight,
+                                              classes,
+                                              coords,
+                                              num,
+                                              masked_anchors,
+                                              static_cast<float>(confThresh),
+                                              transformLayoutDescriptionToAnyLayoutsMap(outputLayouts));
+    bool result = checkBBoxOutputs(actOutput,
+                                   refOutput,
+                                   imgWidth,
+                                   imgHeight,
+                                   static_cast<float>(boxTolerance),
                                    static_cast<float>(probTolerance));
     return result;
 }
@@ -2088,19 +2125,20 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     auto outputLayoutIterator = outputLayouts.find(tensorName);
     OPENVINO_ASSERT(outputLayoutIterator != outputLayouts.end());
 
-    std::list<ov::Tensor> outputDebatchedTensors = splitBatchedTensor(output, tensorName, outputLayouts);
-    std::list<ov::Tensor> referenceDebatchedTensors = splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts);
-    OPENVINO_ASSERT(referenceDebatchedTensors.size() == outputDebatchedTensors.size());
-
-    BlobTestMethod blobComparator = [skipArgMax, outputLayoutIterator, classes, semSegThreshold, &iou] (const ov::Tensor &outputTensor, const ov::Tensor &referenceTensor) {
+    BlobTestMethod blobComparator = [skipArgMax, outputLayoutIterator, classes, semSegThreshold, &iou](
+                                        const ov::Tensor& outputTensor,
+                                        const ov::Tensor& referenceTensor) {
         std::vector<uint8_t> parsedReferences, parsedOutputs;
         if (skipArgMax) {
             const ov::Tensor referenceU8 = npu::utils::toPrecision(referenceTensor, ov::element::u8);
             const ov::Tensor outputU8 = npu::utils::toPrecision(outputTensor, ov::element::u8);
 
-            const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayoutIterator->second.getAnyLayout())];
-            const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayoutIterator->second.getAnyLayout())];
-            const size_t W = referenceU8.get_shape()[ov::layout::width_idx(outputLayoutIterator->second.getAnyLayout())];
+            const size_t C =
+                referenceU8.get_shape()[ov::layout::channels_idx(outputLayoutIterator->second.getAnyLayout())];
+            const size_t H =
+                referenceU8.get_shape()[ov::layout::height_idx(outputLayoutIterator->second.getAnyLayout())];
+            const size_t W =
+                referenceU8.get_shape()[ov::layout::width_idx(outputLayoutIterator->second.getAnyLayout())];
 
             std::copy_n(referenceU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedReferences));
             std::copy_n(outputU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedOutputs));
@@ -2119,9 +2157,9 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     };
 
     return test_blobs_in_batch(tensorName,
-                                splitBatchedTensor(output, tensorName, outputLayouts),
-                                splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
-                                blobComparator);
+                               splitBatchedTensor(output, tensorName, outputLayouts),
+                               splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                               blobComparator);
 }
 
 static ov::Shape parseDataShape(const std::string& dataShapeStr) {
@@ -2564,7 +2602,8 @@ static int runSingleImageTest() {
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
-                    std::string blobFileFullPath = getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
+                    std::string blobFileFullPath =
+                        getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
 
                     std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
@@ -2572,7 +2611,9 @@ static int runSingleImageTest() {
                     referenceTensors.emplace(tensorName, loadTensor(precision, shape, blobFileFullPath));
 
                     // Determine the output layout
-                    outputLayouts.emplace(tensorName, LayoutDescription::create(tensorName, outUserLayouts, outModelLayouts, shape));
+                    outputLayouts.emplace(
+                        tensorName,
+                        LayoutDescription::create(tensorName, outUserLayouts, outModelLayouts, shape));
 
                     ++outputInd;
                 }
@@ -2594,43 +2635,57 @@ static int runSingleImageTest() {
                 }
 
                 using ResultStatus = std::tuple<std::string, int>;
-                std::array<ResultStatus, 2> resultStatuses{{
-                            {"FAILED", EXIT_FAILURE},
-                            {"PASSED", EXIT_SUCCESS}
-                }};
+                std::array<ResultStatus, 2> resultStatuses{{{"FAILED", EXIT_FAILURE}, {"PASSED", EXIT_SUCCESS}}};
 
                 std::string mode(FLAGS_mode);
-                std::transform(mode.begin(), mode.end(), mode.begin(), [](unsigned char c){
+                std::transform(mode.begin(), mode.end(), mode.begin(), [](unsigned char c) {
                     return std::tolower(c);
                 });
                 using TestMethod = std::function<bool(const TensorMap&, const TensorMap&, const LayoutMap&)>;
-                std::map<std::string, TestMethod> testMethods {{
-                    {"classification", &testClassification},
-                    {"cosim", &testCoSim},
-                    {"mean_iou", &testMeanIoU},
-                    {"nrmse", &testNRMSE},
-                    {"raw", &testRAW},
-                    {"rrmse", &testRRMSE},
-                    {"ssd", [inputDescriptors] (const TensorMap &oTensors, const TensorMap& rTensors, const LayoutMap &oLayouts) {
-                        return testSSDDetection(oTensors, rTensors, inputDescriptors, oLayouts);}},
-                    {"yolo_v2", [inputDescriptors] (const TensorMap &oTensors, const TensorMap& rTensors, const LayoutMap &oLayouts) {
-                        return testYoloV2(oTensors, rTensors, inputDescriptors, oLayouts);}},
-                    {"yolo_v3", [inputDescriptors] (const TensorMap &oTensors, const TensorMap& rTensors, const LayoutMap &oLayouts) {
-                        return testYoloV3(oTensors, rTensors, inputDescriptors, oLayouts);}},
-                    {"yolo_v4", [inputDescriptors] (const TensorMap &oTensors, const TensorMap& rTensors, const LayoutMap &oLayouts) {
-                        return testYoloV4(oTensors, rTensors, inputDescriptors, oLayouts);}},
-                    {"psnr", [inputDescriptors] (const TensorMap &oTensors, const TensorMap& rTensors, const LayoutMap &oLayouts) {
-                                    const auto& [firstOutputName, firstOutput] = *oTensors.begin();
-                                    const ov::Shape& shape = firstOutput.get_shape();
-                                    auto oAnyLayouts = transformLayoutDescriptionToAnyLayoutsMap(oLayouts);
-                                    const ov::Layout& outputLayout = oAnyLayouts.at(firstOutputName);
-                                    const size_t dstHeight = shape[ov::layout::height_idx(outputLayout)];
-                                    const size_t dstWidth = shape[ov::layout::width_idx(outputLayout)];
+                std::map<std::string, TestMethod> testMethods{
+                    {{"classification", &testClassification},
+                     {"cosim", &testCoSim},
+                     {"mean_iou", &testMeanIoU},
+                     {"nrmse", &testNRMSE},
+                     {"raw", &testRAW},
+                     {"rrmse", &testRRMSE},
+                     {"ssd",
+                      [inputDescriptors](const TensorMap& oTensors,
+                                         const TensorMap& rTensors,
+                                         const LayoutMap& oLayouts) {
+                          return testSSDDetection(oTensors, rTensors, inputDescriptors, oLayouts);
+                      }},
+                     {"yolo_v2",
+                      [inputDescriptors](const TensorMap& oTensors,
+                                         const TensorMap& rTensors,
+                                         const LayoutMap& oLayouts) {
+                          return testYoloV2(oTensors, rTensors, inputDescriptors, oLayouts);
+                      }},
+                     {"yolo_v3",
+                      [inputDescriptors](const TensorMap& oTensors,
+                                         const TensorMap& rTensors,
+                                         const LayoutMap& oLayouts) {
+                          return testYoloV3(oTensors, rTensors, inputDescriptors, oLayouts);
+                      }},
+                     {"yolo_v4",
+                      [inputDescriptors](const TensorMap& oTensors,
+                                         const TensorMap& rTensors,
+                                         const LayoutMap& oLayouts) {
+                          return testYoloV4(oTensors, rTensors, inputDescriptors, oLayouts);
+                      }},
+                     {"psnr",
+                      [inputDescriptors](const TensorMap& oTensors,
+                                         const TensorMap& rTensors,
+                                         const LayoutMap& oLayouts) {
+                          const auto& [firstOutputName, firstOutput] = *oTensors.begin();
+                          const ov::Shape& shape = firstOutput.get_shape();
+                          auto oAnyLayouts = transformLayoutDescriptionToAnyLayoutsMap(oLayouts);
+                          const ov::Layout& outputLayout = oAnyLayouts.at(firstOutputName);
+                          const size_t dstHeight = shape[ov::layout::height_idx(outputLayout)];
+                          const size_t dstWidth = shape[ov::layout::width_idx(outputLayout)];
 
-                                    return testPSNR(oTensors, rTensors, static_cast<int>(dstHeight),
-                                              static_cast<int>(dstWidth));
-                                }}
-                }};
+                          return testPSNR(oTensors, rTensors, static_cast<int>(dstHeight), static_cast<int>(dstWidth));
+                      }}}};
 
                 // Compare the outputs with their references using the chosen metric
                 auto testMethodsIt = testMethods.find(mode);
