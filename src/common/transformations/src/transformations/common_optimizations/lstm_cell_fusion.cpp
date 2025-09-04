@@ -225,12 +225,15 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
     // Split has 4 outputs, we need to handle all of them
     // The order in the graph is i, c, f, o (indices 0, 1, 2, 3)
     split_label->set_output_size(4);
-    auto it_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label->output(0)});
-    auto ct_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label->output(1)});
+    auto it_label =
+        pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label->output(0)});
+    auto ct_label =
+        pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label->output(1)});
     auto ft_additional_bias_label = pattern::wrap_type<ov::op::v0::Constant>();
     auto add_label = pattern::wrap_type<ov::op::v1::Add>({split_label->output(2), ft_additional_bias_label});
     auto ft_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({add_label});
-    auto ot_label = pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label->output(3)});
+    auto ot_label =
+        pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid, ov::op::v0::Tanh>({split_label->output(3)});
     auto mul_label = pattern::wrap_type<ov::op::v1::Multiply>({it_label, ct_label});
     auto c_label = pattern::any_input();
     auto mul1_label = pattern::wrap_type<ov::op::v1::Multiply>({ft_label, c_label});

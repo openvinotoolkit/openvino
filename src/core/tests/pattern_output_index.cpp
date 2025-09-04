@@ -109,21 +109,21 @@ TEST(pattern_output_index, multi_output_node_strict_index_checking) {
     auto axis = op::v0::Constant::create(element::i32, Shape{}, {0});
     auto split_lengths = op::v0::Constant::create(element::i32, Shape{2}, {3, 7});
     auto split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
-    
+
     // Create different operations on different outputs
     auto const0 = op::v0::Constant::create(element::f32, Shape{3}, {1.0});
     auto add0 = std::make_shared<op::v1::Add>(split->output(0), const0);  // Connected to output 0
-    
+
     auto const1 = op::v0::Constant::create(element::f32, Shape{7}, {2.0});
     auto add1 = std::make_shared<op::v1::Add>(split->output(1), const1);  // Connected to output 1
-    
+
     // Pattern expecting output(1) - strict checking is automatic now
     auto pattern_split = pattern::wrap_type<op::v1::VariadicSplit>();
     pattern_split->set_output_size(2);  // Pattern node needs to know it has 2 outputs
     auto pattern_add = pattern::wrap_type<op::v1::Add>({pattern_split->output(1), pattern::any_input()});
-    
+
     pattern::Matcher matcher(pattern_add);
-    
+
     // Strict index checking is always enabled for multi-output nodes
     EXPECT_FALSE(matcher.match(add0->output(0)));  // Should NOT match - add0 is on output(0)
     EXPECT_TRUE(matcher.match(add1->output(0)));   // Should match - add1 is on output(1)
@@ -148,7 +148,7 @@ TEST(pattern_output_index, pattern_or_for_flexible_matching) {
     auto pattern_relu = pattern::wrap_type<op::v0::Relu>({any_output});
 
     pattern::Matcher matcher(pattern_relu);
-    
+
     // Should match all outputs when using Or
     EXPECT_TRUE(matcher.match(relu0->output(0)));
     EXPECT_TRUE(matcher.match(relu1->output(0)));
@@ -189,15 +189,15 @@ TEST(pattern_output_index, verify_index_mismatch_prevents_matching) {
         auto pattern_split = pattern::wrap_type<op::v1::VariadicSplit>();
         pattern_split->set_output_size(4);  // Pattern node needs to know it has 4 outputs
         auto pattern_relu = pattern::wrap_type<op::v0::Relu>({pattern_split->output(pattern_idx)});
-        
+
         pattern::Matcher matcher(pattern_relu);
-        
+
         for (size_t graph_idx = 0; graph_idx < 4; ++graph_idx) {
             if (pattern_idx == graph_idx) {
-                EXPECT_TRUE(matcher.match(relus[graph_idx]->output(0))) 
+                EXPECT_TRUE(matcher.match(relus[graph_idx]->output(0)))
                     << "Pattern output(" << pattern_idx << ") should match graph output(" << graph_idx << ")";
             } else {
-                EXPECT_FALSE(matcher.match(relus[graph_idx]->output(0))) 
+                EXPECT_FALSE(matcher.match(relus[graph_idx]->output(0)))
                     << "Pattern output(" << pattern_idx << ") should NOT match graph output(" << graph_idx << ")";
             }
         }

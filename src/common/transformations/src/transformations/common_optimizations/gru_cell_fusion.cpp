@@ -95,7 +95,7 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
     auto activation_1 = wrap_type<ov::op::v0::Relu, ov::op::v0::Tanh, ov::op::v0::Sigmoid>({optional_bias_add_1});
     auto split = wrap_type<ov::op::v1::Split>({activation_1, any_input()});
     split->set_output_size(2);
-    
+
     // Create patterns that can match either split output order
     auto split_out_0_or_1 = make_shared<pattern::op::Or>(OutputVector{split->output(0), split->output(1)});
     auto split_out_0_or_1_2 = make_shared<pattern::op::Or>(OutputVector{split->output(0), split->output(1)});

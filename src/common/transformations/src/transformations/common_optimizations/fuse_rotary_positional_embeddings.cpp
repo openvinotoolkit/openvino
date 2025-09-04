@@ -586,8 +586,10 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     qkv_proj->set_output_size(3);
     auto reshape_pattern_const = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, head_size"));
     // The Reshape can be connected to any output of the VariadicSplit
-    auto qkv_proj_any_output = std::make_shared<pattern::op::Or>(OutputVector{qkv_proj->output(0), qkv_proj->output(1), qkv_proj->output(2)});
-    auto cur_key = pattern::wrap_type<v1::Reshape>({qkv_proj_any_output, reshape_pattern_const}, {{"special_zero", true}});
+    auto qkv_proj_any_output =
+        std::make_shared<pattern::op::Or>(OutputVector{qkv_proj->output(0), qkv_proj->output(1), qkv_proj->output(2)});
+    auto cur_key =
+        pattern::wrap_type<v1::Reshape>({qkv_proj_any_output, reshape_pattern_const}, {{"special_zero", true}});
     std::shared_ptr<ov::Node> input_key = nullptr;
     // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
     // Calculate positional embedding independent of batch and each head
@@ -596,8 +598,9 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
         // For Models, where SDPA to PagedAttention transformation was applied,
         // all sequences have the size == 1, we move sequences to the batch, this is the PagedAttention specific,
         // so seq_length dim will be always 1, this means that Transpose is unnecessary and Reshape op can be used.
-        auto transposed_cur_key = pattern::wrap_type<v1::Reshape>({qkv_proj_any_output, {"-1", "head_cnt", "1", "head_size"}},
-                                                                  {{"special_zero", false}});
+        auto transposed_cur_key =
+            pattern::wrap_type<v1::Reshape>({qkv_proj_any_output, {"-1", "head_cnt", "1", "head_size"}},
+                                            {{"special_zero", false}});
         // Transpose for SDPA version:
         input_key = pattern::wrap_type<v1::Transpose>({cur_key, {0, 2, 1, 3}}) | transposed_cur_key;
     } else {
@@ -858,10 +861,9 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
     ListUnpack_410_VariadicSplit->set_output_size(3);
     // B,L,H,S
     // The Reshape can be connected to any output of the VariadicSplit
-    auto varsplit_any_output = std::make_shared<pattern::op::Or>(OutputVector{
-        ListUnpack_410_VariadicSplit->output(0), 
-        ListUnpack_410_VariadicSplit->output(1), 
-        ListUnpack_410_VariadicSplit->output(2)});
+    auto varsplit_any_output = std::make_shared<pattern::op::Or>(OutputVector{ListUnpack_410_VariadicSplit->output(0),
+                                                                              ListUnpack_410_VariadicSplit->output(1),
+                                                                              ListUnpack_410_VariadicSplit->output(2)});
     auto view_Reshape_424 = pattern::wrap_type<v1::Reshape>({varsplit_any_output, pattern::any_input()},
                                                             pattern::shape_matches("[?, ?, head_cnt, head_size]"),
                                                             {{"special_zero", true}});
