@@ -723,7 +723,7 @@ int get_model_prefer_threads(const int num_streams,
                 } else {
                     config.modelPreferThreadsLatency =
                         proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
-                    if (config.tbbPartitioner == TbbPartitioner::DEFAULT) {
+                    if (config.tbbPartitioner == TbbPartitioner::NONE) {
                         bool static_case_1 = networkToleranceForLowCache.total_nodes == 0;
                         bool static_case_2 = networkToleranceForLowCache.total_convs > 0 &&
                                              static_cast<float>(networkToleranceForLowCache.total_light_convs) /
@@ -841,7 +841,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);
     config.tbbPartitioner =
-        config.tbbPartitioner == TbbPartitioner::DEFAULT ? TbbPartitioner::STATIC : config.tbbPartitioner;
+        config.tbbPartitioner == TbbPartitioner::NONE ? TbbPartitioner::STATIC : config.tbbPartitioner;
     OPENVINO_ASSERT(!streams_info_table.empty(), "streams_info_table is empty!");
     if (config.modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
         config.modelDistributionPolicy.end()) {
