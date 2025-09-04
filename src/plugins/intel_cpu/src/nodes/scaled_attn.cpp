@@ -106,7 +106,7 @@ struct MHAKernel {
         if constexpr (KType == ScaledDotProductAttention::KT_REF) {
             return impl_desc_type::ref_any;
         } else {
-            return impl_desc_type::undef;
+            static_assert(KType == ScaledDotProductAttention::KT_REF, "Unexpected KType in scaled_attn");
         }
     }
 
