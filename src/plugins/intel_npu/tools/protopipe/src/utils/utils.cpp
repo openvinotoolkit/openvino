@@ -5,8 +5,8 @@
 
 #include "utils.hpp"
 
+#include <cstdint>
 #include <opencv2/gapi/own/assert.hpp>
-
 #include <fstream>
 
 namespace utils {
@@ -65,12 +65,21 @@ void readFromBinFile(const std::string& filepath, cv::Mat& mat) {
     ifs.seekg(0, std::ios::beg);
 
     const auto mat_byte_size = mat.total() * mat.elemSize();
-    if (file_byte_size != mat_byte_size) {
-        throw std::logic_error("Failed to read cv::Mat from binary file: " + filepath + ". Mat size: " +
-                               std::to_string(mat_byte_size) + ", File size: " + std::to_string(file_byte_size));
+    // workaround for I64 input type precision
+    if (mat.elemSize() == sizeof(int32_t) && file_byte_size == mat_byte_size * 2) {
+        std::size_t elem_size = mat.elemSize();
+        for (std::size_t i = 0; i < mat_byte_size; i += elem_size) {
+            ifs.read(mat.ptr<char>() + i, elem_size);
+            ifs.seekg(elem_size, std::ios::cur);
+        }
     }
-
-    ifs.read(mat.ptr<char>(), mat_byte_size);
+    else {
+        if (file_byte_size != mat_byte_size) {
+            throw std::logic_error("Failed to read cv::Mat from binary file: " + filepath + ". Mat size: " +
+                                std::to_string(mat_byte_size) + ", File size: " + std::to_string(file_byte_size));
+        }
+        ifs.read(mat.ptr<char>(), mat_byte_size);
+    }
 }
 
 void writeToBinFile(const std::string& filepath, const cv::Mat& mat) {
