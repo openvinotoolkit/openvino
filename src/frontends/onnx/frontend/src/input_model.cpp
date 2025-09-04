@@ -913,7 +913,7 @@ std::vector<std::shared_ptr<ov::frontend::onnx::OpPlace>> InputModel::get_op_pla
     return _impl->get_op_places();
 }
 
-std::map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>> InputModel::get_tensor_places() const {
+std::map<std::string, std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>>& InputModel::get_tensor_places() const {
     return _impl->get_tensor_places();
 }
 
