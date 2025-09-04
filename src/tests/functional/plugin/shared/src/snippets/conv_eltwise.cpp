@@ -12,7 +12,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-    std::string ConvEltwise::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ConvEltwiseParams> obj) {
+    std::string ConvEltwise::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ConvEltwiseParams>& obj) {
         const auto& [inputShape0, inputShape1, binaryEltwise, num_nodes, num_subgraphs, targetDevice] = obj.param;
         std::ostringstream result;
         result << "IS[0]=" << ov::test::utils::vec2str(inputShape0) << "_";

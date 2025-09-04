@@ -13,8 +13,8 @@
 
 namespace ExecutionGraphTests {
 
-std::string ExecGraphKeepAssignNode::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-    std::string targetDevice = obj.param;
+std::string ExecGraphKeepAssignNode::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+    const std::string& targetDevice = obj.param;
     return "Dev=" + targetDevice;
 }
 
@@ -27,7 +27,7 @@ void ExecGraphKeepAssignNode::SetUp() {
  * So exec graph may lose it. Will check that it's present in dumped exec graph.
  */
 TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
-    auto device_name = this->GetParam();
+    const auto& device_name = this->GetParam();
     ov::Shape shape = {3, 2};
     ov::element::Type type = ov::element::f32;
 
