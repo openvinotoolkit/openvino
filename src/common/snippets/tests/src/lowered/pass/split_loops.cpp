@@ -182,6 +182,132 @@ TEST_F(SplitLoopsTest, BrgemmAdd) {
     }
 }
 
+/*
+ *      Param0   Param1
+ *         \      /
+ *          Add
+ *            |   Param2
+ *            \   /
+ *            Brgemm
+ *               |
+ *            Result
+ */
+TEST_F(SplitLoopsTest, AddBrgemm) {
+    const size_t m = 64;
+    const size_t n = 128;
+    const size_t k = 512;
+    const ov::Shape input_shape_0{1, 1, m, k};
+    const ov::Shape input_shape_1{1, 1, m, k};
+    const ov::Shape input_shape_2{1, 1, k, n};
+    const ov::snippets::VectorDims brgemm_a_subtensor{m_block, ov::snippets::utils::get_full_dim_value()};
+    const ov::snippets::VectorDims brgemm_b_subtensor{ov::snippets::utils::get_full_dim_value(), n_block};
+    const ov::snippets::VectorDims brgemm_c_subtensor{m_block, n_block};
+    {
+        auto param0 = linear_ir->push_node<ov::op::v0::Parameter>(input_precision, input_shape_0);
+        auto param1 = linear_ir->push_node<ov::op::v0::Parameter>(input_precision, input_shape_1);
+        auto param2 = linear_ir->push_node<ov::op::v0::Parameter>(input_precision, input_shape_2);
+        auto add = linear_ir->push_node<ov::op::v1::Add>(param0.second, param1.second);
+        auto brgemm = linear_ir->push_node<ov::snippets::op::Brgemm>(add.second, param2.second);
+        init_expr_descriptors(*brgemm.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
+        auto result = linear_ir->push_node<ov::op::v0::Result>(brgemm.second);
+
+        const auto& loop_manager = linear_ir->get_loop_manager();
+        const auto inner_add_loop = std::make_shared<UnifiedLoopInfo>(
+            k,
+            vector_size,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
+                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)});
+        const auto inner_add_loop_id = loop_manager->add_loop_info(inner_add_loop);
+
+        const auto outer_add_loop = std::make_shared<UnifiedLoopInfo>(
+            m,
+            1,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 1),
+                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 1)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1)});
+        const auto outer_add_loop_id = loop_manager->add_loop_info(outer_add_loop);
+
+        const auto blocking_n_loop = std::make_shared<UnifiedLoopInfo>(
+            n,
+            n_block,
+            std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>((*brgemm.first)->get_input_port(0)),
+                                  LoopPort::create<PortType::Incremented>((*brgemm.first)->get_input_port(1), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*brgemm.first)->get_output_port(0), 0)});
+        const auto blocking_n_loop_id = loop_manager->add_loop_info(blocking_n_loop);
+
+        const auto blocking_m_loop = std::make_shared<UnifiedLoopInfo>(
+            m,
+            m_block,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*brgemm.first)->get_input_port(0), 1),
+                                  LoopPort::create<PortType::NotProcessed>((*brgemm.first)->get_input_port(1))},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*brgemm.first)->get_output_port(0), 1)});
+        const auto blocking_m_loop_id = loop_manager->add_loop_info(blocking_m_loop);
+
+        (*add.first)->set_loop_ids({outer_add_loop_id, inner_add_loop_id});
+        (*brgemm.first)->set_loop_ids({blocking_m_loop_id, blocking_n_loop_id});
+    }
+
+    {
+        auto param0 = linear_ir_ref->push_node<ov::op::v0::Parameter>(input_precision, input_shape_0);
+        auto param1 = linear_ir_ref->push_node<ov::op::v0::Parameter>(input_precision, input_shape_1);
+        auto param2 = linear_ir_ref->push_node<ov::op::v0::Parameter>(input_precision, input_shape_2);
+        auto add = linear_ir_ref->push_node<ov::op::v1::Add>(param0.second, param1.second);
+        auto brgemm = linear_ir_ref->push_node<ov::snippets::op::Brgemm>(add.second, param2.second);
+        init_expr_descriptors(*brgemm.first, {brgemm_a_subtensor, brgemm_b_subtensor, brgemm_c_subtensor});
+        auto result = linear_ir_ref->push_node<ov::op::v0::Result>(brgemm.second);
+
+        const auto& loop_manager = linear_ir_ref->get_loop_manager();
+        const auto inner_add_loop = std::make_shared<UnifiedLoopInfo>(
+            k,
+            vector_size,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 0),
+                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 0)});
+        const auto inner_add_loop_id = loop_manager->add_loop_info(inner_add_loop);
+
+        const auto blocking_m_loop = std::make_shared<UnifiedLoopInfo>(
+            m,
+            m_block,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 1),
+                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 1),
+                                  LoopPort::create<PortType::NotProcessed>((*brgemm.first)->get_input_port(1))},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*brgemm.first)->get_output_port(0), 1)});
+        const auto blocking_m_loop_id = loop_manager->add_loop_info(blocking_m_loop);
+
+        const auto blocking_n_loop = std::make_shared<UnifiedLoopInfo>(
+            n,
+            n_block,
+            std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>((*brgemm.first)->get_input_port(0)),
+                                  LoopPort::create<PortType::Incremented>((*brgemm.first)->get_input_port(1), 0)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*brgemm.first)->get_output_port(0), 0)});
+        const auto blocking_n_loop_id = loop_manager->add_loop_info(blocking_n_loop);
+
+        const auto add_m_split_loop = make_inner_split_loop_info(
+            m,
+            1,
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0), 1),
+                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1), 1)},
+            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0), 1)},
+            blocking_m_loop);
+        const auto add_m_split_loop_id = loop_manager->add_loop_info(add_m_split_loop);
+        blocking_m_loop->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
+        blocking_m_loop->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
+
+        // Note: since it's impossible to set the desired loop id during loop info creation,
+        // we have to reorder the loop ids in reference LIR to make them match the actual LIR
+        const std::map<size_t, size_t> loop_ids_mapper = {
+            {inner_add_loop_id, 0},
+            {blocking_m_loop_id, 4},
+            {blocking_n_loop_id, 2},
+            {add_m_split_loop_id, 5}
+        };
+        loop_manager->reorder_identifiers(loop_ids_mapper);
+        (*add.first)->set_loop_ids({4, 5, 0});
+        (*brgemm.first)->set_loop_ids({4, 2});
+    }
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
