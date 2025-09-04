@@ -100,6 +100,8 @@
 #        include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
 #        include "transformations/tpp/x64/pass/fuse_tpp_to_equations.hpp"
 #        include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
+#    elif defined(OPENVINO_ARCH_ARM64)
+#        include "snippets/lowered/pass/insert_loops.hpp"
 #    endif
 #endif
 
@@ -594,7 +596,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP,
                                            ov::intel_cpu::tpp::pass::FuseTPPToEquations);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
-                                          ov::snippets::pass::PropagatePrecision,
+                                          ov::intel_cpu::pass::BrgemmToGemmCPU,
                                           ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
 #endif
 
