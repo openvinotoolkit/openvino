@@ -10,6 +10,7 @@
 
 #include "openvino/core/log_util.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 
@@ -57,6 +58,7 @@ std::ostream& Pattern::write_description(std::ostream& out, uint32_t depth) cons
     }
     return out;
 }
+
 
 }  // namespace op
 
