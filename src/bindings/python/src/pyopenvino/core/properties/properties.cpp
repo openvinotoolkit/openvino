@@ -118,6 +118,7 @@ void regmodule_properties(py::module m) {
         m_properties.def_submodule("intel_gpu", "openvino.properties.intel_gpu submodule that simulates ov::intel_gpu");
 
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_total_mem_size, "device_total_mem_size");
+    wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_max_alloc_mem_size, "device_max_alloc_mem_size");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::uarch_version, "uarch_version");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::execution_units_count, "execution_units_count");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::memory_statistics, "memory_statistics");
@@ -342,5 +343,6 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_npu, ov::intel_npu::defer_weights_load, "defer_weights_load");
     wrap_property_RW(m_intel_npu, ov::intel_npu::compiler_dynamic_quantization, "compiler_dynamic_quantization");
     wrap_property_RW(m_intel_npu, ov::intel_npu::qdq_optimization, "qdq_optimization");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::qdq_optimization_aggressive, "qdq_optimization_aggressive");
     wrap_property_RW(m_intel_npu, ov::intel_npu::run_inferences_sequentially, "run_inferences_sequentially");
 }
