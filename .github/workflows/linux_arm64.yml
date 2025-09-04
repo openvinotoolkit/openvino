@@ -146,9 +146,8 @@ jobs:
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
-    #     fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
-    if: ${{ 'false' }} # 168858
+    if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
+        fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
