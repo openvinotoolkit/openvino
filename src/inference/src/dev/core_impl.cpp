@@ -12,6 +12,7 @@
 #include "model_reader.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -821,30 +822,36 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                           const std::string& device_name,
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::model");
-    std::string deviceName = device_name;
-    ov::AnyMap config_with_batch = config;
+    auto patched_device_name = device_name;
+    auto config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-    auto model = apply_auto_batching(model_, deviceName, config_with_batch);
+    const auto model = apply_auto_batching(model_, patched_device_name, config_with_batch);
 
-    auto parsed = parseDeviceNameIntoConfig(deviceName, coreConfig, config_with_batch, is_proxy_device(deviceName));
+    auto parsed = parseDeviceNameIntoConfig(patched_device_name,
+                                            coreConfig,
+                                            config_with_batch,
+                                            is_proxy_device(patched_device_name));
     auto plugin = get_plugin(parsed._deviceName);
     // will consume ov::cache_dir if plugin not support it
-    auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     auto res = import_compiled_model(plugin, {}, parsed._config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (res) {
         // hint::compiled_blob is set and imported skip compilation
-    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
-        CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        cacheContent.model = model;
-        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-            return compile_model_and_cache(plugin,
-                                           model,
-                                           parsed._config,
-                                           ov::SoPtr<ov::IRemoteContext>{},
-                                           cacheContent);
+    } else if (cache_manager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+        const auto& [path, id_modifier] = ov::util::get_model_cache_id_attr(*model);
+        CacheContent cache_content{cache_manager, parsed._core_config.get_enable_mmap(), path.string()};
+        const auto compiled_config = create_compile_config(plugin, parsed._config);
+
+        cache_content.blobId =
+            cache_content.modelPath.empty()
+                ? ModelCache::compute_hash(model, compiled_config)
+                : ModelCache::compute_hash(cache_content.modelPath + std::string(id_modifier), compiled_config);
+
+        cache_content.model = model;
+        const auto lock = cacheGuard.get_hash_lock(cache_content.blobId);
+        res = load_model_from_cache(cache_content, plugin, parsed._config, {}, [&]() {
+            return compile_model_and_cache(plugin, model, parsed._config, {}, cache_content);
         });
     } else {
         res = plugin.compile_model(model, parsed._config);
@@ -858,26 +865,32 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::RemoteContext");
     if (!context)
         OPENVINO_THROW("Remote context is null");
-    std::string deviceName = context->get_device_name();
-    ov::AnyMap config_with_batch = config;
+    auto device_name = context->get_device_name();
+    auto config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-    auto model = apply_auto_batching(model_, deviceName, config_with_batch);
+    const auto model = apply_auto_batching(model_, device_name, config_with_batch);
 
-    auto parsed = parseDeviceNameIntoConfig(deviceName, coreConfig, config_with_batch, is_proxy_device(deviceName));
+    auto parsed = parseDeviceNameIntoConfig(device_name, coreConfig, config_with_batch, is_proxy_device(device_name));
     auto plugin = get_plugin(parsed._deviceName);
     // will consume ov::cache_dir if plugin not support it
-    auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     auto res = import_compiled_model(plugin, context, parsed._config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (res) {
         // hint::compiled_blob is set and imported skip compilation
-    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
-        CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        cacheContent.model = model;
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
-            return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
+    } else if (cache_manager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+        const auto& [path, id_modifier] = ov::util::get_model_cache_id_attr(*model);
+        CacheContent cache_content{cache_manager, parsed._core_config.get_enable_mmap(), path.string()};
+        const auto compiled_config = create_compile_config(plugin, parsed._config);
+
+        cache_content.blobId =
+            cache_content.modelPath.empty()
+                ? ModelCache::compute_hash(model, compiled_config)
+                : ModelCache::compute_hash(cache_content.modelPath + std::string(id_modifier), compiled_config);
+
+        cache_content.model = model;
+        res = load_model_from_cache(cache_content, plugin, parsed._config, context, [&]() {
+            return compile_model_and_cache(plugin, model, parsed._config, context, cache_content);
         });
     } else {
         res = plugin.compile_model(model, context, parsed._config);
@@ -893,23 +906,22 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     // in case of compile_model(file_name), we need to clear-up core-level properties
     auto plugin = get_plugin(parsed._deviceName);
     // will consume ov::cache_dir if plugin not support it
-    auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     auto compiled_model = import_compiled_model(plugin, {}, parsed._config, model_path);
 
     if (compiled_model) {
         // hint::compiled_blob is set and imported skip compilation
-    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+    } else if (cache_manager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CoreConfig::remove_core_skip_cache_dir(parsed._config);
-        CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap(), model_path};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
-        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        compiled_model =
-            load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-                const auto model =
-                    util::read_model(model_path, "", get_extensions_copy(), parsed._core_config.get_enable_mmap());
-                return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
-            });
+        CacheContent cache_content{cache_manager, parsed._core_config.get_enable_mmap(), model_path};
+        cache_content.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
+        const auto lock = cacheGuard.get_hash_lock(cache_content.blobId);
+        compiled_model = load_model_from_cache(cache_content, plugin, parsed._config, {}, [&]() {
+            const auto model =
+                util::read_model(model_path, "", get_extensions_copy(), parsed._core_config.get_enable_mmap());
+            return compile_model_and_cache(plugin, model, parsed._config, {}, cache_content);
+        });
     } else {
         compiled_model = plugin.compile_model(model_path, parsed._config);
     }
@@ -924,27 +936,22 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     auto parsed = parseDeviceNameIntoConfig(device_name, coreConfig, config);
     auto plugin = get_plugin(parsed._deviceName);
     // will consume ov::cache_dir if plugin not support it
-    auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    const auto cache_manager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
     auto compiled_model = import_compiled_model(plugin, {}, parsed._config);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (compiled_model) {
         // hint::compiled_blob is set and imported skip compilation
-    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
-        CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
-        cacheContent.blobId =
+    } else if (cache_manager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+        CacheContent cache_content{cache_manager, parsed._core_config.get_enable_mmap()};
+        cache_content.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
-        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        compiled_model =
-            load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-                auto model = read_model(model_str, weights);
-                return compile_model_and_cache(plugin,
-                                               model,
-                                               parsed._config,
-                                               ov::SoPtr<ov::IRemoteContext>{},
-                                               cacheContent);
-            });
+        const auto lock = cacheGuard.get_hash_lock(cache_content.blobId);
+        compiled_model = load_model_from_cache(cache_content, plugin, parsed._config, {}, [&]() {
+            const auto model = read_model(model_str, weights);
+            return compile_model_and_cache(plugin, model, parsed._config, {}, cache_content);
+        });
     } else {
-        auto model = read_model(model_str, weights);
+        const auto model = read_model(model_str, weights);
         compiled_model = plugin.compile_model(model, parsed._config);
     }
     return compiled_model;
