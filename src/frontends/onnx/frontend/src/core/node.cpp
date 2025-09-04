@@ -523,9 +523,10 @@ const Attribute& Node::get_attribute(const std::string& name) const {
             std::find_if(std::begin(node_attributes), std::end(node_attributes), [&name](const Attribute& a) {
                 return a.get_name() == name;
             });
-        if (found_attr != std::end(node_attributes)) {
-            return *found_attr;
+        if (found_attr == std::end(node_attributes)) {
+            throw error::node::UnknownAttribute{this->get_name(), name};
         }
+        return *found_attr;
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
