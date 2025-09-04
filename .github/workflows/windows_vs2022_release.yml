@@ -61,7 +61,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-16-cores-32gb-staging'
+      runner: 'aks-win-16-cores-32gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
@@ -83,7 +83,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-4-cores-8gb-staging
+    runs-on: aks-win-4-cores-8gb
     env:
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
@@ -181,7 +181,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: 'aks-win-4-cores-8gb-staging'
+    runs-on: 'aks-win-4-cores-8gb'
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
@@ -253,7 +253,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_tokenizers.yml
     with:
-      runner: 'aks-win-4-cores-8gb-staging'
+      runner: 'aks-win-4-cores-8gb'
       shell: pwsh
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
@@ -267,7 +267,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-8-cores-16gb-staging
+    runs-on: aks-win-8-cores-16gb
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\install"
@@ -412,7 +412,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-8-cores-16gb-staging
+    runs-on: aks-win-8-cores-16gb
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\install"
@@ -497,7 +497,7 @@ jobs:
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
-      runner: 'aks-win-8-cores-16gb-staging'
+      runner: 'aks-win-8-cores-16gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -506,7 +506,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
     with:
-      runner: 'aks-win-8-cores-16gb-staging'
+      runner: 'aks-win-8-cores-16gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -515,7 +515,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
     with:
-      runner: 'aks-win-8-cores-16gb-staging'
+      runner: 'aks-win-8-cores-16gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -524,7 +524,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_jax_layer_tests.yml
     with:
-      runner: 'aks-win-8-cores-16gb-staging'
+      runner: 'aks-win-8-cores-16gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -533,7 +533,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
-      runner: 'aks-win-4-cores-8gb-staging'
+      runner: 'aks-win-4-cores-8gb'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'windows_2022'
       build-type: 'Release'
@@ -546,7 +546,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-8-cores-16gb-staging
+    runs-on: aks-win-8-cores-16gb
     env:
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\install"
