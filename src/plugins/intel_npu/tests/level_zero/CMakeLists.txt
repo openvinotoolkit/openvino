@@ -18,7 +18,7 @@ set(OPTIONAL_FUNC_TESTS_LIBS "")
 set(SKIP_CONFIG "npu_skip_func_tests.xml")
 set(SKIP_CONFIG_PATH "../functional/shared_tests_instances/${SKIP_CONFIG}")
 
-list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_level_zero_backend openvino_npu_zero_utils)
+list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_driver_compiler_adapter openvino_npu_level_zero_backend openvino_npu_zero_utils)
 
 ov_add_test_target(
   NAME
@@ -29,7 +29,7 @@ ov_add_test_target(
   ${EXCLUDED_FUNC_TESTS_DIR}
   INCLUDES
   ${CMAKE_CURRENT_SOURCE_DIR}
-  $"{OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include"
   ${OPTIONAL_FUNC_TESTS_INCLUDES}
   "${CMAKE_CURRENT_SOURCE_DIR}/memory"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/shared_tests_instances"
