@@ -18,7 +18,8 @@
 #endif
 
 #include "gpu/intel/microkernels/package.hpp"
-#include "gpu/intel/jit/gemm/include/gemmstone/microkernel_provider.hpp"
+//#include "gpu/intel/jit/gemm/include/gemmstone/microkernel_provider.hpp"
+#include "gpu/intel/gemm/jit/include/gemmstone/microkernel_provider.hpp"
 #include "gpu/intel/microkernels/shim.hpp"
 #include "common/utils.hpp"
 
