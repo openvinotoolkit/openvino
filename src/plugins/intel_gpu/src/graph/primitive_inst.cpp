@@ -2105,10 +2105,7 @@ void primitive_inst::execute() {
             mem_lock<ov::float16, mem_lock_type::read> lock(output_mem, get_network().get_stream());
             for (size_t k = 0; k < lock.size(); k++) {
                 if (std::isinf(lock[k]) || std::isnan(lock[k])) {
-                    std::string iter;
-                    #ifdef GPU_DEBUG_CONFIG
-                        iter = "at iteration " + std::to_string(get_network().get_current_iteration_num());
-                    #endif
+                    std::string iter = "at iteration " + std::to_string(get_network().get_current_iteration_num());
                     std::string err_str = std::isinf(lock[k]) ? "inf " : "nan ";
                     OPENVINO_THROW(id() + " has " + err_str + iter);
                 }
