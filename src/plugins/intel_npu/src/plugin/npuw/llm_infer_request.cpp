@@ -604,7 +604,7 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     auto dirty_num = kvcache_desc.num_stored_tokens - static_cast<uint32_t>(position_id);
     if (dirty_num > 0) {
         LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
-                   << " to " << position_id << " length");
+                                        << " to " << position_id << " length");
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
