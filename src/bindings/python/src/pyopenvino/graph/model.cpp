@@ -204,7 +204,7 @@ void regclass_graph_Model(py::module m) {
                     :type name: str
                 )");
         py::init([](const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name) {
-            return make_model_with_tensor_names(ov::as_output_vector(results), parameters, name);
+        return make_model_with_tensor_names(ov::as_output_vector(results), parameters, name);
         }),
         py::arg("results"),
         py::arg("parameters"),
