@@ -814,28 +814,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     // FIXME: these tensors should be shared between the parent & child models
     // NB: input_ids can be either fp32(VLM) or i64(LLM)
     auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
-    auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
-    auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
-
     // NOTE: As `input_tokens_len` can be less than the value of `max_generation_token_len`, which
     //       input layers of generation model are resized to, then we need to put
     //       `input_tokens_len` prompt to the right of `max_generation_token_len`-sized tensors.
-    //       We need to fill the the left unusable space with zeroes for attention mask, but
-    //       better to do this for all tensors. 
-    if (input_tokens_len < kvcache_desc.max_generation_token_len) {
-        std::fill_n(kv_input_ids->data<int64_t>() + kv_input_ids->get_size() - kvcache_desc.max_generation_token_len,
-                    kvcache_desc.max_generation_token_len - input_tokens_len,
-                    0);
-        std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len,
-                    kvcache_desc.max_generation_token_len - input_tokens_len,
-                    0);
-        std::fill_n(kv_pos_ids->data<int64_t>() + kv_pos_ids->get_size() - kvcache_desc.max_generation_token_len,
-                    kvcache_desc.max_generation_token_len - input_tokens_len,
-                    0);
-    }
-
-    // NOTE: Copying to the end to handle the case when `input_tokens_len` <
-    //       `kvcache_desc.max_generation_token_len`
+    //       Attention mask should rule out all left unusable space.
     std::copy_n(
         reinterpret_cast<uint8_t*>(input_ids->data()),
         input_ids->get_byte_size(),
@@ -845,11 +827,18 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     //       units of length of the current prompt on the right (for present
     //       kv layers) and the set of "1" units of number of previously calculated
     //       tokens on the left (for past kv layers).
+    auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
     std::copy_n(attention_mask->data<int64_t>(),
                 attention_mask->get_size() - input_tokens_len,
                 kv_attn_mask->data<int64_t>());
+    if (input_tokens_len < kvcache_desc.max_generation_token_len) {
+        std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len,
+                    kvcache_desc.max_generation_token_len - input_tokens_len,
+                    0);
+    }
     std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 
+    auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
     pad_position_ids(kv_pos_ids, position_ids);
 
     m_kvcache_request->infer();
