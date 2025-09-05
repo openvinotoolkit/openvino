@@ -24,11 +24,7 @@ namespace KERNEL_NAME {
 
 // _GENX_MAIN_ void find_block(
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
-    svmptr_t kq_max_wg ATTR,
-    svmptr_t kq_exp_partial_sum ATTR,
-    svmptr_t block_mask ATTR,
-    uint q_stride, uint q_stride_pad, uint k_block_pad,
-    uint causal_start_index, float thresh
+    svmptr_t kq_max_wg ATTR, svmptr_t kq_exp_partial_sum ATTR, svmptr_t block_mask ATTR, uint q_stride, uint q_stride_pad, uint k_block_pad, uint causal_start_index, float thresh
 #if DEBUG_ACC == 1
     , svmptr_t kq_sum ATTR
 #endif
@@ -44,8 +40,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     uint m = cm_group_id(0);
     uint hq = cm_group_id(1);
     uint b = cm_group_id(2);
-    kq_max_wg += (b * HQ + hq) * (k_block_pad / TOKEN_SHARE_MAX) * q_stride_pad * (uint)sizeof(half);
-    kq_exp_partial_sum += (b * HQ + hq) * q_stride_pad * k_block_pad * (uint)sizeof(half);
+    kq_max_wg += (b * HQ + hq) * (k_block_pad / TOKEN_SHARE_MAX) * q_stride_pad * (uint)sizeof(SOFTMAX_TYPE);
+    kq_exp_partial_sum += (b * HQ + hq) * q_stride_pad * k_block_pad * (uint)sizeof(SOFTMAX_TYPE);
 #if DEBUG_ACC == 1
     kq_sum += (b * HQ + hq) * q_stride_pad / TOKEN_IN_BLOCK * k_block_pad * (uint)sizeof(half);
 #endif

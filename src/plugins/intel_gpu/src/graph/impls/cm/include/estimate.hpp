@@ -729,7 +729,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     uint M_aligned = (M + BLOCK_WG_M - 1) / BLOCK_WG_M * BLOCK_WG_M;
     uint K_block_pad = N_block * (BLOCK_WG_N / (BLOCK_SIZE / STRIDE));
     const uint block_size_div_stride = BLOCK_SIZE / STRIDE;
-    constexpr half log2e = 1.4426950408889634f;
+    constexpr SOFTMAX_TYPE log2e = 1.4426950408889634f;
     //static_assert(BLOCK_SG_M / block_size_div_stride == 8, "BLOCK_SG_M / block_size_div_stride should be 8");
 
 #if IS_CAUSAL == 1
@@ -737,24 +737,24 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
         // fill -inf -> max in group, 0 -> exp_sum to make compensation work
         {
             // current max -> mem
-            vector<half, BLOCK_SG_N> max_m = -60000;
+            vector<SOFTMAX_TYPE, BLOCK_SG_N> max_m = -60000;
             // kq_max_wg: [b, hq, N/BLOCK_WG_N, M_aligned]
-            uint offset = (id_wg_n * M_aligned + id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * sizeof(half);
+            uint offset = (id_wg_n * M_aligned + id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * sizeof(SOFTMAX_TYPE);
             cm_ptr_store<int>((int*)kq_max_wg, offset, max_m.format<int>());
         }
         {
             // store
-            matrix<half, 8, 4> sum_t = 0;
-            lsc::block_2d_desc<half, 1, 8, 4> desc_c{ kq_exp_partial_sum, M - 1, (uint)(K_block_pad * sizeof(half) - 1), (uint)(K_block_pad * sizeof(half) - 1),
+            matrix<SOFTMAX_TYPE, 8, 4> sum_t = 0;
+            lsc::block_2d_desc<SOFTMAX_TYPE, 1, 8, 4> desc_c{ kq_exp_partial_sum, M - 1, (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1), (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1),
                 (int)((id_wg_n * BLOCK_WG_N + id_sg_n * BLOCK_SG_N) / block_size_div_stride), (int)(id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) };
-            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 0>(desc_c, sum_t.format<half>());
-            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 1>(desc_c, sum_t.format<half>());
-            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 2>(desc_c, sum_t.format<half>());
-            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 3>(desc_c, sum_t.format<half>());
-            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 4>(desc_c, sum_t.format<half>());
-            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 5>(desc_c, sum_t.format<half>());
-            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 6>(desc_c, sum_t.format<half>());
-            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 7>(desc_c, sum_t.format<half>());
+            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 0>(desc_c, sum_t.format<SOFTMAX_TYPE>());
+            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 1>(desc_c, sum_t.format<SOFTMAX_TYPE>());
+            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 2>(desc_c, sum_t.format<SOFTMAX_TYPE>());
+            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 3>(desc_c, sum_t.format<SOFTMAX_TYPE>());
+            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 4>(desc_c, sum_t.format<SOFTMAX_TYPE>());
+            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 5>(desc_c, sum_t.format<SOFTMAX_TYPE>());
+            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 6>(desc_c, sum_t.format<SOFTMAX_TYPE>());
+            cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 7>(desc_c, sum_t.format<SOFTMAX_TYPE>());
         }
 
         return;
@@ -776,17 +776,21 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
 
     // M[0:16]xK[0:32]
     uint block_idx = (uint)(id_wg_n * BLOCK_WG_N + id_sg_n * BLOCK_SG_N) * STRIDE / KV_BLOCK_SIZE;
+    uint max_block_idx = (uint)(N * STRIDE + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE - 1;
+    block_idx = MYMIN(block_idx, max_block_idx);
 #if USE_INT8
     uint offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b0{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(char) - 1), (uint)(K * sizeof(char) - 1),
         0, 0 };
     uint scale_offset0 = offset + KV_BLOCK_SIZE * HEAD_SIZE;
-    offset = block_indices_p[block_idx + 1] * (HK * KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
+    block_idx = MYMIN(block_idx + 1, max_block_idx);
+    offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b1{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(char) - 1), (uint)(K * sizeof(char) - 1),
         0, 0 };
     uint scale_offset1 = offset + KV_BLOCK_SIZE * HEAD_SIZE;
     // prefetch B
     block_idx = (uint)(id_wg_n * BLOCK_WG_N + id_sg_mn * (BLOCK_WG_N / SG_MN)) * STRIDE / KV_BLOCK_SIZE;
+    block_idx = MYMIN(block_idx, max_block_idx);
     offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE_KEY * (uint)sizeof(char));
     static_assert(BLOCK_WG_N / SG_MN <= KEY_LINES_PER_LOAD, "prefetch lines should be inside one block");
     lsc::block_2d_desc<uchar, 1, BLOCK_WG_N / SG_MN, 32> desc_prefetch_b{ key_cache + offset, BLOCK_WG_N / SG_MN - 1, (uint)(K * sizeof(char) - 1), (uint)(K * sizeof(char) - 1),
@@ -801,15 +805,20 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     uint offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b0{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(half) - 1), (uint)(K * sizeof(half) - 1),
         0, 0 };
-    offset = block_indices_p[block_idx + 1] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));
+    // printf("===============0 lid:%d.%d, block_idx=%d, offset=%u\n", id_sg_n, id_sg_m, block_idx, offset);
+    block_idx = MYMIN(block_idx + 1, max_block_idx);
+    offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));
     lsc::block_2d_desc<int, 1, KEY_LINES_PER_LOAD, 8> desc_b1{ key_cache + offset, KEY_LINES_PER_LOAD - 1, (uint)(K * sizeof(half) - 1), (uint)(K * sizeof(half) - 1),
         0, 0 };
+    // printf("===============1 lid:%d.%d, block_idx=%d, offset=%u\n", id_sg_n, id_sg_m, block_idx, offset);
     // prefetch B
     block_idx = (uint)(id_wg_n * BLOCK_WG_N + id_sg_mn * (BLOCK_WG_N / SG_MN)) * STRIDE / KV_BLOCK_SIZE;
+    block_idx = MYMIN(block_idx, max_block_idx);
     offset = block_indices_p[block_idx] * (HK * KV_BLOCK_SIZE * HEAD_SIZE * (uint)sizeof(half));
     static_assert(BLOCK_WG_N / SG_MN <= KEY_LINES_PER_LOAD, "prefetch lines should be inside one block");
     lsc::block_2d_desc<half, 1, BLOCK_WG_N / SG_MN, 32> desc_prefetch_b{ key_cache + offset, BLOCK_WG_N / SG_MN - 1, (uint)(K * sizeof(half) - 1), (uint)(K * sizeof(half) - 1),
         0, 0 };
+    // printf("===============2 lid:%d.%d, block_idx=%d, offset=%u\n", id_sg_n, id_sg_m, block_idx, offset);
     // 0~2 M[:]xK[0:16] 2~4 K[16:32]                                                     --> 32 * 2 regs
     matrix<half, 2, BLOCK_REG_B> b0, b1;
 #endif
@@ -823,10 +832,24 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
 
     // load b: N[0:16]xK[0:16]
 #if USE_INT8
-    scales_block[0].format<uint64_t>() = cm_ptr_load<uint64_t, 64>((uint64_t*)key_cache, scale_offset0);    
-    zps_block[0].format<uint64_t>() = cm_ptr_load<uint64_t, 64>((uint64_t*)key_cache, scale_offset0 + KV_BLOCK_SIZE * (uint)sizeof(half));
-    scales_block[1].format<uint64_t>() = cm_ptr_load<uint64_t, 64>((uint64_t*)key_cache, scale_offset1);
-    zps_block[1].format<uint64_t>() = cm_ptr_load<uint64_t, 64>((uint64_t*)key_cache, scale_offset1 + KV_BLOCK_SIZE * (uint)sizeof(half));
+    {
+        lsc::block_2d_desc<int, 1, 16, 16 / 2> desc_scale{ key_cache + scale_offset0, 16 * 2 - 1, (uint)(16 * sizeof(half) - 1), (uint)(16 * sizeof(half) - 1),
+            0, 0 };
+        matrix<half, 16, 16> tmp_scale, tmp_zp;
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_scale.format<int>(), desc_scale);
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 16>(tmp_zp.format<int>(), desc_scale);
+        scales_block[0].format<half, 16, 16>().select<8, 2, 16, 1>(0) = tmp_scale.format<half, 8, 32>().select<8, 1, 16, 2>(0, 0);
+        scales_block[0].format<half, 16, 16>().select<8, 2, 16, 1>(1) = tmp_scale.format<half, 8, 32>().select<8, 1, 16, 2>(0, 1);
+        zps_block[0].format<half, 16, 16>().select<8, 2, 16, 1>(0) = tmp_zp.format<half, 8, 32>().select<8, 1, 16, 2>(0, 0);
+        zps_block[0].format<half, 16, 16>().select<8, 2, 16, 1>(1) = tmp_zp.format<half, 8, 32>().select<8, 1, 16, 2>(0, 1);
+        desc_scale.set_base(key_cache + scale_offset1);
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 0>(tmp_scale.format<int>(), desc_scale);
+        cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached, 0, 16>(tmp_zp.format<int>(), desc_scale);
+        scales_block[1].format<half, 16, 16>().select<8, 2, 16, 1>(0) = tmp_scale.format<half, 8, 32>().select<8, 1, 16, 2>(0, 0);
+        scales_block[1].format<half, 16, 16>().select<8, 2, 16, 1>(1) = tmp_scale.format<half, 8, 32>().select<8, 1, 16, 2>(0, 1);
+        zps_block[1].format<half, 16, 16>().select<8, 2, 16, 1>(0) = tmp_zp.format<half, 8, 32>().select<8, 1, 16, 2>(0, 0);
+        zps_block[1].format<half, 16, 16>().select<8, 2, 16, 1>(1) = tmp_zp.format<half, 8, 32>().select<8, 1, 16, 2>(0, 1);
+    }
 
     cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_up_s8.format<int>(), desc_b0);
     cm_load<lsc::Transpose, CacheHint::Cached, CacheHint::Cached>(b0_down_s8.format<int>(), desc_b1);
@@ -873,16 +896,16 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
 
     for (uint s = 0; s < STRIDE; s++) {
 #if USE_INT8
-        auto tmp = scales_block[0].select<16, 16>(s);
+        auto tmp = scales_block[0].select<16, 1>(s * 16);
         scales[0].select<16, 2>(0) = tmp;
         scales[0].select<16, 2>(1) = scales[0].select<16, 2>(0);
-        tmp = scales_block[1].select<16, 16>(s);
+        tmp = scales_block[1].select<16, 1>(s * 16);
         scales[1].select<16, 2>(0) = tmp;
         scales[1].select<16, 2>(1) = scales[1].select<16, 2>(0);
-        tmp = zps_block[0].select<16, 16>(s);
+        tmp = zps_block[0].select<16, 1>(s * 16);
         zps[0].select<16, 2>(0) = tmp;
         zps[0].select<16, 2>(1) = zps[0].select<16, 2>(0);
-        tmp = zps_block[1].select<16, 16>(s);
+        tmp = zps_block[1].select<16, 1>(s * 16);
         zps[1].select<16, 2>(0) = tmp;
         zps[1].select<16, 2>(1) = zps[1].select<16, 2>(0);
 #endif
@@ -985,7 +1008,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
 
     cm_sbarrier(0);
 
-    matrix<half, REG_M * BLOCK_REG_M, REG_N * BLOCK_REG_N> acc_half;
+    matrix<SOFTMAX_TYPE, REG_M * BLOCK_REG_M, REG_N * BLOCK_REG_N> acc_half;
 #pragma unroll
     for (uint reg_m = 0; reg_m < REG_M; reg_m++) {
 #pragma unroll
@@ -1003,7 +1026,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     n_start = MYMIN(n_start, N);
     int n_end = MYMIN(n_start + BLOCK_SG_N, N);
     int valid_n = n_end - n_start;
-    matrix<half, 64, 4> sum_t;
+    matrix<SOFTMAX_TYPE, 64, 4> sum_t;
     vector<int, BLOCK_SG_M> seq_m;
     cmtl::cm_vector_assign(seq_m.select_all(), 0, 1);
     vector_ref<int, BLOCK_SG_N> seq = seq_m.select<BLOCK_SG_N, 1>();
@@ -1019,37 +1042,37 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     #pragma unroll
         for (uint reg_m = 0; reg_m < REG_M * BLOCK_REG_M; reg_m++) {
             SIMD_IF_BEGIN (n_pos > m_start + reg_m) {
-                acc_half.row(reg_m) = half{-60000};
+                acc_half.row(reg_m) = SOFTMAX_TYPE{-60000};
             } SIMD_IF_END;
         }
     }
 #else
     bool skip_mask = true;
 #endif
-    vector<half, BLOCK_SG_M> max_m;
+    vector<SOFTMAX_TYPE, BLOCK_SG_M> max_m;
     if (valid_n != BLOCK_SG_N) {
 #pragma unroll
         for (uint reg_m = 0; reg_m < REG_M * BLOCK_REG_M; reg_m++) {
-            acc_half.row(reg_m).merge(half{-60000}, n_pos >= N);
+            acc_half.row(reg_m).merge(SOFTMAX_TYPE{-60000}, n_pos >= N);
         }
     }
-    max_m.select<32, 1>() = reduce2d<1, 0, 1>(acc_half.select<32, 1, 32, 1>()).format<half>();
-    max_m.select<32, 1>(32) = reduce2d<1, 0, 1>(acc_half.select<32, 1, 32, 1>(32)).format<half>();
+    max_m.select<32, 1>() = reduce2d<1, 0, 1>(acc_half.select<32, 1, 32, 1>()).format<SOFTMAX_TYPE>();
+    max_m.select<32, 1>(32) = reduce2d<1, 0, 1>(acc_half.select<32, 1, 32, 1>(32)).format<SOFTMAX_TYPE>();
 
     {
-        uint slm_offset = (id_sg_n * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * (uint)sizeof(half);
+        uint slm_offset = (id_sg_n * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * (uint)sizeof(SOFTMAX_TYPE);
         // current max -> slm
         cm_slm_block_write(slm, slm_offset, max_m.format<int>());
         cm_slm_fence(CM_LOCAL_BARRIER);
         cm_barrier();
         // max inside wg
-        cm_slm_block_read(slm, id_sg_m * BLOCK_SG_M * (uint)sizeof(half), max_m.format<int>());
-        vector<half, BLOCK_SG_M> tmp;
+        cm_slm_block_read(slm, id_sg_m * BLOCK_SG_M * (uint)sizeof(SOFTMAX_TYPE), max_m.format<int>());
+        vector<SOFTMAX_TYPE, BLOCK_SG_M> tmp;
 #pragma unroll
         for (uint i = 1; i < SG_N; i++) {
-            slm_offset = (i * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * (uint)sizeof(half);
+            slm_offset = (i * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * (uint)sizeof(SOFTMAX_TYPE);
             cm_slm_block_read(slm, slm_offset, tmp.format<int>());
-            max_m = cm_max<half>(max_m, tmp);
+            max_m = cm_max<SOFTMAX_TYPE>(max_m, tmp);
         }
         // max across wg
         // kq_max: [b, hq, M_aligned]
@@ -1058,7 +1081,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
 
         // current max -> mem
         // kq_max_wg: [b, hq, N/BLOCK_WG_N, M_aligned]
-        uint offset = (id_wg_n * M_aligned + id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * sizeof(half);
+        uint offset = (id_wg_n * M_aligned + id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * sizeof(SOFTMAX_TYPE);
         cm_ptr_store<int>((int*)kq_max_wg, offset, max_m.format<int>());
     }
     {
@@ -1089,19 +1112,19 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
                 } SIMD_IF_END;
             }
         }
-        sum_t.select<32, 1, 4, 1>( 0).format<half>() = reduce2d<4, 1, 4>(acc_half.select<32, 1, 32, 1>( 0)).format<half>();
-        sum_t.select<32, 1, 4, 1>(32).format<half>() = reduce2d<4, 1, 4>(acc_half.select<32, 1, 32, 1>(32)).format<half>();
+        sum_t.select<32, 1, 4, 1>( 0).format<SOFTMAX_TYPE>() = reduce2d<4, 1, 4>(acc_half.select<32, 1, 32, 1>( 0)).format<SOFTMAX_TYPE>();
+        sum_t.select<32, 1, 4, 1>(32).format<SOFTMAX_TYPE>() = reduce2d<4, 1, 4>(acc_half.select<32, 1, 32, 1>(32)).format<SOFTMAX_TYPE>();
     }
     // store
-    lsc::block_2d_desc<half, 1, 8, 4> desc_c{ kq_exp_partial_sum, M - 1, (uint)(K_block_pad * sizeof(half) - 1), (uint)(K_block_pad * sizeof(half) - 1),
+    lsc::block_2d_desc<SOFTMAX_TYPE, 1, 8, 4> desc_c{ kq_exp_partial_sum, M - 1, (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1), (uint)(K_block_pad * sizeof(SOFTMAX_TYPE) - 1),
         (int)((id_wg_n * BLOCK_WG_N + id_sg_n * BLOCK_SG_N) / block_size_div_stride), (int)(id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) };
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 0>(desc_c, sum_t.select<8, 1, 4, 1>( 0).format<half>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 1>(desc_c, sum_t.select<8, 1, 4, 1>( 8).format<half>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 2>(desc_c, sum_t.select<8, 1, 4, 1>(16).format<half>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 3>(desc_c, sum_t.select<8, 1, 4, 1>(24).format<half>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 4>(desc_c, sum_t.select<8, 1, 4, 1>(32).format<half>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 5>(desc_c, sum_t.select<8, 1, 4, 1>(40).format<half>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 6>(desc_c, sum_t.select<8, 1, 4, 1>(48).format<half>());
-    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 7>(desc_c, sum_t.select<8, 1, 4, 1>(56).format<half>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 0>(desc_c, sum_t.select<8, 1, 4, 1>( 0).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 1>(desc_c, sum_t.select<8, 1, 4, 1>( 8).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 2>(desc_c, sum_t.select<8, 1, 4, 1>(16).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 3>(desc_c, sum_t.select<8, 1, 4, 1>(24).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 4>(desc_c, sum_t.select<8, 1, 4, 1>(32).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 5>(desc_c, sum_t.select<8, 1, 4, 1>(40).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 6>(desc_c, sum_t.select<8, 1, 4, 1>(48).format<SOFTMAX_TYPE>());
+    cm_store<CacheHint::Uncached, CacheHint::WriteBack, 0, 8 * 7>(desc_c, sum_t.select<8, 1, 4, 1>(56).format<SOFTMAX_TYPE>());
 }
 #endif

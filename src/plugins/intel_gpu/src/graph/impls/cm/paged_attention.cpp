@@ -94,10 +94,10 @@ public:
             stream.finish();
             res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
             stream.finish();
-            std::cout << "finish xattn_estimate_gemmqk!\n";
+            // std::cout << "finish xattn_estimate_gemmqk!\n";
             res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
             stream.finish();
-            std::cout << "finish xattn_estimate_find_block!\n";
+            // std::cout << "finish xattn_estimate_find_block!\n";
 #endif
             res_event = {execute_stage(res_event, instance, pa_multi_token)};
         } else if (rt_params->stage == PagedAttentionStage::GENERATE) {
@@ -162,7 +162,7 @@ public:
             const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
             auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * N_kq_groups * q_stride_pad);
-            internal_buffers.emplace_back(count_kq_max_wg, ov::element::f16);                // 2: kq_max_wg
+            internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);                // 2: kq_max_wg
 
             const size_t block_size = get_xattn_block_size();
             if (block_size > 1) {
@@ -172,7 +172,7 @@ public:
                 const uint k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
                 const uint k_block_pad = k_block_in_group * N_kq_groups;
                 auto count_kq_exp_partial_sum = static_cast<int64_t>(desc->heads_num * q_stride_pad * k_block_pad);
-                internal_buffers.emplace_back(count_kq_exp_partial_sum, ov::element::f16);       // 3: kq_exp_partial_sum
+                internal_buffers.emplace_back(count_kq_exp_partial_sum, ov::element::f32);       // 3: kq_exp_partial_sum
 
                 auto count_elements_mask = static_cast<int64_t>(desc->heads_num * (q_stride_pad / sum_per_n_token_in_block) * k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);        // 4: sparse_block_mask
