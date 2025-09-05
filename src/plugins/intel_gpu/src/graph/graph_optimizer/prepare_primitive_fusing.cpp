@@ -753,7 +753,34 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (!input_data_supports_fusings(input, activation_node.id()) || input.get_dependencies().empty())
                 return;
 
-            if (input.in_shape_of_subgraph || node->in_shape_of_subgraph)
+            // Check if activation function is supported for fusion in shape subgraphs
+            bool is_supported_activation_function =
+                activation_func == cldnn::activation_func::relu ||
+                activation_func == cldnn::activation_func::relu_negative_slope ||
+                activation_func == cldnn::activation_func::gelu ||
+                activation_func == cldnn::activation_func::gelu_tanh ||
+                activation_func == cldnn::activation_func::elu ||
+                activation_func == cldnn::activation_func::mish ||
+                activation_func == cldnn::activation_func::swish ||
+                activation_func == cldnn::activation_func::hswish ||
+                activation_func == cldnn::activation_func::abs ||
+                activation_func == cldnn::activation_func::exp ||
+                activation_func == cldnn::activation_func::logistic ||
+                activation_func == cldnn::activation_func::clamp ||
+                activation_func == cldnn::activation_func::hyperbolic_tan ||
+                activation_func == cldnn::activation_func::pow ||
+                activation_func == cldnn::activation_func::sqrt ||
+                activation_func == cldnn::activation_func::square ||
+                activation_func == cldnn::activation_func::hard_sigmoid ||
+                activation_func == cldnn::activation_func::hsigmoid ||
+                activation_func == cldnn::activation_func::negative;
+
+            bool should_allow_activation_fusion_in_shape_subgraph =
+                (input.is_type<convolution>() || input.is_type<fully_connected>() || input.is_type<gemm>()) &&
+                is_supported_activation_function &&
+                !activation_node.get_users().empty();
+
+            if (!should_allow_activation_fusion_in_shape_subgraph && (input.in_shape_of_subgraph || node->in_shape_of_subgraph))
                 return;
 
             if (lo.has_all_enabled_onednn_impls_optimization_attribute()) {
