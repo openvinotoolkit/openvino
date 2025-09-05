@@ -187,7 +187,6 @@ def main():
         set_github_output("skip_workflow", "True")
         sys.exit(0)
 
-
     gh_api = GhApi(owner=owner, repo=repository, token=os.getenv("GITHUB_TOKEN"))
     pr = gh_api.pulls.get(args.pr) if args.pr else None
 
