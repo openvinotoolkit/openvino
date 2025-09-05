@@ -109,7 +109,6 @@ jobs:
           python3 -m pip install -r ${INSTALL_TEST_DIR}/layer_tests/requirements.txt
 
       - name: Install ONNX tests dependencies
-        if: fromJSON(inputs.affected-components).ONNX_FE.test
         run: |
           #  ONNX tests requirements
           python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_onnx
