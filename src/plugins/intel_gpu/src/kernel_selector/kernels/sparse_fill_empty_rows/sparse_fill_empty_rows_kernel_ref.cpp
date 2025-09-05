@@ -26,6 +26,7 @@ ParamsKey SparseFillEmptyRowsKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -59,13 +60,13 @@ KernelsData SparseFillEmptyRowsKernelRef::GetKernelsData(const Params &params) c
         kernelName,
         jit,
         entry_point,
-        EXE_MODE_DEFAULT,  // exeMode
-        false,             // weights
-        false,             // bias
-        4,                 // number_of_inputs
-        0,                 // number_of_inputs_for_fused_prims
-        3,                 // number_of_outputs
-        false);            // is_dynamic
+        EXE_MODE_DEFAULT,               // exeMode
+        false,                          // weights
+        false,                          // bias
+        4,                              // number_of_inputs
+        0,                              // number_of_inputs_for_fused_prims
+        3,                              // number_of_outputs
+        params.is_shape_agnostic);      // is_dynamic
     return {kernel_data};
 }
 
@@ -82,7 +83,11 @@ bool SparseFillEmptyRowsKernelRef::Validate(const Params& p) const {
 
 JitConstants SparseFillEmptyRowsKernelRef::GetJitConstants(const sparse_fill_empty_rows_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    jit.AddConstant(MakeJitConstant("INDICES_COUNT", params.inputs[2].LogicalSize() / 2));
+    if (params.inputs[2].is_dynamic()) {
+        //jit.AddConstant(MakeJitConstant("NUM_INDICES", "shape_info[2][0]"));
+    } else {
+        jit.AddConstant(MakeJitConstant("NUM_INDICES", params.inputs[2].LogicalSize() / 2));
+    }
     return jit;
 }
 
