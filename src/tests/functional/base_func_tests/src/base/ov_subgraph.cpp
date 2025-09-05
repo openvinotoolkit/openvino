@@ -305,6 +305,7 @@ void SubgraphBaseTest::compile_model() {
     }
     try {
         inference_precision = compiledModel.get_property(ov::hint::inference_precision);
+        std::cout << "[ PLUGIN ] Inference Precision of compiled model: " << inference_precision << std::endl;
     } catch (std::exception& e) {
         std::cout << "[ WARNING ] Impossible to get Inference Precision with exception: " << e.what() << std::endl;
     }
