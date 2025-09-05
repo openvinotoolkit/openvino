@@ -5,6 +5,7 @@
 
 #include "utils.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <opencv2/gapi/own/assert.hpp>
 #include <fstream>
@@ -67,13 +68,12 @@ void readFromBinFile(const std::string& filepath, cv::Mat& mat) {
     const auto mat_byte_size = mat.total() * mat.elemSize();
     // workaround for I64 input type precision
     if (mat.type() == CV_32S && file_byte_size == mat_byte_size * 2) {
-        int64_t buffer64;
-        std::size_t mat_idx = 0;
-        for (std::size_t i = 0; i < file_byte_size; i+=sizeof(buffer64)) {
-            ifs.read(reinterpret_cast<char*>(&buffer64), sizeof(buffer64));
-            int32_t buffer32 = static_cast<int32_t>(buffer64);
-            mat.at<int32_t>(mat_idx++) = buffer32;
-        }
+
+        std::vector<int64_t> buffer64;
+        buffer64.resize(file_byte_size / 8);
+        ifs.read(reinterpret_cast<char*>(buffer64.data()), file_byte_size);
+        std::transform(buffer64.begin(), buffer64.end(), mat.ptr<int32_t>(),
+                       [](int64_t val) {return static_cast<int32_t>(val); });
     }
     else {
         if (file_byte_size != mat_byte_size) {
@@ -82,6 +82,7 @@ void readFromBinFile(const std::string& filepath, cv::Mat& mat) {
         }
         ifs.read(mat.ptr<char>(), mat_byte_size);
     }
+    ifs.close();
 }
 
 void writeToBinFile(const std::string& filepath, const cv::Mat& mat) {
