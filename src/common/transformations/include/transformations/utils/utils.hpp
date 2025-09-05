@@ -289,6 +289,8 @@ TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>
 
 TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
 
+TRANSFORMATIONS_API bool is_on_constant_or_param_path(const ov::Output<ov::Node>& output);
+
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
 
 TRANSFORMATIONS_API std::tuple<std::shared_ptr<ov::Node>,  // result
