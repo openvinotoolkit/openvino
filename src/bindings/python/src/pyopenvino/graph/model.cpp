@@ -733,10 +733,9 @@ void regclass_graph_Model(py::module m) {
                 const auto new_variables_shapes = get_variables_shapes(variables_shapes);
                 ConditionalGILScopedRelease release;
 
-            } else if (py::isinstance<py::list>(input_shapes)) {
-                py::list shape_list = input_shapes.cast<py::list>();
-                if (shape_list.size() > 0 && py::isinstance<py::list>(shape_list[0])) {
-                    // List-of-lists -> multiple inputs
+                if (py::isinstance<py::dict>(input_shapes)) {
+                    // Dictionary form -> single input or mapping input index/name -> shape
+                    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes_map;
                     auto inputs = self.inputs();
                     if (inputs.size() != shape_list.size()) {
                         throw py::value_error("Number of shapes does not match number of model inputs.");
