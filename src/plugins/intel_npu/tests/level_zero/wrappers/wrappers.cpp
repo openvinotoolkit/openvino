@@ -31,37 +31,31 @@ void ZeroWrappersTest::SetUp() {
     graphDescriptor = zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, ZE_GRAPH_FLAG_NONE);
 }
 
-void ZeroWrappersTest::TearDown() {
-    
-}
+void ZeroWrappersTest::TearDown() {}
 
 TEST_F(ZeroWrappersTest, QueryGraph) {
     const auto supportedLayers = zeGraphExt->queryGraph(std::move(serializedIR), buildFlags);
-
-
 }
 
 TEST_F(ZeroWrappersTest, GetGraphBinary) {
     // zeGraphExt->getGraphBinary(graphDescriptor, __, __, __);
-
 }
 
 TEST_F(ZeroWrappersTest, InitializeGraph) {
-    auto commandQueueGroupOrdinal = zeroUtils::findCommandQueueGroupOrdinal(ZeroInitStructsHolder::getInstance()->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    auto commandQueueGroupOrdinal =
+        zeroUtils::findCommandQueueGroupOrdinal(ZeroInitStructsHolder::getInstance()->getDevice(),
+                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
     zeGraphExt->initializeGraph(graphDescriptor, commandQueueGroupOrdinal);
-
 }
 
 TEST_F(ZeroWrappersTest, DestroyGraph) {
     zeGraphExt->destroyGraph(graphDescriptor);
-
 }
 
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                                                ze_graph_compiler_version_info_t compilerVersion,
-                                                const uint32_t supportedOpsetVersion) {
+                         ze_graph_compiler_version_info_t compilerVersion,
+                         const uint32_t supportedOpsetVersion) {
     driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion);
 
     // Contract between adapter and compiler in driver
@@ -130,6 +124,3 @@ void checkedMemcpy(void* destination, size_t destinationSize, const void* source
 
     memcpy(destination, source, numberOfBytes);
 }
-
-
-
