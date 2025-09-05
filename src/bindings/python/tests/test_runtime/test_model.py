@@ -601,6 +601,7 @@ def test_reshape_with_python_types_for_variable():
 @pytest.mark.reshape_list
 def test_reshape_with_list_of_shapes():
     """Test reshaping a model using both dict and list-of-lists formats.
+
     Verifies that reshape_list correctly updates input shapes and handles mismatched input counts.
     """
     # Model with three identical inputs
@@ -651,6 +652,7 @@ def test_reshape_with_list_of_shapes():
 @pytest.mark.reshape_list
 def test_partial_input_reshape():
     """Test partial reshaping where only a subset of inputs are updated.
+
     Ensures unspecified inputs retain their original or dynamic shapes.
     """
     # Define params with dynamic shapes
@@ -671,6 +673,7 @@ def test_partial_input_reshape():
 @pytest.mark.reshape_list
 def test_dynamic_rank_input_shape():
     """Test that a model accepts inputs with completely unknown rank.
+
     Useful for generic preprocessing pipelines with flexible input formats.
     """
     param = ops.parameter(PartialShape.dynamic(), dtype=np.float32, name="dyn_rank")
@@ -686,6 +689,7 @@ def test_dynamic_rank_input_shape():
 @pytest.mark.reshape_list
 def test_dynamic_dimension_input_shape():
     """Test reshaping a model with mixed dynamic and static dimensions.
+
     Validates that static dimensions are preserved and dynamic ones remain flexible.
     """
     param = ops.parameter(PartialShape([Dimension.dynamic(), 3, Dimension(224), Dimension(224)]), dtype=np.float32, name="dyn_dim")
@@ -732,6 +736,7 @@ def test_interval_dimension_input_shape():
 @pytest.mark.reshape_list
 def test_named_input_reshape():
     """Test reshaping a model using the input tensor's name as the key.
+
     Confirms that named reshaping updates the correct input shape.
     """
     param = ops.parameter([1, 3, 224, 224], np.float32, name="input_tensor")
@@ -745,6 +750,7 @@ def test_named_input_reshape():
 @pytest.mark.reshape_list
 def test_reshape_with_port_mapping():
     """Test reshaping a model using an Output (port) object as the key.
+
     Ensures that port-based reshaping behaves identically to index or name-based reshaping.
     """
     param = ops.parameter([1, 3, 224, 224], np.float32, name="port_input")
@@ -758,6 +764,7 @@ def test_reshape_with_port_mapping():
 @pytest.mark.reshape_list
 def test_reshape_with_tensor_name_and_partial_shape():
     """Test reshaping a model using a tensor name and a PartialShape object.
+
     Validates that dynamic bounds are preserved and correctly interpreted.
     """
     param = ops.parameter(PartialShape([1, Dimension.dynamic(), 224, 224]), np.float32, name="pshape_input")
@@ -773,6 +780,7 @@ def test_reshape_with_tensor_name_and_partial_shape():
 @pytest.mark.reshape_list
 def test_reshape_propagation_to_outputs():
     """Test that reshaping inputs propagates correctly to model outputs.
+
     Specifically checks that batch dimension updates are reflected downstream.
     """
     param = ops.parameter([1, 3, 224, 224], np.float32, name="prop_input")
@@ -787,6 +795,7 @@ def test_reshape_propagation_to_outputs():
 @pytest.mark.reshape_list
 def test_reshape_on_subgraph_model():
     """Test reshaping a model built from a subgraph (not full IR).
+
     Ensures that reshape works on any valid Model object regardless of origin.
     """
     param = ops.parameter([1, 3, 224, 224], np.float32, name="sub_input")
@@ -801,6 +810,7 @@ def test_reshape_on_subgraph_model():
 @pytest.mark.reshape_list
 def test_invalid_shape_raises_on_compile():
     """Test that compiling a model with invalid reshaped dimensions raises an error.
+    
     Confirms that reshape() may accept invalid shapes, but compile_model enforces correctness.
     """
     from openvino.runtime import Core
