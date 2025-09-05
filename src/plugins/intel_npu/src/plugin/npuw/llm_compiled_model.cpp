@@ -1026,8 +1026,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                       "model and its config, please check passed config.");
 
     m_prefill_compiled.resize(prefill_models.size());
-    // ov::parallel_for(prefill_models.size(), [&](size_t idx) {
-    for (size_t idx = 0; idx < prefill_models.size(); idx++) {
+    ov::parallel_for(prefill_models.size(), [&](size_t idx) {
         auto prefill_model = prefill_models[idx];
         std::cout << "Start to compile prefill model: " << prefill_model->get_friendly_name() << std::endl;
         auto compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
@@ -1036,8 +1035,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                 "check passed config.");
         m_prefill_compiled[idx] = std::move(compiled);
         std::cout << "Finished compilation for prefill model: " << prefill_model->get_friendly_name() << std::endl;
-    }
-    // });
+    });
 
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
