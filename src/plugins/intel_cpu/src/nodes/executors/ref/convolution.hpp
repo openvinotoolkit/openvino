@@ -25,16 +25,16 @@ namespace ov::intel_cpu {
 
 class RefConvolutionExecutor : public Executor {
 public:
-    RefConvolutionExecutor(ConvAttrs attrs, const MemoryArgs& /*memory*/, ExecutorContext::CPtr /*context*/)
+    RefConvolutionExecutor(ConvAttrs attrs, const MemoryArgs& /*memory*/, const ExecutorContext::CPtr& /*context*/)
         : m_attrs(std::move(attrs)) {}
 
-    virtual ~RefConvolutionExecutor() = default;
+    ~RefConvolutionExecutor() override = default;
 
-    inline bool update(const MemoryArgs& /*memory*/) override {
+    bool update(const MemoryArgs& /*memory*/) override {
         return true;
     }
 
-    inline void execute(const MemoryArgs& memory) override {
+    void execute(const MemoryArgs& memory) override {
         // Only FP32 reference compute for now
         OPENVINO_ASSERT(memory.at(ARG_SRC)->getPrecision() == ov::element::f32,
                         "RefConvolutionExecutor supports only f32 src");
@@ -81,13 +81,13 @@ public:
             out_spatial = {dstDims[2], dstDims[3]};
         }
 
-        const float* src = memory.at(ARG_SRC)->getDataAs<const float>();
-        const float* wei = memory.at(ARG_WEI)->getDataAs<const float>();
-        const float* bias = nullptr;
+        const auto* src = memory.at(ARG_SRC)->getDataAs<const float>();
+        const auto* wei = memory.at(ARG_WEI)->getDataAs<const float>();
+        const auto* bias = static_cast<const float*>(nullptr);
         if (m_attrs.withBias && memory.at(ARG_BIAS) && !memory.at(ARG_BIAS)->getDescPtr()->empty()) {
             bias = memory.at(ARG_BIAS)->getDataAs<const float>();
         }
-        float* dst = memory.at(ARG_DST)->getDataAs<float>();
+        auto* dst = memory.at(ARG_DST)->getDataAs<float>();
 
         // Build ov::Shapes (N,C,spatial...)
         ov::Shape in_shape;
@@ -107,8 +107,9 @@ public:
         ov::Strides strides(m_attrs.stride.begin(), m_attrs.stride.end());
         ov::Strides dilations;
         dilations.reserve(m_attrs.dilation.size());
-        for (auto d : m_attrs.dilation)
+        for (auto d : m_attrs.dilation) {
             dilations.push_back(d + 1);
+        }
         ov::CoordinateDiff pads_begin(m_attrs.paddingL.begin(), m_attrs.paddingL.end());
         ov::CoordinateDiff pads_end(m_attrs.paddingR.begin(), m_attrs.paddingR.end());
 
@@ -127,15 +128,15 @@ public:
                             "Unexpected filter shape rank for convolution");
 
             for (size_t i = 0; i < spatial_rank; ++i) {
-                const int64_t in_dim = static_cast<int64_t>(in_spatial[i]);
-                const int64_t stride = static_cast<int64_t>(strides[i]);
-                const int64_t dilation = static_cast<int64_t>(dilations[i]);
-                const int64_t kernel = static_cast<int64_t>(f_shape[filter_spatial_offset + i]);
-                const int64_t dilated = (kernel - 1) * dilation + 1;
-                const int64_t out_dim = static_cast<int64_t>(out_spatial[i]);
+                const auto in_dim = static_cast<int64_t>(in_spatial[i]);
+                const auto stride = static_cast<int64_t>(strides[i]);
+                const auto dilation = static_cast<int64_t>(dilations[i]);
+                const auto kernel = static_cast<int64_t>(f_shape[filter_spatial_offset + i]);
+                const auto dilated = (kernel - 1) * dilation + 1;
+                const auto out_dim = static_cast<int64_t>(out_spatial[i]);
 
                 // total padding required to achieve given out_dim
-                const int64_t pad_total = std::max<int64_t>(0, (out_dim - 1) * stride + dilated - in_dim);
+                const auto pad_total = std::max<int64_t>(0, (out_dim - 1) * stride + dilated - in_dim);
 
                 int64_t pad_l = 0;
                 int64_t pad_r = 0;
@@ -147,16 +148,16 @@ public:
                     pad_r = pad_total - pad_l;
                 }
 
-                pads_begin[i] = static_cast<int64_t>(pad_l);
-                pads_end[i] = static_cast<int64_t>(pad_r);
+                pads_begin[i] = pad_l;
+                pads_end[i] = pad_r;
             }
         }
 
         // Prepare source and destination buffers in NCSP order expected by ov::reference
         const size_t out_spatial_size =
-            std::accumulate(out_spatial.begin(), out_spatial.end(), size_t{1}, std::multiplies<size_t>());
-        const float* src_for_ref = src;
-        float* dst_for_ref = dst;
+            std::accumulate(out_spatial.begin(), out_spatial.end(), size_t{1}, std::multiplies<>());
+        const auto* src_for_ref = src;
+        auto* dst_for_ref = dst;
 
         // Invoke reference convolution (grouped or regular)
         if (m_attrs.isGrouped) {
@@ -185,7 +186,7 @@ public:
 
         // Apply bias if present (on NCSP pointer)
         if (bias) {
-            float* out_ncsp = dst_for_ref;
+            auto* out_ncsp = dst_for_ref;
             size_t idx = 0;
             for (size_t n = 0; n < N; ++n) {
                 for (size_t oc = 0; oc < OC; ++oc) {
@@ -199,18 +200,18 @@ public:
         // No layout reorder back is needed (NCSP only)
     }
 
-    [[nodiscard]] inline impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::ref;
     }
 
 protected:
     // VTable anchor
-    inline virtual void anchor() {}
+    virtual void anchor() {}
 
 private:
     ConvAttrs m_attrs;
 
-    static inline bool isNspc(const MemoryDescPtr& desc) {
+    static bool isNspc(const MemoryDescPtr& desc) {
         return desc && desc->hasLayoutType(LayoutType::nspc);
     }
 };
