@@ -62,10 +62,10 @@ MatMulFunctionBase::MatMulFunctionBase(const std::vector<PartialShape>& inputSha
       matmul_type(type) {
     if (!precisions.empty()) {
         OPENVINO_ASSERT(precisions.size() == 2, "Got invalid number of input element types");
-        const bool is_f32 = ov::snippets::utils::everyone_is(element::f32, precisions[0], precisions[1]);
-        const bool is_int8 = ov::snippets::utils::one_of(precisions[0], element::i8, element::u8) && precisions[1] == element::i8;
-        const bool is_bf16 = ov::snippets::utils::everyone_is(element::bf16, precisions[0], precisions[1]);
-        const bool is_f16 = ov::snippets::utils::everyone_is(element::f16, precisions[0], precisions[1]);
+        const bool is_f32 = ov::snippets::utils::all_of(element::f32, precisions[0], precisions[1]);
+        const bool is_int8 = ov::snippets::utils::any_of(precisions[0], element::i8, element::u8) && precisions[1] == element::i8;
+        const bool is_bf16 = ov::snippets::utils::all_of(element::bf16, precisions[0], precisions[1]);
+        const bool is_f16 = ov::snippets::utils::all_of(element::f16, precisions[0], precisions[1]);
         OPENVINO_ASSERT(is_f32 || is_bf16 || is_f16 || is_int8, "Invalid precisions");
     }
 }
@@ -120,7 +120,7 @@ std::shared_ptr<ov::Model> MatMulFunction::initReference() const {
         matmul = std::make_shared<op::v0::MatMul>(indata0, indata1, false, transpose_b);
     }
     const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
-        NodeVector{data0, data1},
+        OutputVector{data0, data1},
         std::make_shared<ov::Model>(OutputVector{matmul}, ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(OutputVector{subgraph}, params);
 }

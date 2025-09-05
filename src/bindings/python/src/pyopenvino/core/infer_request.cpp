@@ -15,9 +15,11 @@
 
 namespace py = pybind11;
 
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
+
 inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs, bool decode_strings) {
     {
-        py::gil_scoped_release release;
+        ConditionalGILScopedRelease release;
         *self.m_start_time = Time::now();
         self.m_request->infer();
         *self.m_end_time = Time::now();
@@ -51,8 +53,30 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_tensors",
-        [](InferRequestWrapper& self, const std::string& tensor_name, const std::vector<ov::Tensor>& tensors) {
+        [](InferRequestWrapper& self, const std::string& tensor_name, const ov::TensorVector& tensors) {
             self.m_request->set_tensors(tensor_name, tensors);
+        },
+        py::arg("tensor_name"),
+        py::arg("tensors"),
+        R"(
+            Sets batch of tensors for input data to infer by tensor name.
+            Model input needs to have batch dimension and the number of tensors needs to be
+            matched with batch size. Current version supports set tensors to model inputs only.
+            In case if `tensor_name` is associated with output (or any other non-input node),
+            an exception will be thrown.
+
+            :param tensor_name: Name of input tensor.
+            :type tensor_name: str
+            :param tensors: Input tensors for batched infer request. The type of each tensor
+                            must match the model input element type and shape (except batch dimension).
+                            Total size of tensors needs to match with input's size.
+            :type tensors: openvino.TensorVector
+        )");
+    cls.def(
+        "set_tensors",
+        [](InferRequestWrapper& self, const std::string& tensor_name, const py::list& tensors) {
+            py::object pyTensorVector = py::module_::import("openvino").attr("TensorVector");
+            self.m_request->set_tensors(tensor_name, pyTensorVector(tensors).cast<ov::TensorVector>());
         },
         py::arg("tensor_name"),
         py::arg("tensors"),
@@ -73,13 +97,38 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_tensors",
-        [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) {
+        [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const ov::TensorVector& tensors) {
             self.m_request->set_tensors(port, tensors);
         },
         py::arg("port"),
         py::arg("tensors"),
         R"(
-            Sets batch of tensors for input data to infer by tensor name.
+            Sets a batch of tensors for input data to infer by input port.
+            Model input needs to have batch dimension and the number of tensors needs to be
+            matched with batch size. Current version supports set tensors to model inputs only.
+            In case if `port` is associated with output (or any other non-input node),
+            an exception will be thrown.
+
+
+            :param port: Port of input tensor.
+            :type port: openvino.ConstOutput
+            :param tensors: Input tensors for batched infer request. The type of each tensor
+                            must match the model input element type and shape (except batch dimension).
+                            Total size of tensors needs to match with input's size.
+            :type tensors: openvino.TensorVector
+            :rtype: None
+        )");
+
+    cls.def(
+        "set_tensors",
+        [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const py::list& tensors) {
+            py::object pyTensorVector = py::module_::import("openvino").attr("TensorVector");
+            self.m_request->set_tensors(port, pyTensorVector(tensors).cast<ov::TensorVector>());
+        },
+        py::arg("port"),
+        py::arg("tensors"),
+        R"(
+            Sets a batch of tensors for input data to infer by input port.
             Model input needs to have batch dimension and the number of tensors needs to be
             matched with batch size. Current version supports set tensors to model inputs only.
             In case if `port` is associated with output (or any other non-input node),
@@ -131,8 +180,26 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_input_tensors",
-        [](InferRequestWrapper& self, const std::vector<ov::Tensor>& tensors) {
+        [](InferRequestWrapper& self, const ov::TensorVector& tensors) {
             self.m_request->set_input_tensors(tensors);
+        },
+        py::arg("tensors"),
+        R"(
+            Sets batch of tensors for single input data.
+            Model input needs to have batch dimension and the number of `tensors`
+            needs to match with batch size.
+
+            :param tensors:  Input tensors for batched infer request. The type of each tensor
+                             must match the model input element type and shape (except batch dimension).
+                             Total size of tensors needs to match with input's size.
+            :type tensors: openvino.TensorVector
+        )");
+
+    cls.def(
+        "set_input_tensors",
+        [](InferRequestWrapper& self, const py::list& tensors) {
+            py::object pyTensorVector = py::module_::import("openvino").attr("TensorVector");
+            self.m_request->set_input_tensors(pyTensorVector(tensors).cast<ov::TensorVector>());
         },
         py::arg("tensors"),
         R"(
@@ -148,7 +215,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_input_tensors",
-        [](InferRequestWrapper& self, size_t idx, const std::vector<ov::Tensor>& tensors) {
+        [](InferRequestWrapper& self, size_t idx, const ov::TensorVector& tensors) {
             self.m_request->set_input_tensors(idx, tensors);
         },
         py::arg("idx"),
@@ -163,6 +230,28 @@ void regclass_InferRequest(py::module m) {
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
                             Total size of tensors needs to match with input's size.
+            :type tensors: openvino.TensorVector
+        )");
+
+    cls.def(
+        "set_input_tensors",
+        [](InferRequestWrapper& self, size_t idx, const py::list& tensors) {
+            py::object pyTensorVector = py::module_::import("openvino").attr("TensorVector");
+            self.m_request->set_input_tensors(idx, pyTensorVector(tensors).cast<ov::TensorVector>());
+        },
+        py::arg("idx"),
+        py::arg("tensors"),
+        R"(
+            Sets batch of tensors for single input data to infer by index.
+            Model input needs to have batch dimension and the number of `tensors`
+            needs to match with batch size.
+
+            :param idx: Index of input tensor.
+            :type idx: int
+            :param tensors: Input tensors for batched infer request. The type of each tensor
+                            must match the model input element type and shape (except batch dimension).
+                            Total size of tensors needs to match with input's size.
+            :type tensors: list[openvino.Tensor]
         )");
 
     // Overload for single input, it will throw error if a model has more than one input.
@@ -231,7 +320,7 @@ void regclass_InferRequest(py::module m) {
                     PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function to pass `userdata` into!", 1);
                 }
             }
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             *self.m_start_time = Time::now();
             self.m_request->start_async();
         },
@@ -270,7 +359,7 @@ void regclass_InferRequest(py::module m) {
                     PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function!", 1);
                 }
             }
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             *self.m_start_time = Time::now();
             self.m_request->start_async();
         },
@@ -303,11 +392,11 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "wait",
         [](InferRequestWrapper& self) {
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.m_request->wait();
         },
         R"(
-            Waits for the result to become available. 
+            Waits for the result to become available.
             Blocks until the result becomes available.
 
             GIL is released while running this function.
@@ -316,7 +405,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "wait_for",
         [](InferRequestWrapper& self, const int timeout) {
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             return self.m_request->wait_for(std::chrono::milliseconds(timeout));
         },
         py::arg("timeout"),
@@ -352,7 +441,7 @@ void regclass_InferRequest(py::module m) {
                     OPENVINO_THROW("Caught exception: ", e.what());
                 }
                 // Acquire GIL, execute Python function
-                py::gil_scoped_acquire acquire;
+                ConditionalGILScopedAcquire acquire;
                 (*callback_sp)(self.m_userdata);
             });
         },
@@ -609,7 +698,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->get_profiling_info();
         },
-        py::call_guard<py::gil_scoped_release>(),
+        CallGuardConditionalGILRelease(),
         R"(
             Queries performance is measured per layer to get feedback on what
             is the most time-consuming operation, not all plugins provide
@@ -626,7 +715,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->query_state();
         },
-        py::call_guard<py::gil_scoped_release>(),
+        CallGuardConditionalGILRelease(),
         R"(
             Gets state control interface for given infer request.
 
@@ -691,22 +780,28 @@ void regclass_InferRequest(py::module m) {
             :rtype: list[openvino.ConstOutput]
         )");
 
-    cls.def_property_readonly("input_tensors",
-                              &InferRequestWrapper::get_input_tensors,
-                              R"(
-                                Gets all input tensors of this InferRequest.
+    cls.def_property_readonly(
+        "input_tensors",
+        [](InferRequestWrapper& self) {
+            return py::list(py::cast(self.get_input_tensors()));
+        },
+        R"(
+            Gets all input tensors of this InferRequest.
                                 
-                                :rtype: list[openvino.Tensor]
-                              )");
+            :rtype: list[openvino.Tensor]
+        )");
 
-    cls.def_property_readonly("output_tensors",
-                              &InferRequestWrapper::get_output_tensors,
-                              R"(
+    cls.def_property_readonly(
+        "output_tensors",
+        [](InferRequestWrapper& self) {
+            return py::list(py::cast(self.get_output_tensors()));
+        },
+        R"(
 
-                                Gets all output tensors of this InferRequest.
+            Gets all output tensors of this InferRequest.
                                 
-                                :rtype: list[openvino.Tensor]
-                              )");
+            :rtype: list[openvino.Tensor]
+        )");
 
     cls.def_property_readonly(
         "latency",
@@ -715,7 +810,7 @@ void regclass_InferRequest(py::module m) {
         },
         R"(
             Gets latency of this InferRequest.
-            
+
             :rtype: float
         )");
 
@@ -724,7 +819,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->get_profiling_info();
         },
-        py::call_guard<py::gil_scoped_release>(),
+        CallGuardConditionalGILRelease(),
         R"(
             Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!

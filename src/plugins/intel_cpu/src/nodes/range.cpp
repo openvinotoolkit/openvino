@@ -30,7 +30,7 @@ namespace ov::intel_cpu::node {
 
 bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v0::Range::get_type_info_static(),
                     ov::op::v4::Range::get_type_info_static())) {
             errorMessage = "Only v0 and v4 Range operation is supported";
@@ -91,10 +91,10 @@ void Range::initSupportedPrimitiveDescriptors() {
     } else {
         inDataConf.reserve(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); ++i) {
-            inDataConf.emplace_back(LayoutType::ncsp);
+            inDataConf.emplace_back(LayoutType::ncsp, ov::element::dynamic);
         }
         outDataConf.reserve(1);
-        outDataConf.emplace_back(LayoutType::ncsp);
+        outDataConf.emplace_back(LayoutType::ncsp, ov::element::dynamic);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     }
 }
@@ -137,7 +137,7 @@ size_t Range::getWorkAmount(data_t* startPtr, data_t* stopPtr, data_t* stepPtr) 
     *stepPtr = getSrcDataAtPortAs<const data_t>(RANGE_DELTA)[0];
     const data_t span = *stopPtr - *startPtr;
     const data_t step = *stepPtr;
-    if (std::is_same<data_t, int>::value) {
+    if (std::is_same_v<data_t, int>) {
         auto iSpan = static_cast<int>(span);
         auto iStep = static_cast<int>(step);
         return static_cast<size_t>(div_up(iSpan < 0 ? -iSpan : iSpan, iStep < 0 ? -iStep : iStep));

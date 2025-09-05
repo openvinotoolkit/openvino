@@ -27,7 +27,7 @@ GemmKernel::GemmKernel(size_t M, size_t N, size_t K, bool b_transposed, ov::elem
       N(N),
       K(K),
       b_transposed(b_transposed) {
-    if (!one_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+    if (none_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16)) {
         THROW_ERROR("brgemm kernel only supports bf16, f16 and f32");
     }
 
@@ -56,7 +56,7 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
     aInfo.init(shapeCast({M, N}),
                format,
                aStrides,
-               size_t(0),
+               static_cast<size_t>(0),
                (M * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
 
     arm_compute::TensorShape bShape;
@@ -69,7 +69,7 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
     bInfo.init(bShape,
                format,
                bStrides,
-               size_t(0),
+               static_cast<size_t>(0),
                (K * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
 
     aTensor.allocator()->init(aInfo);
@@ -84,7 +84,7 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
         dstInfo.init(shapeCast({M, K}),
                      format,
                      *outStrides,
-                     size_t(0),
+                     static_cast<size_t>(0),
                      (M * K * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
     } else {
         dstInfo.init(shapeCast({M, K}), format);

@@ -45,12 +45,12 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
         }
         const auto& attrs = nms->get_attrs();
         const auto& sortType = attrs.sort_result_type;
-        if (!one_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
+        if (none_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
             errorMessage = "Does not support SortResultType mode: " + ov::as_string(sortType);
             return false;
         }
         const auto& decayType = attrs.decay_function;
-        if (!one_of(decayType, ngNmseDcayFunction::LINEAR, ngNmseDcayFunction::GAUSSIAN)) {
+        if (none_of(decayType, ngNmseDcayFunction::LINEAR, ngNmseDcayFunction::GAUSSIAN)) {
             errorMessage = "Does not support DcayFunction " + ov::as_string(decayType);
             return false;
         }
@@ -67,7 +67,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (one_of(op->get_type_info(),
+    if (any_of(op->get_type_info(),
                ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>::get_type_info_static())) {
         m_outStaticShape = true;
     }
@@ -106,7 +106,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     m_normalized = attrs.normalized;
     if (m_decayFunction == MatrixNmsDecayFunction::LINEAR) {
         m_decay_fn = [](float iou, float max_iou, [[maybe_unused]] float sigma) -> float {
-            return (1. - iou) / (1. - max_iou + 1e-10F);
+            return (1.F - iou) / (1.F - max_iou + 1e-10F);
         };
     } else {
         m_decay_fn = [](float iou, float max_iou, float sigma) -> float {
@@ -448,7 +448,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto originalIndex = originalOffset + j;
             selectedIndices[j + outputOffset] = static_cast<int>(m_filteredBoxes[originalIndex].index);
             auto* selectedBase = selectedOutputs + (outputOffset + j) * 6;
-            selectedBase[0] = m_filteredBoxes[originalIndex].classIndex;
+            selectedBase[0] = static_cast<float>(m_filteredBoxes[originalIndex].classIndex);
             selectedBase[1] = m_filteredBoxes[originalIndex].score;
             selectedBase[2] = m_filteredBoxes[originalIndex].box.x1;
             selectedBase[3] = m_filteredBoxes[originalIndex].box.y1;

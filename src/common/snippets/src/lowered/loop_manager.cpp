@@ -245,8 +245,36 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
         const auto work_amount = *(loop_tensor.rbegin() + dim_idx);
         const auto increment = subtensor_value;
-        mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, dim_idx, loop_input_ports, loop_output_ports);
+        std::vector<LoopPort> entries, exits;
+        for (const auto& port : loop_input_ports) {
+            entries.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, dim_idx));
+        }
+        for (const auto& port : loop_output_ports) {
+            exits.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, dim_idx));
+        }
+        mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits);
     }
+}
+
+size_t LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
+                              LinearIR::constExprIt loop_end_pos,
+                              size_t work_amount,
+                              size_t increment,
+                              const std::vector<LoopPort>& entries,
+                              const std::vector<LoopPort>& exits,
+                              bool set_default_handlers) {
+    const auto normalized_increment =
+        utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
+    const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits);
+    if (set_default_handlers) {
+        loop_info->set_handlers(SpecificIterationHandlers(work_amount, normalized_increment, loop_info->get_dim_idx()));
+    }
+
+    const auto loop_id = this->add_loop_info(loop_info);
+    for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
+        insert_loop_id(*expr_it, loop_id);
+    }
+    return loop_id;
 }
 
 size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
@@ -267,7 +295,7 @@ size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
                                 }),
                     "Failed to replace with new Loop: this Loop already exists!");
 
-    const auto old_loop_bounds = get_loop_bounds(linear_ir, old_id);
+    const auto [old_loop_begin, old_loop_end] = get_loop_bounds(linear_ir, old_id);
 
     const auto loop_id = this->add_loop_info(loop_info);
     const auto begin = explicit_loop_bounds ? std::next(loop_begin_pos) : loop_begin_pos;
@@ -278,7 +306,7 @@ size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
 
     // If new bounds are equal to old loop bounds, this means that old Loop is removed totally from LIR
     // In this case old loop info must be completely removed from loop manager
-    if (loop_begin_pos == old_loop_bounds.first && end == old_loop_bounds.second) {
+    if (loop_begin_pos == old_loop_begin && end == old_loop_end) {
         this->remove_loop_info(old_id);
     }
     return loop_id;
@@ -288,8 +316,8 @@ void LoopManager::fuse_loops(const LinearIR& linear_ir,
                              size_t loop_id_upper,
                              size_t loop_id_lower,
                              bool fuse_into_upper) {
-    const auto loop_bounds = get_loop_bounds(linear_ir, fuse_into_upper ? loop_id_lower : loop_id_upper);
-    fuse_loops(loop_bounds.first, loop_bounds.second, loop_id_upper, loop_id_lower, fuse_into_upper);
+    const auto [loop_begin, loop_end] = get_loop_bounds(linear_ir, fuse_into_upper ? loop_id_lower : loop_id_upper);
+    fuse_loops(loop_begin, loop_end, loop_id_upper, loop_id_lower, fuse_into_upper);
 }
 
 void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target,
@@ -327,7 +355,7 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target,
     for (const auto& p : m_map) {
         if (const auto inner_splitted_loop_info = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(p.second)) {
             const auto outer = inner_splitted_loop_info->get_outer_splitted_loop_info();
-            if (utils::one_of(outer, loop_info_upper, loop_info_lower)) {
+            if (utils::any_of(outer, loop_info_upper, loop_info_lower)) {
                 inner_splitted_loop_info->set_outer_splitted_loop_info(m_map[to]);
             }
         }

@@ -14,6 +14,7 @@
 #include "openvino/core/except.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered {
 
@@ -31,8 +32,9 @@ public:
 
     LoopPort() = default;
 
-    template <LoopPort::Type T, std::enable_if_t<T == Type::Incremented || T == Type::NotIncremented, bool> = true>
-    static LoopPort create(const ExpressionPort& port, size_t dim_idx = 0) {
+    template <LoopPort::Type T,
+              std::enable_if_t<utils::any_of(T, Type::Incremented, Type::NotIncremented), bool> = true>
+    static LoopPort create(const ExpressionPort& port, size_t dim_idx) {
         return {port, dim_idx, T};
     }
 
@@ -58,7 +60,8 @@ public:
     void set_expr_port(std::shared_ptr<ExpressionPort> p);
     void set_dim_idx(size_t idx);
 
-    template <LoopPort::Type T, std::enable_if_t<T == Type::Incremented || T == Type::NotIncremented, bool> = true>
+    template <LoopPort::Type T,
+              std::enable_if_t<utils::any_of(T, Type::Incremented, Type::NotIncremented), bool> = true>
     void convert_to_type() {
         OPENVINO_ASSERT(is_processed(), "NotProcessed LoopPort cannot change type!");
         m_type = T;

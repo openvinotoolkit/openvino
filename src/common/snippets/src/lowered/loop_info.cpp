@@ -37,22 +37,6 @@ LoopInfo::LoopInfo(size_t work_amount,
       m_input_ports(entries),
       m_output_ports(exits) {}
 
-LoopInfo::LoopInfo(size_t work_amount,
-                   size_t increment,
-                   const std::vector<ExpressionPort>& entries,
-                   const std::vector<ExpressionPort>& exits)
-    : m_work_amount(work_amount),
-      m_increment(increment) {
-    m_input_ports.reserve(entries.size());
-    m_output_ports.reserve(exits.size());
-    for (const auto& port : entries) {
-        m_input_ports.push_back(LoopPort::create<LoopPort::Type::Incremented>(port));
-    }
-    for (const auto& port : exits) {
-        m_output_ports.push_back(LoopPort::create<LoopPort::Type::Incremented>(port));
-    }
-}
-
 bool LoopInfo::is_dynamic() const {
     return utils::is_dynamic_value(m_work_amount) || utils::is_dynamic_value(m_increment);
 }
@@ -121,16 +105,6 @@ void LoopInfo::set_work_amount(size_t work_amount) {
 
 void LoopInfo::set_increment(size_t increment) {
     m_increment = increment;
-}
-
-void LoopInfo::set_dim_idx(size_t dim_idx) {
-    auto setter = [dim_idx](LoopPort& port) {
-        if (port.is_processed()) {
-            port.set_dim_idx(dim_idx);
-        }
-    };
-    std::for_each(m_input_ports.begin(), m_input_ports.end(), setter);
-    std::for_each(m_output_ports.begin(), m_output_ports.end(), setter);
 }
 
 template <>
@@ -264,18 +238,6 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
 
 UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  size_t increment,
-                                 const std::vector<ExpressionPort>& entries,
-                                 const std::vector<ExpressionPort>& exits,
-                                 SpecificIterationHandlers handlers)
-    : LoopInfo(work_amount, increment, entries, exits),
-      m_handlers(std::move(handlers)),
-      m_input_port_descs(std::vector<LoopPortDesc>(entries.size())),
-      m_output_port_descs(std::vector<LoopPortDesc>(exits.size())) {
-    sort_ports();
-}
-
-UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
-                                 size_t increment,
                                  const std::vector<LoopPort>& entries,
                                  const std::vector<LoopPort>& exits,
                                  const std::vector<LoopPortDesc>& in_descs,
@@ -389,7 +351,7 @@ namespace {
 template <typename T>
 void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
     const auto order_set = std::set<size_t>(new_order.cbegin(), new_order.cend());
-    OPENVINO_ASSERT(new_order.size() == values.size() && order_set.size() == values.size(),
+    OPENVINO_ASSERT(utils::all_of(values.size(), new_order.size(), order_set.size()),
                     "Failed to sort values: `new order` must contain unique indexes");
     OPENVINO_ASSERT(*order_set.begin() == 0 && *order_set.rbegin() == (values.size() - 1),
                     "Failed to sort values: `new_order` must contain new indexes for ALL values");
@@ -689,9 +651,8 @@ void order_subvector(const std::vector<size_t>& indexes,
 
 void ExpandedLoopInfo::sort_ports() {
     const auto count = get_input_count() + get_output_count();
-    OPENVINO_ASSERT(
-        utils::everyone_is(count, m_ptr_increments.size(), m_finalization_offsets.size(), m_data_sizes.size()),
-        "Incompatible data ptr shifts!");
+    OPENVINO_ASSERT(utils::all_of(count, m_ptr_increments.size(), m_finalization_offsets.size(), m_data_sizes.size()),
+                    "Incompatible data ptr shifts!");
 
     auto reorder = [this](std::vector<LoopPort>& ports, size_t count, size_t offset) {
         if (!ports.empty()) {

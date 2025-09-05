@@ -130,13 +130,12 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
 
     const auto& rtInfo = op->get_rt_info();
     originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
-    parallelDomain = getRTInfoValue(rtInfo, "parallelDomain");
 
     if (originalLayers.empty()) {
         addOriginalLayer(name);
     }
 
-    primitivesPriority = getImplPriorityValue(op);
+    const auto& primitivesPriority = getImplPriorityValue(op);
     if (!primitivesPriority.empty()) {
         std::istringstream stream(primitivesPriority);
         std::string str;
@@ -242,7 +241,6 @@ bool Node::isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) {
     return std::all_of(edges.begin(), edges.end(), [](const EdgeWeakPtr& edge) {
         return !edge.lock();
     });
-    return true;
 }
 
 void Node::createPrimitive() {
@@ -365,7 +363,8 @@ bool Node::isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov
     bool samePrec = desc1->getPrecision() == desc2->getPrecision();
     bool isOneDimShape1 = isOneDimShape(desc1->getShape().toPartialShape());
     bool isOneDimShape2 = isOneDimShape(desc2->getShape().toPartialShape());
-    return !(isOneDimShape1 && isOneDimShape2 && samePrec);
+    const bool all_conditions_true = isOneDimShape1 && isOneDimShape2 && samePrec;
+    return !all_conditions_true;
 }
 
 void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority,
@@ -1126,35 +1125,12 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
         const auto string_hash = name + "_" + std::to_string(indx) + "_" +
                                  DnnlExtensionUtils::computeWeightsStringHash(internalBlob, intDesc);
-        ptr = *weightCache->findOrCreate(string_hash, create);
+        ptr = static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     } else {
         ptr = create();
     }
 
     internalBlobMemory[indx] = ptr;
-}
-
-void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
-    OPENVINO_ASSERT(internalBlobs.size() == intDescs.size(),
-                    "Can't prepare memory for internal blob, internal blob and internal descs number do not match ",
-                    internalBlobs.size(),
-                    " vs ",
-                    intDescs.size());
-
-    internalBlobMemory.clear();
-    for (size_t i = 0; i < internalBlobs.size(); i++) {
-        prepareMemory(intDescs[i], i);
-    }
-}
-
-void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
-    std::vector<DnnlMemoryDescPtr> intDescs;
-    intDescs.reserve(internalBlobDesc.size());
-    for (auto& it : internalBlobDesc) {
-        intDescs.push_back(it(itpd, 0));
-    }
-
-    Node::prepareMemory(intDescs);
 }
 
 MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc) {
@@ -1192,7 +1168,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr) {
         const auto string_hash = DnnlExtensionUtils::computeWeightsStringHash(edgeMem, dstWeightDesc);
-        ptr = *weightCache->findOrCreate(string_hash, create);
+        ptr = static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     } else {
         ptr = create();
     }
@@ -1256,12 +1232,8 @@ bool Node::isInPlace() const {
     return inplace == InPlaceType::InPlace;
 }
 
-Node::ConstantType Node::getConstantType() const {
-    return constant;
-}
-
 bool Node::isConstant() const {
-    return getConstantType() == ConstantType::Const;
+    return constant == ConstantType::Const;
 }
 
 void Node::updateConstantType() {
@@ -1301,10 +1273,6 @@ void Node::cleanup() {
     internalBlobs.clear();
 
     for (const auto& it : fusedWith) {
-        it->cleanup();
-    }
-
-    for (const auto& it : mergedWith) {
         it->cleanup();
     }
 }
@@ -1457,7 +1425,7 @@ PortDescBasePtr Node::getConsistentOutputDesc(const NodeConfig& config, size_t i
 }
 
 void Node::initOptimalPrimitiveDescriptor() {
-    if (one_of(getType(), Type::RNNCell, Type::RNNSeq)) {  // can be skipped for RNN node
+    if (any_of(getType(), Type::RNNCell, Type::RNNSeq)) {  // can be skipped for RNN node
         return;
     }
 
@@ -1694,7 +1662,7 @@ bool Node::canBePerformedAsScaleShift([[maybe_unused]] const Node* parentNode) c
         return false;
     };
 
-    return (one_of(getAlgorithm(),
+    return (any_of(getAlgorithm(),
                    Algorithm::EltwiseAdd,
                    Algorithm::EltwiseMultiply,
                    Algorithm::EltwiseSubtract,
@@ -1732,14 +1700,14 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
 
     const auto constPort = getParentEdgeAt(0)->getParent().get() == parentNode ? 1 : 0;
 
-    if (one_of(getAlgorithm(), Algorithm::EltwiseMultiply, Algorithm::EltwiseDivide, Algorithm::EltwisePrelu)) {
+    if (any_of(getAlgorithm(), Algorithm::EltwiseMultiply, Algorithm::EltwiseDivide, Algorithm::EltwisePrelu)) {
         fillValuesFrom(getParentEdgeAt(constPort)->getParent(), scales);
-    } else if (one_of(getAlgorithm(), Algorithm::EltwiseAdd, Algorithm::EltwiseSubtract)) {
+    } else if (any_of(getAlgorithm(), Algorithm::EltwiseAdd, Algorithm::EltwiseSubtract)) {
         fillValuesFrom(getParentEdgeAt(constPort)->getParent(), shifts);
-    } else if (one_of(getAlgorithm(), Algorithm::EltwiseMulAdd)) {
+    } else if (any_of(getAlgorithm(), Algorithm::EltwiseMulAdd)) {
         fillValuesFrom(getParentEdgeAt(1)->getParent(), scales);
         fillValuesFrom(getParentEdgeAt(2)->getParent(), shifts);
-    } else if (one_of(getAlgorithm(), Algorithm::EltwisePowerStatic)) {
+    } else if (any_of(getAlgorithm(), Algorithm::EltwisePowerStatic)) {
         const auto* const power = dynamic_cast<const Eltwise*>(this);
         OPENVINO_ASSERT(power, "Cannot cast ", getName(), " to Eltwise");
         scales.push_back(power->getBeta());
@@ -1785,7 +1753,7 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
         return true;
     }
     auto edge = getParentEdgeAt(port);
-    if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
+    if (any_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
         auto&& mem = edge->getMemory();
         if (mem.isDefined() && !mem.getDesc().empty()) {
             return mem.getShape().hasZeroDims();
@@ -2163,7 +2131,7 @@ void Node::resolveInPlaceDirection() {
                     for (auto& edge : childEdges) {
                         auto* pChild = edge->getChild().get();
                         auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
-                        if (InplaceDirectionType::UP == result || InplaceDirectionType::DOWN == result) {
+                        if (any_of(result, InplaceDirectionType::UP, InplaceDirectionType::DOWN)) {
                             return result;
                         }
                         if (InplaceDirectionType::CYCLIC == result) {
@@ -2188,7 +2156,7 @@ void Node::resolveInPlaceDirection() {
                     size_t numConflicts = 0;
 
                     // the parent node does not use inPlace memory, but it is an Input.
-                    if (Type::Input == pParent->getType() || Type::MemoryInput == pParent->getType()) {
+                    if (any_of(pParent->getType(), Type::Input, Type::MemoryInput)) {
                         auto config = getSelectedPrimitiveDescriptor()->getConfig();
                         config.inConfs[inpPort].inPlace(-1);
                         initDescriptor(config);
@@ -2232,7 +2200,7 @@ void Node::resolveInPlaceDirection() {
                                 numConflicts++;
                             } else {
                                 auto result = inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum());
-                                if (one_of(result, InplaceDirectionType::DOWN, InplaceDirectionType::CYCLIC)) {
+                                if (any_of(result, InplaceDirectionType::DOWN, InplaceDirectionType::CYCLIC)) {
                                     numConflicts++;
                                 }
                             }

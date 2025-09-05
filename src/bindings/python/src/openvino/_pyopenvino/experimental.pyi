@@ -26,7 +26,7 @@ def evaluate_both_bounds(output: openvino._pyopenvino.Output) -> tuple[openvino.
                         :param output: Node output pointing to the tensor for estimation.
                         :type output: openvino.Output
                         :return: Tensors representing the lower and upper bound value estimations.
-                        :rtype: Tuple[openvino.Tensor, openvino.Tensor]
+                        :rtype: tuple[openvino.Tensor, openvino.Tensor]
     """
 def set_element_type(tensor: openvino._pyopenvino.DescriptorTensor, element_type: openvino._pyopenvino.Type) -> None:
     """

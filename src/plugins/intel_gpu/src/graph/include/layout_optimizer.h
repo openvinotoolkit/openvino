@@ -24,6 +24,31 @@
 namespace cldnn {
 
 class primitive_inst;
+struct reorder_cache_key {
+    primitive_id data_source;
+    layout expected_layout;
+
+    friend bool operator==(reorder_cache_key const& lhs, reorder_cache_key const& rhs) {
+        bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout;
+
+        if (ret && lhs.expected_layout.format == cldnn::format::custom) {
+            ret &= (lhs.expected_layout.format.traits().block_sizes ==
+                    rhs.expected_layout.format.traits().block_sizes);
+        }
+        return ret;
+    }
+
+    friend bool operator!=(reorder_cache_key const& lhs, reorder_cache_key const& rhs) { return !(lhs == rhs); }
+
+    friend bool operator<(reorder_cache_key const& lhs, reorder_cache_key const& rhs) {
+        if (lhs.data_source != rhs.data_source)
+            return (lhs.data_source < rhs.data_source);
+        else if (lhs.expected_layout != rhs.expected_layout)
+            return (lhs.expected_layout < rhs.expected_layout);
+        else
+            return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
+    }
+};
 
 // this class is used for both static and dynamic reordering of data withing network.
 // static reordering is done for cldnn::data (i.e. immutable) primitives via internal network
@@ -54,36 +79,7 @@ public:
                                                                     std::shared_ptr<WeightsReorderParams> reorder_params);
 
 private:
-    struct cache_key {
-        primitive_id data_source;
-        layout expected_layout;
-        bool needs_split_reorder;
-
-        friend bool operator==(cache_key const& lhs, cache_key const& rhs) {
-            bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
-                    lhs.needs_split_reorder == rhs.needs_split_reorder;
-
-            if (ret && lhs.expected_layout.format == cldnn::format::custom) {
-                ret &= (lhs.expected_layout.format.traits().block_sizes ==
-                        rhs.expected_layout.format.traits().block_sizes);
-            }
-            return ret;
-        }
-
-        friend bool operator!=(cache_key const& lhs, cache_key const& rhs) { return !(lhs == rhs); }
-
-        friend bool operator<(cache_key const& lhs, cache_key const& rhs) {
-            if (lhs.data_source != rhs.data_source)
-                return (lhs.data_source < rhs.data_source);
-            else if (lhs.expected_layout != rhs.expected_layout)
-                return (lhs.expected_layout < rhs.expected_layout);
-            else if (lhs.expected_layout.format == cldnn::format::custom)
-                return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
-            return lhs.needs_split_reorder < rhs.needs_split_reorder;
-        }
-    };
-
-    std::map<cache_key, std::shared_ptr<reorder>> _cached_reorders;
+    std::map<reorder_cache_key, std::shared_ptr<reorder>> _cached_reorders;
 };
 
 class layout_optimizer {

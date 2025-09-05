@@ -70,7 +70,7 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
     }
 
     precision = getOriginalInputPrecisionAtPort(GATHER_TREE_STEP_IDX);
-    if (!one_of(precision, ov::element::f32, ov::element::i32)) {
+    if (none_of(precision, ov::element::f32, ov::element::i32)) {
         precision = ov::element::f32;
     }
 

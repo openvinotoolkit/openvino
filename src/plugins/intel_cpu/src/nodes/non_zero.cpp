@@ -71,7 +71,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
     }
 
     const auto& inPrc = getOriginalInputPrecisionAtPort(0);
-    CPU_NODE_ASSERT(one_of(inPrc,
+    CPU_NODE_ASSERT(any_of(inPrc,
                            ov::element::f32,
                            ov::element::f16,
                            ov::element::bf16,
@@ -84,7 +84,9 @@ void NonZero::initSupportedPrimitiveDescriptors() {
                     inPrc.get_type_name(),
                     " precision on 0 port");
 
-    addSupportedPrimDesc({{LayoutType::ncsp}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::dynamic}},
+                         {{LayoutType::ncsp, ov::element::i32}},
+                         impl_desc_type::ref);
 }
 
 template <typename T>
