@@ -741,9 +741,26 @@ void regclass_graph_Model(py::module m) {
                         int idx = item.first.cast<int>();
                         shapes_map[inputs[idx]] = Common::partial_shape_from_list(item.second.cast<py::list>());
                     }
-                    std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
-                    for (size_t i = 0; i < inputs.size(); ++i) {
-                        new_shapes[inputs[i]] = Common::partial_shape_from_list(shape_list[i].cast<py::list>());
+                    self.reshape(shapes_map, new_variables_shapes);
+
+                } else if (py::isinstance<py::list>(input_shapes)) {
+                    py::list shape_list = input_shapes.cast<py::list>();
+                    if (shape_list.size() > 0 && py::isinstance<py::list>(shape_list[0])) {
+                        // List-of-lists -> multiple inputs
+                        auto inputs = self.inputs();
+                        if (inputs.size() != shape_list.size()) {
+                            throw py::value_error("Number of shapes does not match number of model inputs.");
+                        }
+                        std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+                        for (size_t i = 0; i < inputs.size(); ++i) {
+                            new_shapes[inputs[i]] = Common::partial_shape_from_list(shape_list[i].cast<py::list>());
+                        }
+                        self.reshape(new_shapes, new_variables_shapes);
+
+                    } else {
+                        // Flat list -> single input
+                        auto ps = Common::partial_shape_from_list(shape_list);
+                        self.reshape(ps, new_variables_shapes);
                     }
                     self.reshape(new_shapes, new_variables_shapes);
 
