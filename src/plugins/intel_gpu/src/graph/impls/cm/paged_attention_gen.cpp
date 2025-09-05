@@ -656,10 +656,12 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
     jit.add(make_jit_constant("INV_S", scale_factor));
     jit.make("BLOCK_SHARE_MAX", BLOCK_WG_N);
-    jit.make("USE_KQ", 1);
-    jit.make("IS_CAUSAL", 0);
+    //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
+    jit.make("WALK_HQ", desc->heads_num != desc->kv_heads_num ? 2 : 1);
+    jit.make("IS_CAUSAL", 1);
     jit.make("USE_INT8", 0);
     jit.make("HEAD_SIZE_KEY", desc->k_head_size);
+    jit.make("SOFTMAX_TYPE", "float");
 
     // for (auto& it : jit) {
     //     std::cout << "\tjit[" << it.name << "] = " << it.value << std::endl;
@@ -710,7 +712,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         auto querry_layout = params.input_layouts[PagedAttentionInputIdx::QUERY];
         auto key_layout = params.input_layouts[PagedAttentionInputIdx::KEY];
 
-        if (1 || DEBUG_ENABLED) {  // Debug
+        if (DEBUG_ENABLED) {  // Debug
             std::cout << "XAttentionEstimateGEMMQK::get_dispatch_data_func: "
                       << "key_layout: " << key_layout.to_string() << ", querry_layout: " << querry_layout.to_string() << std::endl;
             std::cout << "\tkey_dims = [";
@@ -758,8 +760,11 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
         const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
+        //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
+        const size_t WALK_HQ = desc->heads_num != desc->kv_heads_num ? 2 : 1;
+
         auto& wgs = kd.params.workGroups;
-        wgs.global = {N_kq_groups * (q_stride_pad / BLOCK_WG_M) * SG_N, SG_M, heads_num};
+        wgs.global = {N_kq_groups * (q_stride_pad / BLOCK_WG_M) * SG_N * WALK_HQ, SG_M, heads_num / WALK_HQ};
         wgs.local = {SG_N, SG_M, 1};
 
         const uint q_start_strided = N - M;
@@ -769,7 +774,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         std::vector<size_t> scaler_value = {M, N, K, query_pitch, slice_no, slice, q_start_strided};
         scalars.resize(scaler_value.size());
 
-        if (1 || DEBUG_ENABLED) {  // Debug
+        if (DEBUG_ENABLED) {  // Debug
             size_t kv_len = get_kv_len(params, PagedAttentionStage::PREFILL);
             size_t max_context_len = get_max_context_len(params);
             size_t past_len = get_past_len(params, 0);
@@ -864,7 +869,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         std::vector<size_t> scaler_value = {q_stride, q_stride_pad, k_block_pad, k_block - q_block};
         scalars.resize(scaler_value.size() + 1);
 
-        if (1 || DEBUG_ENABLED) {  // Debug
+        if (DEBUG_ENABLED) {  // Debug
             std::cout << "XAttentionEstimateFindBlock::get_dispatch_data_func: "
                       << "k_block: " << k_block << ", q_block: " << q_block
                       << "q_stride: " << q_stride << ", q_stride_pad: " << q_stride_pad << ", k_block_pad: " << k_block_pad << ", gws: [" << wgs.global[0] << ", "
