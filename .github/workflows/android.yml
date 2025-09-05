@@ -237,8 +237,8 @@ jobs:
           name: ov_cpu_tests_android_${{ matrix.arch }}
           path: |
             ${{ env.OPENVINO_REPO }}/bin
-            ${{ env.TBB_INSTALL }}/lib/*.so*
-            ${{ env.BUILD_DIR }}/lib/*.so*
+            ${{ env.TBB_INSTALL }}/lib
+            ${{ env.BUILD_DIR }}/lib
           if-no-files-found: 'error'
 
   Test:
@@ -317,13 +317,13 @@ jobs:
           script: |
             set -e
             adb wait-for-device
-            [ -f "./android_tests/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: intel64/Release/ov_cpu_unit_tests binary not found"; exit 1; }
-            chmod +x ./android_tests/intel64/Release/ov_cpu_unit_tests
+            [ -f "./android_tests/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: bin/intel64/Release/ov_cpu_unit_tests binary not found"; exit 1; }
+            chmod +x ./android_tests/bin/intel64/Release/ov_cpu_unit_tests
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test"
             echo "Pushing unit test binary and libraries to device..."
-            adb push ./android_tests/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
+            adb push ./android_tests/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
             # Push OpenVINO libraries
-            for lib in ./android_tests/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ./android_tests/bin/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             # Push TBB libraries
             for lib in ./android_tests/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
@@ -347,13 +347,13 @@ jobs:
           script: |
             set -e
             adb wait-for-device
-            [ -f "./android_tests/intel64/Release/ov_cpu_func_tests" ] || { echo "Error: intel64/Release/ov_cpu_func_tests binary not found"; exit 1; }
-            chmod +x ./android_tests/intel64/Release/ov_cpu_func_tests
+            [ -f "./android_tests/bin/intel64/Release/ov_cpu_func_tests" ] || { echo "Error: bin/intel64/Release/ov_cpu_func_tests binary not found"; exit 1; }
+            chmod +x ./android_tests/bin/intel64/Release/ov_cpu_func_tests
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test"
             echo "Pushing functional test binary and libraries to device..."
-            adb push ./android_tests/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests
+            adb push ./android_tests/bin/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests
             # Push OpenVINO libraries
-            for lib in ./android_tests/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ./android_tests/bin/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             # Push TBB libraries
             for lib in ./android_tests/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests"
