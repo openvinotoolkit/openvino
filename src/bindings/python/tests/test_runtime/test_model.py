@@ -600,8 +600,11 @@ def test_reshape_with_python_types_for_variable():
         in str(e.value)
     )
 
+    
+
 def test_reshape_with_list_of_shapes():
     # Model with three identical inputs
+
     param_a = ops.parameter([4, 4], dtype=np.float32, name="A")
     param_b = ops.parameter([4, 4], dtype=np.float32, name="B")
     param_c = ops.parameter([4, 4], dtype=np.float32, name="C")
@@ -642,9 +645,8 @@ def test_reshape_with_list_of_shapes():
     assert inputs[1].partial_shape == PartialShape([1, 3, 224, 244])
     assert inputs[2].partial_shape == PartialShape([10])
 
-
     # Negative case: mismatched input count
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Number of shapes does not match number of model inputs."):
         model.reshape_list([[1, 2], [3, 4]])  # only 2 shapes, model has 3 inputs
 
     # Single-input model
@@ -692,6 +694,7 @@ def test_dynamic_dimension_input_shape():
     shape = model.input(0).get_partial_shape()
     assert shape[0].is_dynamic and shape[1] == 3 and shape[2] == 224 and shape[3] == 224
 
+
 # Confirms that interval contraints are preserved and correctly interpreted by the model
 def test_interval_dimension_input_shape():
     # Create a parameter with interval dimensions
@@ -728,6 +731,7 @@ def test_interval_dimension_input_shape():
 def test_named_input_reshape():
     # Verify that a model can be reshaped by specifying the input's tensor name
     # instead of its positional index, and that the new shape is applied.
+
     param = ops.parameter([1, 3, 224, 224], np.float32, name="input_tensor")
     model = Model(param, [param], "NamedInputModel")
 
@@ -740,6 +744,7 @@ def test_named_input_reshape():
 def test_reshape_with_port_mapping():
     # Verify that reshape works when passing an Output (port) object
     # as the key in the shape mapping, rather than an index or name.
+
     param = ops.parameter([1, 3, 224, 224], np.float32, name="port_input")
     model = Model(param, [param], "PortMappingModel")
 
@@ -752,6 +757,7 @@ def test_reshape_with_port_mapping():
 def test_reshape_with_tensor_name_and_partial_shape():
     # Verify that reshape accepts a PartialShape alongside an input tensor name,
     # and that dynamic bounds are preserved and reported correctly.
+
     param = ops.parameter(PartialShape([1, Dimension.dynamic(), 224, 224]), np.float32, name="pshape_input")
     model = Model(param, [param], "PartialShapeNameModel")
 
@@ -766,6 +772,7 @@ def test_reshape_with_tensor_name_and_partial_shape():
 def test_reshape_propagation_to_outputs():
     # Verify that reshaping the model updates all output shapes accordingly,
     # in this case checking that the batch dimension is propagated.
+
     param = ops.parameter([1, 3, 224, 224], np.float32, name="prop_input")
     relu = ops.relu(param)
     model = Model(relu, [param], "PropModel")
@@ -779,6 +786,7 @@ def test_reshape_propagation_to_outputs():
 def test_reshape_on_subgraph_model():
     # Verify that reshape works on a model built from a subgraph (subset of ops),
     # not just on a top-level model loaded from IR.
+
     param = ops.parameter([1, 3, 224, 224], np.float32, name="sub_input")
     relu = ops.relu(param)
     # Create a new Model from the relu node (subgraph)
@@ -792,6 +800,7 @@ def test_reshape_on_subgraph_model():
 def test_invalid_shape_raises_on_compile():
     # Verify that compiling a model fails if it is reshaped to a shape
     # outside valid bounds (here: zero dimension), even if reshape() itself accepts it.
+
     core = Core()
     param = ops.parameter([1, 3, 224, 224], np.float32, name="input")
     relu = ops.relu(param)
@@ -803,6 +812,8 @@ def test_invalid_shape_raises_on_compile():
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_rt_info(request, tmp_path):
+
+
     version = "TestVersion"
     config = "TestConfig"
     framework_batch = "1"
