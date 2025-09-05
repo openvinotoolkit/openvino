@@ -16,8 +16,16 @@ namespace ov::snippets::op {
 
 /**
  * @interface OnlineSoftmaxUpdateSum
- * @brief OnlineSoftmaxUpdateSum handle the current sum computation and update part in online softmax algo.
+ * @brief OnlineSoftmaxUpdateSum handles the current sum computation and update parts in online softmax algo.
  * @ingroup snippets
+ * scheme:
+ * -----> Buffer  In1  In0(sum_local)
+ * |          \   /    |
+ * | Result1---Mul     |
+ * |            \     /
+ * ---------------Add
+ *                 |
+ *              Result0
  */
 class OnlineSoftmaxUpdateSum : public ov::op::Op {
 public:

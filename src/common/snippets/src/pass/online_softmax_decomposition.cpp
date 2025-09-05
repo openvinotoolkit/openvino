@@ -33,11 +33,14 @@ OnlineSoftmaxDecomposition::OnlineSoftmaxDecomposition() {
     MATCHER_SCOPE(OnlineSoftmaxDecomposition);
 
     using namespace ov::pass::pattern;
-    const auto online_softmax_m = wrap_type<ov::snippets::op::OnlineSoftmax>({any_input(type_matches(element::f32))});
+    const auto online_softmax_m = wrap_type<ov::snippets::op::OnlineSoftmax>({any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::OnlineSoftmaxDecomposition")
         auto online_softmax = m.get_match_root();
+
+        OPENVINO_ASSERT(online_softmax->get_input_element_type(0).is_real(),
+                        "OnlineSoftmaxDecomposition currrenly only works for real data type");
 
         const auto& pshape = online_softmax->get_input_partial_shape(0);
         OPENVINO_ASSERT(!pshape.rank().is_dynamic(), "OnlineSoftmaxDecomposition doesn't support dynamic ranks");
@@ -62,7 +65,7 @@ OnlineSoftmaxDecomposition::OnlineSoftmaxDecomposition() {
         // output 0 is sum_current.
         // output 1 is coeff(std::exp(max_past - max) * sum_past) to second brgemm, not used in single online softmax.
         const auto& updated_sum = std::make_shared<ov::snippets::op::OnlineSoftmaxUpdateSum>(reduce_sum, coeff_exp);
-        const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum->output(0), -1.F);
+        const auto power = std::make_shared<ov::snippets::op::PowerStatic>(updated_sum->output(0), -1.F);
         const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
 
         // this is coeff to second brgemm for falsh attention, not used in single online softmax.
