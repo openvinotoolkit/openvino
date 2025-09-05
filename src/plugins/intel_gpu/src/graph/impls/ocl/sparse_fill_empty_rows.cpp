@@ -54,7 +54,7 @@ attach_sparse_fill_empty_rows_impl::attach_sparse_fill_empty_rows_impl() {
     auto formats = {format::bfyx};
     implementation_map<sparse_fill_empty_rows>::add(
         impl_types::ocl,
-        shape_types::dynamic_shape,
+        shape_types::any,
         typed_primitive_impl_ocl<sparse_fill_empty_rows>::create<sparse_fill_empty_rows_impl>,
         types,
         formats);

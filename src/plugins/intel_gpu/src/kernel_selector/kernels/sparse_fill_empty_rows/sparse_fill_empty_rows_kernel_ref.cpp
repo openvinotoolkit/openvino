@@ -83,11 +83,13 @@ bool SparseFillEmptyRowsKernelRef::Validate(const Params& p) const {
 
 JitConstants SparseFillEmptyRowsKernelRef::GetJitConstants(const sparse_fill_empty_rows_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    if (params.inputs[2].is_dynamic()) {
-        //jit.AddConstant(MakeJitConstant("NUM_INDICES", "shape_info[2][0]"));
+    std::cout << "is_shape_agnostic: " << params.is_shape_agnostic << std::endl;
+    if (params.is_shape_agnostic) {
+        jit.AddConstant(MakeJitConstant("NUM_INDICES", "INPUT2_BATCH_NUM"));
     } else {
         jit.AddConstant(MakeJitConstant("NUM_INDICES", params.inputs[2].LogicalSize() / 2));
     }
+    
     return jit;
 }
 
