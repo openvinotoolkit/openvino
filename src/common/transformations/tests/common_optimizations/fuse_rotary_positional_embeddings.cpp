@@ -333,17 +333,14 @@ static std::shared_ptr<ov::Model> buildROPE_VIT(const int seq_length,
             makeOP<ov::opset1::Multiply>({slice_right_part, Constant_396096}, {{"auto_broadcast", "numpy"}});
         cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, slice_left_part}, {{"axis", -1}});
     } else if (split_op_type == "StridedSlice") {
-        auto slice_right_part = makeOP<ov::opset1::StridedSlice>({input, {0, 0, rotary_ndims / 2},
-                                                                     {0, 0, INT_MAX},
-                                                                     {1, 1, 1}},
-                                                                 {{"begin_mask", {1, 1, 0}},
-                                                                  {"end_mask", {1, 1, 0}},
-                                                                  {"new_axis_mask", {}},
-                                                                  {"shrink_axis_mask", {}},
-                                                                  {"ellipsis_mask", {}}});
-        auto slice_left_part = makeOP<ov::opset1::StridedSlice>({input, {0, 0, 0},
-                                                                     {0, 0, rotary_ndims / 2},
-                                                                     {1, 1, 1}},
+        auto slice_right_part =
+            makeOP<ov::opset1::StridedSlice>({input, {0, 0, rotary_ndims / 2}, {0, 0, INT_MAX}, {1, 1, 1}},
+                                             {{"begin_mask", {1, 1, 0}},
+                                              {"end_mask", {1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
+        auto slice_left_part = makeOP<ov::opset1::StridedSlice>({input, {0, 0, 0}, {0, 0, rotary_ndims / 2}, {1, 1, 1}},
                                                                 {{"begin_mask", {1, 1, 0}},
                                                                  {"end_mask", {1, 1, 0}},
                                                                  {"new_axis_mask", {}},
@@ -353,7 +350,7 @@ static std::shared_ptr<ov::Model> buildROPE_VIT(const int seq_length,
             makeOP<ov::opset1::Multiply>({slice_right_part, Constant_396096}, {{"auto_broadcast", "numpy"}});
         cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, slice_left_part}, {{"axis", -1}});
     } else {
-      return nullptr;
+        return nullptr;
     }
     auto mul_sin_Multiply = makeOP<ov::opset1::Multiply>({cat_Concat, param_sin}, {{"auto_broadcast", "numpy"}});
     auto mul_cos_Multiply = makeOP<ov::opset1::Multiply>({input, param_cos}, {{"auto_broadcast", "numpy"}});
@@ -782,6 +779,7 @@ TEST_P(ConvertToROPETestVIT, ConvertToROPE_qwen) {
     const int rotary_ndims = 80;
     const std::string split_op_type = GetParam();
     model = buildROPE_VIT(seq_len, num_heads, rotary_ndims, split_op_type);
+    ASSERT_TRUE(model != nullptr);
     manager.register_pass<ov::pass::RoPEFusionVIT3D>();
     {
         auto input =

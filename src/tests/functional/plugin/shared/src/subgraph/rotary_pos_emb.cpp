@@ -177,6 +177,7 @@ void RoPETestQwenVL::SetUp() {
     InputShape sin_shape_value = {sin_shape, {Shape{80, 1, 80}}};
     init_input_shapes({input_shape_value, cos_shape_value, sin_shape_value});
     function = buildROPE_QwenVL(element_type, input_shape, cos_shape, sin_shape, splip_op_type);
+    ASSERT_TRUE(function != nullptr);
 }
 
 std::string RoPETestQwenVL::getTestCaseName(const testing::TestParamInfo<rope_params_qwenvit>& obj) {
