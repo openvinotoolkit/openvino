@@ -6,7 +6,6 @@
 
 #include <pugixml.hpp>
 
-#include "ir_deserializer.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
@@ -17,6 +16,7 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "openvino/xml_util/xml_deserialize_util.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -266,7 +266,7 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
 
     // Load default opsets
     size_t version = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(m_root, "version", 0));
-    ov::XmlDeserializer visitor(m_root, m_weights, m_opsets, m_extensions, variables, version);
+    ov::util::XmlDeserializer visitor(m_root, m_weights, m_opsets, m_extensions, variables, version);
     std::shared_ptr<ov::Model> model;
     visitor.on_attribute("net", model);
     model->get_rt_info()["version"] = int64_t(version);

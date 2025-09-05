@@ -4,58 +4,22 @@
 
 #pragma once
 
-#include <cctype>
-#include <istream>
-#include <memory>
+#include <functional>
+#include <map>
 #include <pugixml.hpp>
+#include <string>
+#include <vector>
 
-#include "input_model.hpp"
-#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/op_extension.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/op/loop.hpp"
-#include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
-#include "utils.hpp"
 
-namespace ov {
-
-struct GenericLayerParams {
-    struct LayerPortData {
-        size_t portId;
-        std::vector<ov::Dimension> dims;
-        ov::element::Type_t precision;
-        std::unordered_set<std::string> names;
-    };
-    size_t layerId;
-    std::string version;
-    std::string name;
-    std::string type;
-    std::vector<LayerPortData> inputPorts;
-    std::vector<LayerPortData> outputPorts;
-
-    size_t get_real_input_port_id(size_t id) const {
-        size_t real_id = 0;
-        for (auto& it : inputPorts) {
-            if (it.portId == id) {
-                return real_id;
-            }
-            ++real_id;
-        }
-        OPENVINO_THROW("Can not find input port with id ", id, " in layer ", name);
-    }
-
-    size_t get_real_output_port_id(size_t id) const {
-        size_t real_id = 0;
-        for (auto& it : outputPorts) {
-            if (it.portId == id) {
-                return real_id;
-            }
-            ++real_id;
-        }
-        OPENVINO_THROW("Can not find output port with id ", id, " in layer ", name);
-    }
-};
+namespace ov::util {
+struct GenericLayerParams;
 
 class XmlDeserializer : public ov::AttributeVisitor {
 public:
@@ -64,81 +28,31 @@ public:
                              const std::unordered_map<std::string, ov::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
-                             size_t version)
-        : m_node(node),
-          m_weights(weights),
-          m_opsets(opsets),
-          m_extensions(extensions),
-          m_variables(variables),
-          m_version(version) {}
+                             size_t version);
 
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& value) override {
-        std::string val;
-        if (!getStrAttribute(m_node.child("data"), name, val))
-            return;
-        value.set(val);
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& value) override {
-        std::string val;
-        if (!getStrAttribute(m_node.child("data"), name, val))
-            return;
-        std::transform(val.begin(), val.end(), val.begin(), [](char ch) {
-            return std::tolower(static_cast<unsigned char>(ch));
-        });
-        std::set<std::string> true_names{"true", "1"};
-        std::set<std::string> false_names{"false", "0"};
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& value) override;
 
-        bool is_true = true_names.find(val) != true_names.end();
-        bool is_false = false_names.find(val) != false_names.end();
-
-        if (!is_true && !is_false)
-            return;
-        value.set(is_true);
-    }
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& value) override;
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override;
 
-    void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
-        std::string val;
-        if (!getStrAttribute(m_node.child("data"), name, val))
-            return;
-        adapter.set(stringToType<double>(val));
-    }
-    void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
-        std::string val;
-        if (!getStrAttribute(m_node.child("data"), name, val))
-            return;
-        adapter.set(stringToType<int64_t>(val));
-    }
+    void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override;
+    void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override;
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override;
 
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int32_t>>& adapter) override {
-        std::vector<int32_t> value;
-        if (!getParameters<int32_t>(m_node.child("data"), name, value))
-            return;
-        adapter.set(value);
-    }
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int32_t>>& adapter) override;
 
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
-        std::vector<int64_t> value;
-        if (!getParameters<int64_t>(m_node.child("data"), name, value))
-            return;
-        adapter.set(value);
-    }
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override;
 
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
-        std::vector<float> value;
-        if (!getParameters<float>(m_node.child("data"), name, value))
-            return;
-        adapter.set(value);
-    }
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override;
 
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
-        std::vector<std::string> value;
-        if (!getParameters<std::string>(m_node.child("data"), name, value))
-            return;
-        adapter.set(value);
-    }
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override;
+
+protected:
+    virtual ov::Any parse_weightless_cache_attribute(const pugi::xml_node& node) const;
+    virtual void set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter);
+
+    const pugi::xml_node& get_node() const;
 
 private:
     struct IoMap {
@@ -187,6 +101,16 @@ private:
                                const std::unordered_set<std::string>& names,
                                const pugi::xml_node& root_section);
 
+    virtual std::unique_ptr<XmlDeserializer> make_visitor(
+        const pugi::xml_node& node,
+        const std::shared_ptr<ov::AlignedBuffer>& weights,
+        const std::unordered_map<std::string, ov::OpSet>& opsets,
+        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+        std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
+        size_t version) const {
+        return std::make_unique<XmlDeserializer>(node, weights, opsets, extensions, variables, version);
+    }
+
     // -- DATA --
     const pugi::xml_node m_node;
     const std::shared_ptr<ov::AlignedBuffer>& m_weights;
@@ -202,4 +126,5 @@ private:
 
     int64_t m_version;
 };
-}  // namespace ov
+
+}  // namespace ov::util
