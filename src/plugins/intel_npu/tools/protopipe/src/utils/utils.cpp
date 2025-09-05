@@ -66,11 +66,13 @@ void readFromBinFile(const std::string& filepath, cv::Mat& mat) {
 
     const auto mat_byte_size = mat.total() * mat.elemSize();
     // workaround for I64 input type precision
-    if (mat.elemSize() == sizeof(int32_t) && file_byte_size == mat_byte_size * 2) {
-        std::size_t elem_size = mat.elemSize();
-        for (std::size_t i = 0; i < mat_byte_size; i += elem_size) {
-            ifs.read(mat.ptr<char>() + i, elem_size);
-            ifs.seekg(elem_size, std::ios::cur);
+    if (mat.type() == CV_32S && file_byte_size == mat_byte_size * 2) {
+        int64_t buffer64;
+        std::size_t mat_idx = 0;
+        for (std::size_t i = 0; i < file_byte_size; i+=sizeof(buffer64)) {
+            ifs.read(reinterpret_cast<char*>(&buffer64), sizeof(buffer64));
+            int32_t buffer32 = static_cast<int32_t>(buffer64);
+            mat.at<int32_t>(mat_idx++) = buffer32;
         }
     }
     else {
