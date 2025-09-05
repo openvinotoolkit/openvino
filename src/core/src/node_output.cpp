@@ -4,6 +4,9 @@
 
 #include "openvino/core/node_output.hpp"
 
+#include <set>
+#include <vector>
+
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -68,12 +71,35 @@ void Output<Node>::remove_target_input(const Input<Node>& target_input) const {
 }
 
 void Output<Node>::replace(const Output<Node>& replacement) {
-    for (auto& input : get_target_inputs()) {
-        if (input.get_node() != replacement.get_node())
+    // Get all target inputs before any modifications
+    auto targets = get_target_inputs();
+    
+    // Replace all connections
+    for (auto& input : targets) {
+        if (input.get_node() != replacement.get_node()) {
             input.replace_source_output(replacement);
+        }
     }
+    
+    // Issue #107966: After replacement, the current node might still be
+    // in the replacement's target inputs (if replacement was consuming this output)
+    // We need to remove such connections to avoid cycles
+    auto replacement_targets = replacement.get_target_inputs();
+    std::vector<Input<Node>> to_remove;
+    for (auto& input : replacement_targets) {
+        if (input.get_node() == m_node.get()) {
+            // This input creates a cycle - mark for removal
+            to_remove.push_back(input);
+        }
+    }
+    
+    // Remove the cyclic connections
+    for (auto& input : to_remove) {
+        replacement.remove_target_input(input);
+    }
+    
+    // Transfer names and runtime info
     replacement.get_tensor_ptr()->add_names(get_tensor_ptr()->get_names());
-
     ov::copy_output_runtime_info({*this, replacement}, {replacement});
 }
 
