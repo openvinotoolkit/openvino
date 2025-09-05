@@ -235,7 +235,10 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ov_cpu_tests_android_${{ matrix.arch }}
-          path: ${{ env.OPENVINO_REPO }}/bin
+          path: |
+            ${{ env.OPENVINO_REPO }}/bin
+            ${{ env.TBB_INSTALL }}/lib/*.so*
+            ${{ env.BUILD_DIR }}/lib/*.so*
           if-no-files-found: 'error'
 
   Test:
@@ -276,12 +279,6 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3.2.2
-        with:
-          api-level: ${{ env.ANDROID_API_LEVEL }}
-          target: ${{ env.ANDROID_TARGET }}
-          arch: ${{ env.ANDROID_ARCH }}
-          script: |
-            echo "Android SDK setup completed"
 
       - name: AVD cache
         uses: actions/cache@v4
@@ -300,8 +297,9 @@ jobs:
           target: ${{ env.ANDROID_TARGET }}
           arch: ${{ env.ANDROID_ARCH }}
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 8192 -no-snapshot
+          disable-animations: true
+          emulator-boot-timeout: 600
           script: echo "Generated AVD snapshot for caching."
 
       - name: Run CPU unit tests on emulator
@@ -313,8 +311,9 @@ jobs:
           target: ${{ env.ANDROID_TARGET }}
           arch: ${{ env.ANDROID_ARCH }}
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 8192
           disable-animations: true
+          emulator-boot-timeout: 900
           script: |
             set -e
             adb wait-for-device
@@ -323,7 +322,10 @@ jobs:
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test"
             echo "Pushing unit test binary and libraries to device..."
             adb push ./android_tests/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
+            # Push OpenVINO libraries
             for lib in ./android_tests/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            # Push TBB libraries
+            for lib in ./android_tests/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
             echo "Running CPU unit tests..."
             adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
@@ -339,8 +341,9 @@ jobs:
           target: ${{ env.ANDROID_TARGET }}
           arch: ${{ env.ANDROID_ARCH }}
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 8192
           disable-animations: true
+          emulator-boot-timeout: 900
           script: |
             set -e
             adb wait-for-device
@@ -349,7 +352,10 @@ jobs:
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test"
             echo "Pushing functional test binary and libraries to device..."
             adb push ./android_tests/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests
+            # Push OpenVINO libraries
             for lib in ./android_tests/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            # Push TBB libraries
+            for lib in ./android_tests/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests"
             echo "Running CPU functional tests..."
             adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_func_tests --gtest_output=xml:/data/local/tmp/ov_test/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
