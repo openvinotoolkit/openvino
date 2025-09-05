@@ -329,7 +329,7 @@ sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 8, 2, 32, 2};
 sdpa_config_t xehpg_h512 = {8, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpg_h512_2nd = {8, 8, 32, 8, 16, 1, 16, 1};
 
-sdpa_config_t xehpc_h32_pa =  {16, 16, 16, 16, 4, 4, 4, 4};
+sdpa_config_t xehpc_h32_pa = {16, 16, 16, 16, 4, 4, 4, 4};
 sdpa_config_t xehpc_h32 = {16, 64, 32, 16, 4, 2, 1, 8};
 sdpa_config_t xehpc_h32_s32 = {16, 16, 16, 16, 2, 4, 2, 4};
 sdpa_config_t xehpc_h32_2nd = {16, 64, 16, 16, 8, 1, 2, 4};
@@ -1235,13 +1235,13 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
     if (config.is_paged_attention) {
         if (m_is_prefill) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, 1});   // Key
-            args.push_back({ArgumentDescriptor::Types::INPUT, 0});   // Q
-            args.push_back({ArgumentDescriptor::Types::INPUT, 2});   // Value
+            args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // Key
+            args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
+            args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // Value
         } else {
-            args.push_back({ArgumentDescriptor::Types::INPUT, 3});   // Key cache
-            args.push_back({ArgumentDescriptor::Types::INPUT, 0});   // Q
-            args.push_back({ArgumentDescriptor::Types::INPUT, 4});   // Value cache
+            args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // Key cache
+            args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // Q
+            args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // Value cache
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
 
