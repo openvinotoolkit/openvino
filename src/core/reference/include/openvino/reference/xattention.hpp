@@ -135,7 +135,10 @@ public:
         size_t out_size = out_shape[0] * out_shape[1] * out_shape[2];
 
         for (size_t i = 0; i < out_size; i++) {
-            out[i] = out[i] / (std::sqrt(reshaped_query_shape[2]) * m_stride);
+            // The D in the formula above refers to the original head dimension, while
+            // reshaped_query_shape[2] had been scaled in the process of reshaping, therefore
+            // the formula is also adjusted:
+            out[i] = out[i] / std::sqrt(reshaped_query_shape[2] * m_stride);
         }
     }
 
@@ -243,13 +246,7 @@ public:
                 auto index_and_largest_score = indices_and_scores_queue.top();
                 indices_and_scores_queue.pop();
                 cumsum += index_and_largest_score.score;
-                total_sum += index_and_largest_score.score;
                 retval[head_idx].insert(index_and_largest_score.idx);
-            }
-            while (!indices_and_scores_queue.empty()) {
-                auto index_and_largest_score = indices_and_scores_queue.top();
-                indices_and_scores_queue.pop();
-                total_sum += index_and_largest_score.score;
             }
         }
         return retval;
