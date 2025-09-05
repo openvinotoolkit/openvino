@@ -722,12 +722,10 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         case ov::element::f16: {
             const uint16_t* src = static_cast<const uint16_t*>(t.data());
             uint16_t* dst = static_cast<uint16_t*>(tnew.data());
-            ov::parallel_for(shape[0], [&](size_t p) {
-                ov::parallel_for(shape[1], [&](size_t r) {
-                    std::copy_n(&src[p * shape[1] * shape[2] + r * shape[2]],
-                                shape[2],
-                                &dst[r * shape[0] * shape[2] + p * shape[2]]);
-                });
+            ov::parallel_for2d(shape[0], shape[1], [&](size_t p, size_t r) {
+                const size_t src_off = (p * shape[1] + r) * shape[2];
+                const size_t dst_off = (r * shape[0] + p) * shape[2];
+                std::copy_n(src + src_off, shape[2], dst + dst_off);
             });
             break;
         }
@@ -796,8 +794,9 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
             const auto copy_size = lens[t_idx] * shape[1] * shape[2];
             const auto copy_len = is_4bit ? copy_size / 2 : copy_size * type.size();
 
-            std::copy_n(pSrc, copy_len, pDst);
-            pDst += copy_len;
+            uint8_t* pDstIdx = pDst + t_idx * copy_len;
+
+            std::copy_n(pSrc, copy_len, pDstIdx);
         });
         return tnew;
     } else if (axis == 2) {
