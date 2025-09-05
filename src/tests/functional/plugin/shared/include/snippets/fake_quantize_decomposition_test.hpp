@@ -39,7 +39,7 @@ typedef std::tuple<
 
 class FakeQuantizeDecompositionTest : public testing::WithParamInterface<testsParams>, virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<testsParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<testsParams>& obj);
 
 protected:
     void SetUp() override;

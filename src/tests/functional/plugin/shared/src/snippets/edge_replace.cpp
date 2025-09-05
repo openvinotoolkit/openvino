@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string EdgeReplace::getTestCaseName(testing::TestParamInfo<ov::test::snippets::EdgeReplaceParams> obj) {
+std::string EdgeReplace::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::EdgeReplaceParams>& obj) {
     const auto& [inputShape, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
