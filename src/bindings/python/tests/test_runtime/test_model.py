@@ -695,7 +695,7 @@ def test_dynamic_dimension_input_shape():
     assert shape[1] == 3
     assert shape[2] == 224
     assert shape[3] == 224
-    
+
 
 @pytest.mark.reshape_list
 def test_interval_dimension_input_shape():
