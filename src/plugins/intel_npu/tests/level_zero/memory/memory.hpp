@@ -7,7 +7,7 @@
 
 using namespace intel_npu;
 
-class MemoryAllocator : public ::testing::TestWithParam<size_t> {
+class MemoryAllocator : public ::testing::TestWithParam<int> {
 protected:
     void SetUp() override;
 
@@ -18,7 +18,7 @@ public:
 
     std::shared_ptr<zeroMemory::HostMemAllocator> allocator;
 
-    static std::string getTestCaseName(testing::TestParamInfo<size_t> obj) {
-        return std::to_string(obj.param);
+    static std::string getTestCaseName(testing::TestParamInfo<int> obj) {
+        return "allocatorFlag=" + std::to_string(obj.param);
     }
 };

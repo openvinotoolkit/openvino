@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include "zero_graph.hpp"
+#include "zero_memory.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "wrappers.hpp"
@@ -75,7 +76,7 @@ TEST_P(ZeroGraphTest, GetGraphDescriptorIOInfoBuildFlags) {
     ASSERT_EQ(meta.inputs.size(), 0);
     ASSERT_NE(meta.outputs.size(), 0);
     // if (graphDescFlag == ZE_GRAPH_FLAG_ENABLE_PROFILING) {
-    //     ASSERT_NE(meta.profilingOutputs.size(), 0UL);
+    //     ASSERT_NE(meta.profilingOutputs.size(), 0);
     // }
 }
 
@@ -132,14 +133,80 @@ TEST_P(ZeroGraphTest, GetGraphDescriptorIOInfoConfigBuildFlags) {
     ASSERT_EQ(meta.inputs.size(), 0);
     ASSERT_NE(meta.outputs.size(), 0);
     // if (graphDescFlag == ZE_GRAPH_FLAG_ENABLE_PROFILING) {
-    //     ASSERT_NE(meta.profilingOutputs.size(), 0UL);
+    //     ASSERT_NE(meta.profilingOutputs.size(), 0);
     // }
+}
+
+TEST_P(ZeroGraphTest, InitializeGraph) {
+    auto compilerProperties = ZeroInitStructsHolder::getInstance()->getCompilerProperties();
+    const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
+    const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
+    serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+
+    for (int i = 0; i < 2; i++) {
+        buildFlags += serializeIOInfo(model, i);
+    
+        graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, graphDescFlag);
+    
+        zeGraphExt->initializeGraph(graphDescriptor, 0);
+        buildFlags = "";
+        buildFlags.clear();
+    }
+}
+
+TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraph) {
+    // get graph
+    for (const auto& op : model->get_ops()) {
+        if (auto _op = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
+            model->remove_parameter(_op);
+            ov::replace_node(_op, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 24, 24}, {-1}));
+        }
+    }
+
+    ASSERT_EQ(model->get_parameters().empty(), true);
+    
+    auto compilerProperties = ZeroInitStructsHolder::getInstance()->getCompilerProperties();
+    const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
+    const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
+    serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+
+    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
+    buildFlags += serializeIOInfo(model, useIndices);
+
+    graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, graphDescFlag);
+
+    // init graph
+    zeGraphExt->initializeGraph(graphDescriptor, 0);
+
+    // set graph args
+    auto allocator = std::make_shared<zeroMemory::HostMemAllocator>(ZeroInitStructsHolder::getInstance(), ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+    size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
+    void* ptr = allocator->allocate(totalSize);
+    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, ptr));
+
+    // destroy graph
+    zeGraphExt->destroyGraph(graphDescriptor);
+    allocator->deallocate(ptr, totalSize);
 }
 
 TEST_P(ZeroGraphTest, GetGraphDescriptorBadGraphFlag) {
     graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, 0xBADBAD);
     ASSERT_EQ(graphDescriptor._handle, nullptr);
 }
+
+std::vector<int> graphDescflags = {ZE_GRAPH_FLAG_NONE, ZE_GRAPH_FLAG_DISABLE_CACHING, ZE_GRAPH_FLAG_ENABLE_PROFILING, ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT};
+
+std::vector<std::string> extVersion = {
+    "1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12", "1.13"
+};
+
+INSTANTIATE_TEST_SUITE_P(something, ZeroGraphTest, 
+    ::testing::Combine(
+        ::testing::ValuesIn(graphDescflags),
+        ::testing::ValuesIn(extVersion)
+    ),
+    ZeroGraphTest::getTestCaseName
+);
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -421,17 +488,3 @@ std::string serializeConfig(const Config& config, ze_graph_compiler_version_info
 
     return "--config " + content;
 }
-
-std::vector<int> graphDescflags = {ZE_GRAPH_FLAG_NONE, ZE_GRAPH_FLAG_DISABLE_CACHING, ZE_GRAPH_FLAG_ENABLE_PROFILING, ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT};
-
-std::vector<std::string> extVersion = {
-    "1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12", "1.13"
-};
-
-INSTANTIATE_TEST_SUITE_P(something, ZeroGraphTest, 
-    ::testing::Combine(
-        ::testing::ValuesIn(graphDescflags),
-        ::testing::ValuesIn(extVersion)
-    ),
-    ZeroGraphTest::getTestCaseName
-);
