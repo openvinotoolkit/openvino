@@ -1524,6 +1524,14 @@ void program_node::create_onednn_primitive_attributes(
         }
     };
 
+    const auto& get_output_layout = [&]() -> cldnn::layout {
+        if (impl_params != nullptr) {
+            return impl_params->get_output_layout();
+        } else {
+            return this->get_output_layout();
+        }
+    };
+
     // Add information about post-operation into the list, update indices
     auto update_onednn_post_op_list = [&](onednn_post_op_type type, size_t m_dep,
                                           dnnl::memory::format_tag tag = dnnl::memory::format_tag::undef,
@@ -1561,16 +1569,11 @@ void program_node::create_onednn_primitive_attributes(
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
-            bool allow_new_shape_infer = get_program().is_new_shape_infer();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && fused_desc->additional_params_input.is_valid()) {
-                auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
-                int oc_dim = 1;
-                if (allow_new_shape_infer)
-                    oc_dim = static_cast<int>(desc.output_layout.get_partial_shape()[1].get_max_length());
-                else
-                    oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
-                post_ops.append_prelu(1 << static_cast<unsigned>(std::max(0, oc_dim)));
+                auto dep_idx = desc.outer_dep_start_idx;
+                auto prelu_mask = onednn_post_ops_fusing_helpers::get_prelu_mask_from_layouts(get_output_layout, get_input_layout, dep_idx);
+                post_ops.append_prelu(prelu_mask);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
                 post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, fused_desc->additional_params.a, fused_desc->additional_params.b);
