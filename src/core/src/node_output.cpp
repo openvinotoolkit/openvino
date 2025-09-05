@@ -73,14 +73,14 @@ void Output<Node>::remove_target_input(const Input<Node>& target_input) const {
 void Output<Node>::replace(const Output<Node>& replacement) {
     // Get all target inputs before any modifications
     auto targets = get_target_inputs();
-    
+
     // Replace all connections
     for (auto& input : targets) {
         if (input.get_node() != replacement.get_node()) {
             input.replace_source_output(replacement);
         }
     }
-    
+
     // Issue #107966: After replacement, the current node might still be
     // in the replacement's target inputs (if replacement was consuming this output)
     // We need to remove such connections to avoid cycles
@@ -92,12 +92,12 @@ void Output<Node>::replace(const Output<Node>& replacement) {
             to_remove.push_back(input);
         }
     }
-    
+
     // Remove the cyclic connections
     for (auto& input : to_remove) {
         replacement.remove_target_input(input);
     }
-    
+
     // Transfer names and runtime info
     replacement.get_tensor_ptr()->add_names(get_tensor_ptr()->get_names());
     ov::copy_output_runtime_info({*this, replacement}, {replacement});
