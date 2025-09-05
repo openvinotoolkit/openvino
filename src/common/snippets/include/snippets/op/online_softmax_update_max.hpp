@@ -16,10 +16,21 @@ namespace ov::snippets::op {
 
 /**
  * @interface OnlineSoftmaxUpdateMax
- * @brief OnlineSoftmaxUpdateMax handle the current max computation and update part in online softmax algo.
- * It also handle substract(max_past, max_current) part by fix this substract order before store inplace max buffer in
- * control flow.
+ * @brief OnlineSoftmaxUpdateMax handles the current max computation and update parts in online softmax algo.
  * @ingroup snippets
+ * scheme:
+ * ---------------
+ * |             |
+ * |            \|/
+ * |   Input  Buffer
+ * |      \  /    |
+ * ------- Max    |
+ *         | \   /
+ *         |  Sub
+ *         |   |
+ *    Result0  Result1
+ *
+ * Note that "Max-->Buffer" should be after Sub.
  */
 class OnlineSoftmaxUpdateMax : public ov::op::Op {
 public:
