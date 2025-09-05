@@ -52,7 +52,7 @@ jobs:
   semgrep:
     name: github_actions_workflows_scan/semgrep
     runs-on: ubuntu-latest
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    if: ${{ github.repository_owner == 'Jarvis2001' }}
 
     container:
       image: semgrep/semgrep
