@@ -648,7 +648,6 @@ def test_reshape_with_list_of_shapes():
     assert model_s.inputs[0].partial_shape == PartialShape([2, 2])
 
 
-# The test confirms that reshaping is selective and non-destructive to inspecified inputs
 @pytest.mark.reshape_list
 def test_partial_input_reshape():
     """Test partial reshaping where only a subset of inputs are updated.
@@ -668,8 +667,6 @@ def test_partial_input_reshape():
     assert model.input(2).partial_shape == PartialShape([2, 2])
 
 
-
-# This ensures that the model accepts inputs with completely unknown rank - useful for generic preprocessing pipelines
 @pytest.mark.reshape_list
 def test_dynamic_rank_input_shape():
     """Test that a model accepts inputs with completely unknown rank.
@@ -684,8 +681,6 @@ def test_dynamic_rank_input_shape():
     assert shape.rank.is_dynamic
 
 
-
-# Validates mixed dynamic/static dimensions, common in batch-size-agnostic models
 @pytest.mark.reshape_list
 def test_dynamic_dimension_input_shape():
     """Test reshaping a model with mixed dynamic and static dimensions.
@@ -699,8 +694,6 @@ def test_dynamic_dimension_input_shape():
     assert shape[0].is_dynamic and shape[1] == 3 and shape[2] == 224 and shape[3] == 224
 
 
-
-# Confirms that interval contraints are preserved and correctly interpreted by the model
 @pytest.mark.reshape_list
 def test_interval_dimension_input_shape():
     """Test reshaping a model with interval-constrained dimensions.
@@ -730,7 +723,6 @@ def test_interval_dimension_input_shape():
     model.reshape({0: [0, 6]})
     with pytest.raises(RuntimeError):
         Core().compile_model(model, "CPU")
-
 
 
 @pytest.mark.reshape_list
@@ -810,7 +802,7 @@ def test_reshape_on_subgraph_model():
 @pytest.mark.reshape_list
 def test_invalid_shape_raises_on_compile():
     """Test that compiling a model with invalid reshaped dimensions raises an error.
-    
+
     Confirms that reshape() may accept invalid shapes, but compile_model enforces correctness.
     """
     from openvino.runtime import Core
