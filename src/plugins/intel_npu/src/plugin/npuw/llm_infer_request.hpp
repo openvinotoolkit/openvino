@@ -52,6 +52,7 @@ private:
                             std::unordered_map<std::string, ov::Output<const ov::Node>> in_ports,
                             std::unordered_map<std::string, ov::Output<const ov::Node>> out_ports,
                             uint32_t tokens);
+    void trim_kvcache_for_speculative_decoding(ov::SoPtr<ov::ITensor> position_ids);
 
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,

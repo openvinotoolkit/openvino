@@ -446,6 +446,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::batch_dim, NPUW_LLM_BATCH_DIM);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::seq_len_dim, NPUW_LLM_SEQ_LEN_DIM);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_generation_token_len, NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE);
