@@ -58,15 +58,18 @@ def test_descriptor_tensor():
     assert td.any_name == "relu_t1"
 
 
-@pytest.mark.parametrize(("output", "expectation", "raise_msg"), [
-    ("relu_t1", does_not_raise(), ""),
-    (("relu1", 0), does_not_raise(), ""),
-    ("relu_t", pytest.raises(RuntimeError), "relu_t"),
-    (("relu1", 1234), pytest.raises(RuntimeError), "1234"),
-    (("relu_1", 0), pytest.raises(RuntimeError), "relu_1"),
-    (0, pytest.raises(TypeError), "Incorrect type of a value to add as output."),
-    ([0, 0], pytest.raises(TypeError), "Incorrect type of a value to add as output at index 0"),
-])
+@pytest.mark.parametrize(
+    ("output", "expectation", "raise_msg"),
+    [
+        ("relu_t1", does_not_raise(), ""),
+        (("relu1", 0), does_not_raise(), ""),
+        ("relu_t", pytest.raises(RuntimeError), "relu_t"),
+        (("relu1", 1234), pytest.raises(RuntimeError), "1234"),
+        (("relu_1", 0), pytest.raises(RuntimeError), "relu_1"),
+        (0, pytest.raises(TypeError), "Incorrect type of a value to add as output."),
+        ([0, 0], pytest.raises(TypeError), "Incorrect type of a value to add as output at index 0"),
+    ],
+)
 def test_add_outputs(output, expectation, raise_msg):
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
@@ -162,10 +165,10 @@ def test_get_result_index_invalid():
     assert model.get_result_index(invalid_output) == -1
 
 
-@pytest.mark.parametrize(("shapes", "relu_names", "model_name", "expected_outputs_length", "is_invalid", "expected_result_index"), [
-    ([PartialShape([1])], ["relu"], "TestModel", 1, False, 0),
-    ([PartialShape([1]), PartialShape([4])], ["relu1", "relu2"], "TestModel1", 1, True, -1)
-])
+@pytest.mark.parametrize(
+    ("shapes", "relu_names", "model_name", "expected_outputs_length", "is_invalid", "expected_result_index"),
+    [([PartialShape([1])], ["relu"], "TestModel", 1, False, 0), ([PartialShape([1]), PartialShape([4])], ["relu1", "relu2"], "TestModel1", 1, True, -1)],
+)
 def test_result_index(shapes, relu_names, model_name, expected_outputs_length, is_invalid, expected_result_index):
     params = [ops.parameter(shape, dtype=np.float32, name=f"data{i + 1}") for i, shape in enumerate(shapes)]
     relus = [ops.relu(param, name=relu_name) for param, relu_name in zip(params, relu_names)]
@@ -179,10 +182,10 @@ def test_result_index(shapes, relu_names, model_name, expected_outputs_length, i
         assert model.get_result_index(model.get_results()[0]) == expected_result_index
 
 
-@pytest.mark.parametrize(("shapes", "param_names", "model_name", "expected_index", "is_invalid"), [
-    ([PartialShape([1]), None], ["data", None], "TestModel", 0, False),
-    ([PartialShape([1]), PartialShape([2])], ["data1", "data2"], "TestModel", -1, True)
-])
+@pytest.mark.parametrize(
+    ("shapes", "param_names", "model_name", "expected_index", "is_invalid"),
+    [([PartialShape([1]), None], ["data", None], "TestModel", 0, False), ([PartialShape([1]), PartialShape([2])], ["data1", "data2"], "TestModel", -1, True)],
+)
 def test_parameter_index(shapes, param_names, model_name, expected_index, is_invalid):
     param1 = ops.parameter(shapes[0], dtype=np.float32, name=param_names[0])
     relu = ops.relu(param1, name="relu")
@@ -233,9 +236,7 @@ def test_get_sink_index(device):
     # check exceptions
     with pytest.raises(TypeError) as e:
         model.get_sink_index(0)
-    assert (
-        "Incorrect argument type. Sink node is expected as argument." in str(e.value)
-    )
+    assert "Incorrect argument type. Sink node is expected as argument." in str(e.value)
 
 
 def test_model_sink_ctors():
@@ -285,14 +286,23 @@ def test_model_sink_ctors():
     assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
 
 
-@pytest.mark.parametrize(("args1", "args2", "expectation", "raise_msg"), [
-    (Tensor("float32", Shape([2, 1])),
-     [Tensor(np.array([2, 1], dtype=np.float32).reshape(2, 1)),
-      Tensor(np.array([3, 7], dtype=np.float32).reshape(2, 1))], does_not_raise(), ""),
-    (Tensor("float32", Shape([2, 1])),
-     [Tensor("float32", Shape([3, 1])),
-      Tensor("float32", Shape([3, 1]))], pytest.raises(RuntimeError), "Cannot evaluate model!"),
-])
+@pytest.mark.parametrize(
+    ("args1", "args2", "expectation", "raise_msg"),
+    [
+        (
+            Tensor("float32", Shape([2, 1])),
+            [Tensor(np.array([2, 1], dtype=np.float32).reshape(2, 1)), Tensor(np.array([3, 7], dtype=np.float32).reshape(2, 1))],
+            does_not_raise(),
+            "",
+        ),
+        (
+            Tensor("float32", Shape([2, 1])),
+            [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
+            pytest.raises(RuntimeError),
+            "Cannot evaluate model!",
+        ),
+    ],
+)
 def test_evaluate(args1, args2, expectation, raise_msg):
     model = generate_add_model()
     with expectation as e:
@@ -508,18 +518,11 @@ def test_reshape_with_python_types():
     shape10 = [1, 1, 1, 1]
     with pytest.raises(TypeError) as e:
         model.reshape({model.input().node: shape10})
-    assert (
-        "Incorrect key type <class 'openvino._pyopenvino.op.Parameter'> to reshape a model, "
-        "expected keys as openvino.Output, int or str." in str(e.value)
-    )
+    assert "Incorrect key type <class 'openvino._pyopenvino.op.Parameter'> to reshape a model, " "expected keys as openvino.Output, int or str." in str(e.value)
 
     with pytest.raises(TypeError) as e:
         model.reshape({0: range(1, 9)})
-    assert (
-        "Incorrect value type <class 'range'> to reshape a model, "
-        "expected values as openvino.PartialShape, str, list or tuple."
-        in str(e.value)
-    )
+    assert "Incorrect value type <class 'range'> to reshape a model, " "expected values as openvino.PartialShape, str, list or tuple." in str(e.value)
 
 
 def test_reshape_with_python_types_for_variable():
@@ -588,24 +591,18 @@ def test_reshape_with_python_types_for_variable():
     shape10 = [1, 1, 1, 1]
     with pytest.raises(TypeError) as e:
         model.reshape({0: shape10}, {0: shape10})
-    assert (
-        "Incorrect key type <class 'int'> to reshape a model, expected values as str." in str(e.value)
-    )
+    assert "Incorrect key type <class 'int'> to reshape a model, expected values as str." in str(e.value)
 
     with pytest.raises(TypeError) as e:
         model.reshape({0: shape10}, {var_id: range(1, 9)})
-    assert (
-        "Incorrect value type <class 'range'> to reshape a model, "
-        "expected values as openvino.PartialShape, str, list or tuple."
-        in str(e.value)
-    )
+    assert "Incorrect value type <class 'range'> to reshape a model, " "expected values as openvino.PartialShape, str, list or tuple." in str(e.value)
 
 
+@pytest.mark.reshape_list
 def test_reshape_with_list_of_shapes():
     """Test reshaping a model using both dict and list-of-lists formats.
     Verifies that reshape_list correctly updates input shapes and handles mismatched input counts.
     """
-    
     # Model with three identical inputs
     param_a = ops.parameter([4, 4], dtype=np.float32, name="A")
     param_b = ops.parameter([4, 4], dtype=np.float32, name="B")
@@ -651,11 +648,11 @@ def test_reshape_with_list_of_shapes():
 
 
 # The test confirms that reshaping is selective and non-destructive to inspecified inputs
+@pytest.mark.reshape_list
 def test_partial_input_reshape():
     """Test partial reshaping where only a subset of inputs are updated.
     Ensures unspecified inputs retain their original or dynamic shapes.
     """
-    
     # Define params with dynamic shapes
     param0 = ops.parameter(PartialShape([-1, -1]), dtype=np.float32, name="input0")
     param1 = ops.parameter(PartialShape([-1, -1]), dtype=np.float32, name="input1")
@@ -669,12 +666,13 @@ def test_partial_input_reshape():
     assert model.input(2).partial_shape == PartialShape([2, 2])
 
 
+
 # This ensures that the model accepts inputs with completely unknown rank - useful for generic preprocessing pipelines
+@pytest.mark.reshape_list
 def test_dynamic_rank_input_shape():
     """Test that a model accepts inputs with completely unknown rank.
     Useful for generic preprocessing pipelines with flexible input formats.
     """
-
     param = ops.parameter(PartialShape.dynamic(), dtype=np.float32, name="dyn_rank")
     relu = ops.relu(param, name="relu")
     model = Model(relu, [param], "DynamicRankModel")
@@ -683,12 +681,13 @@ def test_dynamic_rank_input_shape():
     assert shape.rank.is_dynamic
 
 
+
 # Validates mixed dynamic/static dimensions, common in batch-size-agnostic models
+@pytest.mark.reshape_list
 def test_dynamic_dimension_input_shape():
     """Test reshaping a model with mixed dynamic and static dimensions.
     Validates that static dimensions are preserved and dynamic ones remain flexible.
     """
-
     param = ops.parameter(PartialShape([Dimension.dynamic(), 3, Dimension(224), Dimension(224)]), dtype=np.float32, name="dyn_dim")
     relu = ops.relu(param, name="relu")
     model = Model(relu, [param], "DynamicDimModel")
@@ -696,21 +695,21 @@ def test_dynamic_dimension_input_shape():
     assert shape[0].is_dynamic and shape[1] == 3 and shape[2] == 224 and shape[3] == 224
 
 
+
 # Confirms that interval contraints are preserved and correctly interpreted by the model
+@pytest.mark.reshape_list
 def test_interval_dimension_input_shape():
     """Test reshaping a model with interval-constrained dimensions.
+
     Verifies that reshapes within bounds succeed and out-of-bound reshapes fail at compile time.
     """
-
-    from openvino.runtime import Dimension, PartialShape, Model, ops
+    from openvino.runtime import Dimension, PartialShape, Model, Core
+    from openvino.runtime.opset8 import parameter, relu
+	
     # Create a parameter with interval dimensions
-    param = ops.parameter(
-        PartialShape([Dimension(1, 3), Dimension(3, 5)]),
-        np.float32,
-        name="interval_input"
-    )
-    relu = ops.relu(param, name="relu")
-    model = Model(relu, [param], "IntervalDimModel")
+    param = parameter(PartialShape([Dimension(1, 3), Dimension(3, 5)]), np.float32, name="interval_input")
+    relu_node = relu(param, name="relu")
+    model = Model(relu_node, [param], "IntervalDimModel")
     # Check min/max bounds
     shape = model.input(0).get_partial_shape()
     assert shape[0].get_min_length() == 1
@@ -720,22 +719,21 @@ def test_interval_dimension_input_shape():
     # Check dynamic status
     assert shape[0].is_dynamic
     assert shape[1].is_dynamic
-    # Valid reshape within bounds
+    # Valid reshape within bounds 
     model.reshape({0: [2, 4]})
     assert list(model.input(0).shape) == [2, 4]
     # Invalid reshape outside bounds
-    from openvino.runtime import Core
-    core = Core()
     model.reshape({0: [0, 6]})
     with pytest.raises(RuntimeError):
-        core.compile_model(model, "CPU")
+        Core().compile_model(model, "CPU")
 
 
+
+@pytest.mark.reshape_list
 def test_named_input_reshape():
     """Test reshaping a model using the input tensor's name as the key.
     Confirms that named reshaping updates the correct input shape.
     """
-
     param = ops.parameter([1, 3, 224, 224], np.float32, name="input_tensor")
     model = Model(param, [param], "NamedInputModel")
     input_name = model.input(0).get_any_name()
@@ -744,11 +742,11 @@ def test_named_input_reshape():
     assert list(model.input(0).shape) == new_shape
 
 
+@pytest.mark.reshape_list
 def test_reshape_with_port_mapping():
     """Test reshaping a model using an Output (port) object as the key.
     Ensures that port-based reshaping behaves identically to index or name-based reshaping.
     """
-    
     param = ops.parameter([1, 3, 224, 224], np.float32, name="port_input")
     model = Model(param, [param], "PortMappingModel")
     port = model.input(0)
@@ -757,11 +755,11 @@ def test_reshape_with_port_mapping():
     assert list(model.input(0).shape) == new_shape
 
 
+@pytest.mark.reshape_list
 def test_reshape_with_tensor_name_and_partial_shape():
     """Test reshaping a model using a tensor name and a PartialShape object.
     Validates that dynamic bounds are preserved and correctly interpreted.
     """
-
     param = ops.parameter(PartialShape([1, Dimension.dynamic(), 224, 224]), np.float32, name="pshape_input")
     model = Model(param, [param], "PartialShapeNameModel")
     name = model.input(0).get_any_name()
@@ -772,11 +770,11 @@ def test_reshape_with_tensor_name_and_partial_shape():
     assert ps[1].get_max_length() == 5
 
 
+@pytest.mark.reshape_list
 def test_reshape_propagation_to_outputs():
     """Test that reshaping inputs propagates correctly to model outputs.
     Specifically checks that batch dimension updates are reflected downstream.
     """
-
     param = ops.parameter([1, 3, 224, 224], np.float32, name="prop_input")
     relu = ops.relu(param)
     model = Model(relu, [param], "PropModel")
@@ -786,11 +784,11 @@ def test_reshape_propagation_to_outputs():
         assert out.shape[0] == 1  # Batch size propagated
 
 
+@pytest.mark.reshape_list
 def test_reshape_on_subgraph_model():
     """Test reshaping a model built from a subgraph (not full IR).
     Ensures that reshape works on any valid Model object regardless of origin.
     """
-
     param = ops.parameter([1, 3, 224, 224], np.float32, name="sub_input")
     relu = ops.relu(param)
     # Create a new Model from the relu node (subgraph)
@@ -800,12 +798,13 @@ def test_reshape_on_subgraph_model():
     assert list(subgraph_model.input(0).shape) == new_shape
 
 
+@pytest.mark.reshape_list
 def test_invalid_shape_raises_on_compile():
     """Test that compiling a model with invalid reshaped dimensions raises an error.
     Confirms that reshape() may accept invalid shapes, but compile_model enforces correctness.
     """
-    
     from openvino.runtime import Core
+
     core = Core()
     param = ops.parameter([1, 3, 224, 224], np.float32, name="input")
     relu = ops.relu(param)
@@ -817,7 +816,6 @@ def test_invalid_shape_raises_on_compile():
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_rt_info(request, tmp_path):
-
 
     version = "TestVersion"
     config = "TestConfig"
