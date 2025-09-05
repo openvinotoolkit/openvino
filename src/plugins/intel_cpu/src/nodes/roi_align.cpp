@@ -17,7 +17,6 @@
 #include <string>
 #include <tuple>
 #include <utility>
-#include <utils/bfloat16.hpp>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -35,6 +34,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
@@ -917,7 +917,7 @@ void ROIAlign::execute([[maybe_unused]] const dnnl::stream& strm) {
               ctx,
               std::tie(inputPrec, outputPrec),
               OV_CASE2(dnnl_f32, dnnl_f32, float, float),
-              OV_CASE2(dnnl_bf16, dnnl_bf16, bfloat16_t, bfloat16_t))
+              OV_CASE2(dnnl_bf16, dnnl_bf16, bfloat16, bfloat16))
 }
 
 template <typename inputType, typename outputType>

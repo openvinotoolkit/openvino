@@ -7,7 +7,6 @@
 #include <xbyak/xbyak.h>
 
 #include <array>
-#include <common/bfloat16.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstdint>
@@ -16,6 +15,7 @@
 #include <stdexcept>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl;
@@ -228,7 +228,7 @@ ov::element::Type type2precision<int32_t>() {
 }
 
 template <>
-ov::element::Type type2precision<bfloat16_t>() {
+ov::element::Type type2precision<ov::bfloat16>() {
     return ov::element::bf16;
 }
 

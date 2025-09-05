@@ -26,11 +26,11 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/bit_cast.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/region_yolo.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/bfloat16.hpp"
-#include "utils/cpp/bit_cast.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -376,7 +376,7 @@ void RegionYolo::createPrimitive() {
 }
 
 inline float RegionYolo::logistic_scalar(float src) {
-    int sign = ov::intel_cpu::bit_cast<int>(src) >> 31;
+    int sign = ov::bit_cast<int>(src) >> 31;
     if (sign == 0) {
         src *= -1;
     }
@@ -412,7 +412,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
                 float_dst_data[i + start_index] = logistic_scalar(float_dst_data[i + start_index]);
             }
         } else if (ov::element::bf16 == output_prec) {
-            auto* bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<ov::bfloat16*>(dst_data);
             for (int i = 0; i < count; i++) {
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }

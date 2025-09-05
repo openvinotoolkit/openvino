@@ -40,12 +40,12 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/precision_support.h"
@@ -3847,7 +3847,7 @@ float Interpolate::InterpolateRefExecutor::getValue(const uint8_t* base, size_t 
     }
     case ov::element::bf16: {
         const auto* valuePtr = reinterpret_cast<const uint16_t*>(baseOffset);
-        return bfloat16_t::from_bits(*valuePtr);
+        return bfloat16::from_bits(*valuePtr);
         break;
     }
     case ov::element::f32: {
@@ -3876,7 +3876,7 @@ void Interpolate::InterpolateRefExecutor::setValue(uint8_t* base, size_t offset,
         break;
     }
     case ov::element::bf16: {
-        uint16_t data = bfloat16_t(value).to_bits();
+        uint16_t data = bfloat16(value).to_bits();
         cpu_memcpy(baseOffset, &data, 2);
         break;
     }
