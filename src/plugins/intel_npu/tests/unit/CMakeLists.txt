@@ -43,6 +43,7 @@ ov_add_test_target(
 if(ENABLE_AVX2)
     ov_avx2_optimization_flags(avx2_flags)
     target_compile_options(${TARGET_NAME} PRIVATE "${avx2_flags}")
+    target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_AVX2)
 endif()
 
 install(TARGETS ${TARGET_NAME}
