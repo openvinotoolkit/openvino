@@ -811,8 +811,6 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
                         "' is not used in ov::Model::reshape");
     }
 
-
-
     if (!need_reshape)
         return;
 
@@ -872,8 +870,10 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
 // Reshape the model inputs and variables using explicit shapes.
 // This allows assigning new partial shapes to multiple model inputs
 // and optional variables in a single call.
-void ov::Model::reshape_list(const std::map<size_t, ov::PartialShape>& input_shapes, // Map of input index -> new partial shape
-                              const std::unordered_map<std::string, ov::PartialShape>& variable_shapes = {}) { // Map of variable name -> new partial shape
+void ov::Model::reshape_list(
+    const std::map<size_t, ov::PartialShape>& input_shapes,  // Map of input index -> new partial shape
+    const std::unordered_map<std::string, ov::PartialShape>& variable_shapes =
+        {}) {  // Map of variable name -> new partial shape
 
     // Iterate over all specified input shapes to ensure the input index is valie and assigning the new
     // partial shape to the corresponding parameter.

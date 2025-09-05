@@ -769,11 +769,29 @@ void regclass_graph_Model(py::module m) {
                     auto ps = Common::partial_shape_from_list(shape_list);
                     self.reshape(ps, new_variables_shapes);
                 }
+                std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+                for (size_t i = 0; i < inputs.size(); ++i) {
+                    new_shapes[inputs[i]] = Common::partial_shape_from_list(shape_list[i].cast<py::list>());
+                }
+                self.reshape(new_shapes, new_variables_shapes);
 
             } else {
-                throw py::type_error("input_shapes must be either a dict or a list");
+                // Flat list -> single input
+                auto ps = Common::partial_shape_from_list(shape_list);
+                self.reshape(ps, new_variables_shapes);
             }
-        },
+            self.reshape(new_shapes, new_variables_shapes);
+
+        } else {
+            // Flat list -> single input
+            auto ps = Common::partial_shape_from_list(shape_list);
+            self.reshape(ps, new_variables_shapes);
+        }
+
+            } else {
+        throw py::type_error("input_shapes must be either a dict or a list");
+            }
+},
         py::arg("input_shapes"),
         py::arg("variables_shapes") = py::dict(),
         R"(
@@ -792,10 +810,9 @@ void regclass_graph_Model(py::module m) {
         )"
     );
 
-
-    model.def("get_output_size",
-              &ov::Model::get_output_size,
-              R"(
+model.def("get_output_size",
+          &ov::Model::get_output_size,
+          R"(
                     Return the number of outputs for the model.
 
                     :return: Number of outputs.
