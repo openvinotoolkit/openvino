@@ -104,7 +104,8 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
                                                                        eng,
                                                                        m_context->getParamsCache(),
                                                                        m_context->getWeightsCache(),
-                                                                       nullptr);
+                                                                       nullptr,
+                                                                       m_context->getThreadPool());
         weights_idxs.insert(i);
     }
 
