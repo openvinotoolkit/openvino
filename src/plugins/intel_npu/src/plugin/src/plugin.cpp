@@ -289,6 +289,18 @@ void Plugin::init_options() {
         _backend->registerOptions(*_options);
     }
 
+    // Set MLIR as default compiler type
+    try {
+        CompilerAdapterFactory compilerAdapterFactory;
+        auto compiler = compilerAdapterFactory.getCompiler(_backend, ov::intel_npu::CompilerType::MLIR);
+        _globalConfig.enable("NPU_COMPILER_TYPE", true);
+        _globalConfig.update({{ov::intel_npu::compiler_type.name(), "MLIR"}});
+    } catch (const std::exception& ex) {
+        _logger.warning("Exception: %s", ex.what());
+    } catch (...) {
+        _logger.warning("Failed to set MLIR default compiler in global config.");
+    }
+
     // parse again env_variables to update registered configs which have env vars set
     _globalConfig.parseEnvVars();
 
