@@ -35,12 +35,12 @@ OutputVector translate_unsqueeze(const NodeContext& context) {
 
         auto data = complex->get_input_source_output(0);
 
-        auto one_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+        auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
 
-        auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+        auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
 
-        auto neg_dim = context.mark_node(std::make_shared<v1::Subtract>(dim, one_1d));
-        auto zero_cond = context.mark_node(std::make_shared<v1::Less>(dim, zero_1d));
+        auto neg_dim = context.mark_node(std::make_shared<v1::Subtract>(dim, one));
+        auto zero_cond = context.mark_node(std::make_shared<v1::Less>(dim, zero));
         auto new_dim = context.mark_node(std::make_shared<v1::Select>(zero_cond, neg_dim, dim));
         const auto dim_const = ov::util::get_constant_from_source(new_dim);
         auto res = context.mark_node(std::make_shared<v0::Unsqueeze>(data, dim_const));
