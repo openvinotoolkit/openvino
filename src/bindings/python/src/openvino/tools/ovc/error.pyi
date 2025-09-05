@@ -1,7 +1,7 @@
 # type: ignore
 from __future__ import annotations
 import re as re
-__all__ = ['BasicError', 'Error', 'FrameworkError', 'InternalError', 'classify_error_type', 're']
+__all__: list[str] = ['BasicError', 'Error', 'FrameworkError', 'InternalError', 'classify_error_type', 're']
 class BasicError(Exception):
     """
      Base class for all exceptions in Model Conversion API

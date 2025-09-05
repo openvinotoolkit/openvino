@@ -3,7 +3,7 @@ from __future__ import annotations
 import os as os
 import sys as sys
 import tempfile as tempfile
-__all__ = ['os', 'paddle_frontend_converter', 'sys', 'tempfile']
+__all__: list[str] = ['os', 'paddle_frontend_converter', 'sys', 'tempfile']
 class paddle_frontend_converter:
     def __init__(self, model, inputs = None, outputs = None):
         ...

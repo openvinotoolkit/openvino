@@ -12,7 +12,7 @@ import numpy.ma.core
 import openvino_telemetry as tm
 import os as os
 import sys as sys
-__all__ = ['Error', 'Iterable', 'backend_ga4', 'bool_cast', 'check_values_equal', 'dynamic_dimension', 'get_ir_version', 'get_mo_root_dir', 'import_openvino_tokenizers', 'importlib', 'importlib_metadata', 'log', 'mo_array', 'np', 'np_map_cast', 'os', 'refer_to_faq_msg', 'sys', 'tm', 'validate_batch_in_shape']
+__all__: list[str] = ['Error', 'Iterable', 'backend_ga4', 'bool_cast', 'check_values_equal', 'dynamic_dimension', 'get_ir_version', 'get_mo_root_dir', 'import_openvino_tokenizers', 'importlib', 'importlib_metadata', 'log', 'mo_array', 'np', 'np_map_cast', 'os', 'refer_to_faq_msg', 'sys', 'tm', 'validate_batch_in_shape']
 def bool_cast(x):
     ...
 def check_values_equal(val1, val2):
