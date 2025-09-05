@@ -172,7 +172,7 @@ private:
             const auto& type_info = attribute.get_type_info();
             node.append_attribute("name").set_value(type_info.name);
             node.append_attribute("version").set_value(type_info.get_version().c_str());
-            node.append_attribute("type").set_value(ov::util::get_ir_precision_name(wl_attr->original_dtype));
+            node.append_attribute("type").set_value(ov::util::get_ir_precision_name(wl_attr->original_dtype).c_str());
             node.append_attribute("offset").set_value(wl_attr->bin_offset);
             node.append_attribute("size").set_value(wl_attr->original_size);
             return true;
