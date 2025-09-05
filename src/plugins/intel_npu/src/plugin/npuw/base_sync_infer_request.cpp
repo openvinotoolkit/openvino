@@ -10,7 +10,6 @@
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/core/shape.hpp"
 #include "util.hpp"
 
 ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)

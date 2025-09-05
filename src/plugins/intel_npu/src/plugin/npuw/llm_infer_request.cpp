@@ -4,18 +4,11 @@
 
 #include "llm_infer_request.hpp"
 
-#include <cstddef>
-#include <fstream>
-#include <iostream>
-#include <ostream>
 #include <regex>
 
-#include "intel_npu/utils/zero/zero_host_tensor.hpp"
-#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "util.hpp"
 #include "util_xarch.hpp"
 
 namespace {
@@ -342,11 +335,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         auto& prefill_models = compiled_model_ref->m_prefill_compiled;
         auto input_ids_port = find_port_by_name(prefill_models.back()->inputs(), layer_names::input_ids);
         m_input_ids_name = input_ids_port.has_value() ? layer_names::input_ids : layer_names::inputs_embeds;
-        for (auto it = prefill_models.rbegin(); it != prefill_models.rend(); ++it) {
-            auto request = (*it)->create_infer_request();
+        for (auto prefill_model : prefill_models) {
+            auto request = prefill_model->create_infer_request();
             m_prefill_requests.push_back(request);
         }
-        std::reverse(m_prefill_requests.begin(), m_prefill_requests.end());
 
         for (auto request : m_prefill_requests) {
             std::unordered_map<std::string, ov::Output<const ov::Node>> in_ports_map;
@@ -803,26 +795,11 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
             total_size += chunk_prefill_kvcache_in_tensor->get_byte_size();
             fill_tensor<ov::float16>(chunk_prefill_kvcache_in_tensor, 0);
         }
-        std::cout << "fill_tensor size: " << total_size << std::endl;
     };
 
-    size_t rss_total_before = util::get_current_rss();
     for (size_t i = 0; i < m_prefill_requests.size(); ++i) {
-        size_t rss_before = util::get_current_rss();
         fill_chunk_kvcache(m_prefill_requests[i], m_prefill_in_ports[i]);
-        size_t rss_after = util::get_current_rss();
-        std::cout << "RSS statistics for prefill model " << i << std::endl;
-        std::cout << "  RSS before: " << rss_before << " KB" << std::endl;
-        std::cout << "  RSS after:  " << rss_after << " KB" << std::endl;
-        std::cout << "  RSS delta:  " << static_cast<long long>(rss_after) - static_cast<long long>(rss_before) << " KB"
-                  << std::endl;
     }
-    size_t rss_total_after = util::get_current_rss();
-    std::cout << "RSS statistics for all prefill models " << std::endl;
-    std::cout << "  RSS before: " << rss_total_before << " KB" << std::endl;
-    std::cout << "  RSS after:  " << rss_total_after << " KB" << std::endl;
-    std::cout << "  RSS delta:  " << static_cast<long long>(rss_total_after) - static_cast<long long>(rss_total_before)
-              << " KB" << std::endl;
 }
 
 void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
@@ -845,7 +822,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     int64_t remaining_prompts = input_prompt_len;
     size_t chunk_id = 0;
     while (remaining_prompts > 0) {
-        std::cout << "infer chunk " << chunk_id << std::endl;
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
         // the chunk size
@@ -900,7 +876,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             auto in_tensor = m_prefill_requests[prefill_model_index]->get_tensor(input_port);
         }
         m_prefill_requests[prefill_model_index]->infer();
-        // Record the last infer model index
+        // Record the last chunk model index that has been used for inference
         m_last_infer_chunk_idx = prefill_model_index;
 
         remaining_prompts -= current_prompts_len;
@@ -910,9 +886,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         // Do not copy last computed chunk and preserve it in present k/v layer
         if (remaining_prompts <= 0) {
-            LOG_DEBUG("All prompts have been prefilled in chunks");
-            std::cout << "All prompts have been prefilled in chunks, m_last_infer_chunk_idx: " << m_last_infer_chunk_idx
-                      << std::endl;
+            LOG_DEBUG("All prompts have been prefilled in chunks, last infer chunk index: " +
+                      std::to_string(m_last_infer_chunk_idx));
             m_tokens_in_present_chunk = current_prompts_len;
             break;
         }
@@ -929,8 +904,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                         current_prompts_len,
                         attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
         } else {
-            std::cout << "Infer done: update for next chunk" << std::endl;
-
             // Copy calculated key/values chunk from present k/v layer of current chunk model to past k/v layer of next
             // chunk model
             update_kvcache_between_chunks(static_cast<uint32_t>(current_prompts_len), chunk_id - 1);
@@ -1002,6 +975,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         infer_whole_prefill(input_ids, attention_mask, position_ids);
     }
 
+    OPENVINO_ASSERT(m_prefill_requests.size() > 1 || m_last_infer_chunk_idx == 0,
+                    "Last infer chunk index should be 0 for single prefill model.");
+
     if (m_lm_head_request) {
         LOG_DEBUG("Calling inference for LM head model.");
         if (m_prefill_requests.size() > 1) {
@@ -1017,9 +993,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         m_lm_head_request->infer();
         m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
     } else {
-        size_t prefill_model_index = m_prefill_requests.size() == 0 ? 0 : m_last_infer_chunk_idx;
-        m_logits = m_prefill_requests[prefill_model_index]->get_tensor(
-            m_prefill_out_ports[prefill_model_index].at(layer_names::logits));
+        m_logits = m_prefill_requests[m_last_infer_chunk_idx]->get_tensor(
+            m_prefill_out_ports[m_last_infer_chunk_idx].at(layer_names::logits));
     }
 
     m_generate_initialized = false;

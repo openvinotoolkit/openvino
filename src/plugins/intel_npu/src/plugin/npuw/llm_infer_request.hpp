@@ -4,10 +4,7 @@
 
 #pragma once
 
-#include <cstddef>
 #include <memory>
-#include <string>
-#include <vector>
 
 #include "llm_compiled_model.hpp"
 #include "llm_lora_states.hpp"
@@ -80,6 +77,8 @@ private:
     // For KV chunking, we will have multiple prefill infer requests
     // For others, we will have a single prefill infer request
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_prefill_requests;
+    // The index of the last chunked prefill model used in the most recent prefill inference
+    // If only single prefill model, this will always be 0
     size_t m_last_infer_chunk_idx = 0;
 
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;

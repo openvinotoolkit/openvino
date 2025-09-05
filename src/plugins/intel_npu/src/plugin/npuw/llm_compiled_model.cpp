@@ -903,7 +903,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                 OPENVINO_THROW("max_prompt_len is not aligned to m_prefill_chunk_size");
             }
             size_t num_kv_chunks = max_prompt_len / m_prefill_chunk_size;
-            std::cout << "KV Chunking: " << std::to_string(num_kv_chunks) << " kv chunks" << std::endl;
             m_prefill_model_count = num_kv_chunks;
             for (size_t i = 0; i < m_prefill_model_count; i++) {
                 auto prefill_kv_chunk_model = kvcache_model->clone();
@@ -1028,13 +1027,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_prefill_compiled.resize(prefill_models.size());
     ov::parallel_for(prefill_models.size(), [&](size_t idx) {
         auto prefill_model = prefill_models[idx];
-        std::cout << "Start to compile prefill model: " << prefill_model->get_friendly_name() << std::endl;
         auto compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
             ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
         NPUW_ASSERT(compiled && "Can't create ov::npuw::CompiledModel for passed prefill model and its config, please "
                                 "check passed config.");
         m_prefill_compiled[idx] = std::move(compiled);
-        std::cout << "Finished compilation for prefill model: " << prefill_model->get_friendly_name() << std::endl;
     });
 
     if (lm_head_model) {

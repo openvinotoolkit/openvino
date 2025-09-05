@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <cstddef>
 #include <memory>
-#include <vector>
 
 #include "compiled_model.hpp"
 

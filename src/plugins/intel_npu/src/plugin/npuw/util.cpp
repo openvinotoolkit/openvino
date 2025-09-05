@@ -4,7 +4,6 @@
 
 #include "util.hpp"
 
-#include <fstream>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -13,11 +12,6 @@
 #include <openvino/core/type/nf4.hpp>
 #include <regex>
 #include <sstream>
-
-#ifdef _WIN32
-#    include <windows.h>
-#    include <psapi.h>
-#endif
 
 #include "llm_lora_states.hpp"
 #include "logging.hpp"
@@ -56,31 +50,6 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
         return true;
     }
     return false;
-}
-
-size_t ov::npuw::util::get_current_rss() {
-#ifdef _WIN32
-    // Windows implementation using GetProcessMemoryInfo
-    PROCESS_MEMORY_COUNTERS pmc;
-    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-        // WorkingSetSize is equivalent to RSS on Windows
-        return pmc.WorkingSetSize / 1024;  // Convert bytes to KB
-    }
-    return 0;  // Return 0 if failed to get memory info
-#else
-    // Linux implementation using /proc/self/status
-    std::ifstream status_file("/proc/self/status");
-    std::string line;
-    while (std::getline(status_file, line)) {
-        if (line.substr(0, 6) == "VmRSS:") {
-            std::istringstream iss(line);
-            std::string label, value, unit;
-            iss >> label >> value >> unit;
-            return std::stoull(value);  // Returns RSS in KB
-        }
-    }
-    return 0;  // Return 0 if RSS could not be read
-#endif
 }
 
 namespace {

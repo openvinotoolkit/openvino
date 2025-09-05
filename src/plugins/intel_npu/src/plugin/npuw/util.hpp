@@ -32,10 +32,6 @@ ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 
-// Helper function to get current RSS (Resident Set Size) in KB
-// Cross-platform implementation for Windows and Linux
-size_t get_current_rss();
-
 std::string fmt(std::size_t number, std::size_t total);
 
 struct UnpackOptions {
