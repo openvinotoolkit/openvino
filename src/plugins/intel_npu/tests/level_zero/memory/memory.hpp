@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+
 #include "zero_memory.hpp"
 
 using namespace intel_npu;

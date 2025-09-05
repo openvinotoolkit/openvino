@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+
 #include "driver_compiler_adapter.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
@@ -42,7 +43,7 @@ public:
     std::string buildFlags;
 
     std::string extVersion;
-    
+
     int graphDescFlag;
 
     static std::string getTestCaseName(testing::TestParamInfo<std::tuple<int, std::string>> obj) {
@@ -59,4 +60,6 @@ std::string rankToLegacyLayoutString(const size_t rank);
 
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
-std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t compilerVersion, const std::shared_ptr<intel_npu::ZeGraphExtWrappers> zeGraphExt);
+std::string serializeConfig(const Config& config,
+                            ze_graph_compiler_version_info_t compilerVersion,
+                            const std::shared_ptr<intel_npu::ZeGraphExtWrappers> zeGraphExt);
