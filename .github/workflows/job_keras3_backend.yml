@@ -90,7 +90,7 @@ jobs:
       - name: Install test dependencies
         working-directory: ${{ env.KERAS_REPO }}
         run: |
-          pip install -r requirements-common.txt
+          pip install -r requirements.txt --upgrade
           # make sure that no other keras is installed via pip
           pip uninstall -y keras keras-nightly
           # manually set keras
