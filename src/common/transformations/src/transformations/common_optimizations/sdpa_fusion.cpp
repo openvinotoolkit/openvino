@@ -435,7 +435,6 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
     auto k = any_input(rank_equals(4));
     auto q = any_input(rank_equals(4));
 
-
     auto qk_transpose_b =
         wrap_type<v0::MatMul>({q, k}, consumers_count(1), {{"transpose_a", false}, {"transpose_b", true}});
 
