@@ -25,6 +25,7 @@
 
 #include "sort.hpp"
 
+#define MYMIN(x, y) ((x) < (y) ? (x) : (y))
 
 // kq_max_wg:          [b, hq, n_groups, q_stride_pad]
 // kq_exp_partial_sum: [b, hq, q_stride_pad, k_block_pad]
