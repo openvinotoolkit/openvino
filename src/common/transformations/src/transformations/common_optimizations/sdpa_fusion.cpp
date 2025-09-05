@@ -95,7 +95,6 @@ bool SDPAFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAFusionMatcher>();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAFusionMatcherSinks>();
-    symbolic_ctx_manager->register_pass<ov::pass::Serialize>(std::string("after_SDPAFusionMatcherSinks.xml"), std::string("after_SDPAFusionMatcherSinks.bin"));
     symbolic_ctx_manager->register_pass<ov::pass::SDPAReshapeFusion>();
     return symbolic_optimizations.run_on_model(model);
 }
