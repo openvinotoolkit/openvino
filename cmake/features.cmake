@@ -58,7 +58,7 @@ ov_dependent_option (ENABLE_SNIPPETS_LIBXSMM_TPP "allow Snippets to use LIBXSMM 
 # OFF  - no ITT backend linked; macros are no-ops
 # BASE - link ITT backend; only top-level API scopes are active
 # FULL - link ITT backend; preserve full instrumentation (default prior behavior)
-set(ENABLE_PROFILING_ITT "OFF" CACHE STRING "ITT tracing mode: OFF | BASE | FULL")
+set(ENABLE_PROFILING_ITT "BASE" CACHE STRING "ITT tracing mode: OFF | BASE | FULL")
 set_property(CACHE ENABLE_PROFILING_ITT PROPERTY STRINGS OFF BASE FULL)
 
 # Backward compatibility: map legacy boolean/ON to FULL
