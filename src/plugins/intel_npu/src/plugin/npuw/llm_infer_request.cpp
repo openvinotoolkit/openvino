@@ -248,6 +248,14 @@ std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_nam
     return std::make_pair(low_rank_dim, full_rank_dim);
 }
 
+void copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
+    OPENVINO_ASSERT(src->get_byte_size() <= dst->get_byte_size());
+    std::copy_n(
+        reinterpret_cast<uint8_t*>(src->data()),
+        src->get_byte_size(),
+        reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
+}
+
 constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
 
 constexpr std::size_t kStartOutputKVCacheLayers = 1;
@@ -472,6 +480,10 @@ void ov::npuw::LLMInferRequest::apply_lora() {
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
+    if (auto totyids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
+        totyids_port != m_prefill_in_ports.end()) {
+        fill_tensor_bytes(m_prefill_request->get_tensor(totyids_port->second), 0u);
+    }
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
@@ -555,8 +567,8 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
 
 void ov::npuw::LLMInferRequest::update_kvcache_for(
     std::shared_ptr<ov::IAsyncInferRequest> request,
-    std::unordered_map<std::string, ov::Output<const ov::Node>> in_ports,
-    std::unordered_map<std::string, ov::Output<const ov::Node>> out_ports,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
     uint32_t num_tokens) {
     LOG_DEBUG("Store computed key and values for passed number of tokens in the input kv-cache"
               " layers.");
@@ -629,7 +641,8 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 
 void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                       ov::SoPtr<ov::ITensor> attention_mask,
-                                                      ov::SoPtr<ov::ITensor> position_ids) {
+                                                      ov::SoPtr<ov::ITensor> position_ids,
+                                                      ov::SoPtr<ov::ITensor> token_types_ids) {
     LOG_DEBUG("Calling chunked inference for prefill model.");
     LOG_BLOCK();
 
@@ -645,6 +658,15 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
     auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
+
+    auto to_ty_ids_in_tensor = [&]() {
+        if (auto ttis_port = m_prefill_in_ports.find(layer_names::token_type_ids);
+            ttis_port != m_prefill_in_ports.end()) {
+            return m_prefill_request->get_tensor(ttis_port->second);
+        }
+
+        return ov::npuw::util::TensorPtr();
+    }();
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
@@ -663,10 +685,18 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // If the current prompt length is smaller than the chunk prompt length,
             // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
             fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
+            if (to_ty_ids_in_tensor) {
+                fill_tensor<int64_t>(to_ty_ids_in_tensor, 0, last_chunk_offset);
+            }
         }
         std::copy_n(attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
                     current_prompts_len,
                     attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
+        if (to_ty_ids_in_tensor) {
+            std::copy_n(token_types_ids->data<int64_t>() + kvcache_desc.num_stored_tokens,
+                        current_prompts_len,
+                        to_ty_ids_in_tensor->data<int64_t>() + to_ty_ids_in_tensor->get_size() - current_prompts_len);
+        }
 
         auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
         auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
@@ -719,7 +749,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
 void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                     ov::SoPtr<ov::ITensor> attention_mask,
-                                                    ov::SoPtr<ov::ITensor> position_ids) {
+                                                    ov::SoPtr<ov::ITensor> position_ids,
+                                                    ov::SoPtr<ov::ITensor> token_types_ids) {
     LOG_DEBUG("Calling inference for prefill model in a single launch.");
     LOG_BLOCK();
 
@@ -736,6 +767,13 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         attention_mask->get_size(),
         padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() - attention_mask->get_size());
 
+    if (token_types_ids) {
+        auto padded_token_type_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
+
+        std::fill_n(reinterpret_cast<uint8_t*>(padded_token_type_ids->data()), token_types_ids->get_byte_size(), 0);
+        copy_to_right(token_types_ids, padded_token_type_ids);
+    }
+
     auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
     pad_position_ids(padded_position_ids, position_ids);
 
@@ -748,7 +786,8 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
 
 void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> attention_mask,
-                                              ov::SoPtr<ov::ITensor> position_ids) {
+                                              ov::SoPtr<ov::ITensor> position_ids,
+                                              ov::SoPtr<ov::ITensor> token_types_ids) {
     LOG_DEBUG("Calling inference for prefill model...");
     LOG_BLOCK();
 
@@ -764,9 +803,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
-        infer_chunked_prefill(input_ids, attention_mask, position_ids);
+        infer_chunked_prefill(input_ids, attention_mask, position_ids, token_types_ids);
     } else {
-        infer_whole_prefill(input_ids, attention_mask, position_ids);
+        infer_whole_prefill(input_ids, attention_mask, position_ids, token_types_ids);
     }
 
     if (m_lm_head_request) {
@@ -784,7 +823,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
-                                               ov::SoPtr<ov::ITensor> position_ids) {
+                                               ov::SoPtr<ov::ITensor> position_ids,
+                                               ov::SoPtr<ov::ITensor> token_types_ids) {
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -822,6 +862,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         reinterpret_cast<uint8_t*>(input_ids->data()),
         input_ids->get_byte_size(),
         reinterpret_cast<uint8_t*>(kv_input_ids->data()) + kv_input_ids->get_byte_size() - input_ids->get_byte_size());
+
+    if (token_types_ids) {
+        auto r_token_type_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids));
+        copy_to_right(token_types_ids, r_token_type_ids);
+    }
 
     // NOTE: Attention mask pattern for generate model requires the set of "1"
     //       units of length of the current prompt on the right (for present
@@ -873,11 +918,29 @@ void ov::npuw::LLMInferRequest::infer() {
     // FIXME: position_ids might be optional for some models!
     auto position_ids = get_tensor(find_port_by_name(inputs, layer_names::position_ids).value());
 
+    auto token_types_ids = [&]() {
+        if (auto ttis_port = find_port_by_name(inputs, layer_names::token_type_ids); ttis_port.has_value()) {
+            return get_tensor(ttis_port.value());
+        }
+
+        return ov::npuw::util::TensorPtr();
+    }();
+
     // NB: For VLM, the "inputs_embeds" contains float values (embeddings)
     OPENVINO_ASSERT(ov::element::f32 == input_ids->get_element_type() ||
                     ov::element::i64 == input_ids->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
+
+    if (m_first_run) {
+        // Most of the models have position_ids->data<int64_t>()[0] == 0 for the first infer
+        // But gemma3 has it's == 1
+        // We need to store original zero position id in order to distinguish between prefill and generate stage
+        // While in most of the cases we need to do prefill only once, it is not true for chat mode
+        // where we need to do prefill on each user input.
+        m_zero_position_id = position_ids->data<int64_t>()[0];
+        m_first_run = false;
+    }
 
     // NB: Check the sequence length provided for input_ids
     //     and start position idx in order to distinguish prefill
@@ -901,11 +964,11 @@ void ov::npuw::LLMInferRequest::infer() {
     // The outcome of two items is that prefill and generate stages
     //    can be safely differentiated by start position id for
     //    both main and draft models.
-    if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > 1 && position_ids->data<int64_t>()[0] == 0) {
-        infer_prefill(input_ids, attention_mask, position_ids);
+    if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > 1 && position_ids->data<int64_t>()[0] == m_zero_position_id) {
+        infer_prefill(input_ids, attention_mask, position_ids, token_types_ids);
     } else {
         trim_kvcache_for_speculative_decoding(position_ids);
-        infer_generate(input_ids, attention_mask, position_ids);
+        infer_generate(input_ids, attention_mask, position_ids, token_types_ids);
     }
 }
 

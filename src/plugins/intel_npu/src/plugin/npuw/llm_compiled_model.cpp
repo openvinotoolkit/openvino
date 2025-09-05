@@ -467,6 +467,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
         ov::PartialShape new_shape;
         if (input_name.find("input_ids") != std::string::npos) {
             new_shape = ov::PartialShape({1, input_size});
+        } else if (input_name.find("token_type_ids") != std::string::npos) {
+            new_shape = ov::PartialShape({1, input_size});
         } else if (input_name.find("inputs_embeds") != std::string::npos) {
             // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
             NPUW_ASSERT(input.get_partial_shape().size() == 3u);
