@@ -890,7 +890,7 @@ jit_softsign_emitter::jit_softsign_emitter(ov::intel_cpu::riscv64::jit_generator
 
 jit_softsign_emitter::jit_softsign_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                            ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                           const std::shared_ptr<ov::Node>& node,
+                                           [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                            ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
@@ -908,8 +908,7 @@ size_t jit_softsign_emitter::aux_fp_gprs_count() const {
     return 1;
 }
 
-void jit_softsign_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, 
-                                     const std::vector<size_t>& out_vec_idxs) const {
+void jit_softsign_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -918,16 +917,12 @@ void jit_softsign_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_softsign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, 
-                                    const std::vector<size_t>& out_vec_idxs) const {
+void jit_softsign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
 
     auto src = VReg(in_vec_idxs[0]);
-    auto dst = VReg(out_vec_idxs[0]);
-
- // Single aux register for intermediate results    
-    
-    auto aux0 = VReg(aux_vec_idxs[0]);  // for |x| & 1 + |x|
+    auto dst = VReg(out_vec_idxs[0]);       
+    auto aux0 = VReg(aux_vec_idxs[0]);  // Single aux register for intermediate results for |x| & 1 + |x| 
     auto fp0 = FReg(aux_fp_gpr_idxs[0]);
 
     // Compute |x| (absolute value)
