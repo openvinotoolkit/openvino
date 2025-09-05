@@ -737,8 +737,9 @@ void regclass_graph_Model(py::module m) {
                     // Dictionary form -> single input or mapping input index/name -> shape
                     std::map<ov::Output<ov::Node>, ov::PartialShape> shapes_map;
                     auto inputs = self.inputs();
-                    if (inputs.size() != shape_list.size()) {
-                        throw py::value_error("Number of shapes does not match number of model inputs.");
+                    for (auto item : input_shapes.cast<py::dict>()) {
+                        int idx = item.first.cast<int>();
+                        shapes_map[inputs[idx]] = Common::partial_shape_from_list(item.second.cast<py::list>());
                     }
                     std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
                     for (size_t i = 0; i < inputs.size(); ++i) {
