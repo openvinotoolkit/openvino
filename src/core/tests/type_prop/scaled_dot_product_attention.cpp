@@ -248,6 +248,22 @@ TEST(type_prop, scaled_dot_product_attention_infer_5_dynamic_attn_partial) {
     EXPECT_EQ(op->get_output_partial_shape(0), (dynamic));
 }
 
+TEST(type_prop, scaled_dot_product_attention_infer_6_dynamic) {
+    const auto dynamic = PartialShape::dynamic();
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    const auto sink = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (dynamic));
+}
+
 TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_4_inputs) {
     const auto query = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{{1, 4}, 4, {2, 5}, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{{2, 8}, {1, 4}, 5, 4});
