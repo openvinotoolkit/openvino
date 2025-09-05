@@ -74,7 +74,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
     auto general_weights_m = ov::pass::pattern::any_input(weights_path);
 
     auto compressed_weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(
-        ov::OutputVector{reshape_m, convert_reshape_m, transpose_m, mul_m, mul2_m, general_weights_m});
+        ov::OutputVector{reshape_m, convert_reshape_m, transpose_m, mul_m, mul2_m});
 
     auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(
         ov::OutputVector{compressed_weights_input_m, general_weights_m});
@@ -190,7 +190,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
             return transpose;
         };
 
-        bool is_compressed_weight = (pattern_map.at(compressed_weights_input_m).get_node_shared_ptr() != nullptr);
+        bool is_compressed_weight = ((pattern_map.find(compressed_weights_input_m) != pattern_map.end())
+                                    && (pattern_map.at(compressed_weights_input_m).get_node_shared_ptr() != nullptr));
         bool success = true;
         ov::PartialShape shape_a_aligned;
         ov::PartialShape shape_b_aligned;
