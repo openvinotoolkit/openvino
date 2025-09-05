@@ -178,12 +178,9 @@ void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const o
 
     OPENVINO_ASSERT(position_shape.size() <= 3);
 
-    size_t diff_dim = 0;
-    for (size_t i = 0; i < padded_shape.size(); ++i) {
-        if (padded_shape[i] != position_shape[i]) {
-            diff_dim = i;
-            break;
-        }
+    size_t diff_dim = position_shape.size() - 1;
+    for (size_t i = 0; i < diff_dim; ++i) {
+        OPENVINO_ASSERT(padded_shape[i] == position_shape[i]);
     }
 
     size_t keep_elements = padded_shape[diff_dim] - position_shape[diff_dim];
@@ -601,9 +598,14 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
 
 void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<ov::ITensor> position_ids) {
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    // FIXME: It can not work with OmniThinker for now.
+    OPENVINO_ASSERT((position_ids->get_shape().size() >= 2) && (position_ids->get_shape().back() >= 1));
     auto position_id = position_ids->data<int64_t>()[0];
     auto dirty_num = kvcache_desc.num_stored_tokens - static_cast<uint32_t>(position_id);
-    LOG_DEBUG("Update kv cache length from " << kvcache_desc.num_stored_tokens << " to " << position_id);
+    if (dirty_num > 0) {
+        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
+                   << " to " << position_id << " length");
+    }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
 
@@ -790,7 +792,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (input_tokens_len > kvcache_desc.max_generation_token_len) {
         OPENVINO_THROW("Input prompt length is greater than output \"NPUW_LLM_MAX_GENERATION_TOKEN_LEN\": ",
                        kvcache_desc.max_generation_token_len,
-                       ".\nPlease adjust it ");
+                       ".\nPlease adjust it.");
     }
 
     if (!m_generate_initialized) {
@@ -805,14 +807,17 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     }
 
     // NB: KV-cache is full, further generation is impossible
-    if (kvcache_desc.num_stored_tokens > kvcache_desc.total_size - input_tokens_len) {
+    if (kvcache_desc.num_stored_tokens + input_tokens_len > kvcache_desc.total_size) {
         OPENVINO_THROW("KV-Cache is full.");
     }
 
     // FIXME: these tensors should be shared between the parent & child models
-    auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
     // NB: input_ids can be either fp32(VLM) or i64(LLM)
-    // NOTE: Copying to the end to handle case when input_tokens_len < kvcache_desc.max_generation_token_len
+    auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
+    // NOTE: As `input_tokens_len` can be less than the value of `max_generation_token_len`, which
+    //       input layers of generation model are resized to, then we need to put
+    //       `input_tokens_len` prompt to the right of `max_generation_token_len`-sized tensors.
+    //       Attention mask should rule out all left unusable space.
     std::copy_n(
         reinterpret_cast<uint8_t*>(input_ids->data()),
         input_ids->get_byte_size(),
@@ -824,9 +829,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     //       tokens on the left (for past kv layers).
     auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
     std::copy_n(attention_mask->data<int64_t>(),
-                // All tokens that we should process in current generate(),
-                // will go to the right of the mask (for present layers), so
-                // copy only mask from previous generate() calls to the left.
                 attention_mask->get_size() - input_tokens_len,
                 kv_attn_mask->data<int64_t>());
     if (input_tokens_len < kvcache_desc.max_generation_token_len) {
@@ -845,7 +847,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (m_lm_head_request) {
         LOG_DEBUG("Calling inference for LM head model asynchronously");
         m_lm_head_request->start_async();
-        if (kvcache_desc.num_stored_tokens <= kvcache_desc.total_size - input_tokens_len) {
+        if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
             update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, input_tokens_len);
         }
         m_lm_head_request->wait();
@@ -853,7 +855,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
         m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
     } else {
-        if (kvcache_desc.num_stored_tokens <= kvcache_desc.total_size - input_tokens_len) {
+        if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
             update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, input_tokens_len);
         }
 
@@ -886,14 +888,19 @@ void ov::npuw::LLMInferRequest::infer() {
     //    while all other candidates to be generated consequentively
     //    on previous token output.
     // 2. If model is a main one in speculative decoding setting,
-    //    then it will be launched on multiple tokens at every iteration.
-    //    However, only the first iteration will take the input prompt
-    //    of variable length, while others will be launched on fixed
-    //    number of candidates, that can be easily done in generate phase
-    //    if generate model is reshaped to output kvcache for such fixed
-    //    number of candidates. To differentiate prefill and generate
-    //    calls for main model, we just check that start position id
-    //    is 0, meaning this is the first input prompt.
+    //    then it can be launched on multiple tokens at every iteration.
+    //    The first iteration will take the input prompt of variable
+    //    length in range [0, NPUW_LLM_MAX_PROMPT_LEN], while others
+    //    will be launched on variable number of candidates in range
+    //    [0, NPUW_LLM_MAX_GENERATION_TOKEN_LEN].
+    //    NPUW_LLM_MAX_GENERATION_TOKEN_LEN is much lesser than
+    //    NPUW_LLM_MAX_PROMPT_LEN. So, for second and next iterations
+    //    generate model will be utilized, that is reshaped to take
+    //    NPUW_LLM_MAX_GENERATION_TOKEN_LEN tokens and output the same
+    //    number of logits.
+    // The outcome of two items is that prefill and generate stages
+    //    can be safely differentiated by start position id for
+    //    both main and draft models.
     if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > 1 && position_ids->data<int64_t>()[0] == 0) {
         infer_prefill(input_ids, attention_mask, position_ids);
     } else {

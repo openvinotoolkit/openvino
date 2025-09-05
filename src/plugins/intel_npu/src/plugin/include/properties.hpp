@@ -111,6 +111,7 @@ private:
         ov::intel_npu::npuw::llm::batch_dim.name(),
         ov::intel_npu::npuw::llm::seq_len_dim.name(),
         ov::intel_npu::npuw::llm::max_prompt_len.name(),
+        ov::intel_npu::npuw::llm::max_generation_token_len.name(),
         ov::intel_npu::npuw::llm::min_response_len.name(),
         ov::intel_npu::npuw::llm::optimize_v_tensors.name(),
         ov::intel_npu::npuw::llm::prefill_hint.name(),
