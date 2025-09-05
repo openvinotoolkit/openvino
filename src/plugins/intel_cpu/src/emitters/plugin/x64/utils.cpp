@@ -8,6 +8,7 @@
 #include <xbyak/xbyak.h>
 
 #include <algorithm>
+#include <climits>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
