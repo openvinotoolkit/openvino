@@ -168,6 +168,7 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
         }
         if (brgemm_config.is_amx()) {
             move_new_memory_buffer(linear_ir, brgemm_it);
+            OPENVINO_ASSERT(brgemm_it != linear_ir.begin(), "Brgemm must have buffer before itself");
             auto buffer_it = std::prev(brgemm_it);
             buffer_it->get()->set_loop_ids(brgemm_expr->get_loop_ids());
         }
@@ -177,14 +178,14 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
             OPENVINO_ASSERT(brgemm_expr->get_input_count() >= 3,
                             "Brgemm must have at least 3 inputs in case of compensations.");
             OPENVINO_ASSERT(copy_b_expr, "BrgemmCopyB must be present in case of compensations.");
-            const auto& compens_port = brgemm_expr->get_input_port(2);
-            compens_port.get_descriptor_ptr()->set_subtensor(compensations_subtensor);
+            const auto& compensations_port = brgemm_expr->get_input_port(2);
+            compensations_port.get_descriptor_ptr()->set_subtensor(compensations_subtensor);
             copy_b_expr->get_output_port_descriptor(1)->set_subtensor(compensations_subtensor);
             update_loop_infos(loop_manager,
                               brgemm_expr->get_loop_ids(),
-                              {{m_block, {LoopPort::create<LoopPort::Type::NotProcessed>(compens_port)}},
-                               {n_block, {LoopPort::create<LoopPort::Type::Incremented>(compens_port, 0)}},
-                               {k_block, {LoopPort::create<LoopPort::Type::NotIncremented>(compens_port, 1)}}});
+                              {{m_block, {LoopPort::create<LoopPort::Type::NotProcessed>(compensations_port)}},
+                               {n_block, {LoopPort::create<LoopPort::Type::Incremented>(compensations_port, 0)}},
+                               {k_block, {LoopPort::create<LoopPort::Type::NotIncremented>(compensations_port, 1)}}});
         }
     }
 

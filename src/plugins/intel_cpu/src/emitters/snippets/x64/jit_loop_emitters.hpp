@@ -29,6 +29,11 @@ public:
                            dnnl::impl::cpu::x64::cpu_isa_t isa,
                            const ov::snippets::lowered::ExpressionPtr& expr);
 
+    // `jit_loop_begin_emitter` handles manually aux_gpr allocation using `jit_aux_gpr_holder`
+    size_t aux_gprs_count() const override {
+        return 0;
+    }
+
 protected:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 

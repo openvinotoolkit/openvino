@@ -50,13 +50,9 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
     const auto loop_end_expr = get_loop_end_expr(expr);
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(loop_end_expr->get_node());
     m_loop_args = jit_loop_end_base_emitter::compose_loop_args(loop_end);
-
-    auto is_dynamic_offsets = [](const std::vector<int64_t>& offsets) {
-        return std::any_of(offsets.cbegin(), offsets.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
-    };
     m_is_dynamic = snippets::utils::is_dynamic_value(loop_end->get_work_amount()) ||
-                   is_dynamic_offsets(loop_end->get_ptr_increments()) ||
-                   is_dynamic_offsets(loop_end->get_finalization_offsets());
+                   snippets::utils::has_dynamic_values(loop_end->get_ptr_increments()) ||
+                   snippets::utils::has_dynamic_values(loop_end->get_finalization_offsets());
 
     const auto& loop_end_input_regs = loop_end_expr->get_reg_info().first;
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
@@ -113,11 +109,10 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call(std::vector<Xb
     if (m_is_dynamic) {
         h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(loop_args)]);
         h->lea(aux_reg, h->ptr[aux_reg + m_loop_id_offset]);
-        utils::push_ptr_with_static_offset_on_stack(h, GET_OFF_PARALLEL_LOOP_ARGS(loop_args), aux_reg);
     } else {
         h->mov(aux_reg, reinterpret_cast<uintptr_t>(&m_loop_args));
-        utils::push_ptr_with_static_offset_on_stack(h, GET_OFF_PARALLEL_LOOP_ARGS(loop_args), aux_reg);
     }
+    utils::push_ptr_with_static_offset_on_stack(h, GET_OFF_PARALLEL_LOOP_ARGS(loop_args), aux_reg);
     h->mov(aux_reg, *m_loop_preamble_label);
     utils::push_ptr_with_static_offset_on_stack(h, GET_OFF_PARALLEL_LOOP_ARGS(preamble_ptr), aux_reg);
     h->lea(aux_reg, h->qword[h->rsp + call_args_size]);
@@ -220,7 +215,7 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                               [[maybe_unused]] const std::vector<size_t>& out) const {
     // Note: finalization offsets are applied in ParallelLoopExecutor::execute after parallel region is ended
     // so we don't apply them here
-    emit_loop_end_logic(in, false);
+    emit_loop_end_impl(in, false);
     m_parallel_section_reg_spiller->postamble();
     // Note: parallel region ends here:
     h->ret();

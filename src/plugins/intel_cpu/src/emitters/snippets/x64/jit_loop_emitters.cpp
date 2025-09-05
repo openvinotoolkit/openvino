@@ -52,7 +52,7 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t
 
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                      [[maybe_unused]] const std::vector<size_t>& out) const {
-    emit_loop_end_logic(in, true);
+    emit_loop_end_impl(in, true);
     h->L(*m_loop_end_label);
 }
 

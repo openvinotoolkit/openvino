@@ -128,8 +128,8 @@ size_t EmitABIRegSpills::compute_memory_buffer_size(const std::vector<Xbyak::Reg
     size_t needed_buffer_size = 0;
     for (const auto& reg : regs) {
         const auto reg_bit_size = reg.getBit();
-        OPENVINO_ASSERT(reg_bit_size % 8 == 0, "Unexpected reg bit size");
-        needed_buffer_size += reg_bit_size / 8;
+        OPENVINO_ASSERT(reg_bit_size % CHAR_BIT == 0, "Unexpected reg bit size");
+        needed_buffer_size += reg_bit_size / CHAR_BIT;
     }
     return needed_buffer_size;
 }
@@ -140,7 +140,7 @@ void EmitABIRegSpills::store_regs_to_memory(dnnl::impl::cpu::x64::jit_generator_
     uint32_t memory_ptr_offset = 0;
     for (const auto& reg : regs_to_store) {
         Xbyak::Address addr = h->ptr[memory_ptr_reg + memory_ptr_offset];
-        memory_ptr_offset += reg.getBit() / 8;
+        memory_ptr_offset += reg.getBit() / CHAR_BIT;
         switch (reg.getKind()) {
         case Xbyak::Reg::REG:
             h->mov(addr, reg);
@@ -181,7 +181,7 @@ void EmitABIRegSpills::load_regs_from_memory(dnnl::impl::cpu::x64::jit_generator
     uint32_t byte_stack_offset = memory_byte_size;
     for (size_t i = regs_to_load.size(); i > 0; i--) {
         const auto& reg = regs_to_load[i - 1];
-        byte_stack_offset -= reg.getBit() / 8;
+        byte_stack_offset -= reg.getBit() / CHAR_BIT;
         Xbyak::Address addr = h->ptr[memory_ptr_reg + byte_stack_offset];
         switch (reg.getKind()) {
         case Xbyak::Reg::REG:

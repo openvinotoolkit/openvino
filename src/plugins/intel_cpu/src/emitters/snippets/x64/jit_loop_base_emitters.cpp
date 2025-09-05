@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -127,13 +128,8 @@ jit_loop_end_base_emitter::jit_loop_end_base_emitter(jit_generator_t* h,
     m_wa_increment = loop_end->get_increment();
     m_loop_id_offset = loop_end->get_id() * sizeof(jit_snippets_call_args::loop_args_t);
     m_evaluate_once = loop_end->get_evaluate_once();
-
-    auto is_dynamic_offsets = [](const std::vector<int64_t>& offsets) {
-        return std::any_of(offsets.cbegin(), offsets.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
-    };
-
-    m_are_ptr_increments_dynamic = is_dynamic_offsets(loop_end->get_ptr_increments());
-    m_are_final_offsets_dynamic = is_dynamic_offsets(loop_end->get_finalization_offsets());
+    m_are_ptr_increments_dynamic = ov::snippets::utils::has_dynamic_values(loop_end->get_ptr_increments());
+    m_are_final_offsets_dynamic = ov::snippets::utils::has_dynamic_values(loop_end->get_finalization_offsets());
     m_loop_args = compose_loop_args(loop_end);
 }
 
@@ -205,15 +201,15 @@ void jit_loop_end_base_emitter::apply_increments_to_ptrs(const std::vector<size_
                                                          bool use_runtime_args,
                                                          size_t field_offset,
                                                          const std::vector<size_t>& used_aux_gprs) const {
-    Reg64 reg_increments;
-    auto add_increments = [&]() {
+    auto add_increments = [&](std::optional<Reg64> reg_increments = std::nullopt) {
         for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
             const auto& increment = increments[idx];
             if (increment != 0) {
                 if (ov::snippets::utils::is_dynamic_value(increment)) {
-                    OV_CPU_JIT_EMITTER_ASSERT(use_runtime_args, "Loop argument structure cannot be pushed to aux GPR");
+                    OV_CPU_JIT_EMITTER_ASSERT(reg_increments.has_value(),
+                                              "Loop argument structure cannot be pushed to aux GPR");
                     h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])),
-                           h->ptr[reg_increments + idx * sizeof(int64_t)]);
+                           h->ptr[reg_increments.value() + idx * sizeof(int64_t)]);
                 } else {
                     // Use pre-computed increment value from loop_args (already scaled)
                     h->add(Reg64(static_cast<int>(data_ptr_reg_idxs[idx])), increment);
@@ -224,17 +220,17 @@ void jit_loop_end_base_emitter::apply_increments_to_ptrs(const std::vector<size_
 
     if (use_runtime_args) {
         utils::jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, used_aux_gprs);
-        reg_increments = gpr_holder.get_reg();
+        auto reg_increments = gpr_holder.get_reg();
         h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
         h->mov(reg_increments, h->ptr[reg_increments + m_loop_id_offset + field_offset]);
-        add_increments();
+        add_increments(reg_increments);
     } else {
         add_increments();
     }
 }
 
-void jit_loop_end_base_emitter::emit_loop_end_logic(const std::vector<size_t>& in,
-                                                    bool apply_finalization_offsets) const {
+void jit_loop_end_base_emitter::emit_loop_end_impl(const std::vector<size_t>& in,
+                                                   bool apply_finalization_offsets) const {
     std::vector<size_t> data_ptr_reg_idxs;
     // the last input is actually a work_amount reg
     data_ptr_reg_idxs.reserve(m_io_num);
