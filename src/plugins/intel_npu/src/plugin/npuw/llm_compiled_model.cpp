@@ -860,7 +860,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
     uint32_t max_generation_token_len = m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
     if (max_generation_token_len != 1) {
-        max_generation_token_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>(), 8u);
+        max_generation_token_len = align_to(max_generation_token_len, 8u);
     }
 
     // If chunk size covers the entire prompt, just follow the static behavior.
