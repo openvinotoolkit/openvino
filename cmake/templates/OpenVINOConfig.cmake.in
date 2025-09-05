@@ -361,7 +361,7 @@ macro(_ov_find_itt)
     set(_ENABLE_PROFILING_ITT "@ENABLE_PROFILING_ITT@")
     # whether 'ittapi' is found via find_package
     set(_ENABLE_SYSTEM_ITTAPI "@ittapi_FOUND@")
-    if(_ENABLE_PROFILING_ITT AND _ENABLE_SYSTEM_ITTAPI)
+    if(NOT _ENABLE_PROFILING_ITT STREQUAL "OFF" AND _ENABLE_SYSTEM_ITTAPI)
         _ov_find_dependency(ittapi)
     endif()
     unset(_ENABLE_PROFILING_ITT)
