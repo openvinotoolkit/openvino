@@ -969,6 +969,14 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     // Get channel counts once
     int64_t input_channels = get_channel_count(input_layout);
     int64_t output_channels = get_channel_count(output_layout);
+    auto weights_layout = node.weights().get_output_layout();
+    // Try to get channel counts from weight layout
+    if (input_channels == -1 && weights_layout.is_static()) {
+        input_channels = weights_layout.get_partial_shape()[node.get_groups() > 1 ? 2 : 1].get_length();
+    }
+    if (output_channels == -1 && weights_layout.is_static()) {
+        output_channels = weights_layout.get_partial_shape()[node.get_groups() > 1 ? 1 : 0].get_length();
+    }
 
     if (i8_u8_input) {
         // Set default input format for i8/u8 input
