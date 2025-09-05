@@ -41,19 +41,8 @@ TEST_F(ZeroWrappersTest, QueryGraph) {
 
 }
 
-// using ZeroGraphTest = ZeroWrappersTest;
-
-// TEST_P(ZeroGraphTest, GetGraphDescriptor) {
-//     // TODO: instantiate with multiple flags
-//     // also, a derived class ZeGraphExt which has a constructor with extra parameter for version
-//     zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, ZE_GRAPH_FLAG_NONE);
-
-
-// }
-
 TEST_F(ZeroWrappersTest, GetGraphBinary) {
     // zeGraphExt->getGraphBinary(graphDescriptor, __, __, __);
-
 
 }
 
