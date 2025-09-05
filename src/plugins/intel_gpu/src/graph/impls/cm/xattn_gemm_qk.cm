@@ -77,10 +77,22 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     cm_slm_init(slm_size);
     auto slm = cm_slm_alloc(slm_size);
 
+    // printf("=============== gemm_qk ====================");
     static_assert(HQ % HK == 0, "HQ must be multiple of HK");
 
     uint id_wg_m, id_wg_n;
     get_mn(id_wg_m, id_wg_n, M, N, slice_no, slice, BLOCK_WG_M, BLOCK_WG_N);
+
+    // auto wg_id_N = cm_group_id(0);
+    // auto wg_lid_N = cm_local_id(0);
+    // auto wg_id_M = cm_group_id(1);
+    // auto wg_lid_M = cm_local_id(1);
+    // printf("=============== wgN:%d.%d wgM:%d.%d hq %d: id_wg_m %d, id_wg_n %d, %p, %p, %p, %p; test: %p,%p, M %d, N %d, K %d, %d, %d; %d, %d\n",
+    //         wg_id_N, wg_lid_N, wg_id_M, wg_lid_M, hq,
+    //         id_wg_m, id_wg_n, query, key_cache, kq_max_wg, kq_exp_partial_sum,
+    //         key_cache+sizeof(half), query+sizeof(half),
+    //         M, N, K, query_stride, q_start_strided,
+    //         KV_BLOCK_SIZE, HEAD_SIZE_KEY);
 
     // key cache: [block, HQ, KV_BLOCK_SIZE, HEAD_SIZE_KEY]
 #if USE_INT8

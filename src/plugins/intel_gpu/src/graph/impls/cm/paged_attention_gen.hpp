@@ -35,7 +35,7 @@ constexpr auto get_pa_build_options() {
 // sparse attention block size is set to 1 to disable sparse attention support in CM kernels
 #define PA_SPARSE_BLOCK_SIZE 128
 
-constexpr uint BLOCK_SG_M = 64; //32
+constexpr uint BLOCK_SG_M = 64;
 constexpr uint BLOCK_SG_N = 32;
 constexpr uint SG_M = 4;
 constexpr uint SG_N = 8;

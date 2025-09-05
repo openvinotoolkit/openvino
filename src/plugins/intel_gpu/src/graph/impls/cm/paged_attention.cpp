@@ -30,6 +30,8 @@ public:
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
     Stage::Ptr pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
     Stage::Ptr pa_multi_token = make_stage<PagedAttentionGeneratorMultiToken>();
+    Stage::Ptr xattn_estimate_gemmqk = make_stage<XAttentionEstimateGEMMQK>();
+    Stage::Ptr xattn_estimate_find_block = make_stage<XAttentionEstimateFindBlock>();
 
     PagedAttentionCmImpl(): PrimitiveImplCM(PagedAttentionImplementationManager::get_type_info_static()) {
         m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
@@ -42,6 +44,10 @@ public:
         add_stage(pa_single_token, params);
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_multi_token, params);
+#if PA_SPARSE_BLOCK_SIZE > 1
+        add_stage(xattn_estimate_gemmqk, params);
+        add_stage(xattn_estimate_find_block, params);
+#endif
     }
 
     void update_rt_params(const primitive_inst& instance) override {
@@ -83,6 +89,16 @@ public:
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
+#if PA_SPARSE_BLOCK_SIZE > 1
+            cldnn::stream& stream = instance.get_network().get_stream();
+            stream.finish();
+            res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
+            stream.finish();
+            std::cout << "finish xattn_estimate_gemmqk!\n";
+            res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
+            stream.finish();
+            std::cout << "finish xattn_estimate_find_block!\n";
+#endif
             res_event = {execute_stage(res_event, instance, pa_multi_token)};
         } else if (rt_params->stage == PagedAttentionStage::GENERATE) {
             res_event = {execute_stage(res_event, instance, pa_single_token)};
