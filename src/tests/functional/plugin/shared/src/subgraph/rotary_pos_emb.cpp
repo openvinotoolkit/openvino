@@ -117,39 +117,57 @@ std::string RoPETestFlux::getTestCaseName(const testing::TestParamInfo<rope_para
 std::shared_ptr<ov::Model> RoPETestQwenVL::buildROPE_QwenVL(ov::element::Type element_type,
                                                             ov::PartialShape input_shape,
                                                             ov::PartialShape cos_shape,
-                                                            ov::PartialShape sin_shape) {
+                                                            ov::PartialShape sin_shape,
+                                                            std::string split_op_type) {
     auto input = std::make_shared<opset1::Parameter>(element_type, input_shape);
     auto cos_cache = std::make_shared<opset1::Parameter>(element_type, cos_shape);
     auto cos_mul = makeOP<opset1::Multiply>({input, cos_cache}, {{"auto_broadcast", "numpy"}});
     auto sin_cache = std::make_shared<opset1::Parameter>(element_type, sin_shape);
-    auto input_slice = makeOP<opset1::StridedSlice>({input, {0, 0, 40}, {0, 0, INT_MAX}, {1, 1, 1}},
-                                                    {{"begin_mask", {1, 1, 0}},
-                                                     {"end_mask", {1, 1, 0}},
-                                                     {"new_axis_mask", {}},
-                                                     {"shrink_axis_mask", {}},
-                                                     {"ellipsis_mask", {}}});
-    auto neg_constant = makeConst(element_type,
-                                  ov::Shape({
-                                      1,
-                                      1,
-                                      1,
-                                  }),
-                                  {-1});
-    auto neg_mul = makeOP<opset1::Multiply>({input_slice, neg_constant}, {{"auto_broadcast", "numpy"}});
-    auto input_slice1 = makeOP<opset1::StridedSlice>({input, {0, 0, 0}, {0, 0, 40}, {1, 1, 1}},
-                                                     {{"begin_mask", {1, 1, 0}},
-                                                      {"end_mask", {1, 1, 0}},
-                                                      {"new_axis_mask", {}},
-                                                      {"shrink_axis_mask", {}},
-                                                      {"ellipsis_mask", {}}});
-    auto input_rotate = makeOP<opset1::Concat>({neg_mul, input_slice1}, {{"axis", -1}});
-    auto sin_mul = makeOP<opset1::Multiply>({input_rotate, sin_cache}, {{"auto_broadcast", "numpy"}});
-    auto add_Add = makeOP<opset1::Add>({cos_mul, sin_mul}, {{"auto_broadcast", "numpy"}});
-    return std::make_shared<ov::Model>(ov::OutputVector{add_Add}, ov::ParameterVector{input, cos_cache, sin_cache});
+    const int rotary_ndims = input_shape[2].get_length();
+    auto neg_constant = makeConst(element_type, ov::Shape({ 1, 1, 1}), {-1});
+    ov::Output<ov::Node> cat_Concat;
+    if (split_op_type == "VariadicSplit") {
+        auto split = makeOP<ov::opset1::VariadicSplit>({input, {2}, {rotary_ndims / 2, rotary_ndims / 2}});
+        auto neg_Multiply =
+            makeOP<ov::opset1::Multiply>({split->output(1), neg_constant}, {{"auto_broadcast", "numpy"}});
+        cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, split->output(0)}, {{"axis", -1}});
+    } else if (split_op_type == "Slice") {
+        auto slice_right_part = makeOP<ov::opset8::Slice>({input, {rotary_ndims / 2}, {INT_MAX}, {1}, {2}});
+        auto slice_left_part = makeOP<ov::opset8::Slice>({input, {0}, {rotary_ndims / 2}, {1}, {2}});
+        auto neg_Multiply =
+            makeOP<ov::opset1::Multiply>({slice_right_part, neg_constant}, {{"auto_broadcast", "numpy"}});
+        cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, slice_left_part}, {{"axis", -1}});
+    } else if (split_op_type == "StridedSlice") {
+        auto slice_right_part = makeOP<ov::opset1::StridedSlice>({input, {0, 0, rotary_ndims / 2},
+                                                                     {0, 0, INT_MAX},
+                                                                     {1, 1, 1}},
+                                                                 {{"begin_mask", {1, 1, 0}},
+                                                                  {"end_mask", {1, 1, 0}},
+                                                                  {"new_axis_mask", {}},
+                                                                  {"shrink_axis_mask", {}},
+                                                                  {"ellipsis_mask", {}}});
+        auto slice_left_part = makeOP<ov::opset1::StridedSlice>({input, {0, 0, 0},
+                                                                     {0, 0, rotary_ndims / 2},
+                                                                     {1, 1, 1}},
+                                                                {{"begin_mask", {1, 1, 0}},
+                                                                 {"end_mask", {1, 1, 0}},
+                                                                 {"new_axis_mask", {}},
+                                                                 {"shrink_axis_mask", {}},
+                                                                 {"ellipsis_mask", {}}});
+        auto neg_Multiply =
+            makeOP<ov::opset1::Multiply>({slice_right_part, neg_constant}, {{"auto_broadcast", "numpy"}});
+        cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, slice_left_part}, {{"axis", -1}});
+    } else {
+      return nullptr;
+    }
+    auto sin_mul = makeOP<ov::opset1::Multiply>({cat_Concat, sin_cache}, {{"auto_broadcast", "numpy"}});
+    auto add_Add = makeOP<ov::opset1::Add>({cos_mul, sin_mul}, {{"auto_broadcast", "numpy"}});
+    ov::ParameterVector parameters = ov::ParameterVector{input, cos_cache, sin_cache};
+    return std::make_shared<ov::Model>(ov::OutputVector{add_Add}, parameters);
 }
 
 void RoPETestQwenVL::SetUp() {
-    const auto& [element_type, _targetDevice] = this->GetParam();
+    const auto& [element_type, _targetDevice, splip_op_type] = this->GetParam();
     targetDevice = _targetDevice;
     ov::PartialShape input_shape = PartialShape({-1, 16, 80});
     ov::PartialShape cos_shape = PartialShape({-1, 1, 80});
@@ -158,13 +176,14 @@ void RoPETestQwenVL::SetUp() {
     InputShape cos_shape_value = {cos_shape, {Shape{80, 1, 80}}};
     InputShape sin_shape_value = {sin_shape, {Shape{80, 1, 80}}};
     init_input_shapes({input_shape_value, cos_shape_value, sin_shape_value});
-    function = buildROPE_QwenVL(element_type, input_shape, cos_shape, sin_shape);
+    function = buildROPE_QwenVL(element_type, input_shape, cos_shape, sin_shape, splip_op_type);
 }
 
-std::string RoPETestQwenVL::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
-    const auto& [element_type, targetDevice] = obj.param;
+std::string RoPETestQwenVL::getTestCaseName(const testing::TestParamInfo<rope_params_qwenvit>& obj) {
+    const auto& [element_type, targetDevice, split_op_type] = obj.param;
     std::ostringstream result;
-    result << "targetDevice=" << targetDevice << ",element_type=" << element_type.to_string();
+    result << "targetDevice=" << targetDevice << ",element_type=" << element_type.to_string()
+           << ",split_op_type=" << split_op_type;
     return result.str();
 }
 

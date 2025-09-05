@@ -308,7 +308,7 @@ static std::shared_ptr<ov::Model> buildROPE_GPTNEOX(const int batch,
 static std::shared_ptr<ov::Model> buildROPE_VIT(const int seq_length,
                                                 const int num_heads,
                                                 const int rotary_ndims,
-                                                bool is_split) {
+                                                std::string split_op_type) {
     auto seq_length_s = static_cast<size_t>(seq_length);
     auto rotary_ndims_s = static_cast<size_t>(rotary_ndims);
     auto num_heads_s = static_cast<size_t>(num_heads);
@@ -321,17 +321,39 @@ static std::shared_ptr<ov::Model> buildROPE_VIT(const int seq_length,
     auto param_sin =
         std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_length_s, 1, rotary_ndims_s});
     ov::Output<ov::Node> cat_Concat;
-    if (is_split) {
+    if (split_op_type == "VariadicSplit") {
         auto split = makeOP<ov::opset1::VariadicSplit>({input, {2}, {rotary_ndims / 2, rotary_ndims / 2}});
         auto neg_Multiply =
             makeOP<ov::opset1::Multiply>({split->output(1), Constant_396096}, {{"auto_broadcast", "numpy"}});
         cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, split->output(0)}, {{"axis", -1}});
-    } else {
+    } else if (split_op_type == "Slice") {
         auto slice_right_part = makeOP<ov::opset8::Slice>({input, {rotary_ndims / 2}, {INT_MAX}, {1}, {2}});
         auto slice_left_part = makeOP<ov::opset8::Slice>({input, {0}, {rotary_ndims / 2}, {1}, {2}});
         auto neg_Multiply =
             makeOP<ov::opset1::Multiply>({slice_right_part, Constant_396096}, {{"auto_broadcast", "numpy"}});
         cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, slice_left_part}, {{"axis", -1}});
+    } else if (split_op_type == "StridedSlice") {
+        auto slice_right_part = makeOP<ov::opset1::StridedSlice>({input, {0, 0, rotary_ndims / 2},
+                                                                     {0, 0, INT_MAX},
+                                                                     {1, 1, 1}},
+                                                                 {{"begin_mask", {1, 1, 0}},
+                                                                  {"end_mask", {1, 1, 0}},
+                                                                  {"new_axis_mask", {}},
+                                                                  {"shrink_axis_mask", {}},
+                                                                  {"ellipsis_mask", {}}});
+        auto slice_left_part = makeOP<ov::opset1::StridedSlice>({input, {0, 0, 0},
+                                                                     {0, 0, rotary_ndims / 2},
+                                                                     {1, 1, 1}},
+                                                                {{"begin_mask", {1, 1, 0}},
+                                                                 {"end_mask", {1, 1, 0}},
+                                                                 {"new_axis_mask", {}},
+                                                                 {"shrink_axis_mask", {}},
+                                                                 {"ellipsis_mask", {}}});
+        auto neg_Multiply =
+            makeOP<ov::opset1::Multiply>({slice_right_part, Constant_396096}, {{"auto_broadcast", "numpy"}});
+        cat_Concat = makeOP<ov::opset1::Concat>({neg_Multiply, slice_left_part}, {{"axis", -1}});
+    } else {
+      return nullptr;
     }
     auto mul_sin_Multiply = makeOP<ov::opset1::Multiply>({cat_Concat, param_sin}, {{"auto_broadcast", "numpy"}});
     auto mul_cos_Multiply = makeOP<ov::opset1::Multiply>({input, param_cos}, {{"auto_broadcast", "numpy"}});
@@ -744,14 +766,22 @@ TEST_P(ConvertToROPETest, ConvertToROPE_chatGLM_Slice) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTestsF, ConvertToROPETest, ::testing::ValuesIn({0, 1}));
 
-class ConvertToROPETestVIT : public TransformationTestsF, public ::testing::WithParamInterface<bool> {};
+class ConvertToROPETestVIT : public TransformationTestsF, public ::testing::WithParamInterface<std::string> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+        const auto& split_op_type = obj.param;
+        std::ostringstream result;
+        result << "split_op_type=" << split_op_type;
+        return result.str();
+    }
+};
 TEST_P(ConvertToROPETestVIT, ConvertToROPE_qwen) {
     disable_rt_info_check();
     const int seq_len = 16;
     const int num_heads = 32;
     const int rotary_ndims = 80;
-    const int is_split = GetParam();
-    model = buildROPE_VIT(seq_len, num_heads, rotary_ndims, is_split);
+    const std::string split_op_type = GetParam();
+    model = buildROPE_VIT(seq_len, num_heads, rotary_ndims, split_op_type);
     manager.register_pass<ov::pass::RoPEFusionVIT3D>();
     {
         auto input =
@@ -778,7 +808,11 @@ TEST_P(ConvertToROPETestVIT, ConvertToROPE_qwen) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(TransformationTestsF, ConvertToROPETestVIT, ::testing::ValuesIn({false, true}));
+const std::vector<std::string> vit_param = {"VariadicSplit", "Slice", "StridedSlice"};
+INSTANTIATE_TEST_SUITE_P(TransformationTestsF,
+                         ConvertToROPETestVIT,
+                         ::testing::ValuesIn(vit_param),
+                         ConvertToROPETestVIT::getTestCaseName);
 
 TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
     disable_rt_info_check();

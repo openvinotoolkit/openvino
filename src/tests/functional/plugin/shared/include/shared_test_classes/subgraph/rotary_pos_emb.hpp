@@ -11,6 +11,7 @@ namespace test {
 
 using rope_params = std::tuple<ov::element::Type, std::string>;
 using rope_params_2 = std::tuple<bool, ov::element::Type, std::string>;
+using rope_params_qwenvit = std::tuple<ov::element::Type, std::string, std::string>;
 
 class RoPETestFlux : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
@@ -28,18 +29,19 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
 };
 
-class RoPETestQwenVL : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
+class RoPETestQwenVL : public SubgraphBaseTest, public testing::WithParamInterface<rope_params_qwenvit> {
 private:
     std::shared_ptr<ov::Model> buildROPE_QwenVL(ov::element::Type element_type,
                                                 ov::PartialShape input_shape,
                                                 ov::PartialShape cos_shape,
-                                                ov::PartialShape sin_shape);
+                                                ov::PartialShape sin_shape,
+                                                std::string split_op_type);
 
 protected:
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<rope_params_qwenvit>& obj);
 };
 
 class RoPETestLlama2StridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
