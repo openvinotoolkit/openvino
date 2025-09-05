@@ -90,7 +90,8 @@ jobs:
       - name: Install test dependencies
         working-directory: ${{ env.KERAS_REPO }}
         run: |
-          pip install -r requirements.txt --upgrade
+          pip install tf_keras==2.19.0
+          pip install -r requirements.txt
           # make sure that no other keras is installed via pip
           pip uninstall -y keras keras-nightly
           # manually set keras
