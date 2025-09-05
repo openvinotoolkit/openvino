@@ -605,7 +605,7 @@ def test_reshape_with_list_of_shapes():
     """Test reshaping a model using both dict and list-of-lists formats.
     Verifies that reshape_list correctly updates input shapes and handles mismatched input counts.
     """
-
+    
     # Model with three identical inputs
     param_a = ops.parameter([4, 4], dtype=np.float32, name="A")
     param_b = ops.parameter([4, 4], dtype=np.float32, name="B")
@@ -655,7 +655,7 @@ def test_partial_input_reshape():
     """Test partial reshaping where only a subset of inputs are updated.
     Ensures unspecified inputs retain their original or dynamic shapes.
     """
-
+    
     # Define params with dynamic shapes
     param0 = ops.parameter(PartialShape([-1, -1]), dtype=np.float32, name="input0")
     param1 = ops.parameter(PartialShape([-1, -1]), dtype=np.float32, name="input1")
@@ -702,6 +702,7 @@ def test_interval_dimension_input_shape():
     Verifies that reshapes within bounds succeed and out-of-bound reshapes fail at compile time.
     """
 
+    from openvino.runtime import Dimension, PartialShape, Model, ops
     # Create a parameter with interval dimensions
     param = ops.parameter(
         PartialShape([Dimension(1, 3), Dimension(3, 5)]),
@@ -747,7 +748,7 @@ def test_reshape_with_port_mapping():
     """Test reshaping a model using an Output (port) object as the key.
     Ensures that port-based reshaping behaves identically to index or name-based reshaping.
     """
-
+    
     param = ops.parameter([1, 3, 224, 224], np.float32, name="port_input")
     model = Model(param, [param], "PortMappingModel")
     port = model.input(0)
@@ -760,6 +761,7 @@ def test_reshape_with_tensor_name_and_partial_shape():
     """Test reshaping a model using a tensor name and a PartialShape object.
     Validates that dynamic bounds are preserved and correctly interpreted.
     """
+
     param = ops.parameter(PartialShape([1, Dimension.dynamic(), 224, 224]), np.float32, name="pshape_input")
     model = Model(param, [param], "PartialShapeNameModel")
     name = model.input(0).get_any_name()
@@ -802,7 +804,7 @@ def test_invalid_shape_raises_on_compile():
     """Test that compiling a model with invalid reshaped dimensions raises an error.
     Confirms that reshape() may accept invalid shapes, but compile_model enforces correctness.
     """
-
+    
     from openvino.runtime import Core
     core = Core()
     param = ops.parameter([1, 3, 224, 224], np.float32, name="input")
