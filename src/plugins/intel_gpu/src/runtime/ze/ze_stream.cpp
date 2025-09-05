@@ -197,6 +197,8 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
 }
 
 ze_stream::~ze_stream() {
+    // Destroy OneDNN stream before destroying command list
+    _onednn_stream.reset();
     zeCommandListDestroy(m_command_list);
 }
 
@@ -305,22 +307,30 @@ event::ptr ze_stream::create_base_event() {
     return m_pool.create_event(++m_queue_counter);
 }
 
-void ze_stream::flush() const { }
+void ze_stream::flush() const {
+    //Immediate Command List submits commands immediately - no flush impl
+}
 
 void ze_stream::finish() const {
     ZE_CHECK(zeCommandListHostSynchronize(m_command_list, default_timeout));
 }
 
 void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
+    bool needs_sync = false;
     for (auto& ev : events) {
+        auto* ze_base_ev = dynamic_cast<ze_base_event*>(ev.get());
+        if (ze_base_ev->get() != nullptr) {
+            ze_base_ev->wait();
+        } else {
+            needs_sync = true;
+        }
+        // Block thread and wait for event signal
         ev->wait();
     }
 
-    // Enqueue additional event as `events` may contain user events only due to barrier based synchronization
-    // TODO: Detect that scenarion somehow and don't enqueue extra barrier if not needed
-    auto ev = std::dynamic_pointer_cast<ze_event>(create_base_event());
-    ZE_CHECK(zeCommandListAppendBarrier(m_command_list, ev->get(), 0, nullptr));
-    ev->wait();
+    if (needs_sync) {
+        finish();
+    }
 }
 
 void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output) {
