@@ -269,3 +269,199 @@ TEST(node_input_output, output_replace_order_independence) {
     EXPECT_EQ(mul->input_value(0).get_node(), add2.get());
     EXPECT_EQ(mul->input_value(1).get_node(), add2.get());
 }
+
+TEST(node_input_output, output_replace_self_loop) {
+    // Corner case: replacing output with itself should be no-op
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto add = make_shared<op::v1::Add>(param, param);
+    auto relu = make_shared<op::v0::Relu>(add);
+    
+    // Count connections before
+    auto initial_targets = add->output(0).get_target_inputs();
+    ASSERT_EQ(initial_targets.size(), 1); // relu
+    
+    // Replace output with itself
+    add->output(0).replace(add->output(0));
+    
+    // Should be unchanged
+    auto final_targets = add->output(0).get_target_inputs();
+    EXPECT_EQ(final_targets.size(), 1) << "Self-replacement should preserve connections";
+    EXPECT_EQ(relu->input_value(0).get_node(), add.get()) << "Relu should still connect to add";
+}
+
+TEST(node_input_output, output_replace_chain_of_converts) {
+    // Corner case: chain of conversions A -> B -> C -> D, replace C with A
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto conv_a = make_shared<op::v0::Convert>(param, element::bf16);
+    auto conv_b = make_shared<op::v0::Convert>(conv_a, element::f16);
+    auto conv_c = make_shared<op::v0::Convert>(conv_b, element::i32);
+    auto conv_d = make_shared<op::v0::Convert>(conv_c, element::f32);
+    auto relu = make_shared<op::v0::Relu>(conv_d);
+    
+    // Initial state check
+    ASSERT_EQ(conv_a->output(0).get_target_inputs().size(), 1); // conv_b
+    ASSERT_EQ(conv_c->output(0).get_target_inputs().size(), 1); // conv_d
+    
+    // Replace conv_c's output with conv_a's output
+    conv_c->output(0).replace(conv_a->output(0));
+    
+    // Check result
+    auto conv_a_targets = conv_a->output(0).get_target_inputs();
+    EXPECT_EQ(conv_a_targets.size(), 2) << "conv_a should have conv_b and conv_d as targets";
+    
+    set<Node*> target_nodes;
+    for (const auto& input : conv_a_targets) {
+        target_nodes.insert(input.get_node());
+    }
+    
+    EXPECT_TRUE(target_nodes.count(conv_b.get()) > 0) << "conv_b should still connect to conv_a";
+    EXPECT_TRUE(target_nodes.count(conv_d.get()) > 0) << "conv_d should now connect to conv_a";
+    EXPECT_FALSE(target_nodes.count(conv_c.get()) > 0) << "conv_c should not be in conv_a's targets";
+    
+    EXPECT_EQ(conv_c->output(0).get_target_inputs().size(), 0) << "conv_c should have no targets";
+}
+
+TEST(node_input_output, output_replace_multiple_outputs) {
+    // Corner case: node with multiple outputs
+    auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto param2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
+    
+    // Create a node with 2 outputs (using Split for example would be better, but Add works for test)
+    auto add1 = make_shared<op::v1::Add>(param1, param2);
+    auto add2 = make_shared<op::v1::Add>(param1, param2);
+    
+    // Connect different consumers to each output
+    auto relu1 = make_shared<op::v0::Relu>(add1);
+    auto relu2 = make_shared<op::v0::Relu>(add1);
+    auto conv = make_shared<op::v0::Convert>(add2, element::bf16);
+    
+    // Replace add1's output with add2's output
+    add1->output(0).replace(add2->output(0));
+    
+    // Check that connections moved correctly
+    EXPECT_EQ(add1->output(0).get_target_inputs().size(), 0) << "add1 should have no targets";
+    
+    auto add2_targets = add2->output(0).get_target_inputs();
+    set<Node*> target_nodes;
+    for (const auto& input : add2_targets) {
+        target_nodes.insert(input.get_node());
+    }
+    
+    EXPECT_TRUE(target_nodes.count(relu1.get()) > 0) << "relu1 should connect to add2";
+    EXPECT_TRUE(target_nodes.count(relu2.get()) > 0) << "relu2 should connect to add2";
+    EXPECT_TRUE(target_nodes.count(conv.get()) > 0) << "conv should still connect to add2";
+}
+
+TEST(node_input_output, output_replace_bidirectional_connection) {
+    // Corner case: A -> B and B -> A (though this shouldn't normally happen in a DAG)
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto add1 = make_shared<op::v1::Add>(param, param);
+    auto relu = make_shared<op::v0::Relu>(add1);
+    auto add2 = make_shared<op::v1::Add>(relu, param);
+    
+    // add2 uses relu which uses add1
+    // Now if we try to make add1 use add2's output (creating a cycle in theory)
+    // This test ensures replace() handles it gracefully
+    
+    ASSERT_EQ(add1->output(0).get_target_inputs().size(), 1); // relu
+    ASSERT_EQ(add2->output(0).get_target_inputs().size(), 0); // no consumers yet
+    
+    // Add a consumer to add2 that is add1 (simulating the problematic case)
+    auto mul = make_shared<op::v1::Multiply>(add2, add1);
+    
+    // Now replace add1's output with add2's output
+    add1->output(0).replace(add2->output(0));
+    
+    // Check results
+    auto add2_targets = add2->output(0).get_target_inputs();
+    // Note: mul has 2 inputs from add2 (first operand) and add1 (second operand)
+    // After replace, mul's second input should also point to add2
+    EXPECT_EQ(add2_targets.size(), 3) << "add2 should have relu + mul(2 inputs) as targets";
+    
+    set<Node*> target_nodes;
+    for (const auto& input : add2_targets) {
+        target_nodes.insert(input.get_node());
+    }
+    
+    EXPECT_TRUE(target_nodes.count(relu.get()) > 0) << "relu should connect to add2";
+    EXPECT_TRUE(target_nodes.count(mul.get()) > 0) << "mul should connect to add2";
+    EXPECT_FALSE(target_nodes.count(add1.get()) > 0) << "add1 should not be in add2's targets";
+    
+    EXPECT_EQ(add1->output(0).get_target_inputs().size(), 0) << "add1 should have no targets";
+}
+
+TEST(node_input_output, output_replace_empty_targets) {
+    // Corner case: replacing output that has no targets
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto add1 = make_shared<op::v1::Add>(param, param);
+    auto add2 = make_shared<op::v1::Add>(param, param);
+    auto relu = make_shared<op::v0::Relu>(add2);
+    
+    // add1 has no targets, add2 has relu
+    ASSERT_EQ(add1->output(0).get_target_inputs().size(), 0);
+    ASSERT_EQ(add2->output(0).get_target_inputs().size(), 1);
+    
+    // Replace add1's output (no targets) with add2's output (has targets)
+    add1->output(0).replace(add2->output(0));
+    
+    // Nothing should change since add1 had no targets
+    EXPECT_EQ(add1->output(0).get_target_inputs().size(), 0);
+    EXPECT_EQ(add2->output(0).get_target_inputs().size(), 1);
+    EXPECT_EQ(relu->input_value(0).get_node(), add2.get());
+}
+
+TEST(node_input_output, output_replace_with_parameter) {
+    // Corner case: replacing with parameter output
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto add = make_shared<op::v1::Add>(param, param);
+    auto relu = make_shared<op::v0::Relu>(add);
+    
+    // Initial state: param has 2 connections to add
+    ASSERT_EQ(param->output(0).get_target_inputs().size(), 2);
+    
+    // Replace add's output with parameter's output
+    add->output(0).replace(param->output(0));
+    
+    // Check that relu now connects to parameter
+    EXPECT_EQ(relu->input_value(0).get_node(), param.get()) 
+        << "Relu should connect directly to parameter";
+    EXPECT_EQ(add->output(0).get_target_inputs().size(), 0) 
+        << "Add should have no targets";
+    
+    // After replacement, param should not have add as target
+    // because our fix removes cyclic connections
+    auto param_targets = param->output(0).get_target_inputs();
+    set<Node*> target_nodes;
+    for (const auto& input : param_targets) {
+        target_nodes.insert(input.get_node());
+    }
+    
+    // param should have only relu now (add connections removed as cyclic)
+    EXPECT_EQ(param_targets.size(), 1) << "Parameter should have only relu as target";
+    EXPECT_TRUE(target_nodes.count(relu.get()) > 0) << "Parameter should have relu";
+    EXPECT_FALSE(target_nodes.count(add.get()) > 0) << "Parameter should not have add (cyclic connection removed)";
+}
+
+TEST(node_input_output, output_replace_cascade) {
+    // Corner case: cascade of replacements
+    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
+    auto add1 = make_shared<op::v1::Add>(param, param);
+    auto add2 = make_shared<op::v1::Add>(add1, param);
+    auto add3 = make_shared<op::v1::Add>(add2, param);
+    auto relu = make_shared<op::v0::Relu>(add3);
+    
+    // Replace in cascade: add3 -> add2 -> add1 -> param
+    add3->output(0).replace(add2->output(0));
+    EXPECT_EQ(relu->input_value(0).get_node(), add2.get());
+    
+    add2->output(0).replace(add1->output(0));
+    EXPECT_EQ(relu->input_value(0).get_node(), add1.get());
+    
+    add1->output(0).replace(param->output(0));
+    EXPECT_EQ(relu->input_value(0).get_node(), param.get());
+    
+    // Check all intermediate nodes have no targets
+    EXPECT_EQ(add1->output(0).get_target_inputs().size(), 0);
+    EXPECT_EQ(add2->output(0).get_target_inputs().size(), 0);
+    EXPECT_EQ(add3->output(0).get_target_inputs().size(), 0);
+}
