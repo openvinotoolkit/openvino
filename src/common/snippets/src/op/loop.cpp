@@ -56,9 +56,9 @@ std::shared_ptr<Node> LoopBegin::clone_with_new_inputs(const OutputVector& input
 
 std::shared_ptr<LoopEnd> LoopBegin::get_loop_end() const {
     const auto& last_output_inputs = get_output_target_inputs(0);
-    OPENVINO_ASSERT(last_output_inputs.size() == 1 && "LoopBegin has more than one inputs attached to the last output");
+    OPENVINO_ASSERT(last_output_inputs.size() == 1, "LoopBegin has more than one inputs attached to the last output");
     const auto& loop_end = ov::as_type_ptr<LoopEnd>(last_output_inputs.begin()->get_node()->shared_from_this());
-    OPENVINO_ASSERT(loop_end != nullptr && "LoopBegin must have LoopEnd connected to its last output");
+    OPENVINO_ASSERT(loop_end != nullptr, "LoopBegin must have LoopEnd connected to its last output");
     return loop_end;
 }
 
@@ -151,7 +151,7 @@ std::shared_ptr<Node> LoopEnd::clone_with_new_inputs(const OutputVector& inputs)
 std::shared_ptr<LoopBegin> LoopEnd::get_loop_begin() {
     const auto& loop_begin =
         ov::as_type_ptr<LoopBegin>(get_input_source_output(get_input_size() - 1).get_node_shared_ptr());
-    assert(loop_begin != nullptr && "LoopEnd last input is not connected to LoopBegin");
+    OPENVINO_ASSERT(loop_begin != nullptr, "LoopEnd last input is not connected to LoopBegin");
     return loop_begin;
 }
 

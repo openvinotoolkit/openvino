@@ -30,11 +30,6 @@ public:
         return 0;
     }
 
-    // `jit_loop_begin_emitter` handles manually aux_gpr allocation using `jit_aux_gpr_holder`
-    size_t aux_gprs_count() const override {
-        return 0;
-    }
-
     void set_loop_end_label(const std::shared_ptr<const Xbyak::Label>& label) {
         m_loop_end_label = label;
     }
@@ -114,7 +109,7 @@ protected:
      * @param in Vector of reg indices, where data pointer registers come first and work amount register is last
      * @param apply_finalization_offsets If true, applies finalization offsets to data ptrs
      */
-    void emit_loop_end_logic(const std::vector<size_t>& in, bool apply_finalization_offsets) const;
+    void emit_loop_end_impl(const std::vector<size_t>& in, bool apply_finalization_offsets) const;
 
     std::shared_ptr<Xbyak::Label> m_loop_end_label = nullptr;
     std::shared_ptr<const Xbyak::Label> m_loop_begin_label = nullptr;
