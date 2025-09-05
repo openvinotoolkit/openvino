@@ -727,21 +727,11 @@ void regclass_graph_Model(py::module m) {
             :type variables_shapes: dict[keys, values]
         )");
 
-    model.def(
-        "reshape_list",
-        [](ov::Model& self, const py::object& input_shapes, const py::dict& variables_shapes = py::dict()) {
-            const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            ConditionalGILScopedRelease release;
-
-            if (py::isinstance<py::dict>(input_shapes)) {
-                // Dictionary form -> single input or mapping input index/name -> shape
-                std::map<ov::Output<ov::Node>, ov::PartialShape> shapes_map;
-                auto inputs = self.inputs();
-                for (auto item : input_shapes.cast<py::dict>()) {
-                    int idx = item.first.cast<int>();
-                    shapes_map[inputs[idx]] = Common::partial_shape_from_list(item.second.cast<py::list>());
-                }
-                self.reshape(shapes_map, new_variables_shapes);
+        model.def(
+            "reshape_list",
+            [](ov::Model& self, const py::object& input_shapes, const py::dict& variables_shapes = py::dict()) {
+                const auto new_variables_shapes = get_variables_shapes(variables_shapes);
+                ConditionalGILScopedRelease release;
 
             } else if (py::isinstance<py::list>(input_shapes)) {
                 py::list shape_list = input_shapes.cast<py::list>();
