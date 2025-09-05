@@ -24,7 +24,6 @@
 #include <cm/cmtl.h>
 
 #include "sort.hpp"
-
 #define MYMIN(x, y) ((x) < (y) ? (x) : (y))
 
 #define MYCONCAT(x, y) x ## y
@@ -68,6 +67,7 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     int m_end = MYMIN(m_start + TOKEN_SHARE_MAX, q_stride);
     int valid_m = m_end - m_start;
     if (valid_m == 0) return;
+    block_mask += m_block * k_block_pad;
     lsc::block_2d_desc<SOFTMAX_TYPE, 1, TOKEN_IN_BLOCK, TOKEN_SHARE_MAX / (sizeof(SOFTMAX_TYPE) / sizeof(half))> desc_sum{ kq_exp_partial_sum, (uint)valid_m - 1, (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1), (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1),
         0, 0 };
     {
@@ -120,6 +120,7 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #if DEBUG_ACC == 1
     kq_sum += m_block * k_block_pad * (int)sizeof(half);
 #endif
+    vector<uchar, TOKEN_SHARE_MAX> zero = 0;
     for (int j = 0; j < k_block_pad; j += TOKEN_SHARE_MAX) {
 #if CUR_TYPE == IS_float
         cm_load<lsc::Normal, CacheHint::Cached, CacheHint::Cached,  0, 0>(data.select<TOKEN_IN_BLOCK, 1, TOKEN_SHARE_MAX / 2, 1>(0, 0).format<SOFTMAX_TYPE>(), desc_sum);
@@ -139,6 +140,7 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #if DEBUG_ACC == 1
         cm_ptr_store<int, TOKEN_SHARE_MAX / 2>((int*)kq_sum, j * (int)sizeof(half), data_half.format<int>());
 #endif
+        cm_ptr_store<int, TOKEN_SHARE_MAX / 4>((int*)block_mask, j, zero.format<int>());
     }
     auto thresh_act = cm_sum<float>(sum_m_after_add) * thresh;
 
@@ -148,7 +150,6 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     // line 3: sorted index
     // line 5: sorted tmp
     // line 6: accumalative score
-    block_mask += m_block * k_block_pad;
     auto score        = kq_exp_partial_sum + 0 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
     auto sorted_value = kq_exp_partial_sum + 1 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
     auto sorted_index = kq_exp_partial_sum + 3 * k_block_pad * (int)sizeof(SOFTMAX_TYPE);
