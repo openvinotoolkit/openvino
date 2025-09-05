@@ -50,9 +50,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
     const auto loop_end_expr = get_loop_end_expr(expr);
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(loop_end_expr->get_node());
     m_loop_args = jit_loop_end_base_emitter::compose_loop_args(loop_end);
-    m_is_dynamic = snippets::utils::is_dynamic_value(loop_end->get_work_amount()) ||
-                   snippets::utils::has_dynamic_values(loop_end->get_ptr_increments()) ||
-                   snippets::utils::has_dynamic_values(loop_end->get_finalization_offsets());
+    m_is_dynamic = loop_end->has_dynamic_params();
 
     const auto& loop_end_input_regs = loop_end_expr->get_reg_info().first;
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");

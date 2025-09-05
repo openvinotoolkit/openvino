@@ -46,7 +46,7 @@ public:
              size_t increment,
              const std::vector<LoopPort>& entries,
              const std::vector<LoopPort>& exits,
-             bool is_parallel = false);
+             bool is_parallel);
     virtual ~LoopInfo() = default;
 
     /**

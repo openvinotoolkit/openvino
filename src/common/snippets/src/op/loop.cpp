@@ -4,7 +4,6 @@
 
 #include "snippets/op/loop.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -196,11 +195,8 @@ bool LoopEnd::get_evaluate_once() const {
 }
 
 bool LoopEnd::has_dynamic_params() const {
-    auto is_vector_dynamic = [](const std::vector<int64_t>& values) {
-        return std::any_of(values.cbegin(), values.cend(), utils::is_dynamic_value<int64_t>);
-    };
-    return utils::is_dynamic_value(m_work_amount) || is_vector_dynamic(m_ptr_increments) ||
-           is_vector_dynamic(m_finalization_offsets);
+    return utils::is_dynamic_value(m_work_amount) || utils::has_dynamic_values(m_ptr_increments) ||
+           utils::has_dynamic_values(m_finalization_offsets);
 }
 
 void LoopEnd::set_is_incremented(std::vector<bool> is_incremented) {
