@@ -691,8 +691,11 @@ def test_dynamic_dimension_input_shape():
     relu = ops.relu(param, name="relu")
     model = Model(relu, [param], "DynamicDimModel")
     shape = model.input(0).get_partial_shape()
-    assert shape[0].is_dynamic and shape[1] == 3 and shape[2] == 224 and shape[3] == 224
-
+    assert shape[0].is_dynamic
+    assert shape[1] == 3
+    assert shape[2] == 224
+    assert shape[3] == 224
+    
 
 @pytest.mark.reshape_list
 def test_interval_dimension_input_shape():
@@ -702,7 +705,6 @@ def test_interval_dimension_input_shape():
     """
     from openvino.runtime import Dimension, PartialShape, Model, Core
     from openvino.runtime.opset8 import parameter, relu
-	
     # Create a parameter with interval dimensions
     param = parameter(PartialShape([Dimension(1, 3), Dimension(3, 5)]), np.float32, name="interval_input")
     relu_node = relu(param, name="relu")
@@ -716,7 +718,7 @@ def test_interval_dimension_input_shape():
     # Check dynamic status
     assert shape[0].is_dynamic
     assert shape[1].is_dynamic
-    # Valid reshape within bounds 
+    # Valid reshape within bounds
     model.reshape({0: [2, 4]})
     assert list(model.input(0).shape) == [2, 4]
     # Invalid reshape outside bounds
