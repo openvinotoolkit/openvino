@@ -80,7 +80,6 @@ public:
 
     bool has_subgraphs() const;
     const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& get_subgraphs() const;
-    // const std::shared_ptr<ov::Model> get_subgraph(const std::string& name) const;
 
     template <typename T>
     T get_attribute_value(const std::string& name, T default_value) const;

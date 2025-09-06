@@ -72,24 +72,24 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
         if_node->set_then_body(then_branch);
         if_node->set_else_body(else_branch);
 
-        auto& tensor_values = node.get_translate_session()->get_tensor_values();
+        auto translate_session = node.get_translate_session();
 
         const auto& then_params = then_branch->get_parameters();
         const auto& else_params = else_branch->get_parameters();
 
         for (auto& input : then_params) {
-            auto known_input = tensor_values.find(input->get_friendly_name());
-            if (known_input != tensor_values.end()) {
-                if_node->set_input(known_input->second, input, nullptr);
+            auto known_input = translate_session->lookup_tensor(input->get_friendly_name());
+            if (known_input.get_node() != nullptr) {
+                if_node->set_input(known_input, input, nullptr);
             } else {
                 FRONT_END_THROW("Non-existent connection in then-branch to " + input->get_friendly_name());
             }
         }
 
         for (auto& input : else_params) {
-            auto known_input = tensor_values.find(input->get_friendly_name());
-            if (known_input != tensor_values.end()) {
-                if_node->set_input(known_input->second, nullptr, input);
+            auto known_input = translate_session->lookup_tensor(input->get_friendly_name());
+            if (known_input.get_node() != nullptr) {
+                if_node->set_input(known_input, nullptr, input);
             } else {
                 FRONT_END_THROW("Non-existent connection in else-branch to " + input->get_friendly_name());
             }

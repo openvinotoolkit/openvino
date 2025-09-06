@@ -45,6 +45,12 @@ public:
         return m_fail_fast;
     }
 
+    /// \brief Method tries to find an output which is named "name"
+    /// If a result found in a parent session (it means current GraphIterator/InputModel
+    /// doesn't have a corresponding node. And if node isn't a constant - then
+    /// method restores a Parameters chain by adding a Parameter with provided name
+    ov::Output<ov::Node> TranslateSession::lookup_tensor(const std::string& name);
+
 private:
     const ov::frontend::InputModel::Ptr m_input_model;
     const std::shared_ptr<OperatorsBridge> m_translator_map;

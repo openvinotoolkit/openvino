@@ -8,6 +8,7 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -184,36 +185,17 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
             loop->set_invariant_input(*body_inputs_it, *in_from_parent_it);
         }
     } else {
-        auto& tensor_values = node.get_translate_session()->get_tensor_values();
+        auto translate_session = node.get_translate_session();
 
-        for (auto in_from_parent_it = body_inputs.begin();
-             body_inputs_it != body_inputs.end() && in_from_parent_it != body_inputs.end();
-             ++body_inputs_it, ++in_from_parent_it) {
-            auto known_input = tensor_values.find(in_from_parent_it->get()->get_friendly_name());
-            if (known_input != tensor_values.end()) {
-                loop->set_invariant_input(*in_from_parent_it, known_input->second);
-                // loop->set_invariant_input(
-                //     std::dynamic_pointer_cast<ov::op::v0::Parameter>(known_input->second.get_node_shared_ptr()),
-                //     input);
+        for (; body_inputs_it != body_inputs.end(); ++body_inputs_it) {
+            auto known_input = translate_session->lookup_tensor(body_inputs_it->get()->get_friendly_name());
+            if (known_input.get_node() != nullptr) {
+                loop->set_invariant_input(*body_inputs_it, known_input);
             } else {
                 FRONT_END_THROW("Non-existent connection in body-graph to " +
-                                in_from_parent_it->get()->get_friendly_name());
-            }
-            //            loop->set_invariant_input(*body_inputs_it, *in_from_parent_it);
-        }
-
-        /* for (auto& input : body_inputs) {
-            auto known_input = tensor_values.find(input->get_friendly_name());
-            if (known_input != tensor_values.end()) {
-                loop->set_invariant_input(input, known_input->second);
-                //loop->set_invariant_input(
-                //    std::dynamic_pointer_cast<ov::op::v0::Parameter>(known_input->second.get_node_shared_ptr()),
-                //    input);
-            } else {
-                FRONT_END_THROW("Non-existent connection in body-graph to " + input->get_friendly_name());
+                                body_inputs_it->get()->get_friendly_name());
             }
         }
-*/
     }
 
     // Set-up scan outputs

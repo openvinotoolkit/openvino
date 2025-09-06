@@ -370,7 +370,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
     auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
     auto translators_map = std::make_shared<OperatorsBridge>();
-    TranslateSession translate_session(input_model, translators_map, "model_name");
+    TranslateSession translate_session(input_model, translators_map, "MainGraph");
     translate_session.set_fail_fast(fail_fast);
     try {
         ov_model = translate_session.get_converted_model();

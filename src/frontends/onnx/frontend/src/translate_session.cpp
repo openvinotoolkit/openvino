@@ -9,6 +9,7 @@
 #include "onnx_framework_node.hpp"
 #include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "ops_bridge.hpp"
 #include "place.hpp"
 
@@ -33,6 +34,29 @@ TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_mo
       m_ov_model(nullptr),
       m_fail_fast(false),
       m_parent_session(parent_session) {}
+
+ov::Output<ov::Node> TranslateSession::lookup_tensor(const std::string& name) {
+    auto local_tensor = m_tensor_values.find(name);
+    if (local_tensor != m_tensor_values.end()) {
+        return local_tensor->second;
+    }
+    if (m_parent_session != nullptr) {
+        auto node_from_parent = m_parent_session->lookup_tensor(name);
+        if (node_from_parent.get_node() == nullptr) {
+            return {};
+        }
+        if (ov::op::util::is_constant(node_from_parent.get_node_shared_ptr())) {
+            return node_from_parent;
+        }
+        auto new_param = std::make_shared<ov::op::v0::Parameter>(node_from_parent.get_element_type(),
+                                                                 node_from_parent.get_partial_shape());
+        new_param->set_friendly_name(node_from_parent.get_node()->get_friendly_name());
+        m_parameters.push_back(new_param);
+        m_tensor_values[name] = new_param;
+        return new_param;
+    }
+    return {};
+}
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {
@@ -94,12 +118,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             if (name == "") {
                 continue;
             }
-            auto tensor_it = m_tensor_values.find(name);
-            if (tensor_it == m_tensor_values.end()) {
+            auto node = lookup_tensor(name);
+            if (node.get_node() == nullptr) {
                 auto place_it = all_tensor_places.find(name);
-                if (place_it != all_tensor_places.end()) {
-                    create_const_or_param(name, place_it->second);
-                }
+                FRONT_END_GENERAL_CHECK(place_it != all_tensor_places.end(), "Tensor place not found in a graph");
+                create_const_or_param(name, place_it->second);
             }
         }
 
@@ -117,7 +140,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             }
             for (size_t idx = 0; idx < ov_outputs.size() && idx < out_size; ++idx) {
                 const std::string& out_name = decoder->get_output_tensor_name(idx);
-                ov_outputs[idx].set_names({out_name});
+                ov_outputs[idx].add_names({out_name});
                 ov_outputs[idx].get_node()->set_friendly_name(out_name);
             }
         } catch (const ::ov::frontend::onnx::error::OnnxNodeValidationFailure& e) {
