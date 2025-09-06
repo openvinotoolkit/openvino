@@ -21,7 +21,18 @@ TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_mo
       m_translator_map(translator_map),
       m_model_name(model_name),
       m_ov_model(nullptr),
-      m_fail_fast(false) {}
+      m_fail_fast(false),
+      m_parent_session(nullptr) {}
+
+TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
+                                   TranslateSession* parent_session,
+                                   const std::string& model_name)
+    : m_input_model(input_model),
+      m_translator_map(parent_session->m_translator_map),
+      m_model_name(model_name),
+      m_ov_model(nullptr),
+      m_fail_fast(false),
+      m_parent_session(parent_session) {}
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {
@@ -38,29 +49,40 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
     auto& all_tensor_places = model_onnx->get_tensor_places();
 
-    std::map<std::string, Output<ov::Node>> parent_tensors;
-
     // inputs
-    ParameterVector parameters;
-    parameters.reserve(model_onnx->get_inputs().size());
+    m_parameters.reserve(model_onnx->get_inputs().size());
+
+    // Lambda detects type of input_tensor and creates correct node: constant or parameter
+    auto create_const_or_param = [&](const std::string& name,
+                                     const std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>& input_tensor) {
+        std::shared_ptr<ov::Node> node;
+        if (input_tensor->get_data_location() != nullptr) {
+            Tensor tensor = Tensor(input_tensor);
+            node = tensor.get_ov_constant();
+        } else if (auto data = input_tensor->get_data()) {
+            node = ov::op::v0::Constant::create(input_tensor->get_element_type(),
+                                                input_tensor->get_partial_shape().to_shape(),
+                                                data);
+        } else if (input_tensor->get_partial_shape() == PartialShape{0}) {  // empty constant
+            node = ov::op::v0::Constant::create(input_tensor->get_element_type(),
+                                                input_tensor->get_partial_shape().to_shape(),
+                                                {});
+        } else {
+            node = std::make_shared<ov::op::v0::Parameter>(input_tensor->get_element_type(),
+                                                           input_tensor->get_partial_shape());
+            m_parameters.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(node));
+        }
+        node->set_friendly_name(name);
+        m_tensor_values[name] = node->get_default_output();
+        input_tensor->translate(m_tensor_values[name]);
+    };
+
     for (const auto& input : model_onnx->get_inputs()) {
         const auto input_tensor = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(input);
         FRONT_END_GENERAL_CHECK(input_tensor != nullptr,
                                 "Inputs of ov::frontend::onnx::InputModel must be TensorONNXPlace instances");
         const auto name = input_tensor->get_names()[0];
-        auto parameter = std::make_shared<ov::op::v0::Parameter>(input_tensor->get_element_type(),
-                                                                 input_tensor->get_partial_shape());
-        parameter->set_friendly_name(name);
-        parameters.push_back(parameter);
-        // Do not overwrite an existing tensors
-        // Usually it means a parent graph already has a node with a same tensor name
-        // But an order for a further lookup tensors: try to find a local Parameter, and only after that -
-        // request for a known tensor of above layer
-        if (m_tensor_values.count(name) > 0) {
-            parent_tensors[name] = m_tensor_values[name];
-        }
-        m_tensor_values[name] = parameter->get_default_output();
-        input_tensor->translate(m_tensor_values[name]);
+        create_const_or_param(name, input_tensor);
     }
 
     // operations
@@ -73,47 +95,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 continue;
             }
             auto tensor_it = m_tensor_values.find(name);
-            // If tensor wasn't found - probably we may need to find it another way
-            std::shared_ptr<ov::op::v0::Parameter> is_param = nullptr;
-            if (tensor_it == m_tensor_values.end() || (is_param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
-                                                           tensor_it->second.get_node_shared_ptr())) != nullptr) {
+            if (tensor_it == m_tensor_values.end()) {
                 auto place_it = all_tensor_places.find(name);
                 if (place_it != all_tensor_places.end()) {
-                    if (place_it->second->get_data_location() != nullptr) {
-                        Tensor tensor = Tensor(place_it->second);
-                        auto constant = tensor.get_ov_constant();
-                        m_tensor_values[place_it->first] = constant;
-                        if (is_param) {
-                            auto it = std::find(parameters.begin(), parameters.end(), is_param);
-                            if (it != parameters.end())
-                                parameters.erase(it);
-                        }
-                        continue;
-                    } else if (auto data = place_it->second->get_data()) {
-                        auto constant = ov::op::v0::Constant::create(place_it->second->get_element_type(),
-                                                                     place_it->second->get_partial_shape().to_shape(),
-                                                                     data);
-                        constant->set_friendly_name(place_it->first);
-                        m_tensor_values[place_it->first] = constant;
-                        if (is_param) {
-                            auto it = std::find(parameters.begin(), parameters.end(), is_param);
-                            if (it != parameters.end())
-                                parameters.erase(it);
-                        }
-                        continue;
-                    } else if (place_it->second->get_partial_shape() == PartialShape{0}) {  // empty constant
-                        auto constant = ov::op::v0::Constant::create(place_it->second->get_element_type(),
-                                                                     place_it->second->get_partial_shape().to_shape(),
-                                                                     {});
-                        constant->set_friendly_name(place_it->first);
-                        m_tensor_values[place_it->first] = constant;
-                        if (is_param) {
-                            auto it = std::find(parameters.begin(), parameters.end(), is_param);
-                            if (it != parameters.end())
-                                parameters.erase(it);
-                        }
-                        continue;
-                    }
+                    create_const_or_param(name, place_it->second);
                 }
             }
         }
@@ -202,11 +187,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         results.push_back(result);
     }
 
-    // Restoring links on a parent tensors
-    for (auto& parent_tensor : parent_tensors) {
-        m_tensor_values[parent_tensor.first] = parent_tensor.second;
-    }
-
     auto model_name = "onnx_Frontend_IR";
-    ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+    ov_model = std::make_shared<ov::Model>(results, m_parameters, model_name);
 }

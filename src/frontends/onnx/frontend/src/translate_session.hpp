@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/frontend/input_model.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov {
 namespace frontend {
@@ -20,6 +21,10 @@ public:
     TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
                      const std::shared_ptr<OperatorsBridge>& translator_map,
                      const std::string& model_name);
+    TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
+                     TranslateSession* parent_session,
+                     const std::string& model_name);
+
     std::shared_ptr<ov::Model> get_converted_model();
 
     void translate_graph(const ov::frontend::InputModel::Ptr& input_model, std::shared_ptr<ov::Model>& ov_model);
@@ -47,6 +52,8 @@ private:
     std::shared_ptr<ov::Model> m_ov_model;
     std::map<std::string, Output<ov::Node>> m_tensor_values;
     bool m_fail_fast;
+    TranslateSession* m_parent_session;
+    ParameterVector m_parameters;
 };
 }  // namespace onnx
 }  // namespace frontend
