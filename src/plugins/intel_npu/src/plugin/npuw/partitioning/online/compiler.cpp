@@ -94,7 +94,7 @@ class Compiler {
         REP,      // Repeated blocks pipeline - combination of repeatedBlocks and Remnants
         REG,      // Regularized repeated blocks pipeline - same as REP, but with some strong hints first
         COMPUTE,  // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
-        SPATIAL   // Similar to COMPUTE but allows folding
+        SPATIAL   // Similar to COMPUTE but allows folding & dynamic chunk submission for FFN/QKV (LLM)
     };
 
     template <class C>
@@ -132,6 +132,9 @@ class Compiler {
     std::vector<Isolate> getAllIsolates() {
         auto isolates = ov::npuw::online::util::getIsolates(ov::npuw::online::util::ISOL_PRESETS.at("COMPUTE"));
         for (const auto& isol : ov::npuw::online::util::getIsolates(ov::npuw::online::util::ISOL_PRESETS.at("FAKE"))) {
+            isolates.push_back(isol);
+        }
+        for (const auto& isol : ov::npuw::online::util::getIsolates(ov::npuw::online::util::ISOL_PRESETS.at("ATTN"))) {
             isolates.push_back(isol);
         }
         return isolates;
