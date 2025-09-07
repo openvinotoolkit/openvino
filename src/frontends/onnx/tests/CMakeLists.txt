@@ -88,8 +88,6 @@ set(SRC
     skip_tests_config.cpp
     ../frontend/src/core/graph_iterator_proto.cpp
     ../frontend/src/core/decoder_proto.cpp
-    ../frontend/src/core/graph_iterator_proto.hpp
-    ../frontend/src/core/decoder_proto.hpp
 )
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC)
