@@ -163,6 +163,7 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
     auto graph_def = graph_iterator->get_graph();
     ov::frontend::onnx::TensorMetaInfo tensor_meta_info{};
     tensor_meta_info.m_external_location = nullptr;
+    tensor_meta_info.m_is_raw = false;
     if ((tensor_info == nullptr && value_info == nullptr) || graph_def == nullptr) {
         throw std::runtime_error("Wrong usage");
     }
@@ -175,8 +176,8 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             }
         }
     }
-    if (value_info != nullptr && value_info->has_type()) {
-        if (!value_info->type().has_tensor_type()) {
+    if (value_info != nullptr) {
+        if (value_info->has_type() && !value_info->type().has_tensor_type()) {
             throw std::runtime_error("Unsupported value_info type");
         }
         tensor_meta_info.m_tensor_name = value_info->has_name() ? &value_info->name() : &empty_name;
@@ -266,6 +267,7 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->raw_data().data()));
             tensor_meta_info.m_tensor_data_size = tensor_info->raw_data().size();
+            tensor_meta_info.m_is_raw = true;
         }
     }
     if (tensor_meta_info.m_tensor_name == nullptr) {

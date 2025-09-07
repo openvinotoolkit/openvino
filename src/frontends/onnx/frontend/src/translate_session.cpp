@@ -80,13 +80,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     auto create_const_or_param = [&](const std::string& name,
                                      const std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>& input_tensor) {
         std::shared_ptr<ov::Node> node;
-        if (input_tensor->get_data_location() != nullptr) {
+        if (input_tensor->get_data_location() != nullptr || input_tensor->get_data() != nullptr) {
             Tensor tensor = Tensor(input_tensor);
             node = tensor.get_ov_constant();
-        } else if (auto data = input_tensor->get_data()) {
-            node = ov::op::v0::Constant::create(input_tensor->get_element_type(),
-                                                input_tensor->get_partial_shape().to_shape(),
-                                                data);
         } else if (input_tensor->get_partial_shape() == PartialShape{0}) {  // empty constant
             node = ov::op::v0::Constant::create(input_tensor->get_element_type(),
                                                 input_tensor->get_partial_shape().to_shape(),
@@ -140,8 +136,12 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             }
             for (size_t idx = 0; idx < ov_outputs.size() && idx < out_size; ++idx) {
                 const std::string& out_name = decoder->get_output_tensor_name(idx);
-                ov_outputs[idx].add_names({out_name});
-                ov_outputs[idx].get_node()->set_friendly_name(out_name);
+                if (is_optimized_out(ov_outputs[idx])) {
+                    ov_outputs[idx].add_names({out_name});
+                } else {
+                    ov_outputs[idx].set_names({out_name});
+                    ov_outputs[idx].get_node()->set_friendly_name(out_name);
+                }
             }
         } catch (const ::ov::frontend::onnx::error::OnnxNodeValidationFailure& e) {
             error_message = e.what();

@@ -67,7 +67,9 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
         }
     } else {
         auto then_branch = node.get_attribute_value<std::shared_ptr<ov::Model>>("then_branch", nullptr);
+        FRONT_END_GENERAL_CHECK(then_branch != nullptr, "Missing 'then_branch' attribute");
         auto else_branch = node.get_attribute_value<std::shared_ptr<ov::Model>>("else_branch", nullptr);
+        FRONT_END_GENERAL_CHECK(else_branch != nullptr, "Missing 'else_branch' attribute");
 
         if_node->set_then_body(then_branch);
         if_node->set_else_body(else_branch);
@@ -98,8 +100,7 @@ ov::OutputVector if_op(const ov::frontend::onnx::Node& node) {
         auto then_results = then_branch->get_results();
         auto else_results = else_branch->get_results();
         FRONT_END_GENERAL_CHECK(then_results.size() == else_results.size(),
-                                "[ONNX Frontend] Internal error or incorrect input model: number of result nodes in "
-                                "then and else branches do not match.");
+                                "'then' and 'else' branches have to have the same number of outputs");
         int output_size = static_cast<int>(then_results.size());
         for (int ind = 0; ind < output_size; ++ind) {
             if_node->set_output(then_results[ind], else_results[ind]);

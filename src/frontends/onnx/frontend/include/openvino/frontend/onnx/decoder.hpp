@@ -19,6 +19,7 @@ struct ONNX_FRONTEND_API TensorMetaInfo {
     size_t m_tensor_data_size;
     const std::string* m_tensor_name;
     std::shared_ptr<std::string> m_external_location;
+    bool m_is_raw;
     /*
     // In case we need to reconstruct an original TensorProto
     int m_onnx_datatype;
