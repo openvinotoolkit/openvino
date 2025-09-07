@@ -103,7 +103,6 @@ void SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t oute
                                                        loop_end,
                                                        inner_loop_info->get_work_amount(),
                                                        outer_increment,
-                                                       inner_loop_info->get_dim_idx(),
                                                        inner_loop_info->get_input_ports(),
                                                        inner_loop_info->get_output_ports(),
                                                        false);
