@@ -110,6 +110,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             mapped_memory = ov::load_mmap_object(full_path);
             (*cache)[full_path] = mapped_memory;
         }
+        tensor_meta_info.m_is_raw = true;
         tensor_meta_info.m_tensor_data =
             static_cast<uint8_t*>(static_cast<void*>(mapped_memory->data() + ext_data_offset));
         tensor_meta_info.m_tensor_data_size =
@@ -135,6 +136,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             throw std::runtime_error("Failed to open external data stream");
         }
 
+        tensor_meta_info.m_is_raw = true;
         tensor_meta_info.m_tensor_data_size =
             ext_data_length > 0 ? ext_data_length : static_cast<size_t>(file_size) - ext_data_length;
         uint8_t* data_ptr = graph_iterator->allocate_data(tensor_meta_info.m_tensor_data_size).get();
