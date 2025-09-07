@@ -40,7 +40,7 @@ using SharedMatmulAndGatherWeightsDecompressionParams = std::tuple<std::string, 
 class SharedMatmulAndGatherWeightsDecompression : public testing::WithParamInterface<SharedMatmulAndGatherWeightsDecompressionParams>,
                                                   virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SharedMatmulAndGatherWeightsDecompressionParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<SharedMatmulAndGatherWeightsDecompressionParams>& obj);
 
 protected:
     std::shared_ptr<ov::Model> initSubgraph(const ov::Shape& data_shape,
