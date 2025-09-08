@@ -263,6 +263,8 @@ post_op_dnnl_policy_type onednn_post_ops_fusing_helpers::get_post_op_dnnl_policy
     // This handles cases like data={1,4,1,1} slope={1,4}
     if (broadcast_axes.size() > 0) {
         return post_op_dnnl_policy_type::PER_TENSOR;
+    } else {
+        return post_op_dnnl_policy_type::COMMON;
     }
 
     // If no case, fallback to POLICY_TOTAL to exception throw
@@ -279,7 +281,17 @@ int onednn_post_ops_fusing_helpers::get_prelu_mask_from_layouts(const std::funct
                                                                 int32_t slope_input_idx) {
     auto data_layout = get_output_layout();
     auto slope_layout = get_input_layout(slope_input_idx);
-    return get_prelu_mask(data_layout, slope_layout);
+    auto input_layout = get_input_layout(0);
+    auto data_shape = data_layout.get_shape();
+    auto slope_shape = slope_layout.get_shape();
+    auto input_shape = input_layout.get_shape();
+    if ((input_shape.size() == slope_shape.size())
+        && (data_shape.size() > slope_shape.size())
+        && (data_shape[1] == slope_shape[1])) {
+        return get_default_mask(post_op_dnnl_policy_type::PER_OC, static_cast<int>(data_layout.get_rank()));
+    } else {
+        return get_prelu_mask(data_layout, slope_layout);
+    }
 }
 
 int onednn_post_ops_fusing_helpers::get_default_mask(post_op_dnnl_policy_type policy, int ndims) {
