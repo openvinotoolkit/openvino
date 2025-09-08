@@ -741,11 +741,12 @@ int get_model_prefer_threads(const int num_streams,
                                                 0.9F &&
                                             networkToleranceForLowCache.ratio_mem_limited_convs < 0.2F &&
                                             networkToleranceForLowCache.ratio_mem_limited_gemms == 0.0F &&
-                                            networkToleranceForLowCache.ratio_mem_limited_adds < 0.28F &&
-                                            networkToleranceForLowCache.max_mem_tolerance >= 0.06F;
+                                            ((networkToleranceForLowCache.ratio_mem_limited_adds < 0.28F &&
+                                              networkToleranceForLowCache.max_mem_tolerance >= 0.06F) ||
+                                             networkToleranceForLowCache.ratio_compute_convs == 0 ||
+                                             networkToleranceForLowCache.ratio_mem_limited_convs == 0);
                             static_case_4 = networkToleranceForLowCache.total_convs == 0 &&
-                                            static_cast<float>(networkToleranceForLowCache.total_gemms) <
-                                                0.05F * static_cast<float>(networkToleranceForLowCache.total_nodes);
+                                            networkToleranceForLowCache.max_mem_tolerance > 2.5F;
                         } else {
                             static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
                                             static_cast<float>(networkToleranceForLowCache.total_light_convs) /
