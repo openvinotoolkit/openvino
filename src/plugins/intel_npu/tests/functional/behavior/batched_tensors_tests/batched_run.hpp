@@ -171,8 +171,9 @@ TEST_P(BatchedTensorsRunTests, SetInputRemoteTensorsMultipleInfer) {
         }
         req.infer();  // Adds '1' to each element
         for (size_t j = 0; j < one_shape_size * batch; ++j) {
-            EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
+            ASSERT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                << ", actual=" << actual[j] << " for index " << j;
+
         }
     }
 }
@@ -218,7 +219,7 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInfer) {
         }
         req.infer();  // Adds '1' to each element
         for (size_t j = 0; j < one_shape_size * batch; ++j) {
-            EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
+            ASSERT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                << ", actual=" << actual[j] << " for index " << j;
         }
     }
@@ -269,7 +270,7 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
             }
             req.infer();  // Adds '1' to each element
             for (size_t j = 0; j < one_shape_size * batch; ++j) {
-                EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
+                ASSERT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                    << ", actual=" << actual[j] << " for index " << j;
             }
         }
@@ -301,7 +302,7 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
             }
             req.infer();  // Adds '1' to each element
             for (size_t j = 0; j < one_shape_size * batch; ++j) {
-                EXPECT_EQ(actual[j], testNum + 201) << "Infer " << testNum << ": Expected=" << testNum + 21
+                ASSERT_EQ(actual[j], testNum + 201) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                     << ", actual=" << actual[j] << " for index " << j;
             }
         }
@@ -372,7 +373,7 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentRemoteTensorsMultipleInferMCL) {
 
             req.infer();  // Adds '1' to each element
             for (size_t j = 0; j < one_shape_size * batch; ++j) {
-                EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
+                ASSERT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                    << ", actual=" << actual[j] << " for index " << j;
             }
         }
@@ -425,7 +426,7 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentRemoteTensorsMultipleInferMCL) {
 
             req.infer();  // Adds '1' to each element
             for (size_t j = 0; j < one_shape_size * batch; ++j) {
-                EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
+                ASSERT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                    << ", actual=" << actual[j] << " for index " << j;
             }
         }
@@ -477,7 +478,7 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsMultipleInfer)
         for (size_t i = 0; i < batch; i++) {
             for (size_t j = 0; j < one_shape_size; ++j) {
                 auto expected = testNum + 20 * (i + 1) + 1;
-                EXPECT_EQ(actual[i * one_shape_size + j], expected)
+                ASSERT_EQ(actual[i * one_shape_size + j], expected)
                     << "Infer " << testNum << ": Expected=" << expected << ", actual=" << actual[j] << " for index "
                     << j << ", batch: " << i;
             }
@@ -520,7 +521,7 @@ void executeMutlipleTensorsBatchInfer(ov::InferRequest req,
         for (size_t i = 0; i < batch_value; i++) {
             for (size_t j = 0; j < non_batched_shape_size; ++j) {
                 auto expected = testNum + 20 * (i + 1) + 1;
-                EXPECT_EQ(actual[i * non_batched_shape_size + j], expected)
+                ASSERT_EQ(actual[i * non_batched_shape_size + j], expected)
                     << "Infer " << testNum << ": Expected=" << expected << ", actual=" << actual[j] << " for index "
                     << j << ", batch: " << i;
             }
@@ -629,7 +630,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorSingleInf
         req.infer();  // Adds '1' to each element
         for (size_t j = 0; j < tensor_shape_size; ++j) {
             auto expected = testNum + 20 * (j / one_shape_size + 1) + 1;
-            EXPECT_EQ(actual[j], expected)
+            ASSERT_EQ(actual[j], expected)
                 << "Infer " << testNum << ": Expected=" << expected << ", actual=" << actual[j] << " for index " << j
                 << ", batch: " << j / one_shape_size;
         }
@@ -666,7 +667,7 @@ void executeContiguousTensorBatchInfer(ov::InferRequest req,
     // check that we got valid inference results on each lines of N
     for (size_t j = 0; j < tensor_shape_size; ++j) {
         auto expected = batch_value + 20 * (j / non_batched_shape_size + 1) + 1;
-        EXPECT_EQ(actual[j], expected) << "Infer " << batch_value << ": Expected=" << expected
+        ASSERT_EQ(actual[j], expected) << "Infer " << batch_value << ": Expected=" << expected
                                        << ", actual=" << actual[j] << " for index " << j
                                        << ", batch: " << j / non_batched_shape_size;
     }
@@ -782,7 +783,7 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputDifferentTensorsMultipleInf
         }
         req.infer();  // Adds '1' to each element
         for (size_t j = 0; j < one_shape_size * batch; ++j) {
-            EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
+            ASSERT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                << ", actual=" << actual[j] << " for index " << j;
         }
     }
