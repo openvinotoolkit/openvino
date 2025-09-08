@@ -42,7 +42,7 @@ constexpr uint SG_N = 8;
 constexpr uint BLOCK_WG_M = BLOCK_SG_M * SG_M;
 constexpr uint BLOCK_WG_N = BLOCK_SG_N * SG_N;
 constexpr int STRIDE = 16;
-constexpr float THRESH = 0.9;
+constexpr float THRESH = 1.0;
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
