@@ -24,9 +24,11 @@ struct DeviceOps {
         add_ops_to_map(ops_mad,  ops, data_types::f64, 0);
         add_ops_to_map(ops_mad,  ops, data_types::f32, 1);
         add_ops_to_map(ops_mad,  ops, data_types::f16, 2);
-        add_ops_to_map(ops_dpas, ops, data_types::f16, 3);
-        add_ops_to_map(ops_dpas, ops, data_types::i8,  4);
-        add_ops_to_map(ops_dp4a, ops, data_types::i8,  5);
+        add_ops_to_map(ops_mad,  ops, data_types::i8,  3);
+        add_ops_to_map(ops_dpas, ops, data_types::f16, 4);
+        add_ops_to_map(ops_dpas, ops, data_types::i8,  5);
+        add_ops_to_map(ops_dp4a, ops, data_types::f16, 6);
+        add_ops_to_map(ops_dp4a, ops, data_types::i8,  7);
     }
 
     std::vector<gfx_version> gfx_version_list;
@@ -83,19 +85,19 @@ struct DeviceOps {
 const uint8_t MAX_REVISION = 0xff;
 
 const std::vector<DeviceOps> device_ops_table = {
-//    | gfx_ver                                 | MAD                   | DPAS (immad)  | DP4A | device_id |
-//    |                                         |  fp64 |  fp32 |  fp16 |  fp16 |  int8 | int8 |           |
-    { { { 0,  0,  0}, {11,  2, MAX_REVISION} }, {     0,     16,     32,      0,      0,     0 }, {} },    // Legacy
-    { { {12,  0,  0}, {12,  9, MAX_REVISION} }, {     0,     16,     32,      0,      0,    64 }, {} },    // TGL, RKL, ADL
-    { { {12, 10,  0}                         }, {     0,     16,     32,      0,      0,    64 }, {} },    // DG1
-    { { {12, 55,  0}, {12, 57, MAX_REVISION} }, {     0,     16,     32,    128,    256,     0 }, {} },    // DG2
-    { { {12, 60,  0}, {12, 60, 1}            }, {    16,     32,     64,    512,   1024,     0 }, {} },    // PVC_XL
-    { { {12, 60,  3}, {12, 61, 7}            }, {    32,     32,     64,    512,   1024,     0 }, {} },    // PVC_XT
-    { { {12, 70,  0}, {12, 71, MAX_REVISION} }, {     0.5,   16,     32,      0,      0,    64 }, {} },    // MTL/ARL-S
-    { { {12, 74,  0}, {12, 74, MAX_REVISION} }, {     0.5,   16,     32,    128,    256,     0 }, {} },    // ARL-H
-    { { {20,  1,  0}, {20,  2, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} },    // BMG
-    { { {20,  4,  0}, {20,  4, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} },    // LNL
-    { { {30,  0,  0}, {30,  1, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} },    // PTL
+//    | gfx_ver                                 | MAD                           | DPAS (immad)  | DP4A | device_id |
+//    |                                         |  fp64 |  fp32 |  fp16 |  int8 |  fp16 |  int8 | int8 |           |
+    { { { 0,  0,  0}, {11,  2, MAX_REVISION} }, {     0,     16,     32,     16,      0,      0,     0 }, {} },    // Legacy
+    { { {12,  0,  0}, {12,  9, MAX_REVISION} }, {     0,     16,     32,      0,      0,      0,    64 }, {} },    // TGL, RKL, ADL
+    { { {12, 10,  0}                         }, {     0,     16,     32,      0,      0,      0,    64 }, {} },    // DG1
+    { { {12, 55,  0}, {12, 57, MAX_REVISION} }, {     0,     16,     32,      0,    128,    256,     0 }, {} },    // DG2
+    { { {12, 60,  0}, {12, 60, 1}            }, {    16,     32,     64,      0,    512,   1024,     0 }, {} },    // PVC_XL
+    { { {12, 60,  3}, {12, 61, 7}            }, {    32,     32,     64,      0,    512,   1024,     0 }, {} },    // PVC_XT
+    { { {12, 70,  0}, {12, 71, MAX_REVISION} }, {     0.5,   16,     32,      0,      0,      0,    64 }, {} },    // MTL/ARL-S
+    { { {12, 74,  0}, {12, 74, MAX_REVISION} }, {     0.5,   16,     32,      0,    128,    256,     0 }, {} },    // ARL-H
+    { { {20,  1,  0}, {20,  2, MAX_REVISION} }, {     1,     16,     32,      0,    128,    256,     0 }, {} },    // BMG
+    { { {20,  4,  0}, {20,  4, MAX_REVISION} }, {     1,     16,     32,      0,    128,    256,     0 }, {} },    // LNL
+    { { {30,  0,  0}, {30,  1, MAX_REVISION} }, {     1,     16,     32,      0,    128,    256,     0 }, {} },    // PTL
 };
 
 float device::get_gops(data_types dt) const {
@@ -118,10 +120,6 @@ float device::get_gops(data_types dt) const {
         });
     if (it != device_ops_table.end()) {
         opsPerEU = it->get_ops(info, dt);
-        if (DeviceOps::is_zero(opsPerEU) && (dt == data_types::i8 || dt == data_types::u8)) {
-            // WA: ops of i8/u8 is twice of f16.
-            opsPerEU = it->get_ops_for_mad(data_types::f16) * 2;
-        }
     }
 
     return freqGHz * numEUs * opsPerEU;
