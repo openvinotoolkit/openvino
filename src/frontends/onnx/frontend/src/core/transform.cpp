@@ -135,7 +135,6 @@ void ov::frontend::onnx::transform::expand_onnx_functions(ModelProto& model_prot
     }
 }
 
-
 #if defined(_MSC_VER)
 #    pragma warning(pop)
 #endif
