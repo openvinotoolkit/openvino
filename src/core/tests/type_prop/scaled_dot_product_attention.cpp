@@ -248,6 +248,22 @@ TEST(type_prop, scaled_dot_product_attention_infer_5_dynamic_attn_partial) {
     EXPECT_EQ(op->get_output_partial_shape(0), (dynamic));
 }
 
+TEST(type_prop, scaled_dot_product_attention_infer_6_dynamic) {
+    const auto dynamic = PartialShape::dynamic();
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    const auto sink = std::make_shared<op::v0::Parameter>(element::f32, dynamic);
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (dynamic));
+}
+
 TEST(type_prop, scaled_dot_product_attention_mixed_shape_infer_4_inputs) {
     const auto query = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{{1, 4}, 4, {2, 5}, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f64, PartialShape{{2, 8}, {1, 4}, 5, 4});
@@ -420,4 +436,104 @@ TEST(type_prop, scaled_dot_product_unsuported_attention_type) {
         auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, causal),
         AssertFailure,
         testing::HasSubstr("The element type of attention_mask must be either floating-point or boolean."));
+}
+
+TEST(type_prop, scaled_dot_product_attention_sink_input_correct_shape) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
+    const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 1});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_sink_input_correct_dynamic_shape_4d) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, -1, -1, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
+    const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, 3, -1});
+    auto causal = true;
+
+    const auto op =
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, -1, -1, -1}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_sink_input_correct_shape_4d_causal_true) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 4, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 4, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 4, 5, 6});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
+    const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 4, 3, 1});
+    auto causal = true;
+
+    const auto op =
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 4, 3, 6}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_sink_input_broadcast_shape) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
+    const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 3, 1});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, sink, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_sink_input_wrong_rank) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
+    const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 4, 1});
+    auto causal = false;
+
+    OV_EXPECT_THROW(auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query,
+                                                                                   key,
+                                                                                   value,
+                                                                                   attention_mask,
+                                                                                   scale,
+                                                                                   sink,
+                                                                                   causal),
+                    AssertFailure,
+                    testing::HasSubstr("The rank of sink input shape must be equal to the query input rank."));
+}
+
+TEST(type_prop, scaled_dot_product_attention_sink_input_wrong_last_dim) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 4});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 4});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 5, 6});
+    const auto attention_mask = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 5});
+    const auto scale = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{});
+    const auto sink = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 3, 2});
+    auto causal = false;
+
+    OV_EXPECT_THROW(auto op = std::make_shared<op::v13::ScaledDotProductAttention>(query,
+                                                                                   key,
+                                                                                   value,
+                                                                                   attention_mask,
+                                                                                   scale,
+                                                                                   sink,
+                                                                                   causal),
+                    AssertFailure,
+                    testing::HasSubstr("Sink input has not compatible shape."));
 }
