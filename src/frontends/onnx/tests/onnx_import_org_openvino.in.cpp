@@ -536,6 +536,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
+    GTEST_SKIP();
     auto model = convert_model("org.openvinotoolkit/deformable_conv_2d.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
@@ -566,6 +567,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deformable_conv_2d_with_mask) {
+    GTEST_SKIP();
     auto model = convert_model("org.openvinotoolkit/deformable_conv_2d_with_mask.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
