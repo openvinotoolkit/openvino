@@ -1,0 +1,23 @@
+* Sun Dec 25 2022 OpenVINO Developers <openvino@intel.com> - 2022.3.0-1
+- Implemented Debian, RPM packages support
+- Support of Ubuntu 22.04
+- Support of python 3.10
+- Introduced OpenVINO Runtime 2.0 C API
+
+* Thu Jul 28 2022 OpenVINO Developers <openvino@intel.com> - 2022.2.0-1
+- Broader model and hardware support - Optimize & deploy with ease across an expanded range of deep learning models including NLP, and access AI acceleration across an expanded range of hardware.
+    - NEW: Support for Intel 13th Gen Core Processor for desktop (code named Raptor Lake).
+    - NEW: Preview support for Intel’s discrete graphics cards, Intel® Data Center GPU Flex Series and Intel® Arc™ GPU for DL inferencing workloads in intelligent cloud, edge and media analytics workloads. Hundreds of models enabled.
+    - NEW: Test your model performance with preview support for Intel 4th Generation Xeon® processors (code named Sapphire Rapids).
+    - Broader support for NLP models and use cases like text to speech and voice recognition. Reduced memory consumption when using Dynamic Input Shapes on CPU. Improved efficiency for NLP applications.
+- Frameworks Integrations – More options that provide minimal code changes to align with your existing frameworks
+    - OpenVINO Execution Provider for ONNX Runtime gives ONNX Runtime developers more choice for performance optimizations by making it easy to add OpenVINO with minimal code changes.
+    - NEW: Accelerate PyTorch models with ONNX Runtime using OpenVINO™ integration with ONNX Runtime for PyTorch (OpenVINO™ Torch-ORT). Now PyTorch developers can stay within their framework and benefit from OpenVINO performance gains.
+    - OpenVINO Integration with TensorFlow now supports more deep learning models with improved inferencing performance.
+- More portability and performance - See a performance boost straight away with automatic device discovery, load balancing & dynamic inference parallelism across CPU, GPU, and more.
+    - NEW: Introducing new performance hint (”Cumulative throughput”) in AUTO device, enabling multiple accelerators (e.g. multiple GPUs) to be used at once to maximize inferencing performance.
+    - NEW: Introducing Intel® FPGA AI Suite support which enables real-time, low-latency, and low-power deep learning inference in this easy-to-use package  
+
+* Thu Mar 22 2022 OpenVINO Developers <openvino@intel.com> - 2022.1.0-1
+- Implemented OpenVINO 2.0 Runtime API for both C++ and Python
+- Introduced IR v11 which is aligned with frameworks model format

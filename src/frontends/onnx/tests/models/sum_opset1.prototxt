@@ -1,0 +1,67 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "data_0"
+    input: "data_1"
+    input: "data_2"
+    output: "result"
+    op_type: "Sum"
+  }
+  name: "test_sum_example"
+  input {
+    name: "data_0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "data_1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "data_2"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "result"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+}

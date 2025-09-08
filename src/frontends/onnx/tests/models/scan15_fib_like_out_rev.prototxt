@@ -1,0 +1,183 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "initial"
+    input: "initial_next"
+    input: "sequence"
+    output: "scan_end_sum"
+    output: "scan_end_sum_next"
+    output: "scan_seq"
+    op_type: "Scan"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "previous"
+          input: "next"
+          output: "sum"
+          op_type: "Add"
+        }
+        node {
+          input: "sum"
+          input: "mul_factor"
+          output: "multiplied_sum"
+          op_type: "Mul"
+        }
+        node {
+          input: "multiplied_sum"
+          output: "state_next"
+          op_type: "Identity"
+        }
+        node {
+          input: "next"
+          output: "state_previous"
+          op_type: "Identity"
+        }
+        name: "body"
+        input {
+          name: "previous"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "next"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "mul_factor"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+              }
+            }
+          }
+        }
+        output {
+          name: "state_previous"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+              }
+            }
+          }
+        }
+        output {
+          name: "state_next"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+              }
+            }
+          }
+        }
+        output {
+          name: "multiplied_sum"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+              }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+    attribute {
+      name: "num_scan_inputs"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "scan_output_directions"
+      ints: 1
+      type: INTS
+    }
+  }
+  name: "test-model-scan"
+  input {
+    name: "initial"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "initial_next"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "sequence"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 10
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "scan_end_sum"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "scan_end_sum_next"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "scan_seq"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 10
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 15
+}

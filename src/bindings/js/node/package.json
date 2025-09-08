@@ -1,0 +1,71 @@
+{
+  "name": "openvino-node",
+  "version": "2025.3.0",
+  "description": "OpenVINO™ utils for using from Node.js environment",
+  "repository": {
+    "url": "git+https://github.com/openvinotoolkit/openvino.git",
+    "type": "git"
+  },
+  "license": "Apache-2.0",
+  "main": "./dist/index.js",
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "types": "./types/index.d.ts",
+  "scripts": {
+    "build": "npm run tsc",
+    "prepare": "npm run build",
+    "lint": "eslint .",
+    "format": "prettier --ignore-path .gitignore --write .",
+    "test_setup": "node ./tests/setup.js",
+    "test": "npm run test_setup && node --test ./tests/unit/*.test.js",
+    "test:e2e": "mocha ./tests/e2e/electron-app.test.js",
+    "tsc": "tsc",
+    "postinstall": "npm run install_runtime",
+    "download_runtime": "node ./scripts/download-runtime.js",
+    "install_runtime": "npm run download_runtime -- --ignore-if-exists"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.1",
+    "@types/node": "^22.13.4",
+    "eslint": "^9.30.1",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.5.1",
+    "globals": "^16.3.0",
+    "mocha": "^11.7.1",
+    "prettier": "3.6.2",
+    "random-bigint": "^0.0.1",
+    "typescript": "^5.0.4",
+    "typescript-eslint": "^8.36.0"
+  },
+  "engines": {
+    "node": ">=21.0.0"
+  },
+  "dependencies": {
+    "gunzip-maybe": "^1.4.2",
+    "https-proxy-agent": "^7.0.2",
+    "tar-fs": "^3.0.9"
+  },
+  "binary": {
+    "module_path": "./bin/",
+    "remote_path": "./repositories/openvino/nodejs_bindings/{version}/{platform}/",
+    "package_name": "openvino_nodejs_bindings_{platform}_{version}_{arch}.tar.gz",
+    "host": "https://storage.openvinotoolkit.org"
+  },
+  "keywords": [
+    "OpenVINO",
+    "openvino",
+    "openvino-node",
+    "openvino npm",
+    "openvino binding",
+    "openvino node.js",
+    "openvino library",
+    "intel openvino",
+    "openvino toolkit",
+    "openvino API",
+    "openvino SDK",
+    "openvino integration"
+  ]
+}

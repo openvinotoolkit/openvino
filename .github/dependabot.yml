@@ -1,0 +1,166 @@
+# See help here: https://docs.github.com/en/free-pro-team@latest/github/administering-a-repository/enabling-and-disabling-version-updates
+
+version: 2
+updates:
+  #
+  # Python product dependencies
+  #
+
+  #
+  # Root Python dependencies (pyproject.toml)
+  #
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+      - "mryzhov"
+    versioning-strategy: increase-if-necessary
+
+  # Python API, Frontends
+  - package-ecosystem: pip
+    directory: "/src/bindings/python/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+      - "ceciliapeng2011"
+      - "meiyang-intel"
+    versioning-strategy: increase-if-necessary
+
+  # Tests
+  - package-ecosystem: pip
+    directory: "/tests"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 3
+    assignees:
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  # ovc and Benchmark tools
+  - package-ecosystem: pip
+    directory: "/tools"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "rkazants"
+      - "andrei-kochin"
+      - "p-wysocki"
+      - "akuporos"
+      - "Wovchena"
+    allow:
+      - dependency-name: "*"
+        dependency-type: "production"
+    versioning-strategy: increase-if-necessary
+
+  #
+  # Python Samples
+  #
+
+  - package-ecosystem: pip
+    directory: "/samples/python/hello_reshape_ssd/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  - package-ecosystem: pip
+    directory: "/samples/python/classification_sample_async/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  - package-ecosystem: pip
+    directory: "/samples/python/benchmark/bert_benchmark/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  - package-ecosystem: pip
+    directory: "/samples/python/hello_classification/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    open-pull-requests-limit: 3
+    assignees:
+      - "Wovchena"
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+    versioning-strategy: increase-if-necessary
+
+  #
+  # Github actions - CI
+  #
+
+  # Github actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    assignees:
+      - "akashchi"
+      - "mryzhov"
+      - "akladiev"
+    open-pull-requests-limit: 3
+
+  # Docker images
+  - package-ecosystem: docker
+    directories:
+      - "/.github/dockerfiles/**/*"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    allow:
+      - dependency-type: "direct"
+    assignees:
+      - "akashchi"
+      - "mryzhov"
+      - "akladiev"
+    open-pull-requests-limit: 3

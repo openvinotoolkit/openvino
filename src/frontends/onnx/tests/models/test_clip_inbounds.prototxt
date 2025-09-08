@@ -1,0 +1,41 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    input: ""
+    input: ""
+    output: "y"
+    op_type: "Clip"
+  }
+  name: "test_clip_default_inbounds"
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 12
+}

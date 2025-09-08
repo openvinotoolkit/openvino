@@ -1,0 +1,767 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/openvinotoolkit/openvino
+Comment: OpenVINO toolkit copyright file for Debian packaging
+
+Files: *
+Comment: oneAPI Deep Neural Network Library (oneDNN)
+Copyright: 2016-2019 Intel Corporation
+ 2018 YANDEX LLC
+ 2020 Arm Limited and affiliates
+License: Apache
+
+Files: *
+Comment: Intel(R) Threading Building Blocks
+Copyright: 2005-2020 Intel Corporation.  All Rights Reserved.
+License: Apache
+
+Files: *
+Comment: OpenCL ICD Loader
+Copyright: (c) 2012-2019 The Khronos Group Inc. OpenCL is a trademark of Apple Inc. used under license by Khronos.
+License: Apache
+
+Files: \cmake\*, \src\*
+Comment: Khronos Group - OpenCL Headers
+Copyright: (c) The Khronos(R) Group Inc. 2020. OpenCL is a trademark of Apple Inc. used under license by Khronos.
+License: Apache
+
+Files: *
+Comment: OpenCL(TM) API C++ bindings
+Copyright: (c) 2008-2020 The Khronos Group Inc.
+License: Apache
+
+Files: \cmake\*, \src\*, \samples\*, \docs\*, \thirdparty\*, \tools\*
+Comment: Open Computer Vision Library (OpenCV)
+Copyright: (C) 2000-2020, Intel Corporation, all rights reserved.
+ (C) 2009-2011, Willow Garage Inc., all rights reserved.
+ (C) 2009-2016, NVIDIA Corporation, all rights reserved.
+ (C) 2010-2013, Advanced Micro Devices, Inc., all rights reserved.
+ (C) 2015-2016, OpenCV Foundation, all rights reserved.
+ (C) 2015-2016, Itseez Inc., all rights reserved.
+ (C) 2019-2020, Xperience AI, all rights reserved.
+ Third party copyrights are property of their respective owners.
+License: Apache
+
+Files: *
+Comment: Roboto Fonts
+Copyright: 2011 Google Inc. All Rights Reserved.
+License: Apache
+
+Files: \src\*, \tools\*, \docs\*, \cmake\*
+Comment: PaddlePaddle
+Copyright: (c) 2016 PaddlePaddle Authors. All Rights Reserved
+License: Apache
+
+Files: *
+Comment: intel/caffe
+Copyright:
+ 
+ All modification made by Intel Corporation: © 2017 Intel Corporation.
+ 
+ All new contributions compared to the original branch:
+ Copyright (c) 2015, 2016 Wei Liu (UNC Chapel Hill), Dragomir Anguelov (Zoox),
+ Dumitru Erhan (Google), Christian Szegedy (Google), Scott Reed (UMich Ann Arbor),
+ Cheng-Yang Fu (UNC Chapel Hill), Alexander C. Berg (UNC Chapel Hill).
+ All rights reserved.
+ 
+ All contributions by the University of California:
+ Copyright (c) 2014, 2015, The Regents of the University of California (Regents)
+ All rights reserved.
+ 
+ All other contributions:
+ Copyright (c) 2014, 2015, the respective contributors
+ All rights reserved.
+ 
+ Caffe uses a shared copyright model: each contributor holds copyright over
+ their contributions to Caffe. The project versioning records all such
+ contribution and copyright details. If a contributor wants to further mark
+ their specific copyright on a particular contribution, they should indicate
+ their copyright solely in the commit message of the change when it is
+ committed.
+License: BVLC/caffe
+
+License: LICENSE
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met: 
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer. 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution. 
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ CONTRIBUTION AGREEMENT
+ 
+ By contributing to the BVLC/caffe repository through pull-request, comment,
+ or otherwise, the contributor releases their content to the
+ license and copyright terms herein.
+ 
+Files: \src\*, \cmake\*
+Comment: gflags
+Copyright: Copyright (c) 2006, Google Inc.
+ 
+ Google cpplint
+ Copyright (C) 2009 Google Inc
+ 
+ Google Mock
+ Copyright 2008, Google Inc.
+ 
+ Google Test
+ Copyright 2008, Google Inc.
+License:
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ 
+     * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+     * Redistributions in binary form must reproduce the above
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+     * Neither the name of Google Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Files: *
+Comment: Intel(R) Instrumentation and Tracing Technology (ITT) and Just-In-Time (JIT) API
+Copyright: (c) 2019 Intel Corporation. All rights reserved.
+License:
+ 
+ Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Files: \src\*
+Comment: rapidjson
+Copyright: (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.  All rights reserved.
+ 
+ If you have downloaded a copy of the RapidJSON binary from Tencent, please note that the RapidJSON binary is licensed under the MIT License.
+ If you have downloaded a copy of the RapidJSON source code from Tencent, please note that RapidJSON source code is licensed under the MIT License, except for the third-party components listed below which are subject to different license terms.  Your integration of RapidJSON into your own projects may require compliance with the MIT License, as well as the other licenses applicable to the third-party components included within RapidJSON. To avoid the problematic JSON license in your own projects, it's sufficient to exclude the bin/jsonchecker/ directory, as it's the only code under the JSON license.
+ A copy of the MIT License is included in this file.
+ 
+ Other dependencies and licenses:
+ 
+ Open Source Software Licensed Under the BSD License:
+ 
+ The msinttypes r29 
+ (c) 2006-2013 Alexander Chemeris 
+ All rights reserved.
+License: 
+ Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ 
+ * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. 
+ * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ * Neither the name of  copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS AND CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+Files: *
+Comment: json.org 
+Copyright: (c) 2002 JSON.org
+ All Rights Reserved.
+
+Files: *
+Comment: JSON_checker
+Copyright: (c) 2002 JSON.org
+ All Rights Reserved.
+License:
+ Terms of the JSON License:
+ 
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ 
+ The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ 
+ The Software shall be used for Good, not Evil.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  
+ 
+ Terms of the MIT License:
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ 
+ The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ 
+Files: *
+Comment: Protobuf
+Copyright: 2008 Google Inc.  All rights reserved.
+License:
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ 
+     * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+     * Redistributions in binary form must reproduce the above
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+     * Neither the name of Google Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ Code generated by the Protocol Buffer compiler is owned by the owner
+ of the input file used when generating it.  This code is not
+ standalone and requires a support library to be linked with it.  This
+ support library is itself covered by the above license.
+ 
+Files: *
+Comment: XByak (src/cpu/xbyak/)
+Copyright: (c) 2007 MITSUNARI Shigeo
+ All rights reserved.
+License: BSD-3-clause
+
+License: BSD-3-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ Redistributions of source code must retain the above copyright notice, this
+ list of conditions and the following disclaimer.
+ Redistributions in binary form must reproduce the above copyright notice,
+ this list of conditions and the following disclaimer in the documentation
+ and/or other materials provided with the distribution.
+ Neither the name of the copyright owner nor the names of its contributors may
+ be used to endorse or promote products derived from this software without
+ specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ 
+ ソースコード形式かバイナリ形式か、変更するかしないかを問わず、以下の条件を満た
+ す場合に限り、再頒布および使用が許可されます。
+ 
+ ソースコードを再頒布する場合、上記の著作権表示、本条件一覧、および下記免責条項
+ を含めること。
+ バイナリ形式で再頒布する場合、頒布物に付属のドキュメント等の資料に、上記の著作
+ 権表示、本条件一覧、および下記免責条項を含めること。
+ 書面による特別の許可なしに、本ソフトウェアから派生した製品の宣伝または販売促進
+ に、著作権者の名前またはコントリビューターの名前を使用してはならない。
+ 本ソフトウェアは、著作権者およびコントリビューターによって「現状のまま」提供さ
+ れており、明示黙示を問わず、商業的な使用可能性、および特定の目的に対する適合性
+ に関する暗黙の保証も含め、またそれに限定されない、いかなる保証もありません。
+ 著作権者もコントリビューターも、事由のいかんを問わず、 損害発生の原因いかんを
+ 問わず、かつ責任の根拠が契約であるか厳格責任であるか（過失その他の）不法行為で
+ あるかを問わず、仮にそのような損害が発生する可能性を知らされていたとしても、
+ 本ソフトウェアの使用によって発生した（代替品または代用サービスの調達、使用の
+ 喪失、データの喪失、利益の喪失、業務の中断も含め、またそれに限定されない）直接
+ 損害、間接損害、偶発的な損害、特別損害、懲罰的損害、または結果損害について、
+ 一切責任を負わないものとします。
+
+Files: \src\*
+Comment: TensorFlow (https://github.com/tensorflow/tensorflow/)
+Copyright: Copyright 2015 The TensorFlow Authors. All Rights Reserved.
+License: Apache
+
+Files: *
+Comment: Chosen  (https://github.com/harvesthq/chosen/) by Patrick Filler for Harvest
+Copyright: (c) 2011-2016 by Harvest
+License: MIT
+License:
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), 
+ to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+ and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ 
+ The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
+ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ 
+Files: *
+Comment: JSON schema validator for JSON for Modern C++ (https://github.com/pboettch/json-schema-validator)
+Copyright: (c) 2016 Patrick Boettcher
+License:
+
+ Permission is hereby granted, free of charge, to any person obtaining a copy of
+ this software and associated documentation files (the "Software"), to deal in
+ the Software without restriction, including without limitation the rights to
+ use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ of the Software, and to permit persons to whom the Software is furnished to do
+ so, subject to the following conditions:
+ 
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+ 
+Files: *
+Comment: Faster R-CNN and Mask R-CNN in PyTorch 1.0 (https://github.com/facebookresearch/maskrcnn-benchmark)
+Copyright: (c) 2018 Facebook
+License:
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ 
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+ 
+Files: *
+Comment: Caffe (https://github.com/BVLC/caffe/)
+Copyright:
+ All contributions by the University of California:
+ (c) 2014-2017 The Regents of the University of California (Regents)
+ All rights reserved.
+ All other contributions:
+ (c) 2014-2017, the respective contributors
+ All rights reserved.
+ 
+ Caffe uses a shared copyright model: each contributor holds copyright over
+ their contributions to Caffe. The project versioning records all such
+ contribution and copyright details. If a contributor wants to further mark
+ their specific copyright on a particular contribution, they should indicate
+ their copyright solely in the commit message of the change when it is
+ committed.
+License:
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met: 
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+ list of conditions and the following disclaimer. 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+ this list of conditions and the following disclaimer in the documentation
+ and/or other materials provided with the distribution. 
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ CONTRIBUTION AGREEMENT
+ 
+ By contributing to the BVLC/caffe repository through pull-request, comment,
+ or otherwise, the contributor releases their content to the
+ license and copyright terms herein.
+ 
+Comment: The following third party programs have their own third party program files. These additional third party program files are as follows:
+ 
+ oneAPI Deep Neural Network Library (oneDNN) Third Party Programs File is available here https://github.com/openvinotoolkit/openvino/blob/master/licensing/onednn_third-party-programs.txt
+ Intel(R) Threading Building Blocks Third Party Programs File is available here https://github.com/openvinotoolkit/openvino/blob/master/licensing/onetbb_third-party-programs.txt
+ 
+ -------------------------------------------------------------
+ 
+ * Other names and brands may be claimed as the property of others. 
+ 
+ OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission by Khronos.
+
+Files: *
+Comment: Instrumentation and Tracing Technology API (src/common/ittnotify/)
+Copyright: (c) 2011, Intel Corporation. All rights reserved.
+ 2005-2014 Intel Corporation. All rights reserved.
+License: BSD-3-clause
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ 
+ 1. Redistributions of source code must retain the above copyright notice, this
+ list of conditions and the following disclaimer.
+ 
+ 2. Redistributions in binary form must reproduce the above copyright notice,
+ this list of conditions and the following disclaimer in the documentation
+ and/or other materials provided with the distribution.
+  
+ 3. Neither the name of Intel Corporation nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+CFiles: *
+Comment: Make (cmake/FindOpenCL.cmake, cmake/FindBLAS.cmake, cmake/FindACL.cmake)
+ CMake - Cross Platform Makefile Generator
+Copyright: 2000-2020 Kitware, Inc. and Contributors
+ All rights reserved.
+License: BSD-3-clause
+License: BSD-3-clause
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 
+ * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ 
+ * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+ 
+ * Neither the name of Kitware, Inc. nor the names of Contributors
+ may be used to endorse or promote products derived from this
+ software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ ------------------------------------------------------------------------------
+ 
+ The following individuals and institutions are among the Contributors:
+ 
+ * Aaron C. Meadows <cmake@shadowguarddev.com>
+ * Adriaan de Groot <groot@kde.org>
+ * Aleksey Avdeev <solo@altlinux.ru>
+ * Alexander Neundorf <neundorf@kde.org>
+ * Alexander Smorkalov <alexander.smorkalov@itseez.com>
+ * Alexey Sokolov <sokolov@google.com>
+ * Alex Merry <alex.merry@kde.org>
+ * Alex Turbov <i.zaufi@gmail.com>
+ * Andreas Schneider <asn@cryptomilk.org>
+ * André Rigland Brodtkorb <Andre.Brodtkorb@ifi.uio.no>
+ * Axel Huebl, Helmholtz-Zentrum Dresden - Rossendorf
+ * Benjamin Eikel
+ * Bjoern Ricks <bjoern.ricks@gmail.com>
+ * Brad Hards <bradh@kde.org>
+ * Christopher Harvey
+ * Christoph Grüninger <foss@grueninger.de>
+ * Clement Creusot <creusot@cs.york.ac.uk>
+ * Daniel Blezek <blezek@gmail.com>
+ * Daniel Pfeifer <daniel@pfeifer-mail.de>
+ * Enrico Scholz <enrico.scholz@informatik.tu-chemnitz.de>
+ * Eran Ifrah <eran.ifrah@gmail.com>
+ * Esben Mose Hansen, Ange Optimization ApS
+ * Geoffrey Viola <geoffrey.viola@asirobots.com>
+ * Google Inc
+ * Gregor Jasny
+ * Helio Chissini de Castro <helio@kde.org>
+ * Ilya Lavrenov <ilya.lavrenov@itseez.com>
+ * Insight Software Consortium <insightsoftwareconsortium.org>
+ * Jan Woetzel
+ * Julien Schueller
+ * Kelly Thompson <kgt@lanl.gov>
+ * Konstantin Podsvirov <konstantin@podsvirov.pro>
+ * Laurent Montel <montel@kde.org>
+ * Mario Bensi <mbensi@ipsquad.net>
+ * Martin Gräßlin <mgraesslin@kde.org>
+ * Mathieu Malaterre <mathieu.malaterre@gmail.com>
+ * Matthaeus G. Chajdas
+ * Matthias Kretz <kretz@kde.org>
+ * Matthias Maennich <matthias@maennich.net>
+ * Michael Hirsch, Ph.D. <www.scivision.co>
+ * Michael Stürmer
+ * Miguel A. Figueroa-Villanueva
+ * Mike Jackson
+ * Mike McQuaid <mike@mikemcquaid.com>
+ * Nicolas Bock <nicolasbock@gmail.com>
+ * Nicolas Despres <nicolas.despres@gmail.com>
+ * Nikita Krupen'ko <krnekit@gmail.com>
+ * NVIDIA Corporation <www.nvidia.com>
+ * OpenGamma Ltd. <opengamma.com>
+ * Patrick Stotko <stotko@cs.uni-bonn.de>
+ * Per Øyvind Karlsen <peroyvind@mandriva.org>
+ * Peter Collingbourne <peter@pcc.me.uk>
+ * Petr Gotthard <gotthard@honeywell.com>
+ * Philip Lowman <philip@yhbt.com>
+ * Philippe Proulx <pproulx@efficios.com>
+ * Raffi Enficiaud, Max Planck Society
+ * Raumfeld <raumfeld.com>
+ * Roger Leigh <rleigh@codelibre.net>
+ * Rolf Eike Beer <eike@sf-mail.de>
+ * Roman Donchenko <roman.donchenko@itseez.com>
+ * Roman Kharitonov <roman.kharitonov@itseez.com>
+ * Ruslan Baratov
+ * Sebastian Holtermann <sebholt@xwmw.org>
+ * Stephen Kelly <steveire@gmail.com>
+ * Sylvain Joubert <joubert.sy@gmail.com>
+ * The Qt Company Ltd.
+ * Thomas Sondergaard <ts@medical-insight.com>
+ * Tobias Hunger <tobias.hunger@qt.io>
+ * Todd Gamblin <tgamblin@llnl.gov>
+ * Tristan Carel
+ * University of Dundee
+ * Vadim Zhukov
+ * Will Dicharry <wdicharry@stellarscience.com>
+ 
+ See version control history for details of individual contributions.
+ 
+ The above copyright and license notice applies to distributions of
+ CMake in source and binary form.  Third-party software packages supplied
+ with CMake under compatible licenses provide their own copyright notices
+ documented in corresponding subdirectories or source files.
+ 
+ ------------------------------------------------------------------------------
+ 
+ CMake was initially developed by Kitware with the following sponsorship:
+ 
+ * National Library of Medicine at the National Institutes of Health
+ as part of the Insight Segmentation and Registration Toolkit (ITK).
+ 
+ * US National Labs (Los Alamos, Livermore, Sandia) ASC Parallel
+ Visualization Initiative.
+ 
+ * National Alliance for Medical Image Computing (NAMIC) is funded by the
+ National Institutes of Health through the NIH Roadmap for Medical Research,
+ Grant U54 EB005149.
+ 
+ * Kitware, Inc.
+ 
+CFiles: *
+Comment: Xbyak_aarch64 (src/cpu/aarch64/xbyak_aarch64/)
+Copyright: 2019-2020 FUJITSU LIMITED
+License: Apache
+
+Files: src/plugins/intel_gpu/include/intel_gpu/runtime/*
+Comment: Boost C++ Libraries (src/common/primitive_hashing.hpp)
+Copyright: 2005-2014 Daniel James.
+License:
+ Boost Software License - Version 1.0 - August 17th, 2003
+ 
+ Permission is hereby granted, free of charge, to any person or organization
+ obtaining a copy of the software and accompanying documentation covered by
+ this license (the "Software") to use, reproduce, display, distribute,
+ execute, and transmit the Software, and to prepare derivative works of the
+ Software, and to permit third-parties to whom the Software is furnished to
+ do so, all subject to the following:
+ 
+ The copyright notices in the Software and this entire statement, including
+ the above license grant, this restriction and the following disclaimer,
+ must be included in all copies of the Software, in whole or in part, and
+ all derivative works of the Software, unless such copies or derivative
+ works are solely in the form of machine-executable object code generated by
+ a source language processor.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+ SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
+ 
+Files: *
+Comment: Intel(R) Graphics Compute Runtime for oneAPI Level Zero and OpenCL(TM)
+ Driver (src/gpu/jit/ngen/npack/{elf_structs,hash}.hpp)
+Copyright: (c) 2018 Intel Corporation
+License: MIT
+
+Files: *
+Comment: Intel(R) Graphics Compiler (src/gpu/jit/ngen/npack/neo_structs.hpp)
+Copyright:(c) 2019 Intel Corporation
+License: MIT
+
+Files: *
+Comment: Portable Hardware Locality (hwloc):
+    Copyright: (c) 2004-2006 The Trustees of Indiana University and Indiana University Research and Technology Corporation.  All rights reserved.
+ (c) 2004-2005 The University of Tennessee and The University of Tennessee Research Foundation.  All rights reserved.
+ (c) 2004-2005 High Performance Computing Center Stuttgart, University of Stuttgart.  All rights reserved.
+ (c) 2004-2005 The Regents of the University of California. All rights reserved.
+ (c) 2009      CNRS
+ (c) 2009-2016 Inria.  All rights reserved.
+ (c) 2009-2015 Universite Bordeaux
+ (c) 2009-2015 Cisco Systems, Inc.  All rights reserved.
+ (c) 2009-2012 Oracle and/or its affiliates.  All rights reserved.
+ (c) 2010      IBM
+ (c) 2010      Jirka Hladky
+ (c) 2012      Aleksej Saushev, The NetBSD Foundation
+ (c) 2012      Blue Brain Project, EPFL. All rights reserved.
+ (c) 2013-2014 University of Wisconsin-La Crosse. All rights reserved.
+ (c) 2015      Research Organization for Information Science and Technology (RIST). All rights reserved.
+ (c) 2015-2016 Intel, Inc.  All rights reserved.
+ See COPYING in top-level directory.
+License:
+    New BSD License
+ 
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions
+    are met:
+    1. Redistributions of source code must retain the above copyright
+       notice, this list of conditions and the following disclaimer.
+    2. Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+    3. The name of the author may not be used to endorse or promote products
+       derived from this software without specific prior written permission.
+ 
+    THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+    OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+    IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+    INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+    NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+    THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+Files: *
+Comment: Instrumentation and Tracing Technology (ITT) Notify User API:
+Copyright: (c) 2005-2014 Intel Corporation. All rights reserved.
+License: BSD-3-clause
+ The 3-Clause BSD License
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 
+ * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in
+ the documentation and/or other materials provided with the
+ distribution.
+ * Neither the name of Intel Corporation nor the names of its
+ contributors may be used to endorse or promote products derived
+ from this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Files: *
+Comment: Mateusz Kwiatkowski Workaround for bug 62258 in libstdc++
+Copyright: author
+License: public-domain
+
+Files: *
+Comment: The msinttypes r29 
+Copyright: (c) 2006-2013 Alexander Chemeris 
+ All rights reserved.
+License: BSD-3-clause
+ 
+ Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ 
+ * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. 
+ * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ * Neither the name of  copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS AND CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Files: *
+Comment: rogersce/cnpy (https://github.com/rogersce/cnpy/)
+Copyright: (c) Carl Rogers, 2011
+License:
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ 
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+
+Files: \src\*
+Comment: PaddlePaddle
+Copyright: (c) 2016 PaddlePaddle Authors. All Rights Reserved
+License: Apache
+
+Files: \thirdparty\*
+Comment: onnx
+Copyright: authors
+License: Apache
+
+Files: *
+Comment: FlatBuffers
+Copyright: Copyright 2014-2022 Google Inc. All rights reserved.
+License: Apache

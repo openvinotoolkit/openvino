@@ -1,0 +1,77 @@
+/* Transition banner */
+/* =================================================== */
+#info-banner.transition-banner {
+    top: 0px;
+    position: inline-flex;
+    text-align: center;
+    z-index: 1001;
+    display: block;
+    padding: 0 2rem;
+    font-size: var(--pst-sidebar-font-size);
+    border: none;
+    border-radius: 0;
+    font-weight: bold;
+    width: 100%;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+#info-banner.critical {
+    background: #FF848A;
+
+    p>a {
+        color: #ffc7c7
+    }
+}
+
+#info-banner.info {
+    background: #D5EEA5;
+
+    p>a {
+        color: #798B4E;
+    }
+}
+
+#info-banner.warning {
+    background: #F9DE82;
+
+    p>a {
+        color: #C99414;
+    }
+}
+
+
+#info-banner.transition-banner>p {
+    margin-bottom: 0;
+}
+
+#info-banner.transition-banner .close-banner {
+    position: absolute;
+    top: 60px;
+    right: 0;
+    z-index: 1001;
+    padding: 0 1.25rem;
+    color: #000;
+    background-color: transparent;
+    border: 0;
+    float: right;
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 1px 0 #fff;
+    opacity: .3;
+    text-align: right;
+}
+
+#info-banner.hidden-banner {
+    display: none !important;
+}
+
+
+/* Responsiveness */
+/* =================================================== */
+@media (max-width: 720px) {
+    .transition-banner {
+        margin-top: 2rem;
+    }
+}

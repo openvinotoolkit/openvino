@@ -1,0 +1,150 @@
+[
+    {
+        "error_text": "This is a problem related to network connectivity",
+        "ticket": 135929
+    },
+    {
+        "error_text": "Unable to make request",
+        "ticket": 135715
+    },
+    {
+        "error_text": "error: RPC failed",
+        "ticket": 131918
+    },
+    {
+        "error_text": "Connection was reset",
+        "ticket": 131818
+    },
+    {
+        "error_text": "Failed to connect to github.com",
+        "ticket": 131657
+    },
+    {
+        "error_text": "Could not resolve host: github.com",
+        "ticket": 131546
+    },
+    {
+        "error_text": "retrieving gpg key timed out",
+        "ticket": 131538
+    },
+    {
+        "error_text": "Retry limit has been reached for chunk",
+        "ticket": 131537
+    },
+    {
+        "error_text": "fatal error: downloading",
+        "ticket": 131424
+    },
+    {
+        "error_text": "Failure when receiving data from the peer",
+        "ticket": 137121
+    },
+    {
+        "error_text": "Network is unreachable",
+        "ticket": 130955
+    },
+    {
+        "error_text": "connection timed out",
+        "ticket": 130955
+    },
+    {
+        "error_text": "The requested URL returned error: 500",
+        "ticket": 139384
+    },
+    {
+        "error_text": "Unable to fetch some archives",
+        "ticket": 130965
+    },
+    {
+        "error_text": "status_string: \"Timeout was reached\"",
+        "ticket": 142653
+    },
+    {
+        "error_text": "ERROR 502: Bad Gateway",
+        "ticket": 146254
+    },
+    {
+        "error_text": "Unexpected HTTP response: 520",
+        "ticket": 147958
+    },
+    {
+        "error_text": "Unable to make request: ECONNRESET",
+        "ticket": 148702
+    },
+    {
+        "error_text": "json.decoder.JSONDecodeError: Unterminated string starting at",
+        "ticket": 151796
+    },
+    {
+        "error_text": "lost communication with the server",
+        "ticket": 152565
+    },
+    {
+        "error_text": "Upload progress stalled",
+        "ticket": 152933
+    },
+    {
+        "error_text": "because the GET request got Content-Type",
+        "ticket": 158400
+    },
+    {
+        "error_text": "Unable to make request:",
+        "ticket": 158401
+    },
+    {
+        "error_text": "Failed to make request",
+        "ticket": 158401
+    },
+    {
+        "error_text": "Unable to download artifact",
+        "ticket": 158401
+    },
+    {
+        "error_text": "Failure when receiving data from the peer",
+        "ticket": 159323
+    },
+    {
+        "error_text": "HTTP response code said error",
+        "ticket": 159398
+    },
+    {
+        "error_text": "download failed after attempts",
+        "ticket": 159547
+    },
+    {
+        "error_text": "Failed to connect to github.com port 443: Connection refused",
+        "ticket": 156593
+    },
+    {
+        "error_text": "file DOWNLOAD cannot compute hash on failed download",
+        "ticket": 156593
+    },
+    {
+        "error_text": "lost communication with the server",
+        "ticket": 160816
+    },
+    {
+        "error_text": "the runner has received a shutdown signal",
+        "ticket": 160818
+    },
+    {
+        "error_text": "Timed out waiting for server startup",
+        "ticket": 161077
+    },
+    {
+        "error_text": "THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE",
+        "ticket": 163749
+    },
+    {
+        "error_text": "OperationStopped:",
+        "ticket": 171334
+    },
+    {
+        "error_text": "No connection could be made",
+        "ticket": 171953
+    },
+    {
+        "error_text": "connect: connection refused",
+        "ticket": 171446
+    }
+]

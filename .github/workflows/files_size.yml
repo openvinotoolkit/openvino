@@ -1,0 +1,22 @@
+name: Files Size
+on: [push, pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  Check_Files_Size:
+    runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+
+      - name: git ls-tree
+        run: git ls-tree -r -t -l --full-name HEAD | sort -n -r -k 4
+
+      - name: git lfs ls-files
+        run: git lfs ls-files --size

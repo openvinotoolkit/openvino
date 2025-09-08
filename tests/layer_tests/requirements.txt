@@ -1,0 +1,18 @@
+-c ../constraints.txt
+# paddlepaddle #  ticket 95904
+numpy
+onnxruntime>=1.18.0,<=1.19.2; python_version <= '3.9'
+onnxruntime>=1.18.0; python_version >= '3.10'
+requests
+torch
+torchvision; platform_machine == 'arm64' and python_version >= '3.9'
+torchvision; platform_machine != 'arm64'
+sympy; platform_machine == 'arm64' and python_version >= '3.9'
+sympy; platform_machine != 'arm64'
+transformers
+packaging
+pillow
+pytest
+defusedxml
+tensorflow
+tensorflow-addons; python_version <= '3.10'

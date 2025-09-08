@@ -1,0 +1,90 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "DATA"
+    input: "IND"
+    input: "UPDATES"
+    output: "Y"
+    op_type: "ScatterElements"
+    attribute {
+      name: "axis"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "reduction"
+      s: "max"
+      type: STRING
+    }
+  }
+  name: "test-model-scatter-elements"
+  input {
+    name: "DATA"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "IND"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "UPDATES"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 18
+}

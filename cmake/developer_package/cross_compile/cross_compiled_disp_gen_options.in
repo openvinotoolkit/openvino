@@ -1,0 +1,16 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+# =================================================================
+#
+# This file is used to add dependency on option value. If the args
+# was changes the configure file will be updated. And the dependent
+# add_custom_command will rerun.
+#
+# Otherwise the changing of CMake options will not have affect on
+# generated file.
+#
+# =================================================================
+
+@_GEN_ARGS_LIST@

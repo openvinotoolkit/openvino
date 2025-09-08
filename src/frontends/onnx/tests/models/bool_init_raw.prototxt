@@ -1,0 +1,47 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test_graph"
+  initializer {
+    dims: 1
+    dims: 3
+    data_type: 9
+    name: "A"
+    raw_data: "\001\000\001"
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 4
+}

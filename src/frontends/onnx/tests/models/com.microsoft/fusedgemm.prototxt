@@ -1,0 +1,109 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "a"
+    input: "b"
+    input: "c"
+    output: "y"
+    name: "Fusedgemm_1"
+    op_type: "FusedGemm"
+    domain: "com.microsoft"
+    attribute {
+      name: "alpha"
+      f: 0.5
+      type: FLOAT
+    }
+    attribute {
+      name: "beta"
+      f: 0.5
+      type: FLOAT
+    }
+    attribute {
+      name: "transB"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "activation"
+      s: "LeakyRelu"
+      type: STRING
+    }
+    attribute {
+      name: "activation_alpha"
+      f: 0.0001
+      type: FLOAT
+    }
+  }
+  input {
+    name: "a"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "b"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 6
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 7
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

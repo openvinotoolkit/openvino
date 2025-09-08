@@ -1,0 +1,76 @@
+name: Good First Issue
+description: Create a Good First Issue for new contributors.
+title: "[Good First Issue]: "
+labels: ["good first issue", "no_stale"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: |
+          Let the contributors know what your component is responsible for,
+          what's the importance of the change and why it's needed.
+          Keep in mind the Good First Issue is for new contributors.
+      placeholder: What is it and why is it important?
+    validations:
+      required: true
+
+  - type: textarea
+    id: todo_list
+    attributes:
+      label: What needs to be done?
+      description: |
+          Be as verbose as possible, provide a TODO list if viable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example_prs
+    attributes:
+      label: Example Pull Requests
+      description: |
+          Provide example Pull requests, if there are any.
+    validations:
+      required: false
+  
+  - type: textarea
+    id: resources
+    attributes:
+      label: Resources
+      description: |
+          Any materials related to the task, such as operator specifications,
+          discussions, guides.
+      value: |
+          - [Contribution guide - start here!](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md)
+          - [Intel DevHub Discord channel](https://discord.gg/7pVRxUwdWG) - engage in discussions, ask questions and talk to OpenVINO developers
+          - [How to link your Pull Request to an issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#manually-linking-a-pull-request-to-an-issue-using-the-pull-request-sidebar)
+    validations:
+      required: true
+
+  - type: textarea
+    id: contact_points
+    attributes:
+      label: Contact points
+      description: |
+          People who can be asked questions about the task.
+      placeholder: GitHub users
+    validations:
+      required: true
+
+  - type: textarea
+    id: ai_notice
+    attributes:
+      label: AI notice - Important!
+      value: |
+          We encourage contributors to use AI tools responsibly when creating Pull Requests. While AI can be a valuable aid, it is essential to ensure that your contributions meet the task requirements, build successfully, include relevant tests, and pass all linters. **Submissions that do not meet these standards may be closed without warning to maintain the quality and integrity of the project.** Please take the time to understand the changes you are proposing and their impact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: ticket
+    attributes:
+      label: Ticket
+      description: |
+          Provide the ticket number, if available.
+    validations:
+      required: false

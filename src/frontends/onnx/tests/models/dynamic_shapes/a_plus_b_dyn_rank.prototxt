@@ -1,0 +1,43 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+model_version: 1
+graph {
+  node {
+    name: "addition"
+    input: "A"
+    input: "B"
+    output: "add_out"
+    op_type: "Add"
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 7
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "add_out"
+    type {
+      tensor_type {
+        elem_type: 7
+      }
+    }
+  }
+  name: "simple_dyn_shapes_graph"
+}
+opset_import {
+  domain: ""
+  version: 7
+}

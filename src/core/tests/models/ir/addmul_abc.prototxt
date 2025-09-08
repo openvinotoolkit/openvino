@@ -1,0 +1,100 @@
+ir_version: 3
+producer_name: "nGraph ONNX Importer"
+graph {
+  node {
+    input: "A"
+    input: "B"
+    output: "X1"
+    name: "add_node1"
+    op_type: "Add"
+  }
+  
+  node {
+    input: "A"
+    input: "B"
+    output: "X2"
+    name: "add_node2"
+    op_type: "Mul"
+  }
+  
+  node {
+    input: "X1"
+    input: "X2"
+    output: "Z1"
+    name: "add_node3"
+    op_type: "Add"
+  }
+  
+  node {
+    input: "Z1"
+    input: "C"
+    output: "Z2"
+    name: "add_node4"
+    op_type: "Add"
+  }
+  
+  node {
+    input: "Z2"
+    input: "C"
+    output: "Y"
+    name: "add_node5"
+    op_type: "Add"
+  }
+  
+  name: "test_graph"
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }  
+  input {
+    name: "C"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }  
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 4
+}

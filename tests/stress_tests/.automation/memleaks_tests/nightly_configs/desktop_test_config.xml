@@ -1,0 +1,47 @@
+<cases>
+
+    <device name="CPU" iterations="1000" processes="1" threads="1">
+        <model name="densenet-121-tf" precision="FP32" source="omz" />
+    </device>
+
+    <device name="CPU" iterations="1000" processes="1" threads="1">
+        <model name="ssd_mobilenet_v1_coco" precision="FP32" source="omz" />
+    </device>
+
+    <device name="CPU" iterations="1000" processes="1" threads="1">
+        <model name="face-recognition-resnet100-arcface-onnx" precision="FP32" source="omz" />
+    </device>
+
+    <device name="GPU" iterations="1000" processes="1" threads="1">
+        <model name="densenet-121-tf" precision="FP32" source="omz" />
+    </device>
+
+    <device name="GPU" iterations="1000" processes="1" threads="1">
+        <model name="ssd_mobilenet_v1_coco" precision="FP32" source="omz" />
+    </device>
+
+    <device name="GPU" iterations="1000" processes="1" threads="1">
+        <model name="face-recognition-resnet100-arcface-onnx" precision="FP32" source="omz" />
+    </device>
+
+    <device name="CPU" iterations="1000" processes="1" threads="1">
+        <model name="bert-base-ner" precision="FP32" source="omz" />
+    </device>
+
+    <device name="GPU" iterations="1000" processes="1" threads="1">
+        <model name="bert-base-ner" precision="FP32" source="omz" />
+    </device>
+
+    <device name="CPU" iterations="1000" processes="1" threads="1">
+        <model name="densenet-121-tf" precision="FP32" source="omz" />
+        <model name="ssd_mobilenet_v1_coco" precision="FP32" source="omz" />
+        <model name="face-recognition-resnet100-arcface-onnx" precision="FP32" source="omz" />
+    </device>
+
+    <device name="GPU" iterations="1000" processes="1" threads="1">
+        <model name="densenet-121-tf" precision="FP32" source="omz" />
+        <model name="ssd_mobilenet_v1_coco" precision="FP32" source="omz" />
+        <model name="face-recognition-resnet100-arcface-onnx" precision="FP32" source="omz" />
+    </device>
+
+</cases>

@@ -1,0 +1,43 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    output: "output"
+    op_type: "ConstantFill"
+    attribute {
+      name: "input_as_shape"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "dtype"
+      i: 6
+      type: INT
+    }
+    attribute {
+      name: "value"
+      i: 5
+      type: INT
+    }
+    attribute {
+      name: "shape"
+      ints: 2
+      ints: 3
+      ints: 4
+      type: INTS
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}

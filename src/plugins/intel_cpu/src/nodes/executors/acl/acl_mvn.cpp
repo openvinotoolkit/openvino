@@ -1,0 +1,140 @@
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "acl_mvn.hpp"
+
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/runtime/NEON/functions/NEMeanStdDevNormalizationLayer.h>
+
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/acl/acl_utils.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/mvn.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/debug_capabilities.h"
+
+namespace ov::intel_cpu {
+
+using namespace arm_compute;
+
+AclMVNExecutor::AclMVNExecutor(ExecutorContext::CPtr context) : MVNExecutor(std::move(context)) {}
+
+bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
+                          const std::vector<MemoryDescPtr>& srcDescs,
+                          const std::vector<MemoryDescPtr>& dstDescs,
+                          [[maybe_unused]] const dnnl::primitive_attr& attr) {
+    auto srcDims = srcDescs[0]->getShape().getStaticDims();
+    auto dstDims = dstDescs[0]->getShape().getStaticDims();
+
+    size_t X = 0, Y = 0;
+    if (mvnAttrs.initAcrossChannels_) {
+        if (srcDims.size() >= 2U) {
+            Y = srcDims[0];
+            X = srcDims[1];
+            for (size_t i = 2; i < srcDims.size(); i++) {
+                X *= srcDims[i];
+            }
+        } else {
+            Y = 1;
+            X = srcDims[0];
+        }
+    } else {
+        if (srcDims.size() > 2U) {
+            Y = srcDims[0] * srcDims[1];
+            X = srcDims[2];
+            for (size_t i = 3; i < srcDims.size(); i++) {
+                X *= srcDims[i];
+            }
+        } else if (srcDims.size() == 2U) {
+            Y = srcDims[0] * srcDims[1];
+            X = 1;
+        } else {
+            Y = srcDims[0];
+            X = 1;
+        }
+    }
+
+    TensorInfo srcTensorInfo = TensorInfo(TensorShape(X, Y),
+                                          1,
+                                          precisionToAclDataType(srcDescs[0]->getPrecision()),
+                                          getAclDataLayoutByMemoryDesc(srcDescs[0]));
+    TensorInfo dstTensorInfo = TensorInfo(TensorShape(X, Y),
+                                          1,
+                                          precisionToAclDataType(dstDescs[0]->getPrecision()),
+                                          getAclDataLayoutByMemoryDesc(dstDescs[0]));
+
+    if (!arm_compute::NEMeanStdDevNormalizationLayer::validate(&srcTensorInfo, &dstTensorInfo, mvnAttrs.epsValue_)) {
+        return false;
+    }
+
+    srcTensor.allocator()->init(srcTensorInfo);
+    dstTensor.allocator()->init(dstTensorInfo);
+
+    mvn = std::make_unique<arm_compute::NEMeanStdDevNormalizationLayer>();
+    configureThreadSafe([&] {
+        mvn->configure(&srcTensor, &dstTensor, mvnAttrs.epsValue_);
+    });
+
+    return true;
+}
+
+void AclMVNExecutor::exec(const std::vector<MemoryCPtr>& src,
+                          const std::vector<MemoryPtr>& dst,
+                          [[maybe_unused]] const void* post_ops_data_) {
+    srcTensor.allocator()->import_memory(src[0]->getData());
+    dstTensor.allocator()->import_memory(dst[0]->getData());
+
+    mvn->run();
+
+    srcTensor.allocator()->free();
+    dstTensor.allocator()->free();
+}
+
+bool AclMVNExecutorBuilder::isSupported(const MVNAttrs& mvnAttrs,
+                                        const std::vector<MemoryDescPtr>& srcDescs,
+                                        const std::vector<MemoryDescPtr>& dstDescs) const {
+    if ((srcDescs[0]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f16) ||
+        srcDescs[0]->getPrecision() != dstDescs[0]->getPrecision()) {
+        DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support precisions:",
+                  " src[0]=",
+                  srcDescs[0]->getPrecision(),
+                  " dst[0]=",
+                  dstDescs[0]->getPrecision());
+        return false;
+    }
+
+    if ((!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+        (!srcDescs[0]->hasLayoutType(LayoutType::nspc) || !dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+        DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support layout:",
+                  " src: ",
+                  srcDescs[0]->serializeFormat(),
+                  " dst: ",
+                  dstDescs[0]->serializeFormat());
+        return false;
+    }
+
+    if (mvnAttrs.epsMode_ == MVNEpsMode::OUTSIDE_SQRT) {
+        DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support OUTSIDE_SQRT mode");
+        return false;
+    }
+    if (!mvnAttrs.normalizeVariance_) {
+        DEBUG_LOG("NEMeanStdDevNormalizationLayer supports normalize_variance=true only");
+        return false;
+    }
+    if (!mvnAttrs.initAcrossChannels_ && srcDescs[0]->hasLayoutType(LayoutType::nspc)) {
+        DEBUG_LOG("initAcrossChannels = false is not supported by ACL for NHWC layout");
+        return false;
+    }
+
+    return true;
+}
+
+}  // namespace ov::intel_cpu

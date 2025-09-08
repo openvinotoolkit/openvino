@@ -1,0 +1,114 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test_slice_with_unsqueeze_axes"
+  initializer {
+    data_type: 7
+    int64_data: 1
+    name: "x"
+  }
+  initializer {
+    dims: 1
+    data_type: 7
+    int64_data: 1
+    name: "starts"
+  }
+  initializer {
+    dims: 1
+    data_type: 7
+    int64_data: 3
+    name: "ends"
+  }
+  initializer {
+    dims: 1
+    data_type: 7
+    int64_data: 1
+    name: "steps"
+  }
+  node {
+    input: "x"
+    output: "slice_axes"
+    op_type: "Unsqueeze"
+    attribute {
+      name: "axes"
+      ints: 0
+      type: INTS
+    }
+  }
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value:2 
+          }
+          dim {
+            dim_value:4
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "starts"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "ends"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+  name: "steps"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  node {
+    input: "data"
+    input: "starts"
+    input: "ends"
+    input: "slice_axes"
+    input: "steps"
+    output: "sliced"
+    name: "Slice"
+    op_type: "Slice"
+  }
+  output {
+    name: "sliced"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 10
+}

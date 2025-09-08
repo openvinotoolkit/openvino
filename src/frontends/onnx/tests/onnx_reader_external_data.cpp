@@ -1,0 +1,410 @@
+﻿// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+#include <onnx/onnx_pb.h>
+
+#include <algorithm>
+#include <fstream>
+#include <set>
+#include <streambuf>
+#include <string>
+
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_case.hpp"
+#include "common_test_utils/unicode_utils.hpp"
+#include "onnx_utils.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/op/constant.hpp"
+
+using namespace std;
+using namespace ov;
+using namespace frontend;
+using namespace frontend::onnx::tests;
+
+// API 2.0 tests
+class OnnxFeMmapFixture : public ::testing::TestWithParam<bool> {};
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data) {
+    const auto path =
+        test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>({2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+// !!! Experimental feature, it may be changed or removed in the future !!!
+TEST_P(OnnxFeMmapFixture, onnx_external_data_enumerating) {
+    const auto path =
+        test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    const auto& operations = model->get_ordered_ops();
+    for (uint32_t idx = 0; idx < operations.size(); ++idx) {
+        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
+        if (const_node == nullptr)
+            continue;
+        EXPECT_TRUE(const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()]
+                        .is<ov::WeightlessCacheAttribute>());
+        const auto& weightless_cache = const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()]
+                                           .as<ov::WeightlessCacheAttribute>();
+        EXPECT_EQ(weightless_cache.original_size, 0);
+        EXPECT_EQ(weightless_cache.bin_offset, idx);
+        EXPECT_EQ(weightless_cache.original_dtype, const_node->get_element_type());
+    }
+}
+// !!! End of Experimental feature
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_from_stream) {
+    const auto path =
+        test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data.onnx");
+    ifstream stream{path, ios::in | ios::binary};
+    istream* is = &stream;
+    ASSERT_TRUE(stream.is_open());
+
+    auto fem = FrontEndManager();
+    auto frontend = fem.load_by_framework("onnx");
+    const bool enable_mmap = GetParam();
+    const auto in_model = frontend->load(is, path, enable_mmap);
+    const auto model = frontend->convert(in_model);
+
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+
+    stream.close();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_incorrect_size_exception) {
+    try {
+        const auto path = test::utils::getModelFromTestModelZoo(
+            string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data_incorrect_data_shape.onnx");
+        Core core;
+        core.set_property(enable_mmap(GetParam()));
+        const auto model = core.read_model(path);
+        FAIL() << "Incorrect size of external data not detected";
+    } catch (const Exception& ex) {
+        EXPECT_PRED_FORMAT2(
+            testing::IsSubstring,
+            string(
+                "The size of the external data file does not match the byte size of an initializer 'A' in the model"),
+            ex.what());
+    } catch (...) {
+        FAIL() << "Importing onnx model failed for unexpected reason";
+    }
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_optional_fields) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_optional_fields.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_size) {
+    const auto path = test::utils::getModelFromTestModelZoo(
+        string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data_optional_fields_offset_not_aligned.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_and_less_than_page_size_with_length_provided) {
+    const auto path = test::utils::getModelFromTestModelZoo(
+        string(TEST_ONNX_MODELS_DIRNAME) +
+        "external_data/external_data_offset_not_aligned_with_page_and_less_than_page_size_with_length_provided.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_and_greater_than_page_size_with_length_provided) {
+    const auto path = test::utils::getModelFromTestModelZoo(
+        string(TEST_ONNX_MODELS_DIRNAME) +
+        "external_data/"
+        "external_data_offset_not_aligned_with_page_and_greater_than_page_size_with_length_provided.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_offset_not_aligned_with_page_in_two_pages_scope) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/"
+                                                            "offset_not_aligned_with_page_in_two_pages_scope.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_in_different_paths) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_different_paths.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    // first input: {3.f}, second: {1.f, 2.f, 5.f} read from external files
+    test_case.add_input<float>({2.f, 7.f, 7.f});
+
+    test_case.add_expected_output<float>({2.f, 4.f, 5.f});
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_two_tensors_data_in_the_same_file) {
+    const auto path = test::utils::getModelFromTestModelZoo(
+        string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data_two_tensors_data_in_the_same_file.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    // first input: {3, 2, 1}, second: {1, 2, 3} read from external file
+    test_case.add_input<int32_t>({2, 3, 1});
+
+    test_case.add_expected_output<int32_t>({3, 3, 3});
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_invalid_external_data_exception) {
+    try {
+        const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                                "external_data/external_data_file_not_found.onnx");
+        Core core;
+        core.set_property(enable_mmap(GetParam()));
+        core.read_model(path);
+        FAIL() << "Incorrect path to external data not detected";
+    } catch (const Exception& ex) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            string("not_existed_file.data, offset: 4096, data_length: 16)"),
+                            ex.what());
+    } catch (...) {
+        FAIL() << "Importing onnx model failed for unexpected reason";
+    }
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_invalid_up_dir_path) {
+    try {
+        const auto path = test::utils::getModelFromTestModelZoo(
+            string(TEST_ONNX_MODELS_DIRNAME) + "external_data/inner_scope/external_data_file_in_up_dir.onnx");
+        Core core;
+        core.set_property(enable_mmap(GetParam()));
+        core.read_model(path);
+        FAIL() << "Incorrect path to external data not detected";
+    } catch (const Exception& ex) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            string("tensor.data, offset: 4096, "
+                                   "data_length: 16)"),
+                            ex.what());
+    } catch (...) {
+        FAIL() << "Importing onnx model failed for unexpected reason";
+    }
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_invalid_data_length) {
+    try {
+        const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                                "external_data/external_data_invalid_data_length.onnx");
+        Core core;
+        core.set_property(enable_mmap(GetParam()));
+        core.read_model(path);
+        FAIL() << "Incorrect path to external data not detected";
+    } catch (const Exception& ex) {
+        EXPECT_PRED_FORMAT2(testing::IsSubstring,
+                            string("tensor.data, offset: 0, "
+                                   "data_length: 30000000000)"),
+                            ex.what());
+    } catch (...) {
+        FAIL() << "Importing onnx model failed for unexpected reason";
+    }
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_sanitize_path) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_sanitize_test.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_in_constant_node) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_in_constant_node.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({3.f, 5.f, 8.f, 13.f});
+    test_case.add_expected_output<float>(Shape{2, 2}, {4.f, 7.f, 11.f, 17.f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_int16) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_int16.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<int16_t>({-100});
+    test_case.add_expected_output<int16_t>(Shape{2, 2}, {-100, 16156, -100, 16284});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_uint16) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_uint16.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<uint16_t>({100});
+    test_case.add_expected_output<uint16_t>(Shape{2, 2}, {100, 16356, 100, 16484});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_int8) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_int8.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<int8_t>({-100});
+    test_case.add_expected_output<int8_t>(Shape{2, 2}, {-100, -100, 28, -37});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_uint8) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_uint8.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_input<uint8_t>({100});
+    test_case.add_expected_output<uint8_t>(Shape{2, 2}, {100, 100, 228, 163});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_int4) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_int4.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_expected_output<int8_t>(Shape{2, 2}, {static_cast<int8_t>(0x80), 0x3f});
+
+    test_case.run();
+}
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_uint4) {
+    const auto path = test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) +
+                                                            "external_data/external_data_uint4.onnx");
+    Core core;
+    core.set_property(enable_mmap(GetParam()));
+    const auto model = core.read_model(path);
+    auto test_case = test::TestCase(model);
+    test_case.add_expected_output<uint8_t>(Shape{2, 2}, {0x80, 0x3f});
+
+    test_case.run();
+}
+
+using ::ONNX_NAMESPACE::ModelProto;
+
+TEST_P(OnnxFeMmapFixture, onnx_external_data_from_ORT_MEM_ADDR) {
+    const auto path =
+        test::utils::getModelFromTestModelZoo(string(TEST_ONNX_MODELS_DIRNAME) + "external_data/external_data.onnx");
+    std::ifstream ifs(path, std::ios::in | std::ios::binary);
+    ASSERT_TRUE(ifs.is_open()) << "Could not open model file: " << path;
+    auto model_proto = std::make_shared<ModelProto>();
+    ASSERT_TRUE(model_proto->ParseFromIstream(&ifs)) << "Could not parse ModelProto";
+    ifs.close();
+
+    std::vector<float> test_data = {2.0f, 3.0f, 4.0f, 5.0f};
+    char* data_ptr = reinterpret_cast<char*>(test_data.data());
+    uint64_t data_addr = reinterpret_cast<uint64_t>(data_ptr);
+    size_t data_size = test_data.size() * sizeof(float);
+
+    auto* graph = model_proto->mutable_graph();
+    for (auto& initializer : *graph->mutable_initializer()) {
+        if (initializer.has_data_location() && initializer.data_location() == ::ONNX_NAMESPACE::TensorProto::EXTERNAL) {
+            initializer.clear_external_data();
+            auto* location_entry = initializer.add_external_data();
+            location_entry->set_key("location");
+            location_entry->set_value("*/_ORT_MEM_ADDR_/*");
+            auto* offset_entry = initializer.add_external_data();
+            offset_entry->set_key("offset");
+            offset_entry->set_value(std::to_string(data_addr));
+            auto* length_entry = initializer.add_external_data();
+            length_entry->set_key("length");
+            length_entry->set_value(std::to_string(data_size));
+            break;
+        }
+    }
+    uint64_t model_proto_ptr = reinterpret_cast<uint64_t>(model_proto.get());
+    auto fem = ov::frontend::FrontEndManager();
+    auto frontend = fem.load_by_framework("onnx");
+    ASSERT_NE(frontend, nullptr);
+    std::shared_ptr<ov::frontend::InputModel> input_model;
+    ASSERT_NO_THROW(input_model = frontend->load(model_proto_ptr)) << "Could not load model from modified ModelProto";
+    ASSERT_NE(input_model, nullptr);
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = frontend->convert(input_model)) << "Could not convert model with ORT_MEM_ADDR";
+    ASSERT_NE(model, nullptr);
+
+    auto test_case = test::TestCase(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>({2, 2}, {4.f, 7.f, 10.f, 13.f});
+
+    test_case.run();
+}
+
+INSTANTIATE_TEST_SUITE_P(OnnxFeMMapReadModel, OnnxFeMmapFixture, ::testing::Bool());

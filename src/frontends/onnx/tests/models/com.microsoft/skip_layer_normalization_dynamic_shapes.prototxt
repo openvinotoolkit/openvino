@@ -1,0 +1,76 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "input"
+    input: "skip"
+    input: "gamma"
+    input: "beta"
+    input: "bias"
+    output: "out"
+    name: "SkipLayerNorm"
+    op_type: "SkipLayerNormalization"
+    attribute {
+      name: "epsilon"
+      f: 9.999999960041972e-13
+      type: FLOAT
+    }
+    domain: "com.microsoft"
+  }
+  name: "torch-jit-export"
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  input {
+    name: "skip"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  input {
+    name: "gamma"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  input {
+    name: "beta"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  input {
+    name: "bias"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

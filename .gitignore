@@ -1,0 +1,68 @@
+# build/artifact dirs
+_*
+[Bb]uild*/
+cmake-build*
+
+# but ensure we don't skip Python files
+!__init__.py
+!__main__.py
+!*.pyi
+
+# and sphinx documentation folders
+!docs/sphinx_setup/_*
+
+# developer tools
+*.idea
+.vscode
+.vs/
+.vsconan/
+.DS_Store
+**/tags
+compile_commands.json
+bin/
+.local_vimrc
+.gdb_history
+.vimspector.json
+doc/
+docs/build_documentation/work_dir/
+temp/
+.repo/
+CMakeLists.txt.user
+docs/IE_PLUGIN_DG/html/
+CMakeUserPresets.json
+venv
+
+*.project
+*.cproject
+*.pydevproject
+*.settings
+*/gen/
+*.swp
+/config.xml
+
+# Python-specific
+*.?env*
+*.pyc
+__pycache__
+# Tests-specific
+*.coverage
+*htmlcov
+*pylint_report.txt
+*pylint_report_comments.txt
+
+# JS specific
+!__tests__
+__tests__/runner/*
+# Dependency directory
+node_modules
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+# Optional npm cache directory
+.npm
+
+# Artifacts
+/tools/commit_slider/*.json
+/tools/commit_slider/slider_cache/*
+/src/plugins/intel_cpu/thirdparty/ComputeLibrary/build/arm_compute_version.embed
+.github/GITHUB_OUTPUT

@@ -1,0 +1,37 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "data"
+    output: "y"
+    op_type: "LogSoftmax"
+  }
+  name: "LogSoftmax test"
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+}

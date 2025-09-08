@@ -1,0 +1,65 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "input"
+    input: "repeats"
+    output: "output"
+    op_type: "Tile"
+  }
+  name: "test_tile"
+  initializer {
+    dims: 2
+    data_type: 7
+    raw_data: "\002\000\000\000\000\000\000\000\002\000\000\000\000\000\000\000"
+    name: "repeats"
+  }
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 5
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "repeats"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 5
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 8
+}

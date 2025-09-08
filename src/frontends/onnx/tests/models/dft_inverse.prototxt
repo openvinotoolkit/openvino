@@ -1,0 +1,51 @@
+ir_version: 7
+graph {
+  node {
+    input: "data"
+    output: "out"
+    op_type: "DFT"
+    attribute {
+      name: "inverse"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "onesided"
+      i: 0
+      type: INT
+    }
+  }
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 5
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 13
+}

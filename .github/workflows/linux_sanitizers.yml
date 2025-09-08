@@ -1,0 +1,591 @@
+name: Linux Sanitizers (Ubuntu 20.04, Python 3.9)
+on:
+  schedule:
+    # run daily at 00:00
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      # to be defined for specified test scopes (e.g. CPU func. tests)
+      sanitizerMode:
+        description: 'Sanitizer mode for func_tests (All || AddressAndLeak || UndefinedBehavior || Thread).'
+        required: false
+        default: 'All'
+      gtestFilter:
+        description: 'Filter for func_tests.'
+        required: false
+        default: '*smoke*'
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+  pull_request:
+    paths:
+    - '.github/workflows/linux_sanitizers.yml'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-sanitizers
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  BUILD_DIR: /__w/openvino/openvino/openvino_build
+  OPENVINO_REPO: /__w/openvino/openvino/openvino
+  INSTALL_TEST_DIR: /__w/openvino/openvino/openvino_install/tests/
+  INSTALL_DIR: /__w/openvino/openvino/openvino_install
+  TBB_ENABLE_SANITIZERS: 1
+  ASAN_OPTIONS: halt_on_error=0:suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
+  LSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
+  TSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/tsan/suppressions.txt
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'  
+  
+  Docker:
+    needs: Smart_CI
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_22_04_x64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+  
+  Build:
+    needs: [Smart_CI, Docker]
+    timeout-minutes: 500
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores-64gb
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+      volumes:
+        - /mount:/mount
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        include:
+          - SANITIZER: 'AddressAndLeak'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
+          - SANITIZER: 'UndefinedBehavior'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
+          - SANITIZER: 'Thread'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
+    env:
+      CMAKE_BUILD_TYPE: 'RelWithDebInfo'
+      CMAKE_GENERATOR: 'Ninja'
+      GITHUB_WORKSPACE: '/__w/openvino/openvino'
+      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
+      SCCACHE_LOG: warn
+      SCCACHE_AZURE_KEY_PREFIX: sanitizers_lin_${{ matrix.SANITIZER }}_master
+      SCCACHE_CACHE_SIZE: 50G
+
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'true'
+
+      - name: Clone OpenVINO Contrib
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          repository: 'openvinotoolkit/openvino_contrib'
+          path: ${{ env.OPENVINO_CONTRIB_REPO }}
+          submodules: 'true'
+          ref: ${{ env.TARGET_BRANCH }}
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+                 
+      - name: Install python dependencies
+        run: |
+          # For Python API: build and wheel packaging
+          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+
+          # For running ONNX frontend unit tests
+          python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+
+          # For running TensorFlow frontend unit tests
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
+
+          # For running TensorFlow Lite frontend unit tests
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
+
+          # For running Paddle frontend unit tests
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
+  
+      #
+      # Build
+      #
+      - name: Clean sccache stats
+        run: ${SCCACHE_PATH} --zero-stats
+             
+      - name: CMake configure - OpenVINO
+        run: |
+          cmake \
+            -G "${{ env.CMAKE_GENERATOR }}" \
+            -DENABLE_CPPLINT=OFF \
+            -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_TESTS=ON \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DCPACK_GENERATOR=TGZ \
+            -DENABLE_OV_TF_FRONTEND=ON \
+            -DENABLE_OV_TF_LITE_FRONTEND=ON \
+            -DENABLE_OV_PADDLE_FRONTEND=ON \
+            -DENABLE_OV_PYTORCH_FRONTEND=ON \
+            -DENABLE_OV_JAX_FRONTEND=ON \
+            -DENABLE_OV_ONNX_FRONTEND=ON \
+            -DENABLE_INTEL_NPU=OFF \
+            -DENABLE_ONEDNN_FOR_GPU=OFF \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+            -DENABLE_WHEEL=OFF \
+            ${{ matrix.SANITIZER_CMAKE_OPTION }} \
+            -S ${OPENVINO_REPO} \
+            -B ${BUILD_DIR}
+
+      - name: Cmake build - OpenVINO
+        run: |
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+          
+      - name: Show sccache stats
+        run: ${SCCACHE_PATH} --show-stats
+        
+      - name: Cmake install - OpenVINO
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
+          
+      - name: Remove unused files to free space
+        run: rm -rf ${BUILD_DIR}/*
+
+      #
+      # Tests
+      #
+
+      - name: Pack Artifacts
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
+          popd
+
+          pushd ${INSTALL_TEST_DIR}
+            tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
+          popd
+
+      #
+      # Upload build artifacts
+      #
+      - name: Upload sccache log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sccache_log_${{ matrix.SANITIZER }}
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openvino_package_${{ matrix.SANITIZER }}
+          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO tests package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openvino_tests_${{ matrix.SANITIZER }}
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+
+  CXX_Unit_Tests:
+    name: C++ unit tests
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    needs: [Docker, Build]
+    timeout-minutes: 180
+    runs-on: aks-linux-16-cores-32gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        include:
+          - SANITIZER: 'AddressAndLeak'
+          - SANITIZER: 'UndefinedBehavior'
+          - SANITIZER: 'Thread'
+      
+    steps:
+      - name: Download OpenVINO package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd $INSTALL_DIR
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+          pushd $INSTALL_TEST_DIR
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+
+      - name: Fetch Sanitizer Suppression Lists
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            tests/sanitizers/lsan/suppressions.txt
+            tests/sanitizers/asan/suppressions.supp
+            tests/sanitizers/tsan/suppressions.txt
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      #
+      # Tests
+      #
+
+      - name: OpenVINO Core Unit Tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
+
+      - name: OpenVINO Inference Functional Tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceFunc.xml
+
+      - name: OpenVINO Inference Unit Tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_inference_unit_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
+
+      - name: Low Precision Transformations Tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LpTransformations.xml
+
+      - name: OpenVINO Conditional compilation tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_conditional_compilation_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ConditionalCompilation.xml
+
+      - name: IR frontend tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
+
+      - name: PaddlePaddle frontend tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
+
+      - name: ONNX frontend tests
+        if: ${{ !cancelled() && matrix.SANITIZER != 'Thread' }} # Ticket: 155291
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
+                --gtest_filter=-*IE_GPU* \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
+
+      - name: TensorFlow Common frontend tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_tensorflow_common_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowCommonFrontend.xml
+
+      - name: TensorFlow frontend tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
+
+      - name: TensorFlow Lite frontend tests
+        if: ${{ 'false' }} # Ticket: 134416
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
+
+      - name: Transformations func tests
+        if: ${{ 'false' }} # Ticket: 143900
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
+
+      - name: Common test utils tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CommonUtilTests.xml
+
+      - name: Snippets func tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
+
+      - name: CPU plugin unit tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
+
+      - name: ov_subgraphs_dumper_tests tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_subgraphs_dumper_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_subgraphs_dumper_tests.xml
+
+      - name: Template OpImpl tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*\
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
+
+      - name: AUTO unit tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
+
+      - name: AUTO func Tests
+        if: ${{ 'false' }} # Issue 155210
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
+
+      - name: Template plugin func tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
+                --gtest_filter=*smoke* \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
+
+      - name: OpenVINO C API tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
+
+      - name: AutoBatch unit tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_auto_batch_unit_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_unit_tests.xml
+
+      - name: AutoBatch func tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml --gtest_filter="*smoke*"
+
+      - name: Proxy Plugin func tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
+
+      - name: Hetero unit tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
+
+      - name: Hetero func tests
+        if: ${{ 'false' }} # Ticket: 134425
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: unit-test-results-cpp_${{ matrix.SANITIZER }}
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'
+
+  CXX_Func_Tests:
+    # todo: move another plugin's func tests here
+    name: C++ func tests
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    needs: [Docker, Build]
+    timeout-minutes: 180
+    runs-on: aks-linux-8-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        include:
+          - SANITIZER: 'AddressAndLeak'
+          - SANITIZER: 'UndefinedBehavior'
+          - SANITIZER: 'Thread'
+
+    steps:
+      - name: Check matrix
+        id: check_matrix
+        # by default in scheduled launch we run only AddressAndLeak with *smoke*Conv_* pattern
+        # to prevent false-positive alerts and time exceeded error,
+        # in workflow_dispatch case all smoke tests will be launched with all types of sanitizers
+        # if gtestFilter and sanMode inputs are not specified
+        if: ${{ (github.event_name == 'workflow_dispatch' && (inputs.sanitizerMode == 'All' || inputs.sanitizerMode == matrix.SANITIZER) || matrix.SANITIZER == 'AddressAndLeak')}}
+        run: |
+          echo Sanitizer mode: "${SANITIZER_MODE}"
+        env:
+          SANITIZER_MODE: ${{ inputs.sanitizerMode }}
+
+      - name: Download OpenVINO package
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Extract OpenVINO packages
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        run: |
+          pushd $INSTALL_DIR
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+          pushd $INSTALL_TEST_DIR
+            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+          popd
+
+      - name: Fetch Sanitizer Suppression Lists
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            tests/sanitizers/lsan/suppressions.txt
+            tests/sanitizers/asan/suppressions.supp
+            tests/sanitizers/tsan/suppressions.txt
+          sparse-checkout-cone-mode: false
+          path: ${{ env.OPENVINO_REPO }}
+
+      #
+      # Tests
+      #
+
+      - name: CPU plugin func tests
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        env:
+          GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*Conv_*' }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \
+                --gtest_filter=${{ env.GTEST_FILTER }} \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+        with:
+          name: func-test-results-cpp_${{ matrix.SANITIZER }}
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'error'

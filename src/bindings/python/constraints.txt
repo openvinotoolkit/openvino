@@ -1,0 +1,25 @@
+# used in multiple components
+numpy>=1.16.6,<2.3.0  # Python bindings, frontends
+
+# pytest
+pytest>=5.0,<8.5
+pytest-dependency==0.6.0
+pytest-html==4.1.1
+pytest-timeout==2.4.0
+
+# Python bindings
+build<1.4
+pygments>=2.8.1
+setuptools>=70.1,<80.10
+sympy>=1.10
+wheel>=0.38.1
+patchelf<=0.17.2.4
+packaging>=22.0
+
+# Frontends
+h5py>=3.1.0,<3.15.0
+docopt~=0.6.2
+paddlepaddle==3.0.0
+tensorflow>=1.15.5,<2.21.0
+protobuf>=3.18.1,<7.0.0
+onnx==1.17.0

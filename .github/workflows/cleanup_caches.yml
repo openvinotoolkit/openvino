@@ -1,0 +1,113 @@
+name: Cleanup caches
+on:
+  workflow_dispatch:
+  schedule:
+    # at 00:00 on the 1st day of every month
+    - cron: '0 0 1 * *'
+
+permissions: read-all
+
+jobs:
+  Cleanup_PIP:
+    name: Cleanup PIP cache
+    runs-on: aks-linux-medium
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
+      volumes:
+        - /mount:/mount
+    env:
+      PIP_CACHE_PATH: /mount/caches/pip
+
+    steps:
+      - name: Pre-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          du -h -d2 ${PIP_CACHE_PATH}
+
+      - name: Cleanup cache
+        run: |
+          echo "Delete cache files if they have not been used in over 30 days"
+          [ ! -z "${PIP_CACHE_PATH}" ] && find ${PIP_CACHE_PATH} ! -type d -atime +30 -delete
+
+      - name: Post-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          du -h -d2 ${PIP_CACHE_PATH}
+
+  Cleanup_HF_Cache:
+    name: Cleanup HuggingFace cache
+    runs-on: aks-linux-4-cores-16gb
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
+      volumes:
+        - /mount:/mount
+    env:
+      HF_CACHE_PATH: /mount/caches/huggingface
+
+    steps:
+      - name: Checkout cache action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/cache
+
+      - name: Cleanup HF cache
+        uses: ./.github/actions/cache/cleanup
+        with:
+          cache-size: 1700
+          max-cache-size: 2000
+          cache-path: ${{ env.HF_CACHE_PATH }}
+          recursive: true
+          key: '.'
+
+  Cleanup_ccache_lin:
+    name: Cleanup Linux ccache
+    runs-on: aks-linux-medium
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
+      volumes:
+        - /mount:/mount
+    env:
+      CCACHE_PATH: /mount/caches/ccache
+
+    steps:
+      - name: Checkout cache action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/cache
+
+      - name: Cleanup ccache
+        uses: ./.github/actions/cache/cleanup
+        with:
+          cache-size: 300
+          max-cache-size: 750
+          cache-path: ${{ env.CCACHE_PATH }}
+          recursive: true
+          key: '.'
+
+
+  Cleanup_ccache_win:
+    name: Cleanup Windows ccache
+    runs-on: 'aks-win-4-cores-8gb'
+    env:
+      CCACHE_PATH: C:\\mount\\caches\\ccache
+
+    steps:
+      - name: Checkout cache action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/cache
+
+      - name: Cleanup ccache
+        uses: ./.github/actions/cache/cleanup
+        with:
+          cache-size: 300
+          max-cache-size: 750
+          cache-path: C:\\mount\\caches\\ccache
+          recursive: true
+          key: '.'

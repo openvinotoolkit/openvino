@@ -1,0 +1,55 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "data"
+    output: "reduced"
+    name: "node1"
+    op_type: "ArgMax"
+    attribute {
+      name: "keepdims"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
+    doc_string: "ArgMax"
+    domain: ""
+  }
+  name: "test"
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "reduced"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 7
+}

@@ -1,0 +1,239 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "input_ids"
+    input: "segment_ids"
+    input: "word_embeddings"
+    input: "position_embeddings"
+    input: "segment_embeddings"
+    input: "gamma"
+    input: "beta"
+    output: "output"
+    output: "mask_index"
+    name: "EmbedLayerNormalization_1"
+    op_type: "EmbedLayerNormalization"
+    attribute {
+      name: "epsilon"
+      f: 9.999999960041972e-13
+      type: FLOAT
+    }
+    domain: "com.microsoft"
+  }
+  name: "graph"
+  initializer {
+    dims: 10
+    dims: 5
+    data_type: 1
+    name: "word_embeddings"
+    float_data: 0.01326417364180088
+    float_data: -0.017005326226353645
+    float_data: 0.021556973457336426
+    float_data: -0.079218357801437378
+    float_data: -0.019958715885877609
+    float_data: 0.066062852740287781
+    float_data: -0.063465960323810577
+    float_data: -0.036202378571033478
+    float_data: -0.038673330098390579
+    float_data: -0.050637193024158478
+    float_data: 0.0024814880453050137
+    float_data: -0.017267324030399323
+    float_data: -0.0047671985812485218
+    float_data: -0.014202062971889973
+    float_data: 0.10090816766023636
+    float_data: 0.044896259903907776
+    float_data: 0.015443948097527027
+    float_data: -0.0010053194127976894
+    float_data: 0.071923978626728058
+    float_data: 0.01173736434429884
+    float_data: 0.034053854644298553
+    float_data: -0.037060577422380447
+    float_data: 0.01355923805385828
+    float_data: 0.054467327892780304
+    float_data: 0.088897556066513062
+    float_data: 0.019563071429729462
+    float_data: 0.025579970329999924
+    float_data: -0.032200627028942108
+    float_data: -0.0083356937393546104
+    float_data: -0.10528338700532913
+    float_data: 0.04967513307929039
+    float_data: -0.093638911843299866
+    float_data: 0.0018587876111268997
+    float_data: 0.01037109550088644
+    float_data: -0.011854520998895168
+    float_data: 0.035907052457332611
+    float_data: -0.061639595776796341
+    float_data: -0.070428818464279175
+    float_data: 0.080737568438053131
+    float_data: -0.014098187908530235
+    float_data: -0.066207133233547211
+    float_data: 0.078362509608268738
+    float_data: -0.021088391542434692
+    float_data: -0.022340660914778709
+    float_data: -0.065533898770809174
+    float_data: -0.022695079445838928
+    float_data: 0.01550679374486208
+    float_data: -0.022843297570943832
+    float_data: 0.044251278042793274
+    float_data: -0.0071350894868373871
+  }
+  initializer {
+    dims: 8
+    dims: 5
+    data_type: 1
+    name: "position_embeddings"
+    float_data: 0.11355137079954147
+    float_data: 0.048468157649040222
+    float_data: 0.053486518561840057
+    float_data: 0.01513370219618082
+    float_data: 0.14626613259315491
+    float_data: -0.18863441050052643
+    float_data: 0.10133393853902817
+    float_data: 0.098319537937641144
+    float_data: 0.070722959935665131
+    float_data: -0.018062451854348183
+    float_data: -0.018210677430033684
+    float_data: 0.018454158678650856
+    float_data: 0.025413623079657555
+    float_data: -0.017915787175297737
+    float_data: 0.088725067675113678
+    float_data: -0.10261145234107971
+    float_data: -0.16650274395942688
+    float_data: 0.087947741150856018
+    float_data: -0.072966478765010834
+    float_data: -0.072863951325416565
+    float_data: -0.057195741683244705
+    float_data: 0.052380021661520004
+    float_data: 0.150204136967659
+    float_data: 0.036691628396511078
+    float_data: -0.055858571082353592
+    float_data: 0.013746094889938831
+    float_data: -0.041797593235969543
+    float_data: 0.036348219960927963
+    float_data: 0.032991457730531693
+    float_data: -0.031414791941642761
+    float_data: -0.026756083592772484
+    float_data: -0.077081479132175446
+    float_data: 0.039385091513395309
+    float_data: -0.028280897065997124
+    float_data: -0.039638441056013107
+    float_data: 0.1023884043097496
+    float_data: -0.038734495639801025
+    float_data: 0.034112773835659027
+    float_data: -0.024975193664431572
+    float_data: -0.061074573546648026
+  }
+  initializer {
+    dims: 3
+    dims: 5
+    data_type: 1
+    name: "segment_embeddings"
+    float_data: -0.027431340888142586
+    float_data: -0.01666862890124321
+    float_data: -0.052050836384296417
+    float_data: -0.074926018714904785
+    float_data: 0.0045464779250323772
+    float_data: 0.054949179291725159
+    float_data: 0.046781986951828003
+    float_data: 0.065758734941482544
+    float_data: -0.036851223558187485
+    float_data: -0.041801471263170242
+    float_data: 0.025191636756062508
+    float_data: -0.046526473015546799
+    float_data: 0.027152393013238907
+    float_data: 0.026372035965323448
+    float_data: -0.020972840487957001
+  }
+  initializer {
+    dims: 5
+    data_type: 1
+    name: "gamma"
+    float_data: 0.037749473005533218
+    float_data: -0.10285304486751556
+    float_data: -0.030169183388352394
+    float_data: -0.02105225995182991
+    float_data: 0.11735564470291138
+  }
+  initializer {
+    dims: 5
+    data_type: 1
+    name: "beta"
+    float_data: -0.058927357196807861
+    float_data: -0.019592402502894402
+    float_data: 0.0062640579417347908
+    float_data: -0.010709371417760849
+    float_data: -0.010058049112558365
+  }
+  input {
+    name: "input_ids"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "segment_ids"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 8
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "mask_index"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+
+}
+opset_import {
+  version: 11
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

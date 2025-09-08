@@ -1,0 +1,174 @@
+name: Code Style
+on: [pull_request, merge_group]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-24.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          submodules: 'true'
+
+      - name: Install clang-format-18
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
+
+      # Run cmake with extra options to cover as much source code as possible:
+      # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
+      # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
+      - name: CMake configure
+        run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
+
+      - name: Create code style diff
+        run: cmake --build build --target clang_format_fix_all -j8
+
+      - name: suggester / clang-format
+        if: startsWith(github.event_name, 'pull_request')
+        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          level: warning
+          fail_level: error
+          filter_mode: nofilter
+
+  clang-format-aarch64:
+    runs-on: ubuntu-24.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: 'true'
+
+      - name: Install clang-format-18 and cross-compilation dependencies
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
+          sudo apt update
+          sudo apt --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons
+
+      # Run cmake with extra options to cover as much source code as possible:
+      # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
+      # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
+      - name: CMake configure
+        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake -B build_arm64
+
+      - name: Create code style diff
+        run: cmake --build build_arm64 --target clang_format_fix_all -j8
+
+      - name: suggester / clang-format
+        if: startsWith(github.event_name, 'pull_request')
+        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          level: warning
+          fail_level: error
+          filter_mode: nofilter
+
+  clang-format-riscv64:
+    runs-on: ubuntu-24.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: 'true'
+
+      - name: Install clang-format-18 and cross-compilation dependencies
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
+          sudo apt update
+          sudo apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu
+
+      # Run cmake with extra options to cover as much source code as possible:
+      # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
+      - name: CMake configure
+        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
+
+      - name: Create code style diff
+        run: cmake --build build_riscv64 --target clang_format_fix_all -j8
+
+      - name: suggester / clang-format
+        if: startsWith(github.event_name, 'pull_request')
+        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          level: warning
+          fail_level: error
+          filter_mode: nofilter
+
+  ShellCheck:
+    runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          submodules: 'true'
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt update
+          sudo apt --assume-yes install shellcheck
+
+      - name: CMake configure
+        run: cmake -B build
+
+      - name: Shellcheck cmake target
+        run: cmake --build build --target ov_shellcheck -j8
+
+      # always provide suggestions even for skipped scripts in ov_shellcheck tagret
+      - name: ShellCheck action
+        if: always()
+        uses: reviewdog/action-shellcheck@1bb9751763fdfbee4b5043772c37374f103bff9e # v1.31.0
+        with:
+          level: style
+          reporter: github-pr-review
+          check_all_files_with_shebangs: true
+          fail_level: error
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
+
+  NamingConventionCheck:
+    runs-on: ubuntu-22.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          submodules: 'true'
+
+      - name: Install Clang dependency
+        run: |
+          sudo apt update
+          sudo apt --assume-yes remove clang-7 clang-8 clang-9 clang-10 clang-11 clang-12 clang-13 clang-15
+          sudo apt --assume-yes install clang-14 libclang-14-dev
+
+      - name: Install Python-based dependencies
+        run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
+
+      - name: CMake configure
+        run: cmake -B build
+
+      - name: Naming convention check
+        run: cmake --build build --target ncc_all -j8

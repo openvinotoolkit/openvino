@@ -1,0 +1,34 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "A"
+    output: "B"
+    op_type: "ReduceMax"
+    attribute {
+      name: "axes"
+      type: INTS
+      ints: -1
+    }
+  }
+  name: "compute_graph"
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}

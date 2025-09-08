@@ -1,0 +1,200 @@
+// Copyright (C) 2023-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <optional>
+
+#include "common.hpp"
+#include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
+#include "openvino/openvino.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+#include "openvino/util/mmap_object.hpp"
+#include "partitioning/partitioning.hpp"
+#include "serialization.hpp"
+#include "spatial.hpp"
+#include "weights_bank.hpp"
+
+namespace intel_npu {
+class Plugin;
+}
+
+namespace ov {
+namespace npuw {
+class ICompiledModel : public ov::ICompiledModel {
+public:
+    static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
+                                                            const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                            const ov::AnyMap& properties);
+    ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
+};
+
+class InferRequest;
+class CompiledModel : public ov::npuw::ICompiledModel {
+    using DevList = std::vector<std::string>;
+    using GetPropertiesMap =
+        std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
+
+public:
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const ov::AnyMap& properties);
+    CompiledModel(const std::shared_ptr<ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const bool serialized);
+
+    void export_model(std::ostream& model) const override;
+    static std::shared_ptr<CompiledModel> import_model(std::istream& stream,
+                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                       const ov::AnyMap& properties);
+    std::shared_ptr<const ov::Model> get_runtime_model() const override;
+
+    void set_property(const ov::AnyMap& properties) override;
+    ov::Any get_property(const std::string& name) const override;
+
+    std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
+
+private:
+    // FIXME: This class has many friends..
+    friend class IBaseInferRequest;
+    friend class JustInferRequest;
+    friend class UnfoldInferRequest;
+    friend class MemAccessSim;
+    friend class FuncMemMgr;
+    friend class LLMCompiledModel;
+    friend class LLMInferRequest;
+
+    bool compile_for_success(std::size_t id);
+    bool compile_for_device(std::size_t id, const std::string& device_to_try);
+    ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
+                                                   const std::string& device);
+
+    void dump_on_fail(std::size_t id, const std::string& device_to_stry, const char* extra);
+
+    void report_io() const;
+
+    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
+    static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
+                                                      const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::npuw::s11n::CompiledContext& ctx);
+
+    // This is used for removing too long output tensor names to fix some compilation issues
+    // NB: These two methods has nothing to do with this particular class and should be
+    // moved elsewhere
+    void remove_long_output_names(const std::shared_ptr<ov::Model>& model);
+    void fill_empty_tensor_names(const std::shared_ptr<ov::Model>& model);
+
+    std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
+
+    std::string submodel_device(const std::size_t idx) const;
+    bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
+    bool unpack_required(const std::size_t idx) const;
+    bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
+
+    void log_device_dist() const;
+    void implement_properties();
+
+    bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
+
+    // For full deserialization flow with weights
+    void reconstruct_closure();
+    // For weightless serialization flow
+    void store_const_offsets(const std::shared_ptr<ov::Model>& model);
+
+    void finalize_weights_bank();
+    void detach_memory();
+    std::string global_mem_device() const;
+    std::string funcall_mem_device(const std::size_t idx) const;
+
+    std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
+    ::intel_npu::Config m_cfg;
+    GetPropertiesMap m_prop_to_opt;
+    std::vector<ov::PropertyName> m_all_supported_props;
+    ov::AnyMap m_non_npuw_props;
+
+    std::string m_name;
+    const bool m_loaded_from_cache;
+
+    using ToSubmodel = std::pair<size_t /* submodel_idx */
+                                 ,
+                                 size_t /* port_idx     */
+                                 >;
+    static const constexpr auto NO_LINK = ToSubmodel{-1, -1};
+
+    // In the below vector, index == compiled model's input/output port idex.
+    std::vector<ToSubmodel> m_inputs_to_submodels_inputs;
+    std::vector<ToSubmodel> m_outputs_to_submodels_outputs;
+
+    std::map<std::size_t, std::vector<ToSubmodel>> m_param_subscribers;
+
+    std::map<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>,  // input ("to")
+             std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>>  // output ("from")
+        m_submodels_input_to_prev_output;
+
+    DeviceProperties m_meta_devices;
+
+    DevList m_dev_list;
+
+    struct execution_stats {
+        float gflops{};
+        std::size_t ops{};
+    };
+
+    struct CompiledModelDesc {
+        DevList::const_iterator device_it;
+        std::set<std::string> devices_to_avoid;
+        std::shared_ptr<ov::Model> model;
+        ov::SoPtr<ov::ICompiledModel> compiled_model;
+
+        std::optional<std::size_t> replaced_by;
+
+        Subgraph::Gather host_gather;
+        Subgraph::QuantUnpackGather quant_unpack_gather;
+        std::optional<ov::npuw::compiled::Spatial> spatial;
+
+        // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
+        // w.r.t. function calls
+        std::size_t param_base = 0;
+        // NB: closure and lazy_closure are of the same size - to preserve proper indexing.
+        //     closure is responsible for host-side tensors (DCOFF, Gather, etc) while
+        //     lazy_closure is used for weights sharing and allocating device memory.
+        std::vector<ov::Tensor> closure;
+        std::vector<weights::LazyTensor> lazy_closure;
+        std::vector<int64_t> closure_uid;  // Note: value -1 is considered uninitialized
+        std::vector<ov::Tensor> scales;
+        std::vector<ov::Tensor> zerops;
+        std::vector<bool> is_remote;
+
+        bool forced_to_fcall = false;
+
+        // FIXME: Take it out of structure
+        ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
+        bool switched_to_ref = false;
+
+        // Metrics
+        execution_stats stat;
+
+        void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
+        void deserialize(std::istream& stream, const ov::npuw::s11n::WeightsContext& ctx);
+    };
+    std::vector<CompiledModelDesc> m_compiled_submodels;
+
+    std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
+    std::string m_ref_device;
+
+    execution_stats m_total_stat;
+
+    std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
+
+    std::unordered_map<const void*, std::size_t> m_const_to_offset;
+    ov::npuw::s11n::BF16Cache m_bf16_consts;
+    ov::npuw::s11n::WeightsContext m_import_weights_ctx;
+};
+}  // namespace npuw
+}  // namespace ov

@@ -1,0 +1,163 @@
+name: Python unit tests
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      image:
+        description: 'Docker image to use for the job'
+        type: string
+        required: false
+        default: null
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+
+jobs:
+  Python_Unit_Tests:
+    name: Python unit tests
+    timeout-minutes: 70
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install      
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+    steps:
+      # checkout action cleans up the workspace and have to be the first step
+      - name: Fetch custom actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions
+          sparse-checkout-cone-mode: false
+          submodules: 'false'
+      
+      - name: Download OpenVINO artifacts (wheels)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_DIR }}
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
+          
+      - name: Extract OpenVINO packages
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Setup Python ${{ inputs.python-version }}
+        uses: ./.github/actions/setup_python
+        with:
+          version: ${{ inputs.python-version }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
+          should-setup-pip-paths: ${{ runner.os == 'Linux' }}
+          self-hosted-runner: ${{ runner.os == 'Linux' }}
+
+      - name: Install OpenVINO Python wheels
+        uses: ./.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
+          wheels-to-install: 'openvino'
+
+      - name: Install Python API tests dependencies
+        run: |
+          # To enable pytest parallel features
+          python3 -m pip install pytest-xdist[psutil]
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
+
+      - name: Install Python Layer tests dependencies and for OVC unit tests
+        run: |
+          # For torchvision to OpenVINO preprocessing converter
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt
+
+          # layer test requirements
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/layer_tests/requirements.txt
+
+      - name: Install ONNX tests dependencies
+        run: |
+          #  ONNX tests requirements
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_onnx
+
+      #
+      # Tests
+      #
+
+      - name: Python ONNX operators tests
+        if: (fromJSON(inputs.affected-components).Python_API.test ||
+             fromJSON(inputs.affected-components).ONNX_FE.test) &&
+             runner.arch != 'ARM64' # Ticket: 123325
+        run: |
+          # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
+            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
+
+      - name: OVC unit tests
+        if: fromJSON(inputs.affected-components).OVC.test
+        run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
+
+      - name: OVC Python API Tests
+        if: ${{ fromJSON(inputs.affected-components).OVC.test && (runner.arch != 'ARM64' && runner.os != 'macOS') }} # Ticket: 173019
+        run: |
+          # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
+          export PYTHONPATH=${INSTALL_TEST_DIR}/python
+          export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
+
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/ovc_python_api_tests -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: Python Frontend tests
+        if: fromJSON(inputs.affected-components).PyTorch_FE.test ||
+            fromJSON(inputs.affected-components).PDPD_FE.test
+        run: |
+          # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
+          export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/py_frontend_tests -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
+
+      - name: TensorFlow Lite Layer Tests - TFL FE
+        if: ${{ fromJSON(inputs.affected-components).TFL_FE.test && (runner.arch != 'ARM64' && runner.os != 'macOS') }} # Ticket: 173019
+        run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/tensorflow_lite_tests/ -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-python
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'

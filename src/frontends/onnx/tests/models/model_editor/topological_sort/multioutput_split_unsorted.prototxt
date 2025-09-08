@@ -1,0 +1,76 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "split_out_0"
+    output: "abs_out_0"
+    op_type: "Abs"
+  }
+  node {
+    input: "split_out_2"
+    output: "abs_out_1"
+    op_type: "Abs"
+  }
+  node {
+    input: "input"
+    output: "split_out_0"
+    output: "split_out_1"
+    output: "split_out_2"
+    op_type: "Split"
+  }
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "abs_out_0"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "split_out_1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "abs_out_1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 8
+}

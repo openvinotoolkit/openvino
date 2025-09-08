@@ -1,0 +1,92 @@
+
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    output: "y"
+    output: "z"
+    op_type: "Dropout"
+    attribute {
+      name: "is_test"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "ratio"
+      f: 0.1
+      type: FLOAT
+    }
+  }
+  node {
+    input: "z"
+    op_type: "Cast"
+    output: "z_out"
+    attribute {
+      name: "to"
+      i: 6
+      type: INT
+    }
+  }
+  name: "test_dropout_default_mask"
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "z_out"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 6
+}

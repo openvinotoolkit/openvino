@@ -1,0 +1,58 @@
+name: Code snippets
+on:
+  push:
+    paths:
+      - '.github/workflows/code_snippets.yml'
+      - 'docs/snippets/**'
+    branches:
+      - 'master'
+      - 'releases/**'
+  pull_request:
+    paths:
+      - '.github/workflows/code_snippets.yml'
+      - 'docs/snippets/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  Build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-22.04', 'macos-latest', 'windows-latest']
+    runs-on: ${{ matrix.os }}
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          submodules: 'true'
+
+      - name: Install OpenCL
+        uses: awalsh128/cache-apt-pkgs-action@4c82c3ccdc1344ee11e9775dbdbdf43aa8a5614e # v1.5.1
+        if: runner.os == 'Linux'
+        with:
+          packages: ocl-icd-opencl-dev opencl-headers
+          version: 3.0
+
+      - name: Install scons
+        if: runner.os == 'macOS'
+        run: brew install scons
+
+      - name: CMake configure
+        run: cmake -DCMAKE_BUILD_TYPE=Release -DTHREADING=SEQ -B build
+
+      - name: Build snippets
+        if: ${{ runner.os == 'Linux' || runner.os == 'macOS'}}
+        run:  cmake --build build --target openvino_docs_snippets --parallel $(nproc)
+
+      - name: Build snippets Windows
+        if: ${{ runner.os == 'Windows'}}
+        shell: pwsh
+        run:  cmake --build build --target openvino_docs_snippets --parallel $ENV:NUMBER_OF_PROCESSORS
+

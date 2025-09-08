@@ -1,0 +1,147 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test"
+  node {
+    domain: "org.openvinotoolkit"
+    input: "A"
+    input: "B"
+    output: "out"
+    name: "PriorBox_306"
+    op_type: "PriorBox"
+    attribute {
+      name: "aspect_ratio"
+      floats: 1
+      type: FLOATS
+    }
+    attribute {
+      name: "clip"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "flip"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "img_h"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "img_size"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "img_w"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "max_size"
+      floats: 76.800003051757812
+      type: FLOATS
+    }
+    attribute {
+      name: "min_size"
+      floats: 35.840000152587891
+      type: FLOATS
+    }
+    attribute {
+      name: "offset"
+      f: 0.5
+      type: FLOAT
+    }
+    attribute {
+      name: "step"
+      f: 8
+      type: FLOAT
+    }
+    attribute {
+      name: "step_h"
+      f: 0
+      type: FLOAT
+    }
+    attribute {
+      name: "step_w"
+      f: 0
+      type: FLOAT
+    }
+    attribute {
+      name: "variance"
+      floats: 0.10000000149011612
+      floats: 0.10000000149011612
+      floats: 0.20000000298023224
+      floats: 0.20000000298023224
+      type: FLOATS
+    }
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 6
+          }
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 32
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 10
+}

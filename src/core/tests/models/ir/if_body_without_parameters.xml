@@ -1,0 +1,184 @@
+<?xml version="1.0" ?>
+<net name="saved_model" version="11">
+	<layers>
+		<layer id="0" name="x" type="Parameter" version="opset1">
+			<data element_type="f32" shape="1,0"/>
+			<output>
+				<port id="0" names="Func/PartitionedCall/input/_0:0,x:0" precision="FP32">
+					<dim>1</dim>
+					<dim>0</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="y" type="Parameter" version="opset1">
+			<data element_type="f32" shape="1,0"/>
+			<output>
+				<port id="0" names="Func/PartitionedCall/input/_1:0,y:0" precision="FP32">
+					<dim>1</dim>
+					<dim>0</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="PartitionedCall/model/if/Less" type="Less" version="opset1">
+			<data auto_broadcast="numpy"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>0</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>0</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" names="PartitionedCall/model/if/Less:0" precision="BOOL">
+					<dim>1</dim>
+					<dim>0</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="PartitionedCall/model/if/cond/Squeeze/Dims" type="Const" version="opset1">
+			<data element_type="i64" offset="0" shape="1" size="8"/>
+			<output>
+				<port id="0" precision="I64">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="PartitionedCall/model/if/cond/Squeeze" type="Squeeze" version="opset1">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>0</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" names="PartitionedCall/model/if/cond/Squeeze:0" precision="BOOL">
+					<dim>0</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="5" name="PartitionedCall/model/if/cond" type="If" version="opset8">
+			<input>
+				<port id="0">
+					<dim>0</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" names="PartitionedCall/model/if/cond/Identity:0,PartitionedCall/model/if/cond:0" precision="FP32"/>
+			</output>
+			<then_port_map>
+				<output external_port_id="0" internal_layer_id="1"/>
+			</then_port_map>
+			<else_port_map>
+				<output external_port_id="0" internal_layer_id="1"/>
+			</else_port_map>
+			<then_body>
+				<layers>
+					<layer id="0" name="model/if/cond/Identity" type="Const" version="opset1">
+						<data element_type="f32" offset="8" shape="" size="4"/>
+						<output>
+							<port id="0" precision="FP32"/>
+						</output>
+					</layer>
+					<layer id="1" name="model/if/cond/Identity/sink_port_0" type="Result" version="opset1">
+						<input>
+							<port id="0"/>
+						</input>
+					</layer>
+				</layers>
+				<edges>
+					<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+				</edges>
+			</then_body>
+			<else_body>
+				<layers>
+					<layer id="0" name="model/if/cond/Identity" type="Const" version="opset1">
+						<data element_type="f32" offset="12" shape="" size="4"/>
+						<output>
+							<port id="0" precision="FP32"/>
+						</output>
+					</layer>
+					<layer id="1" name="model/if/cond/Identity/sink_port_0" type="Result" version="opset1">
+						<input>
+							<port id="0"/>
+						</input>
+					</layer>
+				</layers>
+				<edges>
+					<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+				</edges>
+			</else_body>
+		</layer>
+		<layer id="6" name="PartitionedCall/model/if/Relu" type="ReLU" version="opset1">
+			<input>
+				<port id="0"/>
+			</input>
+			<output>
+				<port id="1" names="Func/PartitionedCall/output/_2:0,Identity:0,PartitionedCall/Identity:0,PartitionedCall/model/if/Relu:0" precision="FP32"/>
+			</output>
+		</layer>
+		<layer id="7" name="Func/PartitionedCall/output/_2:0" type="Result" version="opset1">
+			<input>
+				<port id="0"/>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+		<edge from-layer="2" from-port="2" to-layer="4" to-port="0"/>
+		<edge from-layer="3" from-port="0" to-layer="4" to-port="1"/>
+		<edge from-layer="4" from-port="2" to-layer="5" to-port="0"/>
+		<edge from-layer="5" from-port="1" to-layer="6" to-port="0"/>
+		<edge from-layer="6" from-port="1" to-layer="7" to-port="0"/>
+	</edges>
+	<meta_data>
+		<MO_version value="custom_mo/q_dq_linear_resolver_f23175abffa68339339ddc916cce0fc98cfa8727"/>
+		<cli_parameters>
+			<batch value="1"/>
+			<caffe_parser_path value="DIR"/>
+			<data_type value="float"/>
+			<disable_nhwc_to_nchw value="False"/>
+			<disable_omitting_optional value="False"/>
+			<disable_resnet_optimization value="False"/>
+			<disable_weights_compression value="False"/>
+			<enable_concat_optimization value="False"/>
+			<enable_flattening_nested_params value="False"/>
+			<enable_ssd_gluoncv value="False"/>
+			<extensions value="DIR"/>
+			<framework value="tf"/>
+			<freeze_placeholder_with_value value="{}"/>
+			<generate_deprecated_IR_V7 value="False"/>
+			<input_model_is_text value="False"/>
+			<k value="DIR\CustomLayersMapping.xml"/>
+			<keep_shape_ops value="True"/>
+			<legacy_ir_generation value="False"/>
+			<legacy_mxnet_model value="False"/>
+			<log_level value="ERROR"/>
+			<mean_scale_values value="{}"/>
+			<mean_values value="()"/>
+			<model_name value="saved_model"/>
+			<output_dir value="DIR"/>
+			<placeholder_data_types value="{}"/>
+			<progress value="False"/>
+			<remove_memory value="False"/>
+			<remove_output_softmax value="False"/>
+			<reverse_input_channels value="False"/>
+			<save_params_from_nd value="False"/>
+			<saved_model_dir value="DIR"/>
+			<scale_values value="()"/>
+			<silent value="False"/>
+			<static_shape value="False"/>
+			<stream_output value="False"/>
+			<transform value=""/>
+			<use_legacy_frontend value="False"/>
+			<use_new_frontend value="False"/>
+			<unset unset_cli_parameters="counts, disable_fusing, disable_gfusing, finegrain_fusing, input, input_checkpoint, input_meta_graph, input_model, input_proto, input_shape, input_symbol, mean_file, mean_file_offsets, move_to_preprocess, nd_prefix_name, output, placeholder_shapes, pretrained_model_name, saved_model_tags, scale, tensorboard_logdir, tensorflow_custom_layer_libraries, tensorflow_custom_operations_config_update, tensorflow_object_detection_api_pipeline_config, tensorflow_use_custom_operations_config, transformations_config"/>
+		</cli_parameters>
+	</meta_data>
+</net>

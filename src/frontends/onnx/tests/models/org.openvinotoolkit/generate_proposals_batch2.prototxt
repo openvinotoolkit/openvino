@@ -1,0 +1,163 @@
+ir_version: 8
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "just GenerateProposals"
+  node {
+    input: "scores"
+    input: "deltas"
+    input: "im_info"
+    input: "anchors"
+    output: "rpnrois"
+    output: "rpnscores"
+    output: "rpnroisnum"
+    op_type: "GenerateProposals"
+    domain: "org.openvinotoolkit"
+    attribute {
+      name: "pre_nms_topN"
+      i: 1000
+      type: INT
+    }
+    attribute {
+      name: "post_nms_topN"
+      i: 5
+      type: INT
+    }
+    attribute {
+      name: "nms_thresh"
+      f: 0.7
+      type: FLOAT
+    }
+    attribute {
+      name: "min_size"
+      f: 1
+      type: FLOAT
+    }
+    attribute {
+      name: "legacy_plus_one"
+      i: 0
+      type: INT
+    }
+  }
+  input {
+    name: "scores"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "deltas"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 12
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "im_info"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "anchors"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "rpnrois"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "num_rois"
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "rpnscores"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "num_rois"
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "rpnroisnum"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: "org.openvinotoolkit"
+  version: 1
+}

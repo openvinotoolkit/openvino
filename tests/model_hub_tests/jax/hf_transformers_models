@@ -1,0 +1,7 @@
+# type,name,mark,reason
+# top transformers from https://huggingface.co/docs/transformers/index
+vit-base,google/vit-base-patch16-224-in21k
+albert-base-v2,albert/albert-base-v2,skip,No conversion rule found for iota pjit select_n
+bart-base,facebook/bart-base,skip,No conversion rule found for and eq ge gt iota ne pjit scatter select_n
+clip-vit-base-patch32,openai/clip-vit-base-patch32,skip,No conversion rule found for and argmax gather ge gt iota logistic lt ne pjit select_n
+Mistral-tiny,ksmcg/Mistral-tiny,skip,No conversion rule found for and gather ge gt iota lt ne neg pjit select_n

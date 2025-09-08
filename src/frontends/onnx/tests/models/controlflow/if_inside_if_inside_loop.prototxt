@@ -1,0 +1,290 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "if inside if inside loop"
+  node {
+    input: "trip_count"
+    input: ""
+    input: "out_init"
+    output: "out_final"
+    output: "out_values"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      type: GRAPH
+      g {
+        name: "loop body"
+        node {
+          output: "two"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            type: TENSOR
+            t {
+              dims: 1
+              data_type: 7
+              int64_data: 2
+            }
+          }
+        }
+        node {
+          input: "i"
+          input: "two"
+          output: "greater_than_two"
+          name: "Greater_1"
+          op_type: "Greater"
+        }
+        node {
+          output: "three"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            type: TENSOR
+            t {
+              dims: 1
+              data_type: 7
+              int64_data: 3
+            }
+          }
+        }
+        node {
+          input: "i"
+          input: "three"
+          output: "greater_than_three"
+          name: "Greater_2"
+          op_type: "Greater"
+        }
+        node {
+          input: "greater_than_two"
+          output: "if_1_out"
+          name: "If_1"
+          op_type: "If"
+          attribute {
+            name: "then_branch"
+            type: GRAPH
+            g {
+              name: "then_branch"
+              node {
+                input: "greater_than_three"
+                output: "if_2_out"
+                name: "If_2"
+                op_type: "If"
+                attribute {
+                  name: "then_branch"
+                  type: GRAPH
+                  g {
+                    name: "then_branch"
+                    node {
+                      input: "i"
+                      input: "two"
+                      output: "mul_1"
+                      name: "Mul_1"
+                      op_type: "Mul"
+                    }
+                    node {
+                      input: "mul_1"
+                      output: "cast_1"
+                      op_type: "Cast"
+                      attribute {
+                        name: "to"
+                        i: 1
+                        type: INT
+                      }
+                    }
+                    node {
+                      input: "a_in"
+                      input: "cast_1"
+                      output: "mul_2"
+                      name: "Mul_2"
+                      op_type: "Mul"
+                    }
+                    output {
+                      name: "mul_2"
+                      type {
+                        tensor_type {
+                          elem_type: 1
+                        }
+                      }
+                    }
+                  }
+                }
+                attribute {
+                  name: "else_branch"
+                  type: GRAPH
+                  g {
+                    node {
+                      input: "i"
+                      input: "three"
+                      output: "mul_3"
+                      name: "Mul_3"
+                      op_type: "Mul"
+                    }
+                    name: "else_branch"
+                    node {
+                      input: "mul_3"
+                      output: "cast_2"
+                      op_type: "Cast"
+                      attribute {
+                        name: "to"
+                        i: 1
+                        type: INT
+                      }
+                    }
+                    node {
+                      input: "a_in"
+                      input: "cast_2"
+                      output: "mul_4"
+                      name: "Mul_4"
+                      op_type: "Mul"
+                    }
+                    output {
+                      name: "mul_4"
+                      type {
+                        tensor_type {
+                          elem_type: 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              output {
+                name: "if_2_out"
+                type {
+                  tensor_type {
+                    elem_type: 1
+                  }
+                }
+              }
+            }
+          }
+          attribute {
+            name: "else_branch"
+            type: GRAPH
+            g {
+              name: "else_branch"
+              node {
+                input: "a_in"
+                input: "a_in"
+                output: "add_5"
+                name: "Add_5"
+                op_type: "Add"
+              }
+              output {
+                name: "add_5"
+                type {
+                  tensor_type {
+                    elem_type: 1
+                  }
+                }
+              }
+            }
+          }
+        }
+        node {
+          input: "cond"
+          output: "cond_out"
+          name: "cond_identity"
+          op_type: "Identity"
+        }
+        node {
+          input: "if_1_out"
+          output: "a_out"
+          name: "output_accumulator"
+          op_type: "Identity"
+        }
+        input {
+          name: "i"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "cond"
+          type {
+            tensor_type {
+              elem_type: 9
+            }
+          }
+        }
+        input {
+          name: "a_in"
+          type {
+            tensor_type {
+              elem_type: 1
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+            }
+          }
+        }
+        output {
+          name: "if_1_out"
+          type {
+            tensor_type {
+              elem_type: 1
+            }
+          }
+        }
+        output {
+          name: "a_out"
+          type {
+            tensor_type {
+              elem_type: 1
+            }
+          }
+        }
+      }
+    }
+  }
+  initializer {
+    dims: 1
+    data_type: 7
+    int64_data: 5
+    name: "trip_count"
+  }
+  input {
+    name: "out_init"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out_final"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "out_values"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

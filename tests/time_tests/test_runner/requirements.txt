@@ -1,0 +1,11 @@
+-c ../../constraints.txt
+numpy
+pytest
+py
+attrs
+PyYAML
+jsonschema
+distro
+pymongo
+pytest-html
+pytest-timeout

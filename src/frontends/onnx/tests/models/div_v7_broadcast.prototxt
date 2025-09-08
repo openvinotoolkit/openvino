@@ -1,0 +1,68 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+model_version: 1
+graph {
+  node {
+    input: "A"
+    input: "B"
+    output: "X"
+    name: "div"
+    op_type: "Div"
+  }
+  name: "test_graph"
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "B"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 7
+}

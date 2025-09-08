@@ -1,0 +1,205 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    output: "643"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 0
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "644"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 21
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "642"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 3
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "645"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 1
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "648"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 21
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "649"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 30
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "647"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 3
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "650"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 1
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "data"
+    input: "643"
+    input: "644"
+    input: "642"
+    input: "645"
+    output: "corner_pred"
+    op_type: "Slice"
+  }
+  node {
+    input: "data"
+    input: "648"
+    input: "649"
+    input: "647"
+    input: "650"
+    output: "icon_pred"
+    op_type: "Slice"
+  }
+  name: "test-model"
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 320
+          }
+          dim {
+            dim_value: 320
+          }
+          dim {
+            dim_value: 30
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "corner_pred"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 320
+          }
+          dim {
+            dim_value: 320
+          }
+          dim {
+            dim_value: 21
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "icon_pred"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 320
+          }
+          dim {
+            dim_value: 320
+          }
+          dim {
+            dim_value: 9
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 11
+}

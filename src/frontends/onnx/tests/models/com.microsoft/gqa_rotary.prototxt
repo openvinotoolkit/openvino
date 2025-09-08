@@ -1,0 +1,181 @@
+ir_version: 10
+graph {
+  node {
+    input: "query"
+    input: ""
+    input: ""
+    input: "past_key"
+    input: "past_value"
+    input: "seqlens_k"
+    input: ""
+    input: "cos_cache"
+    input: "sin_cache"
+    output: "output"
+    output: "present_key"
+    output: "present_value"
+    name: "GroupQueryAttention_0"
+    op_type: "GroupQueryAttention"
+    attribute {
+      name: "do_rotary"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "kv_num_heads"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "local_window_size"
+      i: -1
+      type: INT
+    }
+    attribute {
+      name: "num_heads"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "rotary_interleaved"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "smooth_softmax"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "softcap"
+      f: 0
+      type: FLOAT
+    }
+    domain: "com.microsoft"
+  }
+  name: "GroupQueryAttention_Graph"
+  input {
+    name: "query"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "batch_size" }
+          dim { dim_param: "sequence_length" }
+          dim { dim_value: 64 }
+        }
+      }
+    }
+  }
+  input {
+    name: "past_key"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "batch_size" }
+          dim { dim_value: 1 }
+          dim { dim_param: "past_sequence_length" }
+          dim { dim_value: 16 }
+        }
+      }
+    }
+  }
+  input {
+    name: "past_value"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "batch_size" }
+          dim { dim_value: 1 }
+          dim { dim_param: "past_sequence_length" }
+          dim { dim_value: 16 }
+        }
+      }
+    }
+  }
+  input {
+    name: "seqlens_k"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim { dim_param: "batch_size" }
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+  input {
+    name: "cos_cache"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "max_sequence_length" }
+          dim { dim_value: 8 }
+        }
+      }
+    }
+  }
+  input {
+    name: "sin_cache"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "max_sequence_length" }
+          dim { dim_value: 8 }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "batch_size" }
+          dim { dim_param: "sequence_length" }
+          dim { dim_value: 32 }
+        }
+      }
+    }
+  }
+  output {
+    name: "present_key"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "batch_size" }
+          dim { dim_value: 1 }
+          dim { dim_param: "total_sequence_length" }
+          dim { dim_value: 16 }
+        }
+      }
+    }
+  }
+  output {
+    name: "present_value"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "batch_size" }
+          dim { dim_value: 1 }
+          dim { dim_param: "total_sequence_length" }
+          dim { dim_value: 16 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

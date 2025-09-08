@@ -1,0 +1,172 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "basic loop"
+  node {
+    input: ""
+    input: "cond_in"
+    input: "a_init"
+    output: "a_final"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "a_in"
+          input: "b"
+          output: "current_a"
+          name: "loop_body_add"
+          op_type: "Add"
+        }
+        node {
+          input: "i"
+          input: "threshold"
+          output: "cond_out"
+          name: "condition_calc"
+          op_type: "Less"
+        }
+        node {
+          input: "current_a"
+          output: "a_out"
+          name: "output_accumulator"
+          op_type: "Identity"
+        }
+        name: "simple add"
+        initializer {
+          dims: 1
+          dims: 2
+          data_type: 1
+          float_data: 1
+          float_data: 1
+          name: "b"
+        }
+        input {
+          name: "i"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "cond"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "a_in"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+              dim {
+                dim_value: 1
+              }
+              dim {
+                dim_value: 2
+              }
+            }
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "current_a"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+              dim {
+                dim_value: 1
+              }
+              dim {
+                dim_value: 2
+              }
+            }
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  initializer {
+    dims: 1
+    data_type: 7
+    int64_data: 5
+    name: "threshold"
+  }
+  input {
+    name: "cond_in"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "a_init"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "a_final"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

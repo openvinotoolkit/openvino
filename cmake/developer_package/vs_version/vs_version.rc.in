@@ -1,0 +1,35 @@
+#include <winver.h>
+
+VS_VERSION_INFO         VERSIONINFO
+  FILEVERSION           @OV_VS_VER_FILEVERSION_QUAD@
+  PRODUCTVERSION        @OV_VS_VER_PRODUCTVERSION_QUAD@
+  FILEFLAGSMASK         VS_FFI_FILEFLAGSMASK
+#ifdef _DEBUG
+  FILEFLAGS             1
+#else
+  FILEFLAGS             0
+#endif
+  FILEOS                VOS__WINDOWS32
+  FILETYPE              VFT_DLL
+  FILESUBTYPE           0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "@OV_VS_VER_COMPANY_NAME_STR@\0"
+      VALUE "FileDescription", "@OV_VS_VER_FILEDESCRIPTION_STR@\0"
+      VALUE "FileVersion", "@OV_VS_VER_FILEVERSION_STR@\0"
+      VALUE "InternalName", "@OV_VS_VER_INTERNALNAME_STR@\0"
+      VALUE "LegalCopyright", "@OV_VS_VER_COPYRIGHT_STR@\0"
+      VALUE "OriginalFilename", "@OV_VS_VER_ORIGINALFILENAME_STR@\0"
+      VALUE "ProductName", "@OV_VS_VER_PRODUCTNAME_STR@\0"
+      VALUE "ProductVersion", "@OV_VS_VER_PRODUCTVERSION_STR@\0"
+      VALUE "Comments", "@OV_VS_VER_COMMENTS_STR@\0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1252
+  END
+END

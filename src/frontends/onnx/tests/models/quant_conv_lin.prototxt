@@ -1,0 +1,201 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    input: "x_scale"
+    input: "x_zero_point"
+    input: "w"
+    input: "w_scale"
+    input: "w_zero_point"
+    input: "y_scale"
+    input: "y_zero_point"
+    output: "y"
+    op_type: "QLinearConv"
+    attribute {
+      name: "pads"
+      ints: 1
+      ints: 1
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+  }
+  name: "test_conv_with_strides_padding"
+  initializer {
+    data_type: 2
+    name: "x_zero_point"
+    raw_data: "\000"
+  }
+  initializer {
+    data_type: 1
+    float_data: 1
+    name: "x_scale"
+  }
+  initializer {
+    data_type: 3
+    name: "w_zero_point"
+    raw_data: "\000"
+  }
+  initializer {
+    data_type: 1
+    float_data: 1
+    name: "w_scale"
+  }
+  initializer {
+    data_type: 3
+    name: "y_zero_point"
+    raw_data: "\000"
+  }
+  initializer {
+    data_type: 1
+    float_data: 16
+    name: "y_scale"
+  }
+  initializer {
+    dims: 1
+    dims: 1
+    dims: 3
+    dims: 3
+    data_type: 3
+    int32_data: 1
+    int32_data: 0
+    int32_data: 2
+    int32_data: 1
+    int32_data: 0
+    int32_data: 2
+    int32_data: 1
+    int32_data: 0
+    int32_data: 2
+    name: "w"
+  }
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 9
+          }
+          dim {
+            dim_value: 9
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "x_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "x_zero_point"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "w"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "w_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "w_zero_point"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "y_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "y_zero_point"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 9
+          }
+          dim {
+            dim_value: 9
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 8
+}

@@ -1,0 +1,72 @@
+{
+    "appCmd":"source {venvName}/bin/activate && cd {appPath} && python3.10 -m pip install --upgrade pip && python3.10 -m pip install openvino=={wheelVersion} openvino_genai=={wheelVersion} openvino_tokenizers=={wheelVersion} --find-links={precommitPath}wheels/ && python3.10 -m pip install -r requirements.txt && {cmd}",
+    "appPath" : "{appPath}",
+    "venvCfg":{
+       "venvEnabled":true,
+       "venvDir":"{workPath}/venv/",
+       "venvName":"tempVenv"
+    },
+    "commandList":[
+ 
+    ],
+    "runConfig":{
+       "mode":"llmBench",
+       "traversal":"firstFailedVersion",
+       "perfAppropriateDeviation" : 0.05,
+       "commitList" : {
+         "getCommitListCmd" : "git log {c1}..{c2} --boundary --pretty=\"%h\""
+     }
+    },
+    "dlbConfig":{
+       "launchedAsJob":false,
+       "toolName":"",
+       "wheelVersionsMap":{
+ 
+       },
+       "commonPath":"{commitPath}",
+       "subPath":"{subPath}",
+       "appPath":"",
+       "appCmd":""
+    },
+    "cachedPathConfig":{
+       "enabled":true,
+       "scheme":"mandatory",
+       "passCmdList":false,
+       "changeAppPath":false,
+       "commonPath":"{commitPath}",
+       "subPath":"{subPath}",
+       "cashMap":{
+ 
+       }
+    },
+    "substitutionRules":[
+       {
+          "name":"precommitPath",
+          "enabled":true,
+          "type":"map",
+          "placeholder":"precommitPath",
+          "from":"$.cachedPathConfig.cashMap",
+          "to":"$.appCmd"
+       },
+       {
+          "name":"wheelVersion",
+          "enabled":true,
+          "type":"map",
+          "placeholder":"wheelVersion",
+          "from":"$.dlbConfig.wheelVersionsMap",
+          "to":"$.appCmd"
+       }
+    ],
+    "subscriptions":[
+       {
+          "name":"wheelPathsMap",
+          "enabled":true
+       },
+       {
+          "name":"wheelVersionsMap",
+          "enabled":true
+       }
+    ],
+    "verboseOutput" : true,
+    "checkIfBordersDiffer" : true
+ }

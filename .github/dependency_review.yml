@@ -1,0 +1,23 @@
+fail-on-severity: 'low'
+allow-licenses:
+  - 'BSD-2-Clause'
+  - 'BSD-3-Clause'
+  - 'BSD-3-Clause-Clear'
+  - 'BSD-2-Clause-Views'
+  - 'MIT'
+  - 'Apache-2.0'
+  - 'ISC'
+  - 'BlueOak-1.0.0'
+  - '0BSD'
+  - 'Python-2.0'
+  - 'LGPL-3.0'
+  - 'MPL-2.0'
+fail-on-scopes:
+  - 'runtime'
+  - 'development'
+  - 'unknown'
+license-check: true
+vulnerability-check: true
+allow-dependencies-licenses:
+  - 'pkg:pypi/PyGithub@2.2.0'
+  - 'pkg:pypi/psycopg2-binary'

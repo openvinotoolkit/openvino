@@ -1,0 +1,113 @@
+ir_version: 4
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    input: "W"
+    output: "Y"
+    name: "node1"
+    op_type: "ConvTranspose"
+    attribute {
+      name: "auto_pad"
+      s: "NOTSET"
+      type: STRING
+    }
+    attribute {
+      name: "kernel_shape"
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "pads"
+      ints: 0
+      ints: 0
+      ints: 0
+      ints: 0
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "group"
+      i: 4
+      type: INT
+    }
+    doc_string: "ConvTranspose"
+    domain: ""
+  }
+  name: "test"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 16
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "W"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 16
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 8
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 7
+}
