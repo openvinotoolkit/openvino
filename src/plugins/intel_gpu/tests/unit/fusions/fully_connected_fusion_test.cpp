@@ -1060,7 +1060,7 @@ TEST_P(fc_fp32_activation_prelu, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation_prelu, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_FP32_1, 3, 3 }
+    fully_connected_test_params{ CASE_FC_FP32_1, 2, 3 }
 }));
 
 class fc_fp32_activation_relu : public FullyConnectedFusingTestOneDNN {};
