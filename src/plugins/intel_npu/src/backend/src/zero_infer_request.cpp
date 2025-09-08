@@ -684,7 +684,8 @@ std::shared_ptr<ov::ITensor> ZeroInferRequest::allocate_tensor(const size_t inde
                         descriptor.nameFromCompiler);
         tensor = get_user_input(*descriptor.relatedDescriptorIndex)._ptr;
     } else {
-        tensor = create_tensor(descriptor.precision, allocatedTensorShape, allocator);
+        tensor =
+            std::make_shared<ZeroTensor>(_initStructs, _config, descriptor.precision, allocatedTensorShape, allocator);
     }
 
     if (isInput) {
@@ -820,7 +821,9 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                 auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroInput);
 
                 if (zeroTensor == nullptr || (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user())) {
-                    levelZeroInput = create_tensor(
+                    levelZeroInput = std::make_shared<ZeroTensor>(
+                        _initStructs,
+                        _config,
                         _metadata.inputs.at(zeroState->get_tensor_index()).precision,
                         _metadata.inputs.at(zeroState->get_tensor_index()).shapeFromCompiler.get_max_shape(),
                         *_inputAllocator);
@@ -1085,14 +1088,6 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     OPENVINO_ASSERT(_pipeline, "Profiling information isn't available before running an inference!");
 
     return _pipeline->get_profiling_info();
-}
-
-std::shared_ptr<ZeroTensor> ZeroInferRequest::create_tensor(ov::element::Type type,
-                                                            const ov::Shape& shape,
-                                                            const ov::Allocator& allocator) const {
-    OPENVINO_ASSERT(allocator, "Allocator mush be provided when creating a zero tensor!");
-
-    return std::make_shared<ZeroTensor>(_initStructs, _config, type, shape, allocator);
 }
 
 void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIndex) const {

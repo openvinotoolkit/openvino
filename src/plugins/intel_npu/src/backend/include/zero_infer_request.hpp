@@ -73,9 +73,6 @@ private:
                                                  const bool isInput,
                                                  const ov::Allocator& allocator,
                                                  const std::optional<std::size_t> batchSize = std::nullopt) const;
-    std::shared_ptr<ZeroTensor> create_tensor(ov::element::Type type,
-                                              const ov::Shape& shape,
-                                              const ov::Allocator& allocator = {}) const;
 
     void add_state(const IODescriptor& descriptor, size_t tensorIndex) const override;
 
