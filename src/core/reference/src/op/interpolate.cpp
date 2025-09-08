@@ -129,7 +129,7 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_i
     int64_t batch_size = input_shape[0];
     std::size_t spatial_rank = input_shape.size() - 2;
 
-    if (input_shape[1] == m_out_shape[1] && input_shape[2] == m_out_shape[2]) {
+    if (input_shape[1] == output_shape[1] && input_shape[2] == output_shape[2]) {
         input_shape[1] *= input_shape[2];
         input_shape[2] = 1;
         output_shape[1] *= output_shape[2];
