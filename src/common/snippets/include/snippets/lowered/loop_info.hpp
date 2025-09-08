@@ -46,10 +46,6 @@ public:
              size_t increment,
              const std::vector<LoopPort>& entries,
              const std::vector<LoopPort>& exits);
-    LoopInfo(size_t work_amount,
-             size_t increment,
-             const std::vector<ExpressionPort>& entries,
-             const std::vector<ExpressionPort>& exits);
     virtual ~LoopInfo() = default;
 
     /**
@@ -127,11 +123,6 @@ public:
      * @param increment - step of loop counter increment
      */
     void set_increment(size_t increment);
-    /**
-     * @brief Sets `dim_idx` to all input and output ports
-     * @param dim_idx - index
-     */
-    void set_dim_idx(size_t dim_idx);
 
     /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`
@@ -253,12 +244,6 @@ public:
                     size_t increment,
                     const std::vector<LoopPort>& entries,
                     const std::vector<LoopPort>& exits,
-                    SpecificIterationHandlers handlers = SpecificIterationHandlers());
-    UnifiedLoopInfo(size_t work_amount,
-                    size_t increment,
-                    const std::vector<ExpressionPort>& entries,
-                    const std::vector<ExpressionPort>& exits,
-
                     SpecificIterationHandlers handlers = SpecificIterationHandlers());
 
     /**
