@@ -737,7 +737,7 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
         // fill -inf -> max in group, 0 -> exp_sum to make compensation work
         {
             // current max -> mem
-            vector<SOFTMAX_TYPE, BLOCK_SG_N> max_m = -60000;
+            vector<SOFTMAX_TYPE, BLOCK_SG_M> max_m = -60000;
             // kq_max_wg: [b, hq, N/BLOCK_WG_N, M_aligned]
             uint offset = (id_wg_n * M_aligned + id_wg_m * BLOCK_WG_M + id_sg_m * BLOCK_SG_M) * sizeof(SOFTMAX_TYPE);
             cm_ptr_store<int>((int*)kq_max_wg, offset, max_m.format<int>());
