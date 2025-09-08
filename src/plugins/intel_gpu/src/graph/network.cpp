@@ -545,6 +545,31 @@ void network::allocate_primitives() {
 
     auto& po = _program->get_processing_order();
 
+    for (auto const& node : po) {
+        if (node->get_preferred_impl_type() == impl_types::onednn) {
+            size_t eltw_dep = 0;
+            for (auto& fused_op : node->get_fused_primitives()) {
+                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
+                    // If it is first sum, reuse the buffer
+                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
+                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
+                        continue;
+                    if (!fused_op.has_outer_dep())
+                        continue;
+                    eltw_dep = fused_op.outer_dep_start_idx;
+                    auto& eltw_in = node->get_dependency(eltw_dep);
+                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
+                        auto& eltw_inst = _primitives.at(eltw_in.id());
+                        auto& prim_inst = _primitives.at(node->id());
+                        auto& eltw_mem = eltw_inst->output_memory();
+                        auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node->get_output_layout());
+                        prim_inst->set_output_memory(new_mem);
+                    }
+                }
+            }
+        }
+    }
+
     // Update the output memory address of optimized-out layer if it is not valid.
     for (auto const& node : po) {
         if (node->can_be_optimized() && !node->is_dynamic() &&
