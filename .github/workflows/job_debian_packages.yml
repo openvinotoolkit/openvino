@@ -34,6 +34,11 @@ jobs:
         if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
+      - name: Switch Ubuntu APT sources to Azure mirrors
+        if: runner.os == 'Linux'
+        run: |
+          sed -i -E 's|http://(archive\|security).ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list
+
       - name: Download OpenVINO debian packages
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
