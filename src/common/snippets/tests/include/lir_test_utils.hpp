@@ -4,8 +4,12 @@
 
 #pragma once
 
+#include <map>
+#include <vector>
+
 #include "common_test_utils/test_common.hpp"
 #include "lir_comparator.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
@@ -19,6 +23,24 @@ public:
     void SetUp() override {}
 
     void TearDown() override;
+
+    /**
+     * @brief Helper method to reorder loop IDs and assign them to expressions in reference LIR
+     * @param expr_to_loop_ids Map from expressions to their loop IDs in original notation
+     * @param loop_ids_mapper Map for reordering loop IDs to match the actual LIR after transformations
+     *
+     * Note: Since it's impossible to set the desired loop ID during loop info creation,
+     * we have to reorder the loop IDs in reference LIR to make them match the actual LIR.
+     * This helper is needed only for linear_ir_ref (expected result) because the actual LIR
+     * (linear_ir) gets its loop IDs assigned/fused/split automatically, while
+     * the reference LIR needs manual configuration to match the expected transformation result.
+     *
+     * This helper encapsulates the logic of:
+     * 1. Reordering loop identifiers in the loop manager using the provided mapper
+     * 2. Setting the reordered loop IDs to the corresponding expressions
+     */
+    void assign_loop_ids(const std::map<ov::snippets::lowered::ExpressionPtr, std::vector<size_t>>& expr_to_loop_ids,
+                         const std::map<size_t, size_t>& loop_ids_mapper);
 
     std::shared_ptr<ov::snippets::lowered::LinearIR> linear_ir, linear_ir_ref;
     ov::snippets::lowered::pass::PassPipeline pipeline;

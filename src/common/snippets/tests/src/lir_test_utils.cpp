@@ -38,6 +38,19 @@ void LoweredPassTestsF::TearDown() {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
+void LoweredPassTestsF::assign_loop_ids(const std::map<ExpressionPtr, std::vector<size_t>>& expr_to_loop_ids,
+                                        const std::map<size_t, size_t>& loop_ids_mapper) {
+    linear_ir_ref->get_loop_manager()->reorder_identifiers(loop_ids_mapper);
+    for (const auto& [expr, original_loop_ids] : expr_to_loop_ids) {
+        std::vector<size_t> reordered_loop_ids;
+        reordered_loop_ids.reserve(original_loop_ids.size());
+        for (auto original_id : original_loop_ids) {
+            reordered_loop_ids.push_back(loop_ids_mapper.at(original_id));
+        }
+        expr->set_loop_ids(reordered_loop_ids);
+    }
+}
+
 ov::snippets::VectorDims get_default_subtensor(size_t rank) {
     return VectorDims(rank, ov::snippets::utils::get_full_dim_value());
 }
