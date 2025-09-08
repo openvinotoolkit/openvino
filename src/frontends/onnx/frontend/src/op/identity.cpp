@@ -17,8 +17,8 @@ namespace onnx {
 namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector identity(const ov::frontend::onnx::Node& node) {
-    // This operator will be optimze out in EliminateSlice pass
-    // Need this to avoid data not be copied out when Identity connects from input to result
+    // This operator will be optimized out in EliminateSlice pass
+    // Need this to avoid data not being copied out when Identity connects from input to result
     // in some cases like:
     //   Input->Identity->Result
     auto input = node.get_ov_inputs().at(0);
