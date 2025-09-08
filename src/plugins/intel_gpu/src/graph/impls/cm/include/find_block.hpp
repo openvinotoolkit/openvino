@@ -178,7 +178,7 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     acc_score_p[0] = 0;
     acc_score_p[1] = 0;
 #endif
-    for (int j = 2; j < k_block_pad - 2; j++) {
+    for (int j = 2; j < k_block_pad; j++) {
 #if DEBUG_ACC == 1
         acc_score_p[j] = sum_cur;
 #endif
