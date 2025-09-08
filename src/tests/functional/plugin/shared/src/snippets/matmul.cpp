@@ -25,8 +25,8 @@ void MatMulBase::filter_shape_info(const std::set<size_t>& idces_to_remove) {
     }
 }
 
-std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MatMulParams> obj) {
-    auto [input_shapes, elem_types, mm_type, num_nodes, num_subgraphs, targetDevice, additional_config] = obj.param;
+std::string MatMul::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MatMulParams>& obj) {
+    const auto& [input_shapes, elem_types, mm_type, num_nodes, num_subgraphs, targetDevice, additional_config] = obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
         result << "IS[" << i << "]=" << input_shapes[i] << "_";

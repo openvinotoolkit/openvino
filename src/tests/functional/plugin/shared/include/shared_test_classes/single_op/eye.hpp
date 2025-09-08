@@ -17,7 +17,7 @@ using EyeLayerTestParams = std::tuple<
 class EyeLayerTest : public testing::WithParamInterface<EyeLayerTestParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EyeLayerTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<EyeLayerTestParams>& obj);
     void SetUp() override;
 };
 }  // namespace test

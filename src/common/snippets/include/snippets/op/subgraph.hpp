@@ -92,8 +92,6 @@ public:
 
     explicit Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
 
-    explicit Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body);
-
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
