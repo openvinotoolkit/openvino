@@ -15,6 +15,8 @@ protected:
     void TearDown() override;
 
 public:
+    std::shared_ptr<ZeroInitStructsHolder> initStructs;
+
     std::shared_ptr<zeroMemory::HostMemSharedAllocator> sharedAllocator;
 
     std::shared_ptr<zeroMemory::HostMemAllocator> allocator;

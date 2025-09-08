@@ -32,8 +32,6 @@ protected:
 public:
     std::shared_ptr<intel_npu::ZeGraphExtWrappers> zeGraphExt;
 
-    std::unique_ptr<DriverCompilerAdapter> compilerAdapter;
-
     SerializedIR serializedIR;
 
     GraphDescriptor graphDescriptor;
