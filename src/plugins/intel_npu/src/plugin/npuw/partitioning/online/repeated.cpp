@@ -11,6 +11,7 @@
 
 using ov::npuw::online::Interconnect;
 using ov::npuw::online::MetaInterconnect;
+using ov::npuw::online::MetaInterconnectIO;
 using ov::npuw::online::Repeated;
 
 bool Repeated::Archetype::operator==(const Repeated::Archetype& other) const {
@@ -44,25 +45,24 @@ bool Interconnect::operator==(const Interconnect& other) const {
 
 bool MetaInterconnect::operator==(const MetaInterconnect& other) const {
     return other.input_meta == input_meta && other.output_meta == output_meta && other.input_port == input_port &&
-           other.output_port == output_port && other.input_g_output_size == input_g_output_size &&
-           other.output_g_output_size == output_g_output_size && other.input_reptrack == input_reptrack &&
+           other.output_port == output_port && other.input_reptrack == input_reptrack &&
            other.output_reptrack == output_reptrack;
 }
 
 bool MetaInterconnect::operator<(const MetaInterconnect& other) const {
-    return std::make_tuple(input_meta,
-                           input_port,
-                           input_reptrack,
-                           input_g_output_size,
-                           output_port,
-                           output_meta,
-                           output_reptrack,
-                           output_g_output_size) < std::make_tuple(other.input_meta,
-                                                                   other.input_port,
-                                                                   other.input_reptrack,
-                                                                   other.input_g_output_size,
-                                                                   other.output_port,
-                                                                   other.output_meta,
-                                                                   other.output_reptrack,
-                                                                   other.output_g_output_size);
+    return std::make_tuple(input_meta, input_port, input_reptrack, output_port, output_meta, output_reptrack) <
+           std::make_tuple(other.input_meta,
+                           other.input_port,
+                           other.input_reptrack,
+                           other.output_port,
+                           other.output_meta,
+                           other.output_reptrack);
+}
+
+bool MetaInterconnectIO::operator==(const MetaInterconnectIO& other) const {
+    return other.output_imeta == output_imeta && other.output_ometa == output_ometa;
+}
+
+bool MetaInterconnectIO::operator<(const MetaInterconnectIO& other) const {
+    return std::make_tuple(output_imeta, output_ometa) < std::make_tuple(other.output_imeta, other.output_ometa);
 }
