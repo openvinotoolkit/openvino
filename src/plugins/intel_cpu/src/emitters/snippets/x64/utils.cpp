@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,6 +68,30 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t*
     h->mov(stack_frame, ptr_reg);
     if (ptr_offset != 0) {
         h->add(stack_frame, ptr_offset);
+    }
+}
+
+jit_aux_gpr_holder::jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator_t* host,
+                                       std::vector<size_t>& pool_gpr_idxs,
+                                       const std::vector<size_t>& used_gpr_idxs)
+    : m_h(host),
+      m_pool_gpr_idxs(pool_gpr_idxs) {
+    // If the pool is empty, let's manually allocate the gpr and push original value on stack
+    if (m_pool_gpr_idxs.empty()) {
+        m_aux_gpr_idx = get_aux_gpr(used_gpr_idxs);
+        m_is_preserved = true;
+        m_h->push(m_aux_gpr_idx);
+    } else {
+        m_aux_gpr_idx = Xbyak::Reg64(static_cast<int>(m_pool_gpr_idxs.back()));
+        m_pool_gpr_idxs.pop_back();
+    }
+}
+
+jit_aux_gpr_holder::~jit_aux_gpr_holder() {
+    if (m_is_preserved) {
+        m_h->pop(m_aux_gpr_idx);
+    } else {
+        m_pool_gpr_idxs.push_back(m_aux_gpr_idx.getIdx());
     }
 }
 

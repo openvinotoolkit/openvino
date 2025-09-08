@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,10 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& /*linear_ir*/,
     bool is_modified = false;
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& node = expr_it->get()->get_node();
-        if (auto loop_end = as_type_ptr<op::LoopEnd>(node)) {
+        // Note: we exclude parallel loops from this optimization because they need unaltered ptr increments
+        // in order to shift per-thread pointer correctly (in accordance with per-thread work amounts)
+        auto loop_end = ov::as_type_ptr<op::LoopEnd>(node);
+        if (loop_end && !loop_end->get_is_parallel()) {
             auto next_expr_it = std::next(expr_it);
             const auto& next_node = next_expr_it->get()->get_node();
             // Note: Finalization offsets before the Result can be safely disregarded
@@ -38,7 +41,8 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& /*linear_ir*/,
                 loop_end->set_finalization_offsets(std::vector<int64_t>(fin_offsets.size(), 0));
                 is_modified = true;
             }
-            if (auto outer_loop_end = as_type_ptr<op::LoopEnd>(next_node)) {
+            auto outer_loop_end = ov::as_type_ptr<op::LoopEnd>(next_node);
+            if (outer_loop_end && !outer_loop_end->get_is_parallel()) {
                 const auto& is_incremented = loop_end->get_is_incremented();
                 const auto& data_sizes = loop_end->get_element_type_sizes();
                 auto fin_offsets = loop_end->get_finalization_offsets();

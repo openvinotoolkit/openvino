@@ -89,7 +89,8 @@ public:
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                     const ov::snippets::lowered::ExpressionPtr& expr,
                                     executor_function executor)
-        : UnaryEltwiseTppEmitter(h, isa, expr),
+        : jit_emitter(h, isa),
+          UnaryEltwiseTppEmitter(h, isa, expr),
           executor(std::move(executor)) {}
     static void execute_unary_eltw_kernel(ReferenceUnaryEltwiseTppEmitter* ref_emitter, void* in0, void* out0) {
         assert(ref_emitter);

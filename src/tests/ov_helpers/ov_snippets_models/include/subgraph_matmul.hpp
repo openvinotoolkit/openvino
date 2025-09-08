@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,6 +79,8 @@ public:
                                 MatMulType type)
         : MatMulFunctionBase(inputShapes, type, precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
+        // Note: bias (3rd input) precision is selected automatically
+        OPENVINO_ASSERT(precisions.size() == 2, "Got invalid number of precisions");
     }
 
 protected:

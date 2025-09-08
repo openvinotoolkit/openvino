@@ -265,7 +265,7 @@ size_t LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                               bool set_default_handlers) {
     const auto normalized_increment =
         utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
-    const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits);
+    const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits, false);
     if (set_default_handlers) {
         loop_info->set_handlers(SpecificIterationHandlers(work_amount, normalized_increment, loop_info->get_dim_idx()));
     }
@@ -349,7 +349,12 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target,
     auto new_exits = std::move(output_ports_upper);
     new_exits.insert(new_exits.end(), output_ports_lower.begin(), output_ports_lower.end());
 
-    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers);
+    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount,
+                                                  increment,
+                                                  new_entries,
+                                                  new_exits,
+                                                  loop_info_lower->is_parallel(),
+                                                  handlers);
 
     // Need to handle InnerSplittedLoopInfo - update outer splitted loop info if it was fused
     for (const auto& p : m_map) {

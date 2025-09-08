@@ -40,6 +40,11 @@ public:
     [[nodiscard]] size_t get_num_spilled_regs() const {
         return m_regs_to_spill.size();
     }
+
+    [[nodiscard]] const std::vector<Xbyak::Reg>& get_spilled_regs() const {
+        return m_regs_to_spill;
+    }
+
     /**
      * @brief Spills registers to stack
      * @arg live_regs - set of registers to spill (optional). All registers will be spilled if live_regs is not
@@ -54,9 +59,46 @@ public:
     void rsp_align(size_t callee_saved_gpr_idx);
     void rsp_restore();
 
+    /**
+     * @brief Computes the total memory buffer size required to store the specified registers.
+     * @param regs Vector of Xbyak registers for which the required memory size should be calculated
+     * @return Total size in bytes needed to store all the registers
+     */
+    [[nodiscard]] static size_t compute_memory_buffer_size(const std::vector<Xbyak::Reg>& regs);
+
+    /**
+     * @brief This method stores the contents of the specified registers to a memory buffer.
+     * @note Memory allocation is the caller's responsibility -
+     * this method does not allocate memory by the pointer in memory_ptr_reg.
+     *
+     * @param h Generator
+     * @param regs_to_store Vector of Xbyak registers to be stored to memory
+     * @param memory_ptr_reg Register containing the base memory address where registers should be stored
+     */
+    static void store_regs_to_memory(dnnl::impl::cpu::x64::jit_generator_t* h,
+                                     const std::vector<Xbyak::Reg>& regs_to_store,
+                                     Xbyak::Reg memory_ptr_reg);
+
+    /**
+     * @brief This method loads the contents of the specified registers from a memory buffer to registers.
+     * The registers are loaded in reverse order compared to how they were stored to maintain proper stack semantics.
+     * @note It's a caller responsibility to make sure that the current states of regs from 'regs_to_load'
+     * are saved somewhere (if needed), since its' values will be overwritten by this method.
+     *
+     * @param h Generator
+     * @param regs_to_load Vector of registers to be loaded from memory
+     * @param memory_ptr_reg Register containing the base memory address from where registers will be loaded
+     * @param memory_byte_size Total size in bytes of the memory buffer used for register storage
+     */
+    static void load_regs_from_memory(dnnl::impl::cpu::x64::jit_generator_t* h,
+                                      const std::vector<Xbyak::Reg>& regs_to_load,
+                                      Xbyak::Reg memory_ptr_reg,
+                                      uint32_t memory_byte_size);
+
 private:
     EmitABIRegSpills() = default;
     static dnnl::impl::cpu::x64::cpu_isa_t get_isa();
+
     dnnl::impl::cpu::x64::jit_generator_t* h{nullptr};
     const dnnl::impl::cpu::x64::cpu_isa_t isa{dnnl::impl::cpu::x64::cpu_isa_t::isa_undef};
     std::vector<Xbyak::Reg> m_regs_to_spill;

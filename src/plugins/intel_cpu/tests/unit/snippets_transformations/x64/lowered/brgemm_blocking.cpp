@@ -62,6 +62,7 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(0), 0),
                                       LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1), 1)},
                 std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_output_port(0))},
+                false,
                 get_k_loop_handlers(k, k_block, backend));
         linear_ir->get_loop_manager()->add_loop_info(loop_info);
     }
@@ -71,6 +72,7 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                 std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_input_port(0)),
                                       LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1), 0)},
                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 0)},
+                false,
                 BrgemmBlockingBase::get_default_blocking_loop_handlers(n, n_block)));
     }
     if (m_block) {
@@ -81,6 +83,7 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk,
                 entries,
                 std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 1)},
+                false,
                 BrgemmBlockingBase::get_default_blocking_loop_handlers(m, m_block)));
     }
 }
@@ -460,7 +463,7 @@ TEST_F(BrgemmCPUBlockingTest, AMX) {
         std::vector<LoopPort> exits {LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 1)};
         auto handlers = BrgemmBlockingBase::get_default_blocking_loop_handlers(m, m_blk);
         linear_ir_ref->get_loop_manager()->
-            add_loop_info(std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk, entries, exits, handlers));
+            add_loop_info(std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk, entries, exits, false, handlers));
         brgemm_expr->set_loop_ids({0});
         scratch.first->get()->set_loop_ids({0});
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
@@ -500,7 +503,7 @@ TEST_F(BrgemmCPUBlockingTest, AMX_FC) {
         std::vector<LoopPort> exits {LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 1)};
         auto handlers = BrgemmBlockingBase::get_default_blocking_loop_handlers(m, m_blk);
         linear_ir_ref->get_loop_manager()->
-            add_loop_info(std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk, entries, exits, handlers));
+            add_loop_info(std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk, entries, exits, false, handlers));
         brgemm_expr->set_loop_ids({0});
         scratch.first->get()->set_loop_ids({0});
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
