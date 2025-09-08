@@ -397,13 +397,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::MatMul,
             // supports
             []([[maybe_unused]] const FCConfig& config) -> bool {
-                // enable only with debug caps and env variable defined for now
-                CPU_DEBUG_CAP_ENABLE(
-                    if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
-                        VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                        return true;
-                    })
-                return false;
+                // TODO: int8, int4, mxfp4 decompression path will be enabled later.
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                return true;
             },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
