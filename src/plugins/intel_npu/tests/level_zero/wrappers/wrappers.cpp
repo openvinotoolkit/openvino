@@ -8,24 +8,19 @@
 #include "intel_npu/common/filtered_config.hpp"
 #include "ir_serializer.hpp"
 
+// there is something wrong in here
 void ZeroWrappersTest::SetUp() {
     model = ov::test::utils::make_multi_single_conv();
     auto zeroInitStruct = ZeroInitStructsHolder::getInstance();
 
     zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
 
-    compilerAdapter = std::make_unique<DriverCompilerAdapter>(zeroInitStruct);
-
     auto compilerProperties = zeroInitStruct->getCompilerProperties();
     const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
     const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
     serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
 
-    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
-    auto cfg = ::intel_npu::Config(opt_desc);
-    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&cfg);
-    buildFlags += plgConfig->toStringForCompiler();
-    buildFlags += plgConfig->toStringForCompilerInternal();
+    buildFlags = "";
 
     // should this be here?
     graphDescriptor = zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, ZE_GRAPH_FLAG_NONE);
@@ -33,6 +28,7 @@ void ZeroWrappersTest::SetUp() {
 
 void ZeroWrappersTest::TearDown() {}
 
+// coverage on all ifelse branches
 TEST_F(ZeroWrappersTest, QueryGraph) {
     const auto supportedLayers = zeGraphExt->queryGraph(std::move(serializedIR), buildFlags);
 }
@@ -42,6 +38,7 @@ TEST_F(ZeroWrappersTest, GetGraphBinary) {
 }
 
 TEST_F(ZeroWrappersTest, InitializeGraph) {
+    // int max?
     auto commandQueueGroupOrdinal =
         zeroUtils::findCommandQueueGroupOrdinal(ZeroInitStructsHolder::getInstance()->getDevice(),
                                                 ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
@@ -53,6 +50,9 @@ TEST_F(ZeroWrappersTest, DestroyGraph) {
     zeGraphExt->destroyGraph(graphDescriptor);
 }
 
+// todo: maybe we can avoid this
+// what about a synthetic model?
+// does ZeroWrappers display different behaviors on IRv10 vs IRv11?
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          ze_graph_compiler_version_info_t compilerVersion,
                          const uint32_t supportedOpsetVersion) {

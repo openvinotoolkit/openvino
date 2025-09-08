@@ -29,8 +29,6 @@ void ZeroGraphTest::SetUp() {
     auto zeroInitStruct = ZeroInitStructsHolder::getInstance();
     zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
 
-    compilerAdapter = std::make_unique<DriverCompilerAdapter>(zeroInitStruct);
-
     auto compilerProperties = zeroInitStruct->getCompilerProperties();
     const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
     const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;

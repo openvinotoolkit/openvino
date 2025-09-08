@@ -12,12 +12,14 @@
 using namespace intel_npu;
 
 void MemoryAllocator::SetUp() {
+    initStructs = std::make_shared<ZeroInitStructsHolder>();
     int allocatorFlag = GetParam();
-    allocator = std::make_shared<zeroMemory::HostMemAllocator>(ZeroInitStructsHolder::getInstance(), allocatorFlag);
+    allocator = std::make_shared<zeroMemory::HostMemAllocator>(initStructs, allocatorFlag);
 }
 
 void MemoryAllocator::TearDown() {}
 
+// TODO: add maybe some comments to describe the test
 TEST_P(MemoryAllocator, AllocateTwice) {
     ov::Shape shape = {1, 1, 128};
     auto byteSize = ov::shape_size(shape) * ov::element::f32.size();
@@ -26,7 +28,7 @@ TEST_P(MemoryAllocator, AllocateTwice) {
     ::operator delete(data, std::align_val_t(4096));
 
     sharedAllocator =
-        std::make_shared<zeroMemory::HostMemSharedAllocator>(ZeroInitStructsHolder::getInstance(), tensor, GetParam());
+        std::make_shared<zeroMemory::HostMemSharedAllocator>(initStructs, tensor, GetParam());
 
     size_t size = 1 << 10;
     void* ptr = sharedAllocator->allocate(size);
@@ -36,7 +38,7 @@ TEST_P(MemoryAllocator, AllocateTwice) {
     EXPECT_NE(ptr, nullptr);
 
     bool result =
-        zeroUtils::memory_was_allocated_in_the_same_l0_context(ZeroInitStructsHolder::getInstance()->getContext(), ptr);
+        zeroUtils::memory_was_allocated_in_the_same_l0_context(initStructs->getContext(), ptr);
     ASSERT_EQ(result, true);
 }
 
@@ -45,7 +47,7 @@ TEST_P(MemoryAllocator, AllocateAboveMax) {
     ASSERT_EQ(ptr, nullptr);
 
     bool result =
-        zeroUtils::memory_was_allocated_in_the_same_l0_context(ZeroInitStructsHolder::getInstance()->getContext(), ptr);
+        zeroUtils::memory_was_allocated_in_the_same_l0_context(initStructs->getContext(), ptr);
     ASSERT_EQ(result, false);
 }
 
@@ -55,7 +57,7 @@ TEST_P(MemoryAllocator, DeallocateNullHandle) {
     ASSERT_EQ(result, false);
 
     result =
-        zeroUtils::memory_was_allocated_in_the_same_l0_context(ZeroInitStructsHolder::getInstance()->getContext(), ptr);
+        zeroUtils::memory_was_allocated_in_the_same_l0_context(initStructs->getContext(), ptr);
     ASSERT_EQ(result, false);
 }
 
@@ -70,20 +72,23 @@ TEST_P(MemoryAllocator, AllocateThenDeallocate) {
     ASSERT_EQ(result, true);
 
     result =
-        zeroUtils::memory_was_allocated_in_the_same_l0_context(ZeroInitStructsHolder::getInstance()->getContext(), ptr);
+        zeroUtils::memory_was_allocated_in_the_same_l0_context(initStructs->getContext(), ptr);
     ASSERT_EQ(result, false);
 }
 
 TEST_P(MemoryAllocator, DeallocateUnknownHandle) {
     size_t size = 1 << 10;
     void* ptr = ::operator new(size, std::align_val_t(4096));
+    memset(ptr, 0, size);
 
+    // should it error?
     bool result = allocator->deallocate(ptr, size);
     ASSERT_EQ(result, true);
 
+    // it should return false, but returns true
     result =
-        zeroUtils::memory_was_allocated_in_the_same_l0_context(ZeroInitStructsHolder::getInstance()->getContext(), ptr);
-    ASSERT_EQ(result, true);
+        zeroUtils::memory_was_allocated_in_the_same_l0_context(initStructs->getContext(), ptr);
+    ASSERT_EQ(result, false);
 
     ::operator delete(ptr, std::align_val_t(4096));
 }
