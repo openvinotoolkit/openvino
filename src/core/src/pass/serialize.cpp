@@ -479,6 +479,15 @@ public:
                 }
             }
         }
+        size_t threshold = 16;
+        const char* env_val = std::getenv("WRITE_TO_XML_THRESHOLD");
+        if (env_val && *env_val != '\0') {
+            try {
+                threshold = std::stoul(env_val);
+            } catch (...) {
+                threshold = 16;
+            }
+        }
         if (!is_body_target) {
             std::string id = "input_descriptions";
             std::string od = "output_descriptions";
@@ -542,67 +551,93 @@ public:
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
                 auto a1 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
                 auto a2 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
-                size_t new_size = 0;
-                size_t inter_size = 0;
-                // write a header of packed string tensor
-                std::shared_ptr<uint8_t> header_ptr = nullptr;
-                size_t header_size = 0;
-                if (a1) {
-                    a1->get_header(header_ptr, header_size);
-                } else {
-                    a2->get_header(header_ptr, header_size);
-                }
 
-                int64_t offset = m_constant_write_handler.write(
-                    reinterpret_cast<const char*>(header_ptr.get()),
-                    header_size,
-                    inter_size,
-                    m_compress_to_fp16,
-                    m_output_element_type,
-                    true);  // header_ptr is allocated in AttributeAdapter that has limited life time
-                new_size += inter_size;
-
-                // write raw strings part
-                size_t num_elements = 0;
+                size_t data_size = 0;
                 if (a1) {
-                    num_elements = a1->get()->get_num_elements();
+                    data_size = a1->get()->size();
                 } else {
-                    num_elements = a2->get()->get_num_elements();
+                    data_size = a2->get()->size();
                 }
-                for (size_t ind = 0; ind < num_elements; ++ind) {
-                    const char* raw_string_ptr;
-                    size_t raw_string_size;
+                if (data_size > threshold) {
                     if (a1) {
-                        a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                        // std::cout << "Save one StringAlignedBuffer" << std::endl;
+                        // Save std::shared_ptr<ov::StringAlignedBuffer>*
+                        m_xml_node.append_attribute("ptr").set_value(
+                            reinterpret_cast<unsigned long long>(a1->get()->get_ptr()));
+                        m_xml_node.append_attribute("size").set_value(
+                            static_cast<unsigned long long>(a1->get()->size()));
+                        m_xml_node.append_attribute("type").set_value(0);
                     } else {
-                        a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                        // std::cout << "Save one SharedStringAlignedBuffer" << std::endl;
+                        m_xml_node.append_attribute("ptr").set_value(
+                            reinterpret_cast<unsigned long long>(a2->get()->get_ptr()));
+                        m_xml_node.append_attribute("size").set_value(
+                            static_cast<unsigned long long>(a2->get()->size()));
+                        m_xml_node.append_attribute("type").set_value(1);
                     }
-
-                    m_constant_write_handler.write(raw_string_ptr,
-                                                   raw_string_size,
-                                                   inter_size,
-                                                   m_compress_to_fp16,
-                                                   m_output_element_type,
-                                                   m_data_is_temporary);
-
+                } else {
+                    size_t new_size = 0;
+                    size_t inter_size = 0;
+                    std::shared_ptr<uint8_t> header_ptr = nullptr;
+                    size_t header_size = 0;
+                    if (a1) {
+                        a1->get_header(header_ptr, header_size);
+                    } else {
+                        a2->get_header(header_ptr, header_size);
+                    }
+                    int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(header_ptr.get()),
+                                                                    header_size,
+                                                                    inter_size,
+                                                                    m_compress_to_fp16,
+                                                                    m_output_element_type,
+                                                                    true);
                     new_size += inter_size;
+                    size_t num_elements = 0;
+                    if (a1) {
+                        num_elements = a1->get()->get_num_elements();
+                    } else {
+                        num_elements = a2->get()->get_num_elements();
+                    }
+                    for (size_t ind = 0; ind < num_elements; ++ind) {
+                        const char* raw_string_ptr;
+                        size_t raw_string_size;
+                        if (a1) {
+                            a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                        } else {
+                            a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                        }
+                        m_constant_write_handler.write(raw_string_ptr,
+                                                       raw_string_size,
+                                                       inter_size,
+                                                       m_compress_to_fp16,
+                                                       m_output_element_type,
+                                                       m_data_is_temporary);
+                        new_size += inter_size;
+                    }
+                    m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                    m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
                 }
-                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-                const int64_t size = a->get()->size();
-                size_t new_size;
-                int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
-                                                                size,
-                                                                new_size,
-                                                                m_compress_to_fp16,
-                                                                m_output_element_type,
-                                                                m_data_is_temporary);
-
-                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                size_t data_size = a->get()->size();
+                if (data_size > threshold) {
+                    m_xml_node.append_attribute("ptr").set_value(
+                        reinterpret_cast<unsigned long long>(a->get()->get_ptr()));
+                    m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(a->get()->size()));
+                    m_xml_node.append_attribute("type").set_value(2);
+                } else {
+                    size_t new_size = 0;
+                    size_t inter_size = 0;
+                    int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
+                                                                    a->get()->size(),
+                                                                    new_size,
+                                                                    m_compress_to_fp16,
+                                                                    m_output_element_type,
+                                                                    m_data_is_temporary);
+                    m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                    m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                }
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             const auto& attrs = a->get();
