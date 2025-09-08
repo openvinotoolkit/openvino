@@ -52,7 +52,7 @@
  * If MatcherPass register more than one node make sure that this nodes are registered in
  * topological order. */
 
-#ifdef ENABLE_PROFILING_ITT
+#ifdef ENABLE_PROFILING_ITT_FULL
 
 namespace ov {
 namespace pass {
@@ -65,7 +65,7 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace pass
 }  // namespace ov
 
-#endif  // ENABLE_PROFILING_ITT
+#endif  // ENABLE_PROFILING_ITT_FULL
 std::shared_ptr<ov::pass::MatcherPass> ov::pass::GraphRewrite::add_matcher(
     const std::shared_ptr<ov::pass::MatcherPass>& pass) {
     auto pass_config = get_pass_config();

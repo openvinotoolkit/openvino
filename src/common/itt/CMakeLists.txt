@@ -23,8 +23,12 @@ if(NOT ENABLE_PROFILING_ITT STREQUAL "OFF")
     # Ensure the backend is compiled in this target when BASE or FULL
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_PROFILING_ITT)
 
-    # Only enable full ITT groups when FULL mode is selected.
-    if(ENABLE_PROFILING_ITT STREQUAL "FULL")
+    # Define profiling mode-specific macros
+    if(ENABLE_PROFILING_ITT STREQUAL "BASE")
+        target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_PROFILING_ITT_BASE)
+    elseif(ENABLE_PROFILING_ITT STREQUAL "FULL")
+        target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_PROFILING_ITT_FULL)
+        # Only enable full ITT groups when FULL mode is selected.
         if(ENABLE_PROFILING_FILTER STREQUAL "ALL")
             target_compile_definitions(${TARGET_NAME} PUBLIC
                 ENABLE_PROFILING_ALL
