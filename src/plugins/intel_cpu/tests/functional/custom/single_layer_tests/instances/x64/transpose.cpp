@@ -173,6 +173,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamicShapes5D_PermutePerChannels, TransposeLaye
                                  ::testing::Values(additional_config),
                                  ::testing::Values(CPUSpecificParams{})),
                          TransposeLayerCPUTest::getTestCaseName);
+
+const std::vector<InputShape> staticInputShapes1D = {InputShape{
+    // dynamic
+    {-1},
+    // Static shapes
+    {{24}}}
+};
+
+const std::vector<std::vector<size_t>> inputOrder1D = {std::vector<size_t>{0}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_staticShapes1D_Transpose, TransposeLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(staticInputShapes1D),
+                                 ::testing::ValuesIn(inputOrder1D),
+                                 ::testing::Values(ov::element::f32),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(additional_config),
+                                 ::testing::Values(CPUSpecificParams{})),
+                         TransposeLayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace Transpose
 }  // namespace test
