@@ -393,11 +393,8 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99950,
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_expanded_cpu",
     ),
     (
