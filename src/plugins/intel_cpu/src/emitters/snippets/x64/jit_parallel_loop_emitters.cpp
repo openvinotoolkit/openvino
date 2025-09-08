@@ -143,7 +143,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization(
 
     std::set<snippets::Reg> loop_premble_spill;
     for (auto i : get_callee_saved_reg_idxs()) {
-        loop_premble_spill.insert({snippets::RegType::gpr, i});
+        loop_premble_spill.emplace(snippets::RegType::gpr, i);
     }
     m_parallel_section_reg_spiller->preamble(loop_premble_spill);
 
