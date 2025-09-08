@@ -4,12 +4,14 @@
 
 #include "program_helpers.h"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/layout.hpp"
 #include "data_inst.h"
 #include "pooling_inst.h"
 #include <algorithm>
 #include <utility>
 #include <vector>
 #include <sstream>
+#include <functional>
 
 namespace cldnn {
 void program_helpers::reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
@@ -193,9 +195,10 @@ post_op_dnnl_policy_type onednn_post_ops_fusing_helpers::get_post_op_dnnl_policy
 
     // If slope is 1D, check for broadcasting along any axis
     if (slope_rank == 1) {
-        for (size_t i = 0; i < data_rank; ++i) {
+        // Check channel dimension first
+        for (size_t i = 1; i < data_rank + 1; ++i) {
             if (slope_shape[0] == data_shape[i]) {
-                switch (i) {
+                switch (i == data_rank ? 0 : i) {
                     case 0: return post_op_dnnl_policy_type::PER_DIM_0;
                     case 1: return post_op_dnnl_policy_type::PER_DIM_1;
                     case 2: return post_op_dnnl_policy_type::PER_DIM_2;
@@ -215,10 +218,12 @@ post_op_dnnl_policy_type onednn_post_ops_fusing_helpers::get_post_op_dnnl_policy
         size_t data_dim = data_shape[i];
         size_t slope_dim = (i < rank_diff) ? 1 : slope_shape[i - rank_diff];
 
-        if (slope_dim != 1 && slope_dim != data_dim) {
+        // Numpy broadcasting rule: dimensions are compatible if they are equal OR one of them is 1
+        if (data_dim != slope_dim && data_dim != 1 && slope_dim != 1) {
             broadcastable = false;
             break;
         }
+        // A dimension participates in broadcasting if both dimensions are non-1 and equal,
         if (slope_dim != 1 && slope_dim == data_dim) {
             broadcast_axes.push_back(static_cast<int>(i));
         }
@@ -232,13 +237,7 @@ post_op_dnnl_policy_type onednn_post_ops_fusing_helpers::get_post_op_dnnl_policy
     // Sort axes for consistent multi-axis policy checks
     std::sort(broadcast_axes.begin(), broadcast_axes.end());
 
-    // If fully matches data shape, treat as PER_TENSOR
-    bool is_per_tensor = (broadcast_axes.size() == data_rank);
-    if (is_per_tensor) {
-        return post_op_dnnl_policy_type::PER_TENSOR;
-    }
-
-    // Single axis policies
+    // Single axis policies - check if only one axis has non-1 slope dimension
     if (broadcast_axes.size() == 1) {
         int axis = broadcast_axes[0];
         switch (axis) {
@@ -260,13 +259,19 @@ post_op_dnnl_policy_type onednn_post_ops_fusing_helpers::get_post_op_dnnl_policy
         }
     }
 
+    // For cases where slope can be broadcast to data shape, treat as PER_TENSOR
+    // This handles cases like data={1,4,1,1} slope={1,4}
+    if (broadcast_axes.size() > 0) {
+        return post_op_dnnl_policy_type::PER_TENSOR;
+    }
+
     // If no case, fallback to POLICY_TOTAL to exception throw
     return post_op_dnnl_policy_type::POLICY_TOTAL;
 }
 
 int onednn_post_ops_fusing_helpers::get_prelu_mask(const layout& data_layout, const layout& slope_layout) {
     auto policy = get_post_op_dnnl_policy_type(data_layout, slope_layout);
-    return get_default_mask(policy, data_layout.get_rank());
+    return get_default_mask(policy, static_cast<int>(data_layout.get_rank()));
 }
 
 int onednn_post_ops_fusing_helpers::get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
