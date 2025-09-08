@@ -162,9 +162,8 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization(
             h->mov(reg_to_restore, h->ptr[abi_param2 + i * sizeof(uintptr_t*)]);
         }
     }
-    if (abi_param2_collision_index.has_value()) {
-        const auto collision_idx = abi_param2_collision_index.value();
-        h->mov(abi_param2, h->ptr[abi_param2 + collision_idx * sizeof(uintptr_t*)]);
+    if (const auto collision_idx = abi_param2_collision_index) {
+        h->mov(abi_param2, h->ptr[abi_param2 + collision_idx.value() * sizeof(uintptr_t*)]);
         OPENVINO_ASSERT(work_amount_reg_idx != static_cast<size_t>(abi_param2.getIdx()),
                         "Unexpected collision: the same reg is allocated for work_amount and memory pointer");
     }
