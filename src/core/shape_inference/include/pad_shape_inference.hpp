@@ -126,12 +126,12 @@ std::vector<TRShape> shape_infer(const util::PadBase* op,
             NODE_SHAPE_INFER_CHECK(
                 op,
                 input_shapes,
-                pads_begin_rank.is_dynamic() || cmp::le(pads_begin_shape[0].get_length(), arg_rank_len),
+                pads_begin_rank.is_dynamic() || pads_begin_shape[0].is_dynamic() || cmp::le(pads_begin_shape[0].get_length(), arg_rank_len),
                 "Number of elements of pads_begin must be >= 0 and <= arg rank");
             NODE_SHAPE_INFER_CHECK(
                 op,
                 input_shapes,
-                pads_begin_rank.is_dynamic() || cmp::le(pads_end_shape[0].get_length(), arg_rank_len),
+                pads_end_rank.is_dynamic() || pads_end_shape[0].is_dynamic() || cmp::le(pads_end_shape[0].get_length(), arg_rank_len),
                 "Number of elements of pads_end must be >= 0 and <= arg rank");
             output_shape.resize(arg_shape_rank.get_length());
         }
