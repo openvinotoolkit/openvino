@@ -63,7 +63,6 @@ private:
 
     /**
      * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
-     * @param descriptor Tensor's metadata
      * @param index The index which the allocated tensor shall use.
      * @param isInput Determines the containers in which the newly allocated tensors will be stored.
      * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.

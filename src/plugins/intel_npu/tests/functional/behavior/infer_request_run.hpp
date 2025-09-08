@@ -15,13 +15,13 @@
 #include <random>
 #include <thread>
 
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
@@ -1826,118 +1826,6 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
     ::operator delete(state_data[0], std::align_val_t(4096));
     ::operator delete(state_data[1], std::align_val_t(64));
     ::operator delete(state_data[2], std::align_val_t(4096));
-}
-
-/*
-    CVS-173093: Enable when user tensor data can be bound to level zero tensor allocation (no multiple L0 allocations
-   for single application malloc)
-*/
-TEST_P(CpuVaTensorsTests, DISABLED_TMP_CpuVaCorrectlyDeallocatedAfterAllInferRequests) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    const auto shape = ov::PartialShape{1, 16, 16, 16};
-    auto model = createModel(element::f32, shape, "N...");
-    auto compiledModel = core->compile_model(model, target_device, configuration);
-
-    const auto elementType = compiledModel.inputs()[0].get_element_type();
-    const size_t byteSize = ov::shape_size(shape.get_shape()) * elementType.size();
-
-    for (size_t i = 0; i < 2; ++i) {
-        auto inferRequest1 = compiledModel.create_infer_request();
-        auto inferRequest2 = compiledModel.create_infer_request();
-
-        const auto alignment = i == 0 ? std::align_val_t(4096) : std::align_val_t(2);
-        float* data = static_cast<float*>(::operator new(byteSize, alignment));
-        auto tensor = ov::Tensor{elementType, shape.get_shape(), data};
-        OV_ASSERT_NO_THROW(inferRequest1.set_tensor(compiledModel.inputs()[0], tensor))
-        OV_ASSERT_NO_THROW(inferRequest2.set_tensor(compiledModel.inputs()[0], tensor))
-
-        auto remoteContextParams =
-            core->get_default_context("NPU")
-                .get_params();  // cannot get context from ZeroInitStructsHolder instance due to static member accross
-                                // different libraries (will differ from intel_npu::Plugin)
-        auto l0Context = remoteContextParams.find(intel_npu::l0_context.name());
-        EXPECT_TRUE(l0Context != remoteContextParams.end());
-        EXPECT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(
-            static_cast<ze_context_handle_t>(l0Context->second.as<void*>()),
-            data));
-
-        OV_ASSERT_NO_THROW(inferRequest1.infer());
-        OV_ASSERT_NO_THROW(inferRequest2.infer());
-
-        inferRequest1 = {};
-        inferRequest2 = {};
-        tensor = {};
-
-        EXPECT_FALSE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(
-            static_cast<ze_context_handle_t>(l0Context->second.as<void*>()),
-            data));
-
-        ::operator delete(data, alignment);
-    }
-}
-
-TEST_P(CpuVaTensorsTests, SetAlignedDifferentTensorTwiceForSameInferRequestsNoThrow) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    const auto shape = ov::PartialShape{1, 16, 16, 16};
-    auto model = createModel(element::f32, shape, "N...");
-    auto compiledModel = core->compile_model(model, target_device, configuration);
-
-    const auto elementType = compiledModel.inputs()[0].get_element_type();
-    const size_t byteSize = ov::shape_size(shape.get_shape()) * elementType.size();
-
-    auto inferRequest = compiledModel.create_infer_request();
-    float* data = static_cast<float*>(::operator new(byteSize, std::align_val_t(4096)));
-    auto tensor1 = ov::Tensor{elementType, shape.get_shape(), data};
-    auto tensor2 = ov::Tensor{elementType, shape.get_shape(), data};
-    OV_ASSERT_NO_THROW(inferRequest.set_tensor(compiledModel.inputs()[0], tensor1));
-    OV_ASSERT_NO_THROW(inferRequest.set_tensor(compiledModel.inputs()[0], tensor2));
-
-    OV_ASSERT_NO_THROW(inferRequest.infer());
-    ::operator delete(data, std::align_val_t(4096));
-}
-
-TEST_P(CpuVaTensorsTests, SetAlignedSameTensorForSameInferRequestsNoThrow) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    const auto shape = ov::PartialShape{1, 16, 16, 16};
-    auto model = createModel(element::f32, shape, "N...");
-    auto compiledModel = core->compile_model(model, target_device, configuration);
-
-    const auto elementType = compiledModel.inputs()[0].get_element_type();
-    const size_t byteSize = ov::shape_size(shape.get_shape()) * elementType.size();
-
-    auto inferRequest = compiledModel.create_infer_request();
-    float* data = static_cast<float*>(::operator new(byteSize, std::align_val_t(4096)));
-    auto tensor = ov::Tensor{elementType, shape.get_shape(), data};
-    OV_ASSERT_NO_THROW(inferRequest.set_tensor(compiledModel.inputs()[0], tensor));
-    OV_ASSERT_NO_THROW(inferRequest.set_tensor(compiledModel.inputs()[0], tensor));
-
-    OV_ASSERT_NO_THROW(inferRequest.infer());
-    ::operator delete(data, std::align_val_t(4096));
-}
-
-TEST_P(CpuVaTensorsTests, SameAlignedPtrForTwoInferRequestNoThrow) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    const auto shape = ov::PartialShape{1, 16, 16, 16};
-    auto model = createModel(element::f32, shape, "N...");
-    auto compiledModel = core->compile_model(model, target_device, configuration);
-
-    const auto elementType = compiledModel.inputs()[0].get_element_type();
-    const size_t byteSize = ov::shape_size(shape.get_shape()) * elementType.size();
-
-    auto inferRequest1 = compiledModel.create_infer_request();
-    auto inferRequest2 = compiledModel.create_infer_request();
-    float* data = static_cast<float*>(::operator new(byteSize, std::align_val_t(4096)));
-    auto tensor = ov::Tensor{elementType, shape.get_shape(), data};
-    OV_ASSERT_NO_THROW(inferRequest1.set_tensor(compiledModel.inputs()[0], tensor));
-    OV_ASSERT_NO_THROW(inferRequest2.set_tensor(compiledModel.inputs()[0], tensor));
-    inferRequest1 = {};
-
-    OV_ASSERT_NO_THROW(inferRequest2.infer());
-    ::operator delete(data, std::align_val_t(4096));
 }
 
 }  // namespace behavior
