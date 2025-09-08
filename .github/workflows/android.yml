@@ -316,6 +316,7 @@ jobs:
           emulator-boot-timeout: 900
           script: |
             set -e
+            find ./android_tests
             adb wait-for-device
             [ -f "./android_tests/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: bin/intel64/Release/ov_cpu_unit_tests binary not found"; exit 1; }
             chmod +x ./android_tests/bin/intel64/Release/ov_cpu_unit_tests
