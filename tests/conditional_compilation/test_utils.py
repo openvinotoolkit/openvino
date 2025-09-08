@@ -82,7 +82,7 @@ def make_build(openvino_root_dir, build_dir, install_dir, build_target: dict = N
                              build_target.keys()] if build_target else ""
     nproc = multiprocessing.cpu_count()
     cmd = (
-        f"cmake -DENABLE_PROFILING_ITT=ON -DCMAKE_BUILD_TYPE=Release "
+        f"cmake -DENABLE_PROFILING_ITT=FULL -DCMAKE_BUILD_TYPE=Release "
         f"-DPython3_EXECUTABLE={sys.executable} {additional_args_line}"
         f"-S {openvino_root_dir} -B {build_dir} && "
         f"cmake --build {build_dir} -j{nproc} && "

@@ -16,7 +16,7 @@ The selective build carries on under the instruction of:
 
 The first build collects the information and generate a CSV file indicating which components are going to be included and which are going to be excluded in the selected build.
 
-*   For the first build, config cmake with option "-DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT"
+*   For the first build, config cmake with option "-DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT"
 ```
 cd ./build
 
@@ -24,7 +24,7 @@ cmake .. \
 -DCMAKE_BUILD_TYPE=Release \
 -DCMAKE_BUILD_TYPE=Release \
 -DENABLE_CPU_DEBUG_CAPS=ON \
--DENABLE_PROFILING_ITT=ON \
+-DENABLE_PROFILING_ITT=FULL \
 -DSELECTIVE_BUILD=COLLECT \
 -DCMAKE_INSTALL_PREFIX=`pwd`/install \
 -DCMAKE_INSTALL_RPATH=`pwd`/install/runtime/3rdparty/tbb/lib:`pwd`/install/runtime/lib/intel64
