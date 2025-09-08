@@ -164,7 +164,7 @@ jobs:
           path: ${{ env.TBB_SRC }}
           submodules: 'true'
           ref: ${{ env.TBB_BRANCH }}
-          
+
       - name: Configure OneTBB CMake project
         run: |
           cmake \
@@ -231,14 +231,33 @@ jobs:
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
+      - name: Prepare CPU test artifacts
+        run: |
+          mkdir -p android_tests/bin/intel64/Release
+          mkdir -p android_tests/lib
+
+          echo "Copying test binaries..."
+          find ${BUILD_DIR} -name "ov_cpu_unit_tests" -executable -type f | head -1 | xargs -I {} cp {} android_tests/bin/intel64/Release/ || echo "ov_cpu_unit_tests not found"
+          find ${BUILD_DIR} -name "ov_cpu_func_tests" -executable -type f | head -1 | xargs -I {} cp {} android_tests/bin/intel64/Release/ || echo "ov_cpu_func_tests not found"
+
+          echo "Copying OpenVINO libraries..."
+          find ${BUILD_DIR}/bin -name "*.so*" -type f -exec cp {} android_tests/bin/intel64/Release/ \; 2>/dev/null || echo "No .so files in BUILD_DIR/bin"
+          find ${BUILD_DIR}/lib -name "*.so*" -type f -exec cp {} android_tests/bin/intel64/Release/ \; 2>/dev/null || echo "No .so files in BUILD_DIR/lib"
+
+          echo "Copying TBB libraries..."
+          find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} android_tests/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
+
+          echo "Copying NDK C++ shared library..."
+          cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" android_tests/lib/ || echo "libc++_shared.so not found"
+
+          echo "Artifact structure:"
+          find android_tests -type f | head -20
+
       - name: Upload CPU test binaries
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ov_cpu_tests_android_${{ matrix.arch }}
-          path: |
-            ${{ env.OPENVINO_REPO }}/bin
-            ${{ env.TBB_INSTALL }}/lib
-            ${{ env.BUILD_DIR }}/lib
+          path: android_tests/
           if-no-files-found: 'error'
 
   Test:
@@ -317,15 +336,18 @@ jobs:
           script: |
             set -e
             adb wait-for-device
-            [ -f "./android_tests/openvino/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: openvino/bin/intel64/Release/ov_cpu_unit_tests binary not found"; exit 1; }
-            chmod +x ./android_tests/openvino/bin/intel64/Release/ov_cpu_unit_tests
+            find ./android_tests
+            [ -f "./android_tests/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
+            chmod +x ./android_tests/bin/intel64/Release/ov_cpu_unit_tests
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test/intel64/Release"
             echo "Pushing unit test binary and libraries to device..."
-            adb push ./android_tests/openvino/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
+            adb push ./android_tests/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
             # Push OpenVINO libraries
-            for lib in ./android_tests/openvino/bin/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ./android_tests/bin/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             # Push TBB libraries
-            for lib in ./android_tests/build/onetbb-install/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ./android_tests/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            # Push NDK C++ shared library
+            [ -f "./android_tests/lib/libc++_shared.so" ] && adb push "./android_tests/lib/libc++_shared.so" /data/local/tmp/ov_test/ || echo "libc++_shared.so not found"
             adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
             echo "Running CPU unit tests..."
             adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
@@ -347,15 +369,17 @@ jobs:
           script: |
             set -e
             adb wait-for-device
-            [ -f "./android_tests/openvino/bin/intel64/Release/ov_cpu_func_tests" ] || { echo "Error: openvino/bin/intel64/Release/ov_cpu_func_tests binary not found"; exit 1; }
-            chmod +x ./android_tests/openvino/bin/intel64/Release/ov_cpu_func_tests
+            [ -f "./android_tests/bin/intel64/Release/ov_cpu_func_tests" ] || { echo "Error: ov_cpu_func_tests binary not found"; exit 1; }
+            chmod +x ./android_tests/bin/intel64/Release/ov_cpu_func_tests
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test/intel64/Release"
             echo "Pushing functional test binary and libraries to device..."
-            adb push ./android_tests/openvino/bin/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests
+            adb push ./android_tests/bin/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests
             # Push OpenVINO libraries
-            for lib in ./android_tests/openvino/bin/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ./android_tests/bin/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             # Push TBB libraries
-            for lib in ./android_tests/build/onetbb-install/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ./android_tests/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            # Push NDK C++ shared library
+            [ -f "./android_tests/lib/libc++_shared.so" ] && adb push "./android_tests/lib/libc++_shared.so" /data/local/tmp/ov_test/ || echo "libc++_shared.so not found"
             adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests"
             echo "Running CPU functional tests..."
             adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_func_tests --gtest_output=xml:/data/local/tmp/ov_test/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
