@@ -713,7 +713,7 @@ TEST_P(gemm_reshape_padding, basic) {
     execute(p, false);
 }
 
-#define CASE_GEMM_RESHAPE_2IN { { 1, 1, 72, 40 }, { 1, 1, 72, 40 } }, { 1, 1, 40, 40 }, format::bfyx, data_types::f32
+#define CASE_GEMM_RESHAPE_2IN { { 1, 1, 72, 40 }, { 1, 1, 72, 40 } }, { 1, 1, 40, 40 }, format::bfyx, data_types::f32, { { 1 , 0 } , { 0 , 0 } }
 INSTANTIATE_TEST_SUITE_P(
     fusings_gpu,
     gemm_reshape_padding,
