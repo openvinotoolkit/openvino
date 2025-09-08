@@ -62,6 +62,12 @@ public:
     SDPAReshapeFusion();
 };
 
+class TRANSFORMATIONS_API SDPAFusionMatcherSinks : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("SDPAFusionMatcherSinks", "0");
+    SDPAFusionMatcherSinks();
+};
+
 // Temporary wrapper to enable Symbolic infrastructure inside.
 class TRANSFORMATIONS_API SDPAFusion : public ov::pass::ModelPass {
 public:
