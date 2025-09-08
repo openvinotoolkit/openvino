@@ -169,6 +169,13 @@ struct Unique {
     }
 };
 
+ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
+                                         uint32_t dim,
+                                         uint32_t start_pos,
+                                         uint32_t end_pos);
+
+void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim);
+
 using TensorPtr = ov::SoPtr<ov::ITensor>;
 TensorPtr allocMem(const ov::element::Type type,
                    const ov::Shape& shape,
