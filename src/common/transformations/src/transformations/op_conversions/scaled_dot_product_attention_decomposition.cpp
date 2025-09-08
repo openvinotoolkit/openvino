@@ -93,6 +93,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto query = node->input_value(0);
     auto key = node->input_value(1);
     auto value = node->input_value(2);
+    std::cout << "query: " << query << std::endl;
     auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
     auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
     auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
@@ -124,7 +125,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         scale = register_new_node<v1::ConvertLike>(scale, query);
         auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
         scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
-    } else if (node->get_input_size() < 7){
+    } else if (node->get_input_size() < 7) {
         scale = node->input_value(4);
         if (node->get_input_size() == 6) {
             sink = node->input_value(5);
@@ -195,8 +196,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {0}));
         auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {1}));
 
-        auto q_last_but_one_dim = register_new_node<v1::Subtract>(
-            register_new_node<v0::ShapeOf>(q_shape), v0::Constant::create(element::i64, Shape{}, {1}));
+        auto q_last_but_one_dim = register_new_node<v1::Subtract>(register_new_node<v0::ShapeOf>(q_shape),
+                                                                  v0::Constant::create(element::i64, Shape{}, {1}));
         auto sink_target_shape_1 = register_new_node<v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
         auto sink_target_shape = register_new_node<v0::Concat>(OutputVector{sink_target_shape_1, one_i}, 0);
         auto sink_broadcast = register_new_node<v1::Broadcast>(sink, sink_target_shape);
