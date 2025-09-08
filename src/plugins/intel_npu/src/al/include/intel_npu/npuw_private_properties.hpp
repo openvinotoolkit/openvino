@@ -468,6 +468,15 @@ static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHU
 
 /**
  * @brief
+ * Type: bool.
+ * Enable KV chunk prefill.
+ * By default only Q chunk is applied with chunk prefill, this option allows to enable K&V chunk as well.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> prefill_enable_kv_chunk{"NPUW_LLM_PREFILL_ENABLE_KV_CHUNK"};
+
+/**
+ * @brief
  * Type: std::string.
  * Hint for prefill stage. NPUW will use optimal configuration based on the passed preference via hint.
  * Passing this hint with "NPUW_LLM_PREFILL_CONFIG" will generate a error.
