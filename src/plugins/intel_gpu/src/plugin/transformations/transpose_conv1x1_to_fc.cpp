@@ -105,10 +105,11 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
     auto a_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
 
     auto weights_m = ov::pass::pattern::any_input(weights_path);  // weights
+    auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
     auto weights_scales_m = ov::pass::pattern::any_input();
     auto weights_zp_m = ov::pass::pattern::any_input();
-    auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
-    auto weight_subtract_m = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, weights_zp_m});
+    auto weights_zp_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_zp_m});
+    auto weight_subtract_m = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({weight_convert_m, weights_zp_convert_m});
     // Make zp subtraction optional to account for symmetrical quantization cases
     auto weight_dequantized_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_convert_m, weight_subtract_m});
     auto weight_mult_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({weight_dequantized_m, weights_scales_m});
@@ -137,17 +138,38 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
         auto weight = pattern_map.at(weights_m).get_node_shared_ptr();
         auto scale = pattern_map.at(weights_scales_m).get_node_shared_ptr();
         auto zp = (pattern_map.count(weights_zp_m) > 0) ? pattern_map.at(weights_zp_m).get_node_shared_ptr() : nullptr;
-        auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();        
+        auto activation = pattern_map.at(first_input_m).get_node_shared_ptr();
 
-        // add reshape after weight 9216 x 3072 x 1 x --> 9216 x 3072
-        std::vector<int> values_reshape_b;
-        auto shape_b = weight->get_output_partial_shape(0);
-        for (auto i = 0; i < shape_b.size(); i++)
-            if (shape_b.to_shape()[i] != 1) {
-                values_reshape_b.push_back(shape_b.to_shape()[i]);
+        auto reshape_const_to_2d = [](std::shared_ptr<ov::Node> node) {
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+            OPENVINO_ASSERT(constant != nullptr);
+            ov::Shape current_shape = constant->get_shape();
+            if (current_shape.size() == 2)
+                return constant;
+
+            if (current_shape.size() == 1) {
+
+                auto new_shape = ov::Shape{current_shape[0], 1};
+
+                auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
+
+                ov::copy_weightless_cache_attr(constant, new_constant);
+                return new_constant;
+            } else {
+                OPENVINO_ASSERT(current_shape.size() == 4);
+                OPENVINO_ASSERT(current_shape[2] == 1 && current_shape[3]);
+
+                auto new_shape = ov::Shape{current_shape[0], current_shape[1]};
+
+                auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
+
+                ov::copy_weightless_cache_attr(constant, new_constant);
+                return new_constant;
             }
-        auto reshape_weight_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_b);  //{9216, 3072});
-        auto Reshape_weight = std::make_shared<ov::op::v1::Reshape>(weight, reshape_weight_const, false);
+        };        
+
+        // add reshape after weight 9216 x 3072 x 1 x 1 --> 9216 x 3072
+        auto Reshape_weight = reshape_const_to_2d(weight);
         MatcherPass::register_new_node(Reshape_weight);
         Reshape_weight->set_friendly_name(weight->get_friendly_name() + "_Reshape_weight");
         // FixMe: this is a point of interest - it protects quantized weights from being inflated by constant-folded conversion
@@ -156,39 +178,20 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
         ov::disable_constant_folding(weight_squeezed_convert);
 
         // add reshape after scales
-        std::vector<int> values_reshape_bs;
-        auto shape_bs = scale->get_output_partial_shape(0);
-        for (auto i = 0; i < shape_bs.size(); i++)
-            if (shape_bs.to_shape()[i] != 1) {
-                values_reshape_bs.push_back(shape_bs.to_shape()[i]);
-            }
-        // Add broadcast dimensions
-        while (values_reshape_bs.size() < 2) {
-            values_reshape_bs.push_back(1);
-        }
-        auto reshape_scale_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_bs);  //{9216, 3072});
-        auto Reshape_scale = std::make_shared<ov::op::v1::Reshape>(scale, reshape_scale_const, false);
+        auto Reshape_scale = reshape_const_to_2d(scale);
         MatcherPass::register_new_node(Reshape_scale);
         Reshape_scale->set_friendly_name(scale->get_friendly_name() + "_Reshape_scale");
 
         auto scaled_weight = weight_mult->clone_with_new_inputs({weight_squeezed_convert, Reshape_scale});
         if (zp) {
             // add reshape after zero points
-            std::vector<int> values_reshape_zp;
-            auto shape_zp = zp->get_output_partial_shape(0);
-            for (auto i = 0; i < shape_zp.size(); i++)
-                if (shape_zp.to_shape()[i] != 1) {
-                    values_reshape_zp.push_back(shape_zp.to_shape()[i]);
-                }
-            // Add broadcast dimensions
-            while (values_reshape_zp.size() < 2) {
-                values_reshape_zp.push_back(1);
-            }
-            auto reshape_zp_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_zp);  //{9216, 3072});
-            auto Reshape_zp = std::make_shared<ov::op::v1::Reshape>(zp, reshape_zp_const, false);
+            auto Reshape_zp = reshape_const_to_2d(zp);
             MatcherPass::register_new_node(Reshape_zp);
             Reshape_zp->set_friendly_name(zp->get_friendly_name() + "_Reshape_zp");
-            auto zero_adjusted_weight = weight_sub->clone_with_new_inputs({weight_squeezed_convert, Reshape_zp});
+            auto weights_zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(weights_zp_convert_m).get_node_shared_ptr());
+            auto zp_squeezed_convert = weights_zp_convert->clone_with_new_inputs({Reshape_zp});
+            ov::disable_constant_folding(zp_squeezed_convert);
+            auto zero_adjusted_weight = weight_sub->clone_with_new_inputs({weight_squeezed_convert, zp_squeezed_convert});
             scaled_weight = weight_mult->clone_with_new_inputs({zero_adjusted_weight, Reshape_scale});
         }
         ov::disable_constant_folding(scaled_weight);
