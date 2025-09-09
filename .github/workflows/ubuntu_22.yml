@@ -119,7 +119,6 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DENABLE_WHEEL=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-            -DENABLE_FASTER_BUILD=ON
 
   Debian_Packages:
     name: Debian Packages
