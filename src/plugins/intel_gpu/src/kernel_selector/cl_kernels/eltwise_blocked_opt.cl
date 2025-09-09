@@ -61,16 +61,19 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint f_block = (inner_f + outer_f * F_BLOCK_COUNT);
 
     // Feature axis of input tensor is smaller than inner block size : No need to calculate this block
-    if (b > OUTPUT_BATCH_NUM || (f_block*VEC_SIZE + VEC_SIZE) > (OUT_F_BLOCK * FEATURE_BLOCK_SIZE)) {
+    if ((f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
         return;
     }
+    // if (b > OUTPUT_BATCH_NUM || (f_block*VEC_SIZE + VEC_SIZE) > (OUT_F_BLOCK * FEATURE_BLOCK_SIZE)) {
+    //     return;
+    // }
 
-    // zero-padding the blocked format padded memory area since it might be used as input of onednn concatenation
-    if (NEED_ZERO_PADDING && (f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM) {
-        OUTPUT_TYPE_BLOCK out = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE))(0);
-        VSTORE_N(out, global_id, output);
-        return;
-    }
+    // // zero-padding the blocked format padded memory area since it might be used as input of onednn concatenation
+    // if (NEED_ZERO_PADDING && (f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM) {
+    //     OUTPUT_TYPE_BLOCK out = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE))(0);
+    //     VSTORE_N(out, global_id, output);
+    //     return;
+    // }
 
     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) res;
 

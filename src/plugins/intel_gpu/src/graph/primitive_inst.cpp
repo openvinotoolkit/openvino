@@ -2033,7 +2033,7 @@ void primitive_inst::prepare_primitive() {
         skip_reset = skip_concat;
     }
     // Need to reset crop's output to zeros, if followed by onednn concatenation that requires zero-padding for blocked format memory
-    if (get_node().is_type<crop>() && get_node().can_share_buffer() && _impl_params->get_output_layout(0).format.is_blocked() &&
+    if ((get_node().is_type<crop>() || get_node().is_type<eltwise>()) && get_node().can_share_buffer() && _impl_params->get_output_layout(0).format.is_blocked() &&
         get_node().get_users().size() == 1 && get_node().get_users().front()->is_type<concatenation>() &&
         get_node().get_users().front()->get_selected_impl()->is_onednn()) {
         skip_reset = false;
