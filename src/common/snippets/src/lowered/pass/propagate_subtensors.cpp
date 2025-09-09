@@ -109,7 +109,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             const auto subtensor_value = *(desc->get_subtensor().rbegin() + port.get_dim_idx());
             if (subtensor_common_value.has_value()) {
                 OPENVINO_ASSERT(subtensor_value == subtensor_common_value.value(),
-                               "Different subtensor values for the same dim_idx in Loop!");
+                                "Different subtensor values for the same dim_idx in Loop!");
             } else {
                 subtensor_common_value = subtensor_value;
             }
