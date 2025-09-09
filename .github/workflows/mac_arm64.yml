@@ -187,7 +187,6 @@ jobs:
             -DENABLE_WHEEL=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_FASTER_BUILD=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -S ${{ env.OPENVINO_REPO }} \
@@ -494,37 +493,37 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO developer package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_developer_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO JS package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_js_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO Node NPM package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_node_npm_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO package manifest
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_package_manifest
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO wheels
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_wheels
           path: ${{ env.WHEELS_DIR }}

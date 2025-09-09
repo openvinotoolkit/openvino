@@ -95,6 +95,10 @@
 #include "snippets/op/reshape.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "jit_perf_count_chrono_emitters.hpp"
+#    include "snippets/op/perf_count.hpp"
+#endif
 #include "snippets/op/vector_buffer.hpp"
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/target_machine.hpp"
@@ -330,6 +334,12 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     // others
     jitters[snippets::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_scalar_emitter);
     jitters[snippets::op::Fill::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_fill_emitter);
+#ifdef SNIPPETS_DEBUG_CAPS
+    jitters[snippets::op::PerfCountBegin::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(ov::intel_cpu::aarch64::jit_perf_count_chrono_start_emitter);
+    jitters[snippets::op::PerfCountEnd::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(ov::intel_cpu::aarch64::jit_perf_count_chrono_end_emitter);
+#endif
 }
 
 std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
@@ -428,7 +438,12 @@ ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Outpu
 }
 
 bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<snippets::Emitter>& e) const {
-    return false;
+    bool need = false;
+#ifdef SNIPPETS_DEBUG_CAPS
+    need = std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_perf_count_chrono_start_emitter>(e) ||
+           std::dynamic_pointer_cast<ov::intel_cpu::aarch64::jit_perf_count_chrono_end_emitter>(e);
+#endif
+    return need;
 }
 
 }  // namespace intel_cpu::aarch64
