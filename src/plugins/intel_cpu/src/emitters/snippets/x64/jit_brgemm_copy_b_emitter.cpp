@@ -41,7 +41,8 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator_t* h,
                                                      const ov::snippets::lowered::ExpressionPtr& expr,
                                                      const snippets::KernelExecutorTablePtr& kernel_table,
                                                      const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
-    : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
+    : jit_emitter(h, isa),
+      jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_repack, "expects BrgemmCopyB node");
