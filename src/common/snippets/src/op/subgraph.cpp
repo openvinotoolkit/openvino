@@ -219,9 +219,6 @@ Subgraph::Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& b
     m_shape_infer = std::make_shared<OVShapeInfer>(body);
 }
 
-Subgraph::Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body)
-    : Subgraph(as_output_vector(args), body) {}
-
 std::shared_ptr<Node> Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
     return make_shared<Subgraph>(inputs, body().clone());
@@ -507,7 +504,8 @@ void Subgraph::control_flow_transformations(
 
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
-    // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
+    // Domain optimization must be the first pass,
+    // because all other transformations may depend on PortDescriptor shapes
     size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
     if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
         lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
