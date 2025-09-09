@@ -63,10 +63,17 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
             continue;
         }
 
+        auto shape = inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
+                                                                  : inputDescriptor.shapeFromCompiler;
+        // Treat every model with batch 1 as a potentially dynamically batched one.
+        // TODO: should we protect this part with a certain condition?
+        if (shape[intel_npu::utils::BATCH_AXIS] == intel_npu::utils::DEFAULT_BATCH_SIZE) {
+            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(-1);
+        }
+
         std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
             inputDescriptor.precision,
-            inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
-                                                         : inputDescriptor.shapeFromCompiler);
+            shape);
 
         parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
         parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
@@ -86,10 +93,16 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         std::shared_ptr<ov::Node> constantDummy =
             std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
 
+        auto shape = outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
+                                                                   : outputDescriptor.shapeFromCompiler;
+        // Treat every model with batch 1 as a potentially dynamically batched one.
+        if (shape[intel_npu::utils::BATCH_AXIS] == intel_npu::utils::DEFAULT_BATCH_SIZE) {
+            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(-1);
+        }
+
         const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
             outputDescriptor.precision,
-            outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
-                                                          : outputDescriptor.shapeFromCompiler,
+            shape,
             outputDescriptor.outputTensorNames);
 
         auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
@@ -714,17 +727,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name())) {
         bool autoOrPluginBatch = localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN ||
                                  localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::AUTO;
-        bool pluginBatchingIsSupported = validateModelBatch(modelForCompilation, _logger);
-        if (autoOrPluginBatch && pluginBatchingIsSupported) {
-            try {
+        try {
+            const bool pluginBatchingIsSupported = validateModelBatch(modelForCompilation, _logger);
+            const bool batchedModel = ov::get_batch(modelForCompilation) != intel_npu::utils::DEFAULT_BATCH_SIZE;
+
+            if (autoOrPluginBatch && pluginBatchingIsSupported && batchedModel) {
                 _logger.info("Attempting to handle batching on the plugin side.");
                 ov::set_batch(modelForCompilation, 1);
-            } catch (const std::exception& ex) {
-                _logger.info("Couldn't reshape the model. Batching will be handed by compiler.", ex.what());
+                // TODO: add debatcher for more complicated cases as set_batch is pretty naive.
+            } else {
+                _logger.info("Unable to manage batching on the plugin side, so the compiler will take care of it.");
             }
+
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
-        } else {
-            _logger.info("Unable to manage batching on the plugin side, so the compiler will take care of it.");
+        } catch (const std::exception& ex) {
+            _logger.info("Couldn't validate and reshape the model. Batching will be handed by compiler.", ex.what());
+            updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         }
     }
 
