@@ -157,8 +157,9 @@ size_t get_partition_size() {
     // size_t k_partition_blok_num = (kv_len + 8191) / 8192;
     // if (k_partition_blok_num < 1)
     //     k_partition_blok_num = 1;
-    const size_t k_partition_blok_num = 16;
-    return k_partition_blok_num * PA_KV_CACHE_BLOCK_SIZE; // 128
+    // const size_t k_partition_blok_num = 16;
+    // return k_partition_blok_num * PA_KV_CACHE_BLOCK_SIZE; // 128
+    return 256;
 }
 
 size_t get_partition_num(const size_t kv_len) {
@@ -476,6 +477,8 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
     jit.make("Q_STEP", get_q_step(xe_arch, true));
 
+    jit.make("KV_CACHE_COMPRESSION", 0);
+
     return jit;
 }
 
@@ -511,13 +514,14 @@ DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() co
         auto& wgs = kd.params.workGroups;
         const auto desc = params.typed_desc<paged_attention>();
         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-
         assert(rt_params != nullptr);
 
         const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
         const size_t heads_num = desc->heads_num;
+        const size_t kv_heads_num = desc->kv_heads_num;
         const size_t partition_num = rtp->num_of_partitions;  // get_partition_num(rtp->max_context_len);
-        wgs.global = {batch, heads_num, partition_num};
+
+        wgs.global = {batch, kv_heads_num, partition_num};
         wgs.local = {1, 1, 1};
 
         // generate stage: q_len=1
@@ -593,7 +597,7 @@ DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_da
         scalars.resize(scaler_value.size());
 
         if (DEBUG_ENABLED) {  // Debug
-            std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: "
+            std::cout << "PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_data_func: "
                       << "batch: " << batch << ", heads_num: " << heads_num << ", partition_num: " << partition_num << ", gws: [" << wgs.global[0] << ", "
                       << wgs.global[1] << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
