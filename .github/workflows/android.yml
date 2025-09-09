@@ -236,45 +236,21 @@ jobs:
           mkdir -p android_tests/bin/intel64/Release
           mkdir -p android_tests/lib
 
-          echo "Debug: Searching for test binaries..."
-          echo "BUILD_DIR contents:"
-          find ${BUILD_DIR} -name "*cpu*test*" -type f | head -10 || echo "No CPU test files found in BUILD_DIR"
-          echo "OPENVINO_REPO/bin contents:"
-          find ${OPENVINO_REPO}/bin -name "*cpu*test*" -type f 2>/dev/null | head -10 || echo "No CPU test files found in OPENVINO_REPO/bin"
-          
           echo "Copying test binaries..."
-          # Try specific paths first, then search broadly
-          if [ -f "${OPENVINO_REPO}/bin/intel64/Release/ov_cpu_unit_tests" ]; then
-            cp "${OPENVINO_REPO}/bin/intel64/Release/ov_cpu_unit_tests" android_tests/bin/intel64/Release/
-            echo "Found ov_cpu_unit_tests in OPENVINO_REPO/bin/intel64/Release/"
-          elif [ -f "${BUILD_DIR}/bin/intel64/Release/ov_cpu_unit_tests" ]; then
-            cp "${BUILD_DIR}/bin/intel64/Release/ov_cpu_unit_tests" android_tests/bin/intel64/Release/
-            echo "Found ov_cpu_unit_tests in BUILD_DIR/bin/intel64/Release/"
-          else
-            find ${OPENVINO_REPO} ${BUILD_DIR} -name "ov_cpu_unit_tests" -executable -type f | head -1 | xargs -I {} cp {} android_tests/bin/intel64/Release/ || echo "ov_cpu_unit_tests not found anywhere"
-          fi
-          
-          if [ -f "${OPENVINO_REPO}/bin/intel64/Release/ov_cpu_func_tests" ]; then
-            cp "${OPENVINO_REPO}/bin/intel64/Release/ov_cpu_func_tests" android_tests/bin/intel64/Release/
-            echo "Found ov_cpu_func_tests in OPENVINO_REPO/bin/intel64/Release/"
-          elif [ -f "${BUILD_DIR}/bin/intel64/Release/ov_cpu_func_tests" ]; then
-            cp "${BUILD_DIR}/bin/intel64/Release/ov_cpu_func_tests" android_tests/bin/intel64/Release/
-            echo "Found ov_cpu_func_tests in BUILD_DIR/bin/intel64/Release/"
-          else
-            find ${OPENVINO_REPO} ${BUILD_DIR} -name "ov_cpu_func_tests" -executable -type f | head -1 | xargs -I {} cp {} android_tests/bin/intel64/Release/ || echo "ov_cpu_func_tests not found anywhere"
-          fi
+          # Copy test binaries from expected locations
+          find ${OPENVINO_REPO}/bin/intel64/Release ${BUILD_DIR}/bin/intel64/Release -name "ov_cpu_unit_tests" -type f 2>/dev/null | head -1 | xargs -I {} cp {} android_tests/bin/intel64/Release/
+          find ${OPENVINO_REPO}/bin/intel64/Release ${BUILD_DIR}/bin/intel64/Release -name "ov_cpu_func_tests" -type f 2>/dev/null | head -1 | xargs -I {} cp {} android_tests/bin/intel64/Release/
 
-          echo "Copying OpenVINO libraries from same location as test binaries..."
-          find ${OPENVINO_REPO}/bin/intel64/Release ${BUILD_DIR}/bin/intel64/Release -name "*.so*" -type f -exec cp {} android_tests/bin/intel64/Release/ \; 2>/dev/null || echo "No .so files found"
+          echo "Copying OpenVINO libraries..."
+          find ${OPENVINO_REPO}/bin/intel64/Release ${BUILD_DIR}/bin/intel64/Release -name "*.so*" -type f -exec cp {} android_tests/bin/intel64/Release/ \; 2>/dev/null
 
           echo "Copying TBB libraries..."
-          find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} android_tests/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
+          find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} android_tests/lib/ \; 2>/dev/null
 
           echo "Copying NDK C++ shared library..."
-          cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" android_tests/lib/ || echo "libc++_shared.so not found"
+          cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" android_tests/lib/ 2>/dev/null
 
-          echo "Artifact structure:"
-          find android_tests -type f | head -20
+          echo "CPU test artifacts prepared successfully"
 
       - name: Upload CPU test binaries
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
