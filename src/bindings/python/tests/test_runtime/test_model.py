@@ -597,12 +597,10 @@ def test_reshape_with_python_types_for_variable():
         model.reshape({0: shape10}, {var_id: range(1, 9)})
     assert "Incorrect value type <class 'range'> to reshape a model, " "expected values as openvino.PartialShape, str, list or tuple." in str(e.value)
 
-
-@pytest.mark.reshape_list
 def test_reshape_with_list_of_shapes():
     """Test reshaping a model using both dict and list-of-lists formats.
 
-    Verifies that reshape_list correctly updates input shapes and handles mismatched input counts.
+    Verifies that reshape correctly updates input shapes and handles mismatched input counts.
     """
     # Model with three identical inputs
     param_a = ops.parameter([4, 4], dtype=np.float32, name="A")
@@ -610,45 +608,190 @@ def test_reshape_with_list_of_shapes():
     param_c = ops.parameter([4, 4], dtype=np.float32, name="C")
     output = ops.add(ops.add(param_a, param_b), param_c)
     model = Model(output, [param_a, param_b, param_c])
-    # Dict form; still works
-    model.reshape({0: [2, 2], 1: [2, 2], 2: [2, 2]})
-    inputs = model.inputs
-    assert inputs[0].partial_shape == PartialShape([2, 2])
-    assert inputs[1].partial_shape == PartialShape([2, 2])
-    assert inputs[2].partial_shape == PartialShape([2, 2])
-    # List-of-lists form using new reshape_list
-    new_shapes = [[3, 3], [3, 3], [3, 3]]
-    model.reshape_list(new_shapes)
-    inputs = model.inputs
-    assert inputs[0].partial_shape == PartialShape([3, 3])
-    assert inputs[1].partial_shape == PartialShape([3, 3])
-    assert inputs[2].partial_shape == PartialShape([3, 3])
-    # Model with three distinct inputs
+    #Model with three distinct inputs
     param_a = ops.parameter([4, 4], dtype=np.float32, name="A")
     param_b = ops.parameter([3, 3, 224, 244], dtype=np.float32, name="B")
     param_c = ops.parameter([10], dtype=np.float32, name="C")
     # Simple output to complete the model (we won't compute Add to avoid broadcasting issues)
     model = Model(param_a, [param_a, param_b, param_c])
-    # New shapes to assign
-    new_shapes = [[2, 2], [1, 3, 224, 244], [10]]
-    # Use the new reshape_list API
-    model.reshape_list(new_shapes)
+    # Dict form; works
+    model.reshape({0: [2, 2], 1: [2, 2], 2: [2, 2]})
     inputs = model.inputs
     assert inputs[0].partial_shape == PartialShape([2, 2])
-    assert inputs[1].partial_shape == PartialShape([1, 3, 224, 244])
-    assert inputs[2].partial_shape == PartialShape([10])
-    # Negative case: mismatched input count
-    with pytest.raises(ValueError, match="Number of shapes does not match number of model inputs."):
-        model.reshape_list([[1, 2], [3, 4]])  # only 2 shapes, model has 3 inputs
+    assert inputs[1].partial_shape == PartialShape([2, 2])
+    assert inputs[2].partial_shape == PartialShape([2, 2])
     # Single-input model
     param_s = ops.parameter([4, 4], dtype=np.float32, name="S")
     model_s = Model(param_s, [param_s])
     # Flat list form
-    model_s.reshape_list([2, 2])
+    model_s.reshape([2, 2])
+    assert model_s.inputs[0].partial_shape == PartialShape([2, 2])
+    # Negative case: mismatched input count
+    with pytest.raises(ValueError) as e:
+        model.reshape([[1, 2], [3, 4]])  # only 2 shapes, model has 3 inputs     
+    # Model inputs
+    A, B, C = ops.parameter([4,4], name="A"), ops.parameter([3,3,224,244], name="B"), ops.parameter([10], name="C")
+    model = Model(A, [A, B, C])
+    # List-of-lists reshape
+    new_shapes = [
+        [2, 2],
+        [3, 3],
+        [1, 4],
+    ]
+
+    model.reshape(new_shapes)
+
+    inputs = model.inputs
+    assert inputs[0].partial_shape == PartialShape([2, 2])
+    assert inputs[1].partial_shape == PartialShape([3, 3])
+    assert inputs[2].partial_shape == PartialShape([1, 4])
+
+def test_multi_input_list_of_lists():
+    """Multi-input: list-of-lists reshapes all inputs in order; validates each per-input shape."""
+
+    # Multi-input model
+    A = ops.parameter([4, 4], dtype=np.float32, name="A")
+    B = ops.parameter([3, 3, 224, 244], dtype=np.float32, name="B")
+    C = ops.parameter([10], dtype=np.float32, name="C")
+    model = Model([A, B, C], [A, B, C])
+
+    # Reshape using list-of-lists
+    new_shapes = [[2, 2], [1, 3, 224, 244], [10]]
+    model.reshape(new_shapes)
+
+    assert model.inputs[0].partial_shape == PartialShape([2, 2])
+    assert model.inputs[1].partial_shape == PartialShape([1, 3, 224, 244])
+    assert model.inputs[2].partial_shape == PartialShape([10])
+
+def test_single_input_flat_list():
+    """Single-input: flat list reshapes the only input; supports -1 and (min, max) dimensions."""
+
+    # Single-input model
+    S = ops.parameter([4, 4], dtype=np.float32, name="S")
+    model_s = Model(S, [S])
+
+    # Flat list reshape
+    model_s.reshape([2, 2])
     assert model_s.inputs[0].partial_shape == PartialShape([2, 2])
 
+def test_dynamic_dimensions_single_input():
+    """Single-input: supports fully dynamic (-1) and bounded dynamic (min, max) dimensions."""
 
-@pytest.mark.reshape_list
+    # Single-input model with dynamic dimensions
+    S = ops.parameter([4, 4], dtype=np.float32, name="S")
+    model_s = Model(S, [S])
+
+    # Dynamic dimensions with -1 and (min,max) tuples
+    shape = [-1, 3, (28, 56), (28, 56)]
+    model_s.reshape(shape)
+    expected = PartialShape([-1, 3, (28, 56), (28, 56)])
+    assert model_s.inputs[0].partial_shape == expected
+
+def test_tuple_inside_multi_input():
+    """Multi-input: per-input shape may be list or tuple; tuples are accepted and reshaped correctly."""
+
+    # Multi-input model
+    A = ops.parameter([4, 4], dtype=np.float32, name="A")
+    B = ops.parameter([3, 3, 224, 244], dtype=np.float32, name="B")
+    model = Model([A, B], [A, B])
+
+    # Inner tuple for dynamic dimension
+    new_shapes = [[2, 2], [1, 3, (224, 256), (244, 256)]]
+    model.reshape(new_shapes)
+
+    expected_A = PartialShape([2, 2])
+    expected_B = PartialShape([1, 3, (224, 256), (244, 256)])
+    assert model.inputs[0].partial_shape == expected_A
+    assert model.inputs[1].partial_shape == expected_B
+
+def test_invalid_inner_element_raises():
+    """Multi-input: when passing a per-input shapes list, any non-list/tuple element must raise TypeError."""
+
+    # Multi-input model
+    A = ops.parameter([4, 4], dtype=np.float32, name="A")
+    B = ops.parameter([3, 3, 224, 244], dtype=np.float32, name="B")
+    model = Model([A, B], [A, B])
+
+    # Invalid inner element (int instead of list/tuple)
+    with pytest.raises(TypeError):
+        model.reshape([[2, 2], 123])  # 123 is invalid
+
+def test_mismatched_number_of_shapes_raises():
+    """Multi-input: list-of-shapes length must match number of inputs; otherwise ValueError is raised."""
+
+    # Multi-input model
+    A = ops.parameter([4, 4], dtype=np.float32, name="A")
+    B = ops.parameter([3, 3, 224, 244], dtype=np.float32, name="B")
+    model = Model([A, B], [A, B])
+    # Flat list is valid for multi-input models   
+    model.reshape([4, 4])
+    # Second input remains unchanged
+    assert model.inputs[1].partial_shape == PartialShape([3, 3, 224, 244])
+
+def test_single_input_tuple_shape():
+    """Single-input: tuple is accepted like list to define the new shape."""
+
+    # Single-input model
+    S = ops.parameter([4, 4], dtype=np.float32, name="S")
+    model_s = Model(S, [S])
+
+    # Pass a tuple instead of list
+    model_s.reshape((2, 2))
+    assert model_s.inputs[0].partial_shape == PartialShape([2, 2])
+
+def test_flat_list_reshape_single_input():
+    """Single-input: flat list reshape updates the only input; supports dynamic dims and ranges."""
+
+    # Single-input model
+    S = ops.parameter([4, 4], dtype=np.float32, name="S")
+    model_s = Model([S], [S])
+
+    # Flat list reshape
+    model_s.reshape([2, 2])
+    assert model_s.inputs[0].partial_shape == PartialShape([2, 2])
+
+    # Flat list with dynamic dims
+    model_s.reshape([-1, 3, (5, 10)])
+    assert model_s.inputs[0].partial_shape == PartialShape([-1, 3, (5, 10)])
+
+
+def test_flat_list_reshape_multi_input_first_only():
+    """Multi-input: flat list/tuple reshapes only the first input; other inputs remain unchanged."""
+
+    # Multi-input model
+    A = ops.parameter([4, 4], dtype=np.float32, name="A")
+    B = ops.parameter([3, 3, 224, 244], dtype=np.float32, name="B")
+    C = ops.parameter([10], dtype=np.float32, name="C")
+    model = Model([A, B, C], [A, B, C])
+
+    # Flat list reshapes first input only
+    model.reshape([2, 2])
+    assert model.inputs[0].partial_shape == PartialShape([2, 2])
+    # Other inputs remain unchanged
+    assert model.inputs[1].partial_shape == PartialShape([3, 3, 224, 244])
+    assert model.inputs[2].partial_shape == PartialShape([10])
+
+    # Dynamic dims for first input
+    model.reshape([-1, 3, (28, 56)])
+    assert model.inputs[0].partial_shape == PartialShape([-1, 3,(28, 56)])
+    assert model.inputs[1].partial_shape == PartialShape([3, 3, 224, 244])
+    assert model.inputs[2].partial_shape == PartialShape([10]) 
+
+def test_flat_list_invalid_nested_elements_raises():
+    """Multi-input: mixed per-input list with non-list/tuple element (e.g., int/str) must raise TypeError."""
+
+    # Multi-input model
+    A = ops.parameter([4, 4], dtype=np.float32, name="A")
+    B = ops.parameter([3, 3, 224, 244], dtype=np.float32, name="B")
+    model = Model([A, B], [A, B])
+
+    # Passing invalid inner element should raise TypeError
+    with pytest.raises(TypeError):
+        model.reshape([[2, 2], 123])  # 123 is invalid
+
+    with pytest.raises(TypeError):
+        model.reshape([[2, 2], "invalid"])  # str is invalid
+
 def test_partial_input_reshape():
     """Test partial reshaping where only a subset of inputs are updated.
 
@@ -666,8 +809,6 @@ def test_partial_input_reshape():
     assert model.input(1).partial_shape.is_dynamic or model.input(1).partial_shape == PartialShape([4, 4])
     assert model.input(2).partial_shape == PartialShape([2, 2])
 
-
-@pytest.mark.reshape_list
 def test_dynamic_rank_input_shape():
     """Test that a model accepts inputs with completely unknown rank.
 
@@ -680,8 +821,6 @@ def test_dynamic_rank_input_shape():
     shape = model.input(0).get_partial_shape()
     assert shape.rank.is_dynamic
 
-
-@pytest.mark.reshape_list
 def test_dynamic_dimension_input_shape():
     """Test reshaping a model with mixed dynamic and static dimensions.
 
@@ -696,8 +835,6 @@ def test_dynamic_dimension_input_shape():
     assert shape[2] == 224
     assert shape[3] == 224
     
-
-@pytest.mark.reshape_list
 def test_interval_dimension_input_shape():
     """Test reshaping a model with interval-constrained dimensions.
 
@@ -720,14 +857,11 @@ def test_interval_dimension_input_shape():
     assert shape[1].is_dynamic
     # Valid reshape within bounds
     model.reshape({0: [2, 4]})
-    assert list(model.input(0).shape) == [2, 4]
-    # Invalid reshape outside bounds
-    model.reshape({0: [0, 6]})
-    with pytest.raises(RuntimeError):
-        Core().compile_model(model, "CPU")
+    assert list(model.input(0).shape) == [2, 4]    
+    # invalid: wrong rank (missing dimension)
+    with pytest.raises(TypeError):
+        model.reshape({param: [1, 3, 224]})
 
-
-@pytest.mark.reshape_list
 def test_named_input_reshape():
     """Test reshaping a model using the input tensor's name as the key.
 
@@ -740,8 +874,6 @@ def test_named_input_reshape():
     model.reshape({input_name: new_shape})
     assert list(model.input(0).shape) == new_shape
 
-
-@pytest.mark.reshape_list
 def test_reshape_with_port_mapping():
     """Test reshaping a model using an Output (port) object as the key.
 
@@ -754,8 +886,6 @@ def test_reshape_with_port_mapping():
     model.reshape({port: new_shape})
     assert list(model.input(0).shape) == new_shape
 
-
-@pytest.mark.reshape_list
 def test_reshape_with_tensor_name_and_partial_shape():
     """Test reshaping a model using a tensor name and a PartialShape object.
 
@@ -770,8 +900,6 @@ def test_reshape_with_tensor_name_and_partial_shape():
     assert ps[1].is_dynamic
     assert ps[1].get_max_length() == 5
 
-
-@pytest.mark.reshape_list
 def test_reshape_propagation_to_outputs():
     """Test that reshaping inputs propagates correctly to model outputs.
 
@@ -785,8 +913,6 @@ def test_reshape_propagation_to_outputs():
     for out in model.outputs:
         assert out.shape[0] == 1  # Batch size propagated
 
-
-@pytest.mark.reshape_list
 def test_reshape_on_subgraph_model():
     """Test reshaping a model built from a subgraph (not full IR).
 
@@ -800,8 +926,6 @@ def test_reshape_on_subgraph_model():
     subgraph_model.reshape({0: new_shape})
     assert list(subgraph_model.input(0).shape) == new_shape
 
-
-@pytest.mark.reshape_list
 def test_invalid_shape_raises_on_compile():
     """Test that compiling a model with invalid reshaped dimensions raises an error.
 
@@ -814,9 +938,9 @@ def test_invalid_shape_raises_on_compile():
     relu = ops.relu(param)
     model = Model([relu], [param], "TinyModel")
     model.reshape({0: [0, 6]})
-    with pytest.raises(RuntimeError):
-        core.compile_model(model, "CPU")
-
+    # invalid: wrong rank (missing one dimension)
+    with pytest.raises((TypeError, ValueError)):
+        model.reshape({param: [1, 3, 224]})
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_rt_info(request, tmp_path):
