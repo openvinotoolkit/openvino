@@ -42,9 +42,6 @@ bool HostMemAllocator::deallocate(void* handle, const size_t /* bytes */, size_t
 
     return true;
 }
-bool HostMemAllocator::is_equal(const HostMemAllocator& other) const {
-    return (_initStructs == other._initStructs) && (_flag == other._flag);
-}
 
 void* HostMemSharedAllocator::allocate(const size_t /*bytes*/, const size_t /*alignment*/) noexcept {
     _ze_external_memory_import_system_memory_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,

@@ -9,9 +9,11 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "zero_memory.hpp"
 
 namespace intel_npu {
 
@@ -27,7 +29,24 @@ public:
                const Config& config,
                const ov::element::Type element_type,
                const ov::Shape& shape,
-               const ov::Allocator& allocator);
+               const bool isInput,
+               const bool tensor_shared_with_user = false);
+
+    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+               const std::shared_ptr<ov::ITensor>& user_tensor,
+               const std::shared_ptr<ZeroTensor>& zero_tensor,
+               const Config& config,
+               const bool isInput,
+               const bool dynamic_batch_value_changed = false);
+
+    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+               const std::shared_ptr<ZeroRemoteTensor>& zero_remote_tensor,
+               const Config& config,
+               const bool isInput);
+
+    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+               const std::shared_ptr<ov::ITensor>& user_tensor,
+               const Config& config);
 
     void* data() override;
     void* data(const ov::element::Type& type) override;
@@ -48,6 +67,7 @@ public:
 
     bool tensor_was_shared_with_user();
     void set_tensor_shared_with_user();
+    bool update_command_list_arg();
 
     ~ZeroTensor();
 
@@ -67,10 +87,13 @@ private:
     ov::Shape _capacity;
     mutable ov::Strides _strides;
     mutable std::once_flag _strides_once;
-    ov::Allocator _allocator;
+    std::unique_ptr<zeroMemory::HostMemAllocator> _allocator = nullptr;
     void* _ptr = nullptr;
     bool _reset_tensor_memory = false;
     bool _tensor_shared_with_user = false;
+    bool _update_command_list_arg = false;
+
+    std::shared_ptr<ov::ITensor> _imported_tensor;
 };
 
 }  // namespace intel_npu

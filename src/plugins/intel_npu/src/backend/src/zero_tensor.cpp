@@ -5,6 +5,7 @@
 #include "zero_tensor.hpp"
 
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -27,7 +28,8 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
                        const Config& config,
                        const ov::element::Type element_type,
                        const ov::Shape& shape,
-                       const ov::Allocator& allocator)
+                       const bool isInput,
+                       const bool tensor_shared_with_user)
     : _init_structs(init_structs),
       _logger("ZeroTensor", config.get<LOG_LEVEL>()),
       _element_type{element_type},
@@ -35,15 +37,110 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
       _capacity{_shape},
       _strides{},
       _strides_once{},
-      _allocator{allocator} {
+      _tensor_shared_with_user{tensor_shared_with_user} {
     OPENVINO_ASSERT(_element_type.is_static());
-    OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-    const auto byte_size = ov::util::get_memory_size_safe(element_type, _shape);
-    OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", _shape);
-    auto data = const_cast<ov::Allocator&>(_allocator).allocate(*byte_size);
+    _allocator = isInput ? std::make_unique<zeroMemory::HostMemAllocator>(_init_structs,
+                                                                          ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED)
+                         : std::make_unique<zeroMemory::HostMemAllocator>(_init_structs);
+    OPENVINO_ASSERT(_allocator, "Allocator was not initialized");
+    const auto byte_size = ov::util::get_memory_size_safe(_element_type, _shape);
+    OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", _element_type, " and shape: ", _shape);
+    auto data = _allocator->allocate(*byte_size);
     OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate memory");
-    initialize_elements(data, element_type, _shape);
+    initialize_elements(data, _element_type, _shape);
     _ptr = data;
+}
+
+ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                       const std::shared_ptr<ov::ITensor>& user_tensor,
+                       const std::shared_ptr<ZeroTensor>& zero_tensor,
+                       const Config& config,
+                       const bool isInput,
+                       const bool dynamic_batch_value_changed)
+    : _init_structs(init_structs),
+      _logger("ZeroTensor", config.get<LOG_LEVEL>()),
+      _element_type{user_tensor->get_element_type()},
+      _shape{user_tensor->get_shape()},
+      _capacity{_shape},
+      _strides{},
+      _strides_once{} {
+    OPENVINO_ASSERT(_element_type.is_static());
+
+    if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(), user_tensor->data())) {
+        _logger.debug("ZeroTensor::ZeroTensor - tensor was created in the same L0 context, size: %zu",
+                      user_tensor->get_byte_size());
+
+        _imported_tensor = user_tensor;
+        _ptr = _imported_tensor->data();
+
+        _tensor_shared_with_user = true;
+        _update_command_list_arg = true;
+    } else {
+        if (dynamic_batch_value_changed || zero_tensor == nullptr || zero_tensor->tensor_was_shared_with_user()) {
+            _logger.debug("ZeroTensor::ZeroTensor - create locally L0 tensor");
+            _allocator =
+                isInput ? std::make_unique<zeroMemory::HostMemAllocator>(_init_structs,
+                                                                         ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED)
+                        : std::make_unique<zeroMemory::HostMemAllocator>(_init_structs);
+            OPENVINO_ASSERT(_allocator, "Allocator was not initialized");
+            const auto byte_size = ov::util::get_memory_size_safe(_element_type, _shape);
+            OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", _element_type, " and shape: ", _shape);
+            auto data = _allocator->allocate(*byte_size);
+            OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate memory");
+            initialize_elements(data, _element_type, _shape);
+
+            _ptr = data;
+            _update_command_list_arg = true;
+        } else {
+            _logger.debug("ZeroTensor::ZeroTensor - use existent level zero buffer");
+
+            _imported_tensor = zero_tensor;
+            _ptr = _imported_tensor->data();
+        }
+    }
+}
+
+ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                       const std::shared_ptr<ZeroRemoteTensor>& zero_remote_tensor,
+                       const Config& config,
+                       const bool isInput)
+    : _init_structs(init_structs),
+      _logger("ZeroTensor", config.get<LOG_LEVEL>()),
+      _element_type{zero_remote_tensor->get_element_type()},
+      _shape{zero_remote_tensor->get_shape()},
+      _capacity{_shape},
+      _strides{},
+      _strides_once{} {
+    OPENVINO_ASSERT(_element_type.is_static());
+
+    _imported_tensor = zero_remote_tensor;
+    _ptr = zero_remote_tensor->get_original_memory();
+
+    _tensor_shared_with_user = true;
+    _update_command_list_arg = true;
+}
+
+ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                       const std::shared_ptr<ov::ITensor>& user_tensor,
+                       const Config& config)
+    : _init_structs(init_structs),
+      _logger("ZeroTensor", config.get<LOG_LEVEL>()),
+      _element_type{user_tensor->get_element_type()},
+      _shape{user_tensor->get_shape()},
+      _capacity{_shape},
+      _strides{},
+      _strides_once{} {
+    OPENVINO_ASSERT(_element_type.is_static());
+
+    _imported_tensor = user_tensor;
+    _ptr = user_tensor->data();
+
+    _tensor_shared_with_user = true;
+    _update_command_list_arg = true;
+}
+
+bool ZeroTensor::update_command_list_arg() {
+    return _update_command_list_arg;
 }
 
 // Note: Override data() members to not used OpenVINO library code to improve performance
@@ -134,9 +231,11 @@ void ZeroTensor::destroy_elements(size_t begin_ind, size_t end_ind) {
 }
 
 void ZeroTensor::destroy_memory() {
-    destroy_elements(0, get_capacity());
-    _allocator.deallocate(_ptr, get_bytes_capacity());
-    _ptr = nullptr;
+    if (_imported_tensor == nullptr) {
+        destroy_elements(0, get_capacity());
+        _allocator->deallocate(_ptr, get_bytes_capacity());
+        _ptr = nullptr;
+    }
 }
 
 void ZeroTensor::set_shape(ov::Shape new_shape) {
@@ -152,11 +251,15 @@ void ZeroTensor::set_shape(ov::Shape new_shape) {
                            "Please update the driver to the latest version.");
         }
 
+        if (_imported_tensor != nullptr) {
+            OPENVINO_THROW("Just throw it for now, no idea how this must work.");
+        }
+
         destroy_memory();
 
         // allocate buffer and initialize objects from scratch
         _capacity = _shape;
-        _ptr = _allocator.allocate(get_bytes_capacity());
+        _ptr = _allocator->allocate(get_bytes_capacity());
         initialize_elements(_ptr, _element_type, _shape);
 
         _reset_tensor_memory = true;
