@@ -181,13 +181,9 @@ def main():
 
     owner, repository = args.repo.split('/')
 
-    allowed_org = args.enable_for_org
-    allowed_users = ["Jarvis2001"]  # Add others if needed
-
-    if owner != allowed_org and os.getenv("GITHUB_ACTOR") not in allowed_users:
-        logger.info(f"Running workflows is enabled only for repos in {allowed_org} organization "
-                    f"or for allowed users. The current workflow was initiated from org: {owner}, "
-                    f"actor: {os.getenv('GITHUB_ACTOR')}, skipping")
+    if owner != args.enable_for_org:
+        logger.info(f"Running workflows is enabled only for repos in {args.enable_for_org} organization. "
+                    f"The current workflow was initiated from other org: {owner}, skipping")
         set_github_output("skip_workflow", "True")
         sys.exit(0)
 
