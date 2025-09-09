@@ -4,7 +4,9 @@
 import os
 import sys
 import tempfile
+import psycopg2
 from pathlib import Path
+from psycopg2 import sql
 
 import requests
 from github import Github, Auth
@@ -12,6 +14,45 @@ from workflow_rerun.argument_parser import get_arguments
 from workflow_rerun.constants import GITHUB_TOKEN, LOGGER
 from workflow_rerun.log_analyzer import LogAnalyzer
 from workflow_rerun.log_collector import collect_logs_for_run
+
+def record_rerun_to_db(repository_full_name: str, run_id: int, ticket_number: int):
+    """Record the rerun event to the PostgreSQL database."""
+
+    db_username = os.environ.get('PGUSER')
+    db_password = os.environ.get('PGPASSWORD')
+    db_host = os.environ.get('PGHOST')
+    db_database = os.environ.get('PGDATABASE')
+    db_port = os.environ.get('PGPORT')
+    conn = psycopg2.connect(host=db_host,
+                            port=db_port,
+                            user=db_username,
+                            password=db_password,
+                            database=db_database)
+
+    cursor = None
+    try:
+        cursor = conn.cursor()
+
+        insert_query = sql.SQL("""
+            INSERT INTO rerunner_stats (repository_full_name, run_id, ticket_number, rerun_at)
+            VALUES (%s, %s, %s, NOW() AT TIME ZONE 'UTC')
+        """)
+
+        cursor.execute(insert_query, (repository_full_name, run_id, ticket_number))
+        conn.commit()
+
+        LOGGER.info(f'Successfully recorded rerun to database: repo={repository_full_name}, '
+                    f'run_id={run_id}, ticket={ticket_number}')
+
+    except psycopg2.Error as e:
+        LOGGER.error(f'Failed to record rerun to database: {e}')
+        conn.rollback()
+        raise
+    finally:
+        if cursor:
+            cursor.close()
+        conn.close()
+
 
 
 if __name__ == '__main__':
@@ -60,17 +101,13 @@ if __name__ == '__main__':
         response = requests.post(url=f'https://api.github.com/repos/{repository_name}/actions/runs/{run_id}/rerun-failed-jobs',
                                  headers={'Authorization': f'Bearer {GITHUB_TOKEN}'})
         status = response.status_code == 201
-        
+
         if status:
             LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
+            record_rerun_to_db(repository_name, run_id,
+                               log_analyzer.found_error_ticket)
         else:
             LOGGER.info(f'RUN WAS NOT RETRIGGERED, SEE ABOVE')
-
-        # Needed to run a step after for statistics
-        with open(file=os.environ['GITHUB_ENV'],
-                  mode='a') as fh:
-            fh.write('PIPELINE_RETRIGGERED=true\n')
-            fh.write(f'FOUND_ERROR_TICKET={log_analyzer.found_error_ticket}\n')
 
         # "status" is True (which is 1) if everything is ok, False (which is 0) otherwise
         sys.exit(not status)
