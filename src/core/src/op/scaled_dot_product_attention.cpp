@@ -28,6 +28,15 @@ op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>
                                                               const Output<Node>& key,
                                                               const Output<Node>& value,
                                                               const Output<Node>& attn_mask,
+                                                              const Output<Node>& scale,
+                                                              const Output<Node>& sink,
+                                                              bool causal)
+    : ScaledDotProductAttention({query, key, value, attn_mask, scale, sink}, causal) {}
+
+op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const Output<Node>& query,
+                                                              const Output<Node>& key,
+                                                              const Output<Node>& value,
+                                                              const Output<Node>& attn_mask,
                                                               bool causal)
     : ScaledDotProductAttention({query, key, value, attn_mask}, causal) {}
 
