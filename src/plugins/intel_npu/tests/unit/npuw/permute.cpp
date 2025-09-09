@@ -131,9 +131,6 @@ bool PermuteTestsBase::isNegative() const {
 }
 
 void PermuteTestsBase::make_ref_output() {
-    auto rows = input_shape[0] * input_shape[1];
-    auto cols = input_shape[2];
-
     std::vector<size_t> dims(input_shape.begin(), input_shape.end());
     if (type == ov::element::f16) {
         details::permute<uint16_t>(reinterpret_cast<const uint16_t*>(input.data()),
