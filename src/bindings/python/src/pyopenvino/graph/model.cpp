@@ -487,73 +487,124 @@ void regclass_graph_Model(py::module m) {
             :type name: str
         )");
 
-    model.def("validate_nodes_and_infer_types", &ov::Model::validate_nodes_and_infer_types);    
+    model.def("validate_nodes_and_infer_types", &ov::Model::validate_nodes_and_infer_types);
 
     model.def(
         "reshape",
-        [](ov::Model& self, const py::list& shapes) {
+        [](ov::Model& self, const py::object& shapes) {
             std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
 
-            // Check if all elements are lists/tuples
-            bool all_list_or_tuple = true;
-            for (auto& obj : shapes) {
-                if (!(py::isinstance<py::list>(obj) || py::isinstance<py::tuple>(obj))) {
-                    all_list_or_tuple = false;
-                    break;
+            // Check if input is a dict
+            if (py::isinstance<py::dict>(shapes)) {
+                // Handle dict case - similar to lines 842-911
+                py::dict shapes_dict = shapes.cast<py::dict>();
+                for (const auto& item : shapes_dict) {
+                    new_shapes.emplace_hint(new_shapes.end(),
+                                            output_from_handle(self, item.first),
+                                            partial_shape_from_handle(item.second));
                 }
             }
-            
-            // Determine if this should be treated as multi-input reshaping
-            // Multi-input: all elements are lists/tuples AND list size matches number of inputs
-            bool is_multi_input = all_list_or_tuple && (shapes.size() == self.inputs().size());
-            
-            // Special case: mixed elements with top-level lists present.
-            // If list size equals number of inputs, and there is at least one top-level list
-            // but not all elements are list/tuple, treat as invalid multi-input attempt.
-            if (self.inputs().size() > 1 && shapes.size() == self.inputs().size() && !all_list_or_tuple) {
-                bool has_list_element = false;
-                for (auto& obj : shapes) {
-                    if (py::isinstance<py::list>(obj)) {
-                        has_list_element = true;
+            // Check if input is a tuple
+            else if (py::isinstance<py::tuple>(shapes)) {
+                // Handle tuple case - convert to list and process
+                py::list shapes_list = py::cast<py::list>(shapes);
+                
+                // Check if all elements are lists/tuples
+                bool all_list_or_tuple = true;
+                for (auto& obj : shapes_list) {
+                    if (!(py::isinstance<py::list>(obj) || py::isinstance<py::tuple>(obj))) {
+                        all_list_or_tuple = false;
                         break;
                     }
                 }
-                if (has_list_element) {
-                    for (size_t i = 0; i < shapes.size(); ++i) {
-                        const py::object& obj = shapes[i];
-                        if (!py::isinstance<py::list>(obj) && !py::isinstance<py::tuple>(obj)) {
-                            throw py::type_error("Each shape must be a list or tuple for multi-input models");
+                
+                // Determine if this should be treated as multi-input reshaping
+                // Multi-input: all elements are lists/tuples AND list size matches number of inputs
+                bool is_multi_input = all_list_or_tuple && (shapes_list.size() == self.inputs().size());
+                
+                // Special case: mixed elements with top-level lists present.
+                // If list size equals number of inputs, and there is at least one top-level list
+                // but not all elements are list/tuple, treat as invalid multi-input attempt.
+                if (self.inputs().size() > 1 && shapes_list.size() == self.inputs().size() && !all_list_or_tuple) {
+                    bool has_list_element = false;
+                    for (auto& obj : shapes_list) {
+                        if (py::isinstance<py::list>(obj)) {
+                            has_list_element = true;
+                            break;
                         }
                     }
-                    is_multi_input = true;
-                }
-                // If there are no top-level lists, treat as flat single-input shape (allow tuples for ranges)
-            }
-            
-            // Additional validation: if we have a multi-input model and the shapes list size doesn't match,
-            // but all elements are lists/tuples, this is an error
-            if (all_list_or_tuple && shapes.size() != self.inputs().size() && self.inputs().size() > 1) {
-                throw py::value_error("Number of shapes does not match number of model inputs");
-            }
-
-            if (is_multi_input) {
-                // Multi-input: each element must be list/tuple and match number of inputs
-                for (size_t i = 0; i < shapes.size(); ++i) {
-                    const py::object& obj = shapes[i];
-                    py::list shape_list;
-
-                    if (py::isinstance<py::tuple>(obj)) {
-                        shape_list = py::cast<py::list>(obj);
-                    } else if (py::isinstance<py::list>(obj)) {
-                        shape_list = obj.cast<py::list>();
-                    } else {
-                        throw py::type_error(
-                            "Each shape must be a list or tuple for multi-input models"
-                        );
+                    if (has_list_element) {
+                        for (size_t i = 0; i < shapes_list.size(); ++i) {
+                            const py::object& obj = shapes_list[i];
+                            if (!py::isinstance<py::list>(obj) && !py::isinstance<py::tuple>(obj)) {
+                                throw py::type_error("Each shape must be a list or tuple for multi-input models");
+                            }
+                        }
+                        is_multi_input = true;
                     }
+                    // If there are no top-level lists, treat as flat single-input shape (allow tuples for ranges)
+                }
+                
+                // Additional validation: if we have a multi-input model and the shapes list size doesn't match,
+                // but all elements are lists/tuples, this is an error
+                if (all_list_or_tuple && shapes_list.size() != self.inputs().size() && self.inputs().size() > 1) {
+                    throw py::value_error("Number of shapes does not match number of model inputs");
+                }
 
-                    // Validate that the shape list contains valid elements
-                    for (auto& elem : shape_list) {
+                if (is_multi_input) {
+                    // Multi-input: each element must be list/tuple and match number of inputs
+                    for (size_t i = 0; i < shapes_list.size(); ++i) {
+                        const py::object& obj = shapes_list[i];
+                        py::list shape_list;
+
+                        if (py::isinstance<py::tuple>(obj)) {
+                            shape_list = py::cast<py::list>(obj);
+                        } else if (py::isinstance<py::list>(obj)) {
+                            shape_list = obj.cast<py::list>();
+                        } else {
+                            throw py::type_error(
+                                "Each shape must be a list or tuple for multi-input models"
+                            );
+                        }
+
+                        // Validate that the shape list contains valid elements
+                        for (auto& elem : shape_list) {
+                            if (!py::isinstance<py::int_>(elem) && !py::isinstance<py::tuple>(elem)) {
+                                throw py::type_error("Shape elements must be integers or tuples for dynamic ranges");
+                            }
+                            // Additional validation for tuples (dynamic ranges)
+                            if (py::isinstance<py::tuple>(elem)) {
+                                py::tuple tup = elem.cast<py::tuple>();
+                                if (tup.size() != 2) {
+                                    throw py::type_error("Dynamic range tuples must have exactly 2 elements");
+                                }
+                                for (auto& tup_elem : tup) {
+                                    if (!py::isinstance<py::int_>(tup_elem)) {
+                                        throw py::type_error("Dynamic range tuple elements must be integers");
+                                    }
+                                }
+                            }
+                        }
+
+                        try {
+                            new_shapes[self.inputs()[i]] = Common::partial_shape_from_list(shape_list);
+                        } catch (const std::exception& e) {
+                            throw py::type_error(e.what());
+                        }
+                    }
+                } else {
+                    // Single-input reshaping: reshape only the first input
+                    if (self.inputs().empty()) {
+                        throw py::type_error("Model has no inputs to reshape");
+                    }
+                    
+                    // For single-input reshaping, validate that we have a reasonable input
+                    if (shapes_list.empty()) {
+                        throw py::value_error("Cannot reshape with empty shape list");
+                    }
+                    
+                    // Validate that all elements in the shape list are valid
+                    for (auto& elem : shapes_list) {
                         if (!py::isinstance<py::int_>(elem) && !py::isinstance<py::tuple>(elem)) {
                             throw py::type_error("Shape elements must be integers or tuples for dynamic ranges");
                         }
@@ -570,49 +621,171 @@ void regclass_graph_Model(py::module m) {
                             }
                         }
                     }
-
+                    
                     try {
-                        new_shapes[self.inputs()[i]] = Common::partial_shape_from_list(shape_list);
+                        // Directly pass the entire list (ints + tuples allowed)
+                        new_shapes[self.inputs()[0]] = Common::partial_shape_from_list(shapes_list);
                     } catch (const std::exception& e) {
                         throw py::type_error(e.what());
                     }
                 }
-            } else {
-                // Single-input reshaping: reshape only the first input
+            }
+            // Check if input is a string
+            else if (py::isinstance<py::str>(shapes)) {
+                // Handle string case - single input reshape
                 if (self.inputs().empty()) {
                     throw py::type_error("Model has no inputs to reshape");
                 }
-                
-                // For single-input reshaping, validate that we have a reasonable input
-                if (shapes.empty()) {
-                    throw py::value_error("Cannot reshape with empty shape list");
-                }
-                
-                // Validate that all elements in the shape list are valid
-                for (auto& elem : shapes) {
-                    if (!py::isinstance<py::int_>(elem) && !py::isinstance<py::tuple>(elem)) {
-                        throw py::type_error("Shape elements must be integers or tuples for dynamic ranges");
-                    }
-                    // Additional validation for tuples (dynamic ranges)
-                    if (py::isinstance<py::tuple>(elem)) {
-                        py::tuple tup = elem.cast<py::tuple>();
-                        if (tup.size() != 2) {
-                            throw py::type_error("Dynamic range tuples must have exactly 2 elements");
-                        }
-                        for (auto& tup_elem : tup) {
-                            if (!py::isinstance<py::int_>(tup_elem)) {
-                                throw py::type_error("Dynamic range tuple elements must be integers");
-                            }
-                        }
-                    }
-                }
-                
                 try {
-                    // Directly pass the entire list (ints + tuples allowed)
-                    new_shapes[self.inputs()[0]] = Common::partial_shape_from_list(shapes);
+                    new_shapes[self.inputs()[0]] = ov::PartialShape(shapes.cast<std::string>());
                 } catch (const std::exception& e) {
                     throw py::type_error(e.what());
                 }
+            }
+            // Check if input is a Shape or PartialShape
+            else if (py::isinstance<ov::Shape>(shapes) || py::isinstance<ov::PartialShape>(shapes)) {
+                // Handle Shape/PartialShape case - single input reshape
+                if (self.inputs().empty()) {
+                    throw py::type_error("Model has no inputs to reshape");
+                }
+                try {
+                    if (py::isinstance<ov::Shape>(shapes)) {
+                        new_shapes[self.inputs()[0]] = ov::PartialShape(shapes.cast<ov::Shape>());
+                    } else {
+                        new_shapes[self.inputs()[0]] = shapes.cast<ov::PartialShape>();
+                    }
+                } catch (const std::exception& e) {
+                    throw py::type_error(e.what());
+                }
+            }
+            // Check if input is a list
+            else if (py::isinstance<py::list>(shapes)) {
+                // Handle list case - your existing logic
+                py::list shapes_list = shapes.cast<py::list>();
+                
+                // Check if all elements are lists/tuples
+                bool all_list_or_tuple = true;
+                for (auto& obj : shapes_list) {
+                    if (!(py::isinstance<py::list>(obj) || py::isinstance<py::tuple>(obj))) {
+                        all_list_or_tuple = false;
+                        break;
+                    }
+                }
+                
+                // Determine if this should be treated as multi-input reshaping
+                // Multi-input: all elements are lists/tuples AND list size matches number of inputs
+                bool is_multi_input = all_list_or_tuple && (shapes_list.size() == self.inputs().size());
+                
+                // Special case: mixed elements with top-level lists present.
+                // If list size equals number of inputs, and there is at least one top-level list
+                // but not all elements are list/tuple, treat as invalid multi-input attempt.
+                if (self.inputs().size() > 1 && shapes_list.size() == self.inputs().size() && !all_list_or_tuple) {
+                    bool has_list_element = false;
+                    for (auto& obj : shapes_list) {
+                        if (py::isinstance<py::list>(obj)) {
+                            has_list_element = true;
+                            break;
+                        }
+                    }
+                    if (has_list_element) {
+                        for (size_t i = 0; i < shapes_list.size(); ++i) {
+                            const py::object& obj = shapes_list[i];
+                            if (!py::isinstance<py::list>(obj) && !py::isinstance<py::tuple>(obj)) {
+                                throw py::type_error("Each shape must be a list or tuple for multi-input models");
+                            }
+                        }
+                        is_multi_input = true;
+                    }
+                    // If there are no top-level lists, treat as flat single-input shape (allow tuples for ranges)
+                }
+                
+                // Additional validation: if we have a multi-input model and the shapes list size doesn't match,
+                // but all elements are lists/tuples, this is an error
+                if (all_list_or_tuple && shapes_list.size() != self.inputs().size() && self.inputs().size() > 1) {
+                    throw py::value_error("Number of shapes does not match number of model inputs");
+                }
+
+                if (is_multi_input) {
+                    // Multi-input: each element must be list/tuple and match number of inputs
+                    for (size_t i = 0; i < shapes_list.size(); ++i) {
+                        const py::object& obj = shapes_list[i];
+                        py::list shape_list;
+
+                        if (py::isinstance<py::tuple>(obj)) {
+                            shape_list = py::cast<py::list>(obj);
+                        } else if (py::isinstance<py::list>(obj)) {
+                            shape_list = obj.cast<py::list>();
+                        } else {
+                            throw py::type_error(
+                                "Each shape must be a list or tuple for multi-input models"
+                            );
+                        }
+
+                        // Validate that the shape list contains valid elements
+                        for (auto& elem : shape_list) {
+                            if (!py::isinstance<py::int_>(elem) && !py::isinstance<py::tuple>(elem)) {
+                                throw py::type_error("Shape elements must be integers or tuples for dynamic ranges");
+                            }
+                            // Additional validation for tuples (dynamic ranges)
+                            if (py::isinstance<py::tuple>(elem)) {
+                                py::tuple tup = elem.cast<py::tuple>();
+                                if (tup.size() != 2) {
+                                    throw py::type_error("Dynamic range tuples must have exactly 2 elements");
+                                }
+                                for (auto& tup_elem : tup) {
+                                    if (!py::isinstance<py::int_>(tup_elem)) {
+                                        throw py::type_error("Dynamic range tuple elements must be integers");
+                                    }
+                                }
+                            }
+                        }
+
+                        try {
+                            new_shapes[self.inputs()[i]] = Common::partial_shape_from_list(shape_list);
+                        } catch (const std::exception& e) {
+                            throw py::type_error(e.what());
+                        }
+                    }
+                } else {
+                    // Single-input reshaping: reshape only the first input
+                    if (self.inputs().empty()) {
+                        throw py::type_error("Model has no inputs to reshape");
+                    }
+                    
+                    // For single-input reshaping, validate that we have a reasonable input
+                    if (shapes_list.empty()) {
+                        throw py::value_error("Cannot reshape with empty shape list");
+                    }
+                    
+                    // Validate that all elements in the shape list are valid
+                    for (auto& elem : shapes_list) {
+                        if (!py::isinstance<py::int_>(elem) && !py::isinstance<py::tuple>(elem)) {
+                            throw py::type_error("Shape elements must be integers or tuples for dynamic ranges");
+                        }
+                        // Additional validation for tuples (dynamic ranges)
+                        if (py::isinstance<py::tuple>(elem)) {
+                            py::tuple tup = elem.cast<py::tuple>();
+                            if (tup.size() != 2) {
+                                throw py::type_error("Dynamic range tuples must have exactly 2 elements");
+                            }
+                            for (auto& tup_elem : tup) {
+                                if (!py::isinstance<py::int_>(tup_elem)) {
+                                    throw py::type_error("Dynamic range tuple elements must be integers");
+                                }
+                            }
+                        }
+                    }
+                    
+                    try {
+                        // Directly pass the entire list (ints + tuples allowed)
+                        new_shapes[self.inputs()[0]] = Common::partial_shape_from_list(shapes_list);
+                    } catch (const std::exception& e) {
+                        throw py::type_error(e.what());
+                    }
+                }
+            }
+            else {
+                throw py::type_error("shapes must be a list, tuple, dict, string, Shape, or PartialShape");
             }
 
             ConditionalGILScopedRelease release;
@@ -620,15 +793,36 @@ void regclass_graph_Model(py::module m) {
         },
         py::arg("shapes"),
         R"(
-            Reshape model inputs from a list of shapes.
+            Reshape model inputs from various input types.
 
-            This overload accepts a single argument `shapes` describing the new input shapes.
+            This overload accepts multiple input types describing the new input shapes.
 
-            Behavior:
-            - Multi-input models: pass a list whose length equals the number of model inputs; each element
+            Supported input types:
+            - list: List of shapes for multi-input or single-input reshaping
+            - tuple: Tuple of shapes (converted to list internally)
+            - dict: Dictionary mapping input identifiers to shapes
+            - str: String representation of shape (single input only)
+            - Shape: OpenVINO Shape object (single input only)
+            - PartialShape: OpenVINO PartialShape object (single input only)
+
+            List/Tuple behavior:
+            - Multi-input models: pass a list/tuple whose length equals the number of model inputs; each element
               must be a list or tuple describing the corresponding input's dimensions.
             - Single-input reshape (including multi-input models): pass a flat list or tuple of dimensions
               to reshape only the first input; other inputs remain unchanged.
+
+            Dict behavior:
+            - Keys can be: int (input index), str (tensor name), or openvino.Output
+            - Values can be: openvino.PartialShape, list, tuple, or str
+            - Only specified inputs are reshaped; others remain unchanged
+
+            String behavior:
+            - Single input reshape using string syntax like "1..10,?,3"
+            - Supports dynamic dimension syntax: ?, 1..10, ..10, 1..
+
+            Shape/PartialShape behavior:
+            - Single input reshape using OpenVINO shape objects
+            - Direct conversion to PartialShape
 
             Allowed dimension encodings inside per-input shapes (lists or tuples):
             (1) non-negative int — static dimension
@@ -636,6 +830,7 @@ void regclass_graph_Model(py::module m) {
             (3) (min, max) — dynamic dimension with inclusive integer bounds; use -1 for unknown bound
 
             Errors:
+            - TypeError: if input is not a supported type
             - TypeError: if for multi-input usage any element is not a list or tuple
             - ValueError: if the number of shapes does not match the number of model inputs (multi-input usage)
             - TypeError: if a dimension value is not an int or a (min, max) tuple of ints
@@ -645,8 +840,18 @@ void regclass_graph_Model(py::module m) {
               model.reshape([[2, 2], [1, 3, 224, 244]])
             - Single-input reshape on a multi-input model (first input only):
               model.reshape([2, 2])
+            - Tuple input:
+              model.reshape((2, 2))
             - Single-input with dynamic dimensions:
               model.reshape([-1, 3, (28, 56)])
+            - String input:
+              model.reshape("1..10,?,3")
+            - Shape object:
+              model.reshape(Shape([2, 2]))
+            - Dict reshape by name:
+              model.reshape({"input1": [2, 2], "input2": [1, 3, 224, 224]})
+            - Dict reshape by index:
+              model.reshape({0: [2, 2], 1: [1, 3, 224, 224]})
         )"
     );
 
