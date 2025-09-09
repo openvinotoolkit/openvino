@@ -192,13 +192,7 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
             // Later in runtime we rely on m_input_allocated to check if the memory is
             // allocated internally to prevent the copy. Here we need to check if the memory
             // is properly allocated externally, to prevent runtime copy as well.
-            if (std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(tensor._ptr) != nullptr ||
-                std::dynamic_pointer_cast<::intel_npu::ZeroHostTensor>(tensor._ptr) != nullptr) {
-                // ZeroRemoteTensor and ZeroHostTensor should guarantee the correct memory allocation
-                m_input_allocated.insert(tensor->data());
-            }
-            // We could get a sliced RemoteTensor. In this case need to check that tensor data is allocated on the
-            // device
+            // Also we can get a strided remote tensor. In this case the copy cannot be avoided for now.
             if (m_npuw_model->global_mem_device() == "NPU") {
                 auto remote_ctx =
                     m_npuw_model->get_plugin()->get_core()->get_default_context(m_npuw_model->global_mem_device())._ptr;
