@@ -158,8 +158,8 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_i
     std::vector<int64_t> input_spatial_shape(spatial_rank);
     std::vector<int64_t> output_spatial_shape(spatial_rank);
 
-    std::copy(input_shape.rbegin(), input_shape.rbegin() + spatial_rank, input_spatial_shape.rbegin());
-    std::copy(output_shape.rbegin(), output_shape.rbegin() + spatial_rank, output_spatial_shape.rbegin());
+    std::copy_n(input_shape.rbegin(), spatial_rank, input_spatial_shape.rbegin());
+    std::copy_n(output_shape.rbegin(), spatial_rank, output_spatial_shape.rbegin());
 
     result.input_data_ptr_increment = input_data_ptr_increment;
     result.output_data_ptr_increment = output_data_ptr_increment;
