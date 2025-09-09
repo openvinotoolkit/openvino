@@ -424,7 +424,7 @@ endif()
 # FlatBuffers
 #
 
-if(ENABLE_OV_TF_LITE_FRONTEND)
+if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
     if(ENABLE_SYSTEM_FLATBUFFERS)
         ov_cross_compile_define_debian_arch()
 
@@ -447,6 +447,14 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
         set(flatbuffers_COMPILER flatbuffers::flatc)
     else()
         add_subdirectory(thirdparty/flatbuffers EXCLUDE_FROM_ALL)
+        if(ENABLE_INTEL_NPU)
+            # NPU plugin requires flatbuffers to be built always
+            add_custom_target(npu_compiler_flatbuffers ALL DEPENDS flatbuffers flatc)
+            set(flatbuffers_root "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/flatbuffers/flatbuffers")
+            ov_developer_package_export_targets(TARGET flatbuffers
+                    INSTALL_INCLUDE_DIRECTORIES "${flatbuffers_root}/include/flatbuffers")
+            install(TARGETS flatc DESTINATION "developer_package/bin" COMPONENT developer_package EXCLUDE_FROM_ALL)
+        endif()
     endif()
 
     # set additional variables, used in other places of our cmake scripts
