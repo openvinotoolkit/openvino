@@ -10,7 +10,7 @@ permissions: read-all
 jobs:
   clang-format:
     runs-on: ubuntu-24.04
-    if: ${{ github.repository_owner == 'Jarvis2001' }}
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
       pull-requests: write
     steps:
@@ -45,7 +45,7 @@ jobs:
 
   clang-format-aarch64:
     runs-on: ubuntu-24.04
-    if: ${{ github.repository_owner == 'Jarvis2001' }}
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
       pull-requests: write
     steps:
@@ -81,7 +81,7 @@ jobs:
 
   clang-format-riscv64:
     runs-on: ubuntu-24.04
-    if: ${{ github.repository_owner == 'Jarvis2001' }}
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
       pull-requests: write
     steps:
@@ -116,7 +116,7 @@ jobs:
 
   ShellCheck:
     runs-on: ubuntu-22.04
-    if: ${{ github.repository_owner == 'Jarvis2001' }}
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
       pull-requests: write
     steps:
@@ -151,7 +151,7 @@ jobs:
 
   NamingConventionCheck:
     runs-on: ubuntu-22.04
-    if: ${{ github.repository_owner == 'Jarvis2001' }}
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
