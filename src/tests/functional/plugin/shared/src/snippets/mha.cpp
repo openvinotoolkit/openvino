@@ -66,7 +66,7 @@ void MHABase::SetUp() {
         abs_threshold = 2e-2;
  }
 
-std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj) {
+std::string MHA::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj) {
     const auto& [input_shapes,
                  elem_types,
                  prc,
@@ -98,7 +98,7 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
     return result.str();
 }
 
-std::string MHAWithDynamicMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAWithDynamicMulParams> obj) {
+std::string MHAWithDynamicMul::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAWithDynamicMulParams>& obj) {
     const auto& [input_shapes,
                  elem_types,
                  prc,
