@@ -18,9 +18,10 @@ struct MatMulAttrs {
     bool withBias = false;
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
-    uint64_t dynamicQuantizationGroupSize = 0;
     bool constantWeights = false;
     bool fcSemantic = false;
+
+    uint64_t dynamicQuantizationGroupSize = 0;
 
     // DQ scales for quantization
     std::vector<float> dqScales;
