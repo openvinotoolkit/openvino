@@ -1572,7 +1572,7 @@ void program_node::create_onednn_primitive_attributes(
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && fused_desc->additional_params_input.is_valid()) {
                 auto dep_idx = desc.outer_dep_start_idx;
-                auto prelu_mask = onednn_post_ops_fusing_helpers::get_prelu_mask_from_layouts(get_output_layout, get_input_layout, dep_idx);
+                auto prelu_mask = onednn::onednn_post_ops_fusing_helpers::get_prelu_mask_from_layouts(get_output_layout, get_input_layout, dep_idx);
                 post_ops.append_prelu(prelu_mask);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
