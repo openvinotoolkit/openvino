@@ -8,6 +8,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
@@ -195,6 +196,17 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
                 std::dynamic_pointer_cast<::intel_npu::ZeroHostTensor>(tensor._ptr) != nullptr) {
                 // ZeroRemoteTensor and ZeroHostTensor should guarantee the correct memory allocation
                 m_input_allocated.insert(tensor->data());
+            }
+            // We could get a sliced RemoteTensor. In this case need to check that tensor data is allocated on the
+            // device
+            if (m_npuw_model->global_mem_device() == "NPU") {
+                auto remote_ctx =
+                    m_npuw_model->get_plugin()->get_core()->get_default_context(m_npuw_model->global_mem_device())._ptr;
+                auto zrh = remote_ctx->get_property().at(ov::intel_npu::l0_context.name());
+                if (::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(zrh.as<ze_context_handle_t>(),
+                                                                                        tensor->data())) {
+                    m_input_allocated.insert(tensor->data());
+                }
             }
         }
     }
