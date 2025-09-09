@@ -388,9 +388,7 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_Sinks) {
                                                                              casual);
         model = std::make_shared<ov::Model>(OutputVector{sdpa},
                                             ParameterVector{query, key, value, attention_mask, scale, sinks});
-        manager.register_pass<ov::pass::VisualizeTree>("before.svg");
         manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
-        manager.register_pass<ov::pass::VisualizeTree>("after.svg");
     }
 
     {
@@ -398,6 +396,5 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_Sinks) {
             scaled_dot_product_attention_decomposition(query, key, value, attention_mask, scale, casual, false, sinks);
         model_ref = std::make_shared<ov::Model>(OutputVector{ref},
                                                 ParameterVector{query, key, value, attention_mask, scale, sinks});
-        ov::pass::VisualizeTree("model_ref.svg").run_on_model(model_ref);
     }
 }
