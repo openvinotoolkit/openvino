@@ -7,15 +7,17 @@
 namespace intel_npu {
 
 // clang-format off
-AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& syncInferRequest,
+AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<ov::IInferRequest>& syncInferRequest,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& requestExecutor,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& getResultExecutor,
-                                     const std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor)
+                                     const std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor,
+                                     const std::function<void(void)>& inferAsyncF,
+                                     const std::function<void(void)>& getResultF)
         : ov::IAsyncInferRequest(syncInferRequest, requestExecutor, callbackExecutor),
           _syncInferRequest(syncInferRequest), _getResultExecutor(getResultExecutor) {
     m_pipeline = {
-            {requestExecutor,       [this] { _syncInferRequest->infer_async(); }},
-            {getResultExecutor,     [this] { _syncInferRequest->get_result(); }}
+            {requestExecutor,       inferAsyncF},
+            {getResultExecutor,     getResultF}
     };
 }
 // clang-format on
