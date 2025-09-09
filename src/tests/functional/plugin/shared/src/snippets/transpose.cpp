@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string Transpose::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeParams> obj) {
+std::string Transpose::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::TransposeParams>& obj) {
     const auto& [inputShapes, order, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
@@ -35,7 +35,7 @@ void Transpose::SetUp() {
     setIgnoreCallbackMode();
 }
 
-std::string TransposeMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMulParams> obj) {
+std::string TransposeMul::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::TransposeMulParams>& obj) {
     const auto& [inputShapes, order, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
