@@ -203,9 +203,15 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
                 auto remote_ctx =
                     m_npuw_model->get_plugin()->get_core()->get_default_context(m_npuw_model->global_mem_device())._ptr;
                 auto zrh = remote_ctx->get_property().at(ov::intel_npu::l0_context.name());
-                if (::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(zrh.as<ze_context_handle_t>(),
-                                                                                        tensor->data())) {
-                    m_input_allocated.insert(tensor->data());
+                if (::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(
+                        static_cast<ze_context_handle_t>(zrh.as<void*>()),
+                        tensor->data())) {
+                    if (tensor->is_continuous()) {
+                        m_input_allocated.insert(tensor->data());
+                    } else {
+                        LOG_WARN("Strided remote tensor is not supported on the device! Expect worse performance due "
+                                 "to CPU runtime copy.");
+                    }
                 }
             }
         }
