@@ -30,6 +30,11 @@ on:
         type: number
         required: false
         default: 45
+      event_name:
+        description: 'github event name'
+        type: string
+        required: false
+        default: 'push'
 
 permissions: read-all
 
