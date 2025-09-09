@@ -315,6 +315,13 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
     if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_initStructs->getContext(), tensor->data())) {
         _logger.debug("ZeroInferRequest::set_tensor_data - tensor was created in the same L0 context, size: %zu",
                       tensor->get_byte_size());
+
+        if (levelZeroTensors != nullptr && !is_remote_tensor(levelZeroTensors) &&
+            levelZeroTensors->data() == tensor->data()) {
+            _logger.debug("ZeroInferRequest::set_tensor_data - same data was provided, don't do anything");
+            return;
+        }
+
         levelZeroTensors = tensor;
 
         auto zero_tensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors);
