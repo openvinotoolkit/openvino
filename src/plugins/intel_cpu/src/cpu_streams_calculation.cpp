@@ -608,16 +608,18 @@ int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
+    bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
+
     auto default_prefer_threads_latency = [&]() {
         bool llm_related = ov::op::util::is_large_language_model(*model);
-        bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model) || llm_related;
         const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
         const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
         // By default the latency case uses (faster) Big cores only, depending on the compute ratio
         // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big
         // cores only cases except LLM.
-        bool use_all_cores = proc_type_table[0][MAIN_CORE_PROC] <= (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                                    (int8_intensive ? int8_threshold : fp32_threshold));
+        bool use_all_cores =
+            proc_type_table[0][MAIN_CORE_PROC] <= (proc_type_table[0][EFFICIENT_CORE_PROC] /
+                                                   (int8_intensive || llm_related ? int8_threshold : fp32_threshold));
         bool use_big_and_little = !llm_related && (ov::get_number_of_blocked_cores() != 0);
 
         if (use_all_cores || use_big_and_little) {
@@ -724,49 +726,86 @@ int get_model_prefer_threads(const int num_streams,
                     config.modelPreferThreadsLatency =
                         proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
                     if (config.tbbPartitioner == TbbPartitioner::NONE) {
-                        bool static_case_1 = networkToleranceForLowCache.total_nodes == 0;
-                        bool static_case_2 = networkToleranceForLowCache.total_convs > 0 &&
-                                             static_cast<float>(networkToleranceForLowCache.total_light_convs) /
-                                                     static_cast<float>(networkToleranceForLowCache.total_convs) >
-                                                 0.6F;
-                        bool static_case_3 = false;
-                        bool static_case_4 = false;
-                        if (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) {
-                            static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
-                                            static_cast<float>(networkToleranceForLowCache.total_light_convs) /
-                                                    static_cast<float>(networkToleranceForLowCache.total_convs) <=
-                                                0.6F &&
-                                            networkToleranceForLowCache.ratio_compute_convs +
-                                                    networkToleranceForLowCache.ratio_mem_limited_convs <
-                                                0.9F &&
-                                            networkToleranceForLowCache.ratio_mem_limited_convs < 0.2F &&
-                                            networkToleranceForLowCache.ratio_mem_limited_gemms == 0.0F &&
-                                            ((networkToleranceForLowCache.ratio_mem_limited_adds < 0.28F &&
-                                              networkToleranceForLowCache.max_mem_tolerance >= 0.06F) ||
-                                             networkToleranceForLowCache.ratio_compute_convs == 0 ||
-                                             networkToleranceForLowCache.ratio_mem_limited_convs == 0);
-                            static_case_4 = networkToleranceForLowCache.total_convs == 0 &&
-                                            networkToleranceForLowCache.max_mem_tolerance > 2.5F;
-                        } else {
-                            static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
-                                            static_cast<float>(networkToleranceForLowCache.total_light_convs) /
-                                                    static_cast<float>(networkToleranceForLowCache.total_convs) <=
-                                                0.6F &&
-                                            networkToleranceForLowCache.ratio_compute_convs +
-                                                    networkToleranceForLowCache.ratio_mem_limited_convs <
-                                                0.9F &&
-                                            networkToleranceForLowCache.ratio_mem_limited_convs < 0.2F &&
-                                            networkToleranceForLowCache.ratio_mem_limited_gemms == 0.0F &&
-                                            networkToleranceForLowCache.ratio_mem_limited_adds < 0.28F &&
-                                            networkToleranceForLowCache.max_mem_tolerance >= 0.06F;
-                            static_case_4 = networkToleranceForLowCache.total_convs == 0 &&
-                                            static_cast<float>(networkToleranceForLowCache.total_gemms) <
-                                                0.05F * static_cast<float>(networkToleranceForLowCache.total_nodes);
+                        if (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0 && int8_intensive &&
+                            networkToleranceForLowCache.total_convs > 0) {
+                            bool main_core_case_1 = networkToleranceForLowCache.ratio_mem_limited_convs > 0.8F;
+                            bool main_core_case_2 = networkToleranceForLowCache.ratio_mem_limited_convs == 0.0F &&
+                                                    networkToleranceForLowCache.ratio_compute_convs == 0.0F &&
+                                                    networkToleranceForLowCache.max_mem_tolerance >= 4.5F;
+                            bool main_core_case_3 =
+                                networkToleranceForLowCache.ratio_mem_limited_convs == 0.0F &&
+                                networkToleranceForLowCache.ratio_compute_convs > 0.0F &&
+                                networkToleranceForLowCache.ratio_compute_convs < 1.0F &&
+                                static_cast<float>(networkToleranceForLowCache.total_light_convs) >
+                                    0.9F * static_cast<float>(networkToleranceForLowCache.total_convs);
+                            bool main_core_case_4 =
+                                networkToleranceForLowCache.ratio_mem_limited_convs > 0.0F &&
+                                networkToleranceForLowCache.ratio_compute_convs > 0.0F &&
+                                static_cast<float>(networkToleranceForLowCache.total_light_convs) >
+                                    0.46F * static_cast<float>(networkToleranceForLowCache.total_convs);
+                            if (main_core_case_1 || main_core_case_2 || main_core_case_3 || main_core_case_4) {
+                                config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC];
+                                config.tbbPartitioner = TbbPartitioner::STATIC;
+                            }
                         }
-                        if (static_case_1 || static_case_2 || static_case_3 || static_case_4) {
-                            config.tbbPartitioner = TbbPartitioner::STATIC;
-                        } else {
-                            config.tbbPartitioner = TbbPartitioner::AUTO;
+                        if (config.tbbPartitioner == TbbPartitioner::NONE) {
+                            bool static_case_1 = networkToleranceForLowCache.total_nodes == 0;
+                            bool static_case_2 = networkToleranceForLowCache.total_convs > 0 &&
+                                                 static_cast<float>(networkToleranceForLowCache.total_light_convs) >
+                                                     0.6F * static_cast<float>(networkToleranceForLowCache.total_convs);
+                            bool static_case_3 = false;
+                            bool static_case_4 = false;
+                            bool static_case_5 = false;
+                            if (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) {
+                                static_case_3 =
+                                    networkToleranceForLowCache.total_convs > 0 &&
+                                    static_cast<float>(networkToleranceForLowCache.total_light_convs) <=
+                                        0.6F * static_cast<float>(networkToleranceForLowCache.total_convs) &&
+                                    networkToleranceForLowCache.ratio_compute_convs +
+                                            networkToleranceForLowCache.ratio_mem_limited_convs <
+                                        0.9F &&
+                                    networkToleranceForLowCache.ratio_mem_limited_convs < 0.2F &&
+                                    networkToleranceForLowCache.ratio_mem_limited_gemms == 0.0F &&
+                                    ((networkToleranceForLowCache.ratio_mem_limited_adds < 0.28F &&
+                                      networkToleranceForLowCache.max_mem_tolerance >= 0.06F) ||
+                                     networkToleranceForLowCache.ratio_compute_convs == 0 ||
+                                     networkToleranceForLowCache.ratio_mem_limited_convs == 0);
+                                static_case_4 =
+                                    networkToleranceForLowCache.total_convs == 0 &&
+                                    (networkToleranceForLowCache.max_mem_tolerance > 2.5F ||
+                                     static_cast<float>(networkToleranceForLowCache.total_gemms) >=
+                                         0.14F * static_cast<float>(networkToleranceForLowCache.total_nodes));
+                                static_case_5 =
+                                    networkToleranceForLowCache.total_convs > 0 &&
+                                    static_cast<float>(networkToleranceForLowCache.total_light_convs) <=
+                                        0.6F * static_cast<float>(networkToleranceForLowCache.total_convs) &&
+                                    networkToleranceForLowCache.ratio_compute_convs >=
+                                        0.9F * networkToleranceForLowCache.ratio_mem_limited_convs &&
+                                    networkToleranceForLowCache.ratio_compute_convs == 1.0F &&
+                                    networkToleranceForLowCache.ratio_mem_limited_adds == 1.0F &&
+                                    static_cast<float>(networkToleranceForLowCache.total_heavy_convs) >
+                                        0.1F * static_cast<float>(networkToleranceForLowCache.total_nodes);
+                            } else {
+                                static_case_3 =
+                                    networkToleranceForLowCache.total_convs > 0 &&
+                                    static_cast<float>(networkToleranceForLowCache.total_light_convs) <=
+                                        0.6F * static_cast<float>(networkToleranceForLowCache.total_convs) &&
+                                    networkToleranceForLowCache.ratio_compute_convs +
+                                            networkToleranceForLowCache.ratio_mem_limited_convs <
+                                        0.9F &&
+                                    networkToleranceForLowCache.ratio_mem_limited_convs < 0.2F &&
+                                    networkToleranceForLowCache.ratio_mem_limited_gemms == 0.0F &&
+                                    networkToleranceForLowCache.ratio_mem_limited_adds < 0.28F &&
+                                    networkToleranceForLowCache.max_mem_tolerance >= 0.06F;
+                                static_case_4 = networkToleranceForLowCache.total_convs == 0 &&
+                                                static_cast<float>(networkToleranceForLowCache.total_gemms) <
+                                                    0.05F * static_cast<float>(networkToleranceForLowCache.total_nodes);
+                            }
+                            if (static_case_1 || static_case_2 || static_case_3 || static_case_4 || static_case_5) {
+                                config.tbbPartitioner = TbbPartitioner::STATIC;
+                            } else {
+                                config.tbbPartitioner = TbbPartitioner::AUTO;
+                            }
                         }
                     }
                 }

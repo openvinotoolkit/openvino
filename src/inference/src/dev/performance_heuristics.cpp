@@ -13,10 +13,11 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                                                       const ov::element::Type& target_type) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0, total_adds = 0, mem_limited_adds = 0,
-        total_nodes = 0, total_light_convs = 0, total_light_gemms = 0;
+        total_nodes = 0, total_heavy_convs = 0, total_light_convs = 0, total_light_gemms = 0;
 
-    constexpr int light_convs_threshold = 16777216;
-    constexpr int light_gemms_threshold = 131072;
+    constexpr int heavy_convs_threshold = 1 << 30;
+    constexpr int light_convs_threshold = 1 << 24;
+    constexpr int light_gemms_threshold = 1 << 17;
 
     auto memLimitedFactor = [&](size_t size_data_moved, int datatype_size = 4) -> float {
         return (cache_size / (size_data_moved * datatype_size));
@@ -99,6 +100,9 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 if (conv_indicator < light_convs_threshold) {
                     total_light_convs++;
                 }
+                if (conv_indicator > heavy_convs_threshold) {
+                    total_heavy_convs++;
+                }
             }
 
             if (kernels.get_partial_shape().is_static()) {
@@ -175,6 +179,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
     res.total_gemms = total_gemms;
     res.total_convs = total_convs;
     res.total_adds = total_adds;
+    res.total_heavy_convs = total_heavy_convs;
     res.total_light_convs = total_light_convs;
     res.total_light_gemms = total_light_gemms;
     res.total_nodes = total_nodes;
