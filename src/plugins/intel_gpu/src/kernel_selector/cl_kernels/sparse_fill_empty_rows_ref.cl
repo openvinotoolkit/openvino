@@ -28,7 +28,6 @@ KERNEL(sparse_fill_empty_rows_ref)(
     #else
         const uint indices_count = NUM_INDICES;
     #endif
-    printf("NUM_INDICES: %u\n", indices_count);
     const uint row_idx = get_global_id(0);
     uint output_base_pos = 0;
 

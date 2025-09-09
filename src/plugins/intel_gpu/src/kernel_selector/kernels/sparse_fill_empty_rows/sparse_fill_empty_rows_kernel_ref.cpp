@@ -43,6 +43,17 @@ SparseFillEmptyRowsKernelRef::DispatchData SetDefault(const sparse_fill_empty_ro
 }
 } // anonymous namespace
 
+void SparseFillEmptyRowsKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const sparse_fill_empty_rows_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = SkipKernelExecution(prim_params, 0);
+    };
+}
+
 KernelsData SparseFillEmptyRowsKernelRef::GetKernelsData(const Params &params) const {
     if (!Validate(params)) {
         return {};
@@ -67,6 +78,7 @@ KernelsData SparseFillEmptyRowsKernelRef::GetKernelsData(const Params &params) c
         0,                              // number_of_inputs_for_fused_prims
         3,                              // number_of_outputs
         params.is_shape_agnostic);      // is_dynamic
+    GetUpdateDispatchDataFunc(kernel_data);
     return {kernel_data};
 }
 
@@ -83,7 +95,6 @@ bool SparseFillEmptyRowsKernelRef::Validate(const Params& p) const {
 
 JitConstants SparseFillEmptyRowsKernelRef::GetJitConstants(const sparse_fill_empty_rows_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    std::cout << "is_shape_agnostic: " << params.is_shape_agnostic << std::endl;
     if (!params.is_shape_agnostic) {
         jit.AddConstant(MakeJitConstant("NUM_INDICES", params.inputs[2].LogicalSize() / 2));
     }

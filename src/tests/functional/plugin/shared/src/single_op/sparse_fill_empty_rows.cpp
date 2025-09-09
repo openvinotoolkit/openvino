@@ -38,7 +38,7 @@ void SparseFillEmptyRowsLayerTest::SetUp() {
     auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[2]);
     std::shared_ptr<ov::Node> default_value_node;
     if (in_type == utils::InputLayerType::PARAMETER) {
-        default_value_node = std::make_shared<ov::op::v0::Parameter>(values_type, ov::Shape{});
+        default_value_node = std::make_shared<ov::op::v0::Parameter>(values_type, ov::PartialShape{});
     } else {
         default_value_node = std::make_shared<ov::op::v0::Constant>(values_type, ov::Shape{}, default_value);
     }
