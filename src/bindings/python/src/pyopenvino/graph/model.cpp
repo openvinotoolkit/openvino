@@ -733,7 +733,7 @@ void regclass_graph_Model(py::module m) {
                 :param variables_shapes: New shapes for variables
                 :type variables_shapes: dict[keys, values]
                 :return : void
-             )");
+             )");    
 
     model.def(
         "reshape",
@@ -890,11 +890,11 @@ void regclass_graph_Model(py::module m) {
             :type partial_shapes: dict[keys, values]
             :param variables_shapes: New shapes for variables
             :type variables_shapes: dict[keys, values]
-        )");    
+        )");
 
-model.def("get_output_size",
-          &ov::Model::get_output_size,
-          R"(
+    model.def("get_output_size",
+              &ov::Model::get_output_size,
+              R"(
                     Return the number of outputs for the model.
 
                     :return: Number of outputs.
