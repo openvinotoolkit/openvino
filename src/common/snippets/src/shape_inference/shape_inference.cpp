@@ -81,12 +81,12 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
     SHAPE_INFER_PREDEFINED(op::Load, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(op::Store, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(op::Fill, PassThroughShapeInfer),
-    SHAPE_INFER_PREDEFINED(op::OnlineSoftmax, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v0::Parameter, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v1::LogicalNot, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::op::v0::PRelu, PassThroughShapeInfer),
     SHAPE_INFER_PREDEFINED(op::HorizonMax, HorizonOpShapeInfer),
     SHAPE_INFER_PREDEFINED(op::HorizonSum, HorizonOpShapeInfer),
+    SHAPE_INFER_PREDEFINED(op::OnlineSoftmax, OnlineSoftmaxShapeInfer),
     SHAPE_INFER_PREDEFINED(op::OnlineSoftmaxUpdateMax, OnlineSoftmaxUpdateMaxShapeInfer),
     SHAPE_INFER_PREDEFINED(op::OnlineSoftmaxUpdateSum, OnlineSoftmaxUpdateSumShapeInfer),
     //

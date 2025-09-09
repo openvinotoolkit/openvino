@@ -5,7 +5,8 @@
 #pragma once
 
 #include "openvino/core/node.hpp"
-#include "openvino/op/softmax.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov::snippets::op {
 
@@ -14,13 +15,14 @@ namespace ov::snippets::op {
  * @brief OnlineSoftmax is a softmax that evaluate with online manner with axis on last dimension.
  * @ingroup snippets
  */
-class OnlineSoftmax : public ov::op::v8::Softmax {
+class OnlineSoftmax : public ov::op::Op {
 public:
     OPENVINO_OP("OnlineSoftmax", "SnippetsOpset");
 
-    explicit OnlineSoftmax(const Output<Node>& x, const int64_t axis = 1);
+    explicit OnlineSoftmax(const Output<Node>& x);
     OnlineSoftmax() = default;
 
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 };
 

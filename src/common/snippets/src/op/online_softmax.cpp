@@ -4,19 +4,31 @@
 
 #include "snippets/op/online_softmax.hpp"
 
-#include "openvino/core/except.hpp"
+#include <memory>
+
 #include "openvino/core/node.hpp"
-#include "snippets/utils/utils.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/itt.hpp"
 
 namespace ov::snippets::op {
 
-OnlineSoftmax::OnlineSoftmax(const Output<Node>& x, const int64_t axis) : Softmax(x, axis) {}
+OnlineSoftmax::OnlineSoftmax(const Output<Node>& x) : Op({x}) {
+    constructor_validate_and_infer_types();
+}
+
+std::shared_ptr<Node> OnlineSoftmax::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(OnlineSoftmax);
+    check_new_args_count(this, new_args);
+    return std::make_shared<OnlineSoftmax>(new_args.at(0));
+}
 
 void OnlineSoftmax::validate_and_infer_types() {
-    const auto& rank = get_input_partial_shape(0).size();
-    OPENVINO_ASSERT(utils::any_of(get_axis(), static_cast<int64_t>(rank - 1), -1),
-                    "Online softmax only support innermost axis");
-    Softmax::validate_and_infer_types();
+    auto input_shape = get_input_partial_shape(0);
+    set_output_type(0, get_input_element_type(0), input_shape);
+    const auto& rank = input_shape.size();
+    input_shape[rank - 1] = 1;
+    set_output_type(1, get_input_element_type(0), input_shape);
 }
 
 }  // namespace ov::snippets::op

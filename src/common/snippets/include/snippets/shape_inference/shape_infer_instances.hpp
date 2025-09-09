@@ -103,4 +103,14 @@ public:
     }
 };
 
+class OnlineSoftmaxShapeInfer : public IShapeInferSnippets {
+public:
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of shapes to OnlineSoftmaxShapeInfer.");
+        auto coeff_shape = input_shapes[0].get();
+        coeff_shape.back() = 1;
+        return {{input_shapes[0].get(), coeff_shape}, ShapeInferStatus::success};
+    }
+};
+
 }  // namespace ov::snippets

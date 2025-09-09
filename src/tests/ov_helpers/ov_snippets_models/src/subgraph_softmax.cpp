@@ -107,12 +107,13 @@ std::shared_ptr<ov::Model> SoftmaxSumFunction::initOriginal() const {
 std::shared_ptr<ov::Model> OnlineSoftmaxFunction::initOriginal() const {
     auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     const auto online_softmax = std::make_shared<ov::snippets::op::OnlineSoftmax>(data);
-    return std::make_shared<ov::Model>(OutputVector{online_softmax}, ParameterVector{data});
+    return std::make_shared<ov::Model>(OutputVector{online_softmax->output(0), online_softmax->output(1)},
+                                       ParameterVector{data});
 }
 
 std::shared_ptr<ov::Model> OnlineSoftmaxFunction::initReference() const {
     auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    const auto axis = data->get_output_partial_shape(0).size() - 1;
+    const auto axis = input_shapes[0].size() - 1;
 
     const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(data, axis);
     const auto updated_max = std::make_shared<ov::snippets::op::OnlineSoftmaxUpdateMax>(reduce_max);
@@ -127,10 +128,9 @@ std::shared_ptr<ov::Model> OnlineSoftmaxFunction::initReference() const {
     const auto power = std::make_shared<ov::snippets::op::PowerStatic>(updated_sum->output(0), -1.F);
     const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
 
-    // add second output in test if online softmax has 2 output
-    // const auto brgemm_coeff = std::make_shared<ov::op::v1::Divide>(updated_sum->output(1), updated_sum->output(0));
+    const auto brgemm_coeff = std::make_shared<ov::op::v1::Divide>(updated_sum->output(1), updated_sum->output(0));
 
-    return std::make_shared<ov::Model>(OutputVector{multiply}, ParameterVector{data});
+    return std::make_shared<ov::Model>(OutputVector{multiply, brgemm_coeff}, ParameterVector{data});
 }
 
 }  // namespace snippets
