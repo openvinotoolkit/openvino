@@ -137,30 +137,6 @@ struct onednn_add_fusing_helpers {
 
 using add_fusing_type = onednn_add_fusing_helpers::add_fusing_type;
 
-struct onednn_post_ops_fusing_helpers {
-    enum class post_op_dnnl_policy_type {
-        COMMON = 0, // single value for each point in a tensor
-        // apply a single value per...
-        PER_OC, // channel (dims[1]) point
-        PER_OCIC, // channel (dims[0] and dims[1]) point
-        PER_DIM_0, // ... dims[0] point.
-        PER_DIM_1, // ... dims[1] point.
-        PER_DIM_01, // ... unique combination of dims[0] and dims[1] points.
-        PER_DIM_2, // ... dims[2] point.
-        PER_DIM_3, // ... dims[3] point.
-        PER_TENSOR, // ... point in the tensor.
-        POLICY_TOTAL // guard
-    };
-    static post_op_dnnl_policy_type get_post_op_dnnl_policy_type(const layout& data_layout, const layout& slope_layout);
-    static int get_default_mask(post_op_dnnl_policy_type policy, int ndims);
-    static int get_prelu_mask(const layout& data_layout, const layout& slope_layout);
-    static int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
-                                           const std::function<layout(int32_t)>& get_input_layout,
-                                           int32_t slope_input_idx);
-};
-
-using post_op_dnnl_policy_type = onednn_post_ops_fusing_helpers::post_op_dnnl_policy_type;
-
 static inline std::ostream& operator<< (std::ostream& os, add_fusing_type& t) {
     switch (t) {
         case add_fusing_type::sum: os << "sum"; break;
