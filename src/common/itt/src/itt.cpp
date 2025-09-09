@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <mutex>
 #include <vector>
 
 #ifdef ENABLE_PROFILING_ITT
@@ -31,6 +32,7 @@ static uint64_t nextRegionId() {
     return region_id_counter.fetch_add(1, std::memory_order_relaxed);
 }
 
+static std::mutex region_mutex;
 static thread_local uint64_t current_region_counter = 0;
 static thread_local void* current_region_handle = nullptr;
 
@@ -63,10 +65,11 @@ void threadName(const char* name) {
 }
 
 void regionBegin(domain_t d, handle_t t) {
+    std::lock_guard<std::mutex> lock(region_mutex);
     auto region_counter = nextRegionId();
     current_region_counter = region_counter;
     current_region_handle = reinterpret_cast<void*>(t);
-    __itt_id region_id = __itt_id_make(current_region_handle, region_counter);
+    __itt_id region_id = __itt_id_make(current_region_handle, current_region_counter);
     __itt_region_begin(reinterpret_cast<__itt_domain*>(d),
                        region_id,
                        __itt_null,
@@ -74,6 +77,7 @@ void regionBegin(domain_t d, handle_t t) {
 }
 
 void regionEnd(domain_t d, handle_t t) {
+    std::lock_guard<std::mutex> lock(region_mutex);
     if (current_region_counter == 0)
         return;
 
