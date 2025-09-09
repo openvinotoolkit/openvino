@@ -294,7 +294,7 @@ jobs:
         - /mount:/mount
       options: --privileged --device /dev/kvm
     env:
-      ANDROID_API_LEVEL: 29
+      ANDROID_API_LEVEL: 30
       ANDROID_TARGET: google_apis
       ANDROID_ARCH: x86_64
     steps:
