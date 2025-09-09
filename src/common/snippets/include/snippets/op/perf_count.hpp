@@ -143,7 +143,7 @@ public:
     OPENVINO_OP("PerfCountEnd", "SnippetsOpset", PerfCountEndBase);
     explicit PerfCountEnd(const Output<Node>& pc_begin,
                           std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
-                          const std::string& params = "");
+                          std::string params = "");
     PerfCountEnd() = default;
     ~PerfCountEnd() override;
 
@@ -166,6 +166,7 @@ private:
 
     std::vector<std::shared_ptr<utils::Dumper>> dumpers;
     std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
+    std::string m_params;
 };
 
 }  // namespace op
