@@ -180,6 +180,8 @@ private:
         // Metrics
         execution_stats stat;
 
+        bool is_sdpa = false;
+
         void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
         void deserialize(std::istream& stream, const ov::npuw::s11n::WeightsContext& ctx);
     };

@@ -5,6 +5,7 @@
 #include "just_sync_infer_request.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <future>
 #include <map>
 #include <memory>
@@ -15,6 +16,7 @@
 #include "logging.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
@@ -568,7 +570,11 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 const auto& i_tensor = m_funcall_result.at({prod_idx, prod_port});
                 if (!is_spatial) {
                     // Non-spatial case - again, set immediately
-                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    if (m_npuw_model->m_compiled_submodels[prod_idx].is_sdpa) {
+                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    } else {
+                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    }
                 } else {
                     // Spatial case - defer
                     m_spatial_io[real_idx].inputs.at(i) = i_tensor;
@@ -706,9 +712,26 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, const std::
     if (!comp_model_desc.spatial) {
         // Non-spatial execution: trigger request asynchronously, run `f` in this context
         auto& r = m_subrequests[real_idx];
-        r->start_async();
-        f();  // expect noexcept
-        r->wait();
+        if (comp_model_desc.is_sdpa) {
+            LOG_WARN("SDPA execution requested but SYCL support is not available!");
+            auto t_start = std::chrono::high_resolution_clock::now();
+            r->start_async();
+            f();  // expect noexcept
+            r->wait();
+            auto t_end = std::chrono::high_resolution_clock::now();
+
+            double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+            // std::cout << "infer sdpa time: " << elapsed_time_ms << std::endl;
+        } else {
+            auto t_start = std::chrono::high_resolution_clock::now();
+            r->start_async();
+            f();  // expect noexcept
+            r->wait();
+            auto t_end = std::chrono::high_resolution_clock::now();
+
+            double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+            // std::cout << "infer GEMM time: " << elapsed_time_ms << std::endl;
+        }
     } else {
         // Spatial execution... Do the opposite - run f asynchronously, and meanwhile run the
         // spatial inference

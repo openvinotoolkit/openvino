@@ -10,6 +10,10 @@
 #include <optional>
 #include <vector>
 
+#ifdef NPUW_WITH_SYCL
+#    include <sycl/sycl.hpp>
+#endif
+
 #include "base_sync_infer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"

@@ -47,13 +47,11 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_ACC_CHECK>();
     desc.add<NPUW_ACC_THRESH>();
     desc.add<NPUW_ACC_DEVICE>();
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     desc.add<NPUW_DUMP_FULL>();
     desc.add<NPUW_DUMP_SUBS>();
     desc.add<NPUW_DUMP_SUBS_ON_FAIL>();
     desc.add<NPUW_DUMP_IO>();
     desc.add<NPUW_DUMP_IO_ITERS>();
-#endif
 }
 
 void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {

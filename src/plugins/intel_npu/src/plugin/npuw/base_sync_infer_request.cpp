@@ -3,6 +3,7 @@
 //
 
 #include "base_sync_infer_request.hpp"
+#include <iostream>
 
 #include "compiled_model.hpp"
 #include "intel_npu/config/npuw.hpp"
@@ -231,6 +232,9 @@ void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
     prepare_for_infer();
     bool failover_happened = false;
+    double sdpa_time = 0.0;
+    double gemm_time = 0.0;
+    auto t_start = std::chrono::high_resolution_clock::now();
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
         m_now_idx = idx;
         if (!valid_subrequest(idx)) {
@@ -238,7 +242,17 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
+        auto t_start = std::chrono::high_resolution_clock::now();
         run_subrequest_for_success(idx, failover);
+        auto t_end = std::chrono::high_resolution_clock::now();
+
+        double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+        if (comp_model_desc.is_sdpa) {
+            sdpa_time += elapsed_time_ms;
+        } else {
+            gemm_time += elapsed_time_ms;
+        }
         failover_happened |= failover;
         complete_subrequest(idx);
         if (m_npuw_model->m_acc_check) {
@@ -246,6 +260,13 @@ void ov::npuw::IBaseInferRequest::infer() {
             failover_happened |= failover;
         }
     }
+    auto t_end = std::chrono::high_resolution_clock::now();
+
+    double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+    std::cout << "IBaseInferRequest::infer() time: " << elapsed_time_ms << std::endl;
+    std::cout << "IBaseInferRequest::infer() sdpa time: " << sdpa_time << std::endl;
+    std::cout << "IBaseInferRequest::infer() gemm time: " << gemm_time << std::endl;
+
 
     // Increment counter regardless if dumps etc are enabled or not.
     m_run_iter++;

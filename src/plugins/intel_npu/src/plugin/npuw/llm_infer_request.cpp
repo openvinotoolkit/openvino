@@ -671,6 +671,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                               kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
         pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
 
+        std::cout << "[infer chunked prefill] current_prompts_len: " << current_prompts_len
+                  << ", total prompts: " << input_prompt_len << std::endl;
         m_prefill_request->infer();
 
         remaining_prompts -= current_prompts_len;
