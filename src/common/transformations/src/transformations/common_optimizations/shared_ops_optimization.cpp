@@ -80,9 +80,9 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
 
 void collect_node_attrs(const std::shared_ptr<Node>& node,
                         std::unordered_map<std::shared_ptr<ov::Node>, ov::AnyMap>& node_attributes_cache) {
-    if (!node_attributes_cache.count(node))
+    if (node_attributes_cache.count(node))
         return;
-    static auto visitor = NodeComparingVisitor();
+    auto visitor = NodeComparingVisitor();
     node_attributes_cache[node] = visitor.visit_attributes(node);
 }
 
