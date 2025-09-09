@@ -141,8 +141,8 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_i
 
     std::vector<int64_t> input_index_multipliers(spatial_rank, 1);
     std::vector<int64_t> output_index_multipliers(spatial_rank, 1);
-    auto input_shape_end_it = input_shape.rbegin() + spatial_rank - 1;
-    auto out_shape_end_it = output_shape.rbegin() + spatial_rank - 1;
+    const auto input_shape_end_it =std::next(input_shape.rbegin(), spatial_rank - 1);
+    const auto out_shape_end_it = std::next(output_shape.rbegin(), spatial_rank - 1);
     std::partial_sum(input_shape.rbegin(),
                      input_shape_end_it,
                      input_index_multipliers.rbegin() + 1,
