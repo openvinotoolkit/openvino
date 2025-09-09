@@ -33,7 +33,6 @@
 using namespace ov::test;
 using namespace CPUTestUtils;
 using namespace ov::op;
-using namespace std;
 
 namespace ov {
 namespace test {

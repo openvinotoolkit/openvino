@@ -99,7 +99,6 @@
 #include "snippets/utils/debug_caps_config.hpp"
 #include "snippets/utils/utils.hpp"
 
-using namespace std;
 using namespace ov::op::util;
 
 namespace ov::snippets::op {
@@ -221,7 +220,7 @@ Subgraph::Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& b
 
 std::shared_ptr<Node> Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    return make_shared<Subgraph>(inputs, body().clone());
+    return std::make_shared<Subgraph>(inputs, body().clone());
 }
 
 void Subgraph::validate_and_infer_types() {
@@ -427,7 +426,7 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     auto result = std::make_shared<snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     // Note: ov::copy_runtime_info accepts only shared_ptr<ov::Node> as "from" but never modifies it,
     // so we have to cast away constness to copy runtime info
-    ov::copy_runtime_info(const_pointer_cast<Node>(shared_from_this()), result);
+    ov::copy_runtime_info(std::const_pointer_cast<Node>(shared_from_this()), result);
     result->set_friendly_name(get_friendly_name());
     if (m_linear_ir) {
         result->m_linear_ir = lowered::LinearIRBuilder().clone(m_linear_ir);
@@ -504,7 +503,8 @@ void Subgraph::control_flow_transformations(
 
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
-    // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
+    // Domain optimization must be the first pass,
+    // because all other transformations may depend on PortDescriptor shapes
     size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
     if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
         lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
