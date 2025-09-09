@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdlib>
 #include <functional>
 #include <map>
 #include <memory>
@@ -39,6 +40,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pass_config.hpp"
+#include "openvino/util/common_util.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -97,6 +99,7 @@
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/debug_caps_config.hpp"
+#include "snippets/utils/linear_ir_pass_dumper.hpp"
 #include "snippets/utils/utils.hpp"
 
 using namespace ov::op::util;
@@ -618,6 +621,23 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
         shape_dependent_pipeline.run(*linear_ir);
     }
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    const auto& debug_conf = *linear_ir->get_config().debug_config;
+    const auto& dump_names = debug_conf.dumpLIR.passes;
+    const bool dump_final =
+        (std::find(dump_names.begin(), dump_names.end(), std::string("final")) != dump_names.end()) ||
+        (std::find(dump_names.begin(), dump_names.end(), std::string("all")) != dump_names.end());
+    if (dump_final) {
+        std::string name_prefix;
+        if (ov::util::to_lower(debug_conf.dumpLIR.name_modifier) == std::string("subgraph_name")) {
+            name_prefix = get_friendly_name();
+            std::replace(name_prefix.begin(), name_prefix.end(), '/', '_');
+            std::replace(name_prefix.begin(), name_prefix.end(), ':', '_');
+        }
+        LIRPassDump final_dump(*linear_ir, std::string("Final"), name_prefix);
+    }
+#endif
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
     return Schedule{std::move(lowering_result)};

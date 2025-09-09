@@ -7,6 +7,7 @@
 #include <utility>
 #ifdef SNIPPETS_DEBUG_CAPS
 
+#    include "openvino/util/common_util.hpp"
 #    include "openvino/util/file_util.hpp"
 #    include "snippets/lowered/linear_ir.hpp"
 #    include "snippets/lowered/pass/serialize_control_flow.hpp"
@@ -23,6 +24,13 @@ public:
           debug_config(*linear_ir.get_config().debug_config) {
         dump("_in");
     }
+    LIRPassDump(const lowered::LinearIR& linear_ir, std::string pass_name, std::string name_prefix)
+        : linear_ir(linear_ir),
+          pass_name(std::move(pass_name)),
+          name_prefix(std::move(name_prefix)),
+          debug_config(*linear_ir.get_config().debug_config) {
+        dump("_in");
+    }
     ~LIRPassDump() {
         dump("_out");
     }
@@ -30,7 +38,13 @@ public:
 private:
     void dump(const std::string&& postfix) const {
         static int num = 0;  // just to keep dumped IRs ordered in filesystem
-        const auto pathAndName = debug_config.dumpLIR.dir + "/lir_";
+        auto pathAndName = debug_config.dumpLIR.dir + "/";
+        const bool use_subgraph_prefix =
+            ov::util::to_lower(debug_config.dumpLIR.name_modifier) == std::string("subgraph_name");
+        if (use_subgraph_prefix && !name_prefix.empty()) {
+            pathAndName += name_prefix + "_";
+        }
+        pathAndName += "lir_";
 
         ov::util::create_directory_recursive(debug_config.dumpLIR.dir);
 
@@ -51,6 +65,7 @@ private:
 
     const lowered::LinearIR& linear_ir;
     const std::string pass_name;
+    const std::string name_prefix;
     const DebugCapsConfig& debug_config;
 };
 

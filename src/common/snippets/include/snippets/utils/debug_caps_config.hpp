@@ -51,6 +51,7 @@ public:
         std::string dir = "snippets_LIR_dump";
         LIRFormatFilter format = {1 << LIRFormatFilter::controlFlow};
         std::vector<std::string> passes;
+        std::string name_modifier;
 
         std::vector<PropertySetterPtr> getPropertySetters() override {
             return {PropertySetterPtr(new StringPropertySetter("dir", dir, "path to dumped LIRs")),
@@ -59,7 +60,10 @@ public:
                         "passes",
                         passes,
                         "indicate dump LIRs around the passes. Support multiple passes with comma separated and case "
-                        "insensitive. 'all' means dump all passes"))};
+                        "insensitive. 'all' means dump all passes")),
+                    PropertySetterPtr(new StringPropertySetter("name_modifier",
+                                                               name_modifier,
+                                                               "optional name modifier, supported: subgraph_name"))};
         }
     } dumpLIR;
 
