@@ -301,11 +301,11 @@ void SubgraphBaseTest::compile_model() {
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;
-        // std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
     try {
         inference_precision = compiledModel.get_property(ov::hint::inference_precision);
-        std::cout << "[ PLUGIN ] Inference Precision of compiled model: " << inference_precision << std::endl;
+        // std::cout << "[ PLUGIN ] Inference Precision of compiled model: " << inference_precision << std::endl;
     } catch (std::exception& e) {
         std::cout << "[ WARNING ] Impossible to get Inference Precision with exception: " << e.what() << std::endl;
     }
