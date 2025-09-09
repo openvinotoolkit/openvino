@@ -794,7 +794,9 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
             const auto copy_size = lens[t_idx] * shape[1] * shape[2];
             const auto copy_len = is_4bit ? copy_size / 2 : copy_size * type.size();
 
-            uint8_t* pDstIdx = pDst + t_idx * copy_len;
+            const auto dst_offset =
+                is_4bit ? offsets[t_idx] * shape[1] * shape[2] / 2 : offsets[t_idx] * shape[1] * shape[2] * type.size();
+            uint8_t* pDstIdx = pDst + dst_offset;
 
             std::copy_n(pSrc, copy_len, pDstIdx);
         });
