@@ -102,3 +102,58 @@ TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, attention_S_broadca
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 8, 16, 48}));
 }
+
+TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, sink_input_correct_shape_casual_true) {
+    const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto value = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    auto causal = true;
+
+    op = make_op(query, key, value, attention_mask, scale, causal);
+    input_shapes = StaticShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {}, {}, {2, 3, 1}};
+    output_shapes = shape_inference(op.get(), input_shapes);
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({2, 3, 6}));
+}
+
+TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, sink_input_correct_shape) {
+    op = make_op();
+    input_shapes = StaticShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {1, 3, 5}, {}, {2, 3, 1}};
+    output_shapes = shape_inference(op.get(), input_shapes);
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({2, 3, 6}));
+}
+
+TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, sink_input_broadcast_shape) {
+    op = make_op();
+    input_shapes = StaticShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {1, 3, 5}, {}, {1, 3, 1}};
+    output_shapes = shape_inference(op.get(), input_shapes);
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({2, 3, 6}));
+}
+
+TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, sink_input_wrong_rank) {
+    op = make_op();
+    input_shapes = StaticShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {1, 3, 5}, {}, {2, 3}};
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
+                    ov::AssertFailure,
+                    testing::HasSubstr("The rank of sink input shape must be equal to the query input rank."));
+}
+
+TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, sink_input_wrong_last_dim) {
+    op = make_op();
+    input_shapes = StaticShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {1, 3, 5}, {}, {2, 3, 2}};
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
+                    ov::AssertFailure,
+                    testing::HasSubstr("Sink input has not compatible shape."));
+}
+
+TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, sink_input_wrong_first_dim) {
+    op = make_op();
+    input_shapes = StaticShapeVector{{2, 3, 4}, {2, 5, 4}, {2, 5, 6}, {1, 3, 5}, {}, {4, 3, 1}};
+    OV_EXPECT_THROW(shape_inference(op.get(), input_shapes),
+                    ov::AssertFailure,
+                    testing::HasSubstr("Sink input has not compatible shape."));
+}
