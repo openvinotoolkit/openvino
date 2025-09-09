@@ -36,7 +36,7 @@ void generate_data(std::map<std::shared_ptr<ov::Node>, ov::Tensor>& data_inputs,
 }
 } // namespace
 
-std::string Select::getTestCaseName(testing::TestParamInfo<ov::test::snippets::SelectParams> obj) {
+std::string Select::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::SelectParams>& obj) {
     const auto& [inputShapes0, inputShapes1, inputShapes2, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
@@ -80,7 +80,7 @@ void Select::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShap
     generate_data(inputs, function->inputs(), targetInputStaticShapes);
 }
 
-std::string BroadcastSelect::getTestCaseName(testing::TestParamInfo<ov::test::snippets::BroadcastSelectParams> obj) {
+std::string BroadcastSelect::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::BroadcastSelectParams>& obj) {
     const auto& [inputShapes0,
                  inputShapes1,
                  inputShapes2,

@@ -34,8 +34,8 @@ void create_gemm_loop_infos(const LinearIRPtr& linear_ir,
         linear_ir->get_loop_manager()->add_loop_info(
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(n, n_blk,
                 std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>(gemm_expr->get_input_port(0)),
-                                      LoopPort::create<PortType::Incremented>(gemm_expr->get_input_port(1))},
-                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(gemm_expr->get_output_port(0))},
+                                      LoopPort::create<PortType::Incremented>(gemm_expr->get_input_port(1), 0)},
+                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(gemm_expr->get_output_port(0), 0)},
                 BrgemmBlockingBase::get_default_blocking_loop_handlers(n, n_blk)));
     }
     if (m_block) {
