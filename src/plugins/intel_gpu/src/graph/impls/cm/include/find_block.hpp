@@ -133,9 +133,9 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
             data.row(0) += data.row(i) * inv_sum_v[i];
         }
         desc_sum.set_block_x(desc_sum.get_block_x() + TOKEN_SHARE_MAX);
-        sum_m_after_add += data.row(0);
         // the sum type is always half in the reference code of the paper: https://github.com/mit-han-lab/x-attention/blob/fb2ac200a23d20568f7d166ddb5ee247926d2b2b/xattn/src/kernels.py#L248
         vector<half, TOKEN_SHARE_MAX> data_half = data.row(0);
+        sum_m_after_add += data_half;
         cm_ptr_store<int, TOKEN_SHARE_MAX / 2>((int*)kq_exp_partial_sum, j * (int)sizeof(half), data_half.format<int>());
 #if DEBUG_ACC == 1
         cm_ptr_store<int, TOKEN_SHARE_MAX / 2>((int*)kq_sum, j * (int)sizeof(half), data_half.format<int>());
@@ -160,7 +160,7 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     auto score_p = (half*)score;
     half s_0 = score_p[0];
     half s_causal = score_p[causal_start_index + m_block];
-    half s_sum = s_0;
+    float s_sum = s_0;
     if (causal_start_index + m_block) s_sum += s_causal;
     score_p[0] = -1;
     score_p[causal_start_index + m_block] = -1;
@@ -178,19 +178,27 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     acc_score_p[0] = 0;
     acc_score_p[1] = 0;
 #endif
-    for (int j = 2; j < k_block_pad; j++) {
+    int j;
+    for (j = 2; j < k_block_pad; j++) {
 #if DEBUG_ACC == 1
         acc_score_p[j] = sum_cur;
 #endif
         if (sum_cur < thresh_act) {
             block_mask_p[sorted_index_p[j]] = 1;
         } else {
-#if DEBUG_ACC != 1
             break;
-#endif
         }
         sum_cur += sorted_value_p[j];
     }
+#if DEBUG_ACC == 1
+    for (; j < k_block_pad; j++) {
+        acc_score_p[j] = sum_cur;
+        sum_cur += sorted_value_p[j];
+    }
+#endif
+
+    // for (int j = causal_start_index + m_block + 1; j < k_block_pad; j++)
+    //     block_mask_p[j] = 0;
 
 #else
 
@@ -204,7 +212,8 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
 #if DEBUG_ACC == 1
     acc_score_p[0] = 0;
 #endif
-    for (int j = 0; j < k_block_pad - 1; j++) {
+    int j;
+    for (j = 0; j < k_block_pad - 1; j++) {
         sum_cur += sorted_value_p[j];
 #if DEBUG_ACC == 1
         acc_score_p[j + 1] = sum_cur;
@@ -213,10 +222,15 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
             block_mask_p[sorted_index_p[j]] = 1;
         } else {
             block_mask_p[sorted_index_p[j]] = 1;
-#if DEBUG_ACC != 1
             break;
-#endif
         }
     }
+#if DEBUG_ACC == 1
+    for (j = j + 1; j < k_block_pad - 1; j++) {
+        sum_cur += sorted_value_p[j];
+        acc_score_p[j + 1] = sum_cur;
+    }
+#endif
+
 #endif
 }
