@@ -8,6 +8,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/convolution_config.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementation_utils.hpp"
@@ -19,17 +20,12 @@
 #include "utils/arch_macros.h"
 #include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_RISCV64)
-#    include "nodes/executors/debug_messages.hpp"
-#endif
-
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "post_ops.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OV_CPU_WITH_ACL)
-#    include "nodes/executors/debug_messages.hpp"
 #    include "nodes/executors/executor.hpp"
 #endif
 
