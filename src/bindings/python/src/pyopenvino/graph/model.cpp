@@ -733,7 +733,7 @@ void regclass_graph_Model(py::module m) {
                 :param variables_shapes: New shapes for variables
                 :type variables_shapes: dict[keys, values]
                 :return : void
-             )");    
+             )");
 
     model.def(
         "reshape",
