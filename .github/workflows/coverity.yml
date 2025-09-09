@@ -149,7 +149,7 @@ jobs:
             -DENABLE_CPPLINT=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DENABLE_FASTER_BUILD=OFF \
+            -DENABLE_FASTER_BUILD=ON \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 

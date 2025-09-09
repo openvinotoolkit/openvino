@@ -120,14 +120,6 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
-      SCCACHE_LOG: warn
-      SCCACHE_AZURE_KEY_PREFIX: sanitizers_lin_${{ matrix.SANITIZER }}_master
-      SCCACHE_CACHE_SIZE: 50G
 
     steps:
       - name: Clone OpenVINO
@@ -169,9 +161,6 @@ jobs:
       #
       # Build
       #
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
-             
       - name: CMake configure - OpenVINO
         run: |
           cmake \
@@ -193,6 +182,7 @@ jobs:
             -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_WHEEL=OFF \
+            -DENABLE_FASTER_BUILD=ON \
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
@@ -200,10 +190,7 @@ jobs:
       - name: Cmake build - OpenVINO
         run: |
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
-          
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
-        
+
       - name: Cmake install - OpenVINO
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
@@ -229,14 +216,6 @@ jobs:
       #
       # Upload build artifacts
       #
-      - name: Upload sccache log
-        if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: sccache_log_${{ matrix.SANITIZER }}
-          path: ${{ env.SCCACHE_ERROR_LOG }}
-          if-no-files-found: 'error'
-
       - name: Upload OpenVINO package
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
