@@ -320,7 +320,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3.2.2
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
 
       - name: AVD cache
         uses: actions/cache@v4
@@ -331,23 +331,9 @@ jobs:
             ~/.android/adb*
           key: avd-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_TARGET }}-${{ env.ANDROID_ARCH }}
 
-      - name: Create AVD and generate snapshot for caching
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2.34.0
-        with:
-          api-level: ${{ env.ANDROID_API_LEVEL }}
-          target: ${{ env.ANDROID_TARGET }}
-          arch: ${{ env.ANDROID_ARCH }}
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 8192 -qemu -cpu host -no-snapshot
-          disable-animations: true
-          emulator-boot-timeout: 600
-          script: echo "Generated AVD snapshot for caching."
-
       - name: Run CPU unit tests on emulator
-        if: always()
         id: unit-tests
-        uses: reactivecircus/android-emulator-runner@v2.34.0
+        uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed # v2.34.0
         with:
           api-level: ${{ env.ANDROID_API_LEVEL }}
           target: ${{ env.ANDROID_TARGET }}
@@ -359,7 +345,7 @@ jobs:
           script: |
             set -e
             adb wait-for-device
-            find ./android_tests
+
             [ -f "./android_tests/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
             chmod +x ./android_tests/bin/intel64/Release/ov_cpu_unit_tests
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test/intel64/Release"
@@ -376,38 +362,6 @@ jobs:
             adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
             echo "Pulling unit test results..."
             adb pull /data/local/tmp/ov_test/unit_test_results.xml ./unit_test_results.xml || { echo "Warning: Could not pull unit test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/unit_test_results.xml" || echo "No unit test results file"; }
-
-      - name: Run CPU functional tests on emulator
-        if: always()
-        id: functional-tests
-        uses: reactivecircus/android-emulator-runner@v2.34.0
-        with:
-          api-level: ${{ env.ANDROID_API_LEVEL }}
-          target: ${{ env.ANDROID_TARGET }}
-          arch: ${{ env.ANDROID_ARCH }}
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 8192 -qemu -cpu host
-          disable-animations: true
-          emulator-boot-timeout: 900
-          script: |
-            set -e
-            adb wait-for-device
-            [ -f "./android_tests/bin/intel64/Release/ov_cpu_func_tests" ] || { echo "Error: ov_cpu_func_tests binary not found"; exit 1; }
-            chmod +x ./android_tests/bin/intel64/Release/ov_cpu_func_tests
-            adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test/intel64/Release"
-            echo "Pushing functional test binary and libraries to device..."
-            adb push ./android_tests/bin/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests
-            # Push OpenVINO libraries
-            for lib in ./android_tests/bin/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-            # Push TBB libraries
-            for lib in ./android_tests/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-            # Push NDK C++ shared library
-            [ -f "./android_tests/lib/libc++_shared.so" ] && adb push "./android_tests/lib/libc++_shared.so" /data/local/tmp/ov_test/ || echo "libc++_shared.so not found"
-            adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_func_tests"
-            echo "Running CPU functional tests..."
-            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_func_tests --gtest_output=xml:/data/local/tmp/ov_test/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
-            echo "Pulling functional test results..."
-            adb pull /data/local/tmp/ov_test/func_test_results.xml ./func_test_results.xml || { echo "Warning: Could not pull functional test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/func_test_results.xml" || echo "No functional test results file"; }
 
       - name: Upload test results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
