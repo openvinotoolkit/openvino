@@ -1267,7 +1267,7 @@ std::unordered_map<std::string, ov::Layout> transformLayoutDescriptionToAnyLayou
 size_t getTensorBatchSize(const ov::Tensor& tensor, const std::string& tensorName, const LayoutMap& outputLayouts) {
     // calculate batch_size by taking into account only deterministic layout information
     // We cannot rely on the layout deducted from a shape, as it is incorrect in majority of cases
-    auto batch_size = 1;
+    size_t batch_size = 1;
     if (auto it = outputLayouts.find(tensorName); it != outputLayouts.end()) {
         const LayoutDescription& description = it->second;
         if (description.hasDeterministicLayout()) {
