@@ -119,6 +119,8 @@ IF exist %PACKAGE_MODE_VENV_PATH% (
         rmdir /s/q %PACKAGE_MODE_VENV_PATH%
         exit /B !ret!
     )
+    ::Setting up test environment as a custom post activation script
+    echo %SCRIPT_LOCATION%\tests\run_tests.cmd .venv_tests >> "%PACKAGE_MODE_VENV_PATH%\Scripts\activate.bat"
     echo Python venv for PACKAGE mode initialized: %PACKAGE_MODE_VENV_PATH%
     exit /B !ret!
 )

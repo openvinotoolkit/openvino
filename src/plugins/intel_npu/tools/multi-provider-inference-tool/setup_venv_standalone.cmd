@@ -103,8 +103,11 @@ IF exist %STANDALONE_MODE_VENV_PATH% (
 
     if !ret! NEQ 0 (
         rmdir /s/q %STANDALONE_MODE_VENV_PATH%
-        echo Python venv for STANDALONE mode initialized: %STANDALONE_MODE_VENV_PATH%
+        exit /B !ret!
     )
+    ::Setting up test environment as a custom post activation script
+    echo %SCRIPT_LOCATION%\tests\run_tests.cmd .venv_tests >> "%STANDALONE_MODE_VENV_PATH%\Scripts\activate.bat"
+    echo Python venv for STANDALONE mode initialized: %STANDALONE_MODE_VENV_PATH%
     exit /B !ret!
 )
 
