@@ -203,7 +203,6 @@
 #    include "openvino/op/round.hpp"
 #    include "openvino/op/select.hpp"
 #    include "openvino/op/sigmoid.hpp"
-#    include "openvino/op/softmax.hpp"
 #    include "openvino/op/sqrt.hpp"
 #    include "openvino/op/squared_difference.hpp"
 #    include "openvino/op/swish.hpp"
@@ -230,6 +229,7 @@
 #    include "onednn/dnnl.h"
 #    include "openvino/op/group_normalization.hpp"
 #    include "openvino/op/multiply.hpp"
+#    include "openvino/op/softmax.hpp"
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "snippets/pass/split_dimension_m.hpp"
@@ -1345,7 +1345,7 @@ void Transformations::MainSnippets() {
     };
 #endif  // OPENVINO_ARCH_X86_64
 
-    auto is_supported_op = [](const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
         // Power on ARM64 only supports power and swish with scalar second inputs
         auto is_supported_with_scalar_inputs = [](const std::shared_ptr<const ov::Node>& n) {
