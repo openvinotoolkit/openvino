@@ -32,8 +32,6 @@ constexpr auto get_pa_build_options() {
 
 // BLOCK_SIZE can be 16/32/64/128/256
 #define PA_KV_CACHE_BLOCK_SIZE 256
-// sparse attention block size is set to 1 to disable sparse attention support in CM kernels
-#define PA_SPARSE_BLOCK_SIZE 128
 
 constexpr uint BLOCK_SG_M = 64;
 constexpr uint BLOCK_SG_N = 32;
@@ -42,7 +40,6 @@ constexpr uint SG_N = 8;
 constexpr uint BLOCK_WG_M = BLOCK_SG_M * SG_M;
 constexpr uint BLOCK_WG_N = BLOCK_SG_N * SG_N;
 constexpr int STRIDE = 16;
-constexpr float THRESH = 1.0;
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
@@ -64,8 +61,10 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
 size_t get_partition_size();
 size_t get_partition_num(const size_t kv_len);
 
-
-inline size_t get_xattn_block_size() { return PA_SPARSE_BLOCK_SIZE; }
+const float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx);
+inline size_t get_xattn_block_size(const kernel_impl_params& impl_param) {
+    return impl_param.get_program().get_config().get_xattention_block_size();
+ }
 
 class PagedAttentionGeneratorBase : public KernelGenerator {
 public:
