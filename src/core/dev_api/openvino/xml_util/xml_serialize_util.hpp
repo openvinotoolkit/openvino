@@ -19,6 +19,9 @@
 
 namespace ov::util {
 
+static inline constexpr std::string_view rt_map_user_data_prefix{"[UserData]"};
+static inline constexpr std::string_view rt_info_user_data_xml_tag{"user_data"};
+
 OPENVINO_API std::string get_ir_precision_name(const element::Type& precision);
 
 class OPENVINO_API XmlSerializer : public ov::AttributeVisitor {

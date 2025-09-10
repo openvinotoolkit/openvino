@@ -310,18 +310,33 @@ bool is_exec_graph(const ov::Model& model) {
     return false;
 }
 
-bool append_custom_rt_info(pugi::xml_node& node, const std::string& name, const ov::Any& data) {
-    if (std::regex_search(name, std::regex{"^__"}))  // Skip restricted entries
+bool append_custom_rt_info(pugi::xml_node& node,
+                           const std::string& key,
+                           const ov::Any& data,
+                           bool prefix_needed = true) {
+    const auto escaped_prefix =
+        std::regex_replace(std::string{rt_map_user_data_prefix}, std::regex(R"([\.\*\+\?\|\[\]\\])"), R"(\$&)");
+    const auto prefix_pattern = escaped_prefix + "(.+)";
+    std::smatch match;
+    std::string name;
+    if (std::regex_match(key, match, std::regex{prefix_pattern})) {
+        if (match.size() > 1) {
+            name = match[1];
+        }
+    } else if (!prefix_needed) {
+        name = key;
+    }
+    if (name.empty()) {
         return false;
-
-    auto custom_node = node.append_child("custom");
+    }
+    auto custom_node = node.append_child(rt_info_user_data_xml_tag);
     custom_node.append_attribute("name").set_value(name.c_str());
     bool appended = false;
 
     if (data.is<ov::AnyMap>()) {
         const auto& any_map = data.as<ov::AnyMap>();
         for (const auto& it : any_map)
-            appended = append_custom_rt_info(custom_node, it.first, it.second) || appended;
+            appended = append_custom_rt_info(custom_node, it.first, it.second, false) || appended;
 
     } else if (!data.empty() && !data.is<ov::RuntimeAttribute>() && !data.is<std::shared_ptr<ov::RuntimeAttribute>>()) {
         const auto& value = data.as<std::string>();

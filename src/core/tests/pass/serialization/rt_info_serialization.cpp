@@ -18,6 +18,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/xml_util/xml_serialize_util.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
@@ -310,21 +311,21 @@ TEST(OvSerializationTests, SerializeRawMeta) {
 
 namespace ov::test {
 
-TEST(RTInfoSerialization, custom_info) {
+TEST(RTInfoSerialization, user_data) {
     std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
-<net name="CustomRTI" version="11">
+<net name="UserDataTest" version="11">
 	<layers>
 		<layer id="0" name="node_A" type="Parameter" version="opset1">
 			<data shape="10,10" element_type="f32" />
 			<rt_info>
-				<custom name="node_info_A" value="v_A" version="" />
+				<user_data name="node_info_A" value="v_A" version="" />
 			</rt_info>
 			<output>
 				<port id="0" precision="FP32">
 					<dim>10</dim>
 					<dim>10</dim>
 					<rt_info>
-						<custom name="output_info_A" value="o_A" version="" />
+						<user_data name="output_info_A" value="o_A" version="" />
 					</rt_info>
 				</port>
 			</output>
@@ -332,13 +333,13 @@ TEST(RTInfoSerialization, custom_info) {
 		<layer id="1" name="node_B" type="Const" version="opset1">
 			<data element_type="f32" shape="1" offset="0" size="4" />
 			<rt_info>
-				<custom name="node_info_B" value="v_B" version="" />
+				<user_data name="node_info_B" value="v_B" version="" />
 			</rt_info>
 			<output>
 				<port id="0" precision="FP32">
 					<dim>1</dim>
 					<rt_info>
-						<custom name="output_info_B" value="o_B" version="" />
+						<user_data name="output_info_B" value="o_B" version="" />
 					</rt_info>
 				</port>
 			</output>
@@ -346,7 +347,7 @@ TEST(RTInfoSerialization, custom_info) {
 		<layer id="2" name="node_C" type="Add" version="opset1">
 			<data auto_broadcast="numpy" />
 			<rt_info>
-				<custom name="node_info_C" value="v_C" version="" />
+				<user_data name="node_info_C" value="v_C" version="" />
 			</rt_info>
 			<input>
 				<port id="0" precision="FP32">
@@ -362,15 +363,15 @@ TEST(RTInfoSerialization, custom_info) {
 					<dim>10</dim>
 					<dim>10</dim>
 					<rt_info>
-						<custom name="output_info_C" value="o_C" version="" />
-						<custom name="output_info_D" value="o_D" version="" />
+						<user_data name="output_info_C" value="o_C" version="" />
+						<user_data name="output_info_D" value="o_D" version="" />
 					</rt_info>
 				</port>
 			</output>
 		</layer>
 		<layer id="3" name="node_D" type="Result" version="opset1">
 			<rt_info>
-				<custom name="node_info_D" value="v_D" version="" />
+				<user_data name="node_info_D" value="v_D" version="" />
 			</rt_info>
 			<input>
 				<port id="0" precision="FP32">
@@ -398,18 +399,23 @@ TEST(RTInfoSerialization, custom_info) {
     uint64_t bare_model_hash;
     pass::Hash{bare_model_hash}.run_on_model(model);
 
-    model->set_friendly_name("CustomRTI");
+    model->set_friendly_name("UserDataTest");
 
-    const auto add_info = [](const std::shared_ptr<Node>& node, const std::string& value) {
+    const auto prefix = std::string{"[UserData]"};
+    const auto add_info = [&prefix](const std::shared_ptr<Node>& node, const std::string& value) {
         node->set_friendly_name("node_" + value);
-        node->get_rt_info()["node_info_" + value] = "v_" + value;
-        node->output(0).get_rt_info()["output_info_" + value] = "o_" + value;
+        node->get_rt_info()[prefix + "node_info_" + value] = "v_" + value;
+        node->output(0).get_rt_info()[prefix + "output_info_" + value] = "o_" + value;
     };
     add_info(data, "A");
     add_info(one, "B");
     add_info(add, "C");
     add_info(result, "D");
-    result->get_rt_info()["__do not serialize"] = "double underscores in front";
+
+    auto& one_rti = one->get_rt_info();
+    one_rti[prefix] = "stand alone prefix not saved";
+    one_rti["[User Data] a name"] = "non predefined prefix not saved";
+    one_rti["b name"] = "missing prefix not saved";
 
     std::stringstream model_ss, weights_ss;
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
@@ -421,9 +427,9 @@ TEST(RTInfoSerialization, custom_info) {
         << "`ov::pass::Hash' output value must not be affected by custom rt info.";
 }
 
-TEST(RTInfoSerialization, AnyMap_info) {
+TEST(RTInfoSerialization, user_AnyMap) {
     std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
-<net name="CustomRTI" version="11">
+<net name="UserDataTest" version="11">
 	<layers>
 		<layer id="0" name="data" type="Parameter" version="opset1">
 			<data shape="111" element_type="f64" />
@@ -435,14 +441,15 @@ TEST(RTInfoSerialization, AnyMap_info) {
 		</layer>
 		<layer id="1" name="abs" type="Abs" version="opset1">
 			<rt_info>
-				<custom name="AnyMap" version="">
-					<custom name="a" value="b" version="" />
-					<custom name="i" value="7" version="" />
-					<custom name="nested" version="">
-						<custom name="c" value="d" version="" />
-					</custom>
-					<custom name="x" value="3.14" version="" />
-				</custom>
+				<user_data name="AnyMap" version="">
+					<user_data name="[User Data]" value="non predefined prefix saved as is" version="" />
+					<user_data name="nested" version="">
+						<user_data name="c" value="d" version="" />
+					</user_data>
+					<user_data name="a" value="b" version="" />
+					<user_data name="i" value="7" version="" />
+					<user_data name="x" value="3.14" version="" />
+				</user_data>
 			</rt_info>
 			<input>
 				<port id="0" precision="FP64">
@@ -479,14 +486,20 @@ TEST(RTInfoSerialization, AnyMap_info) {
     uint64_t bare_model_hash;
     pass::Hash{bare_model_hash}.run_on_model(model);
 
-    model->set_friendly_name("CustomRTI");
+    model->set_friendly_name("UserDataTest");
     data->set_friendly_name("data");
     abs->set_friendly_name("abs");
     result->set_friendly_name("result");
 
+    const auto prefix = std::string{"[UserData]"};
     const auto empty = AnyMap{};
     const auto nested = AnyMap{{"c", "d"}};
-    abs->get_rt_info()["AnyMap"] = AnyMap{{"a", "b"}, {"empty", empty}, {"i", 7}, {"x", 3.14}, {"nested", nested}};
+    abs->get_rt_info()[prefix + "AnyMap"] = AnyMap{{"a", "b"},
+                                                   {"empty", empty},
+                                                   {"i", 7},
+                                                   {"x", 3.14},
+                                                   {prefix + "nested", nested},
+                                                   {"[User Data]", "non predefined prefix saved as is"}};
 
     std::stringstream model_ss, weights_ss;
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
@@ -498,15 +511,16 @@ TEST(RTInfoSerialization, AnyMap_info) {
         << "`ov::pass::Hash' output value must not be affected by custom rt info.";
 }
 
-TEST(RTInfoSerialization, nullptr_doesnt_throw) {
+TEST(RTInfoSerialization, nullptr_no_throw) {
     const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f64, Shape{111});
     const auto abs = std::make_shared<op::v0::Abs>(data);
     const auto result = std::make_shared<op::v0::Result>(abs);
 
-    abs->get_rt_info()["bare"] = ov::Any{nullptr};
-    abs->get_rt_info()["void*"] = ov::Any{static_cast<void*>(nullptr)};
-    abs->get_rt_info()["shared_ptr"] = ov::Any{std::shared_ptr<void>{}};
-    abs->get_rt_info()["RuntimeAttribute"] = ov::Any{std::shared_ptr<ov::RuntimeAttribute>{}};
+    const auto prefix = std::string{"[UserData]"};
+    abs->get_rt_info()[prefix + "bare"] = ov::Any{nullptr};
+    abs->get_rt_info()[prefix + "void*"] = ov::Any{static_cast<void*>(nullptr)};
+    abs->get_rt_info()[prefix + "shared_ptr"] = ov::Any{std::shared_ptr<void>{}};
+    abs->get_rt_info()[prefix + "RuntimeAttribute"] = ov::Any{std::shared_ptr<ov::RuntimeAttribute>{}};
 
     const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
     std::stringstream model_ss, weights_ss;
