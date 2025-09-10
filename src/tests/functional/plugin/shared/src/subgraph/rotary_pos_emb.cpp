@@ -167,7 +167,7 @@ std::shared_ptr<ov::Model> RoPETestQwenVL::buildROPE_QwenVL(ov::element::Type el
 }
 
 void RoPETestQwenVL::SetUp() {
-    const auto& [element_type, _targetDevice, splip_op_type] = this->GetParam();
+    const auto& [element_type, _targetDevice, split_op_type] = this->GetParam();
     targetDevice = _targetDevice;
     ov::PartialShape input_shape = PartialShape({-1, 16, 80});
     ov::PartialShape cos_shape = PartialShape({-1, 1, 80});
@@ -176,7 +176,7 @@ void RoPETestQwenVL::SetUp() {
     InputShape cos_shape_value = {cos_shape, {Shape{80, 1, 80}}};
     InputShape sin_shape_value = {sin_shape, {Shape{80, 1, 80}}};
     init_input_shapes({input_shape_value, cos_shape_value, sin_shape_value});
-    function = buildROPE_QwenVL(element_type, input_shape, cos_shape, sin_shape, splip_op_type);
+    function = buildROPE_QwenVL(element_type, input_shape, cos_shape, sin_shape, split_op_type);
     ASSERT_TRUE(function != nullptr);
 }
 

@@ -202,13 +202,13 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_with_gather) {
     }
 }
 
-static std::shared_ptr<ov::Model> buildROPE_GPTNEOX(const int batch,
-                                                    const int seq_length,
-                                                    const int max_position_embeddings,
-                                                    const int ndims,
-                                                    const int num_heads,
-                                                    const int rotary_ndims,
-                                                    bool sin_cos_preprocessing) {
+static std::shared_ptr<ov::Model> buildROPE_GPTNEOX_4D(const int batch,
+                                                       const int seq_length,
+                                                       const int max_position_embeddings,
+                                                       const int ndims,
+                                                       const int num_heads,
+                                                       const int rotary_ndims,
+                                                       bool sin_cos_preprocessing) {
     auto batch_s = static_cast<size_t>(batch);
     auto seq_length_s = static_cast<size_t>(seq_length);
     auto ndims_s = static_cast<size_t>(ndims);
@@ -305,10 +305,10 @@ static std::shared_ptr<ov::Model> buildROPE_GPTNEOX(const int batch,
     return std::make_shared<ov::Model>(ov::OutputVector{cat_Concat_458}, parameters);
 }
 
-static std::shared_ptr<ov::Model> buildROPE_VIT(const int seq_length,
-                                                const int num_heads,
-                                                const int rotary_ndims,
-                                                std::string split_op_type) {
+static std::shared_ptr<ov::Model> buildROPE_GPTNEOX_3D(const int seq_length,
+                                                       const int num_heads,
+                                                       const int rotary_ndims,
+                                                       std::string split_op_type) {
     auto seq_length_s = static_cast<size_t>(seq_length);
     auto rotary_ndims_s = static_cast<size_t>(rotary_ndims);
     auto num_heads_s = static_cast<size_t>(num_heads);
@@ -368,7 +368,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
     const int rotary_ndims = 20;
     const int max_position_embeddings = 2048;
 
-    model = buildROPE_GPTNEOX(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, false);
+    model = buildROPE_GPTNEOX_4D(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, false);
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto input =
@@ -405,7 +405,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
     const int num_heads = 32;
     const int max_position_embeddings = 2048;
 
-    model = buildROPE_GPTNEOX(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, true);
+    model = buildROPE_GPTNEOX_4D(batch, seq_len, max_position_embeddings, ndims, num_heads, rotary_ndims, true);
     manager.register_pass<ov::pass::RoPEFusion>();
     {
         auto cos_sin = makeCosSinCache(max_position_embeddings, rotary_ndims);
@@ -763,7 +763,7 @@ TEST_P(ConvertToROPETest, ConvertToROPE_chatGLM_Slice) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTestsF, ConvertToROPETest, ::testing::ValuesIn({0, 1}));
 
-class ConvertToROPETestVIT : public TransformationTestsF, public ::testing::WithParamInterface<std::string> {
+class ConvertToROPETestGPTNEOX_3D : public TransformationTestsF, public ::testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
         const auto& split_op_type = obj.param;
@@ -772,15 +772,15 @@ public:
         return result.str();
     }
 };
-TEST_P(ConvertToROPETestVIT, ConvertToROPE_qwen) {
+TEST_P(ConvertToROPETestGPTNEOX_3D, ConvertToROPE_qwen) {
     disable_rt_info_check();
     const int seq_len = 16;
     const int num_heads = 32;
     const int rotary_ndims = 80;
     const std::string split_op_type = GetParam();
-    model = buildROPE_VIT(seq_len, num_heads, rotary_ndims, split_op_type);
+    model = buildROPE_GPTNEOX_3D(seq_len, num_heads, rotary_ndims, split_op_type);
     ASSERT_TRUE(model != nullptr);
-    manager.register_pass<ov::pass::RoPEFusionVIT3D>();
+    manager.register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
     {
         auto input =
             std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, num_heads, rotary_ndims});
@@ -808,9 +808,9 @@ TEST_P(ConvertToROPETestVIT, ConvertToROPE_qwen) {
 
 const std::vector<std::string> vit_param = {"VariadicSplit", "Slice", "StridedSlice"};
 INSTANTIATE_TEST_SUITE_P(TransformationTestsF,
-                         ConvertToROPETestVIT,
+                         ConvertToROPETestGPTNEOX_3D,
                          ::testing::ValuesIn(vit_param),
-                         ConvertToROPETestVIT::getTestCaseName);
+                         ConvertToROPETestGPTNEOX_3D::getTestCaseName);
 
 TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
     disable_rt_info_check();
