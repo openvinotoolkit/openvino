@@ -1395,9 +1395,6 @@ void Transformations::MainSnippets() {
                                        ov::op::v0::Xor>(n));
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
-#elif defined(OPENVINO_ARCH_RISCV64)
-        // Limit general tokenization on RISC-V to Add only for now
-        return ov::is_type<const ov::op::v1::Add>(n);
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
