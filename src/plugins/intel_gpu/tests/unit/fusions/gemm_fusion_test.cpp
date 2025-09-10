@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
 #include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/runtime/tensor.hpp>
 
@@ -654,4 +655,68 @@ INSTANTIATE_TEST_SUITE_P(
         gemm_test_params{CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8"},
         // gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_2, 3, 3, "gemm_mmad_int8_slm" },   // tolerance issue
         gemm_test_params{CASE_GEMM_ELTWISE_2IN_FP16_2, 3, 3, "gemm_tiled_opt"},
+    }));
+
+
+/// 
+/// GemmPaddingTest: checking the pad propagation is working for reshape before matmul(onednn).
+/// 
+struct gemm_test_params2 {
+    std::vector<ov::PartialShape> in_shapes;
+    ov::PartialShape out_shape;
+    format default_format;
+    data_types default_type;
+    padding pad;
+};
+
+class GemmPaddingTest : public ::BaseFusingTest<gemm_test_params2> {
+public:
+
+    void execute(gemm_test_params2& p, bool is_dynamic, bool is_caching_test = false) {
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
+
+        auto input0_prim = get_mem(get_input_layout(p, 0));
+        auto input1_prim = get_mem(get_input_layout(p, 1));
+
+        network::ptr network_fused = get_network(this->engine, this->topology_fused, cfg_fused, get_test_stream_ptr(), is_caching_test);
+        network_fused->set_input_data("input0", input0_prim);
+        network_fused->set_input_data("input1", input1_prim);
+        auto output = network_fused->get_output_layout("reshape0");
+        ASSERT_TRUE(output.data_padding);
+    }
+
+    layout get_input_layout(gemm_test_params2& p, int in_no, bool pad = false) {
+        return layout{ p.in_shapes.at(in_no), p.default_type, p.default_format, pad ? p.pad : padding{} };
+    }
+
+    layout get_output_layout(gemm_test_params2& p) {
+        return layout{ p.out_shape, p.default_type, p.default_format };
+    }
+};
+
+class gemm_reshape_padding : public GemmPaddingTest {};
+TEST_P(gemm_reshape_padding, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input0", get_input_layout(p, 0)),
+        reorder("reorder0", input_info("input0"), get_input_layout(p, 0, true)),
+        reshape("reshape0", input_info("reorder0"), tensor{ 1, 1, 72, 40 }),
+        input_layout("input1", get_input_layout(p, 1)),
+        reorder("reorder1", input_info("input1"), get_input_layout(p, 1, true)),
+        reshape("reshape1", input_info("reorder1"), tensor{ 1, 1, 72, 40 }),
+        permute("permute1", input_info("reshape1"), {0, 1, 3, 2}),
+        gemm("gemm_prim", { input_info("reshape0"), input_info("permute1") }, data_types::f16),
+        reorder("reorder_out", input_info("gemm_prim"), format::bfyx, data_types::f32)
+    );
+
+    execute(p, false);
+}
+
+#define CASE_GEMM_RESHAPE_2IN { { 1, 1, 72, 40 }, { 1, 1, 72, 40 } }, { 1, 1, 40, 40 }, format::bfyx, data_types::f32, { { 1 , 0 } , { 0 , 0 } }
+INSTANTIATE_TEST_SUITE_P(
+    fusings_gpu,
+    gemm_reshape_padding,
+    ::testing::ValuesIn(std::vector<gemm_test_params2>{
+        gemm_test_params2{CASE_GEMM_RESHAPE_2IN},
     }));
