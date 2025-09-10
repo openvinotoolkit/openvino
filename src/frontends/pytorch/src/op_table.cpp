@@ -814,7 +814,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function add>", op::translate_add},
         {"<built-in function floordiv>", op::translate_floor_divide},
         {"<built-in function getitem>", op::translate_getitem},  // TODO: Check if there is any other way to handle this
-        {"<built-in function mod>", op::translate_fmod},
         {"<built-in function mul>", op::translate_mul},
         {"<built-in function neg>", op::translate_neg},
         {"<built-in function sub>", op::translate_sub},
