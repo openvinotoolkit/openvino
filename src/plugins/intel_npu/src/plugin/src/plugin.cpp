@@ -565,8 +565,8 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
         ov::Layout layout = ov::layout::get_layout(input);
 
         // Batching on plugin is working only when batching is found on 0th dimension
-        if ((shape.size() && shape[0].get_max_length() > 1) ||
-            (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == 0)) {
+        if ((shape.size() && shape[intel_npu::utils::BATCH_AXIS].get_max_length() != intel_npu::utils::DEFAULT_BATCH_SIZE) ||
+            (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS)) {
             const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : input->get_shape();
             batchedInputs.insert(params[input_id]->output(0));
 
@@ -603,8 +603,8 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
         ov::Layout layout = ov::layout::get_layout(output);
 
         // Batching on plugin is working only when batching is found on 0th dimension
-        if ((shape.size() && shape[0].get_max_length() > 1) ||
-            (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == 0)) {
+        if ((shape.size() && shape[intel_npu::utils::BATCH_AXIS].get_max_length() != intel_npu::utils::DEFAULT_BATCH_SIZE) ||
+            (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS)) {
             const auto& node = output->input_value(0);
             const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : output->get_shape();
             batchedOutputs.insert(ov::Output<const ov::Node>(node.get_node(), node.get_index()));

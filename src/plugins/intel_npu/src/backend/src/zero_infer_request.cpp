@@ -781,8 +781,8 @@ void ZeroInferRequest::infer_async() {
                                   copied_bytes_from_user,
                                   get_level_zero_input(inputIndex)->get_byte_size());
                 }
-                // OPENVINO_ASSERT(get_level_zero_input(inputIndex)->get_byte_size() == copied_bytes_from_user,
-                //                 "Bytes copied must be equal");
+                OPENVINO_ASSERT(get_level_zero_input(inputIndex)->get_byte_size() == copied_bytes_from_user,
+                                "Bytes copied must be equal");
             }
 
             ++inputIndex;
