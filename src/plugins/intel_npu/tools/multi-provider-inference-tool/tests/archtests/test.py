@@ -14,7 +14,7 @@ class ArchTests(unittest.TestCase):
 
     def setUp(self):
         project_dir = pathlib.Path(__file__).parent.resolve().parent.parent.absolute()
-        self.evaluable = get_evaluable_architecture(project_dir, project_dir, exclusions=["*.git*", '*__pycache__*'], exclude_external_libraries=False)
+        self.evaluable = get_evaluable_architecture(project_dir, project_dir, exclusions=["*.git*", '*__pycache__*', '*venv', '*.venv*'], exclude_external_libraries=False)
 
     def test_no_coupling_with_provider_implementations(self) -> None:
         no_coupling_with_provider_implementations: Rule = (

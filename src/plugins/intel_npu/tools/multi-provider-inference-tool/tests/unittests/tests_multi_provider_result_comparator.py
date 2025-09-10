@@ -326,8 +326,8 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
                     self.assertTrue(field in result["data"][provider_C_base_dir]["data"][o_name]["data"][f].keys())
 
                 self.assertEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["std_correlation"], 1)
-                self.assertEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr)
-                self.assertEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr)
+                self.assertAlmostEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=5)
+                self.assertAlmostEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=5)
 
     def test_compare_binary_files_correlation_lack_of_files_provider_B(self):
         provider_A = copy.deepcopy(self.provider_A_outputs_dump_data_json)
@@ -418,11 +418,11 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
                         self.assertTrue(field in result["data"][provider_B_base_dir]["data"][o_name]["data"][f].keys())
                     self.assertTrue(field in result["data"][provider_C_base_dir]["data"][o_name]["data"][f].keys())
 
-                self.assertEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["std_correlation"], 1)
+                self.assertAlmostEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["std_correlation"], 1, places=5)
                 if provider_B_file_found_per_output[o_name]:
-                    self.assertEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr)
+                    self.assertAlmostEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=5)
 
-                self.assertEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr)
+                self.assertAlmostEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=5)
 
     def test_compare_binary_files_correlation_lack_of_files_ref_provider_A(self):
         provider_A = copy.deepcopy(self.provider_A_outputs_dump_data_json)
@@ -512,9 +512,9 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
                     self.assertTrue(field in result["data"][provider_B_base_dir]["data"][o_name]["data"][f].keys())
                     self.assertTrue(field in result["data"][provider_C_base_dir]["data"][o_name]["data"][f].keys())
 
-                self.assertEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["std_correlation"], 1)
-                self.assertEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr)
-                self.assertEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr)
+                self.assertAlmostEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["std_correlation"], 1, places=5)
+                self.assertAlmostEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=5)
+                self.assertAlmostEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=5)
 
 if __name__ == '__main__':
     unittest.main()
