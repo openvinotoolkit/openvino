@@ -22,10 +22,8 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
                                                                          {Tensor::DataChannelName::Y}};
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
     } else if (out_layout == DataLayout::b_fs_yx_fsv16 || out_layout == DataLayout::b_fs_yx_fsv32) {
-        const size_t feature_batch = out.Feature().v * out.Batch().v;
-        const size_t lws0 = std::min<size_t>(16, feature_batch);
-        dispatchData.lws = {lws0, 1, 1};
-        dispatchData.gws = {Align(feature_batch, lws0), out.X().v, out.Y().v};
+        dispatchData.gws = {Align(out.Feature().v, 16) * out.Batch().v, out.X().v, out.Y().v};
+        dispatchData.lws = {16, 1, 1};
     } else if (out_layout == DataLayout::bs_fs_yx_bsv32_fsv16 || out_layout == DataLayout::bs_fs_yx_bsv32_fsv32) {
         dispatchData.gws = {out.X().v * out.Y().v, Align(out.Feature().v, 16), Align(out.Batch().v, 16)};
         dispatchData.lws = {1, 16, 16};
