@@ -186,6 +186,14 @@ size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx) {
     return paged_attention_past_len;
 }
 
+const float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx) {
+    (void) seq_idx; // TODO
+
+    static const char* env = std::getenv("OV_GPU_XATTN_THRESH");
+    static const float thresh = env ? std::strtof(env, nullptr) : 0.9;
+    return thresh;
+}
+
 inline void dump_block_indices_begins(const kernel_impl_params& params) {
     const auto& input_mem = params.memory_deps;
     const auto mem = input_mem.at(PagedAttentionInputIdx::BLOCK_INDICES_BEGINS);
@@ -394,9 +402,11 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block_indices
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block_indices_begins
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence_begins
-#if PA_SPARSE_BLOCK_SIZE > 1
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // sparse_block_mask
-#endif
+
+    const size_t block_size = get_xattn_block_size(params);
+    if (block_size > 1)
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // sparse_block_mask
+
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
@@ -409,13 +419,15 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
 
+    const size_t xattn_block_size = get_xattn_block_size(params);
+
     jit.make("CMFLA_NUM_HEADS", desc->heads_num);
     jit.make("CMFLA_NUM_KV_HEADS", desc->kv_heads_num);
     jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
     jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
     jit.make("CMFLA_IS_CAUSAL", 1);
     jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
-    jit.make("SPARSE_BLOCK_SIZE", PA_SPARSE_BLOCK_SIZE);
+    jit.make("SPARSE_BLOCK_SIZE", xattn_block_size);
     jit.make("Q_STEP", get_q_step(xe_arch, true));
     // for (auto& it : jit) {
     //     std::cout << "\tjit[" << it.name << "] = " << it.value << std::endl;
@@ -654,7 +666,7 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("SG_N", SG_N);
     jit.make("BLOCK_SG_M", BLOCK_SG_M);
     jit.make("BLOCK_SG_N", BLOCK_SG_N);
-    jit.make("BLOCK_SIZE", get_xattn_block_size());
+    jit.make("BLOCK_SIZE", get_xattn_block_size(params));
     jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
     jit.add(make_jit_constant("INV_S", scale_factor_i));
     jit.make("BLOCK_SHARE_MAX", BLOCK_WG_N);
@@ -837,7 +849,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
 
         const uint wg_k = BLOCK_WG_M;
         const uint wg_q = BLOCK_WG_N;
-        const size_t block_size = get_xattn_block_size();
+        const size_t block_size = get_xattn_block_size(params);
         OPENVINO_ASSERT(wg_k % block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
         OPENVINO_ASSERT(wg_q % block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
 
@@ -864,6 +876,8 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         const uint q_block = ceil_div(q_stride, sum_per_n_token_in_block);
         const uint k_block = ceil_div(k_stride, sum_per_n_token_in_block);
 
+        const float xattn_thresh = get_xattn_thresh(params, 0); // TODO: seq_idx
+
         wgs.global = {q_stride_pad / sum_per_n_token_in_block, heads_num, 1};
         wgs.local = {1, 1, 1};
 
@@ -871,10 +885,11 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         std::vector<size_t> scaler_value = {q_stride, q_stride_pad, k_block_pad, k_block - q_block};
         scalars.resize(scaler_value.size() + 1);
 
-        if (DEBUG_ENABLED) {  // Debug
+        if (1 || DEBUG_ENABLED) {  // Debug
             std::cout << "XAttentionEstimateFindBlock::get_dispatch_data_func: "
-                      << "k_block: " << k_block << ", q_block: " << q_block
-                      << "q_stride: " << q_stride << ", q_stride_pad: " << q_stride_pad << ", k_block_pad: " << k_block_pad << ", gws: [" << wgs.global[0] << ", "
+                      << "xattn_thresh : " << xattn_thresh
+                      << " k_block: " << k_block << ", q_block: " << q_block
+                      << " q_stride: " << q_stride << ", q_stride_pad: " << q_stride_pad << ", k_block_pad: " << k_block_pad << ", gws: [" << wgs.global[0] << ", "
                       << wgs.global[1] << ", " << wgs.global[2] << "]"
                       << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
@@ -884,7 +899,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
             scalars[i].v.u32 = static_cast<uint32_t>(scaler_value[i]);
         }
         scalars[scaler_value.size()].t = ScalarDescriptor::Types::FLOAT32;  // the last is for thresh with f32 dtype
-        scalars[scaler_value.size()].v.f32 = static_cast<float>(THRESH);
+        scalars[scaler_value.size()].v.f32 = static_cast<float>(xattn_thresh);
     }};
 }
 

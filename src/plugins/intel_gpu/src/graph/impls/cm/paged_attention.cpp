@@ -44,10 +44,11 @@ public:
         add_stage(pa_single_token, params);
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_multi_token, params);
-#if PA_SPARSE_BLOCK_SIZE > 1
-        add_stage(xattn_estimate_gemmqk, params);
-        add_stage(xattn_estimate_find_block, params);
-#endif
+        const size_t xattn_block_size = get_xattn_block_size(params);
+        if (xattn_block_size > 1) {
+            add_stage(xattn_estimate_gemmqk, params);
+            add_stage(xattn_estimate_find_block, params);
+        }
     }
 
     void update_rt_params(const primitive_inst& instance) override {
@@ -89,16 +90,16 @@ public:
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) {
-#if PA_SPARSE_BLOCK_SIZE > 1
-            cldnn::stream& stream = instance.get_network().get_stream();
-            stream.finish();
-            res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
-            stream.finish();
-            // std::cout << "finish xattn_estimate_gemmqk!\n";
-            res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
-            stream.finish();
-            // std::cout << "finish xattn_estimate_find_block!\n";
-#endif
+            if (has_stage(xattn_estimate_gemmqk)) {
+                // cldnn::stream& stream = instance.get_network().get_stream();
+                // stream.finish();
+                res_event = {execute_stage(res_event, instance, xattn_estimate_gemmqk)};
+                // stream.finish();
+                // std::cout << "finish xattn_estimate_gemmqk!\n";
+                res_event = {execute_stage(res_event, instance, xattn_estimate_find_block)};
+                // stream.finish();
+                // std::cout << "finish xattn_estimate_find_block!\n";
+            }
             res_event = {execute_stage(res_event, instance, pa_multi_token)};
         } else if (rt_params->stage == PagedAttentionStage::GENERATE) {
             res_event = {execute_stage(res_event, instance, pa_single_token)};
@@ -164,7 +165,7 @@ public:
             auto count_kq_max_wg = static_cast<int64_t>(desc->heads_num * N_kq_groups * q_stride_pad);
             internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);                // 2: kq_max_wg
 
-            const size_t block_size = get_xattn_block_size();
+            const size_t block_size = get_xattn_block_size(params);
             if (block_size > 1) {
                 OPENVINO_ASSERT(block_size % STRIDE == 0, "sparse block_size must be devidable by stride.");
                 const size_t sum_per_n_token_in_block = block_size / STRIDE;  // FIXME
