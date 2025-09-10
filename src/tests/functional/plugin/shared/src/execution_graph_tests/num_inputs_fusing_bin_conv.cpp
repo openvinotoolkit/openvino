@@ -16,8 +16,8 @@
 
 namespace ExecutionGraphTests {
 
-std::string ExecGraphInputsFusingBinConv::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-    std::string targetDevice = obj.param;
+std::string ExecGraphInputsFusingBinConv::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+    const std::string& targetDevice = obj.param;
     return "targetDevice=" + targetDevice;
 }
 
@@ -47,7 +47,7 @@ void ExecGraphInputsFusingBinConv::TearDown() {
 TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    auto targetDevice = this->GetParam();
+    const auto& targetDevice = this->GetParam();
 
     auto core = ov::test::utils::PluginCache::get().core();
     auto compiled_model = core->compile_model(ov_model, targetDevice);
