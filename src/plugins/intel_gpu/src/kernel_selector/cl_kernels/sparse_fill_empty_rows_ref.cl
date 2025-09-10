@@ -23,11 +23,7 @@ KERNEL(sparse_fill_empty_rows_ref)(
     __global OUTPUT1_TYPE* restrict output_values,       // [M] - output values
     __global OUTPUT2_TYPE* restrict empty_row_indicator  // [dense_shape[0]] - indicator if row was empty
 ) {
-    #ifdef INPUT2_BATCH_NUM
-        const uint indices_count = INPUT2_BATCH_NUM;
-    #else
-        const uint indices_count = NUM_INDICES;
-    #endif
+    const uint indices_count = INPUT2_BATCH_NUM;
     const uint row_idx = get_global_id(0);
     uint output_base_pos = 0;
 
