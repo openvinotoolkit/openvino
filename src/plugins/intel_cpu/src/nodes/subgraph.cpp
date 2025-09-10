@@ -64,6 +64,7 @@
 #    include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 
 #    include "emitters/snippets/riscv64/cpu_generator.hpp"
+#    include "executors/riscv64/subgraph.hpp"
 #else
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
@@ -75,6 +76,7 @@
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 #    include "snippets/lowered/pass/mark_loops.hpp"
 #    include "snippets/pass/propagate_precision.hpp"
+#    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_X86_64)
