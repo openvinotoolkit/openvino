@@ -18,13 +18,7 @@ namespace ov::snippets {
 
 class LIRPassDump {
 public:
-    explicit LIRPassDump(const lowered::LinearIR& linear_ir, std::string pass_name)
-        : linear_ir(linear_ir),
-          pass_name(std::move(pass_name)),
-          debug_config(*linear_ir.get_config().debug_config) {
-        dump("_in");
-    }
-    LIRPassDump(const lowered::LinearIR& linear_ir, std::string pass_name, std::string name_prefix)
+    explicit LIRPassDump(const lowered::LinearIR& linear_ir, std::string pass_name, std::string name_prefix = "")
         : linear_ir(linear_ir),
           pass_name(std::move(pass_name)),
           name_prefix(std::move(name_prefix)),
