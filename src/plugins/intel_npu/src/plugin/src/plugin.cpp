@@ -39,6 +39,104 @@ constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
 constexpr std::string_view XML_EXTENSION = ".xml";
 constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
+// Helper function to check if shape has dynamic dimensions other than batch dimension
+bool hasOtherDynamicDims(const ov::PartialShape& shape) {
+    for (size_t dim_idx = 1; dim_idx < shape.size(); dim_idx++) {
+        if (shape[dim_idx].is_dynamic()) {
+            return true;  // Found dynamic dimension other than batch
+        }
+    }
+    return false;
+}
+
+bool checkModelDynamicDims(const std::shared_ptr<const ov::Model>& model) {
+    // Check parameters (inputs)
+    const auto& params = model->get_parameters();
+    for (const auto& param : params) {
+        const auto& shape = param->get_partial_shape();
+        if (hasOtherDynamicDims(shape)) {
+            return true;
+        }
+    }
+
+    // Check results (outputs)
+    const auto& results = model->get_results();
+    for (const auto& result : results) {
+        const auto& shape = result->get_output_partial_shape(0);
+        if (hasOtherDynamicDims(shape)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool validateReshapedModel(const std::vector<IODescriptor>& inputDescriptors,
+                           const std::vector<IODescriptor>& outputDescriptors) {
+    std::set<size_t> batchSizes;
+    bool hasBatchedInputs = false;
+    bool hasBatchedOutputs = false;
+
+    // Check input descriptors
+    for (const IODescriptor& inputDescriptor : inputDescriptors) {
+        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
+            inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
+            continue;
+        }
+
+        auto shape = inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
+                                                                  : inputDescriptor.shapeFromCompiler;
+
+        // Check for dynamic dimensions other than batch dimension
+        if (hasOtherDynamicDims(shape)) {
+            return false;  // Plugin batching not supported with other dynamic dims
+        }
+
+        // Check if shape has batch dimension and if batch size equals DEFAULT_BATCH_SIZE
+        if (shape.size() > 0 &&
+            shape[intel_npu::utils::BATCH_AXIS].is_static() &&
+            shape[intel_npu::utils::BATCH_AXIS].get_length() == intel_npu::utils::DEFAULT_BATCH_SIZE) {
+
+            hasBatchedInputs = true;
+            batchSizes.insert(shape[intel_npu::utils::BATCH_AXIS].get_length());
+        }
+    }
+
+    // Check output descriptors
+    for (const IODescriptor& outputDescriptor : outputDescriptors) {
+        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
+            outputDescriptor.isInitOutputWeights) {
+            continue;
+        }
+
+        auto shape = outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
+                                                                   : outputDescriptor.shapeFromCompiler;
+
+        // Check for dynamic dimensions other than batch dimension
+        if (hasOtherDynamicDims(shape)) {
+            return false;  // Plugin batching not supported with other dynamic dims
+        }
+
+        // Check if shape has batch dimension and if batch size equals DEFAULT_BATCH_SIZE
+        if (shape.size() > 0 &&
+            shape[intel_npu::utils::BATCH_AXIS].is_static() &&
+            shape[intel_npu::utils::BATCH_AXIS].get_length() == intel_npu::utils::DEFAULT_BATCH_SIZE) {
+
+            hasBatchedOutputs = true;
+            batchSizes.insert(shape[intel_npu::utils::BATCH_AXIS].get_length());
+        }
+    }
+
+    // Plugin batching is applied if:
+    // 1. Both inputs and outputs have batched dimensions
+    // 2. All batch sizes are consistent (should be only DEFAULT_BATCH_SIZE)
+    // 3. The batch size is exactly DEFAULT_BATCH_SIZE (since we've already reshaped the model)
+    // 4. No other dynamic dimensions exist (checked above)
+    return hasBatchedInputs && hasBatchedOutputs &&
+           batchSizes.size() == 1 &&
+           *batchSizes.begin() == intel_npu::utils::DEFAULT_BATCH_SIZE;
+}
+
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
  * @details Using an "ov::Model" object to create the "CompiledModel" is the preferred way of using the OV API.
@@ -57,6 +155,8 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     ov::ParameterVector parameters;
     ov::ResultVector results;
 
+    bool pluginBatchingIsApplied = validateReshapedModel(inputDescriptors, outputDescriptors);
+
     for (const IODescriptor& inputDescriptor : inputDescriptors) {
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
             inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
@@ -67,7 +167,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
                                                                   : inputDescriptor.shapeFromCompiler;
         // Treat every model with batch 1 as a potentially dynamically batched one.
         // TODO: should we protect this part with a certain condition?
-        if (shape[intel_npu::utils::BATCH_AXIS] == intel_npu::utils::DEFAULT_BATCH_SIZE) {
+        if (pluginBatchingIsApplied) {
             shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(-1);
         }
 
@@ -96,7 +196,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         auto shape = outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
                                                                    : outputDescriptor.shapeFromCompiler;
         // Treat every model with batch 1 as a potentially dynamically batched one.
-        if (shape[intel_npu::utils::BATCH_AXIS] == intel_npu::utils::DEFAULT_BATCH_SIZE) {
+        if (pluginBatchingIsApplied) {
             shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(-1);
         }
 
@@ -553,34 +653,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     return _properties->get_property(name, npu_plugin_properties);
 }
 
-bool checkDynamicDims(const std::shared_ptr<const ov::Model>& model) {
-    // Check parameters (inputs)
-    for (const auto& param : model->get_parameters()) {
-        const auto& shape = param->get_partial_shape();
-
-        // Check all dimensions except the first one (batch dimension)
-        for (size_t dim_idx = 1; dim_idx < shape.size(); dim_idx++) {
-            if (shape[dim_idx].is_dynamic()) {
-                return true;  // Found dynamic dimension other than batch
-            }
-        }
-    }
-
-    // Check results (outputs)
-    for (const auto& result : model->get_results()) {
-        const auto& shape = result->get_output_partial_shape(0);
-
-        // Check all dimensions except the first one (batch dimension)
-        for (size_t dim_idx = 1; dim_idx < shape.size(); dim_idx++) {
-            if (shape[dim_idx].is_dynamic()) {
-                return true;  // Found dynamic dimension other than batch
-            }
-        }
-    }
-
-    return false;  // No dynamic dimensions found other than batch
-}
-
 bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger logger) {
     std::set<ov::Output<const ov::Node>> batchedInputs;
     std::set<ov::Output<const ov::Node>> batchedOutputs;
@@ -588,8 +660,7 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
 
     // Limitation: Plugin batching is not supported when there are dynamic
     // dimensions other than the batch dimension.
-    const bool otherDynamicDims = checkDynamicDims(model);
-    if (otherDynamicDims) {
+    if (checkModelDynamicDims(model)) {
         return false;
     }
 
