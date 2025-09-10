@@ -184,7 +184,9 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
         acc_score_p[j] = sum_cur;
 #endif
         if (sum_cur < thresh_act) {
-            block_mask_p[sorted_index_p[j]] = 1;
+            auto k_idx = sorted_index_p[j];
+            if (k_idx <= causal_start_index + m_block)
+                block_mask_p[k_idx] = 1;
         } else {
             break;
         }

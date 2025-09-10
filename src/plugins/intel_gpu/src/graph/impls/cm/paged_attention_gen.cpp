@@ -642,7 +642,9 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
 
     auto desc = params.typed_desc<paged_attention>();
 
-    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size)) / STRIDE;
+    const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size)) / STRIDE;
+    int scale_factor_i;
+    std::memcpy(static_cast<void*>(&scale_factor_i), &scale_factor, sizeof(scale_factor));
 
     jit.make("STRIDE", STRIDE);
     jit.make("HQ", desc->heads_num);
@@ -654,7 +656,7 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("BLOCK_SG_N", BLOCK_SG_N);
     jit.make("BLOCK_SIZE", get_xattn_block_size());
     jit.make("KV_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
-    jit.add(make_jit_constant("INV_S", scale_factor));
+    jit.add(make_jit_constant("INV_S", scale_factor_i));
     jit.make("BLOCK_SHARE_MAX", BLOCK_WG_N);
     //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
     jit.make("WALK_HQ", desc->heads_num != desc->kv_heads_num ? 2 : 1);
