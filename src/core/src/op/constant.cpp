@@ -635,53 +635,12 @@ size_t Constant::get_num_elements_to_cast(const int64_t n) const {
     return (n < 0 ? num_elements_in_shape : std::min(static_cast<size_t>(n), num_elements_in_shape));
 }
 
-template <class U>
-struct ElementConvert : element::NotSupported<void> {
+struct ConstCast : element::NotSupported<void> {
     using element::NotSupported<void>::visit;
 
-    template <element::Type_t ET,
-              class InputIt,
-              class OutputIt,
-              typename std::enable_if<ET != element::string>::type* = nullptr>
-    static result_type visit(const InputIt src, OutputIt dst, const size_t n) {
-        auto first = element::iterator<ET>(src);
-        reference::convert(first, dst, n);
-    }
-
-    template <element::Type_t ET,
-              class InputIt,
-              class OutputIt,
-              typename std::enable_if<ET == element::string>::type* = nullptr>
-    [[noreturn]] static result_type visit(const InputIt, OutputIt, const size_t) {
-        OPENVINO_THROW("'cast_vector' does not support casting Constant of type ",
-                       ET,
-                       " into std::vector of ",
-                       element::from<U>());
-    }
-};
-
-template <>
-struct ElementConvert<bool> : element::NotSupported<void> {
-    using element::NotSupported<void>::visit;
-
-    template <element::Type_t ET,
-              class InputIt,
-              class OutputIt,
-              typename std::enable_if<ET != element::string>::type* = nullptr>
-    static result_type visit(InputIt src, OutputIt dst, const size_t n) {
-        auto first = element::iterator<ET>(src);
-        using T = ov::fundamental_type_for<ET>;
-        std::transform(first, first + n, dst, [](const T v) {
-            return static_cast<bool>(v);
-        });
-    }
-
-    template <element::Type_t ET,
-              class InputIt,
-              class OutputIt,
-              typename std::enable_if<ET == element::string>::type* = nullptr>
-    [[noreturn]] static result_type visit(InputIt, OutputIt, const size_t) {
-        OPENVINO_THROW("'cast_vector' does not support casting Constant of type ", ET, " into std::vector of boolean");
+    template <element::Type_t ET, class OutputIt>
+    static result_type visit(const void* src, const size_t n, OutputIt dst) {
+        reference::convert(element::iterator<ET>(src), dst, n);
     }
 };
 
@@ -704,36 +663,45 @@ struct ConstWrite : element::NotSupported<void> {
         std::transform(src, src + n, element::iterator<ET>(dst), convert_if_in_range<ET, T, enable_validation>);
     }
 };
+template <class T, class = void>
+struct has_indirection : std::false_type {};
 
-static void fill_error_msg(const element::Type& const_type, const element::Type& user_type) {
-    OPENVINO_THROW("'fill_data' does not support writing elements of type ",
-                   user_type,
-                   " into Constant of type ",
-                   const_type);
-}
+template <class T>
+struct has_indirection<T, std::void_t<decltype(*std::declval<T>())>> : std::true_type {};
+
+template <class T>
+constexpr bool has_indirection_v = has_indirection<T>::value;
+
+const auto element_type_from_variant = ov::util::VariantVisitor{[](auto&& value) -> element::Type {
+    if constexpr (has_indirection_v<decltype(value)>) {
+        return element::from<std::decay_t<decltype(*value)>>();
+    } else {
+        return element::from<decltype(value)>();
+    }
+}};
 
 template <>
 OPENVINO_API void Constant::data::fill(const element::Type& type, void* dst, const size_t n, const value& value) {
-    const auto visitor = ov::util::VariantVisitor{
-        [&type, dst, n](const auto& v) {
-            if (type != element::string) {
-                using namespace ov::element;
-                IfTypeOf<SUPPORTED_ET>::apply<ConstFill>(type, dst, n, v);
-            } else {
-                std::uninitialized_fill_n(element::iterator<element::string>(dst), n, std::string{});
-                fill_error_msg(type, element::from<decltype(v)>());
-            }
-        },
-        [&type, dst, n](const std::string& v) {
-            if (type == element::string) {
-                std::uninitialized_fill_n(element::iterator<element::string>(dst), n, v);
-            } else {
-                fill_error_msg(type, element::from<decltype(v)>());
-            }
+    if (const auto is_str = (type == element::string); is_str == std::holds_alternative<std::string>(value)) {
+        const auto fill_visitor =
+            ov::util::VariantVisitor{[&type, dst, n](const auto& v) {
+                                         using namespace ov::element;
+                                         IfTypeOf<SUPPORTED_ET>::apply<ConstFill>(type, dst, n, v);
+                                     },
+                                     [dst, n](const std::string& v) {
+                                         std::uninitialized_fill_n(element::iterator<element::string>(dst), n, v);
+                                     }};
+        std::visit(fill_visitor, value);
+    } else {
+        if (is_str) {
+            std::uninitialized_fill_n(element::iterator<element::string>(dst), n, std::string{});
         }
-
-    };
-    std::visit(visitor, value);
+        OPENVINO_THROW("Constant does not support writing elements of type '",
+                       std::visit(element_type_from_variant, value),
+                       "' into Constant of type '",
+                       type,
+                       "'");
+    }
 }
 
 template <>
@@ -741,65 +709,47 @@ OPENVINO_API void Constant::data::copy_n(const element::Type& type,
                                          const const_pointer src,
                                          const size_t n,
                                          void* dst) {
-    const auto visitor = ov::util::VariantVisitor{
-        [&type, dst, n](const auto& src) {
-            if (type != element::string) {
-                using namespace ov::element;
-                IfTypeOf<SUPPORTED_ET>::apply<ConstWrite>(type, src, n, dst);
-            } else {
-                std::uninitialized_fill_n(element::iterator<element::string>(dst), n, std::string{});
-                fill_error_msg(type, element::from<decltype(*src)>());
-            }
-        },
-        [&type, dst, n](const std::vector<bool>::const_iterator src) {
-            if (type != element::string) {
-                using namespace ov::element;
-                IfTypeOf<SUPPORTED_ET>::apply<ConstWrite>(type, src, n, dst);
-            } else {
-                std::uninitialized_fill_n(element::iterator<element::string>(dst), n, std::string{});
-                fill_error_msg(type, element::from<bool>());
-            }
-        },
-        [&type, dst, n](const std::string* src) {
-            if (type == element::string) {
-                std::uninitialized_copy_n(src, n, element::iterator<element::string>(dst));
-            } else {
-                fill_error_msg(type, element::from<decltype(*src)>());
-            }
-        }};
-    std::visit(visitor, src);
+    if (const auto is_str = (type == element::string); is_str == std::holds_alternative<const std::string*>(src)) {
+        const auto write_visitor =
+            ov::util::VariantVisitor{[&type, n, dst](const auto src) {
+                                         using namespace ov::element;
+                                         IfTypeOf<SUPPORTED_ET>::apply<ConstWrite>(type, src, n, dst);
+                                     },
+                                     [n, dst](const std::string* src) {
+                                         std::uninitialized_copy_n(src, n, element::iterator<element::string>(dst));
+                                     }};
+        std::visit(write_visitor, src);
+    } else {
+        if (is_str) {
+            std::uninitialized_fill_n(element::iterator<element::string>(dst), n, std::string{});
+        }
+        OPENVINO_THROW("Constant does not support writing elements of type '",
+                       std::visit(element_type_from_variant, src),
+                       "' into Constant of type '",
+                       type,
+                       "'");
+    }
 }
 
 template <>
 OPENVINO_API void Constant::data::cast_n(const element::Type& type, const void* src, const size_t n, pointer dst) {
-    const auto visitor =
-        ov::util::VariantVisitor{[&type, src, n](const auto& dst) {
-                                     if (type != element::string) {
-                                         using namespace ov::element;
-                                         using dst_type = std::decay_t<decltype(dst)>;
-                                         IfTypeOf<SUPPORTED_ET>::apply<ElementConvert<dst_type>>(type, src, dst, n);
-                                     } else {
-                                         fill_error_msg(type, element::from<decltype(*dst)>());
-                                     }
+    const auto is_vistable = (type == element::string) == std::holds_alternative<std::string*>(dst);
+    OPENVINO_ASSERT(is_vistable,
+                    "Constant does not support casting elements of type '",
+                    type,
+                    "' into std::vector of type '",
+                    std::visit(element_type_from_variant, dst),
+                    "'");
+    const auto cast_visitor =
+        ov::util::VariantVisitor{[&type, src, n](auto dst) {
+                                     using namespace ov::element;
+                                     IfTypeOf<SUPPORTED_ET>::apply<ConstCast>(type, src, n, dst);
                                  },
-                                 [&type, src, n](std::vector<bool>::iterator dst) {
-                                     if (type != element::string) {
-                                         using namespace ov::element;
-                                         IfTypeOf<SUPPORTED_ET>::apply<ElementConvert<bool>>(type, src, dst, n);
-                                     } else {
-                                         fill_error_msg(type, element::from<bool>());
-                                     }
-                                 },
-                                 [&type, src, n](std::string* dst) {
-                                     if (type == element::string) {
-                                         std::uninitialized_copy_n(element::iterator<element::string>(src), n, dst);
-                                     } else {
-                                         fill_error_msg(type, element::from<decltype(*dst)>());
-                                     }
+                                 [src, n](std::string* dst) {
+                                     std::uninitialized_copy_n(element::iterator<element::string>(src), n, dst);
                                  }};
-    std::visit(visitor, dst);
+    std::visit(cast_visitor, dst);
 }
-
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
