@@ -148,7 +148,8 @@ bool in_t_range(const U& v) {
 }
 
 template <element::Type_t ET, class U, bool enable_validation = true>
-auto convert_if_in_range(const U& value) {
+std::conditional_t<ET == element::nf4 && !std::is_integral_v<U>, float, fundamental_type_for<ET>> convert_if_in_range(
+    const U& value) {
     if constexpr (enable_validation) {
         OPENVINO_ASSERT(in_t_range<ET>(value), value, " assigned value out of range for ", ET);
     }
