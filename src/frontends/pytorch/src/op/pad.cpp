@@ -111,7 +111,8 @@ OutputVector translate_pad_common(const NodeContext& context,
     auto pads_remaining = context.mark_node(std::make_shared<v3::Broadcast>(zero, pads_diff));
     auto pads_remaining_c = context.mark_node(std::make_shared<v1::ConvertLike>(pads_remaining, paddings));
 
-    auto pads_begin = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining_c, pads_begin_short}, 0));
+    auto pads_begin =
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining_c, pads_begin_short}, 0));
     auto pads_end = context.mark_node(std::make_shared<v0::Concat>(OutputVector{pads_remaining_c, pads_end_short}, 0));
 
     if (const auto begins = ov::util::get_constant_from_source(pads_begin)) {
