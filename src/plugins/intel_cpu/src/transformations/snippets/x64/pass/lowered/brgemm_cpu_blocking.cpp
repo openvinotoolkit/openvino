@@ -158,7 +158,7 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     const auto& brgemm_expr = *brgemm_it;
     const auto& brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     const auto& brgemm_config = brgemm->get_config();
-    const auto& loop_manager = linear_ir.get_loop_manager();
+    const ov::snippets::lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
     if (brgemm_config.with_wei_repacking()) {
         const auto copy_b_expr = repacking::get_copy_b_expr(brgemm_expr);
         if (copy_b_expr) {

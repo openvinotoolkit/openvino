@@ -116,7 +116,7 @@ void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(expr->get_input_port_connector(num_inputs - 1)->get_source().get_expr()->get_node() == loop_begin,
                     "LoopEnd expression must have LoopBegin attached to the last connector");
 
-    const auto& loop_manager = linear_ir.get_loop_manager();
+    const lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
     const auto& loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
     OPENVINO_ASSERT(loop_info->get_work_amount() == loop_end->get_work_amount() &&
                         loop_info->get_increment() == loop_end->get_increment(),

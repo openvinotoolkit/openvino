@@ -67,7 +67,8 @@ bool NormalizeLoopIDs::run(lowered::LinearIR& linear_ir) {
     }
 
     // Secondly, we blend `LoopInfo` in the LoopManager::m_map by new Loop IDs
-    const auto updated = linear_ir.get_loop_manager()->reorder_identifiers(loop_id_map);
+    const lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
+    const auto updated = loop_manager->reorder_identifiers(loop_id_map);
     if (!updated) {
         return false;
     }

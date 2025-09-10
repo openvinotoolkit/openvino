@@ -36,7 +36,7 @@ bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
     const auto unsqueezed_params = MHAParallelWAOptimizer::find_unsqueezed_params(linear_ir_ptr, brgemms);
     OPENVINO_ASSERT(!unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
 
-    const auto& loop_manager = linear_ir_ptr->get_loop_manager();
+    const lowered::LoopManagerPtr& loop_manager = linear_ir_ptr->get_loop_manager();
     std::unordered_set<lowered::UnifiedLoopInfoPtr> affected_loops;
     size_t prev_loop_id = std::numeric_limits<size_t>::max();
     static const size_t dim_M_idx = 1;

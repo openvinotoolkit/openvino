@@ -70,7 +70,7 @@ bool pass::aarch64::AdjustGemmCopyBLoopPorts::run(const snippets::lowered::Linea
         if (gemm_loop_ids.empty()) {
             continue;
         }
-        const auto& loop_manager = linear_ir.get_loop_manager();
+        const snippets::lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
         // only adjust inner most loop(N loop)
         const auto& loop = loop_manager->get_loop_info(gemm_loop_ids.back());
         auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);

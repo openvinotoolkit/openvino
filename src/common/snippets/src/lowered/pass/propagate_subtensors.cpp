@@ -150,7 +150,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
         }
         if (auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node())) {
             const auto loop_end = loop_begin->get_loop_end();
-            const auto inner_loop_info = linear_ir.get_loop_manager()->get_loop_info(loop_end->get_id());
+            const lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
+            const auto inner_loop_info = loop_manager->get_loop_info(loop_end->get_id());
             const auto inner_begin = std::next(expr_it);
             const auto inner_end = linear_ir.find_after(inner_begin, linear_ir.get_expr_by_node(loop_end));
 
@@ -200,7 +201,7 @@ bool UpdateSubtensors::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Lin
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(last_node);
     OPENVINO_ASSERT(loop_end, "the last operation in range must be LoopEnd");
 
-    const auto& loop_manager = linear_ir.get_loop_manager();
+    const lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
     const auto& loop_info = loop_manager->get_loop_info(loop_end->get_id());
     propagate_updated_subtensor_through_loop(linear_ir, loop_info, begin, end, true, m_tail_size);
     return true;

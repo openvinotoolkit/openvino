@@ -41,7 +41,7 @@ bool ParallelizeGatedMlpNLoops::run(LinearIR& linear_ir, LinearIR::constExprIt b
     }
 
     bool status = false;
-    const auto& loop_manager = linear_ir.get_loop_manager();
+    const ov::snippets::lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
     for (const auto& brgemm : brgemm_expressions) {
         const auto& out_subtensor = brgemm->get_output_port_descriptor(0)->get_subtensor();
         OPENVINO_ASSERT(out_subtensor.size() == 2, "Brgemm out subtensor should be 2D");

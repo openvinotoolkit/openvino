@@ -96,8 +96,8 @@ bool SetLoopIncrementOne::run(LinearIR& linear_ir,
                               LinearIR::constExprIt end) {
     const auto& loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(end->get()->get_node());
     OPENVINO_ASSERT(loop_end, "SetLoopIncrementOne expected LoopEnd node in iterator `end`.");
-    const auto& loop_info =
-        linear_ir.get_loop_manager()->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_end->get_id());
+    const lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
+    const auto& loop_info = loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_end->get_id());
     loop_info->set_increment(1);
     loop_end->set_increment(1);
     return true;
