@@ -525,12 +525,18 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     cm_sbarrier(0);
 
     matrix<half, REG_M * BLOCK_REG_M, REG_N * BLOCK_REG_N> acc_half;
+    union {
+        float f;
+        int y;
+    } i2f;
+    i2f.y = INV_S;
+    const float inv_s = i2f.f;
 #pragma unroll
     for (uint reg_m = 0; reg_m < REG_M; reg_m++) {
 #pragma unroll
         for (int reg_n = 0; reg_n < REG_N; reg_n++) {
             acc_half.select<BLOCK_REG_M, 1, BLOCK_REG_N, 1>(reg_m * BLOCK_REG_M, reg_n * BLOCK_REG_N) =
-                acc.row(reg_m * REG_N + reg_n) * float{INV_S};
+                acc.row(reg_m * REG_N + reg_n) * inv_s;
         }
     }
 
@@ -1009,12 +1015,18 @@ uint M, uint N, uint K, uint query_stride, uint q_start_strided) {
     cm_sbarrier(0);
 
     matrix<SOFTMAX_TYPE, REG_M * BLOCK_REG_M, REG_N * BLOCK_REG_N> acc_half;
+    union {
+        float f;
+        int y;
+    } i2f;
+    i2f.y = INV_S;
+    const float inv_s = i2f.f;
 #pragma unroll
     for (uint reg_m = 0; reg_m < REG_M; reg_m++) {
 #pragma unroll
         for (int reg_n = 0; reg_n < REG_N; reg_n++) {
             acc_half.select<BLOCK_REG_M, 1, BLOCK_REG_N, 1>(reg_m * BLOCK_REG_M, reg_n * BLOCK_REG_N) =
-                acc.row(reg_m * REG_N + reg_n) * float{INV_S};
+                acc.row(reg_m * REG_N + reg_n) * inv_s; 
         }
     }
 
