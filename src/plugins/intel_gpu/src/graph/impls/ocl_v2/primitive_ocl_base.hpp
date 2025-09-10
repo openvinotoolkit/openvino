@@ -134,8 +134,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
     void init_kernels(const cldnn::kernels_cache& kernels_cache, const RuntimeParams& params) override {
         auto compiled_kernels = kernels_cache.get_kernels(params);
-        kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
-                                          "");
+        kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)), "");
         for (size_t i = 0; i < _order.size(); i++) {
             _stages[_order[i]]->kernel = compiled_kernels[i];
             if (i == 0) {
