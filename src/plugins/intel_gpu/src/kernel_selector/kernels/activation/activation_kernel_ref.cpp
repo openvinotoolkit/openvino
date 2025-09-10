@@ -31,19 +31,6 @@ ParamsKey ActivationKernelRef::GetSupportedKey() const {
     return k;
 }
 
-ActivationKernelRef::Parent::DispatchData ActivationKernelRef::SetDefault(const activation_params& params) const {
-    auto dispatchData = Parent::SetDefault(params);
-
-    const auto& out = params.outputs[0];
-    auto out_layout = params.outputs[0].GetLayout();
-    if (out_layout == DataLayout::b_fs_yx_fsv16 || out_layout == DataLayout::b_fs_yx_fsv32) {
-        dispatchData.gws = {Align(out.Feature().v * out.Batch().v, 16), out.X().v, out.Y().v};
-        dispatchData.lws = {16, 1, 1};
-    }
-
-    return dispatchData;
-}
-
 JitConstants ActivationKernelRef::GetJitConstants(const activation_params& params, DispatchData dispatchData) const {
     auto jit = ActivationKernelBase::GetJitConstants(params, dispatchData);
     auto input_dt = params.inputs[0].GetDType();

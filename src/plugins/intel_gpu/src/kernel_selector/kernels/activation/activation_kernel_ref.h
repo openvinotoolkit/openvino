@@ -26,7 +26,6 @@ public:
                 FusedOpType::ACTIVATION};
     }
 
-    DispatchData SetDefault(const activation_params& arg) const override;
     bool Validate(const Params& p) const override;
 };
 }  // namespace kernel_selector
