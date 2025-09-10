@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <ov_ops/gather_compressed.hpp>
 #include <set>
@@ -32,7 +33,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
@@ -42,14 +42,11 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
-#include "openvino/op/mish.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
@@ -177,6 +174,7 @@
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
+#    include "openvino/op/add.hpp"
 #    include "openvino/op/divide.hpp"
 #    include "openvino/op/elu.hpp"
 #    include "openvino/op/equal.hpp"
@@ -196,6 +194,7 @@
 #    include "openvino/op/logical_xor.hpp"
 #    include "openvino/op/maximum.hpp"
 #    include "openvino/op/minimum.hpp"
+#    include "openvino/op/mish.hpp"
 #    include "openvino/op/mod.hpp"
 #    include "openvino/op/negative.hpp"
 #    include "openvino/op/not_equal.hpp"
@@ -205,8 +204,10 @@
 #    include "openvino/op/round.hpp"
 #    include "openvino/op/select.hpp"
 #    include "openvino/op/sigmoid.hpp"
+#    include "openvino/op/softmax.hpp"
 #    include "openvino/op/sqrt.hpp"
 #    include "openvino/op/squared_difference.hpp"
+#    include "openvino/op/swish.hpp"
 #    include "openvino/op/tanh.hpp"
 #    include "openvino/op/xor.hpp"
 #    include "snippets/utils/utils.hpp"
@@ -285,6 +286,10 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
+#    include "openvino/op/add.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -1518,8 +1523,11 @@ void Transformations::MainSnippets() {
         snippetsManager,
         [&](const std::shared_ptr<const ov::Node>& n) -> bool {
             if (!ignoreCallback) {
-                if (n->is_dynamic() || !is_supported_op(n))
+                if (n->is_dynamic() || !is_supported_op(n)) {
+                    fprintf(stderr, "Skipping node %s\n", n->get_friendly_name().c_str());
                     return true;
+                }
+                fprintf(stderr, "Processing node %s\n", n->get_friendly_name().c_str());
             }
 
             const auto& inputs = n->inputs();
