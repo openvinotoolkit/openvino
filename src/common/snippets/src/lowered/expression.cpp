@@ -205,7 +205,7 @@ ExpressionPtr Expression::clone() const {
 }
 
 bool Expression::visit_attributes(AttributeVisitor& visitor) {
-    std::ostringstream in_regs, out_regs;
+    std::ostringstream in_regs, out_regs, live_regs;
     std::vector<std::pair<std::string, ov::PartialShape>> shapes;
     std::vector<std::pair<std::string, std::string>> subtensors;
     std::vector<std::pair<std::string, std::vector<size_t>>> layouts;
@@ -247,6 +247,9 @@ bool Expression::visit_attributes(AttributeVisitor& visitor) {
 
         out_regs << desc->get_reg() << " ";
     }
+    for (const auto& r : m_live_regs) {
+        live_regs << r << " ";
+    }
 
     if (!in_regs.str().empty()) {
         std::vector<std::string> tmp{in_regs.str()};
@@ -255,6 +258,10 @@ bool Expression::visit_attributes(AttributeVisitor& visitor) {
     if (!out_regs.str().empty()) {
         std::vector<std::string> tmp{out_regs.str()};
         visitor.on_attribute("out_regs", tmp);
+    }
+    if (!live_regs.str().empty()) {
+        std::vector<std::string> tmp{live_regs.str()};
+        visitor.on_attribute("live_regs", tmp);
     }
     for (auto& s : shapes) {
         visitor.on_attribute(s.first, s.second);
