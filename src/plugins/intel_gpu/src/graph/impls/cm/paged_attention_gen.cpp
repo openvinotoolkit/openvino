@@ -754,9 +754,9 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t q_len = out_shape[0];
 
-        const uint M = q_len / STRIDE;   //# will slient drop the tails which is less than `stride`
-        const uint N = kv_len / STRIDE;
-        const uint K = STRIDE * head_size;
+        const uint32_t M = q_len / STRIDE;   //# will slient drop the tails which is less than `stride`
+        const uint32_t N = kv_len / STRIDE;
+        const uint32_t K = STRIDE * head_size;
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
             auto dims_padding = layout.get_padded_dims();
@@ -768,8 +768,8 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
             }
             return pitch;
         };
-        const uint query_pitch = get_simple_pitch(querry_layout) * STRIDE;
-        const uint slice_no = 0, slice = 0;
+        const uint32_t query_pitch = get_simple_pitch(querry_layout) * STRIDE;
+        const uint32_t slice_no = 0, slice = 0;
 
         const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
         const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
@@ -781,7 +781,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         wgs.global = {N_kq_groups * (q_stride_pad / BLOCK_WG_M) * SG_N * WALK_HQ, SG_M, heads_num / WALK_HQ};
         wgs.local = {SG_N, SG_M, 1};
 
-        const uint q_start_strided = N - M;
+        const uint32_t q_start_strided = N - M;
         OPENVINO_ASSERT(N >= M, "length of key cache must be greater or equal than query");
 
         auto& scalars = kd.params.scalars;
@@ -808,7 +808,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
                 scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
             } else {
                 scalars[i].t = ScalarDescriptor::Types::UINT32;
-                scalars[i].v.u32 = static_cast<u_int32_t>(scaler_value[i]);
+                scalars[i].v.u32 = static_cast<uint32_t>(scaler_value[i]);
             }
         }
     }};
@@ -847,8 +847,8 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
 
         assert(rt_params != nullptr);
 
-        const uint wg_k = BLOCK_WG_M;
-        const uint wg_q = BLOCK_WG_N;
+        const uint32_t wg_k = BLOCK_WG_M;
+        const uint32_t wg_q = BLOCK_WG_N;
         const size_t block_size = get_xattn_block_size(params);
         OPENVINO_ASSERT(wg_k % block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
         OPENVINO_ASSERT(wg_q % block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
@@ -862,19 +862,19 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
         const size_t q_len = out_shape[0];
-        const uint M = q_len / STRIDE;   //# will slient drop the tails which is less than `stride`
-        const uint N = kv_len / STRIDE;
-        const uint q_stride = M;
-        const uint k_stride = N;
+        const uint32_t M = q_len / STRIDE;   //# will slient drop the tails which is less than `stride`
+        const uint32_t N = kv_len / STRIDE;
+        const uint32_t q_stride = M;
+        const uint32_t k_stride = N;
         const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
         const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
-        const uint sum_per_token_in_block = block_size / STRIDE;
-        const uint k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
-        const uint k_block_pad = k_block_in_group * N_kq_groups;
+        const uint32_t sum_per_token_in_block = block_size / STRIDE;
+        const uint32_t k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
+        const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
 
-        const uint q_block = ceil_div(q_stride, sum_per_n_token_in_block);
-        const uint k_block = ceil_div(k_stride, sum_per_n_token_in_block);
+        const uint32_t q_block = ceil_div(q_stride, sum_per_n_token_in_block);
+        const uint32_t k_block = ceil_div(k_stride, sum_per_n_token_in_block);
 
         const float xattn_thresh = get_xattn_thresh(params, 0); // TODO: seq_idx
 
