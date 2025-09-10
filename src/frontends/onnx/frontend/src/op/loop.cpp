@@ -119,9 +119,7 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
                      ") is not greater than number of outputs. Required at least: ",
                      loop_carried_dependencies.size() + 1);
 
-    ov::ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
-    body_params.emplace(body_params.begin(),
-                        body_inputs[0]);  // current iteration body input
+    ov::ParameterVector body_params(body_inputs.begin(), body_inputs.end());
     const auto body = std::make_shared<ov::Model>(body_outputs, body_params);
     auto loop = std::make_shared<v5::Loop>(trip_count, termination_cond);
     v5::Loop::SpecialBodyPorts spec_ports{0, 0};
