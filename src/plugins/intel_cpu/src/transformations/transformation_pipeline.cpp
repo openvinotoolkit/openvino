@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <memory>
 #include <ov_ops/gather_compressed.hpp>
 #include <set>
@@ -286,10 +285,6 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
-#endif
-
-#if defined(OPENVINO_ARCH_RISCV64)
-#    include "openvino/op/add.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -1403,8 +1398,7 @@ void Transformations::MainSnippets() {
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
 #elif defined(OPENVINO_ARCH_RISCV64)
-        // Limit general tokenization on RISC-V to Add only for now
-        return ov::is_type<const ov::op::v1::Add>(n);
+        return false;
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
@@ -1523,11 +1517,8 @@ void Transformations::MainSnippets() {
         snippetsManager,
         [&](const std::shared_ptr<const ov::Node>& n) -> bool {
             if (!ignoreCallback) {
-                if (n->is_dynamic() || !is_supported_op(n)) {
-                    fprintf(stderr, "Skipping node %s\n", n->get_friendly_name().c_str());
+                if (n->is_dynamic() || !is_supported_op(n))
                     return true;
-                }
-                fprintf(stderr, "Processing node %s\n", n->get_friendly_name().c_str());
             }
 
             const auto& inputs = n->inputs();
