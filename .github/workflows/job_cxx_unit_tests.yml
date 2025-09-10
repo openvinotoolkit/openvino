@@ -134,7 +134,7 @@ jobs:
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_filter="-PaddleFuzzyOpTest*" --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
 
-     - name: PaddlePaddle frontend Fuzzy Op tests
+      - name: PaddlePaddle frontend Fuzzy Op tests
         if: ${{ inputs.event_name == 'schedule' && runner.os != 'Windows' }} # Ticket: 149651
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
