@@ -553,10 +553,45 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     return _properties->get_property(name, npu_plugin_properties);
 }
 
+bool checkDynamicDims(const std::shared_ptr<const ov::Model>& model) {
+    // Check parameters (inputs)
+    for (const auto& param : model->get_parameters()) {
+        const auto& shape = param->get_partial_shape();
+
+        // Check all dimensions except the first one (batch dimension)
+        for (size_t dim_idx = 1; dim_idx < shape.size(); dim_idx++) {
+            if (shape[dim_idx].is_dynamic()) {
+                return true;  // Found dynamic dimension other than batch
+            }
+        }
+    }
+
+    // Check results (outputs)
+    for (const auto& result : model->get_results()) {
+        const auto& shape = result->get_output_partial_shape(0);
+
+        // Check all dimensions except the first one (batch dimension)
+        for (size_t dim_idx = 1; dim_idx < shape.size(); dim_idx++) {
+            if (shape[dim_idx].is_dynamic()) {
+                return true;  // Found dynamic dimension other than batch
+            }
+        }
+    }
+
+    return false;  // No dynamic dimensions found other than batch
+}
+
 bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger logger) {
     std::set<ov::Output<const ov::Node>> batchedInputs;
     std::set<ov::Output<const ov::Node>> batchedOutputs;
     std::set<size_t> sBatchSize;
+
+    // Limitation: Plugin batching is not supported when there are dynamic
+    // dimensions other than the batch dimension.
+    const bool otherDynamicDims = checkDynamicDims(model);
+    if (otherDynamicDims) {
+        return false;
+    }
 
     const auto& params = model->get_parameters();
     for (size_t input_id = 0; input_id < params.size(); input_id++) {
@@ -573,7 +608,7 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
             if (shape.rank().is_dynamic()) {
                 OPENVINO_THROW("Shapes with dynamic rank are not supported.");
             } else {
-                sBatchSize.insert(staticShape[0]);
+                sBatchSize.insert(staticShape[intel_npu::utils::BATCH_AXIS]);
             }
         } else {
             // gather some diagnostic info
@@ -612,7 +647,7 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
             if (shape.rank().is_dynamic()) {
                 OPENVINO_THROW("Shapes with dynamic rank are not supported.");
             } else {
-                sBatchSize.insert(staticShape[0]);
+                sBatchSize.insert(staticShape[intel_npu::utils::BATCH_AXIS]);
             }
         } else {
             logger.info("Only networks with outputs batched by 0th dimension are supported. Please check an output by "
