@@ -49,6 +49,11 @@ constexpr bool is_dynamic_value(T value) {
     return value == get_dynamic_value<T>();
 }
 
+template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
+constexpr bool has_dynamic_values(std::vector<T> values) {
+    return std::any_of(values.cbegin(), values.cend(), ov::snippets::utils::is_dynamic_value<T>);
+}
+
 // This value means full dimension
 // For example, for the subtensor it means that scheduling should be by full dimension
 constexpr size_t get_full_dim_value() {
@@ -132,9 +137,7 @@ static inline bool is_planar_layout(const std::vector<size_t>& order) {
 }
 
 inline bool is_dynamic_vdims(const VectorDims& shape) {
-    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v) {
-        return is_dynamic_value(v);
-    });
+    return has_dynamic_values(shape);
 }
 
 inline bool is_dynamic_vdims(const VectorDimsPtr& shape) {
