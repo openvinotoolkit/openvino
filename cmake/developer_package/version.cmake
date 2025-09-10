@@ -99,7 +99,8 @@ macro(ov_parse_ci_build_number repo_root)
         endforeach()
 
         foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
-            if(DEFINED ${var} AND NOT ${var} EQUAL ${var}_HPP)
+            # Starting from CMake 4.0, version variables are set to "" if not defined by project(). See policy CMP0048.
+            if(${var} AND NOT ${var} EQUAL ${var}_HPP)
                 message(FATAL_ERROR "${var} parsed from CI_BUILD_NUMBER (${${var}}) \
                     and from openvino/core/version.hpp (${${var}_HPP}) are different")
             else()
