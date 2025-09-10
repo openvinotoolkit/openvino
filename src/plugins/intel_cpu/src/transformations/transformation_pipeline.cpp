@@ -209,7 +209,7 @@
 #    include "openvino/op/tanh.hpp"
 #    include "openvino/op/xor.hpp"
 #    include "snippets/utils/utils.hpp"
-#    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
+#    include "transformations/snippets/common/pass/snippets_mark_skipped.hpp"
 #else
 #    include "openvino/op/convolution.hpp"
 #    include "openvino/op/group_conv.hpp"
@@ -246,7 +246,7 @@
 #    include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
-#    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
+#    include "transformations/snippets/common/pass/snippets_mark_skipped.hpp"
 #    include "transformations/utils/utils.hpp"
 #endif
 
@@ -1241,8 +1241,13 @@ void Transformations::MainSnippets() {
     snippetsManager.set_per_pass_validation(false);
     // if callback needed for better perf, enable SnippetsMarkSkipped, and disable TokenizeFCSnippets.
     if (!ignoreCallback) {
-        CPU_REGISTER_PASS_ARM64(snippetsManager, SnippetsMarkSkipped);
-        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, config.inferencePrecision == ov::element::bf16);
+        CPU_REGISTER_PASS_ARM64(snippetsManager,
+                                SnippetsMarkSkipped,
+                                ov::intel_cpu::SnippetsMarkSkipped::Profile::ARM64);
+        CPU_REGISTER_PASS_X64(snippetsManager,
+                              SnippetsMarkSkipped,
+                              ov::intel_cpu::SnippetsMarkSkipped::Profile::X64,
+                              config.inferencePrecision == ov::element::bf16);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeGatedMLPSnippets);
     }

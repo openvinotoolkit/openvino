@@ -11,7 +11,7 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "fake_quantize_helper.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
+#include "transformations/snippets/common/pass/snippets_mark_skipped.hpp"
 #include "function_helper.hpp"
 
 namespace ov {
@@ -22,7 +22,7 @@ class FakeQuantizeTokenizationTest : public TransformationTestsF {
 public:
     void register_passes() {
         ov::snippets::pass::SnippetsTokenization::Config config = { 1, std::numeric_limits<size_t>::max(), true, true, true, { 3, 4 }};
-        manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
+        manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>(ov::intel_cpu::SnippetsMarkSkipped::Profile::X64);
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
         manager.get_pass_config()->set_callback<ov::snippets::pass::TokenizeSnippets>([](const std::shared_ptr<const ov::Node>& n) -> bool {
