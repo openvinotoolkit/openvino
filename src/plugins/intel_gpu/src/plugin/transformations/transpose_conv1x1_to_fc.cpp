@@ -147,9 +147,9 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
             if (current_shape.size() == 2)
                 return constant;
 
-            if (current_shape.size() == 1) {
+            if (current_shape.size() <= 1) {
 
-                auto new_shape = ov::Shape{current_shape[0], 1};
+                auto new_shape = ov::Shape{(current_shape.size() == 1) ? current_shape[0] : 1, 1};
 
                 auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
 
