@@ -13,7 +13,8 @@
 
 namespace ov::snippets::op {
 
-OnlineSoftmaxUpdateSum::OnlineSoftmaxUpdateSum(const Output<Node>& A, const Output<Node>& B) : Op({A, B}) {
+OnlineSoftmaxUpdateSum::OnlineSoftmaxUpdateSum(const Output<Node>& sum_local, const Output<Node>& coeff)
+    : Op({sum_local, coeff}) {
     constructor_validate_and_infer_types();
 }
 

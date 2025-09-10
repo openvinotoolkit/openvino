@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,6 @@
 
 #include "lowering_utils.hpp"
 #include "subgraph_softmax.hpp"
-
-/* The main purpose is to test that OnlineSoftmaxDecomposition is properly decomposed.
- */
 
 namespace ov {
 namespace test {

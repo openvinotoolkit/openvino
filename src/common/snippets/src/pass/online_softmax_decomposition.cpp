@@ -67,8 +67,9 @@ OnlineSoftmaxDecomposition::OnlineSoftmaxDecomposition() {
         const auto& power = std::make_shared<ov::snippets::op::PowerStatic>(updated_sum->output(0), -1.F);
         const auto& multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
 
-        // This is coeff to second brgemm in falsh attention scenario. It will be removed and not used in single online
-        // softmax scenario as no consumers.
+        // This is coeff for second brgemm in flash attention scenario (it is applied on the K loops exception
+        // the first iteration).
+        // It is not used in single online softmax scenario.
         // std::exp(max_past - max) * sum_past / sum_current
         const auto& brgemm_coeff = std::make_shared<ov::op::v1::Divide>(updated_sum->output(1), updated_sum->output(0));
 
@@ -83,6 +84,7 @@ OnlineSoftmaxDecomposition::OnlineSoftmaxDecomposition() {
                            power,
                            multiply,
                            brgemm_coeff});
+        multiply->set_friendly_name(online_softmax->get_friendly_name());
         online_softmax->output(0).replace(multiply->output(0));
         online_softmax->output(1).replace(brgemm_coeff->output(0));
         return true;

@@ -30,13 +30,13 @@ namespace ov::snippets::op {
  *         |   |
  *    Result0  Result1
  *
- * Note that "Max-->Buffer" should be after Sub.
+ * Note that Buffer must be updated with the Max result only after Sub from control flow perspective.
  */
 class OnlineSoftmaxUpdateMax : public ov::op::Op {
 public:
     OPENVINO_OP("OnlineSoftmaxUpdateMax", "SnippetsOpset");
 
-    explicit OnlineSoftmaxUpdateMax(const Output<Node>& x);
+    explicit OnlineSoftmaxUpdateMax(const Output<Node>& max_local);
     OnlineSoftmaxUpdateMax() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

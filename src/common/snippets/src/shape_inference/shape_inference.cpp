@@ -62,9 +62,9 @@ ShapeInferPtr IShapeInferSnippetsFactory::get_specific_op_shape_infer(
     return {};
 }
 
-#define SHAPE_INFER_PREDEFINED(OP, InferType)                                              \
+#define SHAPE_INFER_PREDEFINED(OP, InferType, ...)                                         \
     {OP::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) { \
-         return std::make_shared<InferType>();                                             \
+         return std::make_shared<InferType>(__VA_ARGS__);                                  \
      }}
 #define SHAPE_INFER_OP_SPECIFIC(OP)                                       \
     {OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
@@ -87,8 +87,8 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
     SHAPE_INFER_PREDEFINED(op::HorizonMax, HorizonOpShapeInfer),
     SHAPE_INFER_PREDEFINED(op::HorizonSum, HorizonOpShapeInfer),
     SHAPE_INFER_PREDEFINED(op::OnlineSoftmax, OnlineSoftmaxShapeInfer),
-    SHAPE_INFER_PREDEFINED(op::OnlineSoftmaxUpdateMax, OnlineSoftmaxUpdateMaxShapeInfer),
-    SHAPE_INFER_PREDEFINED(op::OnlineSoftmaxUpdateSum, OnlineSoftmaxUpdateSumShapeInfer),
+    SHAPE_INFER_PREDEFINED(op::OnlineSoftmaxUpdateMax, PassThroughShapeInfer, 2),
+    SHAPE_INFER_PREDEFINED(op::OnlineSoftmaxUpdateSum, PassThroughShapeInfer, 2),
     //
     SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
     SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),

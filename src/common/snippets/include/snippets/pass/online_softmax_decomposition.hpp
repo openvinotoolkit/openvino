@@ -10,8 +10,32 @@ namespace ov::snippets::pass {
 
 /**
  * @interface OnlineSoftmaxDecomposition
- * @brief Decomposes OnlineSoftmaxDecomposition to a range of low-level operations.
+ * @brief Decomposes OnlineSoftmax to a range of low-level operations.
  * @ingroup snippets
+ * scheme:
+ * Decompose OnlineSoftmax to below subgraph:
+ *  -----------Input
+ *  |            |
+ *  |        ReduceMax
+ *  |            |
+ *  |    OnlineSoftmaxUpdateMax
+ *  |            |         |
+ *  ----------Subtract     |
+ *               |         |
+ *  ------------Exp       Exp
+ *  |            |         |
+ *  |        ReduceSum     |
+ *  |            |         |
+ *  |    OnlineSoftmaxUpdateSum
+ *  |            |\      |
+ *  |            | \     |
+ *  |            |  \    |
+ *  |            |   \   |
+ *  |          Power Divide
+ *  |            |      |
+ *  ----------Multiply  Result1
+ *               |
+ *            Result0
  */
 class OnlineSoftmaxDecomposition : public ov::pass::MatcherPass {
 public:

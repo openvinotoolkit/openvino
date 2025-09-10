@@ -31,7 +31,7 @@ class OnlineSoftmaxUpdateSum : public ov::op::Op {
 public:
     OPENVINO_OP("OnlineSoftmaxUpdateSum", "SnippetsOpset");
 
-    explicit OnlineSoftmaxUpdateSum(const Output<Node>& A, const Output<Node>& B);
+    explicit OnlineSoftmaxUpdateSum(const Output<Node>& sum_local, const Output<Node>& coeff);
     OnlineSoftmaxUpdateSum() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

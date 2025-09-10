@@ -13,7 +13,7 @@
 
 namespace ov::snippets::op {
 
-OnlineSoftmaxUpdateMax::OnlineSoftmaxUpdateMax(const Output<Node>& x) : Op({x}) {
+OnlineSoftmaxUpdateMax::OnlineSoftmaxUpdateMax(const Output<Node>& max_local) : Op({max_local}) {
     constructor_validate_and_infer_types();
 }
 
