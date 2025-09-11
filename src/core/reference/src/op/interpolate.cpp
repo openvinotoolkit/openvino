@@ -120,6 +120,8 @@ Coordinate InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordi
 InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_info_for_generic_linear_onnx() {
     InfoForGenericLinearONNXMode result;
 
+    OPENVINO_DEBUG_ASSERT(m_input_data_shape.size() <= 5 && m_out_shape.size() <= 5,
+                          "The maximum supported dimension is 5.");
     Shape input_shape(5, 1);
     Shape output_shape(5, 1);
 
