@@ -230,10 +230,9 @@ public:
         auto split_p = pattern::wrap_type<ov::op::v1::Split>();
         split_p->set_output_size(3);
         // Concat can take split outputs in any order
-        OutputVector split_outputs{split_p->output(0), split_p->output(1), split_p->output(2)};
-        auto split_out_any1 = std::make_shared<pattern::op::Or>(split_outputs);
-        auto split_out_any2 = std::make_shared<pattern::op::Or>(split_outputs);
-        auto split_out_any3 = std::make_shared<pattern::op::Or>(split_outputs);
+        auto split_out_any1 = std::make_shared<pattern::op::Or>(split_p->outputs());
+        auto split_out_any2 = std::make_shared<pattern::op::Or>(split_p->outputs());
+        auto split_out_any3 = std::make_shared<pattern::op::Or>(split_p->outputs());
         auto pattern_root = pattern::wrap_type<ov::op::v0::Concat>({split_out_any1, split_out_any2, split_out_any3});
 
         auto callback = [=, &nodes_to_fuse](pattern::Matcher& m) {
@@ -651,10 +650,9 @@ public:
         auto split_p = pattern::wrap_type<ov::op::v1::Split>({input_p, pattern::any_input()});
         split_p->set_output_size(3);
         // Concat can take split outputs in any order
-        OutputVector split_outputs{split_p->output(0), split_p->output(1), split_p->output(2)};
-        auto split_out_any1 = std::make_shared<pattern::op::Or>(split_outputs);
-        auto split_out_any2 = std::make_shared<pattern::op::Or>(split_outputs);
-        auto split_out_any3 = std::make_shared<pattern::op::Or>(split_outputs);
+        auto split_out_any1 = std::make_shared<pattern::op::Or>(split_p->outputs());
+        auto split_out_any2 = std::make_shared<pattern::op::Or>(split_p->outputs());
+        auto split_out_any3 = std::make_shared<pattern::op::Or>(split_p->outputs());
         auto pattern_root =
             pattern::wrap_type<ov::op::v0::Concat>({split_out_any1, split_out_any2, split_out_any3}, need_to_erase_ric);
 

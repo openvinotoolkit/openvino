@@ -82,10 +82,9 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     auto sigmoid = wrap_type<ov::op::v0::Sigmoid>({add_1});
     auto split = wrap_type<ov::op::v1::Split>({sigmoid, any_input()});
     split->set_output_size(2);
-    // Split outputs can be at either index - create OutputVector for reuse
-    OutputVector split_outputs{split->output(0), split->output(1)};
-    auto split_out_any = make_shared<pattern::op::Or>(split_outputs);
-    auto split_out_any2 = make_shared<pattern::op::Or>(split_outputs);
+    // Split outputs can be at either index
+    auto split_out_any = make_shared<pattern::op::Or>(split->outputs());
+    auto split_out_any2 = make_shared<pattern::op::Or>(split->outputs());
     auto multiply = wrap_type<ov::op::v1::Multiply>({split_out_any, any_input()});
 
     auto concat_2 = wrap_type<ov::op::v0::Concat>({any_input(), multiply});

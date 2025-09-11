@@ -146,8 +146,7 @@ TEST(pattern_output_index, pattern_or_for_flexible_matching) {
     // Pattern that can match any output using Or - this is how to achieve flexible matching
     auto pattern_split = pattern::wrap_type<op::v1::Split>();
     pattern_split->set_output_size(3);  // Pattern node needs to know it has 3 outputs
-    auto any_output = std::make_shared<pattern::op::Or>(
-        OutputVector{pattern_split->output(0), pattern_split->output(1), pattern_split->output(2)});
+    auto any_output = std::make_shared<pattern::op::Or>(pattern_split->outputs());
     auto pattern_relu = pattern::wrap_type<op::v0::Relu>({any_output});
 
     pattern::Matcher matcher(pattern_relu);
