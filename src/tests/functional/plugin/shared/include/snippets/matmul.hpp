@@ -36,7 +36,7 @@ protected:
 class MatMul : public testing::WithParamInterface<ov::test::snippets::MatMulParams>,
                virtual public MatMulBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MatMulParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MatMulParams>& obj);
 
 protected:
     void SetUp() override;
