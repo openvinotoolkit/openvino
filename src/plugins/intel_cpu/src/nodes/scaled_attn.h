@@ -15,6 +15,7 @@
 #include "graph_context.h"
 #include "memory_state.h"
 #include "node.h"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
@@ -93,6 +94,7 @@ private:
                              MemoryPtr beam_input,
                              const PlainTensor& k_scale_zp,
                              const PlainTensor& v_scale_zp) = 0;
+        [[nodiscard]] virtual impl_desc_type implType() const = 0;
         virtual ~Executor() = default;
     };
 
