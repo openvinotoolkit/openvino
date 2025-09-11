@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -28,9 +29,20 @@ namespace ov::intel_cpu {
 // @todo another option is to determine shape relation by executor type
 enum class ShapeTolerance : uint8_t { Agnostic, Dependant };
 
-enum class ExecutorType : uint8_t { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, jit_aarch64, Shl, Kleidiai };
+enum class ExecutorType : uint8_t {
+    Undefined,
+    Reference,
+    Graph,
+    Common,
+    Jit,
+    Dnnl,
+    Acl,
+    Mlas,
+    Shl,
+    Kleidiai,
+};
 
-enum class OperationType : uint8_t { FullyConnected, MatMul, Convolution };
+enum class OperationType : uint8_t { FullyConnected, MatMul, Convolution, Eltwise };
 
 std::string ExecutorTypeToString(ExecutorType type);
 ExecutorType ExecutorTypeFromString(const std::string& typeStr);
@@ -96,7 +108,7 @@ private:
 
 class ExecutorFactoryLegacy {
 public:
-    ExecutorFactoryLegacy(ExecutorContext::CPtr context) : context(std::move(context)) {}
+    explicit ExecutorFactoryLegacy(ExecutorContext::CPtr context) : context(std::move(context)) {}
     virtual ~ExecutorFactoryLegacy() = default;
 
     const ExecutorContext::CPtr context;

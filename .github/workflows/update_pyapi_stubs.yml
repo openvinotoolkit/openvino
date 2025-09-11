@@ -1,8 +1,6 @@
 name: Update Python API Stubs
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: read-all
 
 on:
   schedule:
@@ -12,6 +10,10 @@ on:
 jobs:
   update-stubs:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    if: github.repository == 'openvinotoolkit/openvino'
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2

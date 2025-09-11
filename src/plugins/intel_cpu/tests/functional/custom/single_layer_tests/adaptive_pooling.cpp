@@ -30,19 +30,10 @@ class AdaPoolLayerCPUTest : public testing::WithParamInterface<AdaPoolLayerCPUTe
                             virtual public SubgraphBaseTest,
                             public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<AdaPoolLayerCPUTestParamsSet> obj) {
-        AdaPoolLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        std::string td;
-        ElementType netPr;
-        bool isStatic;
-        AdaPoolSpecificParams adaPar;
-        std::vector<int> pooledSpatialShape;
-        std::vector<InputShape> inputShape;
-        std::string mode;
-        std::tie(adaPar, mode, isStatic, netPr, td) = basicParamsSet;
-        std::tie(pooledSpatialShape, inputShape) = adaPar;
+    static std::string getTestCaseName(const testing::TestParamInfo<AdaPoolLayerCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [adaPar, mode, isStatic, netPr, td] = basicParamsSet;
+        const auto& [pooledSpatialShape, inputShape] = adaPar;
         std::ostringstream result;
         result << "AdaPoolTest_";
         result << "IS=(";
@@ -65,18 +56,13 @@ public:
 
 protected:
     void SetUp() override {
-        AdaPoolLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        AdaPoolSpecificParams adaPoolParams;
-        ElementType netPrecision;
-        bool isStatic;
-        std::vector<InputShape> inputShape;
-        std::tie(adaPoolParams, mode, isStatic, netPrecision, targetDevice) = basicParamsSet;
-        std::tie(pooledVector, inputShape) = adaPoolParams;
-
+        const auto& [adaPoolParams, _mode, isStatic, netPrecision, _targetDevice] = basicParamsSet;
+        mode = _mode;
+        targetDevice = _targetDevice;
+        const auto& [_pooledVector, inputShape] = adaPoolParams;
+        pooledVector = _pooledVector;
         init_input_shapes(inputShape);
         if (!isStatic) {
             for (auto& target : targetStaticShapes) {

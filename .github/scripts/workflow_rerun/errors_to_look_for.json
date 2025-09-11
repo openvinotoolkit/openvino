@@ -134,5 +134,17 @@
     {
         "error_text": "THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE",
         "ticket": 163749
+    },
+    {
+        "error_text": "OperationStopped:",
+        "ticket": 171334
+    },
+    {
+        "error_text": "No connection could be made",
+        "ticket": 171953
+    },
+    {
+        "error_text": "connect: connection refused",
+        "ticket": 171446
     }
 ]

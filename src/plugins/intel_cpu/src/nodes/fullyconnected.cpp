@@ -191,7 +191,7 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         }
 
         if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined) {
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic) {
             return false;
         }
     } catch (...) {
@@ -255,7 +255,7 @@ bool FullyConnected::canBeExecutedInInt8() const {
     auto srcType = getOriginalInputPrecisionAtPort(0);
     auto weiType = getOriginalInputPrecisionAtPort(1);
 
-    return one_of(srcType, ov::element::u8, ov::element::i8) && weiType == ov::element::i8;
+    return any_of(srcType, ov::element::u8, ov::element::i8) && weiType == ov::element::i8;
 }
 
 void FullyConnected::needPrepareParamsForTensorParallel() {
@@ -528,7 +528,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
     }
 
     const auto weightsType = weiMemory->getPrecision();
-    if (!one_of(inputType, u8, i8) || weightsType != i8) {
+    if (none_of(inputType, u8, i8) || weightsType != i8) {
         return false;
     }
 
@@ -611,7 +611,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     nodeConfig.inConfs.resize(srcDescs.size());
     for (const auto& desc : nodeDescriptors) {
         if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
-            nodeConfig.inConfs[it->second] = desc.second;
+            nodeConfig.inConfs[it->second] = PortConfig(desc.second);
         }
     }
 
@@ -619,7 +619,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     // @todo pass all the input descriptors to getProperMemoryDescriptors and allow
     // to ignore extra input descriptors if necessery
     for (size_t i = 3; i < srcDescs.size(); i++) {
-        nodeConfig.inConfs[i] = srcDescs[i];
+        nodeConfig.inConfs[i] = PortConfig(srcDescs[i]);
     }
 
     const int inPlace = canBeInPlace() ? 0 : -1;

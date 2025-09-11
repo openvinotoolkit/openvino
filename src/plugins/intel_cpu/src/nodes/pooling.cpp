@@ -180,8 +180,9 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
                                        const ov::op::v8::MaxPool,
                                        const ov::op::v14::MaxPool,
                                        const ov::op::v1::AvgPool,
-                                       const ov::op::v14::AvgPool>(op)) {
-            errorMessage = "Supported ops are MaxPool-1, MaxPool-8, MaxPool-14, AvgPool-1 and AvgPool-14";
+                                       const ov::op::v14::AvgPool,
+                                       const ov::op::v16::AvgPool>(op)) {
+            errorMessage = "Supported ops are MaxPool-1, MaxPool-8, MaxPool-14, AvgPool-1 AvgPool-14 and AvgPool-16";
             return false;
         }
 #if defined(OV_CPU_WITH_ACL)
@@ -222,8 +223,8 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         get_attributes(poolingAttrs.kernel, maxPoolOpBase->get_kernel());
         get_attributes(poolingAttrs.data_pad_begin, maxPoolOpBase->get_pads_begin());
         get_attributes(poolingAttrs.data_pad_end, maxPoolOpBase->get_pads_end());
-        poolingAttrs.auto_pad = (poolingAttrs.pad_type == ov::op::PadType::SAME_LOWER ||
-                                 poolingAttrs.pad_type == ov::op::PadType::SAME_UPPER);
+        poolingAttrs.auto_pad =
+            (any_of(poolingAttrs.pad_type, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER));
     }
 
     if (auto maxPoolOp_v14 = ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
@@ -238,13 +239,17 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         algorithm = Algorithm::PoolingAvg;
         poolingAttrs.exclude_pad = avgPoolOpBase->get_exclude_pad();
         poolingAttrs.rounding = avgPoolOpBase->get_rounding_type();
-        get_attributes(poolingAttrs.stride, avgPoolOpBase->get_strides());
         get_attributes(poolingAttrs.kernel, avgPoolOpBase->get_kernel());
+        get_attributes(poolingAttrs.stride, avgPoolOpBase->get_strides());
+        if (auto avgPoolV16 = ov::as_type_ptr<const ov::op::v16::AvgPool>(op)) {
+            get_attributes(poolingAttrs.dilation, avgPoolV16->get_dilations());
+        } else {
+            poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
+        }
         get_attributes(poolingAttrs.data_pad_begin, avgPoolOpBase->get_pads_begin());
         get_attributes(poolingAttrs.data_pad_end, avgPoolOpBase->get_pads_end());
-        poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
-        poolingAttrs.auto_pad = (avgPoolOpBase->get_auto_pad() == ov::op::PadType::SAME_LOWER ||
-                                 avgPoolOpBase->get_auto_pad() == ov::op::PadType::SAME_UPPER);
+        poolingAttrs.auto_pad =
+            (any_of(avgPoolOpBase->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER));
     }
     poolingAttrs.algorithm = algorithm;
 }
@@ -365,7 +370,7 @@ void Pooling::getSupportedDescriptors() {
 
     // WA: LPT transformation has WA which allows average pooling has I8/U8 output precision instead of FP32,
     // so we explicitly set output precision as FP32
-    if (!one_of(outputPrecision, ov::element::i8, ov::element::bf16, ov::element::f16)) {
+    if (none_of(outputPrecision, ov::element::i8, ov::element::bf16, ov::element::f16)) {
         if (getAlgorithm() == Algorithm::PoolingMax) {
             // oneDNN supports only equal precisions for input and output
             outputPrecision = inputPrecision;
@@ -373,7 +378,7 @@ void Pooling::getSupportedDescriptors() {
             outputPrecision = ov::element::f32;
         }
     }
-    if (one_of(inputPrecision, ov::element::bf16, ov::element::f16)) {
+    if (any_of(inputPrecision, ov::element::bf16, ov::element::f16)) {
         outputPrecision = inputPrecision;
     }
 
@@ -389,9 +394,9 @@ void Pooling::getSupportedDescriptors() {
 
     initEffectiveAttributes(inShape, MemoryDescUtils::makeDummyShape(childShape));
 
-    if (inputPrecision == ov::element::i8 || inputPrecision == ov::element::u8) {
+    if (any_of(inputPrecision, ov::element::i8, ov::element::u8)) {
         //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
-        if (one_of(outputDataType, memory::data_type::bf16, memory::data_type::f16)) {
+        if (any_of(outputDataType, memory::data_type::bf16, memory::data_type::f16)) {
             outputDataType = memory::data_type::f32;
         }
         // i8 layers supports only ndhwc and nhwc layouts
@@ -417,7 +422,7 @@ void Pooling::getSupportedDescriptors() {
             return std::make_pair(in_candidate, out_candidate);
         }();
         createDescriptor({in_candidate}, {out_candidate});
-    } else if ((inputRank == 3 || inputRank == 4 || inputRank == 5) && parentShape.getDims()[1] == 1) {
+    } else if ((any_of(inputRank, 3U, 4U, 5U)) && parentShape.getDims()[1] == 1) {
         // WA. We should force planar layout since it provides better performance
         auto [in_candidate, out_candidate] = [&]() {
             std::shared_ptr<DnnlBlockedMemoryDesc> in_candidate;
@@ -442,7 +447,7 @@ void Pooling::getSupportedDescriptors() {
         }();
         createDescriptor({in_candidate}, {out_candidate});
     } else {
-        if (!one_of(inputDataType, memory::data_type::bf16, memory::data_type::f16)) {
+        if (none_of(inputDataType, memory::data_type::bf16, memory::data_type::f16)) {
             inputDataType = memory::data_type::f32;
             outputDataType = memory::data_type::f32;
         }

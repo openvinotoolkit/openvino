@@ -117,7 +117,7 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz, bool bf16sat
 Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
     : m_eng(std::move(eng)),
       m_pMemDesc(std::move(desc)),
-      m_blockHandle(std::make_shared<DnnlMemoryBlock>(make_unique<MemoryBlockWithReuse>()), this),
+      m_blockHandle(std::make_shared<DnnlMemoryBlock>(std::make_unique<MemoryBlockWithReuse>()), this),
       dnnlMemHandle(this) {
     OPENVINO_ASSERT(m_pMemDesc->getPrecision() != element::string,
                     "[CPU] Memory object cannot be created for string data.");
@@ -680,7 +680,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
     }
 
     auto* srcPtr = static_cast<uint8_t*>(src->getData());
-    if (prec == ov::element::u4 || prec == ov::element::i4) {
+    if (any_of(prec, ov::element::u4, ov::element::i4)) {
         stride /= 2;
     }
 
@@ -743,7 +743,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     // bytes of selected dim.
     auto strideSize = splited_dim_vec[0] * element_size;
     auto copySize = splited_dim_vec[w_rank] * element_size;
-    if (prec == ov::element::u4 || prec == ov::element::i4) {
+    if (any_of(prec, ov::element::u4, ov::element::i4)) {
         strideSize /= 2;
         copySize /= 2;
     }

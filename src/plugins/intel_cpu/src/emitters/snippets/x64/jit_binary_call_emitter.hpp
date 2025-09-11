@@ -22,7 +22,7 @@ namespace ov::intel_cpu {
  * alignment before the call. It also creates a set of registers to spill that can be passed directly to
  * EmitABIRegSpills.
  */
-class jit_binary_call_emitter : public jit_emitter {
+class jit_binary_call_emitter : public virtual jit_emitter {
 public:
     jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                             dnnl::impl::cpu::x64::cpu_isa_t isa,
