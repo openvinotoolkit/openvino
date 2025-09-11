@@ -21,7 +21,6 @@ class TRANSFORMATIONS_API RoPEFusionIOSlicing;
 class TRANSFORMATIONS_API RoPEFusionPreprocess;
 class TRANSFORMATIONS_API RoPEFusionCosSinPreprocess;
 class TRANSFORMATIONS_API RoPEShareCosSin;
-class TRANSFORMATIONS_API RoPEFusionVIT3D;
 
 }  // namespace pass
 }  // namespace ov
@@ -78,12 +77,6 @@ class ov::pass::RoPEFusionCosSinPreprocess : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionCosSinPreprocess");
     RoPEFusionCosSinPreprocess();
-};
-
-class ov::pass::RoPEFusionVIT3D : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionVIT3D");
-    RoPEFusionVIT3D();
 };
 
 class ov::pass::RoPEShareCosSin : public ov::pass::MatcherPass {
