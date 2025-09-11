@@ -1204,7 +1204,7 @@ void Transformations::MainSnippets() {
     // - 2 (SP, X29) stack related registers
     // - 3 (X_TMP_0, X_TMP_1, X_DEFAULT_ADDR) registers for temporary use
     size_t available_gprs_count = 25;
-    SnippetsTokenizationConfig::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
+    TokenizeMLPSeqSnippets::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #elif defined(OPENVINO_ARCH_X86_64)
     // X64 has 16 gprs, but the following registers should be excluded from available registers:
     // - abi_param1: used for runtime parameters
@@ -1226,7 +1226,7 @@ void Transformations::MainSnippets() {
     };
 #else
     size_t available_gprs_count = 0;
-    SnippetsTokenizationConfig::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
+    TokenizeMLPSeqSnippets::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
