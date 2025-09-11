@@ -1151,6 +1151,7 @@ void Transformations::PostLpt() {
 }
 
 void Transformations::MainSnippets() {
+    using namespace snippets::pass;
 // Disable MainSnippets for int8 models on arm platforms due to performance issues
 // Ticket: 163408
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
@@ -1203,7 +1204,7 @@ void Transformations::MainSnippets() {
     // - 2 (SP, X29) stack related registers
     // - 3 (X_TMP_0, X_TMP_1, X_DEFAULT_ADDR) registers for temporary use
     size_t available_gprs_count = 25;
-    snippets::pass::SnippetsTokenizationConfig::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
+    SnippetsTokenizationConfig::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #elif defined(OPENVINO_ARCH_X86_64)
     // X64 has 16 gprs, but the following registers should be excluded from available registers:
     // - abi_param1: used for runtime parameters
@@ -1225,7 +1226,7 @@ void Transformations::MainSnippets() {
     };
 #else
     size_t available_gprs_count = 0;
-    snippets::pass::SnippetsTokenizationConfig::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
+    SnippetsTokenizationConfig::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
@@ -1233,13 +1234,13 @@ void Transformations::MainSnippets() {
     bool split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = {4};
-    snippets::pass::TokenizationConfig tokenization_config(available_gprs_count);
-    snippets::pass::CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
-    snippets::pass::TokenizeMHASnippets::Config mha_config(available_gprs_count,
+    TokenizationConfig tokenization_config(available_gprs_count);
+    CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
+    TokenizeMHASnippets::Config mha_config(available_gprs_count,
                                                            mha_token_enable_transpose_on_output,
                                                            is_dynamic_mha_token_enabled,
                                                            mha_supported_transpose_ranks);
-    snippets::pass::TokenizeMLPSeqSnippets::Config mlp_seq_config(available_gprs_count, supported_as_postop);
+    TokenizeMLPSeqSnippets::Config mlp_seq_config(available_gprs_count, supported_as_postop);
 
     ov::pass::Manager snippetsManager("CPU:Snippets");
     snippetsManager.set_per_pass_validation(false);
@@ -1247,10 +1248,10 @@ void Transformations::MainSnippets() {
     if (!ignoreCallback) {
         CPU_REGISTER_PASS_ARM64(snippetsManager, SnippetsMarkSkipped);
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, config.inferencePrecision == ov::element::bf16);
-        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
-        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeGatedMLPSnippets);
+        CPU_DISABLE_PASS_COMMON(snippetsManager, TokenizeFCSnippets);
+        CPU_DISABLE_PASS_COMMON(snippetsManager, TokenizeGatedMLPSnippets);
     }
-    CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config, common_optimizations_config, mha_config, mlp_seq_config);
+    CPU_REGISTER_PASS_COMMON(snippetsManager, SnippetsTokenization, tokenization_config, common_optimizations_config, mha_config, mlp_seq_config);
 
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     // Currently, Snippets don't provide efficient execution for single token inference in LLM case.
@@ -1280,8 +1281,8 @@ void Transformations::MainSnippets() {
 #endif
 
     if (!isMHASupported) {
-        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMHASnippets);
-        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
+        CPU_DISABLE_PASS_COMMON(snippetsManager, TokenizeMHASnippets);
+        CPU_DISABLE_PASS_COMMON(snippetsManager, ExtractReshapesFromMHA);
     }
 
 #if !defined(SNIPPETS_LIBXSMM_TPP) && defined(OPENVINO_ARCH_X86_64)
@@ -1295,7 +1296,7 @@ void Transformations::MainSnippets() {
 #endif
 
     if (!isMlpSeqSupported) {
-        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMLPSeqSnippets);
+        CPU_DISABLE_PASS_COMMON(snippetsManager, TokenizeMLPSeqSnippets);
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1337,7 +1338,7 @@ void Transformations::MainSnippets() {
         // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < common_optimizations_config.get_concurrency() &&
-            !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, common_optimizations_config.get_concurrency());
+            !SplitDimensionM::can_be_optimized(n, common_optimizations_config.get_concurrency());
         return is_unsupported_parallel_work_amount;
     };
 #endif  // OPENVINO_ARCH_X86_64
@@ -1476,7 +1477,7 @@ void Transformations::MainSnippets() {
                 const auto& pshape = child->get_input_partial_shape(0);
                 return is_unsupported_parallel_work_amount(n, pshape);
             },
-            snippets::pass::TokenizeMHASnippets);
+            TokenizeMHASnippets);
         CPU_SET_CALLBACK_X64(
             snippetsManager,
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {
@@ -1498,14 +1499,14 @@ void Transformations::MainSnippets() {
                     return true;
                 return output_shape[1].is_dynamic() || output_shape[1].get_length() > 256;
             },
-            snippets::pass::TokenizeMLPSeqSnippets);
+            TokenizeMLPSeqSnippets);
         CPU_SET_CALLBACK_X64(
             snippetsManager,
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {
                 return !is_supported_matmul(n) ||
                        is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0));
             },
-            snippets::pass::ExtractReshapesFromMHA);
+            ExtractReshapesFromMHA);
     }
 
     CPU_SET_CALLBACK_COMMON(
@@ -1526,7 +1527,7 @@ void Transformations::MainSnippets() {
                 return true;
             return !has_supported_tensors(n);
         },
-        snippets::pass::TokenizeSnippets);
+        TokenizeSnippets);
 
     auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
         [[maybe_unused]] const auto& inferencePrecision = config.inferencePrecision;
@@ -1574,7 +1575,7 @@ void Transformations::MainSnippets() {
         [&mm_supports_transpose_b](const std::shared_ptr<const ov::Node>& n) -> bool {
             return mm_supports_transpose_b(n);
         },
-        snippets::pass::ExplicitTransposeMatMulInputs);
+        ExplicitTransposeMatMulInputs);
 
     snippetsManager.run_passes(model);
 }
