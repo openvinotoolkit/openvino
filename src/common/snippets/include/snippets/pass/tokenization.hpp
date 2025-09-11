@@ -19,6 +19,7 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/base_tokenization_config.hpp"
 #include "snippets/pass/common_optimizations.hpp"
+#include "snippets/pass/mha_tokenization.hpp"
 
 namespace ov::snippets::pass {
 
@@ -82,27 +83,9 @@ public:
                                                           const std::shared_ptr<const ov::Node>&)>;
 
         Config(size_t available_gprs_count,
-               bool enable_transpose_on_output,
-               bool dyn_mha_token,
-               std::set<size_t> mha_transpose_ranks,
                CanBeFusedAsPostOpPred can_be_fused_as_postop = nullptr)
             : BaseTokenizationConfig(available_gprs_count),
-              m_mha_token_enable_transpose_on_output(enable_transpose_on_output),
-              m_is_dynamic_mha_token_enabled(dyn_mha_token),
-              m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)),
               m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {
-        }
-
-        [[nodiscard]] bool get_mha_token_enable_transpose_on_output() const {
-            return m_mha_token_enable_transpose_on_output;
-        }
-
-        [[nodiscard]] bool is_dynamic_mha_token_enabled() const {
-            return m_is_dynamic_mha_token_enabled;
-        }
-
-        [[nodiscard]] std::set<size_t> get_mha_supported_transpose_ranks() const {
-            return m_mha_supported_transpose_ranks;
         }
 
         [[nodiscard]] const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
@@ -110,30 +93,19 @@ public:
         }
 
     private:
-        // False if Transpose on output isn't tokenized in MHA Tokenization.
-        // Otherwise, it may be fused into Subgraph if possible
-        // TODO [111813]: Remove please when the ticket 111813 is implemented
-        bool m_mha_token_enable_transpose_on_output = true;
-        // If True, MHA pattern with dynamic nodes will be tokenized
-        // Otherwise dynamic MHA won't be tokenized
-        // Currently, the flag can be set to `True` only for testing purposes.
-        bool m_is_dynamic_mha_token_enabled = true;
-        // Set of supported Transpose shape ranks for tokenization in MHATokenization pass.
-        // Note that in general Snippets support Transpose of any ranks.
-        // But at the moment Transpose is used only in MHA pattern where 3D and 4D tensors are supported.
-        std::set<size_t> m_mha_supported_transpose_ranks = {3, 4};
         // Predicate that checks if the node can be fused as MatMul post-op.
         // It is currently used only in TokenizeMLPSeqSnippets
         CanBeFusedAsPostOpPred m_can_be_fused_as_postop = nullptr;
     };
 
-    explicit SnippetsTokenization(Config config, CommonOptimizations::Config common_config) 
-        : m_config(std::move(config)), m_common_config(std::move(common_config)) {}
+    explicit SnippetsTokenization(Config config, CommonOptimizations::Config common_config, TokenizeMHASnippets::Config mha_config) 
+        : m_config(std::move(config)), m_common_config(std::move(common_config)), m_mha_config(std::move(mha_config)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     Config m_config;
     CommonOptimizations::Config m_common_config;
+    TokenizeMHASnippets::Config m_mha_config;
 };
 
 }  // namespace ov::snippets::pass

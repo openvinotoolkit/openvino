@@ -238,7 +238,7 @@ bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::sh
     return matmul_prc != element::dynamic;
 }
 
-ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsTokenization::Config& config) {
+ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& config) {
     MATCHER_SCOPE(TokenizeMHASnippets);
 
     auto m_matmul0 =
