@@ -763,419 +763,117 @@ bool network::has_event(const primitive_id& id) const {
 void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
 
-    if (_is_dynamic) {
-        // Subgraph structure to hold primitives and type information
-        struct Subgraph {
-            std::vector<std::shared_ptr<primitive_inst>> primitives;
-            bool is_dynamic;
-
-            Subgraph(std::vector<std::shared_ptr<primitive_inst>>&& prims, bool dynamic)
-                : primitives(std::move(prims)), is_dynamic(dynamic) {}
-        };
-/*
-        // Subgraph partitioning for dynamic models with range operations
-        std::set<std::shared_ptr<primitive_inst>> dynamic_primitives;
-        auto partition_subgraphs = [&]() -> std::vector<Subgraph> {
-            GPU_DEBUG_COUT << "=== Partitioning Dynamic Subgraphs ===" << std::endl;
-
-            // Find all range primitives and their dependencies            // Step 1: Find range primitives
-            for (auto& inst : _exec_order) {
-                if (inst->get_node().is_type<range>()) {
-                    dynamic_primitives.insert(inst);
-                    GPU_DEBUG_COUT << "Found range primitive: " << inst->id() << std::endl;
-                }
-            }
-
-            if (dynamic_primitives.empty()) {
-                GPU_DEBUG_COUT << "No range primitives found" << std::endl;
-                return {};
-            }
-
-            // Step 2: Build dependency map for forward traversal
-            std::map<primitive_id, std::set<std::shared_ptr<primitive_inst>>> dependents;
-            for (auto& inst : _exec_order) {
-                for (auto& dep : inst->dependencies()) {
-                    dependents[dep.first->id()].insert(inst);
-                }
-            }
-
-            // Step 3: Mark primitives that feed into range operations as dynamic
-            std::function<void(std::shared_ptr<primitive_inst>)> mark_upstream_dynamic =
-                [&](std::shared_ptr<primitive_inst> inst) {
-                    for (auto& dep : inst->dependencies()) {
-                        auto dep_shared = get_primitive(dep.first->id());
-                        if (dynamic_primitives.find(dep_shared) == dynamic_primitives.end()) {
-                            // Mark shape-dependent operations as dynamic
-                            if (dep_shared->get_node().is_type<shape_of>() ||
-                                dep_shared->get_node().is_type<gather>()) {
-                                dynamic_primitives.insert(dep_shared);
-                                GPU_DEBUG_COUT << "Marked upstream dynamic: " << dep_shared->id()
-                                                       << " (type: " << dep_shared->get_node().get_primitive()->type_string() << ")" << std::endl;
-                                mark_upstream_dynamic(dep_shared);
-                            }
-                        }
-                    }
-                };
-
-            // Step 4: Mark primitives that depend on range operations as dynamic (with iterative propagation)
-            std::function<void(std::shared_ptr<primitive_inst>)> mark_downstream_dynamic =
-                [&](std::shared_ptr<primitive_inst> inst) {
-                    if (dependents.find(inst->id()) != dependents.end()) {
-                        for (auto& dependent : dependents[inst->id()]) {
-                            if (dynamic_primitives.find(dependent) == dynamic_primitives.end()) {
-                                dynamic_primitives.insert(dependent);
-                                GPU_DEBUG_COUT << "Marked downstream dynamic: " << dependent->id()
-                                                       << " (type: " << dependent->get_node().get_primitive()->type_string()
-                                                       << ") <- depends on " << inst->id() << std::endl;
-                                mark_downstream_dynamic(dependent);
-                            }
-                        }
-                    }
-                };
-
-            // Apply marking for all range primitives
-            for (auto& range_inst : dynamic_primitives) {
-                if (range_inst->get_node().is_type<range>()) {
-                    mark_upstream_dynamic(range_inst);
-                    mark_downstream_dynamic(range_inst);
-                }
-            }
-
-            // Step 4.5: Additional propagation pass - mark any primitive that depends on dynamic data as dynamic
-            bool changed = true;
-            int iteration = 0;
-            while (changed && iteration < 10) { // Limit iterations to prevent infinite loop
-                changed = false;
-                iteration++;
-                GPU_DEBUG_COUT << "Dynamic propagation iteration " << iteration << std::endl;
-
-                for (auto& inst : _exec_order) {
-                    if (dynamic_primitives.find(inst) == dynamic_primitives.end()) {
-                        // Check if this primitive depends on any dynamic primitive
-                        bool has_dynamic_dependency = false;
-                        for (auto& dep : inst->dependencies()) {
-                            auto dep_shared = get_primitive(dep.first->id());
-                            if (dynamic_primitives.find(dep_shared) != dynamic_primitives.end()) {
-                                has_dynamic_dependency = true;
-                                break;
-                            }
-                        }
-
-                        if (has_dynamic_dependency) {
-                            dynamic_primitives.insert(inst);
-                            GPU_DEBUG_COUT << "Iteration " << iteration << " - Marked dynamic: " << inst->id()
-                                                   << " (type: " << inst->get_node().get_primitive()->type_string()
-                                                   << ") <- has dynamic dependency" << std::endl;
-                            changed = true;
-                        }
-                    }
-                }
-            }
-
-            // Step 5: Create execution subgraphs maintaining order
-            std::vector<Subgraph> subgraphs;
-            std::vector<std::shared_ptr<primitive_inst>> current_subgraph;
-            bool current_is_dynamic = false;
-
-            for (auto& inst : _exec_order) {
-                bool is_dynamic = (dynamic_primitives.find(inst) != dynamic_primitives.end());
-
-                if (current_subgraph.empty()) {
-                    // Start new subgraph
-                    current_subgraph.push_back(inst);
-                    current_is_dynamic = is_dynamic;
-                } else if (current_is_dynamic == is_dynamic) {
-                    // Continue current subgraph
-                    current_subgraph.push_back(inst);
-                } else {
-                    // Switch subgraph type - save current and start new
-                    subgraphs.emplace_back(std::move(current_subgraph), current_is_dynamic);
-                    current_subgraph.clear();
-                    current_subgraph.push_back(inst);
-                    current_is_dynamic = is_dynamic;
-                }
-            }
-
-            // Don't forget the last subgraph
-            if (!current_subgraph.empty()) {
-                subgraphs.emplace_back(std::move(current_subgraph), current_is_dynamic);
-            }
-
-            // Step 6: Log subgraph information and verify completeness
-            GPU_DEBUG_COUT << "=== Subgraph Summary ===" << std::endl;
-            size_t total_primitives_in_subgraphs = 0;
-            for (size_t i = 0; i < subgraphs.size(); ++i) {
-                GPU_DEBUG_COUT << "Subgraph " << i << ": " << subgraphs[i].primitives.size()
-                                       << " primitives (" << (subgraphs[i].is_dynamic ? "DYNAMIC" : "STATIC") << ")" << std::endl;
-                total_primitives_in_subgraphs += subgraphs[i].primitives.size();
-            }
-
-            // Verify all primitives are included in subgraphs
-            size_t total_exec_order = _exec_order.size();
-            GPU_DEBUG_COUT << "Total primitives in execution order: " << total_exec_order << std::endl;
-            GPU_DEBUG_COUT << "Total primitives in subgraphs: " << total_primitives_in_subgraphs << std::endl;
-
-            if (total_primitives_in_subgraphs != total_exec_order) {
-                GPU_DEBUG_COUT << "WARNING: Mismatch in primitive counts! Missing "
-                                       << (total_exec_order - total_primitives_in_subgraphs) << " primitives" << std::endl;
-            } else {
-                GPU_DEBUG_COUT << "SUCCESS: All primitives are included in subgraphs" << std::endl;
-            }
-
-            // Step 7: Verify subgraph dependencies
-            GPU_DEBUG_COUT << "=== Verifying Subgraph Dependencies ===" << std::endl;
-            for (size_t i = 0; i < subgraphs.size(); ++i) {
-                std::set<primitive_id> current_subgraph_ids;
-                for (auto& inst : subgraphs[i].primitives) {
-                    current_subgraph_ids.insert(inst->id());
-                }
-
-                // Check if any primitive in current subgraph depends on primitives from later subgraphs
-                for (auto& inst : subgraphs[i].primitives) {
-                    for (auto& dep : inst->dependencies()) {
-                        if (current_subgraph_ids.find(dep.first->id()) == current_subgraph_ids.end()) {
-                            // Dependency is outside current subgraph - check if it's in a later subgraph
-                            bool found_in_later_subgraph = false;
-                            for (size_t j = i + 1; j < subgraphs.size(); ++j) {
-                                for (auto& later_inst : subgraphs[j].primitives) {
-                                    if (later_inst->id() == dep.first->id()) {
-                                        GPU_DEBUG_COUT << "WARNING: Dependency violation! " << inst->id()
-                                                               << " in subgraph " << i << " depends on " << dep.first->id()
-                                                               << " in later subgraph " << j << std::endl;
-                                        found_in_later_subgraph = true;
-                                        break;
-                                    }
-                                }
-                                if (found_in_later_subgraph) break;
-                            }
-                        }
-                    }
-                }
-            }
-            GPU_DEBUG_COUT << "=== Dependency Verification Complete ===" << std::endl;
-            GPU_DEBUG_COUT << "=========================" << std::endl;
-
-            return subgraphs;
-        };
-
-        // Execute partitioning and get subgraphs
-        auto subgraphs = partition_subgraphs();
-*/
-        std::vector<Subgraph> subgraphs;
-        bool has_range = false;
-
-        // Check DISABLE_POC environment variable first
-        const char* disable_poc_env = std::getenv("DISABLE_POC");
-        if (disable_poc_env && std::string(disable_poc_env) == "1") {
+    bool has_range = false;
+    const char* disable_poc_env = std::getenv("DISABLE_POC");
+    // Check for actual range primitives
+    for (auto& inst : _exec_order) {
+        if (inst->get_node().is_type<range>()) {
             has_range = true;
-        } else {
-            // Check for actual range primitives
-            for (auto& inst : _exec_order) {
-                if (inst->get_node().is_type<range>()) {
-                    has_range = true;
-                    break;
-                }
-            }
-            // has_range = false;
+            break;
         }
-        if (!subgraphs.empty()) {
-            GPU_DEBUG_COUT << "=== Executing Subgraphs ===" << std::endl;
+    }
 
-            // Execute subgraphs sequentially
-            for (size_t i = 0; i < subgraphs.size(); ++i) {
-                const auto& subgraph = subgraphs[i];
-                GPU_DEBUG_COUT << "Executing Subgraph " << i << " (" << subgraph.primitives.size()
-                              << " primitives, " << (subgraph.is_dynamic ? "DYNAMIC" : "STATIC") << ")" << std::endl;
-                if (subgraph.is_dynamic) {
-                    // Dynamic subgraph: Use simple execution (prepare_primitive includes everything)
-                    GPU_DEBUG_COUT << "Subgraph " << i << " (DYNAMIC): Using simple execution" << std::endl;
+    if (disable_poc_env && std::string(disable_poc_env) == "1") {
+        has_range = true;
+    }
 
-                    for (auto& inst : subgraph.primitives) {
-                        NODE_DEBUG(*inst);
-                        inst->reset_events();
+    if (_is_dynamic && !has_range) {
+        // Fallback to original execution if no subgraphs
+        // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
+        const bool needs_flushing = _is_dynamic;
+        const size_t flush_frequency = needs_flushing ? 16 : 0;
+        size_t executed_prims = 0;
 
-                        if (inst->is_input()) {
-                            inst->add_dep_events(events);
-                        }
+        // Phase 1: Process all primitives - execute shape-critical ones immediately
+        for (auto& inst : _exec_order) {
+            NODE_DEBUG(*inst);
+            inst->reset_events();
 
-                        inst->prepare_primitive();
-                        inst->execute();
-                    }
-                } else {
-                    // Static subgraph: Use advanced execution with deferred allocation
-                    GPU_DEBUG_COUT << "Subgraph " << i << " (STATIC): Using advanced execution with deferred allocation" << std::endl;
-
-                    // Phase 1: Prepare memory and handle immediate execution
-                    for (auto& inst : subgraph.primitives) {
-                        NODE_DEBUG(*inst);
-                        inst->reset_events();
-
-                        if (inst->is_input()) {
-                            inst->add_dep_events(events);
-                        }
-
-                        // Prepare memory and check if immediate execution is needed
-                        inst->prepare_memory_and_impl();
-
-                        if (inst->_execution_context.needs_immediate_execution) {
-                            // Execute immediately - these primitives don't need actual data content
-                            inst->prepare_execution();
-                            inst->execute();
-                            inst->_execution_context.execution_completed = true;
-                        }
-                    }
-
-                    // Phase 2: Handle deferred memory allocation for static subgraph
-                    std::vector<std::shared_ptr<primitive_inst>> subgraph_deferred;
-                    for (auto& inst : subgraph.primitives) {
-                        if (inst->_execution_context.is_deferred()) {
-                            subgraph_deferred.push_back(inst);
-                        }
-                    }
-
-                    // Sort and allocate deferred memory (largest memory first)
-                    std::sort(subgraph_deferred.begin(), subgraph_deferred.end(),
-                        [this](const std::shared_ptr<primitive_inst>& a, const std::shared_ptr<primitive_inst>& b) {
-                            auto a_layout = a->_execution_context.deferred_mem_infos[0].mem_layout;
-                            auto b_layout = b->_execution_context.deferred_mem_infos[0].mem_layout;
-                            if (a_layout.bytes_count() != b_layout.bytes_count()) {
-                                return a_layout.bytes_count() > b_layout.bytes_count();
-                            }
-                            return a->get_node().get_unique_id() < b->get_node().get_unique_id();
-                        });
-
-                    for (auto& inst : subgraph_deferred) {
-                        inst->allocate_deferred_outputs();
-                    }
-                    GPU_DEBUG_COUT << "Allocated " << subgraph_deferred.size() << " deferred memories" << std::endl;
-
-                    // Phase 3: Execute remaining primitives in static subgraph
-                    for (auto& inst : subgraph.primitives) {
-                        if (!inst->_execution_context.execution_completed) {
-                            inst->prepare_execution();
-                            inst->_execution_context.original_outputs.clear();
-                            inst->execute();
-                        }
-                    }
-                }
-
-                // Synchronize after each subgraph for proper dependency handling
-                get_stream().finish();
-                GPU_DEBUG_COUT << "Subgraph " << i << " completed" << std::endl;
+            if (inst->is_input()) {
+                inst->add_dep_events(events);
             }
 
-            GPU_DEBUG_COUT << "=== All Subgraphs Completed ===" << std::endl;
-        } else if (!has_range) {
-            // Fallback to original execution if no subgraphs
-            // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
-            const bool needs_flushing = _is_dynamic;
-            const size_t flush_frequency = needs_flushing ? 16 : 0;
-            size_t executed_prims = 0;
+            // Prepare memory and check if immediate execution is needed
+            inst->prepare_memory_and_impl();
 
-            // Phase 1: Process all primitives - execute shape-critical ones immediately
-            for (auto& inst : _exec_order) {
-                NODE_DEBUG(*inst);
-                inst->reset_events();
-
-                if (inst->is_input()) {
-                    inst->add_dep_events(events);
-                }
-
-                // Prepare memory and check if immediate execution is needed
-                inst->prepare_memory_and_impl();
-
-                if (inst->_execution_context.needs_immediate_execution) {
-                    // Execute immediately - these primitives don't need actual data content
-                    // GPU_DEBUG_COUT << inst->id() << std::endl;
-                    inst->prepare_execution();
-                    inst->execute();
-                    inst->_execution_context.execution_completed = true;
-                }
-            }
-            get_stream().flush();
-
-            // Create a vector of primitives with deferred memory and sort by largest memory size first
-            std::vector<std::shared_ptr<primitive_inst>> primitives_with_deferred;
-            for (auto& inst : _exec_order) {
-                if (inst->_execution_context.is_deferred()) {
-                    primitives_with_deferred.push_back(inst);
-                }
-            }
-
-            std::vector<std::pair<std::shared_ptr<primitive_inst>, size_t>> primitives_with_size;
-            primitives_with_size.reserve(primitives_with_deferred.size());
-
-            for (auto& inst : primitives_with_deferred) {
-                auto size = inst->_execution_context.deferred_mem_infos[0].mem_layout.bytes_count();
-                auto unique_id = inst->get_node().get_unique_id();
-
-                // emplace를 사용하여 삽입 시도
-                auto [cache_iter, inserted] = _primitives_with_size_cache.emplace(unique_id, size);
-
-                if (inserted) {
-                    // 새로 삽입됨
-                    primitives_with_size.emplace_back(inst, size);
-                } else if (cache_iter->second != size) {
-                    // 기존 값보다 큼 - 업데이트
-                    cache_iter->second = size;
-                    primitives_with_size.emplace_back(inst, size);
-                }
-            }
-
-            std::sort(primitives_with_size.begin(), primitives_with_size.end(),
-                [](const auto& a, const auto& b) {
-                    if (a.second != b.second) {
-                        return a.second > b.second;  // 큰 메모리부터
-                    }
-                    return a.first->get_node().get_unique_id() < b.first->get_node().get_unique_id();
-                });
-
-            // Allocate deferred outputs for sorted primitives (largest memory first)
-            for (auto& [inst, size] : primitives_with_size) {
-                inst->allocate_deferred_outputs();
-            }
-
-            // Phase 2: Execute remaining primitives (those not executed in phase 1)
-            for (auto& inst : _exec_order) {
-                auto& exec_ctx = inst->_execution_context;
-                // Skip if already executed in phase 1
-                if (exec_ctx.execution_completed) {
-                    continue;
-                }
-
-                // Prepare execution and execute
+            if (inst->_execution_context.needs_immediate_execution) {
+                // Execute immediately - these primitives don't need actual data content
+                // GPU_DEBUG_COUT << inst->id() << std::endl;
                 inst->prepare_execution();
-                inst->_execution_context.original_outputs.clear();
                 inst->execute();
-
-                executed_prims++;
-                // Only flush GPU stream for GPU implementations, not CPU implementations
-                if (needs_flushing && executed_prims % flush_frequency == 0)
-                    get_stream().flush();
-            }
-        } else {
-            const bool needs_flushing = _is_dynamic;
-            const size_t flush_frequency = needs_flushing ? 16 : 0;
-            size_t executed_prims = 0;
-
-            for (auto& inst : _exec_order) {
-                NODE_DEBUG(*inst);
-
-                inst->reset_events();
-
-                if (inst->is_input()) {
-                    inst->add_dep_events(events);
-                }
-
-                inst->prepare_primitive();
-                inst->execute();
-
-                executed_prims++;
-                if (needs_flushing && executed_prims % flush_frequency == 0)
-                    get_stream().flush();
+                inst->_execution_context.execution_completed = true;
             }
         }
-    } else { // static
+        get_stream().flush();
+
+        // Create a vector of primitives with deferred memory and sort by largest memory size first
+        std::vector<std::shared_ptr<primitive_inst>> primitives_with_deferred;
+        for (auto& inst : _exec_order) {
+            if (inst->_execution_context.is_deferred()) {
+                primitives_with_deferred.push_back(inst);
+            }
+        }
+
+        std::vector<std::pair<std::shared_ptr<primitive_inst>, size_t>> primitives_with_size;
+        primitives_with_size.reserve(primitives_with_deferred.size());
+
+        for (auto& inst : primitives_with_deferred) {
+            auto size = inst->_execution_context.deferred_mem_infos[0].mem_layout.bytes_count();
+            auto unique_id = inst->get_node().get_unique_id();
+
+            // emplace를 사용하여 삽입 시도
+            auto [cache_iter, inserted] = _primitives_with_size_cache.emplace(unique_id, size);
+
+            if (inserted) {
+                // 새로 삽입됨
+                primitives_with_size.emplace_back(inst, size);
+            } else if (cache_iter->second != size) {
+                // 기존 값보다 큼 - 업데이트
+                cache_iter->second = size;
+                primitives_with_size.emplace_back(inst, size);
+            }
+        }
+
+        std::sort(primitives_with_size.begin(), primitives_with_size.end(),
+            [](const auto& a, const auto& b) {
+                if (a.second != b.second) {
+                    return a.second > b.second;  // 큰 메모리부터
+                }
+                return a.first->get_node().get_unique_id() < b.first->get_node().get_unique_id();
+            });
+
+        // Allocate deferred outputs for sorted primitives (largest memory first)
+        for (auto& [inst, size] : primitives_with_size) {
+            inst->allocate_deferred_outputs();
+        }
+
+        // Phase 2: Execute remaining primitives (those not executed in phase 1)
+        for (auto& inst : _exec_order) {
+            auto& exec_ctx = inst->_execution_context;
+            // Skip if already executed in phase 1
+            if (exec_ctx.execution_completed) {
+                continue;
+            }
+
+            // Prepare execution and execute
+            inst->prepare_execution();
+            inst->_execution_context.original_outputs.clear();
+            inst->execute();
+
+            executed_prims++;
+            // Only flush GPU stream for GPU implementations, not CPU implementations
+            if (needs_flushing && executed_prims % flush_frequency == 0)
+                get_stream().flush();
+        }
+        get_stream().flush();
+    } else {
+        // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
+        // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+        // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
+        const bool needs_flushing = _is_dynamic;
+        const size_t flush_frequency = needs_flushing ? 16 : 0;
+        size_t executed_prims = 0;
+
         for (auto& inst : _exec_order) {
             NODE_DEBUG(*inst);
 
@@ -1187,6 +885,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
             inst->prepare_primitive();
             inst->execute();
+
+            executed_prims++;
+            if (needs_flushing && executed_prims % flush_frequency == 0)
+                get_stream().flush();
         }
 
         // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
