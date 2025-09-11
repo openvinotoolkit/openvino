@@ -86,7 +86,12 @@ protected:
 
                 function = std::make_shared<ov::Model>(results, inputParams, "Convolution");
         }
-    }
+
+        if (model_type == ov::element::f16) {
+            abs_threshold = 0.05;
+            rel_threshold = 0.05;
+        }
+}
 };
 
 TEST_P(ConvolutionLayerGPUTestDynamic, Inference) {
@@ -247,6 +252,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2D_static_output, 
                 ::testing::Values(true)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
+const std::vector<ov::test::InputShape> dynInputShapes2D_onednn = {
+    {
+        {1, 14, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+        {{1, 14, 101, 176}}
+    }
+};
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_onednn_dynamic2DSymAutoPad_test, ConvolutionLayerGPUTestDynamic,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::Values(std::vector<size_t>{7, 7}),
+                        ::testing::Values(std::vector<size_t>{2, 2}),
+                        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
+                        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
+                        ::testing::Values(std::vector<size_t>{1, 1}),
+                        ::testing::Values(64),
+                        ::testing::ValuesIn({ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER})),
+                ::testing::ValuesIn({ov::element::f16}),
+                ::testing::ValuesIn(dynInputShapes2D_onednn),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
+                ::testing::Values(true)),
+                ConvolutionLayerGPUTestDynamic::getTestCaseName);
 // ======== 3D convolutions
 const std::vector<ov::test::InputShape> dynInputShapes3D = {
     {

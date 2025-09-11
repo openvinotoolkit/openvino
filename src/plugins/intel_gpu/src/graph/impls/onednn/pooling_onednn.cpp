@@ -6,6 +6,7 @@
 #include "pooling_inst.h"
 #include "primitive_onednn_base.h"
 #include "registry/implementation_manager.hpp"
+#include "max_pool_shape_inference.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -32,6 +33,7 @@ protected:
 
         auto input_layout = impl_params.get_input_layout(0);
         auto output_layout = impl_params.get_output_layout();
+        auto auto_pad = prim->auto_pad;
 
         auto kernel_shape = prim->size;
         auto stride_shape = prim->stride;
@@ -55,9 +57,12 @@ protected:
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
 
-        for (size_t i = 0; i < kernel.size(); i++) {
-            pad_r[i] = (output_md.get_dims()[2 + i] - 1) * stride[i] - input_md.get_dims()[2 + i] + ((kernel[i] - 1) * dilation[i]) - pad_l[i] + 1;
-        }
+        ov::op::v8::MaxPool op;
+        op.set_strides(stride_shape);
+        op.set_kernel(kernel_shape);
+        op.set_auto_pad(auto_pad);
+
+        ov::op::pooling::apply_padding(&op, input_layout.get_partial_shape(), dilation_shape, pad_l, pad_r);
 
         dnnl::algorithm alg;
         switch (prim->mode) {
