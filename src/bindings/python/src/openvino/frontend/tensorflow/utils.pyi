@@ -9,7 +9,7 @@ import logging as log
 import numpy as np
 import openvino._pyopenvino
 import sys as sys
-__all__ = ['Dimension', 'PartialShape', 'Type', 'Version', 'create_generic_function_from_keras_model', 'create_tf_graph_iterator', 'extract_model_graph', 'get_concrete_func', 'get_environment_setup', 'get_imported_module_version', 'get_input_spec_from_model', 'get_signature_from_input', 'get_signature_from_input_signature', 'get_static_shape', 'is_variable', 'log', 'model_is_graph_iterator', 'np', 'parse', 'partial_shape_to_list', 'sys', 'tf_type_to_ov_type', 'trace_tf_model', 'trace_tf_model_if_needed', 'type_supported_by_tf_fe']
+__all__: list[str] = ['Dimension', 'PartialShape', 'Type', 'Version', 'create_generic_function_from_keras_model', 'create_tf_graph_iterator', 'extract_model_graph', 'get_concrete_func', 'get_environment_setup', 'get_imported_module_version', 'get_input_spec_from_model', 'get_signature_from_input', 'get_signature_from_input_signature', 'get_static_shape', 'is_variable', 'log', 'model_is_graph_iterator', 'np', 'parse', 'partial_shape_to_list', 'sys', 'tf_type_to_ov_type', 'trace_tf_model', 'trace_tf_model_if_needed', 'type_supported_by_tf_fe']
 def create_generic_function_from_keras_model(keras_model):
     ...
 def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_types, example_input, share_weights):

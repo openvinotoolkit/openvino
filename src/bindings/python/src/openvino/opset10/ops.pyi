@@ -13,7 +13,7 @@ import typing
 """
 Factory functions for all openvino ops.
 """
-__all__ = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'interpolate', 'is_finite', 'is_inf', 'is_nan', 'make_constant_node', 'nameable_op', 'partial', 'unique']
+__all__: list[str] = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'interpolate', 'is_finite', 'is_inf', 'is_nan', 'make_constant_node', 'nameable_op', 'partial', 'unique']
 def interpolate(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Perform interpolation of independent slices in input tensor.

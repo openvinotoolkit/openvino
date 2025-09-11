@@ -7,7 +7,7 @@ from openvino.tools.ovc.error import Error
 import numpy as np
 import openvino._pyopenvino
 import sys as sys
-__all__ = ['Dimension', 'Error', 'PartialShape', 'Shape', 'get_dynamic_dims', 'get_static_shape', 'is_shape_type', 'np', 'sys', 'tensor_to_int_list', 'to_partial_shape']
+__all__: list[str] = ['Dimension', 'Error', 'PartialShape', 'Shape', 'get_dynamic_dims', 'get_static_shape', 'is_shape_type', 'np', 'sys', 'tensor_to_int_list', 'to_partial_shape']
 def get_dynamic_dims(shape: [openvino._pyopenvino.PartialShape, list, tuple]):
     ...
 def get_static_shape(shape: [openvino._pyopenvino.PartialShape, list, tuple], dynamic_value = None):

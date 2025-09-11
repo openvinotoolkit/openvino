@@ -26,7 +26,7 @@ import typing
 """
 Factory functions for ops added to openvino opset13.
 """
-__all__ = ['Constant', 'Node', 'NodeInput', 'NumericData', 'NumericType', 'Output', 'Result', 'Shape', 'Tensor', 'Type', 'as_node', 'as_nodes', 'binary_op', 'bitwise_and', 'bitwise_not', 'bitwise_or', 'bitwise_xor', 'constant', 'convert_like', 'fake_convert', 'fake_quantize', 'log', 'logging', 'multinomial', 'nameable_op', 'nms_rotated', 'np', 'overloading', 'partial', 'result', 'scaled_dot_product_attention', 'singledispatch', 'unary_op']
+__all__: list[str] = ['Constant', 'Node', 'NodeInput', 'NumericData', 'NumericType', 'Output', 'Result', 'Shape', 'Tensor', 'Type', 'as_node', 'as_nodes', 'binary_op', 'bitwise_and', 'bitwise_not', 'bitwise_or', 'bitwise_xor', 'constant', 'convert_like', 'fake_convert', 'fake_quantize', 'log', 'logging', 'multinomial', 'nameable_op', 'nms_rotated', 'np', 'overloading', 'partial', 'result', 'scaled_dot_product_attention', 'singledispatch', 'unary_op']
 def bitwise_and(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return node which performs bitwise AND operation on input nodes element-wise.

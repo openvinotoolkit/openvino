@@ -7,4 +7,4 @@ from openvino._pyopenvino.properties.hint import PerformanceMode
 from openvino._pyopenvino.properties.hint import Priority
 from openvino._pyopenvino.properties.hint import SchedulingCoreType
 from openvino.properties._properties import __make_properties
-__all__ = ['ExecutionMode', 'ModelDistributionPolicy', 'PerformanceMode', 'Priority', 'SchedulingCoreType']
+__all__: list[str] = ['ExecutionMode', 'ModelDistributionPolicy', 'PerformanceMode', 'Priority', 'SchedulingCoreType']
