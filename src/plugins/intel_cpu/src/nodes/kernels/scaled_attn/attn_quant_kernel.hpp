@@ -5,6 +5,7 @@
 
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 #if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -532,7 +533,7 @@ void quantize_q_by_dims(const ov::intel_cpu::PlainTensor& src,
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
+          typename std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
 void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
     size_t i = 0;
     // loadu_si128/epi64 does not support const qualifier
@@ -571,7 +572,7 @@ void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<SRC_PREC == ov::element::i8, bool>::type = true>
+          typename std::enable_if_t<SRC_PREC == ov::element::i8, bool> = true>
 void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
     size_t i = 0;
     // loadu_si128/epi64 does not support const qualifier
