@@ -31,8 +31,6 @@ protected:
         auto desc = params.typed_desc<scaled_dot_product_attention>();
 
         jit.add(make_type_jit_constants("ACCUMULATOR", get_accumulator_type(params)));
-        jit.make("NUM_KV_HEADS", -1);
-
         return jit;
     }
 
