@@ -23,6 +23,12 @@
  */
 int tmain(int argc, tchar* argv[]) {
     try {
+        // -------- Set OpenVINO log message capturing callback --------
+        const std::function<void(std::string_view)> log_callback{[](std::string_view msg) {
+            slog::info << msg;
+        }};
+        ov::util::set_log_callback(log_callback);
+
         // -------- Get OpenVINO runtime version --------
         slog::info << ov::get_openvino_version() << slog::endl;
 

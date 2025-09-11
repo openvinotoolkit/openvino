@@ -35,6 +35,10 @@ struct PERFORMANCE_HINT final : OptionBase<PERFORMANCE_HINT, ov::hint::Performan
         return ov::PropertyMutability::RW;
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
+    }
+
     static OptionMode mode() {
         return OptionMode::Both;
     }
@@ -116,6 +120,10 @@ struct PERFORMANCE_HINT_NUM_REQUESTS final : OptionBase<PERFORMANCE_HINT_NUM_REQ
         return ov::PropertyMutability::RW;
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
+    }
+
     static OptionMode mode() {
         return OptionMode::Both;
     }
@@ -182,6 +190,10 @@ struct PERF_COUNT final : OptionBase<PERF_COUNT, bool> {
         return ov::PropertyMutability::RW;
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
+    }
+
     static OptionMode mode() {
         return OptionMode::Both;
     }
@@ -198,6 +210,10 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, ov::log::Level> {
 
     static std::string_view envVar() {
         return "OV_NPU_LOG_LEVEL";
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static OptionMode mode() {
@@ -236,6 +252,10 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
         return false;
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
+    }
+
     static OptionMode mode() {
         return OptionMode::Both;
     }
@@ -260,6 +280,10 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
 
     static ov::PropertyMutability mutability() {
         return ov::PropertyMutability::RW;
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static OptionMode mode() {
@@ -312,10 +336,6 @@ struct CACHE_MODE final : OptionBase<CACHE_MODE, ov::CacheMode> {
 
     static OptionMode mode() {
         return OptionMode::CompileTime;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 21);
     }
 
     static ov::CacheMode parse(std::string_view val) {
@@ -411,6 +431,10 @@ struct INTERNAL_SUPPORTED_PROPERTIES final : OptionBase<INTERNAL_SUPPORTED_PROPE
 
     static bool isPublic() {
         return false;
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static OptionMode mode() {
@@ -871,6 +895,10 @@ struct COMPILATION_MODE final : OptionBase<COMPILATION_MODE, std::string> {
         return "";
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
+    }
+
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -929,6 +957,10 @@ struct DYNAMIC_SHAPE_TO_STATIC final : OptionBase<DYNAMIC_SHAPE_TO_STATIC, bool>
         return false;
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
+    }
+
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -949,6 +981,10 @@ struct COMPILATION_MODE_PARAMS final : OptionBase<COMPILATION_MODE_PARAMS, std::
 
     static std::string defaultValue() {
         return {};
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static OptionMode mode() {
@@ -1073,6 +1109,10 @@ struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
         return -1;
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
+    }
+
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -1101,6 +1141,10 @@ struct BACKEND_COMPILATION_PARAMS final : OptionBase<BACKEND_COMPILATION_PARAMS,
         return {};
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
+    }
+
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
@@ -1127,6 +1171,10 @@ struct COMPILATION_NUM_THREADS final : OptionBase<COMPILATION_NUM_THREADS, int32
         if (num <= 0) {
             OPENVINO_THROW("ov::compilation_num_threads must be positive int32 value");
         }
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(0, 0);
     }
 
     static OptionMode mode() {
@@ -1226,6 +1274,24 @@ struct QDQ_OPTIMIZATION final : OptionBase<QDQ_OPTIMIZATION, bool> {
     }
 };
 
+struct QDQ_OPTIMIZATION_AGGRESSIVE final : OptionBase<QDQ_OPTIMIZATION_AGGRESSIVE, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::qdq_optimization_aggressive.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+};
+
 struct DISABLE_VERSION_CHECK final : OptionBase<DISABLE_VERSION_CHECK, bool> {
     static std::string_view key() {
         return ov::intel_npu::disable_version_check.name();
@@ -1314,10 +1380,6 @@ struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
 
     static OptionMode mode() {
         return OptionMode::CompileTime;
-    }
-
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 21);
     }
 };
 

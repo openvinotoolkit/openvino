@@ -8,6 +8,7 @@
 
 #include <functional>
 #include <memory>
+#include <tuple>
 #include <vector>
 
 #include "openvino/core/validation_util.hpp"
@@ -31,6 +32,7 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -633,6 +635,41 @@ std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
                                                               {"ellipsis_mask", ellipsis_mask}});
 
     return opt1 | opt2;
+}
+
+std::tuple<std::shared_ptr<ov::Node>,
+           std::shared_ptr<ov::Node>,
+           std::shared_ptr<ov::Node>,
+           std::shared_ptr<ov::Node>,
+           std::shared_ptr<ov::Node>,
+           std::shared_ptr<ov::Node>>
+match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv) {
+    using namespace ov::pass;
+    using namespace ov::pass::pattern;
+
+    auto reshape_kv = wrap_type<ov::op::v1::Reshape>({kv, any_input()});
+    auto unsqueeze_kv = wrap_type<ov::op::v0::Unsqueeze>({kv, any_input()});
+
+    auto check_one = [](const Output<Node>& output) -> bool {
+        auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+        if (!node) {
+            return false;
+        }
+        const auto& bcst_arg = node->cast_vector<float>();
+        return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
+            return i == 1.0F;
+        });
+    };
+    auto constant_bcst = wrap_type<ov::op::v0::Constant>(check_one);
+
+    auto computed_bcst =
+        wrap_type<ov::op::v1::Broadcast>({constant_bcst, any_input(), any_input()}, {{"mode", "numpy"}});
+
+    auto multiply_kv = wrap_type<ov::op::v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
+    auto computed_bcst3 = wrap_type<ov::op::v3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
+
+    auto result = wrap_type<ov::op::v1::Reshape>({multiply_kv | computed_bcst3, any_input()});
+    return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
 }
 
 }  // namespace util

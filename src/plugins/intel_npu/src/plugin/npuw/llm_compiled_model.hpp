@@ -24,6 +24,7 @@ public:
         uint32_t total_size = 0u;
         uint32_t num_stored_tokens = 0u;
         uint32_t dim = 0u;
+        uint32_t max_generation_token_len = 0u;
         bool v_tensors_transposed = false;
     };
 
@@ -74,6 +75,10 @@ private:
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
+
+    // Support LoRA
+    void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
+    uint32_t m_max_lora_rank = 32;
 };
 
 }  // namespace npuw

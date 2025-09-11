@@ -36,6 +36,10 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
             network->cfgOutputTensorPrecision(std::get<AttrMap<int>>(params.output_precision));
         }
 
+        if (params.clamp_outputs) {
+            network->cfgClampOutputs();
+        }
+
         if (std::holds_alternative<std::string>(params.input_layout)) {
             network->cfgInputTensorLayout(std::get<std::string>(params.input_layout));
         } else if (std::holds_alternative<AttrMap<std::string>>(params.input_layout)) {

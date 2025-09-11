@@ -15,6 +15,7 @@
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "openvino/op/search_sorted.hpp"
+#include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/stft.hpp"
 #include "openvino/op/istft.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
@@ -52,7 +53,10 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     // E.g. static input shapes: sorted:[8], values:[2,3,4] are prefectly fine,
     // but sorted:[8,1,1,1], values:[2,3,4,1] is not valid.
     // Similar case for STFT and ISTFT
-    if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op) || ov::is_type<ov::op::v16::ISTFT>(op))
+    if (ov::is_type<ov::op::v15::SearchSorted>(op)||
+        ov::is_type<ov::op::v15::STFT>(op) ||
+        ov::is_type<ov::op::v16::ISTFT>(op) ||
+        ov::is_type<ov::op::v16::SparseFillEmptyRows>(op))
         return true;
 
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
@@ -237,7 +241,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     }
 
     if (!is_set_by_user(ov::internal::key_cache_quant_mode) || get_key_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
-        m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+        m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_CHANNEL;
     }
 
     if (!is_set_by_user(ov::internal::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {

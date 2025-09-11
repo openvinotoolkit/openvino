@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string EnforcePrecisionTest::getTestCaseName(testing::TestParamInfo<EnforcePrecisionTestParams> obj) {
+std::string EnforcePrecisionTest::getTestCaseName(const testing::TestParamInfo<EnforcePrecisionTestParams>& obj) {
     const auto& [input_shapes, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;

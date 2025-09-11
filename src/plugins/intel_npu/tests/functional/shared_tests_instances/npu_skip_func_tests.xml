@@ -4,7 +4,6 @@ Example:
         <message>skip_message_xxxxxx</message>
         <enable_rules>
             <backend>LEVEL0</backend>
-            <backend>IMD</backend>
             <backend></backend> (special case for no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
@@ -426,28 +425,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#81065 -->
-    <skip_config>
-        <message>IMD/Simics do not support the tests</message>
-        <enable_rules>
-            <backend>IMD</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*smoke_ClassPluginProperties.*DEVICE_UUID.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#85488 -->
-    <skip_config>
-        <message>Run long time on IMD/Simics</message>
-        <enable_rules>
-            <backend>IMD</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*PreprocessingPrecisionConvertTestNPU.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#83423 -->
     <skip_config>
         <message>Tests enabled only for L0 NPU3720</message>
@@ -489,15 +466,6 @@ Example:
         <filters>
             <filter>.*OVClassGetConfigTest.*GetConfigNoThrow.*</filter>
             <filter>.*OVClassGetConfigTest.*GetConfigHeteroNoThrow.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#111455 -->
-    <skip_config>
-        <message>Failing properties tests for AUTO / MULTI</message>
-        <filters>
-            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*MULTI.*LOG_LEVEL.*</filter>
-            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*AUTO.*LOG_LEVEL.*</filter>
         </filters>
     </skip_config>
 
@@ -607,14 +575,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#114624 -->
-    <skip_config>
-        <message>The tests are not actually running the compiler-in-driver module.</message>
-        <filters>
-            <filter>.*smoke_BehaviorTests_OVCheckSetSupportedRWMetricsPropsTests.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#109040 -->
     <skip_config>
         <message>Disabled tests for NPU3720</message>
@@ -667,85 +627,14 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#118331 -->
+    <!-- E####### -->
     <skip_config>
-        <message>platform and compiler_type are private</message>
+        <message>Test will set NPU_TILES to -1 which is an invalid value, in this case default values don't work</message>
         <enable_rules>
             <backend>LEVEL0</backend>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestCallbackTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestCallbackTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestCallbackTestsNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestCallbackTestsNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTestNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTest.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestMultithreadingTests.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestMultithreadingTestsNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersExceptionTest.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersTest.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestWaitTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestMultithreadingTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestMultithreadingTestsNPU.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestPerfCountersExceptionTest.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestPerfCountersTest.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestWaitTests.*</filter>
-            <filter>.*smoke_OVClassNetworkTestP/OVClassNetworkTestPNPU.*</filter>
-            <filter>.*smoke_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests_VariableState/OVInferRequestVariableStateTest.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#125086 -->
-    <skip_config>
-        <message>Failing tests after functional tests migration to OV</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <device>3720</device>
-            <device>4000</device>
         </enable_rules>
         <filters>
             <filter>.*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#125086 -->
-    <skip_config>
-        <message>Failing tests after functional tests migration to OV</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <device>3720</device>
-            <operating_system>windows</operating_system>
-        </enable_rules>
-        <filters>
-            <filter>.*OVInferRequestPerfCountersExceptionTest.perfCountWereNotEnabledExceptionTest.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#125086 -->
-    <skip_config>
-        <message>Failing tests after functional tests migration to OV</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <device>3720</device>
-            <operating_system>linux</operating_system>
-        </enable_rules>
-        <filters>
-            <filter>.*OVInferRequestMultithreadingTests.canRun3AsyncRequestsConsistently.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#118331 -->
-    <skip_config>
-        <message>Private properties cannot be accessed by HETERO compiled model</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*smoke_Hetero_BehaviorTests.*OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests.*OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests.*OVCompileModelGetExecutionDeviceTests.*</filter>
         </filters>
     </skip_config>
 
@@ -872,6 +761,14 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Only "developer built" compilers support weights separation</message>
+        <filters>
+            <filter>.*WeightsSeparationTests.*</filter>
+            <filter>.*WeightsSeparationNotSupportedTests.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- C#165445 -->
     <skip_config>
         <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
@@ -900,6 +797,13 @@ Example:
         <filters>
             <filter>.*DynamicBatchingRunSeqTests.*</filter>
             <filter>.*DynamicBatchedTensorsRunTests.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>The "one shot" implementation of the weights separation feature is supported only in the compiler-in-plugin flow</message>
+        <filters>
+            <filter>.*WeightsSeparationOneShotTests.*</filter>
         </filters>
     </skip_config>
 

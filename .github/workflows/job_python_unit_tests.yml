@@ -54,12 +54,17 @@ jobs:
           sparse-checkout-cone-mode: false
           submodules: 'false'
       
-      - name: Download OpenVINO artifacts (tarballs and wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download OpenVINO artifacts (wheels)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: "{openvino_wheels,openvino_tests}"
+          name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -121,19 +126,13 @@ jobs:
         run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: OVC Python API Tests
-        if: fromJSON(inputs.affected-components).OVC.test
+        if: ${{ fromJSON(inputs.affected-components).OVC.test && (runner.arch != 'ARM64' && runner.os != 'macOS') }} # Ticket: 173019
         run: |
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
 
-          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
-            # Find gomp lib
-            GOMP_LIB=$(find "${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/" -name '*libgomp-*so*')
-            export LD_PRELOAD=${GOMP_LIB}
-          fi
-
-          python3 -m pytest ${INSTALL_TEST_DIR}/layer_tests/ovc_python_api_tests -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/ovc_python_api_tests -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -144,11 +143,11 @@ jobs:
         run: |
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
-          python3 -m pytest ${INSTALL_TEST_DIR}/layer_tests/py_frontend_tests -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/py_frontend_tests -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: TensorFlow Lite Layer Tests - TFL FE
-        if: fromJSON(inputs.affected-components).TFL_FE.test
-        run: python3 -m pytest ${INSTALL_TEST_DIR}/layer_tests/tensorflow_lite_tests/ -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+        if: ${{ fromJSON(inputs.affected-components).TFL_FE.test && (runner.arch != 'ARM64' && runner.os != 'macOS') }} # Ticket: 173019
+        run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/layer_tests/tensorflow_lite_tests/ -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16

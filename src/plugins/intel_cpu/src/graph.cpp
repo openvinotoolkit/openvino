@@ -1753,10 +1753,6 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
             for (const auto& fusedNode : node->fusedWith) {
                 getPerfMapFor(perfMap, fusedNode);
             }
-
-            for (const auto& mergedWith : node->mergedWith) {
-                getPerfMapFor(perfMap, mergedWith);
-            }
         };
 
     for (const auto& graphNode : graphNodes) {
@@ -1989,14 +1985,10 @@ void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
     const auto inferPrec = getConfig().inferencePrecision;
-    if (any_of(inferPrec, element::f32, element::dynamic, ov::element::f16, element::dynamic)) {
+    if (any_of(inferPrec, element::f32, element::f16, element::dynamic)) {
         return;  // nothing to do, only precision reduction is currently allowed
     }
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (inferPrec == ov::element::f16) {
-        return;  // precision of configured by ov::pass::ConvertPrecision
-    }
-#endif
+
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
@@ -2015,18 +2007,6 @@ void Graph::EnforceInferencePrecision() {
                            Type::PagedAttention,  // page attention
                            Type::QKVProjection,
                            Type::LLMMLP)) {
-                    continue;  // stop at significant nodes
-                }
-            } else if (inferPrec == ov::element::f16) {
-                /* list of node types that must be forced to be executed in FP16 precision
-                 * because of performance gains */
-                if (any_of(parent->getType(),
-                           Type::Convolution,     // conv nets
-                           Type::Deconvolution,   // deconv
-                           Type::FullyConnected,  // conv / bert nets
-                           Type::MatMul,          // bert nets
-                           Type::Pooling,
-                           Type::MVN)) {
                     continue;  // stop at significant nodes
                 }
             }
