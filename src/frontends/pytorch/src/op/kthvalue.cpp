@@ -7,7 +7,6 @@
 #include <openvino/op/topk.hpp>
 #include <openvino/op/unsqueeze.hpp>
 
-#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
 
