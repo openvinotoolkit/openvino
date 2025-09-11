@@ -85,7 +85,7 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
     };
     auto weights_path = [&static_rank_gt_1](const ov::Output<ov::Node>& output) {
         const auto& pshape = output.get_partial_shape();
-        return ov::op::util::is_on_constant_path(output) && static_rank_gt_1(output) && pshape.is_static() &&
+        return ov::op::util::is_on_constant_or_param_path(output) && static_rank_gt_1(output) && pshape.is_static() &&
                std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& x) {
                    return x == 1;
                }) == 2;
@@ -104,7 +104,9 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
     auto reshape_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m});      //, input_transpose_predicate);
     auto a_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
 
-    auto weights_m = ov::pass::pattern::any_input(weights_path);  // weights
+    auto weights_const_m = wrap_type<ov::op::v0::Constant>(weights_path);
+    auto weights_param_m = wrap_type<ov::op::v0::Parameter>(weights_path);
+    auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m});
     auto weight_convert_m = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({weights_m});
     auto weights_scales_m = ov::pass::pattern::any_input();
     auto weights_zp_m = ov::pass::pattern::any_input();
@@ -169,12 +171,30 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
         };        
 
         // add reshape after weight 9216 x 3072 x 1 x 1 --> 9216 x 3072
-        auto Reshape_weight = reshape_const_to_2d(weight);
-        MatcherPass::register_new_node(Reshape_weight);
-        Reshape_weight->set_friendly_name(weight->get_friendly_name() + "_Reshape_weight");
-        // FixMe: this is a point of interest - it protects quantized weights from being inflated by constant-folded conversion
-        // ov::disable_constant_folding(Reshape_weight);
-        auto weight_squeezed_convert = weight_convert->clone_with_new_inputs({Reshape_weight});
+        std::shared_ptr<ov::op::v0::Convert> weight_squeezed_convert;
+        if (ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
+            auto Reshape_weight = reshape_const_to_2d(weight);
+            MatcherPass::register_new_node(Reshape_weight);
+            Reshape_weight->set_friendly_name(weight->get_friendly_name() + "_Reshape_weight");
+            // FixMe: this is a point of interest - it protects quantized weights from being inflated by constant-folded conversion
+            // ov::disable_constant_folding(Reshape_weight);
+            weight_squeezed_convert = ov::as_type_ptr<ov::op::v0::Convert>(weight_convert->clone_with_new_inputs({Reshape_weight}));
+        } else {
+            auto param = ov::as_type_ptr<ov::op::v0::Parameter>(weight);
+            OPENVINO_ASSERT(param != nullptr);
+            std::vector<int> values_reshape_b;
+            auto shape_b = param->get_output_partial_shape(0);
+            for (auto i = 0; i < shape_b.size(); i++)
+                if (shape_b.to_shape()[i] != 1) {
+                    values_reshape_b.push_back(shape_b.to_shape()[i]);
+                }
+
+            auto reshape_weight_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_b);  //{9216, 3072});
+            auto Reshape_weight = std::make_shared<ov::op::v1::Reshape>(param, reshape_weight_const, false);
+            MatcherPass::register_new_node(Reshape_weight);
+            Reshape_weight->set_friendly_name(param->get_friendly_name() + "_Reshape_weight");
+            weight_squeezed_convert = ov::as_type_ptr<ov::op::v0::Convert>(weight_convert->clone_with_new_inputs({Reshape_weight}));
+        }
         ov::disable_constant_folding(weight_squeezed_convert);
 
         // add reshape after scales
