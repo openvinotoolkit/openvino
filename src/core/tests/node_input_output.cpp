@@ -6,7 +6,6 @@
 
 #include <iostream>
 #include <memory>
-#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -207,14 +206,8 @@ TEST(node_input_output, output_replace_with_existing_connection) {
 
     // Check that add has relu as target and NOT convert2
     auto add_targets = add->output(0).get_target_inputs();
-    set<Node*> target_nodes;
-    for (const auto& input : add_targets) {
-        target_nodes.insert(input.get_node());
-    }
-
-    EXPECT_TRUE(target_nodes.count(relu.get()) > 0) << "add should have relu as a target after replace";
-    EXPECT_FALSE(target_nodes.count(convert2.get()) > 0)
-        << "add should NOT have convert2 as a target after replace (this was the bug)";
+    EXPECT_EQ(add_targets.size(), 1) << "add should have exactly one target after replace";
+    EXPECT_EQ(add_targets.begin()->get_node(), relu.get()) << "add's only target should be relu";
 
     // convert2 should have no targets
     EXPECT_EQ(convert2->output(0).get_target_inputs().size(), 0) << "convert2 should have no targets after replace";
@@ -247,16 +240,18 @@ TEST(node_input_output, output_replace_order_independence) {
     auto add2_targets = add2->output(0).get_target_inputs();
     EXPECT_EQ(add2_targets.size(), 5) << "All connections should move to add2";
 
-    // Verify specific connections
-    set<Node*> target_nodes;
+    // Verify specific connections - mul appears twice (2 inputs)
+    int relu1_count = 0, relu2_count = 0, mul_count = 0, convert_count = 0;
     for (const auto& input : add2_targets) {
-        target_nodes.insert(input.get_node());
+        if (input.get_node() == relu1.get()) relu1_count++;
+        if (input.get_node() == relu2.get()) relu2_count++;
+        if (input.get_node() == mul.get()) mul_count++;
+        if (input.get_node() == convert.get()) convert_count++;
     }
-
-    EXPECT_TRUE(target_nodes.count(relu1.get()) > 0) << "relu1 should connect to add2";
-    EXPECT_TRUE(target_nodes.count(relu2.get()) > 0) << "relu2 should connect to add2";
-    EXPECT_TRUE(target_nodes.count(mul.get()) > 0) << "mul should connect to add2";
-    EXPECT_TRUE(target_nodes.count(convert.get()) > 0) << "convert should connect to add2";
+    EXPECT_EQ(relu1_count, 1) << "relu1 should connect to add2 once";
+    EXPECT_EQ(relu2_count, 1) << "relu2 should connect to add2 once";
+    EXPECT_EQ(mul_count, 2) << "mul should connect to add2 twice (both inputs)";
+    EXPECT_EQ(convert_count, 1) << "convert should connect to add2 once";
 
     // Original node should have no connections
     EXPECT_EQ(add1->output(0).get_target_inputs().size(), 0) << "add1 should have no connections after replace";
@@ -305,14 +300,14 @@ TEST(node_input_output, output_replace_chain_of_converts) {
     auto conv_a_targets = conv_a->output(0).get_target_inputs();
     EXPECT_EQ(conv_a_targets.size(), 2) << "conv_a should have conv_b and conv_d as targets";
 
-    set<Node*> target_nodes;
+    // Verify both expected targets are present
+    bool has_conv_b = false, has_conv_d = false;
     for (const auto& input : conv_a_targets) {
-        target_nodes.insert(input.get_node());
+        if (input.get_node() == conv_b.get()) has_conv_b = true;
+        if (input.get_node() == conv_d.get()) has_conv_d = true;
     }
-
-    EXPECT_TRUE(target_nodes.count(conv_b.get()) > 0) << "conv_b should still connect to conv_a";
-    EXPECT_TRUE(target_nodes.count(conv_d.get()) > 0) << "conv_d should now connect to conv_a";
-    EXPECT_FALSE(target_nodes.count(conv_c.get()) > 0) << "conv_c should not be in conv_a's targets";
+    EXPECT_TRUE(has_conv_b) << "conv_b should still connect to conv_a";
+    EXPECT_TRUE(has_conv_d) << "conv_d should now connect to conv_a";
 
     EXPECT_EQ(conv_c->output(0).get_target_inputs().size(), 0) << "conv_c should have no targets";
 }
@@ -338,14 +333,18 @@ TEST(node_input_output, output_replace_multiple_outputs) {
     EXPECT_EQ(add1->output(0).get_target_inputs().size(), 0) << "add1 should have no targets";
 
     auto add2_targets = add2->output(0).get_target_inputs();
-    set<Node*> target_nodes;
+    EXPECT_EQ(add2_targets.size(), 3) << "add2 should have relu1, relu2, and conv as targets";
+    
+    // Verify all expected targets are present
+    bool has_relu1 = false, has_relu2 = false, has_conv = false;
     for (const auto& input : add2_targets) {
-        target_nodes.insert(input.get_node());
+        if (input.get_node() == relu1.get()) has_relu1 = true;
+        if (input.get_node() == relu2.get()) has_relu2 = true;
+        if (input.get_node() == conv.get()) has_conv = true;
     }
-
-    EXPECT_TRUE(target_nodes.count(relu1.get()) > 0) << "relu1 should connect to add2";
-    EXPECT_TRUE(target_nodes.count(relu2.get()) > 0) << "relu2 should connect to add2";
-    EXPECT_TRUE(target_nodes.count(conv.get()) > 0) << "conv should still connect to add2";
+    EXPECT_TRUE(has_relu1) << "relu1 should connect to add2";
+    EXPECT_TRUE(has_relu2) << "relu2 should connect to add2";
+    EXPECT_TRUE(has_conv) << "conv should still connect to add2";
 }
 
 TEST(node_input_output, output_replace_bidirectional_connection) {
@@ -374,14 +373,14 @@ TEST(node_input_output, output_replace_bidirectional_connection) {
     // After replace, mul's second input should also point to add2
     EXPECT_EQ(add2_targets.size(), 3) << "add2 should have relu + mul(2 inputs) as targets";
 
-    set<Node*> target_nodes;
+    // Count connections to each node
+    int relu_count = 0, mul_count = 0;
     for (const auto& input : add2_targets) {
-        target_nodes.insert(input.get_node());
+        if (input.get_node() == relu.get()) relu_count++;
+        if (input.get_node() == mul.get()) mul_count++;
     }
-
-    EXPECT_TRUE(target_nodes.count(relu.get()) > 0) << "relu should connect to add2";
-    EXPECT_TRUE(target_nodes.count(mul.get()) > 0) << "mul should connect to add2";
-    EXPECT_FALSE(target_nodes.count(add1.get()) > 0) << "add1 should not be in add2's targets";
+    EXPECT_EQ(relu_count, 1) << "relu should have exactly 1 connection from add2";
+    EXPECT_EQ(mul_count, 2) << "mul should have exactly 2 connections from add2";
 
     EXPECT_EQ(add1->output(0).get_target_inputs().size(), 0) << "add1 should have no targets";
 }
@@ -422,18 +421,11 @@ TEST(node_input_output, output_replace_with_parameter) {
     EXPECT_EQ(relu->input_value(0).get_node(), param.get()) << "Relu should connect directly to parameter";
     EXPECT_EQ(add->output(0).get_target_inputs().size(), 0) << "Add should have no targets";
 
-    // After replacement, param should not have add as target
+    // After replacement, param should have only relu as target
     // because our fix removes cyclic connections
     auto param_targets = param->output(0).get_target_inputs();
-    set<Node*> target_nodes;
-    for (const auto& input : param_targets) {
-        target_nodes.insert(input.get_node());
-    }
-
-    // param should have only relu now (add connections removed as cyclic)
     EXPECT_EQ(param_targets.size(), 1) << "Parameter should have only relu as target";
-    EXPECT_TRUE(target_nodes.count(relu.get()) > 0) << "Parameter should have relu";
-    EXPECT_FALSE(target_nodes.count(add.get()) > 0) << "Parameter should not have add (cyclic connection removed)";
+    ASSERT_EQ(param_targets.begin()->get_node(), relu.get()) << "The only target should be relu";
 }
 
 TEST(node_input_output, output_replace_cascade) {
