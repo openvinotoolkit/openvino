@@ -18,7 +18,7 @@ namespace snippets {
 class FakeQuantizeDecompositionTest : public TransformationTestsF {
 public:
     void register_passes() {
-        ov::snippets::pass::SnippetsTokenization::Config config = get_default_tokenization_config();
+        ov::snippets::pass::TokenizationConfig config = get_default_tokenization_config();
         manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
     }
 

@@ -11,12 +11,12 @@
 namespace ov::snippets::pass {
 
 /**
- * @interface BaseTokenizationConfig
+ * @interface TokenizationConfig
  * @brief Base configuration for tokenization passes containing common GPR management logic
  * @ingroup snippets
  */
-struct BaseTokenizationConfig {
-    BaseTokenizationConfig(size_t available_gprs_count)
+struct TokenizationConfig {
+    TokenizationConfig(size_t available_gprs_count)
         : m_available_gprs_count(available_gprs_count) {
         OPENVINO_ASSERT(available_gprs_count > 0, "available_gprs_count should be greater than 0");
     }

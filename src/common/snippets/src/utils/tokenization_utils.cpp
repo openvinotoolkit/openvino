@@ -80,7 +80,7 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 }
 }  // namespace
 
-bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokenization::Config& config) {
+bool tokenize_node(const std::shared_ptr<ov::Node>& node, const TokenizationConfig& config) {
     const auto getFusedNames = [](const std::shared_ptr<Node>& n) -> std::string {
         auto rt_info = n->get_rt_info();
         auto it = rt_info.find("originalLayersNames");

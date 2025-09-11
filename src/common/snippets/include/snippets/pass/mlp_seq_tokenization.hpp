@@ -39,13 +39,13 @@ public:
      * @brief Configuration for TokenizeMLPSeqSnippets pass
      * @ingroup snippets
      */
-    struct Config : public BaseTokenizationConfig {
+    struct Config : public TokenizationConfig {
         using CanBeFusedAsPostOpPred = std::function<bool(const std::shared_ptr<const ov::op::v0::MatMul>&,
                                                           const std::shared_ptr<const ov::Node>&)>;
 
         Config(size_t available_gprs_count,
                CanBeFusedAsPostOpPred can_be_fused_as_postop = nullptr)
-            : BaseTokenizationConfig(available_gprs_count),
+            : TokenizationConfig(available_gprs_count),
               m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {
         }
 

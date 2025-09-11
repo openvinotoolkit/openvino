@@ -72,7 +72,7 @@ Predicate fc_predicate(bool is_down) {
 
 }  // namespace
 
-TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const SnippetsTokenization::Config& config) {
+TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const TokenizationConfig& config) {
     MATCHER_SCOPE(TokenizeGatedMLPSnippets);
     using namespace ov::pass;
     using namespace ov::op::util;

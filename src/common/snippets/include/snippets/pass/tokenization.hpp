@@ -74,23 +74,12 @@ class SnippetsTokenization : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::SnippetsTokenization");
 
-    /**
-     * @interface Config
-     * @brief Allow to adjust tokenization passes
-     * @ingroup snippets
-     */
-    struct Config : public BaseTokenizationConfig {
-        Config(size_t available_gprs_count)
-            : BaseTokenizationConfig(available_gprs_count) {
-        }
-    };
-
-    explicit SnippetsTokenization(Config config, CommonOptimizations::Config common_config, TokenizeMHASnippets::Config mha_config, TokenizeMLPSeqSnippets::Config mlp_seq_config) 
+    explicit SnippetsTokenization(TokenizationConfig config, CommonOptimizations::Config common_config, TokenizeMHASnippets::Config mha_config, TokenizeMLPSeqSnippets::Config mlp_seq_config) 
         : m_config(std::move(config)), m_common_config(std::move(common_config)), m_mha_config(std::move(mha_config)), m_mlp_seq_config(std::move(mlp_seq_config)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
-    Config m_config;
+    TokenizationConfig m_config;
     CommonOptimizations::Config m_common_config;
     TokenizeMHASnippets::Config m_mha_config;
     TokenizeMLPSeqSnippets::Config m_mlp_seq_config;

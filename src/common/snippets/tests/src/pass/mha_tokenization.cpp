@@ -63,7 +63,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic_Disable
     const auto &f = MHAFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 1, -1, 1}, {1, 128, 12, 64}},
                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
     model = f.getOriginal();
-    config = ov::snippets::pass::SnippetsTokenization::Config{1, std::numeric_limits<size_t>::max(), true, true, false, { 3, 4 }};
+    config = ov::snippets::pass::TokenizationConfig{1, std::numeric_limits<size_t>::max(), true, true, false, { 3, 4 }};
     run();
 }
 

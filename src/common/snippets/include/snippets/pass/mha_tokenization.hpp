@@ -51,12 +51,12 @@ public:
      * @brief Configuration for TokenizeMHASnippets pass
      * @ingroup snippets
      */
-    struct Config : public BaseTokenizationConfig {
+    struct Config : public TokenizationConfig {
         Config(size_t available_gprs_count,
                bool enable_transpose_on_output,
                bool dyn_mha_token,
                std::set<size_t> mha_transpose_ranks)
-            : BaseTokenizationConfig(available_gprs_count),
+            : TokenizationConfig(available_gprs_count),
               m_mha_token_enable_transpose_on_output(enable_transpose_on_output),
               m_is_dynamic_mha_token_enabled(dyn_mha_token),
               m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {

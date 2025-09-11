@@ -18,7 +18,7 @@ public:
     virtual void run();
 
 protected:
-    ov::snippets::pass::SnippetsTokenization::Config config = get_default_tokenization_config();
+    ov::snippets::pass::TokenizationConfig config = get_default_tokenization_config();
 };
 
 }  // namespace snippets

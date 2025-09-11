@@ -16,7 +16,7 @@
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
 
-ov::snippets::pass::TokenizeFCSnippets::TokenizeFCSnippets(const SnippetsTokenization::Config& config) {
+ov::snippets::pass::TokenizeFCSnippets::TokenizeFCSnippets(const TokenizationConfig& config) {
     MATCHER_SCOPE(TokenizeFCSnippets);
     // TODO: extend constant path coverage
     // Ticket: 153480

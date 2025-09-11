@@ -1203,7 +1203,7 @@ void Transformations::MainSnippets() {
     // - 2 (SP, X29) stack related registers
     // - 3 (X_TMP_0, X_TMP_1, X_DEFAULT_ADDR) registers for temporary use
     size_t available_gprs_count = 25;
-    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
+    snippets::pass::SnippetsTokenizationConfig::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #elif defined(OPENVINO_ARCH_X86_64)
     // X64 has 16 gprs, but the following registers should be excluded from available registers:
     // - abi_param1: used for runtime parameters
@@ -1225,7 +1225,7 @@ void Transformations::MainSnippets() {
     };
 #else
     size_t available_gprs_count = 0;
-    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
+    snippets::pass::SnippetsTokenizationConfig::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
@@ -1233,7 +1233,7 @@ void Transformations::MainSnippets() {
     bool split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = {4};
-    snippets::pass::SnippetsTokenization::Config tokenization_config(available_gprs_count);
+    snippets::pass::TokenizationConfig tokenization_config(available_gprs_count);
     snippets::pass::CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
     snippets::pass::TokenizeMHASnippets::Config mha_config(available_gprs_count,
                                                            mha_token_enable_transpose_on_output,

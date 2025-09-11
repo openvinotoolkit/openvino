@@ -18,7 +18,7 @@ class SnippetsMarkSkippedTests : public TransformationTestsF {
 public:
     void run() {
         ASSERT_TRUE(model);
-        ov::snippets::pass::SnippetsTokenization::Config config = { 1, 11, true, true, true, { 3, 4 }};
+        ov::snippets::pass::TokenizationConfig config = { 1, 11, true, true, true, { 3, 4 }};
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);

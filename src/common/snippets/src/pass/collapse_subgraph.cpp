@@ -281,7 +281,7 @@ bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node>&
            snippets::op::Subgraph::check_broadcast(node);
 }
 
-TokenizeSnippets::TokenizeSnippets(const SnippetsTokenization::Config& config) {
+TokenizeSnippets::TokenizeSnippets(const TokenizationConfig& config) {
     MATCHER_SCOPE(TokenizeSnippets);
 
     auto label = ov::pass::pattern::any_input([](const ov::Output<ov::Node>& out) {
