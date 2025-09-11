@@ -18,8 +18,8 @@ void TokenizeMHASnippetsTests::run() {
     ASSERT_TRUE(model);
     manager.register_pass<ov::snippets::pass::ExtractReshapesFromMHA>();
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
-    manager.register_pass<ov::snippets::pass::TokenizeMHASnippets>(config);
-    manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
+    manager.register_pass<ov::snippets::pass::TokenizeMHASnippets>(mha_config);
+    manager.register_pass<ov::snippets::pass::CommonOptimizations>(common_config);
     disable_rt_info_check();
 }
 
@@ -63,7 +63,12 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic_Disable
     const auto &f = MHAFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 1, -1, 1}, {1, 128, 12, 64}},
                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
     model = f.getOriginal();
-    config = ov::snippets::pass::TokenizationConfig{1, std::numeric_limits<size_t>::max(), true, true, false, { 3, 4 }};
+    common_config = ov::snippets::pass::CommonOptimizations::Config(1, true);
+    mha_config =
+        ov::snippets::pass::TokenizeMHASnippets::Config(std::numeric_limits<size_t>::max(),
+                                                        true,
+                                                        false,
+                                                        {3, 4});
     run();
 }
 
@@ -148,7 +153,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM) {
                                       std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
                                       std::vector<Shape>{{2, 64, 12, 64}, {12, 1, 64, 128}, {12, 2, 64, 128}, {1, 128, 12, 64}, {128, 12, 64}},
                                       false);
-    config.set_concurrency(24);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(24, true);
     execute_and_validate_function(*this, f);
 }
 
@@ -157,7 +162,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM_withMul) {
                                       std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
                                       std::vector<Shape>{{4, 32, 12, 64}, {12, 1, 64, 128}, {12, 4, 32, 128}, {1, 128, 12, 64}, {128, 12, 64}},
                                       true);
-    config.set_concurrency(16);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(16, true);
     execute_and_validate_function(*this, f);
 }
 
@@ -166,7 +171,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM) {
                                       std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
                                       std::vector<Shape>{{1, 12, 32, 16, 64}, {1, 16, 1, 64, 384}, {1, 1, 1, 1, 384}, {1, 1, 384, 16, 64}, {1, 384, 16, 64}},
                                       false);
-    config.set_concurrency(60);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(60, true);
     execute_and_validate_function(*this, f);
 }
 
@@ -175,7 +180,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM_withMul) {
                                       std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
                                       std::vector<Shape>{{1, 12, 32, 16, 64}, {1, 16, 1, 64, 384}, {1, 1, 1, 1, 384}, {1, 1, 384, 16, 64}, {1, 384, 16, 64}},
                                       true);
-    config.set_concurrency(60);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(60, true);
     execute_and_validate_function(*this, f);
 }
 
@@ -183,7 +188,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHAWOTranspose_SplitM) {
     const auto& f = MHAWOTransposeSplitMFunction(std::vector<PartialShape>{{10, 9216, 128}, {10, 128, 9216}, {10, 9216, 128}},
                                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32}),
                                                  std::vector<Shape>{{10, 18, 512, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
-    config.set_concurrency(18);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(18, true);
     execute_and_validate_function(*this, f);
 }
 
@@ -191,14 +196,14 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM_AlmostAllThreads) {
     const auto& f = MHAWOTransposeSplitMFunction(std::vector<PartialShape>{{5, 30, 32}, {5, 32, 30}, {5, 30, 32}},
                                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32}),
                                                  std::vector<Shape>{{5, 10, 3, 32}, {5, 1, 32, 30}, {5, 1, 30, 32}, {5, 30, 32}});
-    config.set_concurrency(32);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(32, true);
     execute_and_validate_function(*this, f);
 }
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_SplitM_DynamicParameter) {
     const auto &f = MHAFunction(std::vector<PartialShape>{{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 16, 128, -1}, {1, 128, 16, 64}},
                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), false, false);
-    config.set_concurrency(32);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(32, true);
     execute_and_validate_function(*this, f);
 }
 
@@ -206,7 +211,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
     const auto& f = MHASelectSplitMFunction(std::vector<PartialShape>{{8, 512, 18}, {8, 18, 64}, {1, 512, 64}, {1, 1, 64}, {8, 64, 512}},
                                             std::vector<Shape>{{8, 2, 256, 18}, {8, 1, 18, 64}, {1, 2, 256, 64}, {1, 1, 1, 64},
                                                                {8, 1, 64, 512}, {8, 512, 512}});
-    config.set_concurrency(16);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(16, true);
     execute_and_validate_function(*this, f);
 }
 
@@ -214,7 +219,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM_ScalarParams) {
     const auto& f = MHASelectSplitMFunction(std::vector<PartialShape>{{8, 512, 18}, {8, 18, 64}, {1}, {64}, {8, 64, 512}},
                                             std::vector<Shape>{{8, 2, 256, 18}, {8, 1, 18, 64}, {}, {},
                                                                {8, 1, 64, 512}, {8, 512, 512}});
-    config.set_concurrency(16);
+    common_config = ov::snippets::pass::CommonOptimizations::Config(16, true);
     execute_and_validate_function(*this, f);
 }
 

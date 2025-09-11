@@ -8,6 +8,7 @@
 #include "openvino/core/visibility.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/base_tokenization_config.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 
 namespace ov {
@@ -18,11 +19,10 @@ class SnippetsMarkSkippedTests : public TransformationTestsF {
 public:
     void run() {
         ASSERT_TRUE(model);
-        ov::snippets::pass::TokenizationConfig config = { 1, 23, true, true, true, { 3, 4 }};
+        ov::snippets::pass::TokenizationConfig config(23);
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
-        //
         // todo: This is a temporary work-around. remove when MatMul tokenization is supported through general pipeline
         manager.get_pass_config()->set_callback<ov::snippets::pass::TokenizeSnippets>(
                 [](const std::shared_ptr<const ov::Node>& n) -> bool {

@@ -19,8 +19,8 @@ namespace snippets {
 void TokenizeMLPSeqSnippetsTests::run() {
     ASSERT_TRUE(model);
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
-    manager.register_pass<ov::snippets::pass::TokenizeMLPSeqSnippets>(config);
-    manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
+    manager.register_pass<ov::snippets::pass::TokenizeMLPSeqSnippets>(mlp_seq_config);
+    manager.register_pass<ov::snippets::pass::CommonOptimizations>(common_config);
     disable_rt_info_check();
 }
 class TokenizeMLPSeqSnippetsParamTests : public TokenizeMLPSeqSnippetsTests,
