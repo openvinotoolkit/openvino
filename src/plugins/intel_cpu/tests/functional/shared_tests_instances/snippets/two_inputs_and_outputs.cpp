@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,20 +38,20 @@ const std::vector<std::vector<InputShape>> input_shapes = {
           {{1, 1, -1, {1, 12}}, {{1, 1, 3, 1}, {1, 1, 8, 12}, {1, 1, 3, 1}}} }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, TwoInputsAndOutputs,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(input_shapes),
-                             ::testing::Values(2),
-                             ::testing::Values(1),
-                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise,
+                         TwoInputsAndOutputs,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                            ::testing::Values(2),
+                                            ::testing::Values(1),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TwoInputsAndOutputs::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, TwoInputsAndOutputsWithReversedOutputs,
-                         ::testing::Combine(
-                             ::testing::ValuesIn(input_shapes),
-                             ::testing::Values(2),
-                             ::testing::Values(1),
-                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise,
+                         TwoInputsAndOutputsWithReversedOutputs,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                            ::testing::Values(2),
+                                            ::testing::Values(1),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          TwoInputsAndOutputsWithReversedOutputs::getTestCaseName);
 
 }  // namespace
