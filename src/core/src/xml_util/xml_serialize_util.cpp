@@ -1052,7 +1052,7 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
     pugi::xml_node rt_info_node = net_xml.append_child("rt_info");
     for (const auto& it : model.get_rt_info()) {
         // Skip IR version and Weights path.
-        if (it.first == "version" || it.first == "__weights_path" || ov::util::is_model_cache_attr(it.first))
+        if (it.first == "version" || it.first == "__weights_path")
             continue;
         serialize_rt_info(rt_info_node, it.first, it.second);
     }
@@ -1061,10 +1061,6 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
 bool XmlSerializer::append_node_attributes(ov::Node& node) {
     return node.visit_attributes(*this);
 }
-
-// util::ConstantWriter& XmlSerializer::get_constant_write_handler() {
-//     return m_constant_node_write_handler.get();
-// }
 
 std::string get_ir_precision_name(const element::Type& precision) {
     switch (precision) {

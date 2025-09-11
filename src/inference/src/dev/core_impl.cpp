@@ -266,6 +266,11 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
     std::visit(apply_model_hint, model_hint);
     return import_compiled_model(plugin, context, cfg);
 }
+
+std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
+    const auto it = config.find(ov::cache_model_path.name());
+    return it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
+}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -839,15 +844,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (res) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
-        const auto& [path, id_modifier] = ov::util::get_model_cache_id_attr(*model);
-        CacheContent cache_content{cache_manager, parsed._core_config.get_enable_mmap(), path.string()};
+        CacheContent cache_content{cache_manager, parsed._core_config.get_enable_mmap(), get_cache_model_path(config)};
         const auto compiled_config = create_compile_config(plugin, parsed._config);
-
-        cache_content.blobId =
-            cache_content.modelPath.empty()
-                ? ModelCache::compute_hash(model, compiled_config)
-                : ModelCache::compute_hash(cache_content.modelPath + std::string(id_modifier), compiled_config);
-
+        cache_content.blobId = ModelCache::compute_hash(model, cache_content.modelPath, compiled_config);
         cache_content.model = model;
         const auto lock = cacheGuard.get_hash_lock(cache_content.blobId);
         res = load_model_from_cache(cache_content, plugin, parsed._config, {}, [&]() {
@@ -879,15 +878,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (res) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
-        const auto& [path, id_modifier] = ov::util::get_model_cache_id_attr(*model);
-        CacheContent cache_content{cache_manager, parsed._core_config.get_enable_mmap(), path.string()};
+        CacheContent cache_content{cache_manager,
+                                   parsed._core_config.get_enable_mmap(),
+                                   get_cache_model_path(config).string()};
         const auto compiled_config = create_compile_config(plugin, parsed._config);
-
-        cache_content.blobId =
-            cache_content.modelPath.empty()
-                ? ModelCache::compute_hash(model, compiled_config)
-                : ModelCache::compute_hash(cache_content.modelPath + std::string(id_modifier), compiled_config);
-
+        cache_content.blobId = ModelCache::compute_hash(model, cache_content.modelPath, compiled_config);
         cache_content.model = model;
         res = load_model_from_cache(cache_content, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, context, cache_content);
@@ -1720,7 +1715,7 @@ void ov::CoreConfig::remove_core(ov::AnyMap& config) {
 }
 
 void ov::CoreConfig::remove_core_skip_cache_dir(ov::AnyMap& config) {
-    for (const auto& name : {ov::enable_mmap.name(), ov::force_tbb_terminate.name()}) {
+    for (const auto& name : {ov::enable_mmap.name(), ov::force_tbb_terminate.name(), ov::cache_model_path.name()}) {
         config.erase(name);
     }
 }

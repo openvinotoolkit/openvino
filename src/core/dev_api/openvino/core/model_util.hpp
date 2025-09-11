@@ -95,23 +95,4 @@ OPENVINO_API void set_tensors_names(const AutoTag&,
                                     Model& model,
                                     const TensorNamesMap& inputs_names = {},
                                     const TensorNamesMap& outputs_names = {});
-
-/**
- * @brief Get the model cache id attribute.
- *
- * If returned model path is empty, then model path attribute is not set or it should be ignored.
- *
- * @param model  Model to get its cache id attributes.
- * @return pair of model path and model cache ID modifier.
- */
-OPENVINO_API std::pair<std::filesystem::path, std::string_view> get_model_cache_id_attr(const Model& model);
-
-/**
- * @brief Check if attribute name is model cache attribute.
- *
- * @param name  Attribute name to check.
- * @return True if name is model cache attribute, false otherwise.
- */
-OPENVINO_API bool is_model_cache_attr(const std::string& name);
-
 }  // namespace ov::util

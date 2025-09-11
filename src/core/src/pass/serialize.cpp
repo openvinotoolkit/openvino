@@ -53,7 +53,8 @@ void serialize_func(std::ostream& xml_file,
                     std::ostream& bin_file,
                     std::shared_ptr<ov::Model> model,
                     ov::pass::Serialize::Version ver,
-                    bool deterministic = false) {
+                    bool deterministic,
+                    ov::util::ConstantWriter& constant_writer) {
     auto version = static_cast<int64_t>(ver);
 
     auto& rt_info = model->get_rt_info();
@@ -74,9 +75,8 @@ void serialize_func(std::ostream& xml_file,
     std::string name = "net";
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
-    ov::util::ConstantWriter constant_write_handler(bin_file);
     ov::util::XmlSerializer
-        visitor(net_node, name, constant_write_handler, version, deterministic, false, ov::element::dynamic, false);
+        visitor(net_node, name, constant_writer, version, deterministic, false, ov::element::dynamic, false);
     visitor.on_attribute(name, model);
 
     xml_doc.save(xml_file);
@@ -84,6 +84,14 @@ void serialize_func(std::ostream& xml_file,
     bin_file.flush();
 }
 
+void serialize_func(std::ostream& xml_file,
+                    std::ostream& bin_file,
+                    std::shared_ptr<ov::Model> model,
+                    ov::pass::Serialize::Version ver,
+                    bool deterministic = false) {
+    ov::util::ConstantWriter constant_write_handler(bin_file);
+    serialize_func(xml_file, bin_file, model, ver, deterministic, constant_write_handler);
+}
 }  // namespace
 
 namespace ov {
@@ -284,8 +292,9 @@ bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& model) {
     std::ostream bin(&binHash);
 
     // Determinism is important for hash calculation
-    serialize_func(xml, bin, model, Serialize::Version::UNSPECIFIED, true);
-
+    // disable compression when skip weight to speed hash calculation
+    auto constant_writer = util::ConstantWriter(bin, !m_skip_weights);
+    serialize_func(xml, bin, model, Serialize::Version::UNSPECIFIED, true, constant_writer);
     uint64_t seed = 0;
     seed = util::u64_hash_combine(seed, xmlHash.getResult());
     seed = util::u64_hash_combine(seed, binHash.get_result());
@@ -295,6 +304,8 @@ bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-pass::Hash::Hash(uint64_t& output_hash_value) : m_hash(output_hash_value) {}
+pass::Hash::Hash(uint64_t& output_hash_value, bool skip_weights)
+    : m_hash(output_hash_value),
+      m_skip_weights(skip_weights) {}
 
 }  // namespace ov
