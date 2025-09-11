@@ -7,11 +7,14 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/elu.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/hsigmoid.hpp"
@@ -35,13 +38,14 @@ SnippetsMarkSkipped::SnippetsMarkSkipped(Profile profile, bool enableBF16)
                                                                            ov::op::v0::Sigmoid::get_type_info_static(),
                                                                            ov::op::v0::Tanh::get_type_info_static()},
                [](const std::shared_ptr<const ov::Node>& n) {
-                   return ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>(n);
+                   return (std::dynamic_pointer_cast<const ov::op::v1::Convolution>(n) ||
+                           std::dynamic_pointer_cast<const ov::op::v1::GroupConvolution>(n));
                },
                [](const std::shared_ptr<const ov::Node>& n) {
-                   return ov::is_type<ov::op::v1::BinaryConvolution>(n);
+                   return static_cast<bool>(std::dynamic_pointer_cast<const ov::op::v1::BinaryConvolution>(n));
                },
                [](const std::shared_ptr<const ov::Node>& n) {
-                   return ov::is_type<ov::op::v0::MatMul>(n);
+                   return static_cast<bool>(std::dynamic_pointer_cast<const ov::op::v0::MatMul>(n));
                }},
       m_enableBF16(enableBF16) {}
 
@@ -62,8 +66,9 @@ NodeFusingType SnippetsMarkSkipped::GetNodeFusingType(const std::shared_ptr<cons
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
     auto is_single_output_single_child = [](const std::shared_ptr<const ov::Node>& n) {
         const auto outs = n->outputs();
-        if (outs.size() != 1)
+        if (outs.size() != 1) {
             return false;
+        }
         return outs[0].get_target_inputs().size() == 1;
     };
 
@@ -73,18 +78,19 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
     auto is_activation = [&](const std::shared_ptr<const ov::Node>& n) -> bool {
         // A conservative set sufficient for current x64 tests; safe for ARM64 too
-        return ov::is_type_any_of<ov::op::v0::Relu,
-                                  ov::op::v0::Elu,
-                                  ov::op::v0::Sigmoid,
-                                  ov::op::v5::HSigmoid,
-                                  ov::op::v4::HSwish,
-                                  ov::op::v4::Mish,
-                                  ov::op::v5::Round,
-                                  ov::op::v0::Gelu,
-                                  ov::op::v7::Gelu,
-                                  ov::op::v0::Clamp,
-                                  ov::op::v0::Tanh,
-                                  ov::op::v0::Sqrt>(n);
+        return (std::dynamic_pointer_cast<const ov::op::v0::Relu>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v0::Abs>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v0::Elu>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v0::Sigmoid>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v5::HSigmoid>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v4::HSwish>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v4::Mish>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v5::Round>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v0::Gelu>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v7::Gelu>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v0::Clamp>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v0::Tanh>(n) ||
+                std::dynamic_pointer_cast<const ov::op::v0::Sqrt>(n));
     };
 
     bool modified = false;
@@ -108,6 +114,18 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             modified = true;
         }
 
+        // Skip FakeQuantize placed directly after Convolution/GroupConvolution/BinaryConvolution
+        if (std::dynamic_pointer_cast<const ov::op::v0::FakeQuantize>(node)) {
+            if (node->get_input_size() >= 1) {
+                const auto parent = node->input_value(0).get_node_shared_ptr();
+                if ((m_config.is_convolution && m_config.is_convolution(parent)) ||
+                    (m_config.is_binary_convolution && m_config.is_binary_convolution(parent))) {
+                    mark_skipped(std::const_pointer_cast<ov::Node>(node));
+                    modified = true;
+                }
+            }
+        }
+
         // Port a subset of old x64 logic: Conv -> Add -> Activation chain should be skipped by Snippets
         // Keep the logic architecture-agnostic; limited to simple single-user chains
         if (m_config.is_convolution && m_config.is_convolution(node) && is_single_output_single_child(node)) {
@@ -116,9 +134,8 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             auto child = child_input.get_node()->shared_from_this();
             // Sum path
             if (ov::is_type<ov::op::v1::Add>(child) && is_single_output_single_child(child)) {
-                // Mark Conv and Add as part of fusing chain and skipped
+                // Mark Conv as part of fusing chain (do not skip Conv itself)
                 SetNodeFusingType(std::const_pointer_cast<ov::Node>(node), NodeFusingType::FusedWithConvolution);
-                mark_skipped(std::const_pointer_cast<ov::Node>(node));
                 SetNodeFusingType(child, NodeFusingType::FusedWithConvolutionSumActivation);
                 mark_skipped(child);
 
@@ -127,8 +144,15 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
                 while (is_single_output_single_child(cur)) {
                     const auto next_input = *cur->output(0).get_target_inputs().begin();
                     auto next = next_input.get_node()->shared_from_this();
-                    if (!is_activation(next))
+                    // Skip over trivial data movement like Convert
+                    while (is_single_output_single_child(next) &&
+                           std::dynamic_pointer_cast<const ov::op::v0::Convert>(next)) {
+                        const auto after_convert_input = *next->output(0).get_target_inputs().begin();
+                        next = after_convert_input.get_node()->shared_from_this();
+                    }
+                    if (!is_activation(next)) {
                         break;
+                    }
                     // Mark activation as part of the fusion chain and skipped
                     SetNodeFusingType(next, NodeFusingType::FusedWithConvolution);
                     mark_skipped(next);
@@ -139,6 +163,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             }
         }
     }
+
     return modified;
 }
 

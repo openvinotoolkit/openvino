@@ -33,12 +33,14 @@
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/mish.hpp"
@@ -244,9 +246,9 @@
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #    include "transformations/op_conversions/reduce_l2_decomposition.hpp"
+#    include "transformations/snippets/common/pass/snippets_mark_skipped.hpp"
 #    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
-#    include "transformations/snippets/common/pass/snippets_mark_skipped.hpp"
 #    include "transformations/utils/utils.hpp"
 #endif
 
@@ -1252,6 +1254,58 @@ void Transformations::MainSnippets() {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeGatedMLPSnippets);
     }
     CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
+    // Prevent tokenization of FakeQuantize that directly follows Convolution/GroupConvolution.
+    // CPU relies on legacy fusion in this case; wrapping FQ into Subgraph breaks expected behavior.
+    snippetsManager.get_pass_config()->set_callback<snippets::pass::TokenizeSnippets>(
+        [](const std::shared_ptr<const ov::Node>& n) -> bool {
+            // Skip FQ right after Convolution/Group/Binary Convolution
+            if (auto fq = std::dynamic_pointer_cast<const ov::op::v0::FakeQuantize>(n)) {
+                const auto& parent = fq->input_value(0).get_node_shared_ptr();
+                if (std::dynamic_pointer_cast<const ov::op::v1::Convolution>(parent) ||
+                    std::dynamic_pointer_cast<const ov::op::v1::GroupConvolution>(parent) ||
+                    std::dynamic_pointer_cast<const ov::op::v1::BinaryConvolution>(parent)) {
+                    return true;
+                }
+            }
+            // Skip simple activations directly following Conv+Add fusion chain
+            auto is_unary_activation = [](const std::shared_ptr<const ov::Node>& node) {
+                return (std::dynamic_pointer_cast<const ov::op::v0::Relu>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v0::Abs>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v0::Elu>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v0::Sigmoid>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v5::HSigmoid>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v4::HSwish>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v4::Mish>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v5::Round>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v0::Gelu>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v7::Gelu>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v0::Clamp>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v0::Tanh>(node) ||
+                        std::dynamic_pointer_cast<const ov::op::v0::Sqrt>(node));
+            };
+            if (is_unary_activation(n) && n->get_input_size() >= 1) {
+                auto cur = n->input_value(0).get_node_shared_ptr();
+                // Walk back through optional chain of Convert and unary activations
+                auto is_unary_or_convert = [&](const std::shared_ptr<const ov::Node>& node) {
+                    return static_cast<bool>(std::dynamic_pointer_cast<const ov::op::v0::Convert>(node)) ||
+                           is_unary_activation(node);
+                };
+                while (cur and is_unary_or_convert(cur) and cur->get_input_size() >= 1) {
+                    cur = cur->input_value(0).get_node_shared_ptr();
+                }
+                if (std::dynamic_pointer_cast<const ov::op::v1::Add>(cur) && cur->get_input_size() >= 1) {
+                    auto grand = cur->input_value(0).get_node_shared_ptr();
+                    if (std::dynamic_pointer_cast<const ov::op::v1::Convolution>(grand) ||
+                        std::dynamic_pointer_cast<const ov::op::v1::GroupConvolution>(grand)) {
+                        return true;  // disable tokenization for such activation chain
+                    }
+                } else if (std::dynamic_pointer_cast<const ov::op::v1::Convolution>(cur) ||
+                           std::dynamic_pointer_cast<const ov::op::v1::GroupConvolution>(cur)) {
+                    return true;
+                }
+            }
+            return false;
+        });
 
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     // Currently, Snippets don't provide efficient execution for single token inference in LLM case.
