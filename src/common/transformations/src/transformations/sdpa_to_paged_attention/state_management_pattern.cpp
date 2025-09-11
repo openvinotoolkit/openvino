@@ -10,10 +10,12 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -27,6 +29,8 @@
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/less_eq.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -176,7 +180,7 @@ static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
     return res_alibi_slopes;
 }
 
-static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> handle_phi3_sliding_window() {
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> phi3_sliding_window_pattern() {
     using namespace ov::pass::pattern;
 
     auto offset = wrap_type<v0::Constant>();
@@ -194,6 +198,32 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> handle_p
     auto t218 = pattern::wrap_type<v3::Broadcast>({t214, any_input()});
     auto t219 = pattern::wrap_type<v1::Select>({any_input(), any_input(), t218});
     auto mask = pattern::wrap_type<v8::Slice>({t219, any_input(), any_input(), any_input(), any_input()});
+    return {mask, offset};
+}
+
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gpt_oss_sliding_window_pattern() {
+    using namespace ov::pass::pattern;
+
+    auto q_idx = pattern::any_input();
+    auto kv_idx = pattern::any_input();
+
+    auto kv_idx_opt_conv_0 = pattern::optional<v0::Convert>();
+    auto kv_idx_opt_conv_1 = pattern::optional<v0::Convert>(kv_idx_opt_conv_0);
+    auto less_eq = pattern::wrap_type<v1::LessEqual>({q_idx, kv_idx_opt_conv_1});
+   
+    auto offset = wrap_type<v0::Constant>();
+
+    auto add = wrap_type<v1::Add>({q_idx, offset});
+    auto opt_conv_2 = pattern::optional<v0::Convert>(add);
+    auto greater = pattern::wrap_type<v1::Greater>({kv_idx_opt_conv_1, opt_conv_2});
+    auto bitwise_and = pattern::wrap_type<v13::BitwiseAnd>({any_input(), greater});
+    auto bitwise_and_1 = pattern::wrap_type<v13::BitwiseAnd>({bitwise_and, any_input()});
+    auto bitwise_and_2 = pattern::wrap_type<v13::BitwiseAnd>({any_input(), bitwise_and_1});
+    auto bitwise_and_3 = pattern::wrap_type<v13::BitwiseAnd>({bitwise_and_2, any_input()});
+    auto broadcast = pattern::wrap_type<v3::Broadcast>({bitwise_and_3, any_input()});
+    auto select = pattern::wrap_type<v1::Select>({broadcast, any_input(), any_input()});
+    auto mask = pattern::wrap_type<v1::StridedSlice>({select, any_input(), any_input(), any_input()});
+
     return {mask, offset};
 }
 
@@ -326,10 +356,22 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
     // Phi3-xxx-instruct case
     std::shared_ptr<ov::Node> phi3_mask, phi3_offset;
-    std::tie(phi3_mask, phi3_offset) = handle_phi3_sliding_window();
+    std::tie(phi3_mask, phi3_offset) = phi3_sliding_window_pattern();
+
+    // gpt-oss case
+    std::shared_ptr<ov::Node> gpt_oss_mask, gpt_oss_offset;
+    std::tie(gpt_oss_mask, gpt_oss_offset) = gpt_oss_sliding_window_pattern();
+
+    // Scale's shape limitations according to SDPA specification
+    auto scale_predicate = [=](const Output<Node>& output) -> bool {
+            return output.get_partial_shape() == ov::PartialShape{} ||
+                  (output.get_partial_shape() == ov::PartialShape{1} &&
+                   output.get_partial_shape()[0] == 1);
+    };
 
     auto q = pattern::any_input();
-    auto scale_input = pattern::any_input();
+    auto scale_input = pattern::any_input(scale_predicate);
+    auto sinks = pattern::any_input();
 
     auto k_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
@@ -337,14 +379,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
 
     auto mask_to_sdpa = std::make_shared<pattern::op::Or>(
-        OutputVector{phi3_mask, general_alibi_mask, jais_alibi_mask, baichuan2_13b_alibi_mask, pattern::any_input()});
+        OutputVector{phi3_mask, general_alibi_mask, jais_alibi_mask, baichuan2_13b_alibi_mask, gpt_oss_mask, pattern::any_input()});
 
     auto sdpa_with_4_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
     auto sdpa_with_5_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input});
+    auto sdpa_with_6_inputs =
+        pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input, sinks});
 
-    auto sdpa_variants = std::make_shared<pattern::op::Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs});
+    auto sdpa_variants = std::make_shared<pattern::op::Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
     ov::matcher_pass_callback callback = [=,
                                           &kv_parameters,
@@ -360,7 +404,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         auto real_q = pattern_map.at(q);
 
         auto sdpa_node =
-            pattern_map.at(pattern_map.count(sdpa_with_4_inputs) ? sdpa_with_4_inputs : sdpa_with_5_inputs).get_node();
+            pattern_map.at(pattern_map.count(sdpa_with_4_inputs) ? sdpa_with_4_inputs :
+                           pattern_map.count(sdpa_with_5_inputs) ? sdpa_with_5_inputs :
+                           sdpa_with_6_inputs).get_node();
         // E and Ev are from the SDPA specification at
         // https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/scaled-dot-product-attention.html
         auto E = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];
@@ -490,6 +536,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
+            if (pattern_map.at(scale_input).get_partial_shape().rank() != 0) {
+                scale = std::make_shared<v15::Squeeze>(scale);
+            }
         } else {
             auto real_q_ps = real_q.get_partial_shape();
 
@@ -532,6 +581,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
+        } else if (pattern_map.count(gpt_oss_offset)) {
+            auto offset = pattern_map.at(gpt_oss_offset).get_node_shared_ptr();
+            if (pattern_map.at(gpt_oss_offset).get_partial_shape().rank() != 0) {
+                offset = std::make_shared<v15::Squeeze>(offset);
+            }
+            if (offset->get_element_type() != element::i32) {
+                offset = std::make_shared<v0::Convert>(offset, element::i32);
+            }
+            sliding_window = std::make_shared<v1::Multiply>(offset, v0::Constant::create(element::i32, Shape{}, {-1}));
         } else {
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
@@ -606,7 +664,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 19, v0::Constant::create(element::i32, Shape{}, {0}));
         }
 
-        OPENVINO_ASSERT(pa_arguments.size() == 20);
+        pa_arguments.insert(pa_arguments.begin() + 20,
+                            pattern_map.count(sinks) ? pattern_map.at(sinks).get_node_shared_ptr() : v0::Constant::create(element::f32, Shape{}, {0}));
+
+        OPENVINO_ASSERT(pa_arguments.size() == 21);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
 

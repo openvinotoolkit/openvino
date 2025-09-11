@@ -92,7 +92,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 20U, "The input number of PagedAttention should be 20.");
+    CPU_NODE_ASSERT(orgInputNumber == 21U, "The input number of PagedAttention should be 21.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -172,6 +172,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32,
                                getInputShapeAtPort(PagedAttentionExecutor::ID_XATTENTION_BLOCK_SIZE)));
+    
+    //TODO: perhaps, some additional changes from the CPU team required here to handle the new input
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
