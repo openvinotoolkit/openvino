@@ -438,37 +438,36 @@ TEST_F(TransformationTestsF, AbsInTheUnknown) {
     }
 }
 
-TEST_F(TransformationTestsF, AbsSinkingWithNegativeValues) {
+// Parameterized test for AbsSinking with constants
+struct AbsSinkingConstantTestParams {
+    std::vector<int64_t> values;
+    std::string test_name;
+};
+
+class AbsSinkingConstantTest : public TransformationTestsF,
+                               public ::testing::WithParamInterface<AbsSinkingConstantTestParams> {};
+
+TEST_P(AbsSinkingConstantTest, AbsSinkingSkipsConstants) {
     // Test that AbsSinking does NOT process constants (leaves them for ConstantFolding)
+    const auto& params = GetParam();
+    
     {
-        // Create constant with negative values: {-1, -2, 4}
-        auto const_with_negatives = opset7::Constant::create(element::i64, {3}, {-1, -2, 4});
-        auto abs_op = std::make_shared<opset7::Abs>(const_with_negatives);
+        auto constant = op::v0::Constant::create(element::i64, {params.values.size()}, params.values);
+        auto abs_op = std::make_shared<op::v0::Abs>(constant);
 
         model = std::make_shared<Model>(OutputVector{abs_op}, ParameterVector{});
         manager.register_pass<pass::AbsSinking>();
     }
-    {
-        auto const_with_negatives = opset7::Constant::create(element::i64, {3}, {-1, -2, 4});
-        auto abs_op = std::make_shared<opset7::Abs>(const_with_negatives);
-
-        model_ref = std::make_shared<Model>(OutputVector{abs_op}, ParameterVector{});
-    }
+    
+    // Reference model should be identical since AbsSinking skips constants
+    model_ref = model->clone();
 }
 
-TEST_F(TransformationTestsF, AbsSinkingPositiveValuesOptimization) {
-    // Test that AbsSinking does NOT process constants (leaves them for ConstantFolding)
-    {
-        auto const_with_pos_values = opset7::Constant::create(element::i64, {2}, {1, 2});
-        auto abs = std::make_shared<opset7::Abs>(const_with_pos_values);
-
-        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{});
-        manager.register_pass<pass::AbsSinking>();
-    }
-    {
-        auto const_with_pos_values = opset7::Constant::create(element::i64, {2}, {1, 2});
-        auto abs = std::make_shared<opset7::Abs>(const_with_pos_values);
-
-        model_ref = std::make_shared<Model>(OutputVector{abs}, ParameterVector{});
-    }
-}
+INSTANTIATE_TEST_SUITE_P(AbsSinkingConstantTests,
+                        AbsSinkingConstantTest,
+                        ::testing::Values(
+                            AbsSinkingConstantTestParams{{-1, -2, 4}, "negative_values"},
+                            AbsSinkingConstantTestParams{{1, 2}, "positive_values"}),
+                        [](const ::testing::TestParamInfo<AbsSinkingConstantTestParams>& info) {
+                            return info.param.test_name;
+                        });
