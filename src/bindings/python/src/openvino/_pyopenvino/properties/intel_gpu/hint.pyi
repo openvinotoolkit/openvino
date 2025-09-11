@@ -19,7 +19,7 @@ class ThrottleLevel:
 def available_device_mem() -> str:
     ...
 @typing.overload
-def available_device_mem(arg0: int) -> tuple[str, openvino._pyopenvino.OVAny]:
+def available_device_mem(arg0: typing.SupportsInt) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def enable_lora_operation() -> str:

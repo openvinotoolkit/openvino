@@ -25,7 +25,7 @@ extern const std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_
 
 class jit_uni_segfault_detector_emitter : public jit_emitter {
 public:
-    jit_uni_segfault_detector_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_uni_segfault_detector_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                       jit_emitter* target_emitter,
                                       bool is_load,

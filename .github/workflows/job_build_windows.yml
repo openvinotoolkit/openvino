@@ -48,6 +48,7 @@ jobs:
       CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\windows2022_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
+      CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
@@ -408,7 +409,7 @@ jobs:
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: always()
+        if: ${{ inputs.event-name != 'schedule' }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |

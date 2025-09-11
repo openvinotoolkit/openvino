@@ -58,12 +58,23 @@ jobs:
           sparse-checkout-cone-mode: false
           submodules: 'false'
           
-      - name: Download OpenVINO artifacts (tarballs and wheels)
+      - name: Download OpenVINO artifacts (wheels)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: openvino_@(wheels|tests|tokenizers_wheel)
+          name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO artifacts (tokenizers_wheel)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Setup Variables
         run: |
@@ -105,7 +116,7 @@ jobs:
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ fromJSON(inputs.affected-components).TF_FE.test }}
         run: |
-          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/tensorflow_tests/ -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
+          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/tensorflow_tests/ -v -n logical -m precommit  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -113,7 +124,7 @@ jobs:
       - name: TensorFlow 2 Layer Tests - TF FE
         if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.os != 'macOS' }} # Ticket: 123322
         run: |
-          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/tensorflow2_keras_tests/ -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
+          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/tensorflow2_keras_tests/ -v -n logical -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION:

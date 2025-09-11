@@ -88,6 +88,7 @@ std::vector<std::vector<ov::test::InputShape>> transpose_b_shapes{
     { {{}, {{1, 1, 64, 1500}}}, {{}, {{1, 1, 420, 1500}}} },
     { {{}, {{1, 1, 64, 1024}}}, {{}, {{1, 1, 420, 1024}}} },
     { {{}, {{4, 8, 32, 1024}}}, {{}, {{4, 8, 420, 1024}}} },
+    { {{}, {{2, 2, 4096, 40}}}, {{}, {{2, 2, 4096, 40}}} },
     // All dimensions are dynamic
     {
         {PartialShape{-1, -1, -1, -1}, {{2, 1, 32, 64},  {2, 2, 10, 20}, {2, 2, 100, 600}, {2, 1, 32, 64}}},
@@ -105,12 +106,18 @@ std::vector<std::vector<ov::test::InputShape>> transpose_b_shapes{
     }
 };
 
+#ifdef OPENVINO_ARCH_ARM64
+static constexpr size_t expected_num_subgraphs = 2; // MatMul + Transpose
+#else
+static constexpr size_t expected_num_subgraphs = 1; // MatMul
+#endif
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulTransposeB, MatMulTransposeB,
                          ::testing::Combine(
                              ::testing::ValuesIn(transpose_b_shapes),
                              ::testing::ValuesIn(precisions()),
                              ::testing::Values(MatMulType::MatMul),
-                             ::testing::Values(1), // MatMul
+                             ::testing::Values(expected_num_subgraphs),
                              ::testing::Values(1), // Tokenized MatMul
                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                              ::testing::Values(CPUTestUtils::empty_plugin_config)),

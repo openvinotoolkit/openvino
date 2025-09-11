@@ -3168,7 +3168,7 @@ public:
 
     layout get_input_layout(T& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
     return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
     }
 
@@ -3329,7 +3329,7 @@ class testing_removal_1d_reorder : public ReorderTest<redundant_reorder_test_par
 TEST_P(testing_removal_1d_reorder, removal_reorder_1d_along_f_mixed_format) {
     auto p = GetParam();
 
-    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    std::vector<ov::Dimension::value_type> pad = { 0, 0, p.pad[1], p.pad[0] };
     layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
 
     create_topologies(input_layout("input", in_layout),
@@ -3351,7 +3351,7 @@ TEST_P(testing_removal_1d_reorder, removal_reorder_1d_along_f_mixed_format) {
 TEST_P(testing_removal_1d_reorder, padded_reorder_1d_along_f_mixed_format) {
     auto p = GetParam();
 
-    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    std::vector<ov::Dimension::value_type> pad = { 0, 0, p.pad[1], p.pad[0] };
     layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
 
     layout reorder_layout(data_types::f16, format::b_fs_yx_fsv32, p.out_shape, padding({0, 0, 1, 1}, 0));
@@ -3381,7 +3381,7 @@ class testing_removal_feature_aligned_reorder : public ReorderTest<redundant_reo
 TEST_P(testing_removal_feature_aligned_reorder, removal_reorder_aligned_mixed_format) {
     auto p = GetParam();
 
-    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    std::vector<ov::Dimension::value_type> pad = { 0, 0, p.pad[1], p.pad[0] };
     layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
 
     create_topologies(input_layout("input", in_layout),
@@ -3401,7 +3401,7 @@ TEST_P(testing_removal_feature_aligned_reorder, removal_reorder_aligned_mixed_fo
 TEST_P(testing_removal_feature_aligned_reorder, padded_reorder_aligned_mixed_format) {
     auto p = GetParam();
 
-    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    std::vector<ov::Dimension::value_type> pad = { 0, 0, p.pad[1], p.pad[0] };
     layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
 
     layout reorder_layout(data_types::f16, format::b_fs_yx_fsv32, p.out_shape, padding({0, 0, 1, 1}, 0));
@@ -3704,7 +3704,7 @@ TEST(reorder_gpu_fp32, test_needs_completion_events) {
     }
 }
 
-static void run_reorder_weight_int4(const ov::Shape in_shape, const std::vector<int32_t> upper_size) {
+static void run_reorder_weight_int4(const ov::Shape in_shape, const std::vector<ov::Dimension::value_type> upper_size) {
     auto& engine = get_test_engine();
 
     layout in_layout({in_shape, data_types::i4, format::bfyx});

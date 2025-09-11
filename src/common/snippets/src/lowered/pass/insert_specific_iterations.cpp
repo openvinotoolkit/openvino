@@ -141,9 +141,7 @@ LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& lin
                                                                    std::vector<LoopPort>& new_entry_ports,
                                                                    std::vector<LoopPort>& new_exit_ports) {
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
-    const auto loop_begin_pos = loop_bounds.first;
-    const auto loop_end_pos = loop_bounds.second;
+    const auto [loop_begin_pos, loop_end_pos] = loop_manager->get_loop_bounds(linear_ir, loop_id);
 
     ExpressionMap expression_map;
     const auto& cloning_config = LinearIRBuilder::Config(false);

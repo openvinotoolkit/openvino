@@ -24,7 +24,7 @@ namespace ov::intel_cpu::riscv64 {
 
 using namespace Xbyak_riscv;
 
-jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                          ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                          ov::element::Type exec_prc,
                          emitter_in_out_map in_out_type)
@@ -241,11 +241,11 @@ std::vector<size_t> get_caller_saved_gprs(const std::vector<size_t>& exclude_gpr
         if (std::find(exclude_gpr_regs.cbegin(), exclude_gpr_regs.cend(), i) != exclude_gpr_regs.cend()) {
             continue;
         }
-        if (std::find_if(std::begin(ov::intel_cpu::riscv64::jit_generator::abi_save_gpr_regs),
-                         std::end(ov::intel_cpu::riscv64::jit_generator::abi_save_gpr_regs),
+        if (std::find_if(std::begin(ov::intel_cpu::riscv64::jit_generator_t::abi_save_gpr_regs),
+                         std::end(ov::intel_cpu::riscv64::jit_generator_t::abi_save_gpr_regs),
                          [i](const Reg& r) {
                              return r.getIdx() == i;
-                         }) != std::end(ov::intel_cpu::riscv64::jit_generator::abi_save_gpr_regs)) {
+                         }) != std::end(ov::intel_cpu::riscv64::jit_generator_t::abi_save_gpr_regs)) {
             continue;
         }
         if (i == zero.getIdx() || i == sp.getIdx() || i == gp.getIdx() || i == tp.getIdx()) {
@@ -263,11 +263,11 @@ std::vector<size_t> get_caller_saved_fp_gprs(const std::vector<size_t>& exclude_
         if (std::find(exclude_fp_gpr_regs.cbegin(), exclude_fp_gpr_regs.cend(), i) != exclude_fp_gpr_regs.cend()) {
             continue;
         }
-        if (std::find_if(std::begin(ov::intel_cpu::riscv64::jit_generator::abi_save_fp_gpr_regs),
-                         std::end(ov::intel_cpu::riscv64::jit_generator::abi_save_fp_gpr_regs),
+        if (std::find_if(std::begin(ov::intel_cpu::riscv64::jit_generator_t::abi_save_fp_gpr_regs),
+                         std::end(ov::intel_cpu::riscv64::jit_generator_t::abi_save_fp_gpr_regs),
                          [i](const FReg& r) {
                              return r.getIdx() == i;
-                         }) != std::end(ov::intel_cpu::riscv64::jit_generator::abi_save_fp_gpr_regs)) {
+                         }) != std::end(ov::intel_cpu::riscv64::jit_generator_t::abi_save_fp_gpr_regs)) {
             continue;
         }
         fp_gprs.push_back(i);

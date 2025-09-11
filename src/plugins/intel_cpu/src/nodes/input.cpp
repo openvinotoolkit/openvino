@@ -43,7 +43,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <atomic>
 #    include <common/c_types_map.hpp>
@@ -63,7 +63,7 @@ namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 namespace {
-struct jit_has_special_value_base : public jit_generator {
+struct jit_has_special_value_base : public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_special_value_base)
 
     using args_t = struct {
@@ -74,7 +74,7 @@ struct jit_has_special_value_base : public jit_generator {
 
     using fn_t = void (*)(const args_t*);
 
-    jit_has_special_value_base() : jit_generator(jit_name()) {
+    jit_has_special_value_base() : jit_generator_t(jit_name()) {
         jit_ker_ = nullptr;
     }
 
@@ -397,7 +397,7 @@ jit_has_special_value_base::fn_t jit_has_bf16_overflows_function() {
 
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
-    if (!one_of(op->get_type_info(),
+    if (none_of(op->get_type_info(),
                 op::v0::Parameter::get_type_info_static(),
                 op::v0::Constant::get_type_info_static(),
                 op::v0::Result::get_type_info_static(),
@@ -583,9 +583,10 @@ void Input::cloneBlobIfRequired() {
         // original weights are stored.
         (!weightCache || context->getNumNumaNodes() == 1 || context->getCPUStreamExecutor()->get_streams_num() == 1);
 
-    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, m_constOp->get_data_ptr())
-                                    : std::const_pointer_cast<const IMemory>(
-                                          weightCache ? *weightCache->findOrCreate(blobKey(), cloneBlob) : cloneBlob());
+    memoryPtr = clone_is_not_needed
+                    ? std::make_shared<Memory>(getEngine(), memDesc, m_constOp->get_data_ptr())
+                    : std::const_pointer_cast<const IMemory>(
+                          weightCache ? MemoryPtr(*weightCache->findOrCreate(blobKey(), cloneBlob)) : cloneBlob());
 }
 
 static std::vector<Shape> createInputShapes(const Shape& shape, const Type type) {
@@ -669,19 +670,11 @@ MemoryCPtr Input::getMemoryPtr() const {
 
 void Input::getSupportedDescriptors() {
     if (getType() == Type::Input) {
-        if (!getParentEdges().empty()) {
-            THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-        }
-        if (getChildEdges().empty()) {
-            THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-        }
+        CPU_NODE_ASSERT(getParentEdges().empty(), "has incorrect number of input edges.");
+        CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges.");
     } else if (getType() == Type::Output) {
-        if (getParentEdges().size() != 1) {
-            THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-        }
-        if (!getChildEdges().empty()) {
-            THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-        }
+        CPU_NODE_ASSERT(getParentEdges().size() == 1, "has incorrect number of input edges.");
+        CPU_NODE_ASSERT(getChildEdges().empty(), "has incorrect number of output edges.");
     }
 }
 
@@ -731,39 +724,37 @@ void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto dstMemPtr = getDstMemoryAtPort(i);
         if (!dstMemPtr) {
-            THROW_CPU_NODE_ERR("has null memory object at port ",
-                               i,
-                               " to node ",
-                               getChildEdgeAt(i)->getChild()->getName(),
-                               ".");
+            CPU_NODE_THROW("has null memory object at port ",
+                           i,
+                           " to node ",
+                           getChildEdgeAt(i)->getChild()->getName(),
+                           ".");
         }
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto srcMemPtr = getSrcMemoryAtPort(i);
         if (!srcMemPtr) {
-            THROW_CPU_NODE_ERR("has null memory object at port ",
-                               i,
-                               " from node ",
-                               getParentEdgeAt(i)->getParent()->getName(),
-                               ".");
+            CPU_NODE_THROW("has null memory object at port ",
+                           i,
+                           " from node ",
+                           getParentEdgeAt(i)->getParent()->getName(),
+                           ".");
         }
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("doesn't have selected primitive descriptor.");
-    }
+    CPU_NODE_ASSERT(selected_pd, "doesn't have selected primitive descriptor.");
 }
 
 bool Input::created() const {
-    return getType() == Type::Input || getType() == Type::Output;
+    return any_of(getType(), Type::Input, Type::Output);
 }
 
 void Input::initSupportedPdDefault() {
     std::vector<PortConfigurator> inPortConfs;
     std::vector<PortConfigurator> outPortConfs;
 
-    if (getType() == Type::Input || getType() == Type::MemoryInput) {
+    if (any_of(getType(), Type::Input, Type::MemoryInput)) {
         auto precision = getOriginalOutputPrecisionAtPort(0);
 
         outPortConfs.emplace_back(LayoutType::ncsp, precision);
@@ -783,7 +774,7 @@ void Input::initSupportedPdFromMemDesc() {
     NodeConfig config;
     PortConfig portConfig(extMemDesc, BlockedMemoryDesc::FULL_MASK, m_isInPlace ? 0 : -1, false);
 
-    if (getType() == Type::Input || getType() == Type::MemoryInput) {
+    if (any_of(getType(), Type::Input, Type::MemoryInput)) {
         config.outConfs.push_back(portConfig);
     } else if (getType() == Type::Output) {
         config.inConfs.push_back(portConfig);

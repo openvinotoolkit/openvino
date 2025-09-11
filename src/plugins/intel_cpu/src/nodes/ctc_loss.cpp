@@ -27,6 +27,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -50,8 +51,8 @@ CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5) {
-        THROW_CPU_NODE_ERR("has invalid inputs number.");
+    if (none_of(getOriginalInputsNumber(), 4U, 5U)) {
+        CPU_NODE_THROW("has invalid inputs number.");
     }
 
     auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
@@ -181,7 +182,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                 resErr += err + "\n";
             }
         }
-        THROW_CPU_NODE_ERR(resErr);
+        CPU_NODE_THROW(resErr);
     }
 
     const size_t TC = maxTime * classesNum;
@@ -226,7 +227,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                     expSum += std::exp(logits[btcT + c]);
                 }
                 for (size_t s = 0LU; s < decodedTargetLen; s++) {
-                    logProbabilities[t][s] = logits[btcT + targetD[s]] - std::log(expSum);
+                    logProbabilities[t][s] = static_cast<float>(logits[btcT + targetD[s]] - std::log(expSum));
                 }
                 btcT += classesNum;
                 if (++workCounter >= end) {
