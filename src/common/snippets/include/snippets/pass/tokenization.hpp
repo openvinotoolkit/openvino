@@ -17,6 +17,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/pass/pass.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/pass/common_optimizations.hpp"
 
 namespace ov::snippets::pass {
 
@@ -79,34 +80,17 @@ public:
         using CanBeFusedAsPostOpPred = std::function<bool(const std::shared_ptr<const ov::op::v0::MatMul>&,
                                                           const std::shared_ptr<const ov::Node>&)>;
 
-        Config(size_t concurrency,
-               size_t available_gprs_count,
-               bool split_m_dimension,
+        Config(size_t available_gprs_count,
                bool enable_transpose_on_output,
                bool dyn_mha_token,
                std::set<size_t> mha_transpose_ranks,
                CanBeFusedAsPostOpPred can_be_fused_as_postop = nullptr)
-            : m_concurrency(concurrency),
-              m_available_gprs_count(available_gprs_count),
-              m_split_m_dimension(split_m_dimension),
+            : m_available_gprs_count(available_gprs_count),
               m_mha_token_enable_transpose_on_output(enable_transpose_on_output),
               m_is_dynamic_mha_token_enabled(dyn_mha_token),
               m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)),
               m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {
-            OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
             OPENVINO_ASSERT(available_gprs_count > 0, "available_gprs_count should be greater than 0");
-        }
-
-        void set_concurrency(size_t concur) {
-            m_concurrency = concur;
-        }
-
-        [[nodiscard]] size_t get_concurrency() const {
-            return m_concurrency;
-        }
-
-        [[nodiscard]] bool get_split_m_dimension() const {
-            return m_split_m_dimension;
         }
 
         [[nodiscard]] bool get_mha_token_enable_transpose_on_output() const {
@@ -148,12 +132,9 @@ public:
         }
 
     private:
-        size_t m_concurrency = 0;
         // The number of gpr that can be used inside snippets kernel
         // (data pointers for Parameters/Results/Buffers, as well as loop work amounts)
         size_t m_available_gprs_count = 0;
-        // True if "SplitDimensionM" optimization is enabled. Otherwise, it's disabled.
-        bool m_split_m_dimension = true;
         // False if Transpose on output isn't tokenized in MHA Tokenization.
         // Otherwise, it may be fused into Subgraph if possible
         // TODO [111813]: Remove please when the ticket 111813 is implemented
@@ -171,11 +152,13 @@ public:
         CanBeFusedAsPostOpPred m_can_be_fused_as_postop = nullptr;
     };
 
-    explicit SnippetsTokenization(Config config) : m_config(std::move(config)) {}
+    explicit SnippetsTokenization(Config config, ov::snippets::pass::CommonOptimizations::Config common_config) 
+        : m_config(std::move(config)), m_common_config(std::move(common_config)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     Config m_config;
+    ov::snippets::pass::CommonOptimizations::Config m_common_config;
 };
 
 }  // namespace ov::snippets::pass

@@ -1233,13 +1233,12 @@ void Transformations::MainSnippets() {
     bool split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = {4};
-    snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency,
-                                                                     available_gprs_count,
-                                                                     split_m_dimension,
+    snippets::pass::SnippetsTokenization::Config tokenization_config(available_gprs_count,
                                                                      mha_token_enable_transpose_on_output,
                                                                      is_dynamic_mha_token_enabled,
                                                                      mha_supported_transpose_ranks,
                                                                      supported_as_postop);
+    snippets::pass::CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
 
     ov::pass::Manager snippetsManager("CPU:Snippets");
     snippetsManager.set_per_pass_validation(false);
@@ -1250,7 +1249,7 @@ void Transformations::MainSnippets() {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeGatedMLPSnippets);
     }
-    CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
+    CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config, common_optimizations_config);
 
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     // Currently, Snippets don't provide efficient execution for single token inference in LLM case.
@@ -1336,8 +1335,8 @@ void Transformations::MainSnippets() {
         }
         // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
-            static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
-            !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.get_concurrency());
+            static_cast<size_t>(parallel_work_amount.get_length()) < common_optimizations_config.get_concurrency() &&
+            !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, common_optimizations_config.get_concurrency());
         return is_unsupported_parallel_work_amount;
     };
 #endif  // OPENVINO_ARCH_X86_64
