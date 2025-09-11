@@ -13,9 +13,9 @@ import os
 
 import cv2
 
-from common import Context
-from common import Provider
-from common import ProviderHolder
+from providers.interfaces import Context
+from providers.interfaces import Provider
+from providers.interfaces import ProviderHolder
 from params import Config
 from params import ModelInfo
 from params import TensorInfo

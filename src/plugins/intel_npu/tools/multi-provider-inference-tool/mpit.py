@@ -13,7 +13,7 @@ import textwrap
 
 from pathlib import Path
 
-import mpit_providers
+from providers import mpit_providers
 from params import UseCaseFiles
 from params import Config
 from params import FilesStorage
@@ -24,19 +24,14 @@ from params import TensorsInfoPrinter
 
 from __version__ import __version__
 
-try:
-    mpit_providers.initialize()
-except Exception as ex:
-    print(f"ERROR: The application is inoperable, error: {ex}", file=sys.stderr)
-    exit(-1)
 
-def get_valid_command_arguments():
+def get_valid_command_arguments(loader):
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-m", "--model", help="Path to a model file", type=Path)
     parser.add_argument(
         "-p",
         "--provider",
-        help="An inference provider, available:\n\t" +'\n\t'.join(mpit_providers.get_avaialable_providers()),
+        help="An inference provider, available:\n\t" +'\n\t'.join(loader.get_avaialable_providers()),
         default=None,
     )
     parser.add_argument("-i", "--inputs", help=FilesStorage.source_description)
@@ -128,12 +123,19 @@ def serialize_inference_output_artefacts(serializer, provider_name, output_tenso
             print(f"\t{fp}")
 
 if __name__ == "__main__":
-    args = get_valid_command_arguments()
+    loader = None
+    try:
+        loader = mpit_providers.ProviderFactory()
+    except Exception as ex:
+        print(f"ERROR: The application is inoperable, error: {ex}", file=sys.stderr)
+        exit(-1)
+
+    args = get_valid_command_arguments(loader)
 
     # instantiate a specific inference provider and compile a model
-    ctx = mpit_providers.create_provider_ctx(args.provider)
-    provider = mpit_providers.create_provider_for_model(ctx, args.model)
-    model = mpit_providers.create_model(provider, args.provider_config, args.preprocess_model)
+    ctx = loader.create_provider_ctx(args.provider)
+    provider = loader.create_provider_for_model(ctx, args.model)
+    model = provider.create_model(ModelInfo(args.preprocess_model), Config(args.provider_config))
 
     # Expose model inputs/outputs info
     model_info = model.get_model_info()
@@ -171,7 +173,7 @@ if __name__ == "__main__":
     # start inference
     output_tensors_per_case = {}
     for case_num in range(0, max(usecase_num, 1)):
-        output_tensors_per_case[case_num] = mpit_providers.infer(model, input_tensors_per_case[case_num])
+        output_tensors_per_case[case_num] = model.infer(input_tensors_per_case[case_num])
 
 
     # Collected output tensors and the model info participate in

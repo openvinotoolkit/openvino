@@ -15,9 +15,9 @@ import re
 import sys
 import numpy as np
 
-from common import Context
-from common import Provider
-from common import ProviderHolder
+from providers.interfaces import Context
+from providers.interfaces import Provider
+from providers.interfaces import ProviderHolder
 from params import if_file
 from params import Config
 from params import ModelInfo
