@@ -50,7 +50,7 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
         return false;
     }
 
-    if (!hasIntDotProductSupport() || !hasInt8MMSupport()) {
+    if (!hasIntDotProductSupport() && !hasInt8MMSupport()) {
         return false;
     }
 
