@@ -127,13 +127,13 @@ public:
         CanBeFusedAsPostOpPred m_can_be_fused_as_postop = nullptr;
     };
 
-    explicit SnippetsTokenization(Config config, ov::snippets::pass::CommonOptimizations::Config common_config) 
+    explicit SnippetsTokenization(Config config, CommonOptimizations::Config common_config) 
         : m_config(std::move(config)), m_common_config(std::move(common_config)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     Config m_config;
-    ov::snippets::pass::CommonOptimizations::Config m_common_config;
+    CommonOptimizations::Config m_common_config;
 };
 
 }  // namespace ov::snippets::pass
