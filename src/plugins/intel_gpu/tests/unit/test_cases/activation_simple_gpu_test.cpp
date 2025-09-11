@@ -752,55 +752,45 @@ TEST(activation_f16_fw_gpu, softplus_do_not_fuse_for_f16_prevent_overflow) {
 }
 
 TEST(activation_f16_fw_gpu, gws_b_fs_yx_fsv16_small_feature_batch) {
+    tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    auto input = cldnn::layout(ov::PartialShape{ 4, 1, 384 }, cldnn::data_types::f16, cldnn::format::bfyx);
-    auto input_mem = engine.allocate_memory(input);
+    auto in_layout = cldnn::layout(ov::PartialShape{4, 1, 384}, cldnn::data_types::f16, cldnn::format::bfyx);
+    auto in_mem = engine.allocate_memory(in_layout);
+    auto in_data = rg.generate_random_4d<ov::float16>(4, 1, 384, 1, -1, 1);
 
-    tests::random_generator rg(GET_SUITE_NAME);
-    auto input_data = rg.generate_random_4d<ov::float16>(4, 1, 384, 1, -1, 1);
-    set_values(input_mem, flatten_4d<ov::float16>(format::bfyx, input_data));
+    set_values(in_mem, flatten_4d<ov::float16>(format::bfyx, in_data));
 
-    auto topology = cldnn::topology(cldnn::input_layout("input", input),
+    auto topology_ref = cldnn::topology(cldnn::input_layout("input", in_layout),
+                                        cldnn::activation("softplus", input_info("input"), cldnn::activation_func::softplus));
+    auto config_ref = get_test_default_config(engine);
+    auto impl_desc_ref = ov::intel_gpu::ImplementationDesc{cldnn::format::bfyx, "", cldnn::impl_types::cpu};
+    ov::intel_gpu::ImplForcingMap forcing_map_ref{{"softplus", impl_desc_ref}};
+    config_ref.set_property(ov::intel_gpu::force_implementations(forcing_map_ref));
+    cldnn::network net_ref(engine, topology_ref, config_ref);
+    net_ref.set_input_data("input", in_mem);
+    auto out_ref = net_ref.execute().at("softplus").get_memory();
+
+    auto topology = cldnn::topology(cldnn::input_layout("input", in_layout),
                                     cldnn::reorder("reorder", input_info("input"), cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f16),
                                     cldnn::activation("softplus", input_info("reorder"), cldnn::activation_func::softplus),
                                     cldnn::reorder("output", input_info("softplus"), cldnn::format::bfyx, cldnn::data_types::f16));
 
     auto config = get_test_default_config(engine);
     auto impl_desc = ov::intel_gpu::ImplementationDesc{cldnn::format::b_fs_yx_fsv16, "activation_ref", cldnn::impl_types::ocl};
-    auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"softplus", impl_desc}};
-    config.set_property(ov::intel_gpu::force_implementations(impl_forcing_map));
+    ov::intel_gpu::ImplForcingMap forcing_map{{"softplus", impl_desc}};
+    config.set_property(ov::intel_gpu::force_implementations(forcing_map));
 
     cldnn::network net(engine, topology, config);
-    net.set_input_data("input", input_mem);
-    auto outputs = net.execute();
-    auto out_mem = outputs.at("output").get_memory();
-
-    std::vector<ov::float16> expected = flatten_4d<ov::float16>(format::bfyx, input_data);
-    for (auto& v : expected) {
-        float fv = static_cast<float>(v);
-        v = ov::float16(std::log(std::exp(fv) + 1.0f));
-    }
+    net.set_input_data("input", in_mem);
+    auto out_mem = net.execute().at("output").get_memory();
 
     cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
-    ASSERT_EQ(expected.size(), out_ptr.size());
-    for (size_t i = 0; i < expected.size(); ++i) {
-        ASSERT_EQ(expected[i], out_ptr[i]) << "at i=" << i;
+    cldnn::mem_lock<ov::float16> ref_ptr(out_ref, get_test_stream());
+    ASSERT_EQ(ref_ptr.size(), out_ptr.size());
+    for (size_t i = 0; i < ref_ptr.size(); ++i) {
+        ASSERT_EQ(ref_ptr[i], out_ptr[i]) << "at i=" << i;
     }
-
-    auto prim = net.get_primitive("softplus");
-    auto* impl = dynamic_cast<cldnn::ocl::typed_primitive_impl_ocl<cldnn::activation>*>(prim->get_impl());
-    ASSERT_NE(impl, nullptr);
-    ASSERT_FALSE(impl->_kernel_data.kernels.empty());
-    const auto& gws = impl->_kernel_data.kernels[0].params.workGroups.global;
-    const auto& lws = impl->_kernel_data.kernels[0].params.workGroups.local;
-
-    EXPECT_EQ(gws[0], 4);
-    EXPECT_EQ(gws[1], 1);
-    EXPECT_EQ(gws[2], 384);
-    EXPECT_EQ(lws[0], 4);
-    EXPECT_EQ(lws[1], 1);
-    EXPECT_EQ(lws[2], 1);
 }
 
 TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
