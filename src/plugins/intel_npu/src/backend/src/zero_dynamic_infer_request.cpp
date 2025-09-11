@@ -802,6 +802,48 @@ ov::SoPtr<ov::ITensor> ZeroDynamicInferRequest::get_tensor(const ov::Output<cons
     return levelZeroTensors;
 }
 
+std::shared_ptr<ov::ITensor> ZeroDynamicInferRequest::allocate_tensor(
+    const IODescriptor& descriptor,
+    const size_t index,
+    const bool isInput,
+    const ov::Allocator& allocator,
+    const std::optional<std::size_t> batchSize) const {
+    check_network_precision(descriptor.precision);
+
+    std::shared_ptr<ov::ITensor> tensor;
+    ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
+
+    if (batchSize.has_value()) {
+        allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
+    }
+
+    if (descriptor.isStateOutput) {
+        // Only one buffer is required for each (state input, state output) pair, acting as an input before running the
+        // inference and as an output after performing it. Thus both the "state input" and "state output" entries shall
+        // point to the same buffer.
+        OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
+                        "The link between state descriptors is missing, state name: ",
+                        descriptor.nameFromCompiler);
+        tensor = get_user_input(*descriptor.relatedDescriptorIndex)._ptr;
+    } else {
+        tensor = create_tensor(descriptor.precision, allocatedTensorShape, allocator);
+    }
+
+    if (isInput) {
+        if (get_user_input(index) == nullptr) {
+            get_user_input(index) = tensor;
+        }
+
+        if (descriptor.isStateInput) {
+            add_state(descriptor, index);
+        }
+    } else if (_userOutputTensors.at(index) == nullptr) {
+        _userOutputTensors.at(index) = tensor;
+    }
+
+    return tensor;
+}
+
 void ZeroDynamicInferRequest::update_pipeline_if_memory_changed() {
     size_t ioIndex = 0;
 
