@@ -23,7 +23,6 @@
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
-#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -156,7 +155,7 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     }
 }
 
-template <typename T, std::enable_if_t<std::is_base_of_v<BrgemmBaseKernelExecutor, T>, bool>>
+template <typename T, typename Enable>
 void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const {
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
     const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();
