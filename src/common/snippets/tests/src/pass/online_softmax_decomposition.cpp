@@ -14,18 +14,14 @@ namespace test {
 namespace snippets {
 
 std::string OnlineSoftmaxDecompositionTest::getTestCaseName(testing::TestParamInfo<OnlineSoftmaxDecompositionTestParams> obj) {
-    const auto& [input_shape] = obj.param;
     std::ostringstream result;
-    result << "IS=" << ov::test::utils::partialShape2str({input_shape}) << "_";
+    result << "IS=" << std::get<0>(obj.param);
     return result.str();
 }
 
 void OnlineSoftmaxDecompositionTest::SetUp() {
-    TransformationTestsF::SetUp();
-
-    std::vector<PartialShape> input_shapes{{}};
-    const auto& [_tmp] = this->GetParam();
-    input_shapes[0] = _tmp;
+    LoweringTests::SetUp();
+    std::vector<PartialShape> input_shapes{std::get<0>(this->GetParam())};
 
     snippets_model = std::make_shared<OnlineSoftmaxFunction>(input_shapes);
     manager.register_pass<ov::snippets::pass::OnlineSoftmaxDecomposition>();
@@ -37,7 +33,7 @@ TEST_P(OnlineSoftmaxDecompositionTest, OnlineSoftmaxDecomposition) {
 }
 
 namespace OnlineSoftmaxDecompositionTestInstantiation {
-const std::vector<ov::PartialShape> input_shapes{{2, 2, 64, 4096}};
+const std::vector<ov::PartialShape> input_shapes{{2, 2, 64, 4096}, {1, 3, 128}, {4, 64}, {32}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_OnlineSoftmaxDecomposition,
                          OnlineSoftmaxDecompositionTest,

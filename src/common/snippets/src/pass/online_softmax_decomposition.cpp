@@ -39,11 +39,12 @@ OnlineSoftmaxDecomposition::OnlineSoftmaxDecomposition() {
         const auto& online_softmax = ov::as_type_ptr<ov::snippets::op::OnlineSoftmax>(m.get_match_root());
 
         OPENVINO_ASSERT(online_softmax->get_input_element_type(0).is_real(),
-                        "OnlineSoftmaxDecomposition currrenly only works for real data type");
+                        "OnlineSoftmaxDecomposition currently only works for real data type");
 
         const auto& pshape = online_softmax->get_input_partial_shape(0);
         OPENVINO_ASSERT(!pshape.rank().is_dynamic(), "OnlineSoftmaxDecomposition doesn't support dynamic ranks");
         const auto& rank = pshape.size();
+        OPENVINO_ASSERT(rank != 0, "OnlineSoftmaxDecomposition doesn't support input tesnor with rank smaller than 1");
 
         const auto& axis = rank - 1;
 
