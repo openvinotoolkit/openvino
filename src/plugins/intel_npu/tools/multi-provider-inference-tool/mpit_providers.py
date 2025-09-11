@@ -86,10 +86,12 @@ def create_provider_for_model(ctx: common.Context, model_path: str) -> common.Pr
 
 
 def create_model(
-    provider: common.Provider, preprocessing_request_data: params.ModelInfo,
-    provider_model_config : params.Config
-) -> common.Provider:
-    return provider.create_model(preprocessing_request_data, provider_model_config)
+    provider: common.Provider, provider_native_config_params: str, provider_model_config_params: str) -> common.Provider:
+
+    model_config = params.ModelInfo(provider_model_config_params)
+    provider_config = params.Config(provider_native_config_params)
+
+    return provider.create_model(model_config, provider_config)
 
 
 def infer(ctx_model: common.Provider, tensors_collection):

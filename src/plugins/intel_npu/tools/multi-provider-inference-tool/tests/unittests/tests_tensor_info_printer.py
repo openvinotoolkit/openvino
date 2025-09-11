@@ -12,6 +12,8 @@ import shutil
 import sys
 import unittest
 
+from pathlib import Path
+
 sys.path.append("../..")
 
 from params import ModelInfo
@@ -75,7 +77,7 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
         self.files_info = FilesStorage()
         self.files_info.parse_inputs(inputs_description_string)
 
-        self.sandbox_dir = "UtilsTests_TIF_n_FS_integration"
+        self.sandbox_dir = Path("UtilsTests_TIF_n_FS_integration")
         self.temporary_directories = []
 
     def tearDown(self):
@@ -84,7 +86,7 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
         shutil.rmtree(self.sandbox_dir, ignore_errors=True)
 
     def create_tmp_directory(self, directory_path):
-        os.makedirs(directory_path, exist_ok=True)
+        directory_path.mkdir(parents=True, exist_ok=True)
         self.temporary_directories.append(directory_path)
 
     @staticmethod
@@ -150,13 +152,13 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
 
         self.assertEqual(len(serialized_file_paths), 2, "Files produced must be equal to a number of inputs")
         for f in serialized_file_paths:
-            self.assertTrue(os.path.isfile(f))
+            self.assertTrue(f.is_file())
             match = False;
             for i in valuable_inputs:
-                match = match or (f.find(i) != -1)
+                match = match or (str(f).find(i) != -1)
             self.assertTrue(match)
-        self.assertTrue(os.path.isfile(input_info_path))
-        self.assertTrue(os.path.isfile(input_info_dump_path))
+        self.assertTrue(input_info_path.is_file())
+        self.assertTrue(input_info_dump_path.is_file())
 
     def test_serialize_output_tensors(self):
         printer = TensorsInfoPrinter()
@@ -168,15 +170,15 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
 
         self.assertEqual(len(serialized_file_paths), 3, "Files produced must be equal to a number of outputs")
         for f in serialized_file_paths:
-            self.assertTrue(os.path.isfile(f))
-        self.assertTrue(os.path.isfile(output_info_path))
-        self.assertTrue(os.path.isfile(output_info_dump_path))
+            self.assertTrue(f.is_file())
+        self.assertTrue(output_info_path.is_file())
+        self.assertTrue(output_info_dump_path.is_file())
 
     def test_deserialize_output_tensors_path_validation(self):
         printer = TensorsInfoPrinter()
 
         model_name = "my_model"
-        sandbox_dir = datetime.datetime.now().strftime("my_test_dir_%Y%m%d_%H%M%S")
+        sandbox_dir = Path(datetime.datetime.now().strftime("my_test_dir_%Y%m%d_%H%M%S"))
         shutil.rmtree(sandbox_dir, ignore_errors=True)
         with self.assertRaises(RuntimeError):
             printer.deserialize_output_tensor_descriptions(sandbox_dir, model_name)
@@ -185,7 +187,7 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             printer.deserialize_output_tensor_descriptions(sandbox_dir, model_name)
 
-        sandbox_model_dir = os.path.join(sandbox_dir, model_name)
+        sandbox_model_dir = sandbox_dir / model_name
         self.create_tmp_directory(sandbox_model_dir)
         with self.assertRaises(RuntimeError):
             printer.deserialize_output_tensor_descriptions(sandbox_dir, model_name)
@@ -325,7 +327,7 @@ class UtilsTests_TIF_n_FS_io_canonization_integration(unittest.TestCase):
         self.files_info = FilesStorage()
         self.files_info.parse_inputs(inputs_description_string)
 
-        self.sandbox_dir = "UtilsTests_TIF_n_FS_io_canonization_integration"
+        self.sandbox_dir = Path("UtilsTests_TIF_n_FS_io_canonization_integration")
         self.temporary_directories = []
 
     def tearDown(self):
@@ -352,20 +354,20 @@ class UtilsTests_TIF_n_FS_io_canonization_integration(unittest.TestCase):
 
         self.assertEqual(len(serialized_file_paths), 4, "Files produced must be equal to a number of inputs")
         for f in serialized_file_paths:
-            self.assertTrue(os.path.isfile(f))
+            self.assertTrue(f.is_file())
             # raw model inputs must not be found among serialized paths
             match = False;
             for i in valuable_inputs:
-                match = match or (f.find(i) != -1)
+                match = match or (str(f).find(i) != -1)
             self.assertFalse(match)
 
             # it must consist of canonized symbols
             match = False
             for i in valuable_inputs:
-                match = match or (f.find(TensorsInfoPrinter.canonize_io_name(i)) != -1)
+                match = match or (str(f).find(TensorsInfoPrinter.canonize_io_name(i)) != -1)
             self.assertTrue(match)
-        self.assertTrue(os.path.isfile(input_info_path))
-        self.assertTrue(os.path.isfile(input_info_dump_path))
+        self.assertTrue(input_info_path.is_file())
+        self.assertTrue(input_info_dump_path.is_file())
 
         # tests canonization
 
@@ -373,7 +375,7 @@ class UtilsTests_TIF_n_FS_io_canonization_integration(unittest.TestCase):
         printer = TensorsInfoPrinter()
 
         model_name = "my_model"
-        sandbox_dir = datetime.datetime.now().strftime("my_test_dir_%Y%m%d_%H%M%S")
+        sandbox_dir = Path(datetime.datetime.now().strftime("my_test_dir_%Y%m%d_%H%M%S"))
         shutil.rmtree(sandbox_dir, ignore_errors=True)
         with self.assertRaises(RuntimeError):
             printer.deserialize_output_tensor_descriptions(sandbox_dir, model_name)
@@ -382,7 +384,7 @@ class UtilsTests_TIF_n_FS_io_canonization_integration(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             printer.deserialize_output_tensor_descriptions(sandbox_dir, model_name)
 
-        sandbox_model_dir = os.path.join(sandbox_dir, model_name)
+        sandbox_model_dir = sandbox_dir / model_name
         self.create_tmp_directory(sandbox_model_dir)
         with self.assertRaises(RuntimeError):
             printer.deserialize_output_tensor_descriptions(sandbox_dir, model_name)

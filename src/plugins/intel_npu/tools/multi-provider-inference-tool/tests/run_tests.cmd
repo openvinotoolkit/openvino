@@ -19,7 +19,7 @@ if not "%1"=="" (
 For /f "tokens=2-4 delims=/ " %%a in ('date /t') do (set mydate=%%c-%%a-%%b)
 For /f "tokens=1-2 delims=/:" %%a in ('time /t') do (set mytime=%%a)
 IF [%TEST_ENV_VENV_PATH%] == [] (
-    set TEST_ENV_VENV_PATH=test_venv_%mydate%_%mytime%
+    set TEST_ENV_VENV_PATH=.venv_test_%mydate%_%mytime%
     :input_arguments_loop
     IF exist !TEST_ENV_VENV_PATH! ( set TEST_ENV_VENV_PATH=!TEST_ENV_VENV_PATH!_new&& goto input_arguments_loop )
 )

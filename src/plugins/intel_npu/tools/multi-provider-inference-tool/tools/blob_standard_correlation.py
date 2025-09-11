@@ -10,6 +10,8 @@ import json
 import os
 import sys
 
+from pathlib import Path
+
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
 import bin_diff
@@ -24,8 +26,8 @@ class RuntimeErrorExt(RuntimeError):
         self.error_code = error_code
 
 def get_blobs_std_correlation(left_provider, right_provider, model_path, case_num):
-    left_base_dir = os.path.join(left_provider, str(case_num))
-    right_base_dir = os.path.join(right_provider, str(case_num))
+    left_base_dir = Path(left_provider, str(case_num))
+    right_base_dir = Path(right_provider, str(case_num))
 
     printer = TensorsInfoPrinter()
     model_name = get_model_name(model_path)

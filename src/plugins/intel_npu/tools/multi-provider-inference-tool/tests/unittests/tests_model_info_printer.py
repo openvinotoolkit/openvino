@@ -11,6 +11,8 @@ import shutil
 import sys
 import unittest
 
+from pathlib import PurePath
+
 sys.path.append("../..")
 from params import ModelInfo
 from params import ModelInfoPrinter
@@ -47,7 +49,7 @@ class UtilsTests_model_info_printer_validation(unittest.TestCase):
     def test_model_info_printer_validation(self):
         model_info = ModelInfo(self.model_info_string)
         model_printer = ModelInfoPrinter()
-        printable_data = model_printer.serialize_model_info(self.sandbox_dir, "model.ext",
+        printable_data = model_printer.serialize_model_info(self.sandbox_dir, PurePath("model.ext"),
                                                             model_info)
         # validate model info consistency
         printable_data_json = json.loads(printable_data)
@@ -62,7 +64,7 @@ class UtilsTests_model_info_printer_validation(unittest.TestCase):
         model_info = ModelInfo(self.model_info_string)
         model_printer = ModelInfoPrinter()
         printable_data = model_printer.serialize_model_info(self.sandbox_dir,
-                                                            os.path.join("a location", "of", "the","model.ext"),
+                                                            PurePath("a location", "of", "the","model.ext"),
                                                             model_info)
 
         serialized_model_file_path = None

@@ -12,6 +12,7 @@ import enum
 import hashlib
 import json
 import os
+from pathlib import Path
 
 BatchedImage = list
 
@@ -26,10 +27,6 @@ def if_file(file_path):
 
 def is_directory(directory_path):
     return os.path.isdir(directory_path)
-
-
-def get_not_files(file_paths: list):
-    return [f for f in file_paths if not if_file(f)]
 
 def shape_to_list(shape):
     ret = shape
@@ -163,149 +160,26 @@ or
     def inputs(self):
         return self.files_per_input_json
 
-class FilesPerModel:
-    input_separator = ","
-
-    def __init__(self):
-        self.files_per_input = defaultdict(BatchedImage)
-        self.files_per_output = defaultdict(BatchedImage)
-        self.unnamed_files = []
-
-    @staticmethod
-    def __validate__(named, unnamed):
-        # validate
-        if len(named) != 0 and len(unnamed) != 0:
-            raise RuntimeError(
-                f'Each input file either must be preceded by INPUT/OUTPUT name in the format "INPUT<<PATH" / "OUTPUT>>PATH"  or not specified by INPUT/OUTPUT at all. Named files: {named} , unnamed files: {unnamed}'
-            )
-
-    @staticmethod
-    def __parse_io_impl__(input_files_list_per_io: str, sep: str):
-        input_package = input_files_list_per_io.split(sep)
-        files_per_named_io = defaultdict(BatchedImage)
-        files_per_unnamed_io = []
-
-        if len(input_package) != 1:
-            files_per_named_io[input_package[0]] = splitOnBatch(input_package[1])
-        else:
-            files_per_unnamed_io.extend(splitOnBatch(input_files_list_per_io))
-
-        return files_per_named_io, files_per_unnamed_io
-
-    def parse_inputs(self, console_input_files_list_per_model: str):
-        for input_files_list_per_io in console_input_files_list_per_model.split(
-            FilesPerModel.input_separator
-        ):
-            named, unnamed = FilesPerModel.__parse_io_impl__(
-                input_files_list_per_io, "<<"
-            )
-            self.files_per_input.update(named)
-            if len(unnamed) != 0:
-                self.unnamed_files.append(unnamed)
-
-        FilesPerModel.__validate__(self.files_per_input, self.unnamed_files)
-
-    def parse_outputs(self, console_output_files_list_per_model: str):
-        for output_files_list_per_io in console_output_files_list_per_model.split(
-            FilesPerModel.input_separator
-        ):
-            named, unnamed = FilesPerModel.__parse_io_impl__(
-                output_files_list_per_io, ">>"
-            )
-            self.files_per_output.update(named)
-            if len(unnamed) != 0:
-                self.unnamed_files.append(unnamed)
-
-        FilesPerModel.__validate__(self.files_per_output, self.unnamed_files)
-
-    def parse(self, console_input_files_list_per_model: str):
-        for input_files_list_per_io in console_input_files_list_per_model.split(
-            FilesPerModel.input_separator
-        ):
-            input_named_candidates, input_unnamed_cand = (
-                FilesPerModel.__parse_io_impl__(input_files_list_per_io, "<<")
-            )
-            output_named_candidates, output_unnamed_cand = (
-                FilesPerModel.__parse_io_impl__(input_files_list_per_io, ">>")
-            )
-
-            FilesPerModel.__validate__(input_named_candidates, input_unnamed_cand)
-            FilesPerModel.__validate__(output_named_candidates, output_unnamed_cand)
-
-            if len(input_unnamed_cand) == len(output_named_candidates):
-                self.files_per_output.update(output_named_candidates)
-
-            if len(output_unnamed_cand) == len(input_named_candidates):
-                self.files_per_input.update(input_named_candidates)
-
-            if len(output_unnamed_cand) == len(input_unnamed_cand):
-                self.unnamed_files.append(output_unnamed_cand)
-
-        # validate
-        if (len(self.files_per_input) != 0 or len(self.files_per_output) != 0) and len(
-            self.unnamed_files
-        ) != 0:
-            raise RuntimeError(
-                f'Each input file either must be preceded by INPUT/OUTPUT name in the format "INPUT<<PATH" / "OUTPUT>>PATH"  or not specified by INPUT/OUTPUT at all. Names files: {self.files_per_input} and {self.files_per_output}, unnamed files: {self.unnamed_files}'
-            )
-
-    def inputs(self):
-        non_files = []
-        if len(self.files_per_input) != 0:
-            for files in self.files_per_input.values():
-                non_files.extend(get_not_files(files))
-            if len(non_files) != 0:
-                raise RuntimeError(
-                    f"Cannot find input files: {non_files}. Please make sure they are exist and paths are valid"
-                )
-            return self.files_per_input.copy()
-        if len(self.unnamed_files) != 0:
-            for file_list in self.unnamed_files:
-                non_files.extend(get_not_files(file_list))
-            if len(non_files) != 0:
-                raise RuntimeError(
-                    f"Cannot find input files: {non_files}. Please make sure they are exist and paths are valid"
-                )
-            return self.unnamed_files.copy()
-        raise RuntimeError("No input files")
-
-    def outputs(self):
-        if len(self.files_per_output) != 0:
-            return self.files_per_output.copy()
-        if len(self.unnamed_files) != 0:
-            return self.unnamed_files.copy()
-        raise RuntimeError("No output files")
-
-
 class UseCaseFiles:
     use_case_separator = ";"
 
-    def __init__(self):
-        self.files_per_case = []
+    def __init__(self, console_input_files_list):
+        self.files_per_case = UseCaseFiles.parse_inputs(console_input_files_list)
 
-    def parse_all(self, console_io_files_list: str):
-        if console_io_files_list is None:
-            return
-
-        file_paths_per_case = console_io_files_list.split(
-            UseCaseFiles.use_case_separator
-        )
-        for case_files in file_paths_per_case:
-            files_aggregator = FilesStorage()
-            files_aggregator.parse(case_files)
-            self.files_per_case.append(files_aggregator)
-
-    def parse_inputs(self, console_input_files_list: str):
+    @staticmethod
+    def parse_inputs(console_input_files_list: str):
         if console_input_files_list is None:
             return
 
+        files_per_case = []
         file_paths_per_case = console_input_files_list.split(
             UseCaseFiles.use_case_separator
         )
         for case_files in file_paths_per_case:
             files_aggregator = FilesStorage()
             files_aggregator.parse_inputs(case_files)
-            self.files_per_case.append(files_aggregator)
+            files_per_case.append(files_aggregator)
+        return files_per_case
 
 
 class Config:
@@ -386,6 +260,9 @@ class ModelInfo:
     def set_model_name(self, model_name : str):
         self.model_name = model_name
 
+    def get_model_name(self):
+        return self.model_name
+
     def insert_info(self, io_name: str, info: {}):
         self.preproc_per_io[io_name] = info
         ModelInfo.__validate__(self.preproc_per_io)
@@ -407,30 +284,30 @@ class ModelInfoPrinter:
     def __init__(self):
         pass
 
-    def serialize_model_info(self, base_directory : str, model_path : str, orig_model_info : ModelInfo):
+    def serialize_model_info(self, provider_name : str, model_path : Path, orig_model_info : ModelInfo):
         model_info = copy.deepcopy(orig_model_info)
-        base_directory = os.path.join(*base_directory.split("/"))
-        os.makedirs(base_directory, exist_ok=True)
+
+        base_directory = Path(*provider_name.split("/"))
+        base_directory.mkdir(parents=True, exist_ok=True)
 
         utter_model_info = {}
         for minput_name in model_info.get_model_io_names():
             utter_model_info[minput_name] = model_info.get_model_io_info(minput_name)
 
         if not model_info.model_name or len(model_info.model_name) == 0:
-            model_info.model_name = os.path.basename(model_path).split('.')[0]
+            model_info.model_name = model_path.stem
 
-        model_info_json_path = os.path.join(base_directory,  model_info.model_name + "_info.json")
-
-        with open(model_info_json_path, "w") as outfile:
+        model_info_json_path = base_directory / (model_info.model_name + "_info.json")
+        with model_info_json_path.open("w") as outfile:
             json.dump(utter_model_info, outfile)
 
         # add meta information
         for node_info in utter_model_info.values():
             if "shape" in node_info.keys():
-                node_info["shape"] = node_info["shape"]
+                node_info["shape"] = shape_to_list(node_info["shape"])
         model_meta_info = {}
-        model_meta_info["model_path"] = model_path
-        model_meta_info["model_info_path"] = model_info_json_path
+        model_meta_info["model_path"] = str(model_path)
+        model_meta_info["model_info_path"] = str(model_info_json_path)
         sha256 = hashlib.sha256()
         sha256.update( os.path.abspath(__file__).encode('utf-8'))
         utter_model_info["_meta_" + sha256.hexdigest()] = model_meta_info
@@ -561,89 +438,94 @@ class TensorsInfoPrinter:
         return  self.get_printable_input_tensor_info(input_tensors_dict) if  ttype == "input" else self.get_printable_output_tensor_info(input_tensors_dict)
 
 
-    def serialize_tensors_by_type(self, base_directory : str, input_tensors_dict:list, ttype):
-        base_directory = os.path.join(*base_directory.split("/"))
-        printable_input_tensor_info = self.get_printable_tensor_info(input_tensors_dict, ttype)
-        printable_tensor_dump_info = copy.deepcopy(printable_input_tensor_info)
+    def serialize_tensors_by_type(self, root_path : Path, input_tensors_dict : list, ttype):
+        aggregated_input_meta = self.get_printable_tensor_info(input_tensors_dict, ttype)
+        aggregated_tensor_meta = copy.deepcopy(aggregated_input_meta)
 
-        # make sure the base directory exists
-        serialzied_file_paths = []
-        main_model_dir = ""
+        serialized_blob_paths = []
+        model_serialization_path = Path()
         try:
-            os.makedirs(base_directory, exist_ok=True)
+            # ensure the root directory exists
+            root_path.mkdir(parents=True, exist_ok=True)
             for info in input_tensors_dict:
                 if ttype and len(ttype) !=0 and info["type"] != ttype:
                     continue
 
-                # create model directory
-                # we will dump aggregated input/output tensors info in JSON into it
-                main_model_dir = os.path.join(base_directory, info["model"])
+                # create a model directory inside the root directory.
+                # A nodel directory is a storage for model input and output directories
+                # and meta information as well
+                model_serialization_path = root_path / info["model"]
 
-                # create model input/output directory
-                main_model_source_dir = os.path.join(main_model_dir, info["type"])
-                os.makedirs(main_model_source_dir, exist_ok=True)
+                # create model input/output directories which encompass meta information and blobs
+                main_model_source_dir = model_serialization_path / info["type"]
+                main_model_source_dir.mkdir(parents=True, exist_ok=True)
 
-                # well known filesystems forbid special symbols in string paths
-                # apply canonization
+                # well known filesystems forbid special symbols in string paths,
+                # so that let's apply path canonization to model input/ouput names
                 canonized_fs_input_name = TensorsInfoPrinter.canonize_io_name(info["source"])
 
-                # dump input tensor info per input/output in JSON
+                # dump input meta in JSON
                 if ttype == "input":
-                    if printable_input_tensor_info[info["source"]]["type"] != FilesStorage.SourceType.bin.name:
-                        with open(os.path.join(main_model_source_dir, canonized_fs_input_name + "_img.json"), "w") as outfile:
-                            json.dump({info["source"] : printable_input_tensor_info[info["source"]]}, outfile)
+                    if aggregated_input_meta[info["source"]]["type"] != FilesStorage.SourceType.bin.name:
+                        model_input_meta_info_file_path = main_model_source_dir / (canonized_fs_input_name + "_img.json")
+                        with model_input_meta_info_file_path.open("w") as outfile:
+                            json.dump({info["source"] : aggregated_input_meta[info["source"]]}, outfile)
 
-                file_directory = os.path.join(main_model_source_dir, canonized_fs_input_name)
-                os.makedirs(file_directory, exist_ok=True)
+                # create input/ouput directory which stores blobs only
+                blob_storage_dir = main_model_source_dir / canonized_fs_input_name
+                os.makedirs(blob_storage_dir, exist_ok=True)
 
-                file_path = os.path.join(file_directory, TensorsInfoPrinter.get_printable_tensor_name(info))
-                with open(file_path, "wb") as input_tensor_file:
+                blob_file_path = blob_storage_dir / TensorsInfoPrinter.get_printable_tensor_name(info)
+                with blob_file_path.open("wb") as input_tensor_file:
                     input_tensor_file.write(info["data"])
-                serialzied_file_paths.append(file_path)
+                serialized_blob_paths.append(blob_file_path)
 
-                # dump binary tensor info per input/output in JSON
-                printable_tensor_dump_info[info["source"]]["files"] = [file_path]   # print as list
-                printable_tensor_dump_info[info["source"]]["type"] =  FilesStorage.SourceType.bin.name
-                if "convert" in printable_tensor_dump_info[info["source"]].keys():
-                    printable_tensor_dump_info[info["source"]].update(printable_tensor_dump_info[info["source"]]["convert"])
-                    del printable_tensor_dump_info[info["source"]]["convert"]
-                with open(os.path.join(main_model_source_dir, canonized_fs_input_name + "_dump.json"), "w") as outfile:
-                    json.dump({info["source"] : printable_tensor_dump_info[info["source"]]}, outfile)
+                # tensor meta is input meta having all conversions applied which fit a model
+                aggregated_tensor_meta[info["source"]]["files"] = [str(blob_file_path)]   # print as list
+                aggregated_tensor_meta[info["source"]]["type"] =  FilesStorage.SourceType.bin.name
+                if "convert" in aggregated_tensor_meta[info["source"]].keys():
+                    aggregated_tensor_meta[info["source"]].update(aggregated_tensor_meta[info["source"]]["convert"])
+                    del aggregated_tensor_meta[info["source"]]["convert"]
+
+                # dump tensor meta in JSON
+                model_tensor_meta_info_file_path = main_model_source_dir / (canonized_fs_input_name + "_dump.json")
+                with model_tensor_meta_info_file_path.open("w") as outfile:
+                    json.dump({info["source"] : aggregated_tensor_meta[info["source"]]}, outfile)
         except Exception as ex:
             raise RuntimeError(f"Cannot serialize tensor of type: {ttype} into a file, error: {ex}")
 
-        # store aggregated model I/O info as JSON
-        input_info_file_path = os.path.join(main_model_dir, ttype + "s_img.json")
-        input_info_dumps_file_path = os.path.join(main_model_dir, TensorsInfoPrinter.get_file_name_to_dump_model_source(ttype))
-        if len(main_model_dir) != 0:
-            with open(input_info_file_path, "w") as outfile:
-                json.dump(printable_input_tensor_info, outfile)
-        if len(main_model_dir) != 0:
+        # store aggregated inputs JSON info as "--input" param compatible format
+        if model_serialization_path != Path():
+            input_info_file_path = model_serialization_path / (ttype + "s_img.json")
+            with input_info_file_path.open("w") as outfile:
+                json.dump(aggregated_input_meta, outfile)
+
+            # store aggregated tensors JSON info as "--input" param compatible format
+            input_info_dumps_file_path = model_serialization_path / TensorsInfoPrinter.get_file_name_to_dump_model_source(ttype)
             with open(input_info_dumps_file_path, "w") as outfile:
-                json.dump(printable_tensor_dump_info, outfile)
+                json.dump(aggregated_tensor_meta, outfile)
 
-        return serialzied_file_paths,input_info_file_path, input_info_dumps_file_path
+        return serialized_blob_paths, input_info_file_path, input_info_dumps_file_path
 
-    def deserialize_output_tensor_descriptions(self, base_directory : str, model_name : str):
+    def deserialize_output_tensor_descriptions(self, root_path : Path, model_name : str):
         ttype = "output"
         if ttype not in TensorInfo.types:
             raise RuntimeError(f"Incorrect tensor type to deserialize: {ttype}. Expected: {TensorInfo.types}")
 
-        base_directory = os.path.join(*base_directory.split("/"))
-        if not is_directory(base_directory):
-            raise RuntimeError(f"Cannot deserialize tensors as the provider directory doesn't exist: {base_directory}")
+        if not root_path.is_dir():
+            raise RuntimeError(f"Cannot deserialize tensors as the provider directory doesn't exist: {root_path}")
 
-        main_model_dir = os.path.join(base_directory, model_name)
-        if not is_directory(base_directory):
-            raise RuntimeError(f"Cannot deserialize tensors as the model info directory doesn't exist: {main_model_dir}")
+        model_serialization_path = root_path / model_name
+        if not model_serialization_path.is_dir():
+            raise RuntimeError(f"Cannot deserialize tensors as the model info directory doesn't exist: {model_serialization_path}")
 
-        model_sources_info_file_path = os.path.join(main_model_dir, TensorsInfoPrinter.get_file_name_to_dump_model_source(ttype))
-        if not if_file(model_sources_info_file_path):
+        model_sources_info_file_path = model_serialization_path / TensorsInfoPrinter.get_file_name_to_dump_model_source(ttype)
+        if not model_sources_info_file_path.is_file():
             raise RuntimeError(f"Cannot deserialize tensors as the model info file doesn't exist: {model_sources_info_file_path}")
 
         model_sources_info = {}
         try:
-            with open(model_sources_info_file_path, "r") as file:
+            with model_sources_info_file_path.open("r") as file:
                 model_sources_info = json.load(file)
         except json.JSONDecodeError as ex:
             raise RuntimeError(f"The file: {model_sources_info_file_path} contains no JSON data. Error: {ex}") from None

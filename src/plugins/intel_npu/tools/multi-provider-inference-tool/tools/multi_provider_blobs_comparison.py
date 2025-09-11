@@ -16,6 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),".."))
 
 import bin_diff
 from collections import defaultdict
+from pathlib import Path
 from params import TensorsInfoPrinter
 
 def get_model_name(model_path):
@@ -131,10 +132,10 @@ def multi_provider_result_comparator(ref_provider, providers_to_compare, model_p
     result = {"providers" : [], "data" : {}, "status": [], "not_found_data":{}}
 
     # gather result for a reference provider
-    ref_provider_base_dir = os.path.join(ref_provider, str(case_num))
+    ref_provider_data_root_dir = Path(ref_provider, str(case_num))
     try:
         # read data from provider affiliated directories
-        ref_provider_model_tensors_descr = printer.deserialize_output_tensor_descriptions(ref_provider_base_dir, model_name)
+        ref_provider_model_tensors_descr = printer.deserialize_output_tensor_descriptions(ref_provider_data_root_dir, model_name)
 
         # fill LHS default values
         result["data"][ref_provider] = initialize_provider_result_data(ref_provider, ref_provider_model_tensors_descr, {"std_correlation": 1})
@@ -145,10 +146,10 @@ def multi_provider_result_comparator(ref_provider, providers_to_compare, model_p
 
     # gather results for providers to compare
     for p in providers_to_compare:
-        provider_base_dir = os.path.join(p, str(case_num))
+        provider_data_root_dir = Path(p, str(case_num))
         try:
             # read data from provider affiliated directories
-            provider_model_tensors_descr = printer.deserialize_output_tensor_descriptions(provider_base_dir, model_name)
+            provider_model_tensors_descr = printer.deserialize_output_tensor_descriptions(provider_data_root_dir, model_name)
 
             # fill default values
             result["data"][p] = initialize_provider_result_data(p, provider_model_tensors_descr, {"std_correlation": "NaN"})
