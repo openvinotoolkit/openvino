@@ -111,7 +111,7 @@ void* gpu_usm::lock(const stream& stream, mem_lock_type type = mem_lock_type::re
             }
             GPU_DEBUG_LOG << "Copy usm_device buffer to host buffer." << std::endl;
             _host_buffer.allocateHost(_bytes_count);
-            ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream.get_queue(),
+            ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream.get_copy_queue(),
                                     _host_buffer.get(),
                                     _buffer.get(),
                                     _bytes_count,
@@ -174,7 +174,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
     auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
     auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
 
-    ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
+    ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream->get_copy_queue(),
                                            dst_ptr,
                                            src_ptr,
                                            _bytes_count,
@@ -202,7 +202,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
     auto src_ptr = reinterpret_cast<const char*>(usm_mem->buffer_ptr()) + src_offset;
     auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
 
-    ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
+    ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream->get_copy_queue(),
                                            dst_ptr,
                                            src_ptr,
                                            _bytes_count,
@@ -226,7 +226,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
     auto src_ptr = reinterpret_cast<const char*>(buffer_ptr()) + src_offset;
     auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
 
-    ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream->get_queue(),
+    ZE_CHECK(zeCommandListAppendMemoryCopy(_ze_stream->get_copy_queue(),
                                            dst_ptr,
                                            src_ptr,
                                            _bytes_count,

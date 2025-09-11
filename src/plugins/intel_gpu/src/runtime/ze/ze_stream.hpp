@@ -16,16 +16,21 @@ namespace ze {
 class ze_stream : public stream {
 public:
     ze_command_list_handle_t get_queue() const { return m_command_list; }
+    ze_command_list_handle_t get_copy_queue() const { return m_copy_command_list; }
 
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
     ze_stream(ze_stream&& other)
         : stream(other.m_queue_type, other.m_sync_method)
         , _engine(other._engine)
         , m_command_list(other.m_command_list)
+        , m_copy_command_list(other.m_copy_command_list)
         , m_queue_counter(other.m_queue_counter.load())
         , m_last_barrier(other.m_last_barrier.load())
         , m_last_barrier_ev(other.m_last_barrier_ev)
-        , m_pool(other.m_pool) {}
+        , m_pool(other.m_pool) {
+            other.m_command_list = nullptr;
+            other.m_copy_command_list = nullptr;
+        }
 
     ~ze_stream();
 
@@ -55,6 +60,7 @@ private:
 
     const ze_engine& _engine;
     mutable ze_command_list_handle_t m_command_list = 0;
+    mutable ze_command_list_handle_t m_copy_command_list = 0;
     mutable std::atomic<uint64_t> m_queue_counter{0};
     std::atomic<uint64_t> m_last_barrier{0};
     std::shared_ptr<ze_event> m_last_barrier_ev = nullptr;
