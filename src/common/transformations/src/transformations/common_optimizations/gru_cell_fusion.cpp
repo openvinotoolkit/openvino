@@ -97,9 +97,10 @@ ov::pass::GRUCellFusion::GRUCellFusion() {
     split->set_output_size(2);
 
     // Create patterns that can match either split output order
-    auto split_out_0_or_1 = make_shared<pattern::op::Or>(OutputVector{split->output(0), split->output(1)});
-    auto split_out_0_or_1_2 = make_shared<pattern::op::Or>(OutputVector{split->output(0), split->output(1)});
-    auto split_out_0_or_1_3 = make_shared<pattern::op::Or>(OutputVector{split->output(0), split->output(1)});
+    OutputVector split_outputs{split->output(0), split->output(1)};
+    auto split_out_0_or_1 = make_shared<pattern::op::Or>(split_outputs);
+    auto split_out_0_or_1_2 = make_shared<pattern::op::Or>(split_outputs);
+    auto split_out_0_or_1_3 = make_shared<pattern::op::Or>(split_outputs);
 
     auto multiply_1 = wrap_type<ov::op::v1::Multiply>({split_out_0_or_1, any_input()});
     auto concat_2 = wrap_type<ov::op::v0::Concat>({any_input(), multiply_1});

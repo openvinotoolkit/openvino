@@ -17,6 +17,9 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+namespace ov {
+namespace test {
+
 using namespace ov;
 using namespace ov::pass;
 
@@ -173,26 +176,27 @@ TEST(pattern_output_index, single_output_nodes_unaffected) {
 TEST(pattern_output_index, verify_index_mismatch_prevents_matching) {
     // Comprehensive test to verify that index mismatches prevent matching
     // With the new behavior, strict checking is automatic
+    const size_t num_outputs = 4;
     auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{12});
     auto axis = op::v0::Constant::create(element::i32, Shape{}, {0});
-    auto split_lengths = op::v0::Constant::create(element::i32, Shape{4}, {3, 3, 3, 3});
+    auto split_lengths = op::v0::Constant::create(element::i32, Shape{num_outputs}, {3, 3, 3, 3});
     auto split = std::make_shared<op::v1::VariadicSplit>(input, axis, split_lengths);
 
     // Create operations on all outputs
     std::vector<std::shared_ptr<op::v0::Relu>> relus;
-    for (size_t i = 0; i < 4; ++i) {
+    for (size_t i = 0; i < num_outputs; ++i) {
         relus.push_back(std::make_shared<op::v0::Relu>(split->output(i)));
     }
 
     // Test each pattern output against all graph outputs
-    for (size_t pattern_idx = 0; pattern_idx < 4; ++pattern_idx) {
+    for (size_t pattern_idx = 0; pattern_idx < num_outputs; ++pattern_idx) {
         auto pattern_split = pattern::wrap_type<op::v1::VariadicSplit>();
-        pattern_split->set_output_size(4);  // Pattern node needs to know it has 4 outputs
+        pattern_split->set_output_size(num_outputs);  // Pattern node needs to know it has num_outputs outputs
         auto pattern_relu = pattern::wrap_type<op::v0::Relu>({pattern_split->output(pattern_idx)});
 
         pattern::Matcher matcher(pattern_relu);
 
-        for (size_t graph_idx = 0; graph_idx < 4; ++graph_idx) {
+        for (size_t graph_idx = 0; graph_idx < num_outputs; ++graph_idx) {
             if (pattern_idx == graph_idx) {
                 EXPECT_TRUE(matcher.match(relus[graph_idx]->output(0)))
                     << "Pattern output(" << pattern_idx << ") should match graph output(" << graph_idx << ")";
@@ -203,3 +207,6 @@ TEST(pattern_output_index, verify_index_mismatch_prevents_matching) {
         }
     }
 }
+
+}  // namespace test
+}  // namespace ov

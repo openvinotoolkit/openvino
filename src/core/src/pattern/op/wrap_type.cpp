@@ -12,9 +12,8 @@
 bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
                                                   const Output<Node>& pattern_value,
                                                   const Output<Node>& graph_value) {
-    // Always check output indices for multi-output nodes
-    if (graph_value.get_node_shared_ptr()->get_output_size() > 1 &&
-        pattern_value.get_index() != graph_value.get_index()) {
+    // Check output indices match (for single-output nodes both will be 0)
+    if (pattern_value.get_index() != graph_value.get_index()) {
         return false;
     }
 

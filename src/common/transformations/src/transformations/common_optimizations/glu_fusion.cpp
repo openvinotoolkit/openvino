@@ -40,6 +40,7 @@ GLUFusion::GLUFusion() {
     variadic_split_m->set_output_size(2);
 
     // The activation (Swish/Gelu) can be on either output of the split
+    OutputVector split_outputs{variadic_split_m->output(0), variadic_split_m->output(1)};
     auto swish_m0 = wrap_type<ov::op::v4::Swish>({variadic_split_m->output(0)});
     auto gelu_m0 = wrap_type<ov::op::v7::Gelu>({variadic_split_m->output(0)});
     auto swish_m1 = wrap_type<ov::op::v4::Swish>({variadic_split_m->output(1)});
@@ -49,7 +50,7 @@ GLUFusion::GLUFusion() {
     auto glu_m = std::make_shared<Or>(OutputVector{swish_m0, gelu_m0, swish_m1, gelu_m1});
 
     // Multiply can have operands in any order, and the other operand should be the other split output
-    auto split_out_any = std::make_shared<Or>(OutputVector{variadic_split_m->output(0), variadic_split_m->output(1)});
+    auto split_out_any = std::make_shared<Or>(split_outputs);
     auto mul_m = wrap_type<ov::op::v1::Multiply>({glu_m, split_out_any});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
