@@ -103,7 +103,7 @@ struct onednn_matmul {
             OPENVINO_ASSERT(m_K_groups == 1);
             attr.set_zero_points(DNNL_ARG_WEIGHTS, (0 << 0) + (1 << 1), {1}, m_w_type);
         } else {
-            OPENVINO_ASSERT(m_K_groups = (m_K / k_group_size));
+            OPENVINO_ASSERT((m_K_groups = m_K / k_group_size) > 0);
             attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {k_group_size, 1}, m_w_type);
         }
         return *this;
