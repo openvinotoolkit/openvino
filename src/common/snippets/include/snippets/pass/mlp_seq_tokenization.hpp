@@ -43,11 +43,9 @@ public:
         using CanBeFusedAsPostOpPred = std::function<bool(const std::shared_ptr<const ov::op::v0::MatMul>&,
                                                           const std::shared_ptr<const ov::Node>&)>;
 
-        Config(size_t available_gprs_count,
-               CanBeFusedAsPostOpPred can_be_fused_as_postop = nullptr)
+        Config(size_t available_gprs_count, CanBeFusedAsPostOpPred can_be_fused_as_postop = nullptr)
             : TokenizationConfig(available_gprs_count),
-              m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {
-        }
+              m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {}
 
         [[nodiscard]] const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
             return m_can_be_fused_as_postop;

@@ -1237,9 +1237,9 @@ void Transformations::MainSnippets() {
     TokenizationConfig tokenization_config(available_gprs_count);
     CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
     TokenizeMHASnippets::Config mha_config(available_gprs_count,
-                                                           mha_token_enable_transpose_on_output,
-                                                           is_dynamic_mha_token_enabled,
-                                                           mha_supported_transpose_ranks);
+                                           mha_token_enable_transpose_on_output,
+                                           is_dynamic_mha_token_enabled,
+                                           mha_supported_transpose_ranks);
     TokenizeMLPSeqSnippets::Config mlp_seq_config(available_gprs_count, supported_as_postop);
 
     ov::pass::Manager snippetsManager("CPU:Snippets");
@@ -1251,7 +1251,12 @@ void Transformations::MainSnippets() {
         CPU_DISABLE_PASS_COMMON(snippetsManager, TokenizeFCSnippets);
         CPU_DISABLE_PASS_COMMON(snippetsManager, TokenizeGatedMLPSnippets);
     }
-    CPU_REGISTER_PASS_COMMON(snippetsManager, SnippetsTokenization, tokenization_config, common_optimizations_config, mha_config, mlp_seq_config);
+    CPU_REGISTER_PASS_COMMON(snippetsManager,
+                             SnippetsTokenization,
+                             tokenization_config,
+                             common_optimizations_config,
+                             mha_config,
+                             mlp_seq_config);
 
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     // Currently, Snippets don't provide efficient execution for single token inference in LLM case.

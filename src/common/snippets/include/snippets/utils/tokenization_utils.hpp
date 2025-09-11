@@ -24,8 +24,7 @@ namespace ov::snippets::utils {
  * @param config tokenization config which regulates
  * @return whether the node was tokenized or not
  */
-bool tokenize_node(const std::shared_ptr<ov::Node>& node,
-                   const ov::snippets::pass::TokenizationConfig& config);
+bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pass::TokenizationConfig& config);
 /**
  * @brief Tokenizes a list of nodes into Subgraph with the following rules:
  *        1. The user is responsible for valid count of parameters, results and hidden virtual ports (constants)

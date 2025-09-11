@@ -59,8 +59,7 @@ public:
             : TokenizationConfig(available_gprs_count),
               m_mha_token_enable_transpose_on_output(enable_transpose_on_output),
               m_is_dynamic_mha_token_enabled(dyn_mha_token),
-              m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {
-        }
+              m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {}
 
         [[nodiscard]] bool get_mha_token_enable_transpose_on_output() const {
             return m_mha_token_enable_transpose_on_output;
