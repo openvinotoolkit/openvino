@@ -1,4 +1,4 @@
-name: Linux Sanitizers (Ubuntu 20.04, Python 3.9)
+name: Linux Sanitizers (Ubuntu 22.04, Python 3.9)
 on:
   schedule:
     # run daily at 00:00
