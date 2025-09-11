@@ -26,7 +26,7 @@ void ZeroGraphTest::SetUp() {
 #endif
 
     model = ov::test::utils::make_multi_single_conv();
-    auto zeroInitStruct = ZeroInitStructsHolder::getInstance();
+    zeroInitStruct = std::make_shared<ZeroInitStructsHolder>();
     zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
 
     auto compilerProperties = zeroInitStruct->getCompilerProperties();
@@ -61,7 +61,7 @@ TEST_P(ZeroGraphTest, GetGraphDescriptorIOInfoBuildFlags) {
 
     ASSERT_EQ(model->get_parameters().empty(), true);
 
-    auto compilerProperties = ZeroInitStructsHolder::getInstance()->getCompilerProperties();
+    auto compilerProperties = zeroInitStruct->getCompilerProperties();
     const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
     const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
     serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
@@ -89,7 +89,11 @@ TEST_P(ZeroGraphTest, GetGraphDescriptorConfigBuildFlags) {
 
     ASSERT_EQ(model->get_parameters().empty(), true);
 
-    auto compilerProperties = ZeroInitStructsHolder::getInstance()->getCompilerProperties();
+    auto compilerProperties = zeroInitStruct->getCompilerProperties();
+    const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
+    const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
+    serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+
     auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
     auto cfg = ::intel_npu::Config(opt_desc);
     buildFlags += serializeConfig(cfg, compilerProperties.compilerVersion, zeGraphExt);
@@ -114,7 +118,7 @@ TEST_P(ZeroGraphTest, GetGraphDescriptorIOInfoConfigBuildFlags) {
 
     ASSERT_EQ(model->get_parameters().empty(), true);
 
-    auto compilerProperties = ZeroInitStructsHolder::getInstance()->getCompilerProperties();
+    auto compilerProperties = zeroInitStruct->getCompilerProperties();
     const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
     const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
     serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
@@ -137,7 +141,7 @@ TEST_P(ZeroGraphTest, GetGraphDescriptorIOInfoConfigBuildFlags) {
 }
 
 TEST_P(ZeroGraphTest, InitializeGraph) {
-    auto compilerProperties = ZeroInitStructsHolder::getInstance()->getCompilerProperties();
+    auto compilerProperties = zeroInitStruct->getCompilerProperties();
     const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
     const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
     serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
@@ -165,7 +169,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraph) {
 
     ASSERT_EQ(model->get_parameters().empty(), true);
 
-    auto compilerProperties = ZeroInitStructsHolder::getInstance()->getCompilerProperties();
+    auto compilerProperties = zeroInitStruct->getCompilerProperties();
     const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
     const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
     serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
@@ -179,7 +183,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraph) {
     zeGraphExt->initializeGraph(graphDescriptor, 0);
 
     // set graph args
-    auto allocator = std::make_shared<zeroMemory::HostMemAllocator>(ZeroInitStructsHolder::getInstance(),
+    auto allocator = std::make_shared<zeroMemory::HostMemAllocator>(zeroInitStruct,
                                                                     ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
     void* ptr = allocator->allocate(totalSize);

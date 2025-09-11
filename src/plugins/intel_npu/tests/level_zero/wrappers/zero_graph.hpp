@@ -29,6 +29,8 @@ protected:
     void TearDown() override;
 
 public:
+    std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
+
     std::shared_ptr<intel_npu::ZeGraphExtWrappers> zeGraphExt;
 
     SerializedIR serializedIR;
