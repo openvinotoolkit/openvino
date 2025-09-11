@@ -844,7 +844,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (res) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
-        CacheContent cache_content{cache_manager, parsed._core_config.get_enable_mmap(), get_cache_model_path(config)};
+        CacheContent cache_content{cache_manager,
+                                   parsed._core_config.get_enable_mmap(),
+                                   get_cache_model_path(config).string()};
         const auto compiled_config = create_compile_config(plugin, parsed._config);
         cache_content.blobId = ModelCache::compute_hash(model, cache_content.modelPath, compiled_config);
         cache_content.model = model;

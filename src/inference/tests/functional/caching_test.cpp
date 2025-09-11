@@ -2910,25 +2910,21 @@ TEST_P(CachingTest, import_from_cache_model_by_custom_model_rt_info) {
     MkDirGuard guard(m_cacheDir);
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
-    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
-    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(2);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(1);
     EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
     testLoad([&](ov::Core& core) {
-        const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}};
+        const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}, ov::cache_model_path(modelName)};
 
-        m_modelCallback = [&](std::shared_ptr<ov::Model> model) {
-            // use only model path to load from cache when compiled by model name
-            model->get_rt_info()["__model_path"] = std::filesystem::path(modelName);
-        };
         // read and load model with path hint
         performReadAndLoad(core, config);
 
         // load from cache without path hint
-        m_testFunctionWithCfg(core, config);
+        performReadAndLoadWithContext(core, config);
 
         // load from cache with path hint
-        m_testFunctionWithCfg(core, config);
+        performReadAndLoad(core, config);
     });
 }
 
