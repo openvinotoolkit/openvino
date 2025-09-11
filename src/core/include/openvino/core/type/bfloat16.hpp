@@ -69,7 +69,9 @@ public:
     bfloat16 operator/(const T& other) const;
     template <typename T>
     bfloat16 operator/=(const T& other);
-    operator float() const;
+    operator float() const {
+        return F32{uint32_t(m_value) << 16}.f;
+    }
 
     static std::vector<float> to_float_vector(const std::vector<bfloat16>&);
     static std::vector<bfloat16> from_float_vector(const std::vector<float>&);

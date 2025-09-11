@@ -42,6 +42,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
@@ -57,7 +58,6 @@
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -3312,9 +3312,9 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
                 out_p[i] = static_cast<int32_t>(1);
             });
         } else if (output_prec == ov::element::bf16) {
-            auto* out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<bfloat16*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
-                out_p[i] = static_cast<bfloat16_t>(1);
+                out_p[i] = static_cast<bfloat16>(1);
             });
         } else if (output_prec == ov::element::f16) {
             auto* out_p = reinterpret_cast<ov::float16*>(out_ptr);
@@ -3345,9 +3345,9 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
                 out_p[i] = std::numeric_limits<int32_t>::min();
             });
         } else if (output_prec == ov::element::bf16) {
-            auto* out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<bfloat16*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
-                out_p[i] = std::numeric_limits<bfloat16_t>::lowest();
+                out_p[i] = std::numeric_limits<bfloat16>::lowest();
             });
         } else if (output_prec == ov::element::f16) {
             auto* out_p = reinterpret_cast<ov::float16*>(out_ptr);
@@ -3378,9 +3378,9 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
                 out_p[i] = std::numeric_limits<int32_t>::max();
             });
         } else if (output_prec == ov::element::bf16) {
-            auto* out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<bfloat16*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
-                out_p[i] = std::numeric_limits<bfloat16_t>::max();
+                out_p[i] = std::numeric_limits<bfloat16>::max();
             });
         } else if (output_prec == ov::element::f16) {
             auto* out_p = reinterpret_cast<ov::float16*>(out_ptr);

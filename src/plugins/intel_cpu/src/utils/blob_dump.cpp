@@ -21,9 +21,9 @@
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "utils/bfloat16.hpp"
 
 namespace ov::intel_cpu {
 
@@ -192,7 +192,7 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
         break;
     }
     case ov::element::bf16: {
-        const auto* blob_ptr = reinterpret_cast<const bfloat16_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const bfloat16*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             auto fn = static_cast<float>(blob_ptr[desc.getElementOffset(i)]);
             stream << fn << '\n';
