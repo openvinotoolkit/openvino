@@ -17,6 +17,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/pass/pass.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/pass/base_tokenization_config.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 
 namespace ov::snippets::pass {
@@ -76,7 +77,7 @@ public:
      * @brief Allow to adjust tokenization passes
      * @ingroup snippets
      */
-    struct Config {
+    struct Config : public BaseTokenizationConfig {
         using CanBeFusedAsPostOpPred = std::function<bool(const std::shared_ptr<const ov::op::v0::MatMul>&,
                                                           const std::shared_ptr<const ov::Node>&)>;
 
@@ -85,12 +86,11 @@ public:
                bool dyn_mha_token,
                std::set<size_t> mha_transpose_ranks,
                CanBeFusedAsPostOpPred can_be_fused_as_postop = nullptr)
-            : m_available_gprs_count(available_gprs_count),
+            : BaseTokenizationConfig(available_gprs_count),
               m_mha_token_enable_transpose_on_output(enable_transpose_on_output),
               m_is_dynamic_mha_token_enabled(dyn_mha_token),
               m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)),
               m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {
-            OPENVINO_ASSERT(available_gprs_count > 0, "available_gprs_count should be greater than 0");
         }
 
         [[nodiscard]] bool get_mha_token_enable_transpose_on_output() const {
@@ -109,32 +109,7 @@ public:
             return m_can_be_fused_as_postop;
         }
 
-        /**
-         * @brief Checks if the available GPRs count is sufficient for the given requirements.
-         * @param io_count Number of input/output,
-         *        each of which requires GPR allocated throughout the life of the kernel.
-         * @param expected_bufer_reg_groups Number of unique buffer register groups,
-         *        each of which requires GPR allocated throughout the life of the kernel.
-         * @param expected_maximal_loop_depth Each loop uses GPR for work amount storage.
-         *        For the expressions covered with all `expected_maximal_loop_depth` loops,
-         *        `expected_maximal_loop_depth` GPRS must be alive
-         * @param is_dynamic Indicates whether the subgraph is dynamic.
-         *        It affects the number of available GPRs:
-         *        in static case, abi_param2 is used to pass precomputed offsets to the kernel.
-         * @return true if the available GPRs are sufficient; false otherwise.
-         */
-        [[nodiscard]] bool is_gprs_count_sufficient(const size_t io_count,
-                                                    const size_t expected_bufer_reg_groups,
-                                                    const size_t expected_maximal_loop_depth,
-                                                    bool is_dynamic = false) const {
-            const auto available_gprs_count = is_dynamic ? m_available_gprs_count : m_available_gprs_count - 1;
-            return (io_count + expected_bufer_reg_groups + expected_maximal_loop_depth) <= available_gprs_count;
-        }
-
     private:
-        // The number of gpr that can be used inside snippets kernel
-        // (data pointers for Parameters/Results/Buffers, as well as loop work amounts)
-        size_t m_available_gprs_count = 0;
         // False if Transpose on output isn't tokenized in MHA Tokenization.
         // Otherwise, it may be fused into Subgraph if possible
         // TODO [111813]: Remove please when the ticket 111813 is implemented
