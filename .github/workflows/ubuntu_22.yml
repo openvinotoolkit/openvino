@@ -233,7 +233,8 @@ jobs:
             -t=${{ matrix.TEST_TYPE }} \
             -w=${CONFORMANCE_ARTIFACTS_DIR} \
             --cache_path=${CONFORMANCE_TOOLS_DIR}/github/cache/${TEST_DEVICE}/test_cache_${{ matrix.TEST_TYPE }}.lst \
-            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/${TEST_DEVICE}/expected_failures_${{ matrix.TEST_TYPE }}.csv
+            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/${TEST_DEVICE}/expected_failures_${{ matrix.TEST_TYPE }}.csv \
+            --ov_config_path=${CONFORMANCE_TOOLS_DIR}/github/plugin_config/${TEST_DEVICE}/config.txt
 
       - name: Pack Conformance Artifacts
         if: ${{ always() }}
