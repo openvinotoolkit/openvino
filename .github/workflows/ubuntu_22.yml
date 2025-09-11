@@ -307,6 +307,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'ubuntu_22_04'
+      event_name: ${{ github.event_name }}
 
   Python_Unit_Tests:
     name: Python unit tests
