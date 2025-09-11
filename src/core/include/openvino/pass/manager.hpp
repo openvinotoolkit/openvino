@@ -28,6 +28,9 @@ public:
 
     //// \brief Construct Manager with shared PassConfig instance
     explicit Manager(std::shared_ptr<PassConfig> pass_config, std::string name = "UnnamedManager");
+    
+    //// \brief Construct Manager with copied PassConfig instance
+    explicit Manager(const PassConfig& pass_config, std::string name = "UnnamedManager");
 
     /// \brief Register given transformation class type to execution list
     /// Example below show the basic usage of pass::Manager
