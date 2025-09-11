@@ -17,6 +17,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less_eq.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -27,10 +28,9 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/less_eq.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -210,7 +210,7 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gpt_oss_
     auto kv_idx_opt_conv_0 = pattern::optional<v0::Convert>();
     auto kv_idx_opt_conv_1 = pattern::optional<v0::Convert>(kv_idx_opt_conv_0);
     auto less_eq = pattern::wrap_type<v1::LessEqual>({q_idx, kv_idx_opt_conv_1});
-   
+
     auto offset = wrap_type<v0::Constant>();
 
     auto add = wrap_type<v1::Add>({q_idx, offset});
@@ -364,9 +364,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
     // Scale's shape limitations according to SDPA specification
     auto scale_predicate = [=](const Output<Node>& output) -> bool {
-            return output.get_partial_shape() == ov::PartialShape{} ||
-                  (output.get_partial_shape() == ov::PartialShape{1} &&
-                   output.get_partial_shape()[0] == 1);
+        return output.get_partial_shape() == ov::PartialShape{} ||
+               (output.get_partial_shape() == ov::PartialShape{1} && output.get_partial_shape()[0] == 1);
     };
 
     auto q = pattern::any_input();
@@ -378,8 +377,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     auto v_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
 
-    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(
-        OutputVector{phi3_mask, general_alibi_mask, jais_alibi_mask, baichuan2_13b_alibi_mask, gpt_oss_mask, pattern::any_input()});
+    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{phi3_mask,
+                                                                       general_alibi_mask,
+                                                                       jais_alibi_mask,
+                                                                       baichuan2_13b_alibi_mask,
+                                                                       gpt_oss_mask,
+                                                                       pattern::any_input()});
 
     auto sdpa_with_4_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -388,7 +391,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     auto sdpa_with_6_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa, scale_input, sinks});
 
-    auto sdpa_variants = std::make_shared<pattern::op::Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
+    auto sdpa_variants =
+        std::make_shared<pattern::op::Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
     ov::matcher_pass_callback callback = [=,
                                           &kv_parameters,
@@ -403,10 +407,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
 
-        auto sdpa_node =
-            pattern_map.at(pattern_map.count(sdpa_with_4_inputs) ? sdpa_with_4_inputs :
-                           pattern_map.count(sdpa_with_5_inputs) ? sdpa_with_5_inputs :
-                           sdpa_with_6_inputs).get_node();
+        auto sdpa_node = pattern_map
+                             .at(pattern_map.count(sdpa_with_4_inputs)   ? sdpa_with_4_inputs
+                                 : pattern_map.count(sdpa_with_5_inputs) ? sdpa_with_5_inputs
+                                                                         : sdpa_with_6_inputs)
+                             .get_node();
         // E and Ev are from the SDPA specification at
         // https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/scaled-dot-product-attention.html
         auto E = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];
@@ -665,7 +670,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         pa_arguments.insert(pa_arguments.begin() + 20,
-                            pattern_map.count(sinks) ? pattern_map.at(sinks).get_node_shared_ptr() : v0::Constant::create(element::f32, Shape{}, {0}));
+                            pattern_map.count(sinks) ? pattern_map.at(sinks).get_node_shared_ptr()
+                                                     : v0::Constant::create(element::f32, Shape{}, {0}));
 
         OPENVINO_ASSERT(pa_arguments.size() == 21);
 

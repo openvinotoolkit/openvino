@@ -12,16 +12,13 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/sdpa_fusion.hpp"
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include "transformations/common_optimizations/sdpa_fusion.hpp"
-#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
-#include "openvino/pass/visualize_tree.hpp"
-#include "openvino/pass/serialize.hpp"
 
 using namespace ov::op;
 

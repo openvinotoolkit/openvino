@@ -172,8 +172,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32,
                                getInputShapeAtPort(PagedAttentionExecutor::ID_XATTENTION_BLOCK_SIZE)));
-    
-    //TODO: perhaps, some additional changes from the CPU team required here to handle the new input
+
+    // TODO: perhaps, some additional changes from the CPU team required here to handle the new input
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
