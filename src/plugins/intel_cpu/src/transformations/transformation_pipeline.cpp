@@ -1233,13 +1233,13 @@ void Transformations::MainSnippets() {
     bool split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = {4};
-    snippets::pass::SnippetsTokenization::Config tokenization_config(available_gprs_count,
-                                                                     supported_as_postop);
+    snippets::pass::SnippetsTokenization::Config tokenization_config(available_gprs_count);
     snippets::pass::CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
     snippets::pass::TokenizeMHASnippets::Config mha_config(available_gprs_count,
                                                            mha_token_enable_transpose_on_output,
                                                            is_dynamic_mha_token_enabled,
                                                            mha_supported_transpose_ranks);
+    snippets::pass::TokenizeMLPSeqSnippets::Config mlp_seq_config(available_gprs_count, supported_as_postop);
 
     ov::pass::Manager snippetsManager("CPU:Snippets");
     snippetsManager.set_per_pass_validation(false);
@@ -1250,7 +1250,7 @@ void Transformations::MainSnippets() {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeGatedMLPSnippets);
     }
-    CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config, common_optimizations_config, mha_config);
+    CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config, common_optimizations_config, mha_config, mlp_seq_config);
 
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     // Currently, Snippets don't provide efficient execution for single token inference in LLM case.

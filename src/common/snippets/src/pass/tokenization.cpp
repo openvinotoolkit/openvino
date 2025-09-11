@@ -97,7 +97,7 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // 2. They change the nodes after the matched root node
     manager.register_pass<TokenizeMHASnippets>(m_mha_config);
     manager.register_pass<TokenizeGatedMLPSnippets>(m_config);
-    manager.register_pass<TokenizeMLPSeqSnippets>(m_config);
+    manager.register_pass<TokenizeMLPSeqSnippets>(m_mlp_seq_config);
 
     auto tokenization_passes = manager.register_pass<ov::pass::GraphRewrite>();
     tokenization_passes->add_matcher<TokenizeGNSnippets>();

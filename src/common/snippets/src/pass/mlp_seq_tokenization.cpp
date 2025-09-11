@@ -83,7 +83,7 @@ bool TokenizeMLPSeqSnippets::is_supported_intermediate_op(const std::shared_ptr<
                                                             ov::op::v0::FakeQuantize>(node);
 }
 
-TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Config& config) {
+TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
     MATCHER_SCOPE(TokenizeMLPSeqSnippets);
 
     auto constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();

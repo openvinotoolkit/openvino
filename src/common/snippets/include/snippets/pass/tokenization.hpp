@@ -20,6 +20,7 @@
 #include "snippets/pass/base_tokenization_config.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
+#include "snippets/pass/mlp_seq_tokenization.hpp"
 
 namespace ov::snippets::pass {
 
@@ -79,33 +80,20 @@ public:
      * @ingroup snippets
      */
     struct Config : public BaseTokenizationConfig {
-        using CanBeFusedAsPostOpPred = std::function<bool(const std::shared_ptr<const ov::op::v0::MatMul>&,
-                                                          const std::shared_ptr<const ov::Node>&)>;
-
-        Config(size_t available_gprs_count,
-               CanBeFusedAsPostOpPred can_be_fused_as_postop = nullptr)
-            : BaseTokenizationConfig(available_gprs_count),
-              m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {
+        Config(size_t available_gprs_count)
+            : BaseTokenizationConfig(available_gprs_count) {
         }
-
-        [[nodiscard]] const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
-            return m_can_be_fused_as_postop;
-        }
-
-    private:
-        // Predicate that checks if the node can be fused as MatMul post-op.
-        // It is currently used only in TokenizeMLPSeqSnippets
-        CanBeFusedAsPostOpPred m_can_be_fused_as_postop = nullptr;
     };
 
-    explicit SnippetsTokenization(Config config, CommonOptimizations::Config common_config, TokenizeMHASnippets::Config mha_config) 
-        : m_config(std::move(config)), m_common_config(std::move(common_config)), m_mha_config(std::move(mha_config)) {}
+    explicit SnippetsTokenization(Config config, CommonOptimizations::Config common_config, TokenizeMHASnippets::Config mha_config, TokenizeMLPSeqSnippets::Config mlp_seq_config) 
+        : m_config(std::move(config)), m_common_config(std::move(common_config)), m_mha_config(std::move(mha_config)), m_mlp_seq_config(std::move(mlp_seq_config)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     Config m_config;
     CommonOptimizations::Config m_common_config;
     TokenizeMHASnippets::Config m_mha_config;
+    TokenizeMLPSeqSnippets::Config m_mlp_seq_config;
 };
 
 }  // namespace ov::snippets::pass
