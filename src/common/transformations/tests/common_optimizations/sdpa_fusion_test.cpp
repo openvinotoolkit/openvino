@@ -66,7 +66,7 @@ public:
         // Adjust the code for sinks if you see other values for them.
         // For now, there has been only one model with sinks: gpt-oss
         with_sinks = true;
-        std::vector<int> broadcast_shape_value(sinks_broadcast_shape.begin(), sinks_broadcast_shape.end());
+        std::vector<size_t> broadcast_shape_value(sinks_broadcast_shape.begin(), sinks_broadcast_shape.end());
         auto broadcast_to_shape =
             v0::Constant::create(element::i32, Shape{sinks_broadcast_shape.size()}, broadcast_shape_value);
         auto sinks_param = make_shared<v0::Parameter>(element::f16, sinks_shape);

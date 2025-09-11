@@ -12,7 +12,7 @@
 
 namespace ov {
 namespace test {
-std::string SharedMatmulAndGatherWeightsDecompression::getTestCaseName(testing::TestParamInfo<SharedMatmulAndGatherWeightsDecompressionParams> obj) {
+std::string SharedMatmulAndGatherWeightsDecompression::getTestCaseName(const testing::TestParamInfo<SharedMatmulAndGatherWeightsDecompressionParams>& obj) {
     const auto& [target_device,
                  shape_params,
                  weights_precision,

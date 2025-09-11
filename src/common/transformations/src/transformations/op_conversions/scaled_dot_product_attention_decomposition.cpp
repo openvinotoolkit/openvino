@@ -93,7 +93,6 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto query = node->input_value(0);
     auto key = node->input_value(1);
     auto value = node->input_value(2);
-    std::cout << "query: " << query << std::endl;
     auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
     auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
     auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
