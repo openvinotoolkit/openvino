@@ -82,9 +82,11 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         // Check that if second inputs is Constant path and it's shape without ones dimensions has length <= 2
         // we replace MatMul with FullyConnected operation.
-        if (std::count_if(shape_b.begin(), shape_b.end(), [](const ov::Dimension& x) {
-                return x != 1;
-            }) > 2) {
+        // weight shape:
+        // [1,2,3,4] --> matmul
+        // [1,2,3] --> fc
+        // [2,3,4] --> fc
+        if (std::count_if(shape_b.begin(), shape_b.end(), [](const ov::Dimension& x) { return x != 1; }) > 2 && shape_b.size() > 3) {
             return false;
         }
         /*
@@ -114,7 +116,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             }
 
             // check on per-batch MatMul which can't be converted to FC
-            for (size_t i = 0; i < max_size - 2; ++i) {
+            for (size_t i = 0; i < max_size - 3; ++i) {
                 if (shape_b_aligned[i] == 1) {
                     shape_b_aligned[i] = shape_a_aligned[i];
                 } else {
