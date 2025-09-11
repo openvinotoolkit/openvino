@@ -4,18 +4,19 @@
 
 #include <gtest/gtest.h>
 
-#include "driver_compiler_adapter.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 using namespace intel_npu;
 
-class ZeroWrappersTest : public ::testing::TestWithParam<int> {
+class ZeroWrappersTest : public ::testing::TestWithParam<std::tuple<int, std::string>> {
 protected:
     void SetUp() override;
 
     void TearDown() override;
 
 public:
+    std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
+
     std::shared_ptr<ZeGraphExtWrappers> zeGraphExt;
 
     SerializedIR serializedIR;
@@ -25,6 +26,13 @@ public:
     std::shared_ptr<ov::Model> model;
 
     std::string buildFlags;
+
+    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<int, std::string>> obj) {
+        int flag;
+        std::string version;
+        std::tie(flag, version) = obj.param;
+        return "graphDescriptorFlag=" + std::to_string(flag) + "_extVersion=" + version;
+    }
 };
 
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,

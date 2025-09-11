@@ -5,13 +5,13 @@
 #include "wrappers.hpp"
 
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-#include "intel_npu/common/filtered_config.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "ir_serializer.hpp"
 
 // there is something wrong in here
 void ZeroWrappersTest::SetUp() {
     model = ov::test::utils::make_multi_single_conv();
-    auto zeroInitStruct = ZeroInitStructsHolder::getInstance();
+    zeroInitStruct = std::make_shared<ZeroInitStructsHolder>();
 
     zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
 
@@ -23,21 +23,21 @@ void ZeroWrappersTest::SetUp() {
     buildFlags = "";
 
     // should this be here?
-    graphDescriptor = zeGraphExt->getGraphDescriptor(std::move(serializedIR), buildFlags, ZE_GRAPH_FLAG_NONE);
+    graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, ZE_GRAPH_FLAG_NONE);
 }
 
 void ZeroWrappersTest::TearDown() {}
 
 // coverage on all ifelse branches
-TEST_F(ZeroWrappersTest, QueryGraph) {
+TEST_P(ZeroWrappersTest, QueryGraph) {
     const auto supportedLayers = zeGraphExt->queryGraph(std::move(serializedIR), buildFlags);
 }
 
-TEST_F(ZeroWrappersTest, GetGraphBinary) {
+TEST_P(ZeroWrappersTest, GetGraphBinary) {
     // zeGraphExt->getGraphBinary(graphDescriptor, __, __, __);
 }
 
-TEST_F(ZeroWrappersTest, InitializeGraph) {
+TEST_P(ZeroWrappersTest, InitializeGraph) {
     // int max?
     auto commandQueueGroupOrdinal =
         zeroUtils::findCommandQueueGroupOrdinal(ZeroInitStructsHolder::getInstance()->getDevice(),
@@ -46,9 +46,22 @@ TEST_F(ZeroWrappersTest, InitializeGraph) {
     zeGraphExt->initializeGraph(graphDescriptor, commandQueueGroupOrdinal);
 }
 
-TEST_F(ZeroWrappersTest, DestroyGraph) {
+TEST_P(ZeroWrappersTest, DestroyGraph) {
     zeGraphExt->destroyGraph(graphDescriptor);
 }
+
+std::vector<int> _graphDescflags = {ZE_GRAPH_FLAG_NONE,
+                                   ZE_GRAPH_FLAG_DISABLE_CACHING,
+                                   ZE_GRAPH_FLAG_ENABLE_PROFILING,
+                                   ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT};
+
+std::vector<std::string> _extVersion =
+    {"1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12", "1.13"};
+
+INSTANTIATE_TEST_SUITE_P(something,
+                         ZeroWrappersTest,
+                         ::testing::Combine(::testing::ValuesIn(_graphDescflags), ::testing::ValuesIn(_extVersion)),
+                         ZeroWrappersTest::getTestCaseName);
 
 // todo: maybe we can avoid this
 // what about a synthetic model?

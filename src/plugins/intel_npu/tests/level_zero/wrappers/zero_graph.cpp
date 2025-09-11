@@ -153,6 +153,7 @@ TEST_P(ZeroGraphTest, InitializeGraph) {
     }
 }
 
+// TODO: add asserts for no throws
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraph) {
     // get graph
     for (const auto& op : model->get_ops()) {

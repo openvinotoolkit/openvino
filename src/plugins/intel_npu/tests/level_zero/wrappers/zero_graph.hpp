@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include "driver_compiler_adapter.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 using namespace intel_npu;
