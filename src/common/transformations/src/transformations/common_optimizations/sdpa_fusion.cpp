@@ -95,11 +95,6 @@ bool SDPAFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAFusionMatcher>();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAFusionMatcherSinks>();
-<<<<<<< HEAD
-    symbolic_ctx_manager->register_pass<ov::pass::Serialize>(std::string("after_SDPAFusionMatcherSinks.xml"),
-                                                             std::string("after_SDPAFusionMatcherSinks.bin"));
-=======
->>>>>>> c630ac9b8e5e548cac014a9410223eccd9e2ec1a
     symbolic_ctx_manager->register_pass<ov::pass::SDPAReshapeFusion>();
     return symbolic_optimizations.run_on_model(model);
 }
@@ -460,7 +455,7 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
     // Pattern 1: axis = -1 (last axis)
     // Pattern 2: axis = rank size - 1 (also means last axis for static rank inputs)
     auto axis_predicate = ([](const ov::Output<ov::Node>& node) {
-        auto softmax = std::dynamic_pointer_cast<ov::op::v8::Softmax>(node.get_node_shared_ptr());
+        auto softmax = ov::as_type_ptr<ov::op::v8::Softmax>(node.get_node_shared_ptr());
         if (!softmax)
             return false;
         auto input_rank = node.get_partial_shape().rank();
@@ -488,7 +483,7 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
         auto k_node = pm.at(k);
         auto v_node = pm.at(v);
 
-        if (pm.at(mask).get_partial_shape().size() > 4) {
+        if (pm.at(mask).get_partial_shape().rank().get_length() > 4) {
             return false;
         }
 
