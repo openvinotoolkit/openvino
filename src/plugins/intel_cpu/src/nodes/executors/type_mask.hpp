@@ -35,6 +35,7 @@ struct TypeMask {
         _string = 1 << 20,
         _f4e2m1 = 1 << 21,
         _f8e8m0 = 1 << 22,
+        _u2 = 1 << 23,
     };
 
     explicit TypeMask(const ov::element::Type precision) : value(generateMask(precision)), precision(precision) {}
@@ -82,6 +83,7 @@ private:
             CASE(string)
             CASE(f4e2m1)
             CASE(f8e8m0)
+            CASE(u2)
         default:
             return _dynamic;
         }
@@ -116,6 +118,7 @@ DEFINE_TYPE_ALIAS(_f8e5m2);
 DEFINE_TYPE_ALIAS(_string);
 DEFINE_TYPE_ALIAS(_f4e2m1);
 DEFINE_TYPE_ALIAS(_f8e8m0);
+DEFINE_TYPE_ALIAS(_u2);
 constexpr auto _any_float = _f64 | _f32 | _f16 | _bf16;
 constexpr auto _hw_float = _f32 | _f16 | _bf16;
 constexpr auto _half_float = _f16 | _bf16;
