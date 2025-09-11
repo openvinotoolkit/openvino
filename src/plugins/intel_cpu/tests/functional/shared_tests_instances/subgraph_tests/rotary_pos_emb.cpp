@@ -71,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                          RoPETestChatGLM2DRoPEStridedSlice::getTestCaseName);
 
 const std::vector<std::string> vit_param = {"VariadicSplit", "Slice", "StridedSlice"};
-INSTANTIATE_TEST_SUITE_P(smoke_RoPEQwenVL,
+INSTANTIATE_TEST_SUITE_P(smoke_RoPETestQwenVL,
                          RoPETestQwenVL,
                          ::testing::Combine(
                             ::testing::Values(ov::element::f32),
