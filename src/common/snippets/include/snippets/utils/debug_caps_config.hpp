@@ -52,6 +52,7 @@ public:
         LIRFormatFilter format = {1 << LIRFormatFilter::controlFlow};
         std::vector<std::string> passes;
         bool use_subgraph_name = false;
+        std::string name_modifier;
 
         std::vector<PropertySetterPtr> getPropertySetters() override {
             return {PropertySetterPtr(new StringPropertySetter("dir", dir, "path to dumped LIRs")),
