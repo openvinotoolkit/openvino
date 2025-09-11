@@ -783,7 +783,9 @@ TEST(activation_f16_fw_gpu, gws_b_fs_yx_fsv16_small_feature_batch) {
 
     cldnn::network net(engine, topology, config);
     net.set_input_data("input", in_mem);
-    auto out_mem = net.execute().at("output").get_memory();
+
+    cldnn::memory::ptr out_mem;
+    OV_ASSERT_NO_THROW(out_mem = net.execute().at("output").get_memory());
 
     cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
     cldnn::mem_lock<ov::float16> ref_ptr(out_ref, get_test_stream());
