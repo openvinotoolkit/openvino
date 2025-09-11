@@ -69,7 +69,10 @@ public:
     bfloat16 operator/(const T& other) const;
     template <typename T>
     bfloat16 operator/=(const T& other);
-    operator float() const;
+
+    constexpr operator float() const {
+        return F32(uint32_t(m_value) << 16U).f;
+    }
 
     static std::vector<float> to_float_vector(const std::vector<bfloat16>&);
     static std::vector<bfloat16> from_float_vector(const std::vector<float>&);
@@ -99,8 +102,8 @@ public:
 private:
     constexpr bfloat16(uint16_t x, bool) : m_value{x} {}
     union F32 {
-        F32(float val) : f{val} {}
-        F32(uint32_t val) : i{val} {}
+        constexpr F32(float val) : f{val} {}
+        constexpr F32(uint32_t val) : i{val} {}
         float f;
         uint32_t i;
     };
