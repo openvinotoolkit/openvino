@@ -26,6 +26,7 @@
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "openvino/xml_util/xml_serialize_util.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
 namespace ov::util {
@@ -152,17 +153,18 @@ std::unordered_set<std::string> deserialize_tensor_names(const std::string_view&
     return output_names;
 }
 
-void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info) {
+void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info, bool prefix_needed = true) {
     std::string custom_name, custom_value;
     for (const auto& item : rt_attrs) {
-        if (std::strcmp(item.name(), "custom") == 0) {
+        if (std::strcmp(item.name(), rt_info_user_data_xml_tag.begin()) == 0) {
             if (getStrAttribute(item, "name", custom_name)) {
+                const auto name = std::string{prefix_needed ? rt_map_user_data_prefix : ""} + custom_name;
                 if (getStrAttribute(item, "value", custom_value)) {
-                    rt_info.emplace(custom_name, custom_value);
+                    rt_info.emplace(name, custom_value);
                 } else {
-                    rt_info.emplace(custom_name, ov::AnyMap{});
-                    auto& nested = rt_info[custom_name].as<ov::AnyMap>();
-                    set_custom_rt_info(item, nested);
+                    auto i = rt_info.emplace(name, ov::AnyMap{});
+                    auto& nested = rt_info[name].as<ov::AnyMap>();
+                    set_custom_rt_info(item, nested, false);
                 }
             }
         }

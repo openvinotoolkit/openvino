@@ -8,22 +8,37 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/xml_util/xml_serialize_util.hpp"
 
 namespace ov {
 namespace test {
+namespace {
+
+std::string get_prefixed_name(const std::string& custom_name) {
+    return std::string{util::rt_map_user_data_prefix} + custom_name;
+}
+Any& get_user_data(AnyMap& rt_map, const std::string& custom_name) {
+    return rt_map.at(get_prefixed_name(custom_name));
+}
+const Any& get_user_data(const AnyMap& rt_map, const std::string& custom_name) {
+    return rt_map.at(get_prefixed_name(custom_name));
+}
+}  // namespace
 
 TEST(RTInfoCustom, simple_entries) {
     std::string ref_ir_xml = R"V0G0N(
 <net name="Network" version="11">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset8">
-            <data element_type="f32" shape="27"/>
+            <data element_type="f32" shape="27" />
             <rt_info>
-                <custom name="infoA" value="A"/>
-                <custom name="infoB" value="B"/>
-                <custom name="infoB" value="BB"/>
-                <custom name="fused_names_0" value="a_name"/>
-                <attribute name="fused_names" version="0" value="the_name"/>
+                <!-- 'version' tag-attribute presence or value shouldn't matter -->
+                <user_data name="infoA" value="A" version="" />
+                <user_data name="infoB" value="B" version="0" />
+                <user_data name="infoB" value="BB" version="A" />
+                <user_data name="fused_names_0" value="a_name" />
+                <user_data name="fused_names" value="b_name" />
+                <attribute name="fused_names" version="0" value="the_name" />
             </rt_info>
             <output>
                 <port id="0" precision="FP32" names="input_tensor">
@@ -33,8 +48,8 @@ TEST(RTInfoCustom, simple_entries) {
         </layer>
         <layer name="Abs" id="1" type="Abs" version="opset8">
             <rt_info>
-                <custom name="infoC" value="C"/>
-                <attribute name="fused_names" version="0" value=""/>
+                <user_data name="infoC" value="C" />
+                <attribute name="fused_names" version="0" value="" />
             </rt_info>
             <input>
                 <port id="0" precision="FP32">
@@ -44,7 +59,7 @@ TEST(RTInfoCustom, simple_entries) {
             <output>
                 <port id="1" precision="FP32" names="output_tensor">
                     <rt_info>
-                        <custom name="infoD" value="D"/>
+                        <user_data name="infoD" value="D" />
                     </rt_info>
                     <dim>27</dim>
                 </port>
@@ -52,8 +67,8 @@ TEST(RTInfoCustom, simple_entries) {
         </layer>
         <layer name="output" type="Result" id="2" version="opset8">
             <rt_info>
-                <attribute name="primitives_priority" version="0" value="the_prior"/>
-                <custom name="primitives_priority_0" value="a_prior"/>
+                <attribute name="primitives_priority" version="0" value="the_prior" />
+                <user_data name="primitives_priority_0" value="a_prior" />
             </rt_info>
             <input>
                 <port id="0" precision="FP32">
@@ -63,46 +78,61 @@ TEST(RTInfoCustom, simple_entries) {
         </layer>
     </layers>
     <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
-        <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
     </edges>
 </net>
 )V0G0N";
 
+    const auto check_model = [](const Model* const model) {
+        std::string value;
+
+        const auto& param_rti = model->get_parameters().at(0)->get_rt_info();
+        EXPECT_EQ(param_rti.size(), 5);
+
+        OV_ASSERT_NO_THROW(value = param_rti.at("fused_names_0").as<std::string>());
+        EXPECT_EQ(value.compare("the_name"), 0);
+        OV_ASSERT_NO_THROW(value = get_user_data(param_rti, "fused_names_0").as<std::string>());
+        EXPECT_EQ(value.compare("a_name"), 0);
+        OV_ASSERT_NO_THROW(value = get_user_data(param_rti, "fused_names").as<std::string>());
+        EXPECT_EQ(value.compare("b_name"), 0);
+
+        OV_ASSERT_NO_THROW(value = get_user_data(param_rti, "infoA").as<std::string>());
+        EXPECT_EQ(value.compare("A"), 0);
+        OV_ASSERT_NO_THROW(value = get_user_data(param_rti, "infoB").as<std::string>());
+        EXPECT_EQ(value.compare("B"), 0);
+
+        const auto& result = model->get_results().at(0);
+        const auto abs = result->get_input_node_ptr(0);
+
+        const auto& abs_rti = abs->get_rt_info();
+        EXPECT_EQ(abs_rti.size(), 2);
+        OV_ASSERT_NO_THROW(value = get_user_data(abs_rti, "infoC").as<std::string>());
+        EXPECT_EQ(value.compare("C"), 0);
+
+        const auto& abs_output_rti = abs->output(0).get_rt_info();
+        EXPECT_EQ(abs_output_rti.size(), 1);
+        OV_ASSERT_NO_THROW(value = get_user_data(abs_output_rti, "infoD").as<std::string>());
+        EXPECT_EQ(value.compare("D"), 0);
+
+        const auto& result_rti = result->get_rt_info();
+        EXPECT_EQ(result_rti.size(), 2);
+        OV_ASSERT_NO_THROW(value = result_rti.at("primitives_priority_0").as<std::string>());
+        EXPECT_EQ(value.compare("the_prior"), 0);
+        OV_ASSERT_NO_THROW(value = get_user_data(result_rti, "primitives_priority_0").as<std::string>());
+        EXPECT_EQ(value.compare("a_prior"), 0);
+    };
+
     Core core;
-    auto model = core.read_model(ref_ir_xml, Tensor{});
-    ASSERT_NE(nullptr, model);
-    std::string value;
+    auto model_0 = core.read_model(ref_ir_xml, Tensor{});
+    ASSERT_NE(nullptr, model_0);
+    check_model(model_0.get());
 
-    const auto& param_rti = model->get_parameters().at(0)->get_rt_info();
-    EXPECT_EQ(param_rti.size(), 3);
-
-    OV_ASSERT_NO_THROW(value = param_rti.at("fused_names_0").as<std::string>());
-    EXPECT_EQ(value.compare("the_name"), 0);
-
-    OV_ASSERT_NO_THROW(value = param_rti.at("infoA").as<std::string>());
-    EXPECT_EQ(value.compare("A"), 0);
-
-    OV_ASSERT_NO_THROW(value = param_rti.at("infoB").as<std::string>());
-    EXPECT_EQ(value.compare("B"), 0);
-
-    const auto& result = model->get_results().at(0);
-    const auto abs = result->get_input_node_ptr(0);
-
-    const auto& abs_rti = abs->get_rt_info();
-    EXPECT_EQ(abs_rti.size(), 2);
-    OV_ASSERT_NO_THROW(value = abs_rti.at("infoC").as<std::string>());
-    EXPECT_EQ(value.compare("C"), 0);
-
-    const auto& abs_output_rti = abs->output(0).get_rt_info();
-    EXPECT_EQ(abs_output_rti.size(), 1);
-    OV_ASSERT_NO_THROW(value = abs_output_rti.at("infoD").as<std::string>());
-    EXPECT_EQ(value.compare("D"), 0);
-
-    const auto& result_rti = result->get_rt_info();
-    EXPECT_EQ(result_rti.size(), 1);
-    OV_ASSERT_NO_THROW(value = result_rti.at("primitives_priority_0").as<std::string>());
-    EXPECT_EQ(value.compare("the_prior"), 0);
+    std::stringstream model_s, weights_s;
+    pass::Serialize{model_s, weights_s}.run_on_model(model_0);
+    const auto model_1 = core.read_model(model_s.str(), Tensor{});
+    ASSERT_NE(nullptr, model_1);
+    check_model(model_1.get());
 }
 
 TEST(RTInfoCustom, nested_entries) {
@@ -110,13 +140,13 @@ TEST(RTInfoCustom, nested_entries) {
 <net name="Network" version="11">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset8">
-            <data element_type="f32" shape="27"/>
+            <data element_type="f32" shape="27" />
             <rt_info>
-                <custom name="infoA" value="A"/>
-                <custom name="nested">
-                    <custom name="infoB" value="B"/>
-                    <custom name="infoC" value="C"/>
-                </custom>
+                <user_data name="infoA" value="A" />
+                <user_data name="nested">
+                    <user_data name="infoB" value="B" />
+                    <user_data name="infoC" value="C" />
+                </user_data>
             </rt_info>
             <output>
                 <port id="0" precision="FP32" names="input_tensor">
@@ -133,11 +163,11 @@ TEST(RTInfoCustom, nested_entries) {
             <output>
                 <port id="1" precision="FP32" names="output_tensor">
                     <rt_info>
-                        <custom name="nested_0">
-                            <custom name="nested_1">
-                                <custom name="infoD" value="D"/>
-                            </custom>
-                        </custom>
+                        <user_data name="nested_0">
+                            <user_data name="nested_1">
+                                <user_data name="infoD" value="D" />
+                            </user_data>
+                        </user_data>
                     </rt_info>
                     <dim>27</dim>
                 </port>
@@ -152,21 +182,20 @@ TEST(RTInfoCustom, nested_entries) {
         </layer>
     </layers>
     <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
-        <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
     </edges>
 </net>
 )V0G0N";
 
-    Core core;
-    auto model = core.read_model(ref_ir_xml, Tensor{});
+    auto model = Core{}.read_model(ref_ir_xml, Tensor{});
     ASSERT_NE(nullptr, model);
     std::string value;
     AnyMap any_map;
 
     const auto& param_rti = model->get_parameters().at(0)->get_rt_info();
     EXPECT_EQ(param_rti.size(), 2);
-    OV_ASSERT_NO_THROW(any_map = param_rti.at("nested").as<AnyMap>());
+    OV_ASSERT_NO_THROW(any_map = get_user_data(param_rti, "nested").as<AnyMap>());
     EXPECT_EQ(any_map.size(), 2);
     OV_ASSERT_NO_THROW(value = any_map.at("infoB").as<std::string>());
     EXPECT_EQ(value.compare("B"), 0);
@@ -176,7 +205,7 @@ TEST(RTInfoCustom, nested_entries) {
     const auto abs = model->get_results().at(0)->get_input_node_ptr(0);
     const auto& abs_rti = abs->output(0).get_rt_info();
     EXPECT_EQ(abs_rti.size(), 1);
-    OV_ASSERT_NO_THROW(any_map = abs_rti.at("nested_0").as<AnyMap>());
+    OV_ASSERT_NO_THROW(any_map = get_user_data(abs_rti, "nested_0").as<AnyMap>());
     EXPECT_EQ(any_map.size(), 1);
 
     AnyMap nested_map;
@@ -193,7 +222,7 @@ TEST(RTInfoCustom, RuntimeAttribute_priority) {
     const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
 
     auto& info = abs->get_rt_info();
-    const auto layout_custom_id = std::string{"layout"};
+    const auto layout_custom_id = get_prefixed_name("layout");
     const auto layout_custom_value = std::string{"ABCxyz"};
     const auto layout_attribute_id = std::string{LayoutAttribute::get_type_info_static()};
     const auto layout_attribute_value = LayoutAttribute{"NCHW"};
