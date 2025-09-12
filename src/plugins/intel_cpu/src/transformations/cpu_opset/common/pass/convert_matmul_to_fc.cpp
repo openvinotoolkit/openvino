@@ -86,7 +86,12 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         // [1,2,3,4] --> matmul
         // [1,2,3] --> fc
         // [2,3,4] --> fc
-        if (std::count_if(shape_b.begin(), shape_b.end(), [](const ov::Dimension& x) { return x != 1; }) > 2 && shape_b.size() > 3) {
+        if (std::count_if(shape_b.begin(),
+                          shape_b.end(),
+                          [](const ov::Dimension& x) {
+                              return x != 1;
+                          }) > 2 &&
+            shape_b.size() > 3) {
             return false;
         }
         /*
