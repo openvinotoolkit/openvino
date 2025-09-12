@@ -41,13 +41,11 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
-#include "openvino/op/mish.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
@@ -195,6 +193,7 @@
 #    include "openvino/op/logical_xor.hpp"
 #    include "openvino/op/maximum.hpp"
 #    include "openvino/op/minimum.hpp"
+#    include "openvino/op/mish.hpp"
 #    include "openvino/op/mod.hpp"
 #    include "openvino/op/negative.hpp"
 #    include "openvino/op/not_equal.hpp"
@@ -206,6 +205,7 @@
 #    include "openvino/op/sigmoid.hpp"
 #    include "openvino/op/sqrt.hpp"
 #    include "openvino/op/squared_difference.hpp"
+#    include "openvino/op/swish.hpp"
 #    include "openvino/op/tanh.hpp"
 #    include "openvino/op/xor.hpp"
 #    include "snippets/utils/utils.hpp"
@@ -229,6 +229,7 @@
 #    include "onednn/dnnl.h"
 #    include "openvino/op/group_normalization.hpp"
 #    include "openvino/op/multiply.hpp"
+#    include "openvino/op/softmax.hpp"
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
 #    include "snippets/pass/split_dimension_m.hpp"
@@ -275,7 +276,6 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "openvino/op/gru_sequence.hpp"
 #    include "openvino/op/lstm_sequence.hpp"
-#    include "openvino/op/softmax.hpp"
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
@@ -1169,6 +1169,8 @@ void Transformations::MainSnippets() {
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
 #elif defined(OPENVINO_ARCH_ARM64)
         return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return true;  // RISC-V with Vector Extension supports snippets
 #endif
         return false;
     };
@@ -1219,6 +1221,11 @@ void Transformations::MainSnippets() {
         }
         return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(input_precision);
     };
+#elif defined(OPENVINO_ARCH_RISCV64)
+    // RISC-V has 32 gprs. Similar to ARM, conservatively use 23 available registers.
+    size_t data_ptr_gpr_count = 23;
+    // RISC-V doesn't support advanced MatMul post-op fusion yet
+    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #else
     size_t data_ptr_gpr_count = 0;
     snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
@@ -1338,7 +1345,7 @@ void Transformations::MainSnippets() {
     };
 #endif  // OPENVINO_ARCH_X86_64
 
-    auto is_supported_op = [](const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
         // Power on ARM64 only supports power and swish with scalar second inputs
         auto is_supported_with_scalar_inputs = [](const std::shared_ptr<const ov::Node>& n) {
@@ -1390,6 +1397,8 @@ void Transformations::MainSnippets() {
                                        ov::op::v0::Xor>(n));
         };
         return is_supported(n) || is_supported_with_scalar_inputs(n);
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return false;
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64

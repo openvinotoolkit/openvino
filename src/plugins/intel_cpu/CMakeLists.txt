@@ -212,8 +212,16 @@ if(NOT (AARCH64 OR ARM))
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
+endif()
+
+# For RISC-V, compile RISCV64 executors; exclude AArch64 ones to avoid symbol clashes
+if(RISCV64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*)
+else()
+    if(NOT (AARCH64 OR ARM))
+        list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*)
+    endif()
 endif()
 
 if(NOT AARCH64)
@@ -223,7 +231,9 @@ endif()
 
 if (NOT RISCV64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/riscv64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/riscv64/*)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
