@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/op.hpp"
@@ -25,6 +26,8 @@ std::shared_ptr<Node> OnlineSoftmaxUpdateSum::clone_with_new_inputs(const Output
 }
 
 void OnlineSoftmaxUpdateSum::validate_and_infer_types() {
+    OPENVINO_ASSERT(get_input_partial_shape(0) == get_input_partial_shape(1),
+                    "Two inputs of OnlineSoftmaxUpdateSum must have the same shape.");
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
     set_output_type(1, get_input_element_type(0), get_input_partial_shape(0));
 }
