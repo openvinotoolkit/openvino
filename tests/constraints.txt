@@ -23,4 +23,4 @@ pytest-timeout==2.4.0
 kornia==0.8.1
 
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch~=2.7.0
+torch~=2.8.0+cpu
