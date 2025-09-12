@@ -466,23 +466,24 @@ void primitive_inst::update_shape() {
     _impl_params->memory_deps = memory_deps;
 
     auto new_layouts = get_node().type()->calc_output_layouts(*_node, *_impl_params);
-
     for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
         auto& new_layout = new_layouts[idx];
+        auto new_pshape = new_layout.get_partial_shape();
+        auto& impl_layout = _impl_params->get_output_layout(idx);
         if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
-            auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, new_layout.data_padding);
+            auto data_padding = padding::max(impl_layout.data_padding, new_layout.data_padding);
             new_layout.data_padding = padding::max(get_node().get_primitive()->get_output_padding(idx), data_padding);
         }
 
-        if (_impl_params->get_output_layout(idx) != new_layout) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
+        if (impl_layout != new_layout) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << impl_layout.to_short_string()
                                     << " now: " << new_layout.to_short_string() << std::endl;
             set_flag(ExecutionFlags::SHAPE_CHANGED);
         }
 
         _impl_params->output_layouts[idx].data_padding = new_layout.data_padding;
-        _impl_params->output_layouts[idx].set_partial_shape(new_layouts[idx].get_partial_shape());
-        _impl_params->output_layouts[idx].data_type = new_layouts[idx].data_type;
+        _impl_params->output_layouts[idx].set_partial_shape(new_pshape);
+        _impl_params->output_layouts[idx].data_type = new_layout.data_type;
     }
 
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
@@ -2024,21 +2025,28 @@ void primitive_inst::prepare_primitive() {
 
     // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
     // is a convolution that requires zeroed-out data paddings)
+    auto skip_reset = true;
     if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
         const auto& users = get_user_insts();
         const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
                                  users.front()->_allocation_done_by_other;
-        const auto skip_reset = skip_concat;
+        skip_reset = skip_concat;
+    }
+    // Need to reset crop's output to zeros, if followed by onednn concatenation that requires zero-padding for blocked format memory
+    if (get_node().is_type<crop>() && get_node().can_share_buffer() && _impl_params->get_output_layout(0).format.is_blocked() &&
+        get_node().get_users().size() == 1 && get_node().get_users().front()->is_type<concatenation>() &&
+        get_node().get_users().front()->get_selected_impl() && get_node().get_users().front()->get_selected_impl()->is_onednn()) {
+        skip_reset = false;
+    }
 
-        if (!skip_reset) {
-            for (const auto& output : _outputs) {
-                if (output != nullptr) {
-                    GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
-                    // Use marker to ensure proper synchronization for both events and barriers
-                    auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
-                                                         : std::vector<event::ptr>{};
-                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
-                }
+    if (!skip_reset) {
+        for (const auto& output : _outputs) {
+            if (output != nullptr) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
+                // Use marker to ensure proper synchronization for both events and barriers
+                auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                     : std::vector<event::ptr>{};
+                add_dep_event(output->fill(get_network().get_stream(), dep_events));
             }
         }
     }
@@ -2993,7 +3001,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
     // 5. Finally, if no impl found so far, we just enforce static impl compilation
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
-    assert(static_impl != nullptr);
+    OPENVINO_ASSERT(static_impl != nullptr, "No static impl " + node->id());
     static_impl->set_node_params(*node);
     if (!inst.can_be_optimized()) {
         auto& kernels_cache = prog.get_kernels_cache();

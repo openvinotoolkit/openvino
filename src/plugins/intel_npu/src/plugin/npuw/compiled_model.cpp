@@ -565,9 +565,20 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
 
     // Check the compiler version
     const auto npu_devices = get_plugin()->get_core()->get_property("NPU", ov::available_devices);
+    const auto is_suitable_comp = [](int64_t ver, const std::string& arch) {
+        if (arch == "3720" || arch == "4000") {
+            return ver >= ONEAPI_MAKE_VERSION(7, 21);
+        }
+        return ver >= ONEAPI_MAKE_VERSION(7, 25);
+    };
     const bool compiler_version_enough =
         !npu_devices.empty() &&
-        get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version) >= ONEAPI_MAKE_VERSION(7, 21);
+        is_suitable_comp(get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version),
+                         get_plugin()->get_core()->get_property("NPU", ov::device::architecture));
+    // FIXME: go from
+    //     get_plugin()->get_core()->get_property("NPU", ..
+    // to
+    ///    plugin->get_property(..
 
     const bool can_enable_hgq = pattern_matched && (compiler_version_enough || npu_devices.empty());
 

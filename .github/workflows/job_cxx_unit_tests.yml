@@ -30,6 +30,11 @@ on:
         type: number
         required: false
         default: 45
+      event_name:
+        description: 'github event name'
+        type: string
+        required: false
+        default: 'push'
 
 permissions: read-all
 
@@ -52,12 +57,17 @@ jobs:
       SOURCE_COMMAND: ${{ contains(inputs.runner, 'linux') && 'source' || '.' }}
       SETUPVARS: ${{ github.workspace }}/install/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
     steps:
-      - name: Download OpenVINO artifacts (tarballs and tests)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download OpenVINO artifacts (package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: "{openvino_package,openvino_tests}"
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -122,7 +132,13 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).PDPD_FE.test && runner.os != 'Windows' }} # Ticket: 149651
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
-          ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
+          ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_filter="-PaddleFuzzyOpTest*" --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
+
+      - name: PaddlePaddle frontend Fuzzy Op tests
+        if: ${{ inputs.event_name == 'schedule' && runner.os != 'Windows' }} # Ticket: 149651
+        run: |
+          ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
+          ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_filter="PaddleFuzzyOpTest*" --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleFuzzyOpTests.xml
 
       - name: ONNX frontend tests
         if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && runner.arch != 'ARM64' }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280, 153161
