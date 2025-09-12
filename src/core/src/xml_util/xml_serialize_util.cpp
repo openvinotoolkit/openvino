@@ -329,7 +329,7 @@ bool append_custom_rt_info(pugi::xml_node& node,
     if (name.empty()) {
         return false;
     }
-    auto custom_node = node.append_child(rt_info_user_data_xml_tag);
+    auto custom_node = node.append_child(rt_info_user_data_xml_tag.data());
     custom_node.append_attribute("name").set_value(name.c_str());
     bool appended = false;
 

@@ -156,7 +156,7 @@ std::unordered_set<std::string> deserialize_tensor_names(const std::string_view&
 void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info, bool prefix_needed = true) {
     std::string custom_name, custom_value;
     for (const auto& item : rt_attrs) {
-        if (std::strcmp(item.name(), rt_info_user_data_xml_tag.begin()) == 0) {
+        if (std::strcmp(item.name(), rt_info_user_data_xml_tag.data()) == 0) {
             if (getStrAttribute(item, "name", custom_name)) {
                 const auto name = std::string{prefix_needed ? rt_map_user_data_prefix : ""} + custom_name;
                 if (getStrAttribute(item, "value", custom_value)) {
