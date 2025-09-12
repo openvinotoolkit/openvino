@@ -43,7 +43,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
     auto weights_const_m = wrap_type<ov::op::v0::Constant>(compressed_constant);
     auto weights_param_m = wrap_type<ov::op::v0::Parameter>(compressed_constant);
-    auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m});
+    auto weights_param_reshape_m = wrap_type<ov::op::v1::Reshape>({weights_param_m, any_input()});
+    auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m, weights_param_reshape_m});
     auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m});
 
     auto sub_const_m = wrap_type<ov::op::v0::Constant>();
@@ -194,7 +195,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
             ov::replace_node(fc, new_fc);
         } else {
-            std::shared_ptr<ov::Node> fc_input_b = pattern_map.at(weights_param_m).get_node_shared_ptr();
+            std::shared_ptr<ov::Node> fc_input_b = pattern_map.count(weights_param_reshape_m) ? pattern_map.at(weights_param_reshape_m).get_node_shared_ptr()
+                                                                                              : pattern_map.at(weights_param_m).get_node_shared_ptr();
             std::shared_ptr<ov::Node> fc_input_scale = scale;
             std::shared_ptr<ov::Node> fc_input_zp = optional_zero_point;
             std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();

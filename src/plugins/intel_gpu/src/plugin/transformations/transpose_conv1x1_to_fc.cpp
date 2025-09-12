@@ -159,7 +159,7 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
                 return new_constant;
             } else {
                 OPENVINO_ASSERT(current_shape.size() == 4);
-                OPENVINO_ASSERT(current_shape[2] == 1 && current_shape[3]);
+                OPENVINO_ASSERT(current_shape[2] == 1 && current_shape[3] == 1);
 
                 auto new_shape = ov::Shape{current_shape[0], current_shape[1]};
 
