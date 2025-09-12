@@ -69,11 +69,11 @@ in which the ``LOG_LEVEL`` is represented by the first letter of its name (ERROR
 Instrumentation and Tracing Technology
 ######################################
 
-All major performance calls of both OpenVINO™ Runtime and the AUTO plugin are instrumented with Instrumentation and Tracing Technology (ITT) APIs. To enable ITT in OpenVINO™ Runtime, compile it with the following option:
+All major performance calls of both OpenVINO™ Runtime and the AUTO plugin are instrumented with Instrumentation and Tracing Technology (ITT) APIs. ITT is enabled by default with BASE level tracing. For full instrumentation, compile with the following option:
 
 .. code-block:: sh
 
-   -DENABLE_PROFILING_ITT=ON
+   -DENABLE_PROFILING_ITT=FULL
 
 
 For more information, you can refer to:

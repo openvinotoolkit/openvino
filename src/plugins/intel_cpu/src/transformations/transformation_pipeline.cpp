@@ -1026,7 +1026,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Lpt);
 
     CPU_LPT_SCOPE(LowPrecisionTransformations_Part4);
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "LowPrecisionTransformations");
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "LowPrecisionTransformations");
 
     runLptPasses(defaultPrecisions);
 }
