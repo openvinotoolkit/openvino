@@ -197,6 +197,24 @@ describe("ov.Tensor tests", () => {
     });
   });
 
+  describe("Tensor setShape", () => {
+    it("reshapes tensor when element count stays the same", () => {
+      const tensor = new ov.Tensor(ov.element.f32, [2, 4]);
+      tensor.setShape([8]);
+      assert.deepStrictEqual(tensor.getShape(), [8]);
+    });
+
+    it("throws if no arguments are provided", () => {
+      const tensor = new ov.Tensor(ov.element.f32, [2, 4]);
+      assert.throws(() => tensor.setShape(), { message: /Expected exactly 1 argument/ });
+    });
+
+    it("throws if non-array argument is provided", () => {
+      const tensor = new ov.Tensor(ov.element.f32, [2, 4]);
+      assert.throws(() => tensor.setShape("foo"), { message: /Shape must be an array/ });
+    });
+  });
+
   describe("Tensor element type", () => {
     it("comparisons of ov.element to string", () => {
       params.forEach(([elemType, val]) => {
