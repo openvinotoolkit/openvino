@@ -29,6 +29,11 @@ public:
                const ov::Shape& shape,
                const ov::Allocator& allocator);
 
+    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+               const Config& config,
+               const std::shared_ptr<ov::ITensor>& tensor,
+               const ov::Allocator& allocator);
+
     void* data() override;
     void* data(const ov::element::Type& type) override;
 
@@ -71,6 +76,7 @@ private:
     void* _ptr = nullptr;
     bool _reset_tensor_memory = false;
     bool _tensor_shared_with_user = false;
+    const std::shared_ptr<ov::ITensor> _ref = nullptr;
 };
 
 }  // namespace intel_npu
