@@ -6,6 +6,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 
 #define _AS_STR(x) #x
@@ -89,7 +90,7 @@ MemoryCounters MemoryCounters::sample() {
             continue;
         }
         auto prefix = line.substr(0, delim_pos);
-        auto value_start = line.find_first_not_of("\t ", delim_pos + 1); 
+        auto value_start = line.find_first_not_of("\t ", delim_pos + 1);
         auto value_end = line.find_first_of("\t ", value_start);
         if (value_start == std::string::npos) {
             continue;
@@ -106,7 +107,7 @@ MemoryCounters MemoryCounters::sample() {
             out.resident_peak = ivalue;
         } else if (prefix == "Threads") {
             out.thread_count = (int32_t) ivalue;
-        } 
+        }
     }
     return out;
 }
@@ -171,7 +172,7 @@ struct TestContext {
     void sample(std::string sample_name) {
         samples.emplace_back(std::move(sample_name), MemoryCounters::sample());
     }
-    
+
     void report() {
         // auto model_path = json_escape(model_path);  // required for Windows
         std::cout << "TEST_RESULTS: {"
