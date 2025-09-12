@@ -16,7 +16,6 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/store.hpp"
 
-using namespace std;
 using namespace ov;
 
 intel_cpu::StoreConvertSaturation::StoreConvertSaturation(const Output<Node>& x,
