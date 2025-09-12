@@ -1530,7 +1530,6 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         }
         return impl_desc_type::ref;
     }();
-//#if defined(OPENVINO_ARCH_X86_64)
     if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
 
@@ -1539,7 +1538,6 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
             outputPrecision = ov::element::f32;
         }
     }
-//#endif
 
     std::vector<LayoutType> dataFormats;
     // reference implementation supports only planar format

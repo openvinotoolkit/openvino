@@ -222,6 +222,7 @@
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
+#    include "low_precision/fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
@@ -917,6 +918,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         AddTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
+    CPU_DISABLE_PASS_ARM(lptManager, FakeQuantizeTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
