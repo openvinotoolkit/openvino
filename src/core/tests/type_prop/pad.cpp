@@ -280,6 +280,24 @@ TYPED_TEST_P(PadTest, pad_begin_and_end_has_inf_interval_as_bounds) {
     EXPECT_THAT(get_shape_symbols(pad->get_output_partial_shape(0)), Each(nullptr));
 }
 
+TYPED_TEST_P(PadTest, pad_begin_and_end_dynamic) {
+    auto arg_shape = PartialShape{9, {3, 5}, {3, 5}, {3, 4}, {3, 4}};
+    auto begin_shape = PartialShape{-1};
+    auto end_shape = PartialShape{-1};
+    set_shape_symbols(arg_shape);
+    set_shape_symbols(begin_shape);
+    set_shape_symbols(end_shape);
+
+    auto arg = make_shared<op::v0::Parameter>(element::f32, arg_shape);
+    auto s_begin = make_shared<op::v0::Parameter>(element::i32, begin_shape);
+    auto s_end = make_shared<op::v0::Parameter>(element::i32, end_shape);
+
+    auto pad = this->make_op(arg, s_begin, s_end, op::PadMode::CONSTANT);
+
+    EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({-1, -1, -1, -1, -1}));
+    EXPECT_THAT(get_shape_symbols(pad->get_output_partial_shape(0)), Each(nullptr));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(PadTest,
                             pad_default_ctor,
                             pad_arg_pad_value_type_mismatch,
@@ -301,7 +319,8 @@ REGISTER_TYPED_TEST_SUITE_P(PadTest,
                             pad_dynamic_input_type_with_static_value,
                             pad_preserve_partial_values_and_symbols_via_evaluates_bounds,
                             pad_begin_and_end_has_inf_interval_as_bounds,
-                            pad_preserve_partial_values_and_symbols_on_inputs);
+                            pad_preserve_partial_values_and_symbols_on_inputs,
+                            pad_begin_and_end_dynamic);
 
 using PadOpTypes = Types<op::v1::Pad, op::v12::Pad>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, PadTest, PadOpTypes);
