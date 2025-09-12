@@ -289,7 +289,7 @@ inline bool MatchesMemoryFormatFilter(const MemoryDescArgs& descs,
             continue;  // no filter for this input
         }
 
-        if (desc->getShape().getRank() > 1) {
+        if (desc->getShape().getRank() < 2) {
             continue;  // rank 1 tensors are always ncsp
         }
 
