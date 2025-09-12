@@ -12,6 +12,8 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/sdpa_fusion.hpp"
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
@@ -42,6 +44,15 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
+    ov::pass::Manager pre_manager;
+    pre_manager.set_per_pass_validation(false);
+    pre_manager.register_pass<SliceToStridedSlice>(false);
+    pre_manager.register_pass<SDPAFusion>();
+    pre_manager.run_passes(model);
+    // The above is temporary for testing purposes of this PR
+    // only as we don't yet have the proper IR converted with
+    // the SDPA op. present in it. Will be removed later within this PR.
+
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
