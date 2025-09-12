@@ -5,6 +5,7 @@
 #include "serialization.hpp"
 
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -23,10 +24,12 @@ ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
       const_to_offset(_const_to_offset) {}
 
 // NOTE: This construtor can and should only be used when importing blobs
-ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _weights,
+ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
+                                               const std::string& _weights_path,
                                                const s11n::WeightsContext::ConstsCache& _consts_cache,
                                                const BF16Cache& _bf16_consts)
     : weights(_weights),
+      weights_path(_weights_path),
       consts_cache(_consts_cache),
       bf16_consts(_bf16_consts) {
     is_weightless = _weights || !_consts_cache.empty();
@@ -124,67 +127,9 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Output<const ov::Node
     write(stream, var.get_names());
 }
 
-enum class AnyType : int {
-    STRING = 0,
-    CHARS,
-    INT,
-    UINT32,
-    INT64,
-    UINT64,
-    SIZET,
-    FLOAT,
-    BOOL,
-    CACHE_MODE,
-    ELEMENT_TYPE,
-    ANYMAP,
-    PERFMODE
-};
-
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
-    // FIXME: figure out a proper way to serialize Any (for config)
-    if (var.is<std::string>()) {
-        write(stream, static_cast<int>(AnyType::STRING));
-        write(stream, var.as<std::string>());
-    } else if (var.is<const char*>()) {
-        // FIXME: handle properly
-        write(stream, static_cast<int>(AnyType::CHARS));
-        write(stream, std::string(var.as<const char*>()));
-    } else if (var.is<std::size_t>()) {
-        write(stream, static_cast<int>(AnyType::SIZET));
-        write(stream, var.as<std::size_t>());
-    } else if (var.is<int>()) {
-        write(stream, static_cast<int>(AnyType::INT));
-        write(stream, var.as<int>());
-    } else if (var.is<int64_t>()) {
-        write(stream, static_cast<int>(AnyType::INT64));
-        write(stream, var.as<int64_t>());
-    } else if (var.is<uint32_t>()) {
-        write(stream, static_cast<int>(AnyType::UINT32));
-        write(stream, var.as<uint32_t>());
-    } else if (var.is<uint64_t>()) {
-        write(stream, static_cast<int>(AnyType::UINT64));
-        write(stream, var.as<uint64_t>());
-    } else if (var.is<float>()) {
-        write(stream, static_cast<int>(AnyType::FLOAT));
-        write(stream, var.as<float>());
-    } else if (var.is<bool>()) {
-        write(stream, static_cast<int>(AnyType::BOOL));
-        write(stream, var.as<bool>());
-    } else if (var.is<ov::CacheMode>()) {
-        write(stream, static_cast<int>(AnyType::CACHE_MODE));
-        write(stream, var.as<ov::CacheMode>());
-    } else if (var.is<ov::element::Type>()) {
-        write(stream, static_cast<int>(AnyType::ELEMENT_TYPE));
-        write(stream, var.as<ov::element::Type>());
-    } else if (var.is<ov::AnyMap>()) {
-        write(stream, static_cast<int>(AnyType::ANYMAP));
-        write(stream, var.as<ov::AnyMap>());
-    } else if (var.is<ov::hint::PerformanceMode>()) {
-        write(stream, static_cast<int>(AnyType::PERFMODE));
-        write(stream, var.as<ov::hint::PerformanceMode>());
-    } else {
-        NPUW_ASSERT(false && "Unsupported type");
-    }
+    auto str = ov::npuw::s11n::anyToString(var);
+    write(stream, str);
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var) {
@@ -204,11 +149,8 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::hint::PerformanceMode
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::AnyMap& var) {
-    write(stream, var.size());
-    for (const auto& el : var) {
-        write(stream, el.first);
-        write_any(stream, el.second);
-    }
+    auto str = ov::npuw::s11n::anyMapToString(var);
+    write(stream, str);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
@@ -311,66 +253,9 @@ void ov::npuw::s11n::read(std::istream& stream, std::shared_ptr<ov::Node>& var) 
 }
 
 void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
-    // FIXME: ugly, but cannot use .read(stream) here due to its usage of operator>>()
-    int type_int;
-    read(stream, type_int);
-    AnyType type = static_cast<AnyType>(type_int);
-    if (type == AnyType::STRING) {
-        std::string val;
-        read(stream, val);
-        var = std::move(val);
-    } else if (type == AnyType::CHARS) {
-        // FIXME: handle properly
-        std::string val;
-        read(stream, val);
-        var = std::move(val);
-    } else if (type == AnyType::SIZET) {
-        std::size_t val;
-        read(stream, val);
-        var = val;
-    } else if (type == AnyType::INT) {
-        int val;
-        read(stream, val);
-        var = val;
-    } else if (type == AnyType::INT64) {
-        int64_t val;
-        read(stream, val);
-        var = val;
-    } else if (type == AnyType::UINT32) {
-        uint32_t val;
-        read(stream, val);
-        var = val;
-    } else if (type == AnyType::UINT64) {
-        uint64_t val;
-        read(stream, val);
-        var = val;
-    } else if (type == AnyType::FLOAT) {
-        float val;
-        read(stream, val);
-        var = val;
-    } else if (type == AnyType::BOOL) {
-        bool val;
-        read(stream, val);
-        var = val;
-    } else if (type == AnyType::CACHE_MODE) {
-        ov::CacheMode val;
-        read(stream, val);
-        var = val;
-    } else if (type == AnyType::ELEMENT_TYPE) {
-        ov::element::Type val;
-        read(stream, val);
-        var = val;
-    } else if (type == AnyType::ANYMAP) {
-        ov::AnyMap val;
-        read(stream, val);
-        var = val;
-    } else if (type == AnyType::PERFMODE) {
-        ov::hint::PerformanceMode val;
-        read(stream, val);
-        var = val;
-    } else {
-        NPUW_ASSERT(false && "Unsupported type");
-    }
+    std::string str;
+    read(stream, str);
+    var = ov::npuw::s11n::stringToAny(str);
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::npuw::weights::LazyTensor& var) {
@@ -390,15 +275,9 @@ void ov::npuw::s11n::read(std::istream& stream, ov::hint::PerformanceMode& var) 
 }
 
 void ov::npuw::s11n::read(std::istream& stream, ov::AnyMap& var) {
-    std::size_t var_size = 0;
-    read(stream, var_size);
-    for (std::size_t i = 0; i < var_size; ++i) {
-        std::string k;
-        read(stream, k);
-        ov::Any v;
-        read_any(stream, v);
-        var[k] = v;
-    }
+    std::string str;
+    read(stream, str);
+    var = ov::npuw::s11n::stringToAnyMap(str);
 }
 
 // Weightless

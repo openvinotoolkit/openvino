@@ -12,6 +12,7 @@
 #include "reorder_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "rms_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
 #include "select_inst.h"
@@ -72,7 +73,7 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
     if (in_layout == out_layout)
         return std::make_pair(nullptr, true);
 
-    cache_key ckey{ src_id + "." + std::to_string(src_port), out_layout };
+    reorder_cache_key ckey{ src_id + "." + std::to_string(src_port), out_layout };
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end())
         return std::make_pair(itr->second, true);
@@ -97,7 +98,7 @@ std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder
                                                                                  std::shared_ptr<WeightsReorderParams> reorder_params) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    cache_key ckey{ input_id, reorder_params->get_output_layout(), false };
+    reorder_cache_key ckey{ input_id, reorder_params->get_output_layout()};
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end()) {
         return std::make_pair(itr->second, true);
@@ -343,7 +344,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
-         prev.is_type<select>() || prev.is_type<eltwise>()) &&
+         prev.is_type<select>() || prev.is_type<eltwise>() || prev.is_type<rms>()) &&
         !prev.is_in_shape_of_subgraph() && node.is_type_conversion_only() &&
         (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
         // If the prev node is backedge of the loop, the type will be changed by fusing reorder.
@@ -932,6 +933,78 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
     return false;
 }
 
+void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
+    OPENVINO_ASSERT(node.is_dynamic());
+
+    auto input_layout = node.get_input_layout(0);
+    auto output_layout = node.get_output_layout();
+    auto rank = input_layout.get_partial_shape().size();
+
+    OPENVINO_ASSERT(rank == output_layout.get_partial_shape().size(), "Input and output ranks must match");
+    OPENVINO_ASSERT(rank <= 5, "Not supported rank");
+
+    // Data type classification
+    bool i8_u8_input = (input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8);
+    bool i8_u8_output = (output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8);
+    bool is_fp16_input = (input_layout.data_type == data_types::f16);
+
+    // Helper functions to get appropriate formats based on rank
+    auto get_fsv32_format = [](size_t rank) {
+        return (rank <= 4) ? cldnn::format::b_fs_yx_fsv32 : cldnn::format::b_fs_zyx_fsv32;
+    };
+
+    auto get_fsv16_format = [](size_t rank) {
+        return (rank <= 4) ? cldnn::format::b_fs_yx_fsv16 : cldnn::format::b_fs_zyx_fsv16;
+    };
+
+    auto get_f_inner_planar_format = [](size_t rank) {
+        return (rank <= 4) ? cldnn::format::byxf : cldnn::format::bzyxf;
+    };
+
+    // Helper function to get channel count safely
+    auto get_channel_count = [](const layout& layout) -> int64_t {
+        return layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
+    };
+
+    // Get channel counts once
+    int64_t input_channels = get_channel_count(input_layout);
+    int64_t output_channels = get_channel_count(output_layout);
+
+    if (i8_u8_input) {
+        // Set default input format for i8/u8 input
+        node.set_preferred_input_fmt(0, get_fsv32_format(rank));
+
+        // Set output format based on output data type
+        if (i8_u8_output) {
+            node.set_preferred_output_fmt(0, get_fsv32_format(rank));
+        } else {
+            node.set_preferred_output_fmt(0, get_fsv16_format(rank));
+        }
+
+        // Override with planar format for shallow channels (≤ 16)
+        if (input_channels > 0 && input_channels <= 16) {
+            node.set_preferred_input_fmt(0, get_f_inner_planar_format(rank));
+        }
+
+        if (output_channels > 0 && output_channels <= 16) {
+            node.set_preferred_output_fmt(0, get_f_inner_planar_format(rank));
+        }
+    } else if (is_fp16_input) {
+        // Set default formats for FP16 input
+        node.set_preferred_input_fmt(0, get_fsv16_format(rank));
+        node.set_preferred_output_fmt(0, get_fsv16_format(rank));
+
+        // Override with default format for small channels (≤ 4)
+        if (input_channels > 0 && input_channels <= 4) {
+            node.set_preferred_input_fmt(0, format::get_default_format(rank));
+        }
+
+        if (output_channels > 0 && output_channels <= 4) {
+            node.set_preferred_output_fmt(0, format::get_default_format(rank));
+        }
+    }
+}
+
 format layout_optimizer::get_expected_format(convolution_node const& node) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_input_layout(0);
@@ -951,13 +1024,6 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input &&
         !(use_onednn_impls && onednn_valid_post_ops && !node.has_padded_dependency())) {
         return format::bfyx;
-    }
-
-    // Use planar format for dynamic convolution with small input channel(IC <= 3)
-    if (node.is_dynamic() && use_onednn_impls && onednn_valid_post_ops &&
-        input_layout.get_partial_shape()[1].is_static() &&
-        (input_layout.get_partial_shape()[1].get_length() <= 4 || output_layout.get_partial_shape()[1].get_length() <= 4)) {
-        return format::get_default_format(input_layout.get_partial_shape().size());
     }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
@@ -1216,18 +1282,19 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(i, fmt);
             } else if (in_lay_rank != out_lay_rank) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
-                // Check if selected format can be adjusted to the required input rank
-                // If no, use default fotmat instead
+                // Check if selected format can be adjusted to the required input and output rank.
+                // If no, use default format instead.
+                // There are many primitives such as reshape, gather, eltwise, etc., which have different input and output ranks.
+                // Input fmt should be selected by considering the ranks of both input and output.
+                // For example, when input fmt is 4-rank block format and output rank is 6 or higher,
+                // input fmt should be selected as a default format. (blocked format, ranks higher than 6 are not supported.)
                 try {
-                    // 7-dimention and 8-dimention only support plain format
-                    if (in_lay_rank >= 7 || out_lay_rank >= 7) {
-                        fmt = format::get_default_format(in_lay_rank);
-                    } else {
-                        format::adjust_to_rank(fmt, in_lay_rank);
-                    }
+                    format::adjust_to_rank(fmt, in_lay_rank);
+                    format::adjust_to_rank(fmt, out_lay_rank);
                 } catch (ov::Exception&) {
                     fmt = format::get_default_format(in_lay_rank);
                 }
+
                 node.set_preferred_input_fmt(i, fmt);
             }
         }
@@ -1243,6 +1310,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
         expected = get_expected_format(node.as<convolution>());
+        // Set expected input and output preferred format for onednn convolution in dynamic.
+        // This is a temporal implementation because we are guessing required format for OneDNN conv. In the end, we should use byxf format.
+        if (node.is_dynamic() && use_onednn_impls)
+            set_onednn_dyn_conv_preferred_format(node.as<convolution>());
     } else if (node.is_type<quantize>()) {
         expected = get_expected_format(node.as<quantize>());
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
@@ -1252,6 +1323,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             expected = node.get_output_layout().format;
         }
     } else if (node.is_type<reshape>()) {
+        // Reshape from blocked to simple format is not acceptable
+        auto dep_size = node.get_dependencies().size();
+        for (size_t i = 0; i < dep_size; i++) {
+            auto in_lay_rank = node.get_input_layout(i).get_rank();
+            node.set_preferred_input_fmt(i, format::get_default_format(in_lay_rank));
+        }
+
         expected = format::get_default_format(node.get_output_layout().get_rank());
     } else if (node.is_type<deconvolution>()) {
         expected = get_expected_format(node.as<deconvolution>());

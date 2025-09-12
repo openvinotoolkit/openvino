@@ -18,13 +18,13 @@ namespace ov::intel_cpu {
 
 struct ReduceAttrs {
     std::vector<int> axes;
-    Algorithm operation;
-    bool keepDims;
+    Algorithm operation = Algorithm::ReduceSum;
+    bool keepDims = false;
 };
 
 class ReduceExecutor {
 public:
-    ReduceExecutor(ExecutorContext::CPtr context);
+    explicit ReduceExecutor(ExecutorContext::CPtr context);
     virtual bool init(const ReduceAttrs& reduceAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

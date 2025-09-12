@@ -7,9 +7,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "snippets/pass/tokenization.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface TokenizeFCSnippets
@@ -19,9 +17,7 @@ namespace pass {
 class TokenizeFCSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeFCSnippets");
-    TokenizeFCSnippets(const SnippetsTokenization::Config& config);
+    explicit TokenizeFCSnippets(const SnippetsTokenization::Config& config);
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

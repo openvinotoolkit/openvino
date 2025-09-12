@@ -4,6 +4,7 @@
 
 #include "subgraph_transpose.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include <snippets/op/subgraph.hpp>
 
 namespace ov {
@@ -22,7 +23,7 @@ std::shared_ptr<ov::Model> TransposeFunction::initReference() const {
     auto indata1 = std::make_shared<op::v0::Parameter>(const_order->get_output_element_type(0),
                                                        const_order->get_output_partial_shape(0));
     auto transpose = std::make_shared<ov::snippets::op::Subgraph>(
-        NodeVector{data, const_order},
+        OutputVector{data, const_order},
         std::make_shared<ov::Model>(OutputVector{std::make_shared<op::v1::Transpose>(indata0, indata1)},
                                     ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(OutputVector{transpose}, ParameterVector{data});

@@ -14,14 +14,13 @@ class TestSetItem(PytorchLayerTest):
 
     def create_model(self, idx):
         import torch
-        from typing import List
 
         class aten_set_item(torch.nn.Module):
             def __init__(self, idx):
                 super(aten_set_item, self).__init__()
                 self.idx = idx
 
-            def forward(self, x: List[int]):
+            def forward(self, x: list[int]):
                 x[self.idx] = 0
                 return torch.tensor(x).to(torch.int)
 

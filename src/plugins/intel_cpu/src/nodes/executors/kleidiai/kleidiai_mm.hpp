@@ -22,8 +22,7 @@
 #include "kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi8cxp_qsi8cx_neon.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class MatMulKleidiAIExecutor : public Executor {
 public:
@@ -31,7 +30,7 @@ public:
 
     void execute(const MemoryArgs& memory) override;
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::kleidiai;
     }
 
@@ -75,7 +74,7 @@ private:
     MemoryPtr rhsPackedMem;
     MemoryPtr lhsPackedMem;
     MemoryCPtr packedWeights;
-    size_t M, N, K;
+    size_t M = 0UL, N = 0UL, K = 0UL;
     size_t mr, nr, kr, sr;
     static constexpr size_t BLOCK_SIZE = 8;
     int curNumaNode = -1;
@@ -84,5 +83,4 @@ private:
 
 using MatMulKleidiAIExecutorPtr = std::shared_ptr<MatMulKleidiAIExecutor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

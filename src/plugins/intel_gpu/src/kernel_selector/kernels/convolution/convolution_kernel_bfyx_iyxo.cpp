@@ -53,12 +53,12 @@ KernelsPriority ConvolutionKernel_bfyx_iyxo::GetKernelsPriority(const Params& /*
 
 bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
     if (params.inputs[0].X().v % 64)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     bool bFilterSize = (params.filterSize.x == 5 && params.filterSize.y == 5) ||
                        (params.filterSize.x == 3 && params.filterSize.y == 3 && (params.inputs[0].Feature().v % 4) == 0) ||
@@ -67,7 +67,7 @@ bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p) const {
     bool bStride = (params.stride.x == 1 && params.stride.y == 1);
 
     if (!bFilterSize || !bStride || (params.outputs[0].Feature().v % 4) != 0 || (params.outputs[0].Batch().v != 1)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

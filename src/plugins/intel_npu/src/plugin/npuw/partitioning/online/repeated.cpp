@@ -11,6 +11,7 @@
 
 using ov::npuw::online::Interconnect;
 using ov::npuw::online::MetaInterconnect;
+using ov::npuw::online::MetaInterconnectIO;
 using ov::npuw::online::Repeated;
 
 bool Repeated::Archetype::operator==(const Repeated::Archetype& other) const {
@@ -56,4 +57,12 @@ bool MetaInterconnect::operator<(const MetaInterconnect& other) const {
                            other.output_port,
                            other.output_meta,
                            other.output_reptrack);
+}
+
+bool MetaInterconnectIO::operator==(const MetaInterconnectIO& other) const {
+    return other.output_imeta == output_imeta && other.output_ometa == output_ometa;
+}
+
+bool MetaInterconnectIO::operator<(const MetaInterconnectIO& other) const {
+    return std::make_tuple(output_imeta, output_ometa) < std::make_tuple(other.output_imeta, other.output_ometa);
 }

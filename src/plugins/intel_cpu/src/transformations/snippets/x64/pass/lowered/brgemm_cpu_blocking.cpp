@@ -1,11 +1,10 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "brgemm_cpu_blocking.hpp"
 
 #include <cassert>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <iterator>
 #include <memory>
@@ -117,8 +116,7 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     const auto [m, n, k] = get_brgemm_dimensions(brgemm_expr);
 
     const auto default_m_blk = 32;
-    const auto default_n_blk =
-        dnnl::impl::cpu::x64::is_superset(brgemm_config.isa(), dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
+    const auto default_n_blk = 64;
     const auto default_k_blk = !ov::snippets::utils::is_dynamic_value(k) && k > 1024 ? 1024 : 512;
 
     size_t m_blk = get_corrected_blk_size_by_dim(m, default_m_blk);
@@ -152,54 +150,49 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                             size_t m_block,
                                             size_t n_block,
                                             size_t k_block) {
+    const auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir,
+                                                                                          brgemm_it,
+                                                                                          m_block,
+                                                                                          n_block,
+                                                                                          k_block);
     const auto& brgemm_expr = *brgemm_it;
     const auto& brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
     const auto& brgemm_config = brgemm->get_config();
-
-    auto res = ov::snippets::lowered::pass::BrgemmBlockingBase::mark_blocking_loops(linear_ir,
-                                                                                    brgemm_it,
-                                                                                    m_block,
-                                                                                    n_block,
-                                                                                    k_block);
-
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const bool with_postops = brgemm->get_input_size() - brgemm->get_gemm_inputs_count() > 0;
-    if (!brgemm_config.with_wei_repacking()) {
-        if (with_postops) {
-            create_not_processed_postops_ports(brgemm_expr, loop_manager, m_block, n_block, k_block);
+    if (brgemm_config.with_wei_repacking()) {
+        const auto copy_b_expr = repacking::get_copy_b_expr(brgemm_expr);
+        if (copy_b_expr) {
+            const ov::snippets::VectorDims full_subtensor(2, get_full_dim_value());
+            copy_b_expr->get_input_port_descriptor(0)->set_subtensor(full_subtensor);
+            copy_b_expr->get_output_port_descriptor(0)->set_subtensor(full_subtensor);
         }
-        return res;
+        if (brgemm_config.is_amx()) {
+            move_new_memory_buffer(linear_ir, brgemm_it);
+            OPENVINO_ASSERT(brgemm_it != linear_ir.begin(), "Brgemm must have buffer before itself");
+            auto buffer_it = std::prev(brgemm_it);
+            buffer_it->get()->set_loop_ids(brgemm_expr->get_loop_ids());
+        }
+
+        if (brgemm_config.with_compensations()) {
+            const ov::snippets::VectorDims compensations_subtensor{1, get_full_dim_value()};
+            OPENVINO_ASSERT(brgemm_expr->get_input_count() >= 3,
+                            "Brgemm must have at least 3 inputs in case of compensations.");
+            OPENVINO_ASSERT(copy_b_expr, "BrgemmCopyB must be present in case of compensations.");
+            const auto& compensations_port = brgemm_expr->get_input_port(2);
+            compensations_port.get_descriptor_ptr()->set_subtensor(compensations_subtensor);
+            copy_b_expr->get_output_port_descriptor(1)->set_subtensor(compensations_subtensor);
+            update_loop_infos(loop_manager,
+                              brgemm_expr->get_loop_ids(),
+                              {{m_block, {LoopPort::create<LoopPort::Type::NotProcessed>(compensations_port)}},
+                               {n_block, {LoopPort::create<LoopPort::Type::Incremented>(compensations_port, 0)}},
+                               {k_block, {LoopPort::create<LoopPort::Type::NotIncremented>(compensations_port, 1)}}});
+        }
     }
 
-    const auto copy_b_expr = repacking::get_copy_b_expr(brgemm_expr);
-    if (copy_b_expr) {
-        const ov::snippets::VectorDims full_subtensor(2, get_full_dim_value());
-        copy_b_expr->get_input_port_descriptor(0)->set_subtensor(full_subtensor);
-        copy_b_expr->get_output_port_descriptor(0)->set_subtensor(full_subtensor);
-    }
-    if (brgemm_config.is_amx()) {
-        move_new_memory_buffer(linear_ir, brgemm_it);
-        auto buffer_it = std::prev(brgemm_it);
-        buffer_it->get()->set_loop_ids(brgemm_expr->get_loop_ids());
-    }
-
-    if (brgemm_config.with_compensations()) {
-        const ov::snippets::VectorDims compensations_subtensor{1, get_full_dim_value()};
-        OPENVINO_ASSERT(brgemm_expr->get_input_count() >= 3,
-                        "Brgemm must have at least 3 inputs in case of compensations.");
-        OPENVINO_ASSERT(copy_b_expr, "BrgemmCopyB must be present in case of compensations.");
-        const auto& compens_port = brgemm_expr->get_input_port(2);
-        compens_port.get_descriptor_ptr()->set_subtensor(compensations_subtensor);
-        copy_b_expr->get_output_port_descriptor(1)->set_subtensor(compensations_subtensor);
-        update_loop_infos(loop_manager,
-                          brgemm_expr->get_loop_ids(),
-                          {{m_block, {LoopPort::create<LoopPort::Type::NotProcessed>(compens_port)}},
-                           {n_block, {LoopPort::create<LoopPort::Type::Incremented>(compens_port, 0)}},
-                           {k_block, {LoopPort::create<LoopPort::Type::NotIncremented>(compens_port, 1)}}});
-    }
+    const bool with_postops = brgemm->get_input_size() - brgemm->get_gemm_inputs_count() > 0;
     if (with_postops) {
         create_not_processed_postops_ports(brgemm_expr, loop_manager, m_block, n_block, k_block);
     }
-    return true;
+    return res;
 }
 }  // namespace ov::intel_cpu::pass

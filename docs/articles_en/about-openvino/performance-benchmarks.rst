@@ -18,17 +18,16 @@ Performance Benchmarks
 
 This page presents benchmark results for the
 `Intel® Distribution of OpenVINO™ toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__
-and :doc:`OpenVINO Model Server <../../model-server/ovms_what_is_openvino_model_server>`, for a representative
-selection of public neural networks and Intel® devices. The results may help you decide which
-hardware to use in your applications or plan AI workload for the hardware you have already
-implemented in your solutions. Click the buttons below to see the chosen benchmark data.
+and :doc:`OpenVINO Model Server <../../model-server/ovms_what_is_openvino_model_server>`, for
+a representative selection of public neural networks and Intel® devices. The results may help
+you decide which hardware to use in your applications or plan AI workload for the hardware
+you have already implemented in your solutions. Click the buttons below to see the chosen
+benchmark data.
 
 .. note::
 
-   For the current release, benchmark data for the OpenVINO inference engine is available only on the
+   Benchmark data for the OpenVINO inference engine is available only on the
    `Model Hub page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/model-hub.html>`__.
-   Clicking the button will take you there. In future releases, it will be posted here as well,
-   just like before.
 
 
 .. grid:: 1 1 2 2
@@ -159,9 +158,9 @@ For a listing of all platforms and configurations used for testing, refer to the
 **Disclaimers**
 
 * System configurations used for Intel® Distribution of OpenVINO™ toolkit performance results
-  are based on release 2025.1, as of April 9th, 2025.
+  are based on release 2025.3, as of September 3rd, 2025.
 
-* OpenVINO Model Server performance results are based on release 2025.1, as of April 21, 2025.
+* OpenVINO Model Server performance results are based on release 2025.2, as of July 3, 2025.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service

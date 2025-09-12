@@ -159,7 +159,8 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     }
 
     if ((ofmt == format::bs_fs_fsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::os_i_osv16 ||
-        ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
+        ofmt == format::bfzyx || ifmt == format::bfzyx || ifmt == format::bzyxf ||
+        ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
@@ -185,6 +186,8 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
 #ifdef ENABLE_ONEDNN_FOR_GPU
         auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(desc->weights_reorder_params);
         if (onednn_weights_params && input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc)) {
+            auto shape_consistent = onednn::keep_weights_reorder_shape_consistent(input_layout, onednn_weights_params->_out_desc);
+            OPENVINO_ASSERT(shape_consistent, "[GPU] Input shape and output shape of weight reorder should be same.");
             onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(input_layout);
         }
 #endif // ENABLE_ONEDNN_FOR_GPU

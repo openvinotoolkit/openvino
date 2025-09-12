@@ -40,8 +40,8 @@ class DnnlConvolutionPrimitive {
 
         dnnl::primitive_attr attr;
 
-        bool fcSemantic;
-        bool nonConstantWeights;
+        bool fcSemantic = false;
+        bool constantWeights = true;
 
         [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
@@ -70,19 +70,19 @@ public:
 
     void execute(dnnl_primitive_args& primArgs);
 
-    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
@@ -92,7 +92,11 @@ public:
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
-                                                            bool weightsNonTransposed);
+                                                            const ConvAttrs& attrs);
+
+    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                            const DnnlMemoryDescPtr& dstDesc,
+                                                            const FCAttrs& attrs);
 
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const ConvAttrs& attrs,
                                                             const MemoryArgs& memory,

@@ -193,8 +193,7 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
         } else {
             auto buffer = reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer();
             cl_buffer_region sub_buffer_region = { byte_offset, new_layout.get_linear_size() };
-            auto sub_buffer = buffer.createSubBuffer(CL_MEM_READ_WRITE| CL_MEM_USE_HOST_PTR,
-                            CL_BUFFER_CREATE_TYPE_REGION, &sub_buffer_region);
+            auto sub_buffer = buffer.createSubBuffer({}, CL_BUFFER_CREATE_TYPE_REGION, &sub_buffer_region);
 
             return std::make_shared<ocl::gpu_buffer>(this,
                                      new_layout,
@@ -212,23 +211,27 @@ memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& n
                     memory.get_layout().format.to_string(), " Target: ", new_layout.format.to_string());
 
     try {
+        bool from_memory_pool = memory.from_memory_pool;
+        memory::ptr reinterpret_memory = nullptr;
         if (new_layout.format.is_image_2d()) {
-           return std::make_shared<ocl::gpu_image2d>(this,
+           reinterpret_memory = std::make_shared<ocl::gpu_image2d>(this,
                                      new_layout,
                                      reinterpret_cast<const ocl::gpu_image2d&>(memory).get_buffer(),
                                      memory.get_mem_tracker());
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
-           return std::make_shared<ocl::gpu_usm>(this,
+           reinterpret_memory = std::make_shared<ocl::gpu_usm>(this,
                                      new_layout,
                                      reinterpret_cast<const ocl::gpu_usm&>(memory).get_buffer(),
                                      memory.get_allocation_type(),
                                      memory.get_mem_tracker());
         } else {
-           return std::make_shared<ocl::gpu_buffer>(this,
+           reinterpret_memory = std::make_shared<ocl::gpu_buffer>(this,
                                     new_layout,
                                     reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer(),
                                     memory.get_mem_tracker());
         }
+        reinterpret_memory->from_memory_pool = from_memory_pool;
+        return reinterpret_memory;
     } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }

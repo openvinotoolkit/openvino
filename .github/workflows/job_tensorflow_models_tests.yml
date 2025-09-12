@@ -7,11 +7,11 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Docker image to use for the job'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
       model_scope:
         description: 'Scope of models for testing.'
         type: string
@@ -19,79 +19,83 @@ on:
 
 permissions: read-all
 
+env:
+  HF_HUB_CACHE_LIN: /mount/caches/huggingface
+  HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
+
 jobs:
   TensorFlow_Models_Tests:
     name: TensorFlow Models tests
     timeout-minutes: ${{ inputs.model_scope != 'precommit' && 400 || 40 }}
     runs-on: ${{ inputs.runner }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      options: "-e HF_TOKEN" # Needed for HuggingFace cache authentication
     defaults:
       run:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
-      MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       NUMBER_OF_REPLICAS: 2
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
     steps:
-      - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: openvino_[tests]*
-          path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
-          
-      - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: openvino_[wheels|tokenizers_wheel]*
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
-              
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: |
-          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
-          echo "MODEL_HUB_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/model_hub_tests" >> "$GITHUB_ENV"
-          echo "TFHUB_CACHE_DIR=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))/tfhub_models" >> "$GITHUB_ENV"
-          echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
-
-      - name: Setup HuggingFace Cache Directory (Windows)
-        if: runner.os == 'Windows'
-        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
-
-      - name: Extract OpenVINO artifacts (Linux and macOS)
-        run: pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
-        working-directory: ${{ env.INSTALL_DIR }}
-
-      - name: Fetch setup_python and install wheels actions
+      - name: Fetch custom actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           sparse-checkout: |
-            .github/actions/setup_python/action.yml
-            .github/actions/install_ov_wheels/action.yml
+            .github/actions
           sparse-checkout-cone-mode: false
-          path: 'openvino'
+          submodules: 'false'
+          
+      - name: Download OpenVINO artifacts (wheels)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_DIR }}
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO artifacts (tokenizers_wheel)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.INSTALL_DIR }}
+      
+      - name: Setup Variables
+        run: |
+          echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "TFHUB_CACHE_DIR=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))/tfhub_models" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO artifacts (Linux and macOS)
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
+        
+      - name: Extract OpenVINO artifacts (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Setup Python 3.11
-        uses: ./openvino/.github/actions/setup_python
+        uses: ./.github/actions/setup_python
         with:
           version: '3.11'
           should-setup-pip-paths: 'false'
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
 
       - name: Install OpenVINO Python wheels
-        uses: ./openvino/.github/actions/install_ov_wheels
+        uses: ./.github/actions/install_ov_wheels
         with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino openvino_tokenizers'
 
       - name: Install TF Models tests requirements
@@ -99,14 +103,14 @@ jobs:
 
       - name: TensorFlow Models Tests - TF FE
         run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/test_tf_convert_model.py -m "${MODEL_SCOPE}" \
+          export PYTHONPATH=${INSTALL_TEST_DIR}/model_hub_tests:$PYTHONPATH
+          python3 -m pytest ${INSTALL_TEST_DIR}/model_hub_tests/tensorflow/test_tf_convert_model.py -m "${MODEL_SCOPE}" \
             --html=${INSTALL_TEST_DIR}/TEST-tf_fe_models_convert_model_"${MODEL_SCOPE}".html --self-contained-html -v
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/test_tf_read_model.py -m "${MODEL_SCOPE}" \
+          python3 -m pytest ${INSTALL_TEST_DIR}/model_hub_tests/tensorflow/test_tf_read_model.py -m "${MODEL_SCOPE}" \
             --html=${INSTALL_TEST_DIR}/TEST-tf_fe_models_read_model_"${MODEL_SCOPE}".html --self-contained-html -v
           # decouple notebook tests due to GitHub issue in tensorflow_hub https://github.com/tensorflow/hub/issues/903
           # and use WA to switch to (legacy) Keras 2
-          TF_USE_LEGACY_KERAS=1 python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/test_tf_hub_api_notebooks.py -m "${MODEL_SCOPE}" \
+          TF_USE_LEGACY_KERAS=1 python3 -m pytest ${INSTALL_TEST_DIR}/model_hub_tests/tensorflow/test_tf_hub_api_notebooks.py -m "${MODEL_SCOPE}" \
             --html=${INSTALL_TEST_DIR}/TEST-tf_fe_models_notebooks_"${MODEL_SCOPE}".html --self-contained-html -v
         env:
           TEST_DEVICE: CPU

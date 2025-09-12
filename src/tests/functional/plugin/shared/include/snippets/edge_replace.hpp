@@ -21,7 +21,7 @@ typedef std::tuple<
 class EdgeReplace : public testing::WithParamInterface<ov::test::snippets::EdgeReplaceParams>,
                     virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::EdgeReplaceParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::EdgeReplaceParams>& obj);
 
 protected:
     void SetUp() override;

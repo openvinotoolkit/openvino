@@ -8,45 +8,64 @@
  */
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iterator>
+#include <limits>
+#include <memory>
+#include <numeric>
+#include <sstream>
+#include <string>
+#include <type_traits>
+#include <unordered_set>
+#include <vector>
+
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "snippets/emitter.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace utils {
+namespace ov::snippets::utils {
 
 /* --- Special values --- */
-template <
-    typename T,
-    typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
-constexpr inline T get_dynamic_value() {
+template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
+constexpr T get_dynamic_value() {
     return std::numeric_limits<T>::max();
 }
-template <
-    typename T,
-    typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
-constexpr inline bool is_dynamic_value(T value) {
+template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
+constexpr bool is_dynamic_value(T value) {
     return value == get_dynamic_value<T>();
+}
+
+template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
+constexpr bool has_dynamic_values(std::vector<T> values) {
+    return std::any_of(values.cbegin(), values.cend(), ov::snippets::utils::is_dynamic_value<T>);
 }
 
 // This value means full dimension
 // For example, for the subtensor it means that scheduling should be by full dimension
-constexpr inline size_t get_full_dim_value() {
+constexpr size_t get_full_dim_value() {
     return get_dynamic_value<size_t>() - 1;
 }
-constexpr inline bool is_full_dim_value(size_t value) {
+constexpr bool is_full_dim_value(size_t value) {
     return value == get_full_dim_value();
 }
 /* ---------------------- */
-template <typename T,
-          typename = typename std::enable_if<(std::is_same<T, ov::Output<Node>>::value ||
-                                              std::is_same<T, ov::Input<Node>>::value),
-                                             void>::type>
+template <
+    typename T,
+    typename = std::enable_if_t<(std::is_same_v<T, ov::Output<Node>> || std::is_same_v<T, ov::Input<Node>>), void>>
 void set_full_port_desc(const T& port, size_t rank = 2) {
     const auto& shape_rank = port.get_partial_shape().size();
     const std::vector<size_t> full_dim_subtensor(std::min(shape_rank, rank), ov::snippets::utils::get_full_dim_value());
@@ -66,68 +85,66 @@ inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> 
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;
 }
 
-template <typename T, typename P>
-constexpr bool one_of(T val, P item) {
-    return val == item;
+template <typename T, typename... Args>
+constexpr bool any_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'any_of' requires at least one item to compare against.");
+    return ((val == items) || ...);
 }
 
-template <typename T, typename P, typename... Args>
-constexpr bool one_of(T val, P item, Args... item_others) {
-    return val == item || one_of(val, item_others...);
+template <typename T, typename... Args>
+constexpr bool none_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'none_of' requires at least one item to compare against.");
+    return !any_of(val, items...);
 }
 
-template <typename T, typename P>
-constexpr bool everyone_is(T val, P item) {
-    return val == item;
+template <typename T, typename... Args>
+constexpr bool all_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'all_of' requires at least one item to compare against.");
+    return ((val == items) && ...);
 }
 
-template <typename T, typename P, typename... Args>
-constexpr bool everyone_is(T val, P item, Args... item_others) {
-    return val == item && everyone_is(val, item_others...);
-}
-
-constexpr inline bool implication(bool cause, bool cond) {
+constexpr bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
 template <typename T, typename U>
 static inline auto div_up(const T lhs, const U rhs) -> decltype((lhs + rhs - 1) / rhs) {
     OPENVINO_ASSERT(rhs != 0, "Divider must not be zero");
-    if (((std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value) && utils::is_dynamic_value(lhs)) ||
-        ((std::is_same<U, size_t>::value || std::is_same<U, int64_t>::value) && utils::is_dynamic_value(rhs)))
+    if (((std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>) && utils::is_dynamic_value(lhs)) ||
+        ((std::is_same_v<U, size_t> || std::is_same_v<U, int64_t>) && utils::is_dynamic_value(rhs))) {
         return utils::get_dynamic_value<T>();
+    }
     return (lhs + rhs - 1) / rhs;
 }
 
 template <typename T, typename U>
 static inline auto rnd_up(const T lhs, const U rhs) -> decltype(div_up(lhs, rhs) * rhs) {
     const T div_up_res = div_up(lhs, rhs);
-    if (((std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value) && utils::is_dynamic_value(div_up_res)) ||
-        ((std::is_same<U, size_t>::value || std::is_same<U, int64_t>::value) && utils::is_dynamic_value(rhs)))
+    if (((std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>) && utils::is_dynamic_value(div_up_res)) ||
+        ((std::is_same_v<U, size_t> || std::is_same_v<U, int64_t>) && utils::is_dynamic_value(rhs))) {
         return utils::get_dynamic_value<T>();
+    }
     return div_up_res * rhs;
 }
 
 static inline bool is_planar_layout(const std::vector<size_t>& order) {
-    for (size_t i = 0; i < order.size(); ++i)
-        if (order[i] != i)
+    for (size_t i = 0; i < order.size(); ++i) {
+        if (order[i] != i) {
             return false;
+        }
+    }
     return true;
 }
 
 inline bool is_dynamic_vdims(const VectorDims& shape) {
-    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v) {
-        return is_dynamic_value(v);
-    });
+    return has_dynamic_values(shape);
 }
 
 inline bool is_dynamic_vdims(const VectorDimsPtr& shape) {
     return is_dynamic_vdims(*shape);
 }
 
-template <
-    typename T,
-    typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 inline T dynamic_safe_add(const T& lhs, const T& rhs) {
     if (utils::is_dynamic_value(lhs) || utils::is_dynamic_value(rhs)) {
         return utils::get_dynamic_value<T>();
@@ -135,9 +152,7 @@ inline T dynamic_safe_add(const T& lhs, const T& rhs) {
     return lhs + rhs;
 }
 
-template <
-    typename T,
-    typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 inline T dynamic_safe_mul(const T& lhs, const T& rhs) {
     if (utils::is_dynamic_value(lhs) || utils::is_dynamic_value(rhs)) {
         return utils::get_dynamic_value<T>();
@@ -145,16 +160,12 @@ inline T dynamic_safe_mul(const T& lhs, const T& rhs) {
     return lhs * rhs;
 }
 
-template <
-    typename T,
-    typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 inline std::string value2str(const T& value) {
     return utils::is_dynamic_value(value) ? "?" : std::to_string(value);
 }
 
-template <
-    typename T,
-    typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 std::string vector2str(const std::vector<T>& values) {
     std::ostringstream str;
     bool first = true;
@@ -175,8 +186,8 @@ bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 // Can be used in SpecificLoopIterationHandlers
 bool merge_dynamic_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
-VectorDims pshape_to_vdims(const PartialShape&);
-ov::PartialShape vdims_to_pshape(const VectorDims&);
+VectorDims pshape_to_vdims(const PartialShape& pshape);
+ov::PartialShape vdims_to_pshape(const VectorDims& vdims);
 
 inline size_t dimension_to_size_t(const ov::Dimension& dim) {
     return dim.is_dynamic() ? snippets::utils::get_dynamic_value<VectorDims::value_type>()
@@ -291,7 +302,7 @@ VectorDims get_projected_subtensor(const snippets::lowered::ExpressionPort& expr
  * @return element count of input shape
  */
 inline auto get_shape_size(const VectorDims& shape) -> size_t {
-    return std::accumulate(shape.begin(), shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    return std::accumulate(shape.begin(), shape.end(), static_cast<size_t>(1), std::multiplies<>());
 }
 
 /**
@@ -370,7 +381,7 @@ void init_strides(const VectorDims& shape, size_t rank, size_t data_size, size_t
  */
 void visit_path(const lowered::ExpressionPtr& expr,
                 std::unordered_set<lowered::ExpressionPtr>& visited,
-                std::function<void(lowered::ExpressionPtr)> func,
+                const std::function<void(lowered::ExpressionPtr)>& func,
                 bool visit_parent_path);
 
 /**
@@ -382,6 +393,4 @@ void visit_path(const lowered::ExpressionPtr& expr,
  */
 std::string tensor2str(const VectorDims& tensor, const std::string& delimiter = ", ");
 
-}  // namespace utils
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::utils

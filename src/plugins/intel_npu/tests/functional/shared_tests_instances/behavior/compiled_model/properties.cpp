@@ -53,7 +53,7 @@ const std::string& expectedModelName = []() -> std::string {
     return ov::test::behavior::getDefaultNGraphFunctionForTheDevice()->get_friendly_name();
 }();
 
-const std::vector<ov::AnyMap> compat_PublicCompiledModelConfigs = {
+const std::vector<ov::AnyMap> compatibilityPublicCompiledModelConfigs = {
     {{ov::hint::enable_cpu_pinning.name(), ov::Any(false)}},
     {{ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)}},
     {{ov::execution_devices.name(), ov::Any(ov::test::utils::DEVICE_NPU)}},
@@ -63,10 +63,9 @@ const std::vector<ov::AnyMap> compat_PublicCompiledModelConfigs = {
     {{ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::LATENCY)}},
     {{ov::hint::num_requests.name(), ov::Any(1u)}}};
 
-const std::vector<ov::AnyMap> PublicCompiledModelConfigs = {
-    {{ov::hint::execution_mode.name(), ov::Any(ov::hint::ExecutionMode::PERFORMANCE)}},
-    {{ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)}},
-};
+const std::vector<ov::AnyMap> publicCompiledModelConfigs = {
+    // execution_mode isn't supported with PV driver.
+    {{ov::hint::execution_mode.name(), ov::Any(ov::hint::ExecutionMode::PERFORMANCE)}}};
 
 const std::vector<ov::AnyMap> compiledModelIncorrectConfigs = {
     {{"NPU_INEXISTENT_PROPERTY", "NPU_INEXISTENT_PROPERTY_VALUE"}}};
@@ -259,13 +258,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(compat_PublicCompiledModelConfigs)),
+                                            ::testing::ValuesIn(compatibilityPublicCompiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelPropertiesDefaultTests>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(PublicCompiledModelConfigs)),
+                                            ::testing::ValuesIn(publicCompiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelPropertiesDefaultTests>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -297,14 +296,6 @@ INSTANTIATE_TEST_SUITE_P(
     OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                        ::testing::ValuesIn(compiledModelConfigs + allModelPriorities)),
-    ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY>);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Hetero_BehaviorTests,
-    OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,
-    ::testing::Combine(::testing::Values(std::string(ov::test::utils::DEVICE_HETERO) + ":" +
-                                         ov::test::utils::DEVICE_NPU),
-                       ::testing::ValuesIn(heteroCompiledModelConfigs + allModelPriorities)),
     ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY>);
 
 INSTANTIATE_TEST_SUITE_P(

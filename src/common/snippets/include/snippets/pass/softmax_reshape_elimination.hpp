@@ -6,9 +6,7 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface SoftmaxReshapeElimination
@@ -21,6 +19,4 @@ public:
     SoftmaxReshapeElimination();
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

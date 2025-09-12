@@ -52,7 +52,7 @@ struct InterpolateAttrs {
     std::vector<int> padEnd;
     ov::element::Type inPrc;
     ov::element::Type outPrc;
-    InterpolateLayoutType layout;
+    InterpolateLayoutType layout = InterpolateLayoutType::planar;
     std::vector<float> dataScales;
     bool hasPad = false;
     // Some FEs or preprocessing step resize spatial dimension for tensors with NHWC layout memory,
@@ -98,7 +98,7 @@ inline size_t getSpatialDimsNum(const Dim rank) {
 // w/hw/ncw/nchw/ncdhw to ncdhw
 inline VectorDims to5Dim(VectorDims casesDim) {
     size_t caseSize = casesDim.size();
-    VectorDims dim5(5, 1lu);
+    VectorDims dim5(5, 1LU);
     dim5[4] = casesDim[caseSize - 1];
     if (caseSize > 1) {
         dim5[3] = casesDim[caseSize - 2];
@@ -114,13 +114,13 @@ inline VectorDims to5Dim(VectorDims casesDim) {
     }
     if (caseSize == 3) {  // nhw -> ncw
         dim5[1] = dim5[3];
-        dim5[3] = 1lu;
+        dim5[3] = 1LU;
     }
     return dim5;
 }
 
 static inline float triangleCoeff(float x) {
-    return (std::max)(0.0f, 1 - std::abs(x));
+    return (std::max)(0.0F, 1 - std::abs(x));
 }
 
 class InterpolateExecutor {
@@ -130,7 +130,7 @@ public:
     static constexpr size_t SCALES_ID = 2;
     static constexpr size_t AXES_ID = 3;
     static constexpr int CUBIC_GRID_LEN = 4;
-    InterpolateExecutor(ExecutorContext::CPtr context) : _context(std::move(context)) {}
+    explicit InterpolateExecutor(ExecutorContext::CPtr context) : _context(std::move(context)) {}
 
     virtual bool init(const InterpolateAttrs& interpolateAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
@@ -183,9 +183,9 @@ private:
 protected:
     InterpolateAttrs interpAttrs;
     VectorDims srcDimPad5d, dstDim5d;
-    size_t srcDataSize, dstDataSize;
-    int spatialDimSize;
-    size_t dataRank;
+    size_t srcDataSize = 0UL, dstDataSize = 0UL;
+    int spatialDimSize = 0;
+    size_t dataRank = 0UL;
     std::vector<int> indexTable;
     const ExecutorContext::CPtr _context;
 };

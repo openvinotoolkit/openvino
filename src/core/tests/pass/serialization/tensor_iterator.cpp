@@ -67,9 +67,7 @@ protected:
         ov::serialize(expected, m_out_xml_path, m_out_bin_path);
         auto result = core.read_model(m_out_xml_path, m_out_bin_path);
 
-        bool success;
-        std::string message;
-        std::tie(success, message) = compare_functions(result, expected, true, false, false, true, true);
+        const auto& [success, message] = compare_functions(result, expected, true, false, false, true, true);
         ASSERT_TRUE(success) << message;
     }
 };

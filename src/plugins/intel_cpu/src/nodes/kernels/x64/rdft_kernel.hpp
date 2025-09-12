@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <common/utils.hpp>
@@ -14,6 +14,7 @@
 #ifndef OPENVINO_ARCH_ARM64
 #    include "cpu/x64/jit_generator.hpp"
 #endif
+#include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -54,18 +55,18 @@ struct jit_dft_kernel {
 
     virtual void create_ker() = 0;
 
-    bool is_inverse_;
-    enum dft_type kernel_type_;
+    bool is_inverse_ = false;
+    enum dft_type kernel_type_ = dft_type::real_to_complex;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-struct jit_dft_kernel_f32 : public jit_dft_kernel, public dnnl::impl::cpu::x64::jit_generator {
+struct jit_dft_kernel_f32 : public jit_dft_kernel, public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_dft_kernel_f32)
 
     jit_dft_kernel_f32(bool is_inverse, enum dft_type type)
         : jit_dft_kernel(is_inverse, type),
-          jit_generator(jit_name()) {
+          jit_generator_t(jit_name()) {
         constexpr int simd_size = vlen / type_size;
         perm_low_values.reserve(simd_size);
         perm_high_values.reserve(simd_size);
@@ -78,8 +79,8 @@ public:
     }
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override;
@@ -94,7 +95,7 @@ private:
     void interleave_and_store(const Vmm& real, const Vmm& imag, const Xbyak::RegExp& reg_exp, const Vmm& tmp);
 
     static constexpr int type_size = sizeof(float);
-    static constexpr int vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
+    static constexpr int vlen = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg8 is_signal_size_even = al;
     Xbyak::Reg64 input_ptr = rbx;

@@ -4,12 +4,16 @@
 
 #pragma once
 
+#include <memory>
+#include <vector>
+
+#include "openvino/core/model.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface FakeQuantizeDecomposition
@@ -88,6 +92,4 @@ public:
     static bool is_supported_fq(const std::shared_ptr<const ov::op::v0::FakeQuantize>& fq);
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

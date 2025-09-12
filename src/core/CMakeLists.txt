@@ -17,6 +17,7 @@ file(GLOB_RECURSE DEV_HEADERS ${OV_CORE_DEV_API_PATH}/*.hpp)
 
 add_subdirectory(reference)
 add_subdirectory(shape_inference)
+add_subdirectory(xml_util)
 
 set(MIXED_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
@@ -138,7 +139,9 @@ target_include_directories(openvino_core_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_
 ov_build_target_faster(openvino_core_obj
     UNITY
     PCH_HEADER "src/precomp.hpp"
-    PCH_EXCLUDE "src/op/util/attr_types.cpp")
+    PCH_EXCLUDE
+        "src/op/util/attr_types.cpp"
+        "src/runtime/tensor.cpp")
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...

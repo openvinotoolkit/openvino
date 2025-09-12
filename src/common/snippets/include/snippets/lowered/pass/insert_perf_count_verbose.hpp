@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    pragma once
 
-#    include "snippets/itt.hpp"
-#    include "snippets/lowered/loop_manager.hpp"
-#    include "snippets/lowered/pass/iter_handler.hpp"
-#    include "snippets/lowered/specific_loop_iter_handlers.hpp"
-#    include "snippets/op/brgemm.hpp"
-#    include "snippets/utils/utils.hpp"
+#    include <utility>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#    include "snippets/itt.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface InsertPerfCountVerbose
@@ -25,7 +25,7 @@ namespace pass {
  */
 class InsertPerfCountVerbose : public snippets::lowered::pass::RangedPass {
 public:
-    InsertPerfCountVerbose(const std::string& subgraph_name) : m_subgraph_name(subgraph_name) {}
+    explicit InsertPerfCountVerbose(std::string subgraph_name) : m_subgraph_name(std::move(subgraph_name)) {}
     OPENVINO_RTTI("InsertPerfCountVerbose", "", RangedPass);
 
     bool run(snippets::lowered::LinearIR& linear_ir,
@@ -39,9 +39,6 @@ private:
     std::string m_subgraph_name;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass
 
 #endif  // SNIPPETS_DEBUG_CAPS

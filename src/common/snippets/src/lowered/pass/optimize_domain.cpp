@@ -4,16 +4,23 @@
 
 #include "snippets/lowered/pass/optimize_domain.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <numeric>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/shape_inference/shape_inference.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 OptimizeDomain::OptimizeDomain(size_t& tile_rank) : Pass(), m_tile_rank(tile_rank) {}
 size_t OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
@@ -21,14 +28,16 @@ size_t OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
                                 const size_t total_work_amount,
                                 const size_t min_parallel_work_amount,
                                 const size_t min_jit_work_amount) {
-    if (master_shape.size() <= 2)
-        return false;
+    if (master_shape.size() <= 2) {
+        return 0U;
+    }
 
     auto CollapseLastDim = [](VectorDims& dims) {
         OPENVINO_ASSERT(dims.size() >= 2, "CollapseLastDim can't process shape with less than two dims");
         dims[dims.size() - 1] *= dims[dims.size() - 2];
-        for (auto i = dims.size() - 2; i > 0; i--)
+        for (auto i = dims.size() - 2; i > 0; i--) {
             dims[i] = dims[i - 1];
+        }
         dims[0] = 1;
     };
     // Check that neither of the two last dims is broadcasted, so they can be collapsed
@@ -37,15 +46,19 @@ size_t OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
         const auto master_prelast = *++master_shape.rbegin();
         return std::all_of(input_shapes.begin(), input_shapes.end(), [=](const VectorDims& s) {
             OPENVINO_ASSERT(s.size() >= 2, "LastDimsNotBroadcasted can't process shape with less than two dims");
-            return *s.rbegin() == master_last && *++s.rbegin() == master_prelast;
+            auto it = s.rbegin();
+            auto last_val = *it;
+            ++it;
+            return (last_val == master_last) && (*it == master_prelast);
         });
     };
 
     // Index of InputShape with the minimal rank
     size_t min_rank_idx = 0;
     for (size_t i = 1; i < input_shapes.size(); ++i) {
-        if (input_shapes[i].size() < input_shapes[min_rank_idx].size())
+        if (input_shapes[i].size() < input_shapes[min_rank_idx].size()) {
             min_rank_idx = i;
+        }
     }
 
     size_t jit_work_amount = master_shape.back();
@@ -53,8 +66,9 @@ size_t OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
     while (jit_work_amount < min_jit_work_amount && (num_dims_collapsed + 1) < input_shapes[min_rank_idx].size() &&
            can_increase_jit_work_amount(master_shape, min_parallel_work_amount, total_work_amount) &&
            LastDimsNotBroadcasted(input_shapes, master_shape)) {
-        for (auto& s : input_shapes)
+        for (auto& s : input_shapes) {
             CollapseLastDim(s);
+        }
 
         CollapseLastDim(master_shape);
         num_dims_collapsed++;
@@ -74,8 +88,9 @@ inline bool OptimizeDomain::can_increase_jit_work_amount(const VectorDims& maste
 bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::OptimizeDomain")
     const auto& config = linear_ir.get_config();
-    if (linear_ir.empty())
+    if (linear_ir.empty()) {
         return false;
+    }
 
     m_tile_rank = 1;
 
@@ -103,8 +118,9 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
         if (auto rank_norm = as_type_ptr<op::RankNormalization>(first_consumer->get_node())) {
             // If RankNormalization appends dims, then the appended dims will be broadcasted
             // so collapsing is not allowed. We may increment tile rank though.
-            if (rank_norm->get_num_append() != 0)
+            if (rank_norm->get_num_append() != 0) {
                 blocked_input_shapes = true;
+            }
             // If RankNormalization prepends dims, then the dims should be ignored during domain optimization
             // to avoid passing already incremented shapes to linear_ir.shape_infer()
         }
@@ -119,7 +135,7 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
         input_shapes.emplace_back(shape);
     }
     const auto total_work_amount =
-        std::accumulate(master_shape.begin(), master_shape.end(), (size_t)1, std::multiplies<size_t>());
+        std::accumulate(master_shape.begin(), master_shape.end(), static_cast<size_t>(1), std::multiplies<>());
     const auto num_dims_collapsed = blocked_input_shapes ? 0
                                                          : optimize(input_shapes,
                                                                     master_shape,
@@ -129,19 +145,18 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
     if (num_dims_collapsed > 0) {
         std::vector<VectorDimsRef> infer_shapes;
         infer_shapes.reserve(input_shapes.size());
-        for (const auto& is : input_shapes)
+        for (const auto& is : input_shapes) {
             infer_shapes.emplace_back(is);
+        }
         // Need to propagate updated shapes through LIR
         linear_ir.shape_infer(infer_shapes);
     }
     // We can still try to increment tile rank after dimension collapsing
     if (can_increase_jit_work_amount(master_shape, config.m_min_parallel_work_amount, total_work_amount) &&
-        num_dims_collapsed != master_shape.size() - 1)
+        num_dims_collapsed != master_shape.size() - 1) {
         m_tile_rank++;
+    }
     return num_dims_collapsed > 0;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

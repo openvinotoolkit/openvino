@@ -4,20 +4,33 @@
 
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 
+#include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <tuple>
+#include <vector>
 
+#include "openvino/core/except.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/linear_ir_builder.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
-#include "snippets/op/buffer.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 namespace {
 void connect_cloned_body_with_buffers_outside(LinearIR::constExprIt cur_begin,
@@ -128,9 +141,7 @@ LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& lin
                                                                    std::vector<LoopPort>& new_entry_ports,
                                                                    std::vector<LoopPort>& new_exit_ports) {
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
-    const auto loop_begin_pos = loop_bounds.first;
-    const auto loop_end_pos = loop_bounds.second;
+    const auto [loop_begin_pos, loop_end_pos] = loop_manager->get_loop_bounds(linear_ir, loop_id);
 
     ExpressionMap expression_map;
     const auto& cloning_config = LinearIRBuilder::Config(false);
@@ -231,8 +242,9 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
                 std::for_each(decomposed_finalization_offsets.begin(),
                               decomposed_finalization_offsets.end(),
                               [](int64_t& offset) {
-                                  if (!utils::is_dynamic_value(offset))
+                                  if (!utils::is_dynamic_value(offset)) {
                                       offset = 0;
+                                  }
                               });
             }
 
@@ -281,7 +293,4 @@ bool InsertSpecificIterations::run(LinearIR& linear_ir,
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

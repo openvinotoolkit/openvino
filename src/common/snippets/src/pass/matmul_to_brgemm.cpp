@@ -4,17 +4,27 @@
 
 #include "snippets/pass/matmul_to_brgemm.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/convert_saturation.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 using namespace lowered;
 
@@ -28,13 +38,15 @@ MatMulToBrgemm::MatMulToBrgemm() {
         const auto& pm = m.get_pattern_value_map();
         const auto matmul = as_type_ptr<ov::opset1::MatMul>(pm.at(matmul_pattern).get_node_shared_ptr());
         // Brgemm doesn't support transposed inputs currently, so we don't convert such matmuls
-        if (matmul->get_transpose_a())
+        if (matmul->get_transpose_a()) {
             return false;
+        }
 
         auto generate_layout = [](const ov::PartialShape& shape, const bool transpose) {
             std::vector<size_t> layout = utils::get_planar_layout(shape.size());
-            if (transpose)
+            if (transpose) {
                 std::swap(*layout.rbegin(), *(layout.rbegin() + 1));
+            }
             return layout;
         };
 
@@ -62,6 +74,4 @@ MatMulToBrgemm::MatMulToBrgemm() {
     register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

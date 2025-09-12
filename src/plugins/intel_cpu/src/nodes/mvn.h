@@ -24,13 +24,13 @@
 namespace ov::intel_cpu::node {
 
 struct jit_mvn_config_params {
-    MVNLayoutType layout;
-    bool across_channels;
-    bool normalize_variance;
+    MVNLayoutType layout = mvn_planar;
+    bool across_channels = false;
+    bool normalize_variance = false;
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    int src_data_size;
-    int dst_data_size;
+    int src_data_size = 0;
+    int dst_data_size = 0;
 };
 
 struct jit_mvn_call_args {
@@ -119,7 +119,7 @@ private:
 
     class MVNExecutorBase {
     public:
-        MVNExecutorBase(const MVNAttrs& mvnAttrs);
+        explicit MVNExecutorBase(const MVNAttrs& mvnAttrs);
         virtual void exec(const uint8_t* in_ptr_,
                           uint8_t* dst_data,
                           const void* post_ops_data_,
@@ -160,7 +160,7 @@ private:
 
     class MVNRefExecutor : public MVNExecutorBase {
     public:
-        MVNRefExecutor(const MVNAttrs& mvnAttrs);
+        explicit MVNRefExecutor(const MVNAttrs& mvnAttrs);
 
         void exec(const uint8_t* src_data,
                   uint8_t* dst_data,

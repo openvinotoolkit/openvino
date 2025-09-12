@@ -50,10 +50,83 @@ namespace pass {
 ///                     ┌────┴────┐
 ///                     │  Output │
 ///                     └─────────┘
-class TRANSFORMATIONS_API SDPAFusion : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API SDPAFusionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("SDPAFusion", "0");
-    SDPAFusion();
+    OPENVINO_MATCHER_PASS_RTTI("SDPAFusionMatcher", "0");
+    SDPAFusionMatcher();
+};
+
+class TRANSFORMATIONS_API SDPAReshapeFusion : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("SDPAReshapeFusion", "0");
+    SDPAReshapeFusion();
+};
+
+/// This pass transforms the following sub-graph with sinks to a single Scaled Dot Product Attention operation.
+/// Before:
+/// ┌───────┐     ┌───────┐     ┌───────┐    ┌───────┐
+/// │ Sinks │     │   Q   │     │   K   │    │   V   │
+/// └───┬───┘     └───┬───┘     └───┬───┘    └───┬───┘
+///     │             │             │            │
+///     │             │             │            │
+///     │         ┌───┴───┐   ┌─────┴──────┐     │
+///     │         │ MatMul│<──│ Transpose  │     │
+///     │         └───┬───┘   | (Optional) │     │
+///     │             │       └────────────┘     │
+///     │         ┌───┴───┐    ┌─────────────┐   │
+///     │         │  Add  │<───│AttentionMask│   │
+///     │         └───┬───┘    | (Optional)  │   │
+///     │             │        └─────────────┘   │
+///     │     ┌───────┴────────┐                 │
+///     │     │Multiply (scale)│                 │
+///     │     └───────┬────────┘                 │
+///     │             │                          │
+///     │         ┌───┴───┐                      │
+///     └────────>│Concat │                      │
+///               └───┬───┘                      │
+///                   │                          │
+///               ┌───┴───┐                      │
+///               │Softmax│                      │
+///               └───┬───┘                      │
+///                   │                          │
+///             ┌─────┴──────┐                   │
+///             │StridedSlice│                   │
+///             └─────┬──────┘                   │
+///                   │                          │
+///               ┌───┴───┐                      │
+///               │ MatMul│<─────────────────────┘
+///               └───┬───┘
+///               ┌───┴───┐
+///               │ Output│
+///               └───────┘
+///
+/// After:
+///     ┌───────┐    ┌───────┐    ┌───────┐    ┌─────────────┐    ┌─────┐  ┌─────┐
+///     │   Q   │    │   K   │    │   V   │    │AttentionMask│    │Sinks│  │Scale│
+///     └───┬───┘    └───┬───┘    └───┬───┘    └──────┬──────┘    └──┬──┘  └──┬──┘
+///         │            │            │               │              │        │
+///         │            │            │               │              │        │
+///     ┌───┴────────────┴────────────┴───────────────┴──────────────┴─┐      │
+///     │                    ScaledDotProductAttention                 │──────┘
+///     └────────────────────────────────┬─────────────────────────────┘
+///                                      │
+///                                      │
+///                                 ┌────┴────┐
+///                                 │  Output │
+///                                 └─────────┘
+
+class TRANSFORMATIONS_API SDPAFusionMatcherSinks : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("SDPAFusionMatcherSinks", "0");
+    SDPAFusionMatcherSinks();
+};
+
+// Temporary wrapper to enable Symbolic infrastructure inside.
+class TRANSFORMATIONS_API SDPAFusion : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("SDPAFusion");
+    SDPAFusion() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace pass

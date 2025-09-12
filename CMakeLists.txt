@@ -2,26 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
-    # 3.17: 'target_link_libraries' does not work correctly when called from
-    # different directory where 'add_library' is called: CMake generates
-    # incorrect OpenVINOConfig.cmake in this case
-    # 3.18: add_library cannot create ALIAS for non-GLOBAL targets
-    cmake_minimum_required(VERSION 3.18)
+if(CPACK_GENERATOR STREQUAL "DEB")
+    # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
+    cmake_minimum_required(VERSION 3.20)
 else()
-    if(CPACK_GENERATOR STREQUAL "DEB")
-        # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
-        cmake_minimum_required(VERSION 3.20)
-    else()
-        if(WIN32)
-            # 3.16: FindPython3.cmake can find Python via -DPython3_EXECUTABLE
-            # 3.18: FindPython3.cmake can find Python automatically from virtualenv
-            cmake_minimum_required(VERSION 3.16)
-        else()
-            # 3.13: default choice
-            cmake_minimum_required(VERSION 3.13)
-        endif()
-    endif()
+    # 3.18: default choice as minimum version for onnx 1.18
+    cmake_minimum_required(VERSION 3.18)
 endif()
 
 if(POLICY CMP0091)

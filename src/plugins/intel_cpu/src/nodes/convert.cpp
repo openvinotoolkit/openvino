@@ -27,6 +27,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/convert.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -87,12 +88,8 @@ void Convert::getSupportedDescriptors() {
     if (inputShapes.empty()) {
         inputShapes.push_back(input->getShape());
     }
-    if (getParentEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 1, "has incorrect number of input edges");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
 }
 
 bool Convert::isSupportedDesc(const MemoryDesc& desc) {
@@ -143,40 +140,41 @@ void Convert::initSupportedPrimitiveDescriptors() {
         dataConfigOut.setMemDesc(dataConfigOut.getMemDesc()->cloneWithNewPrecision(output->getPrecision()));
         config.outConfs.push_back(dataConfigOut);
         supportedPrimitiveDescriptorsBuilder(config);
-    } else if (inputShapes.size() == 1 && outputShapes.size() == 1) {
-        const Shape& insShape = getInputShapeAtPort(0);
-        auto insPrecision = getOriginalInputPrecisionAtPort(0);
-        const Shape& outputShape = getOutputShapeAtPort(0);
-        auto outPrecision = getOriginalOutputPrecisionAtPort(0);
+        return;
+    }
 
-        config.inConfs.push_back(dataIn);
-        config.outConfs.push_back(dataConfigOut);
+    CPU_NODE_ASSERT(all_of(1U, inputShapes.size(), outputShapes.size()), "has incorrect number of input/output edges");
 
-        auto creators = BlockedDescCreator::getCommonCreators();
+    const Shape& insShape = getInputShapeAtPort(0);
+    auto insPrecision = getOriginalInputPrecisionAtPort(0);
+    const Shape& outputShape = getOutputShapeAtPort(0);
+    auto outPrecision = getOriginalOutputPrecisionAtPort(0);
 
-        // As long as convert is placed right before the output, only planar layout makes sense since the output tensor
-        // is always in a planar layout (ngraph limitation), so there is no reason to convert in any other layout.
-        bool hasOutputChild = false;
-        for (auto& childEdge : getChildEdgesAtPort(0)) {
-            if (Type::Output == childEdge->getChild()->getType()) {
-                hasOutputChild = true;
-                break;
-            }
+    config.inConfs.push_back(dataIn);
+    config.outConfs.push_back(dataConfigOut);
+
+    auto creators = BlockedDescCreator::getCommonCreators();
+
+    // As long as convert is placed right before the output, only planar layout makes sense since the output tensor
+    // is always in a planar layout (ngraph limitation), so there is no reason to convert in any other layout.
+    bool hasOutputChild = false;
+    for (auto& childEdge : getChildEdgesAtPort(0)) {
+        if (Type::Output == childEdge->getChild()->getType()) {
+            hasOutputChild = true;
+            break;
         }
-        auto range = hasOutputChild
-                         ? BlockedDescCreator::makeFilteredRange(creators, insShape.getRank(), {LayoutType::ncsp})
-                         : BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
+    }
+    auto range = hasOutputChild
+                     ? BlockedDescCreator::makeFilteredRange(creators, insShape.getRank(), {LayoutType::ncsp})
+                     : BlockedDescCreator::makeFilteredRange(creators, insShape.getRank());
 
-        for (auto itr = range.first; itr != range.second; ++itr) {
-            config.inConfs[0].setMemDesc(
-                std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape)));
-            config.outConfs[0].setMemDesc(
-                std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape)));
+    for (auto itr = range.first; itr != range.second; ++itr) {
+        config.inConfs[0].setMemDesc(
+            std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(insPrecision, insShape)));
+        config.outConfs[0].setMemDesc(
+            std::make_shared<CpuBlockedMemoryDesc>(itr->second->createDesc(outPrecision, outputShape)));
 
-            supportedPrimitiveDescriptorsBuilder(config);
-        }
-    } else {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges");
+        supportedPrimitiveDescriptorsBuilder(config);
     }
 }
 
@@ -203,9 +201,8 @@ void Convert::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto parentPaddElemCount = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     const auto childPaddElemCount = childMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
-    if (parentPaddElemCount != childPaddElemCount) {
-        THROW_CPU_NODE_ERR("has different elements number in input and output buffers");
-    }
+    CPU_NODE_ASSERT(parentPaddElemCount == childPaddElemCount,
+                    "has different elements number in input and output buffers");
 
     MemoryCPtr srcMemory = getSrcMemoryAtPort(0);
     MemoryPtr dstMemory = getDstMemoryAtPort(0);

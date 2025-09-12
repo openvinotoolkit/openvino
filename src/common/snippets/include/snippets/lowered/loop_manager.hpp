@@ -3,17 +3,25 @@
 //
 
 #pragma once
-#include <openvino/core/node.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/except.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 class LoopManager {
 public:
@@ -24,14 +32,14 @@ public:
      * @param expr_map map of new and old expressions
      * @return the copy
      */
-    std::shared_ptr<LoopManager> clone_with_new_expr(const ExpressionMap& expr_map) const;
+    [[nodiscard]] std::shared_ptr<LoopManager> clone_with_new_expr(const ExpressionMap& expr_map) const;
     /**
      * @brief Get target Loop Info
      * @param index loop ID
      * @return the LoopInfo shared ptr
      */
-    template <typename T = LoopInfo, typename std::enable_if<std::is_base_of<LoopInfo, T>::value, bool>::type = true>
-    std::shared_ptr<T> get_loop_info(size_t index) const {
+    template <typename T = LoopInfo, std::enable_if_t<std::is_base_of_v<LoopInfo, T>, bool> = true>
+    [[nodiscard]] std::shared_ptr<T> get_loop_info(size_t index) const {
         const auto it = m_map.find(index);
         OPENVINO_ASSERT(it != m_map.end(), "LoopInfo hasn't been found!");
         const auto loop_info = ov::as_type_ptr<T>(it->second);
@@ -42,14 +50,14 @@ public:
      * @brief Get count of loops
      * @return count of loops in the map
      */
-    size_t get_loop_count() const {
+    [[nodiscard]] size_t get_loop_count() const {
         return m_map.size();
     }
     /**
      * @brief Get loop map [loop_id -> loop info]
      * @return loop map
      */
-    const std::map<size_t, LoopInfoPtr>& get_map() const;
+    [[nodiscard]] const std::map<size_t, LoopInfoPtr>& get_map() const;
     /**
      * @brief Get loop IDs of expression that are outer (upper) than `loop_id`
      * @param expr the target expression
@@ -72,79 +80,36 @@ public:
     static std::vector<size_t> get_common_outer_loops(const std::vector<ExpressionPtr>& exprs);
 
     /**
-     * @brief Create new LoopInfo and mark all expressions in loop bounds by new loop ID
+     * @brief Automatically marks new loops, number of which is defined by `loop_depth` parameter.
+     * Loop increments for the most inner loop is defined by `vector_size` parameter.
+     * The increment for the rest loops is equal to 1.
      * @param loop_begin_pos the first expression iterator
      * @param loop_end_pos the next iterator after last expression
      * @param loop_depth count of loops for marking
-     * @param vector_size increment of loop
+     * @param vector_size increment of most-inner loop
      */
     void mark_loop(LinearIR::constExprIt loop_begin_pos,
                    LinearIR::constExprIt loop_end_pos,
                    size_t loop_depth,
                    size_t vector_size);
     /**
-     * @brief Create new UnifiedLoopInfo and mark all expressions in loop bounds by new loop ID with more manual
-     * parameters
+     * @brief Creates new UnifiedLoopInfo and marks all expressions in loop bounds by new loop ID.
      * @param loop_begin_pos the first expression iterator
      * @param loop_end_pos the next iterator after last expression
      * @param work_amount work amount of the loop
      * @param increment the step of loop counter increment
      * @param entries input loop ports
      * @param exits output loop ports
-     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or
-     * not
+     * @param set_default_handlers defines whether default set of SpecificIterationHandlers should be set
      * @return new loop ID
      */
-    template <typename T>
     size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
                      LinearIR::constExprIt loop_end_pos,
                      size_t work_amount,
                      size_t increment,
-                     const std::vector<T>& entries,
-                     const std::vector<T>& exits,
-                     bool set_default_handlers = true) {
-        const auto normalized_increment =
-            utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
-        const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits);
-        if (set_default_handlers)
-            loop_info->set_handlers(
-                SpecificIterationHandlers(work_amount, normalized_increment, loop_info->get_dim_idx()));
-
-        const auto loop_id = this->add_loop_info(loop_info);
-        for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
-            insert_loop_id(*expr_it, loop_id);
-        }
-        return loop_id;
-    }
-    /**
-     * @brief Create new UnifiedLoopInfo and mark all expressions in loop bounds by new loop ID with more manual
-     * parameters
-     * @param loop_begin_pos the first expression iterator
-     * @param loop_end_pos the next iterator after last expression
-     * @param work_amount work amount of the loop
-     * @param increment the step of loop counter increment
-     * @param dim_idx loop iterates by this index of dimension
-     * @param entries input loop ports
-     * @param exits output loop ports
-     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or
-     *                             not
-     * @return new loop ID
-     */
-    template <typename T>
-    size_t mark_loop(LinearIR::constExprIt loop_begin_pos,
-                     LinearIR::constExprIt loop_end_pos,
-                     size_t work_amount,
-                     size_t increment,
-                     size_t dim_idx,
-                     const std::vector<T>& entries,
-                     const std::vector<T>& exits,
-                     bool set_default_handlers = true) {
-        const auto loop_id =
-            mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
-        const auto loop_info = get_loop_info<UnifiedLoopInfo>(loop_id);
-        loop_info->set_dim_idx(dim_idx);
-        return loop_id;
-    }
+                     const std::vector<LoopPort>& entries,
+                     const std::vector<LoopPort>& exits,
+                     bool set_default_handlers = true);
     /**
      * @brief Create new Loop and replace with it: add new LoopInfo, update loop IDs in expressions and
      *        remove the old LoopInfo from the map if no one expression isn't mark by this `old_id`
@@ -163,7 +128,7 @@ public:
                                  LinearIR::constExprIt loop_begin_pos,
                                  LinearIR::constExprIt loop_end_pos,
                                  const LoopInfoPtr& loop_info,
-                                 const size_t old_id);
+                                 size_t old_id);
     /**
      * @brief Fuse two UnifiedLoopInfos: fuse their informations to the one
      * @param linear_ir linear IR
@@ -198,8 +163,7 @@ public:
      * @param target_ports vector of the new ports
      */
     template <typename T,
-              typename = typename std::
-                  enable_if<(std::is_same<T, ExpressionPort>::value || std::is_same<T, LoopPort>::value), bool>::type>
+              typename = std::enable_if_t<(std::is_same_v<T, ExpressionPort> || std::is_same_v<T, LoopPort>), bool>>
     void replace_loop_port(size_t loop_id, const T& actual_port, const std::vector<T>& target_ports) {
         const auto& loop_info = get_loop_info(loop_id);
         loop_info->replace_with_new_ports(actual_port, target_ports);
@@ -211,8 +175,7 @@ public:
      * @param target_ports vector of the new ports
      */
     template <typename T,
-              typename = typename std::
-                  enable_if<(std::is_same<T, ExpressionPort>::value || std::is_same<T, LoopPort>::value), bool>::type>
+              typename = std::enable_if_t<(std::is_same_v<T, ExpressionPort> || std::is_same_v<T, LoopPort>), bool>>
     void replace_loop_ports(const std::vector<size_t>& loop_ids,
                             const T& actual_port,
                             const std::vector<T>& target_ports) {
@@ -238,12 +201,12 @@ public:
      *             consumer input ports) with the target expression input ports.
      * @param expr the target expression
      */
-    void update_loop_ports(const ExpressionPtr& expr);
+    void update_loop_ports(const ExpressionPtr& expr) const;
     /**
      * @brief Sort all loop ports of loop with ids from `loop_ids` by expression execution number
      * @param loop_ids IDs of loops
      */
-    void sort_loop_ports(const std::vector<size_t>& loop_ids);
+    void sort_loop_ports(const std::vector<size_t>& loop_ids) const;
     /**
      * @brief When the previous expression was replaced with new expressions (decomposition), the method updates the
      * corresponding Loop. If ports of decomposed expression were the Loop ports, these Loop ports may be updated by
@@ -274,7 +237,7 @@ public:
      * @param loop_id target Loop ID
      * @return the pair of loop_begin_pos and loop_end_pos iterators
      */
-    LoopBounds get_loop_bounds(const LinearIR& linear_ir, size_t loop_id) const;
+    [[nodiscard]] LoopBounds get_loop_bounds(const LinearIR& linear_ir, size_t loop_id) const;
     /**
      * @brief Find bounds of Loop:
      *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
@@ -299,7 +262,7 @@ public:
      * @param loop_id target Loop ID
      * @return loop port
      */
-    LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id);
+    [[nodiscard]] LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, size_t loop_id) const;
 
     /**
      * @brief Reorder ALL Loop IDs in `m_map` using `loop_id_map`
@@ -347,7 +310,7 @@ private:
     // Notes:
     //  - These methods don't update the corresponding LoopInfo
     void replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id);
-    void remove_loop_id(const ExpressionPtr& expr, size_t id);
+    static void remove_loop_id(const ExpressionPtr& expr, size_t id);
     // Insert loop ID before (as outer Loop) or after (as inner Loop) target ID in vector of identifiers
     // Before:                                 | After:
     //   loop_ids: [.., new_id, target_id, ..] |    loop_ids: [.., target_id, new_id, ..]
@@ -360,11 +323,9 @@ private:
                          size_t target_id = SIZE_MAX);
     static bool is_loop_id_found(const ExpressionPtr& expr, size_t id);
 
-    std::map<size_t, LoopInfoPtr> m_map = {};
+    std::map<size_t, LoopInfoPtr> m_map;
     size_t next_id = 0;
 };
 using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

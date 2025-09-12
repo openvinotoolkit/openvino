@@ -47,7 +47,7 @@ protected:
     std::shared_ptr<Xbyak_aarch64::Label> loop_begin_label;
     std::shared_ptr<Xbyak_aarch64::Label> loop_end_label;
     size_t work_amount = 0;
-    int64_t wa_increment = 0;
+    size_t wa_increment = 0;
     bool evaluate_once = false;
     size_t loop_id = 0;
     bool is_work_amount_dynamic = false;
@@ -83,11 +83,11 @@ protected:
     size_t num_inputs = 0;
     size_t num_outputs = 0;
     size_t work_amount = 0;
-    int64_t wa_increment = 0;
-    std::vector<bool> is_incremented = {};
-    std::vector<int64_t> ptr_increments = {};
-    std::vector<int64_t> finalization_offsets = {};
-    std::vector<int64_t> data_sizes = {};
+    size_t wa_increment = 0;
+    std::vector<bool> is_incremented;
+    std::vector<int64_t> ptr_increments;
+    std::vector<int64_t> finalization_offsets;
+    std::vector<int64_t> data_sizes;
     bool evaluate_once = false;
     size_t loop_id = 0;
 };

@@ -37,8 +37,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReluShapeOfSubgraphTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
-        // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
-        R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
         R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
@@ -333,7 +331,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_ConversionLayerTest/ConversionLayerTest.Inference/conversionOpType=Convert_.*_inputPRC=f16_targetPRC=(u8|i8).*)");
         retVector.emplace_back(R"(.*smoke_Decomposition_4D/Mvn6LayerTest.Inference/.*TS=\{\((1.16.5.8|2.19.5.10)\)\}_ModelType=f32_.*_Ax=\(0.1.2.3\)_NormVariance=FALSE.*)");
         retVector.emplace_back(R"(.*smoke_Decomposition_4D/Mvn6LayerTest.Inference/.*TS=\{\(2.19.5.10\)\}_ModelType=f32_.*_Ax=\(1\).*)");
-        retVector.emplace_back(R"(.*smoke_LogSoftmax4D/LogSoftmaxLayerTest.Inference/.*TS=\{\(2.3.4.5\)\}_modelType=f32_axis=(-4|0).*)");
+        retVector.emplace_back(R"(.*smoke_LogSoftmax4D/LogSoftmaxLayerTest.Inference/.*TS=\{\(2.3.4.5\)\}_modelType=f32_axis=(-4|-3|-2|0|1|2).*)");
         retVector.emplace_back(R"(.*smoke_Interpolate_Basic/InterpolateLayerTest.Inference/.*InterpolateMode=cubic_ShapeCalcMode=sizes_CoordinateTransformMode=tf_half_pixel.*PB=\(0.0.0.0\)_PE=\(0.0.1.1\)_.*netType=f32.*)");
         retVector.emplace_back(R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)");
         // Ticket: 144845
@@ -346,6 +344,10 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_Snippets_FQDecomposition.*netPRC=f32_D=CPU.*)");
         // Ticket: 166771
         retVector.emplace_back(R"(.*smoke_BroadcastEltwise/BroadcastEltwise.smoke_CompareWithRefs.*)");
+        // Ticket: 168863
+        retVector.emplace_back(R"(.*smoke_AvgPoolV14_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs.*)");
+        // Ticket: 168931
+        retVector.emplace_back(R"(.*smoke_Reduce_OneAxis_dynamic_CPU/ReduceCPULayerTest.CompareWithRefs.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
@@ -495,15 +497,20 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
     // Compressed weights are not supported
     retVector.emplace_back(R"(smoke_MatMulSharedCompressedWeights.*)");
+    retVector.emplace_back(R"(smoke_Model_Distribution_MatMulSharedCompressedWeights.*)");
     retVector.emplace_back(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)");
-    // smoke_Snippets test cases are not supported on arm32 platforms
-#if !defined(OPENVINO_ARCH_ARM64)
+    // Issue: 170863
+    retVector.emplace_back(R"(smoke_Model_Distribution_MatMul_NoTranspose.*)");
+#endif
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64)
+    // smoke_Snippets test cases are on platforms except x64 and aarch64/arm64
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
-    // smoke_Snippets test cases are not supported on arm64 platforms, except for smoke_Snippets_Eltwise,
-    // smoke_Snippets_Convert, smoke_Snippets_FQDecomposition and static smoke_Snippets_MatMul
-    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_|_MatMul/).*)");
-    retVector.emplace_back(R"(smoke_Snippets_MatMul.*\[.*\?.*\].*)");
+#if defined(OPENVINO_ARCH_ARM64)
+    // Tests to be enabled on ARM64
+    retVector.emplace_back(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)");
+    retVector.emplace_back(R"(smoke_Snippets_GroupNormalization.*)");
+    retVector.emplace_back(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
@@ -641,6 +648,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets_AddSoftmax.*)");
     retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmaxEltwise.*)");
     // Low-precision Matmuls are not supported by TPP yet
+    retVector.emplace_back(R"(.*smoke_Snippets.*=(BF16|bf16|i8|u8).*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulFQ.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulBiasQuantized.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulsQuantized.*)");

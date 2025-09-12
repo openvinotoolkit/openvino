@@ -24,9 +24,9 @@ namespace ov::intel_cpu::node {
 struct jit_move_scale_compile_params {
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    bool with_scales;
-    size_t input_size;
-    bool broadcast_scales;
+    bool with_scales = false;
+    size_t input_size = 0UL;
+    bool broadcast_scales = false;
 };
 
 struct jit_move_scale_call_args {
@@ -54,7 +54,7 @@ struct jit_uni_move_scale_kernel {
 class Interaction : public Node {
 public:
     Interaction(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     bool created() const override;

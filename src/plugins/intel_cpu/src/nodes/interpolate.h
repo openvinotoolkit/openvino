@@ -23,19 +23,19 @@
 namespace ov::intel_cpu::node {
 
 struct jit_interpolate_config_params {
-    InterpolateLayoutType layout;
-    InterpolateMode mode;
+    InterpolateLayoutType layout = InterpolateLayoutType::planar;
+    InterpolateMode mode = InterpolateMode::nearest;
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    int src_data_size;
-    int dst_data_size;
-    int indices_size;
-    int spatial_dim_size;
-    int C, ID, IH, IW, OD, OH, OW;
+    int src_data_size = 0;
+    int dst_data_size = 0;
+    int indices_size = 0;
+    int spatial_dim_size = 0;
+    int C = 0, ID = 0, IH = 0, IW = 0, OD = 0, OH = 0, OW = 0;
     // for pillow
-    int filterLenX;
-    int filterLenY;
-    int* bound;
+    int filterLenX = 0;
+    int filterLenY = 0;
+    int* bound = nullptr;
 };
 
 struct jit_interpolate_call_args {
@@ -77,8 +77,8 @@ public:
     static constexpr size_t SIZE_OR_SCALE_ID_V11 = 1;
     static constexpr size_t AXES_ID_V11 = 2;
     static constexpr int CUBIC_GRID_LEN = 4;
-    static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0f;
-    static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
+    static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0F;
+    static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0F;
 
     Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
@@ -172,7 +172,7 @@ private:
         int spatialDimSize;
         std::vector<int> auxTable;
         std::vector<uint8_t> pillow_working_buf;
-        size_t m_threads_num = 0lu;
+        size_t m_threads_num = 0LU;
     };
     std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
 

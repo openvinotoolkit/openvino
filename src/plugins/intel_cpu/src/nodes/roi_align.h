@@ -23,12 +23,12 @@ enum ROIAlignLayoutType : uint8_t { ncsp, blk, nspc };
 enum ROIAlignedMode : uint8_t { ra_asymmetric, ra_half_pixel_for_nn, ra_half_pixel };
 
 struct jit_roi_align_params {
-    Algorithm alg;
+    Algorithm alg = Algorithm::ROIAlignMax;
     ov::element::Type data_prc;
-    int data_size;
-    ROIAlignLayoutType layout;
-    int pooled_h;
-    int pooled_w;
+    int data_size = 0;
+    ROIAlignLayoutType layout = ncsp;
+    int pooled_h = 0;
+    int pooled_w = 0;
 };
 
 struct jit_roi_align_call_args {
@@ -79,7 +79,7 @@ private:
     int pooledH = 7;
     int pooledW = 7;
     int samplingRatio = 2;
-    float spatialScale = 1.0f;
+    float spatialScale = 1.0F;
     ROIAlignedMode alignedMode;
     template <typename inputType, typename outputType>
     void executeSpecified();

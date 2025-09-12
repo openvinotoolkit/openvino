@@ -23,6 +23,7 @@ struct rms_test_params {
     tensor gamma_size;
     tensor elwise_size;
     data_types input_type;
+    data_types output_type;
     format input_format;
     size_t expected_fused_primitives;
     size_t expected_fused_primitives_onednn;
@@ -31,7 +32,7 @@ struct rms_test_params {
 
 class RMSFusingTest : public ::BaseFusingTest<rms_test_params> {
 public:
-    void execute(rms_test_params& p) {
+    void execute(rms_test_params& p, bool count_reorder = false) {
         if (engine.get_device_info().supports_immad)
             p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         auto input_prim = get_mem(get_input_layout(p));
@@ -45,7 +46,7 @@ public:
         network_not_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("gamma", gamma_prim);
 
-        compare(network_not_fused, network_fused, p);
+        compare(network_not_fused, network_fused, p, count_reorder);
     }
 
     layout get_input_layout(rms_test_params& p) {
@@ -63,14 +64,14 @@ public:
 /* --------------------------------------- RMS cases --------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
 
-#define CASE_RMS_F32_1      { 1, 16, 8, 8 },    { 1, 1, 1, 8 },     { 1, 16, 8, 8 },    data_types::f32, format::bfyx
-#define CASE_RMS_F32_2      { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     { 2, 16, 8, 8 },    data_types::f32, format::bfyx
-#define CASE_RMS_3D_F32_1   { 1, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 1, 16, 8, 8, 8 }, data_types::f32, format::bfzyx
-#define CASE_RMS_3D_F32_2   { 2, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 2, 16, 8, 8, 8 }, data_types::f32, format::bfzyx
-#define CASE_RMS_F16_1      { 1, 16, 8, 8 },    { 1, 1, 1, 8 },     { 1, 16, 8, 8 },    data_types::f16, format::bfyx
-#define CASE_RMS_F16_2      { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     { 2, 16, 8, 8 },    data_types::f16, format::bfyx
-#define CASE_RMS_3D_F16_1   { 1, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 1, 16, 8, 8, 8 }, data_types::f16, format::bfzyx
-#define CASE_RMS_3D_F16_2   { 2, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 2, 16, 8, 8, 8 }, data_types::f16, format::bfzyx
+#define CASE_RMS_F32_1      { 1, 16, 8, 8 },    { 1, 1, 1, 8 },     { 1, 16, 8, 8 },    data_types::f32, data_types::f16, format::bfyx
+#define CASE_RMS_F32_2      { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     { 2, 16, 8, 8 },    data_types::f32, data_types::f16, format::bfyx
+#define CASE_RMS_3D_F32_1   { 1, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 1, 16, 8, 8, 8 }, data_types::f32, data_types::f16, format::bfzyx
+#define CASE_RMS_3D_F32_2   { 2, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 2, 16, 8, 8, 8 }, data_types::f32, data_types::f16, format::bfzyx
+#define CASE_RMS_F16_1      { 1, 16, 8, 8 },    { 1, 1, 1, 8 },     { 1, 16, 8, 8 },    data_types::f16, data_types::f32, format::bfyx
+#define CASE_RMS_F16_2      { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     { 2, 16, 8, 8 },    data_types::f16, data_types::f32, format::bfyx
+#define CASE_RMS_3D_F16_1   { 1, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 1, 16, 8, 8, 8 }, data_types::f16, data_types::f32, format::bfzyx
+#define CASE_RMS_3D_F16_2   { 2, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 2, 16, 8, 8, 8 }, data_types::f16, data_types::f32, format::bfzyx
 
 class rms_activation : public RMSFusingTest {};
 TEST_P(rms_activation, basic) {
@@ -123,4 +124,26 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, rms_eltwise, ::testing::ValuesIn(std::vect
     rms_test_params{ CASE_RMS_F16_2, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F16_1, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F16_2, 3, 3, 4 },
+}));
+
+class rms_reorder : public RMSFusingTest {};
+TEST_P(rms_reorder, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("gamma", get_gamma_layout(p)),
+        rms("rms", input_info("input"), input_info("gamma"), 1e-10f),
+        reorder("reorder", input_info("rms"), p.input_format, p.output_type, std::vector<float>(), cldnn::reorder_mean_mode::subtract, cldnn::padding(), true),
+        reorder("out", input_info("reorder"), format::bfyx, data_types::f32)
+    );
+
+    tolerance = (p.input_type == data_types::f32) ? 1e-5f : 0.1f;
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, rms_reorder, ::testing::ValuesIn(std::vector<rms_test_params>{
+    rms_test_params{ CASE_RMS_F32_1, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_F32_2, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_3D_F32_1, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_3D_F32_2, 3, 3, 4 }
 }));

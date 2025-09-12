@@ -4,15 +4,18 @@
 
 #include "snippets/lowered/pass/init_registers.hpp"
 
+#include <memory>
+
+#include "snippets/generator.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/assign_registers.hpp"
 #include "snippets/lowered/pass/init_live_ranges.hpp"
 #include "snippets/lowered/pass/insert_reg_spills.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/pass/pass_config.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 InitRegisters::InitRegisters(const std::shared_ptr<const Generator>& generator,
                              const std::shared_ptr<PassConfig>& pass_config)
@@ -30,7 +33,4 @@ bool InitRegisters::run(LinearIR& linear_ir) {
     return true;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

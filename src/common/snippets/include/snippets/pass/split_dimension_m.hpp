@@ -4,11 +4,21 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/matmul.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/common_optimizations.hpp"
+#include "snippets/shape_types.hpp"
 #include "subgraph_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface SplitDimensionM
@@ -22,7 +32,7 @@ namespace pass {
 class SplitDimensionM : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("SplitDimensionM", "0");
-    SplitDimensionM(size_t concurrency) : m_concurrency(concurrency) {}
+    explicit SplitDimensionM(size_t concurrency) : m_concurrency(concurrency) {}
 
     bool run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) override;
 
@@ -94,10 +104,10 @@ private:
                                                                          size_t m_dim,
                                                                          size_t optimal_parallelism_work_amount);
 
-    void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph,
-                          const ov::Shape& shape,
-                          size_t batch_m_dim,
-                          size_t new_m_dim);
+    static void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph,
+                                 const ov::Shape& shape,
+                                 size_t batch_m_dim,
+                                 size_t new_m_dim);
 
     static size_t get_dim_M(const ov::Shape& shape) {
         if (shape.size() < dim_M_index + 1) {
@@ -111,6 +121,4 @@ private:
     static const size_t min_kernel_m;
     static const size_t dim_M_index;
 };
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

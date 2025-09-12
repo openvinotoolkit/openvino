@@ -46,6 +46,7 @@ struct rope : public primitive_base<rope> {
         seed = hash_combine(seed, config.output_trans0213);
         seed = hash_combine(seed, config.is_interleaved);
         seed = hash_combine(seed, config.is_qwen);
+        seed = hash_combine(seed, config.use_rope_cache);
         seed = hash_combine(seed, config.rotary_ndims);
         seed = hash_combine(seed, config.slice_start);
         seed = hash_combine(seed, config.slice_stop);
@@ -68,6 +69,7 @@ struct rope : public primitive_base<rope> {
                config.output_trans0213 == rhs_casted.config.output_trans0213 &&
                config.is_interleaved == rhs_casted.config.is_interleaved &&
                config.is_qwen == rhs_casted.config.is_qwen &&
+               config.use_rope_cache == rhs_casted.config.use_rope_cache &&
                config.rotary_ndims == rhs_casted.config.rotary_ndims &&
                config.slice_start == rhs_casted.config.slice_start &&
                config.slice_stop == rhs_casted.config.slice_stop &&
@@ -85,6 +87,7 @@ struct rope : public primitive_base<rope> {
         ob << config.output_trans0213;
         ob << config.is_interleaved;
         ob << config.is_qwen;
+        ob << config.use_rope_cache;
         ob << config.rotary_ndims;
         ob << config.slice_start;
         ob << config.slice_stop;
@@ -102,6 +105,7 @@ struct rope : public primitive_base<rope> {
         ib >> config.output_trans0213;
         ib >> config.is_interleaved;
         ib >> config.is_qwen;
+        ib >> config.use_rope_cache;
         ib >> config.rotary_ndims;
         ib >> config.slice_start;
         ib >> config.slice_stop;

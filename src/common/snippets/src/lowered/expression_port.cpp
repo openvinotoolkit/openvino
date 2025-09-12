@@ -5,12 +5,16 @@
 #include "snippets/lowered/expression_port.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <utility>
 
-#include "snippets/utils/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 ExpressionPort::ExpressionPort(const std::shared_ptr<Expression>& expr, Type type, size_t port)
     : m_expr(expr),
@@ -57,8 +61,9 @@ void ExpressionPort::replace_input_port_connector(std::shared_ptr<PortConnector>
 }
 
 bool operator==(const ExpressionPort& lhs, const ExpressionPort& rhs) {
-    if (&lhs == &rhs)
+    if (&lhs == &rhs) {
         return true;
+    }
     OPENVINO_ASSERT(lhs.get_type() == rhs.get_type(), "Incorrect ExpressionPort comparison");
     return lhs.get_index() == rhs.get_index() && lhs.get_expr() == rhs.get_expr();
 }
@@ -78,6 +83,4 @@ void replace_input_port_connectors(const std::set<ExpressionPort>& consumers,
     }
 }
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

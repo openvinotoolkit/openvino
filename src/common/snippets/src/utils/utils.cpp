@@ -4,13 +4,37 @@
 
 #include "snippets/utils/utils.hpp"
 
-#include "openvino/core/rt_info.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <deque>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <set>
+#include <sstream>
+#include <string>
+#include <unordered_set>
+#include <vector>
+
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/store.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
+#include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace utils {
+namespace ov::snippets::utils {
 
 namespace {
 template <typename Shape>
@@ -27,19 +51,23 @@ void ordered_shape(const Shape& shape, const std::vector<size_t>& layout, bool i
 //   - If `is_forward` is True, `result shape` is ordered `shape` by `layout`
 //   - If `is_forward` is False, `result shape` is original shape to which the `layout` was applied
 ov::PartialShape get_pshape(const ov::PartialShape& shape, const std::vector<size_t>& layout, bool is_forward) {
-    if (layout.empty())
+    if (layout.empty()) {
         return shape;
+    }
     ov::PartialShape reordered_shape(std::vector<Dimension>(layout.size()));
-    if (shape.rank().is_dynamic())
+    if (shape.rank().is_dynamic()) {
         OPENVINO_THROW("get_reordered_planar_shape can't be called for outputs with dynamic rank");
+    }
     const size_t rank = shape.rank().get_length();
-    if (layout.size() > rank)
+    if (layout.size() > rank) {
         OPENVINO_THROW("Layout rank can't be larger than tensor rank");
+    }
     // Note that it can be smaller though, for example tensor shape can be prepended with 1 for scheduling purposes
     if (std::any_of(layout.begin(), layout.end(), [=](size_t x) {
             return x >= rank;
-        }))
+        })) {
         OPENVINO_THROW("Invalid layout detected: all layout indexes must be smaller than the tensor rank");
+    }
     ordered_shape(shape, layout, is_forward, reordered_shape);
     return reordered_shape;
 }
@@ -59,22 +87,22 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
                                                                            ish,
                                                                            osc,
                                                                            osh);
-        is_optimized = out_scales.size() != 0;
+        is_optimized = !out_scales.empty();
     }
 
     const bool only_quantized = is_optimized || (status &&
                                                  std::all_of(osc.cbegin(),
                                                              osc.cend(),
                                                              [](float val) {
-                                                                 return val == 1.f;
+                                                                 return val == 1.F;
                                                              }) &&
                                                  std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-                                                     return val == 0.f;
+                                                     return val == 0.F;
                                                  }));
-    const bool il = ov::shape_size(fq->input(1).get_shape()) != 1lu;
-    const bool ih = ov::shape_size(fq->input(2).get_shape()) != 1lu;
-    const bool ol = !only_quantized && ov::shape_size(fq->input(3).get_shape()) != 1lu;
-    const bool oh = !only_quantized && ov::shape_size(fq->input(4).get_shape()) != 1lu;
+    const bool il = ov::shape_size(fq->input(1).get_shape()) != 1LU;
+    const bool ih = ov::shape_size(fq->input(2).get_shape()) != 1LU;
+    const bool ol = !only_quantized && ov::shape_size(fq->input(3).get_shape()) != 1LU;
+    const bool oh = !only_quantized && ov::shape_size(fq->input(4).get_shape()) != 1LU;
 
     // FakeQuantize decompoisition has the folowwing formula:
     //      round(x * (levels-1) / (ih - il) - il * (levels-1) / (ih - il)) * (oh - ol) / (levels-1) + ol
@@ -93,33 +121,41 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
     // Some of them can be scalar or non-scalar. It depends on which original 4 Constants are non-scalar
     // To sum it up, below conditions check all possible cases to calculate count of new generated non-scalars
     if (is_optimized) {
-        if (il && ih)
+        if (il && ih) {
             return 3;
-        else if (il || ih)
+        }
+        if (il || ih) {
             return 2;
-        return 0;
-    } else {
-        if (ol && il && ih)
-            return 6;
-        else if ((ol && (il || ih)) || (il && ih && oh))
-            return 5;
-        else if ((il && oh) || (ih && oh) || (il && ih))
-            return 4;
-        else if (il || ih)
-            return 3;
-        else if (ol)
-            return 2;
-        else if (oh)
-            return 1;
+        }
         return 0;
     }
+    if (ol && il && ih) {
+        return 6;
+    }
+    if ((ol && (il || ih)) || (il && ih && oh)) {
+        return 5;
+    }
+    if ((il && oh) || (ih && oh) || (il && ih)) {
+        return 4;
+    }
+    if (il || ih) {
+        return 3;
+    }
+    if (ol) {
+        return 2;
+    }
+    if (oh) {
+        return 1;
+    }
+    return 0;
 }
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
     if (d1 == d2 || d1 == 1 || (is_dynamic_value(d1) && d2 != 1)) {
         dst = d2;
         return true;
-    } else if (d2 == 1 || is_dynamic_value(d2)) {
+    }
+    if (d2 == 1 || is_dynamic_value(d2)) {
         dst = d1;
         return true;
     }
@@ -130,7 +166,8 @@ bool merge_dynamic_dim(size_t& dst, const size_t& d1, const size_t& d2) {
     if (d1 == d2 || is_dynamic_value(d1)) {
         dst = d2;
         return true;
-    } else if (is_dynamic_value(d2)) {
+    }
+    if (is_dynamic_value(d2)) {
         dst = d1;
         return true;
     }
@@ -140,8 +177,9 @@ bool merge_dynamic_dim(size_t& dst, const size_t& d1, const size_t& d2) {
 VectorDims pshape_to_vdims(const PartialShape& pshape) {
     VectorDims result;
     result.reserve(pshape.size());
-    for (const auto& d : pshape)
+    for (const auto& d : pshape) {
         result.push_back(dimension_to_size_t(d));
+    }
     // Note: PartialShape could be empty which designates scalar value. However, Scalars are represented as {1} in
     // Snippets
     return result.empty() ? VectorDims{1} : result;
@@ -150,19 +188,21 @@ VectorDims pshape_to_vdims(const PartialShape& pshape) {
 ov::PartialShape vdims_to_pshape(const VectorDims& vdims) {
     ov::PartialShape result;
     result.reserve(vdims.size());
-    for (const auto& v : vdims)
+    for (const auto& v : vdims) {
         result.push_back(!is_dynamic_value(v) ? Dimension(static_cast<Dimension::value_type>(v)) : Dimension());
+    }
     return result;
 }
 
 size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx) {
     const auto& layout = port.get_descriptor_ptr()->get_layout();
-    if (port.get_type() == lowered::ExpressionPort::Type::Input)
+    if (port.get_type() == lowered::ExpressionPort::Type::Input) {
         return utils::get_input_dim_idx(layout, dim_idx);
-    else if (port.get_type() == lowered::ExpressionPort::Type::Output)
+    }
+    if (port.get_type() == lowered::ExpressionPort::Type::Output) {
         return utils::get_output_dim_idx(layout, dim_idx);
-    else
-        OPENVINO_THROW("Unsupported type of expression port");
+    }
+    OPENVINO_THROW("Unsupported type of expression port");
     return 0;
 }
 
@@ -239,8 +279,8 @@ VectorDims get_projected_subtensor(const snippets::lowered::ExpressionPort& expr
 
 std::vector<lowered::ExpressionPtr> get_first_child_shape_infer_expr_seq(const lowered::ExpressionPtr& start_expr) {
     auto get_first_shape_infer_expr = [](const std::set<lowered::ExpressionPort>& consumers) -> lowered::ExpressionPtr {
-        for (auto it = consumers.begin(); it != consumers.end(); ++it) {
-            auto expr = it->get_expr();
+        for (const auto& consumer : consumers) {
+            auto expr = consumer.get_expr();
             if (op::Subgraph::is_shape_infer_op(expr->get_node())) {
                 return expr;
             }
@@ -253,14 +293,16 @@ std::vector<lowered::ExpressionPtr> get_first_child_shape_infer_expr_seq(const l
                         "Shape infer ops are supposed to be the only consumer.");
         shape_infer_exprs.push_back(start_expr);
     }
-    if (start_expr->get_output_count() == 0)
+    if (start_expr->get_output_count() == 0) {
         return shape_infer_exprs;
+    }
     auto output_consumers = start_expr->get_output_port_connector(0)->get_consumers();
     while (auto shape_infer_child = get_first_shape_infer_expr(output_consumers)) {
         OPENVINO_ASSERT(output_consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
         shape_infer_exprs.push_back(shape_infer_child);
-        if (shape_infer_child->get_output_count() == 0)
+        if (shape_infer_child->get_output_count() == 0) {
             break;
+        }
         output_consumers = shape_infer_child->get_output_port_connector(0)->get_consumers();
     }
     return shape_infer_exprs;
@@ -274,15 +316,17 @@ std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const 
                         "Shape infer ops are supposed to be the only consumer.");
         shape_infer_exprs.push_back(current_exp);
     }
-    if (current_exp->get_input_count() == 0)
+    if (current_exp->get_input_count() == 0) {
         return shape_infer_exprs;
+    }
     auto input = current_exp->get_input_port_connector(0);
     auto first_parent = input->get_source().get_expr();
     while (op::Subgraph::is_shape_infer_op(first_parent->get_node())) {
         shape_infer_exprs.push_back(first_parent);
         current_exp = first_parent;
-        if (current_exp->get_input_count() == 0)
+        if (current_exp->get_input_count() == 0) {
             break;
+        }
         input = current_exp->get_input_port_connector(0);
         first_parent = input->get_source().get_expr();
         if (!ov::is_type<snippets::op::Store>(first_parent->get_node())) {
@@ -296,8 +340,8 @@ std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const 
 
 std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node) {
     auto get_first_shape_infer_node = [](const std::set<ov::Input<ov::Node>>& consumers) -> std::shared_ptr<ov::Node> {
-        for (auto it = consumers.begin(); it != consumers.end(); ++it) {
-            auto node = it->get_node()->shared_from_this();
+        for (const auto& consumer : consumers) {
+            auto node = consumer.get_node()->shared_from_this();
             if (op::Subgraph::is_shape_infer_op(node)) {
                 return node;
             }
@@ -310,14 +354,16 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std
                         "Shape infer ops are supposed to be the only consumer.");
         leaf_node = start_node;
     }
-    if (start_node->get_output_size() == 0)
+    if (start_node->get_output_size() == 0) {
         return leaf_node;
+    }
     auto output_consumers = start_node->get_output_target_inputs(0);
     while (auto first_child = get_first_shape_infer_node(output_consumers)) {
         OPENVINO_ASSERT(output_consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
         leaf_node = first_child;
-        if (leaf_node->get_output_size() == 0)
+        if (leaf_node->get_output_size() == 0) {
             break;
+        }
         output_consumers = leaf_node->get_output_target_inputs(0);
     }
     return leaf_node;
@@ -330,15 +376,17 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const st
                         "Shape infer ops are supposed to be the only consumer.");
         leaf_node = start_node;
     }
-    if (start_node->get_input_size() == 0)
+    if (start_node->get_input_size() == 0) {
         return leaf_node;
+    }
     auto first_parent = start_node->get_input_node_shared_ptr(0);
     while (op::Subgraph::is_shape_infer_op(first_parent)) {
         OPENVINO_ASSERT(first_parent->input(0).get_source_output().get_target_inputs().size() == 1,
                         "Shape infer ops are supposed to be the only consumer.");
         leaf_node = first_parent;
-        if (leaf_node->get_input_size() == 0)
+        if (leaf_node->get_input_size() == 0) {
             break;
+        }
         first_parent = leaf_node->get_input_node_shared_ptr(0);
     }
     return leaf_node;
@@ -378,7 +426,7 @@ void init_strides(const VectorDims& shape, size_t rank, size_t data_size, size_t
 
 void visit_path(const lowered::ExpressionPtr& expr,
                 std::unordered_set<lowered::ExpressionPtr>& visited,
-                std::function<void(lowered::ExpressionPtr)> func,
+                const std::function<void(lowered::ExpressionPtr)>& func,
                 bool visit_parent_path) {
     std::deque<lowered::ExpressionPtr> exprs{expr};
 
@@ -428,6 +476,4 @@ std::string tensor2str(const VectorDims& tensor, const std::string& delimiter) {
     return ss.str();
 }
 
-}  // namespace utils
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::utils

@@ -4,9 +4,9 @@
 
 #include "jit_equation_emitter.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <libxsmm.h>
 #include <libxsmm_typedefs.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -34,12 +34,13 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::x64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-EquationTppEmitter::EquationTppEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : TppEmitter(h, isa, expr),
+EquationTppEmitter::EquationTppEmitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
+    : jit_emitter(h, isa),
+      TppEmitter(h, isa, expr),
       m_num_inputs(expr->get_input_count()) {
     const auto& eq_tpp = ov::as_type_ptr<tpp::op::EquationTPP>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(eq_tpp, "Invalid TPP node type detected");

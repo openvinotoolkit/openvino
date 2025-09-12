@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -24,9 +24,9 @@ namespace ov::intel_cpu::kernel {
 struct jit_rms_compile_params {
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    size_t data_size;
-    float eps;
-    size_t scale_size;
+    size_t data_size = 0UL;
+    float eps = 0.0F;
+    size_t scale_size = 0UL;
 };
 
 struct jit_rms_call_args {
@@ -39,7 +39,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jit_rms_kernel : public JitKernel<jit_rms_compile_params, jit_rms_call_args> {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_rms_kernel)
 
-    static constexpr size_t vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float);
+    static constexpr size_t vec_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen / sizeof(float);
 
     explicit jit_rms_kernel(const jit_rms_compile_params& jcp) : JitKernel(jit_name(), jcp, isa) {}
 

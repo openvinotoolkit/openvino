@@ -23,10 +23,10 @@ struct PoolingAttrs {
     bool exclude_pad = false;
     bool auto_pad = false;
 
-    op::PadType pad_type;
-    Algorithm algorithm;
+    op::PadType pad_type = op::PadType::EXPLICIT;
+    Algorithm algorithm = Algorithm::PoolingMax;
 
-    op::RoundingType rounding;
+    op::RoundingType rounding = op::RoundingType::FLOOR;
 
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> kernel;
@@ -48,7 +48,7 @@ struct PoolingAttrs {
 
 class PoolingExecutor {
 public:
-    PoolingExecutor(ExecutorContext::CPtr context);
+    explicit PoolingExecutor(ExecutorContext::CPtr context);
     virtual bool init(const PoolingAttrs& poolingAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

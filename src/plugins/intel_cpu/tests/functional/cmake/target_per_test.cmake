@@ -15,6 +15,8 @@ function(create_target_per_test_for_directory TEST_DIR TARGET_PREFIX)
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/cpu_test_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/fusing_test_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_fake_quantize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_requantize.cpp
   )
 
 if(X86_64)
@@ -67,6 +69,8 @@ endif()
         file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/x64/${TEST_CLASS_FILE_NAME})
     elseif(ARM OR AARCH64)
         file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/arm/${TEST_CLASS_FILE_NAME})
+    elseif(RISCV64)
+        file(GLOB_RECURSE LIST_OF_TEST_ARCH_INSTANCES ${TEST_DIR}/instances/riscv64/${TEST_CLASS_FILE_NAME})
     endif()
     file(GLOB_RECURSE LIST_OF_TEST_COMMON_INSTANCES ${TEST_DIR}/instances/common/${TEST_CLASS_FILE_NAME})
     set(LIST_OF_TEST_INSTANCES ${LIST_OF_TEST_COMMON_INSTANCES} ${LIST_OF_TEST_ARCH_INSTANCES})

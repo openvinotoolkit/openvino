@@ -366,18 +366,21 @@ inline bool less_or_equal(double a, double b) {
     return less(a, b) || equal(a, b);
 }
 
+template <typename T>
+inline bool value_is_out_of_limits(T value, bool upper_bound_check) {
+    bool out_of_limits = std::isnan(value) || std::isinf(value);
+    out_of_limits |=
+        upper_bound_check ? value >= std::numeric_limits<T>::max() : value <= std::numeric_limits<T>::lowest();
+    return out_of_limits;
+}
+
 template <typename T1, typename T2>
-inline bool is_value_suitable_for_comparation(const double value1, const double value2) {
+inline bool is_value_suitable_for_comparation(const T1 value1, const T2 value2) {
     bool res = true;
-    auto max_val1 = std::numeric_limits<T1>::max();
-    auto min_val1 = std::numeric_limits<T1>::lowest();
-    auto max_val2 = std::numeric_limits<T2>::max();
-    auto min_val2 = std::numeric_limits<T2>::lowest();
-    if (std::isnan(value1) && std::isnan(value2)) {
+
+    if (value_is_out_of_limits<T1>(value1, true) && value_is_out_of_limits<T2>(value2, true)) {
         res = false;
-    } else if ((std::isinf(value1) || value1 >= max_val1) && (std::isinf(value2) || value2 >= max_val2)) {
-        res = false;
-    } else if ((std::isinf(value1) || value1 <= min_val1) && std::isinf(value2) || value2 <= min_val2) {
+    } else if (value_is_out_of_limits<T1>(value1, false) && value_is_out_of_limits<T2>(value2, false)) {
         res = false;
     }
     return res;
@@ -434,7 +437,7 @@ public:
         mvn_results /= tensor_size ? tensor_size : 1;
         if (!incorrect_values_abs.empty() && equal(1.f, topk_threshold) ||
             incorrect_values_abs.size() > static_cast<int>(std::floor(topk_threshold * tensor_size))) {
-            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED!";
+            std::string msg = "[ COMPARATION ] COMPARATION FAILED!";
             msg.append(" abs_threshold: ")
                 .append(std::to_string(abs_threshold))
                 .append(" rel_threshold: ")
@@ -459,13 +462,12 @@ public:
             }
 
             if constexpr (max_num_to_print > 1) {
-                std::cout << i << " of " << incorrect_values_abs.size() << " incorrect elements printed"
-                          << "\n";
+                std::cout << i << " of " << incorrect_values_abs.size() << " incorrect elements printed" << "\n";
             }
 
             throw std::runtime_error(msg);
         } else if (!less_or_equal(mvn_results, mvn_threshold)) {
-            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED due to MVN THRESHOLD: ";
+            std::string msg = "[ COMPARATION ] COMPARATION FAILED due to MVN THRESHOLD: ";
             msg += std::to_string(mvn_threshold);
             msg += ". Actual MVN value is ";
             msg += std::to_string(mvn_results);
@@ -579,8 +581,8 @@ void compare(const ov::Tensor& expected,
     const auto expected_data = expected.data<ExpectedT>();
     const auto actual_data = actual.data<ActualT>();
     for (size_t i = 0; i < shape_size_cnt; ++i) {
-        double expected_value = expected_data[i];
-        double actual_value = actual_data[i];
+        auto expected_value = expected_data[i];
+        auto actual_value = actual_data[i];
         if (!tensor_comparation::is_value_suitable_for_comparation<ExpectedT, ActualT>(expected_value, actual_value)) {
             continue;
         }

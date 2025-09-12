@@ -135,6 +135,11 @@ def test_input_update_rt_info(device):
         assert key == "test12345"
         assert isinstance(value, OVAny)
 
+    input_node.set_rt_info("value", "key")
+    assert input_node.get_rt_info()["key"] == "value"
+    input_node.rt_info["test_key"] = "test_value"
+    assert input_node.rt_info["test_key"] == "test_value"
+
 
 def test_tensor_bounds_in_model(device):
     core = Core()

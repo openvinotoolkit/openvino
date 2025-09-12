@@ -18,7 +18,7 @@ class DetectionOutput : public Node {
 public:
     DetectionOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     [[nodiscard]] bool created() const override;
@@ -44,12 +44,12 @@ private:
     bool isShareLoc = false;
     int locNumForClasses = 0;
     bool withAddBoxPred = false;
-    float objScore = 0.0f;
+    float objScore = 0.0F;
 
-    float confidenceThreshold = 0.0f;
-    float sparsityThreshold = 0.03f;
+    float confidenceThreshold = 0.0F;
+    float sparsityThreshold = 0.03F;
     int topK = 0;
-    float NMSThreshold = 0.0f;
+    float NMSThreshold = 0.0F;
     bool clipBeforeNMS = false;
     bool clipAfterNMS = false;
     int backgroundClassId = 0;

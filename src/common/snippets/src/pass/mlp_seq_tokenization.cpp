@@ -4,20 +4,38 @@
 
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 
-#include "openvino/core/rt_info.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+
+#include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 namespace {
 
@@ -37,7 +55,7 @@ size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
         const auto is_scalar = constant && (ov::shape_size(input.get_shape()) == 1);
         const auto should_be_inside_body =
             constant && ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op);
-        if (!(is_scalar || should_be_inside_body)) {
+        if (!is_scalar && !should_be_inside_body) {
             count++;
         }
     }
@@ -106,7 +124,6 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
             // we should calculate potential number of non-scalar Constants that will be moved up from body.
             // Heuiristic count of possible buffers - upper-bound value
             const size_t unique_buffer_reg_group_count = 2;
-            std::string fused_names;
             ov::NodeVector ordered_ops;
 
             /* ======== Matcher Pass ========== */
@@ -178,8 +195,9 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
 
                 // TODO [75567]: move this plugin-specific constraint to the plugin callback
                 // +1 - for result
-                if (current_potential_body_params_count + unique_buffer_reg_group_count + 1 > available_regs)
+                if (current_potential_body_params_count + unique_buffer_reg_group_count + 1 > available_regs) {
                     break;
+                }
 
                 ordered_ops.push_back(interm_op);
                 prev_op = interm_op;
@@ -192,10 +210,11 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
             // Currently, sequence of MLP should contain 2 MatMuls at least
             size_t mm_count = 0;
             for (const auto& op : ordered_ops) {
-                mm_count += (ov::is_type<ov::op::v0::MatMul>(op));
+                mm_count += static_cast<size_t>(ov::is_type<ov::op::v0::MatMul>(op));
             }
-            if (mm_count < 2)
+            if (mm_count < 2) {
                 return false;
+            }
 
             /* ====== Subgraph creation ======= */
 
@@ -208,6 +227,4 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
         });
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

@@ -4,12 +4,14 @@
 
 #pragma once
 
-#include "pass.hpp"
+#include <cstddef>
+#include <map>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/rtti.hpp"
+#include "pass.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface NormalizeLoopIDs
@@ -30,19 +32,16 @@ namespace pass {
 class NormalizeLoopIDs : public Pass {
 public:
     OPENVINO_RTTI("NormalizeLoopIDs", "", Pass);
-    NormalizeLoopIDs(bool has_specific_loops = true) : m_has_specific_loops(has_specific_loops) {}
+    explicit NormalizeLoopIDs(bool has_specific_loops = true) : m_has_specific_loops(has_specific_loops) {}
     bool run(lowered::LinearIR& linear_ir) override;
 
 private:
     // [ original Loop ID -> new normalized and sorted ]
     using IDMapper = std::map<size_t, size_t>;
 
-    static void update_linear_ir(lowered::LinearIR& linear_ir, const IDMapper& loop_ids);
+    static void update_linear_ir(lowered::LinearIR& linear_ir, const IDMapper& loop_id_map);
 
     bool m_has_specific_loops = true;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

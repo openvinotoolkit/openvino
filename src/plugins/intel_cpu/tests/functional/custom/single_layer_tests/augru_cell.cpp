@@ -6,6 +6,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
 
@@ -27,23 +28,8 @@ class AUGRUCellCPUTest : public testing::WithParamInterface<AUGRUCellCpuSpecific
                          public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<AUGRUCellCpuSpecificParams>& obj) {
-        std::vector<InputShape> inputShapes;
-        bool decompose, linearBeforeReset;
-        std::vector<std::string> activations;
-        float clip = 0.f;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes,
-                 decompose,
-                 activations,
-                 clip,
-                 linearBeforeReset,
-                 netPrecision,
-                 cpuParams,
-                 additionalConfig) = obj.param;
-
+        const auto &[inputShapes, decompose, activations, clip, linearBeforeReset, netPrecision, cpuParams,
+                     additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
@@ -76,22 +62,8 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> inputShapes;
-        bool decompose, linearBeforeReset;
-        std::vector<std::string> activations;
-        float clip = 0.f;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes,
-                 decompose,
-                 activations,
-                 clip,
-                 linearBeforeReset,
-                 netPrecision,
-                 cpuParams,
-                 additionalConfig) = this->GetParam();
+        const auto &[inputShapes, decompose, activations, clip, linearBeforeReset, netPrecision, cpuParams,
+                     additionalConfig] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         targetDevice = ov::test::utils::DEVICE_CPU;
 
@@ -102,7 +74,7 @@ protected:
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
             abs_threshold = 2e-2;
         } else {

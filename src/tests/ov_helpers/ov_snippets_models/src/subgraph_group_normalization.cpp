@@ -3,7 +3,12 @@
 //
 
 #include "subgraph_group_normalization.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include <snippets/op/subgraph.hpp>
+#include <snippets/op/reshape.hpp>
+#include <snippets/op/reduce.hpp>
+#include <snippets/op/powerstatic.hpp>
+#include <snippets/op/scalar.hpp>
 
 namespace ov {
 namespace test {
@@ -27,7 +32,7 @@ std::shared_ptr<ov::Model> GroupNormalizationFunction::initReference() const {
     const auto groupNormalization = std::make_shared<ov::op::v12::GroupNormalization>(data_, scale_, shift_, num_groups, epsilon);
 
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
-        NodeVector{data, scale, shift},
+        OutputVector{data, scale, shift},
         std::make_shared<ov::Model>(OutputVector{groupNormalization}, ParameterVector{data_, scale_, shift_}));
 
     return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{data, scale, shift});

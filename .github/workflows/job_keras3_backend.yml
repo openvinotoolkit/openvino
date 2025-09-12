@@ -7,11 +7,11 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Docker image to use for the job'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
       python-version:
         description: 'Python version to setup. E.g., "3.11"'
         type: string
@@ -31,33 +31,27 @@ jobs:
       run:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
     runs-on: ${{ inputs.runner }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       KERAS_REPO: ${{ github.workspace }}/keras_repo
       KERAS_HOME: ${{ github.workspace }}/keras_repo/.github/workflows/config/openvino
 
     steps:
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: |
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
-          echo "KERAS_REPO=$GITHUB_WORKSPACE/keras" >> "$GITHUB_ENV"
-          echo "KERAS_HOME=$GITHUB_WORKSPACE/keras/.github/workflows/config/openvino" >> "$GITHUB_ENV"
-
-      - name: Fetch setup_python and install wheels actions
+      # checkout action cleans up the workspace and have to be the first step
+      - name: Fetch custom actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           sparse-checkout: |
-            .github/actions/setup_python/action.yml
-            .github/actions/install_ov_wheels/action.yml
+            .github/actions
           sparse-checkout-cone-mode: false
-          path: 'openvino'
+          submodules: 'false'
 
       - name: Clone Keras 3 repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -68,14 +62,19 @@ jobs:
           ref: 'master'
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[wheels|openvino_tokenizers]*
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
+          name: openvino_wheels
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO artifacts (tokenizers_wheel)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Setup Python ${{ inputs.python-version }}
-        uses: ./openvino/.github/actions/setup_python
+        uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
@@ -83,14 +82,15 @@ jobs:
           self-hosted-runner: ${{ runner.os != 'macOS' }}
 
       - name: Install OpenVINO Python wheels
-        uses: ./openvino/.github/actions/install_ov_wheels
+        uses: ./.github/actions/install_ov_wheels
         with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino openvino_tokenizers'
 
       - name: Install test dependencies
         working-directory: ${{ env.KERAS_REPO }}
         run: |
+          pip install --upgrade pip setuptools
           pip install -r requirements.txt --upgrade
           # make sure that no other keras is installed via pip
           pip uninstall -y keras keras-nightly

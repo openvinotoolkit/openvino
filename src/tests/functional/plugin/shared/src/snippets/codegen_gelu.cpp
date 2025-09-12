@@ -3,25 +3,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/common_utils.hpp"
-#include "openvino/op/gelu.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/pass/constant_folding.hpp"
 #include "snippets/codegen_gelu.hpp"
-#include "subgraph_simple.hpp"
+
+#include "common_test_utils/common_utils.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "openvino/op/add.hpp"
+#include "subgraph_gelu.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-    std::string CodegenGelu::getTestCaseName(testing::TestParamInfo<ov::test::snippets::CodegenGeluParams> obj) {
-        ov::element::Type_t netPrecision;
-        InputShape inputShapes0, inputShapes1;
-        bool useSubgraph;
-        std::string targetDevice;
-        std::tie(netPrecision, inputShapes0, inputShapes1, useSubgraph, targetDevice) = obj.param;
+    std::string CodegenGelu::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::CodegenGeluParams>& obj) {
+        const auto& [netPrecision, inputShapes0, inputShapes1, useSubgraph, targetDevice] = obj.param;
 
         std::ostringstream result;
         result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes0.first}) << "_";
@@ -42,32 +36,21 @@ namespace snippets {
 
     // Gelu from bert-large-uncased-whole-word-masking-squad-fp32-onnx-0001
     void CodegenGelu::SetUp() {
-        InputShape inputShape0, inputShapes1;
-        ov::element::Type_t netPrecision;
-        bool useSubgraph;
-        std::tie(netPrecision, inputShape0, inputShapes1, useSubgraph, targetDevice) = this->GetParam();
+        auto [netPrecision, inputShape0, inputShape1, useSubgraph, targetDeviceValue] = this->GetParam();
+        targetDevice = targetDeviceValue;
 
-        init_input_shapes({inputShape0, inputShapes1});
+        init_input_shapes({inputShape0, inputShape1});
 
-        auto input0 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0]);
-        auto input1 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[1]);
-        auto add = std::make_shared<ov::op::v1::Add>(input0, input1);
+        auto f = ov::test::snippets::CodegenGeluFunction(inputDynamicShapes, netPrecision);
+        function = f.getOriginal();
 
-        auto gelu = std::make_shared<ov::op::v0::Gelu>(add);
-        auto result = std::make_shared<ov::op::v0::Result>(gelu);
-
-        function = std::make_shared<ov::Model>(
-            ov::ResultVector{result},
-            ov::ParameterVector{input0, input1},
-            "CodegenGelu");
+        setInferenceType(netPrecision);
 
         if (useSubgraph) {
             ov::pass::InitNodeInfo().run_on_model(function);
             ov::pass::ConstantFolding().run_on_model(function);
         }
-        if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-        }
+        setIgnoreCallbackMode();
     }
 
 TEST_P(CodegenGelu, CompareWithRefImpl) {

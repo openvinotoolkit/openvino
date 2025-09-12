@@ -41,7 +41,7 @@ private:
         VectorDims dims;
         VectorDims srcStrides;
         VectorDims dstStrides;
-        size_t copySize;
+        size_t copySize = 0UL;
     } optimizedParams;
 };
 

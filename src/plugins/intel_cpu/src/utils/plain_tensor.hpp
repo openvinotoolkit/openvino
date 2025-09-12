@@ -89,6 +89,11 @@ struct precision_of<uint8_t> {
 };
 
 template <>
+struct precision_of<int8_t> {
+    static constexpr ov::element::Type_t value = ov::element::Type_t::i8;
+};
+
+template <>
 struct precision_of<float16> {
     static constexpr ov::element::Type_t value = ov::element::Type_t::f16;
 };
@@ -107,7 +112,7 @@ struct PlainTensor {
     ov::element::Type_t m_dt = ov::element::Type_t::dynamic;
     MemoryPtr m_mem;  // hold memory ptr reference
 
-    operator bool() const {
+    explicit operator bool() const {
         return m_ptr != nullptr;
     }
 
@@ -119,11 +124,11 @@ struct PlainTensor {
         if (i < 0) {
             i += m_rank;
         }
-        assert(static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
+        assert(static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
         return m_dims[i];
     }
     [[nodiscard]] size_t stride(int i) const {
-        assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
+        assert(i >= 0 && static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
         return m_strides[i];
     }
 
@@ -140,7 +145,7 @@ struct PlainTensor {
         return strides;
     }
 
-    PlainTensor(const MemoryPtr& mem) {
+    explicit PlainTensor(const MemoryPtr& mem) {
         reset(mem);
     }
 
@@ -188,7 +193,7 @@ struct PlainTensor {
         int start;
         int end;
         int step;
-        int count;
+        int count = 0;
         // select all
         tensor_index() : start(0), end(INT_MAX), step(1) {}
         [[nodiscard]] bool slice_with_squeeze() const {
@@ -196,7 +201,7 @@ struct PlainTensor {
         }
         // tensor_index(start)            : select 1 element (with squeeze)
         // tensor_index(start, end, step) : select a range w/o squeeze
-        tensor_index(int start, int end = INT_MIN, int step = 1) : start(start), end(end), step(step) {}
+        explicit tensor_index(int start, int end = INT_MIN, int step = 1) : start(start), end(end), step(step) {}
 
         void regularize(int size) {
             if (start < 0) {
@@ -252,7 +257,7 @@ struct PlainTensor {
     // slice: return a sub-view (w/o ownership/refcount to original data)
     [[nodiscard]] PlainTensor slice(int axis, int start, int end, int step = 1) const {
         PlainTensor sub_tensor;
-        assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
+        assert(axis >= 0 && static_cast<std::make_unsigned_t<decltype(axis)>>(axis) < m_rank);
 
         sub_tensor.m_capacity = 0;
         if (end > start) {
@@ -372,9 +377,7 @@ struct PlainTensor {
                 ptr = _aligned_malloc(capacity_new, 64);
 #else
                 int rc = ::posix_memalign(&ptr, 64, capacity_new);
-                if (rc) {
-                    OPENVINO_ASSERT(false, "PlainTensor call posix_memalign failed: ", rc);
-                }
+                OPENVINO_ASSERT(rc == 0, "PlainTensor call posix_memalign failed: ", rc);
 #endif
                 m_ptr = std::shared_ptr<uint8_t>(static_cast<uint8_t*>(ptr), [](uint8_t* ptr) {
 #ifdef _WIN32
@@ -399,7 +402,7 @@ struct PlainTensor {
     }
 
     [[nodiscard]] size_t sub_byte_data_type_multiplier() const {
-        if (one_of(m_dt, ov::element::i4, ov::element::u4)) {
+        if (any_of(m_dt, ov::element::i4, ov::element::u4)) {
             return 2;
         }
         return 1;
@@ -410,34 +413,19 @@ struct PlainTensor {
         return m_offset;
     }
     template <int dim, typename I>
-    [[nodiscard]] [[nodiscard]] int64_t offset(I i) const {
+    [[nodiscard]] int64_t offset(I i) const {
         return m_offset + i * m_strides[dim];
     }
     template <int dim, typename I, typename... Is>
-    [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] int64_t offset(
-        I i,
-        Is... indices) const {
+    [[nodiscard]] int64_t offset(I i, Is... indices) const {
         return i * m_strides[dim] + offset<dim + 1>(indices...);
     }
-    template <typename DT, typename... Is>
+
+    template <typename DT, ov::element::Type_t SRC_PREC = ov::element::u8, typename... Is>
     [[nodiscard]] DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
-    }
-
-    template <typename DT,
-              ov::element::Type_t SRC_PREC,
-              std::enable_if_t<SRC_PREC != ov::element::u4, bool> = true,
-              typename... Is>
-    DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
-    }
-
-    template <typename DT,
-              ov::element::Type_t SRC_PREC,
-              std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true,
-              typename... Is>
-    DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...) / 2;
+        constexpr size_t stride_div = SRC_PREC == ov::element::u4 ? 2 : 1;
+        const size_t off = offset<0>(indices...) / stride_div;
+        return reinterpret_cast<DT*>(m_ptr.get()) + off;
     }
 
     template <typename... Is>
@@ -447,7 +435,7 @@ struct PlainTensor {
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
     template <typename DT>
-    [[nodiscard]] [[nodiscard]] DT& at(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
+    [[nodiscard]] DT& at(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
         size_t off = 0;
         const auto* it = index.begin();
         for (size_t i = 0; i < m_rank; i++) {

@@ -29,18 +29,9 @@ using DFTLayerGPUTestParams = std::tuple<std::vector<InputShape>,
 class DFTLayerGPUTest : public testing::WithParamInterface<std::tuple<ov::element::Type, DFTLayerGPUTestParams>>,
                            virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<ov::element::Type, DFTLayerGPUTestParams>> obj) {
-        ov::element::Type precision;
-        DFTLayerGPUTestParams params;
-        std::vector<InputShape> shapes;
-        std::vector<std::vector<int64_t>> axes;
-        std::vector<std::vector<int64_t>> signalSizes;
-        bool inverse, real;
-        bool constAxes, constSignalSizes;
-        std::string targetDevice;
-
-        std::tie(precision, params) = obj.param;
-        std::tie(shapes, axes, signalSizes, inverse, real, constAxes, constSignalSizes, targetDevice) = params;
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<ov::element::Type, DFTLayerGPUTestParams>>& obj) {
+        const auto& [precision, params] = obj.param;
+        const auto& [shapes, axes, signalSizes, inverse, real, constAxes, constSignalSizes, targetDevice] = params;
 
         std::ostringstream result;
         result << "prec=" << precision;
@@ -79,14 +70,15 @@ public:
 
 protected:
     void SetUp() override {
-        ov::element::Type precision;
-        DFTLayerGPUTestParams params;
-        std::vector<InputShape> shapes;
-        bool inverse, real;
         inputIdx = 0;
 
-        std::tie(precision, params) = GetParam();
-        std::tie(shapes, axes, signalSizes, inverse, real, constAxes, constSignalSizes, targetDevice) = params;
+        const auto& [precision, params] = GetParam();
+        const auto& [shapes, _axes, _signalSizes, inverse, real, _constAxes, _constSignalSizes, _targetDevice] = params;
+        axes = _axes;
+        signalSizes = _signalSizes;
+        constAxes = _constAxes;
+        constSignalSizes = _constSignalSizes;
+        targetDevice = _targetDevice;
 
         if (shapes.size() > 1) {
             ASSERT_EQ(shapes[0].second.size(), shapes[1].second.size());

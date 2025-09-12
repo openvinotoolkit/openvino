@@ -9,6 +9,7 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
+#include "convolution_shape_inference.hpp"
 
 #include "utils.hpp"
 
@@ -30,11 +31,7 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
     auto input_layout = impl_params.get_input_layout(0);
     auto weights_layout = impl_params.get_input_layout(1);
     auto output_layout = impl_params.get_output_layout();
-
-    dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
-    dnnl::memory::dims dilation(prim->dilation.begin(), prim->dilation.end());
-    dnnl::memory::dims pad_l(prim->padding_begin.begin(), prim->padding_begin.end());
-    dnnl::memory::dims pad_r(prim->padding_end.begin(), prim->padding_end.end());
+    auto auto_pad = prim->auto_pad;
 
     // issue: it could not find the implementation for 1d kernel GroupConvolution from onednn.
     // root-cause: 3d tensor of input/output is changed to 4d via ngraph.
@@ -58,20 +55,47 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
         weights_layout.format = format::get_default_format(weights_layout.get_rank() + 1, true, true);
     }
 
-    auto input_md = onednn::layout_to_memory_desc(input_layout, tag_in_out);
-    auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
-    auto output_md = onednn::layout_to_memory_desc(output_layout, tag_in_out);
+    auto [input_md, weights_md, output_md] = onednn::get_conv_memory_descs(input_layout, weights_layout, output_layout, tag_in_out);
 
-    // adjust_conv_dilation_pad(dilation, stride, pad_l, pad_r, input_md, output_md, weights_md, grouped_weights);
-    for (size_t i = 0; i < dilation.size(); i++) {
-        dilation[i]--;
-        int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
-        auto os = output_md.get_dims()[2 + i];
-        auto is = input_md.get_dims()[2 + i];
-        auto ks = weights_md.get_dims()[weights_offset];
-        auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
-        pad_r[i] = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
+    dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
+    dnnl::memory::dims dilation(prim->dilation.begin(), prim->dilation.end());
+    dnnl::memory::dims pad_l(prim->padding_begin.begin(), prim->padding_begin.end());
+    dnnl::memory::dims pad_r(prim->padding_end.begin(), prim->padding_end.end());
+
+    if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
+        ov::op::v1::Convolution op;
+        op.set_dilations(prim->dilation);
+        op.set_strides(prim->stride);
+        op.set_auto_pad(auto_pad);
+        const auto spatial_rank = input_layout.get_spatial_rank();
+
+        ov::PartialShape kernel;
+        for (int32_t i = static_cast<int32_t>(spatial_rank) - 1; i >= 0; i--) {
+            kernel.emplace_back(weights_layout.spatial(i));
+        }
+
+        ov::op::convolution::apply_auto_pad(&op,
+                                            input_layout.get_partial_shape(),
+                                            kernel,
+                                            pad_l.begin(),
+                                            pad_r.begin());
+        for (size_t i = 0; i < dilation.size(); i++) {
+            dilation[i]--;
+        }
+    } else {
+        // adjust_conv_dilation_pad(dilation, stride, pad_l, pad_r, input_md, output_md, weights_md, grouped_weights);
+        for (size_t i = 0; i < dilation.size(); i++) {
+            dilation[i]--;
+            int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
+            auto os = output_md.get_dims()[2 + i];
+            auto is = input_md.get_dims()[2 + i];
+            auto ks = weights_md.get_dims()[weights_offset];
+            auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
+            pad_r[i] = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
+        }
     }
+
+
 
     // Extend conv parameters in case if spatials rank of output memory doesn't match size of parameters
     int64_t insert_count = static_cast<int64_t>(output_md.get_dims().size()) - 2 - stride.size();
@@ -83,7 +107,7 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
     }
 
     if (prim->bias.is_valid()) {
-        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
+        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, onednn::mem_flags::flatten);
         return std::make_shared<dnnl::convolution_forward::primitive_desc>(
             engine.get_onednn_engine(),
             dnnl::prop_kind::forward_inference,
@@ -154,7 +178,7 @@ protected:
                 a_zp = a_zp_node.get_attached_memory_ptr();
             }
 
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
+            dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: "
@@ -163,7 +187,7 @@ protected:
 
         if (instance.weights_zero_points_term()) {
             auto w_zp = instance.weights_zero_points_memory();
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
+            dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: "
@@ -295,9 +319,10 @@ public:
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
 
-        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
-        auto weights_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1), dnnl::memory::format_tag::any);
-        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout(), dnnl::memory::format_tag::undef);
+        auto [input_md, weights_md, output_md] = onednn::get_conv_memory_descs(impl_params->get_input_layout(0),
+                                                                                impl_params->get_input_layout(1),
+                                                                                impl_params->get_output_layout(),
+                                                                                dnnl::memory::format_tag::undef);
 
         dnnl::memory::dims strides;
         dnnl::memory::dims dilates;
@@ -327,7 +352,7 @@ public:
                                     *_attrs.get());
             _pd = *prim_desc;
         } else {
-            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, true);
+            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, onednn::mem_flags::flatten);
             auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
                                     ib.get_engine().get_onednn_engine(),
                                     dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,

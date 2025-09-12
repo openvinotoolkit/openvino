@@ -4,12 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 // To avoid cycle-dependancy of includes, we forward-declare LoopManager
 class LoopManager;
@@ -83,6 +89,4 @@ protected:
 };
 using BufferExpressionPtr = std::shared_ptr<BufferExpression>;
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

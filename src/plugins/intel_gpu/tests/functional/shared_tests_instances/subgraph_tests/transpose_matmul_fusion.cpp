@@ -21,12 +21,8 @@ using TransposeMatMulFusionParams = std::tuple<ov::PartialShape,  // input A sha
 class TransposeMatMulFusionOnGPU: public testing::WithParamInterface<TransposeMatMulFusionParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeMatMulFusionParams> obj) {
-        ov::PartialShape input0;
-        ov::PartialShape input1;
-        bool is_fused;
-
-        std::tie(input0, input1, is_fused) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeMatMulFusionParams>& obj) {
+        const auto& [input0, input1, is_fused] = obj.param;
 
         std::ostringstream result;
         result << "device=(" << std::string(utils::DEVICE_GPU) << ")_";
@@ -39,11 +35,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        ov::PartialShape shape1;
-        ov::PartialShape shape2;
-        bool is_fused;
-
-        std::tie(shape1, shape2, is_fused) = GetParam();
+        const auto& [shape1, shape2, is_fused] = GetParam();
 
         InputShape input_shape1 = {shape1, {shape1.get_shape()}};
         InputShape input_shape2 = {shape2, {shape2.get_shape()}};
@@ -61,9 +53,9 @@ protected:
     }
 
     void TearDown() override {
-        bool is_fused;
-
-        std::tie(std::ignore, std::ignore, is_fused) = GetParam();
+        const auto& [_ignore, _ignore1, is_fused] = GetParam();
+        std::ignore = _ignore;
+        std::ignore = _ignore1;
 
         const auto model = compiledModel.get_runtime_model();
         int num_ops = 0;
@@ -115,12 +107,8 @@ using MatMulTransposeFusionParams = std::tuple<ov::PartialShape,  // input A sha
 class MatMulTransposeFusionOnGPU: public testing::WithParamInterface<MatMulTransposeFusionParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatMulTransposeFusionParams> obj) {
-        ov::PartialShape input0;
-        ov::PartialShape input1;
-        ov::PartialShape input2;
-
-        std::tie(input0, input1, input2) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulTransposeFusionParams>& obj) {
+        const auto& [input0, input1, input2] = obj.param;
 
         std::ostringstream result;
         result << "device=(" << std::string(utils::DEVICE_GPU) << ")_";
@@ -133,11 +121,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        ov::PartialShape shape1;
-        ov::PartialShape shape2;
-        ov::PartialShape shape3;
-
-        std::tie(shape1, shape2, shape3) = GetParam();
+        const auto& [shape1, shape2, shape3] = GetParam();
 
         InputShape input_shape1 = {shape1, {shape1.get_shape()}};
         InputShape input_shape2 = {shape2, {shape2.get_shape()}};
