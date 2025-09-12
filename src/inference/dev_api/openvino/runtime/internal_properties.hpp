@@ -91,6 +91,18 @@ static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUER
 static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};
 
 /**
+ * @brief Read-write property to pass the cache blob hash ID to Core from AUTO
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> cache_hash_id{"CACHE_HASH_ID"};
+
+/**
+ * @brief Read-write property to pass the model path to Core from AUTO for caching purposes.
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> cache_model_path{"CACHE_MODEL_PATH"};
+
+/**
  * @brief Enum to define possible cache quant schema hints.
  */
 enum class CacheQuantMode { AUTO = 0, BY_CHANNEL = 1, BY_TOKEN = 2 };

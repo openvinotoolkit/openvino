@@ -172,6 +172,15 @@ bool is_large_language_model(const ov::Model& model, std::function<bool(std::sha
     return false;
 }
 
+bool is_stateful_model(const ov::Model& model) {
+    for (const auto& op : model.get_ops()) {
+        if (ov::as_type_ptr<ov::op::util::AssignBase>(op) || ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool check_for_broadcast(const ov::PartialShape& ref_shape, const ov::PartialShape& other_shape) {
     if (ref_shape.rank().is_dynamic() || other_shape.rank().is_dynamic()) {
         return false;
