@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <unordered_map>
 
 #include "openvino/core/core_visibility.hpp"
@@ -94,5 +95,4 @@ OPENVINO_API void set_tensors_names(const AutoTag&,
                                     Model& model,
                                     const TensorNamesMap& inputs_names = {},
                                     const TensorNamesMap& outputs_names = {});
-
 }  // namespace ov::util
