@@ -49,7 +49,7 @@ void prepare_padding::run(program& p) {
                     std::vector<ov::Dimension::value_type> new_paddings(const_shape.size(), 0);
                     new_paddings[inner_most_idx] = 1;
                     weight_out_layout.data_padding = padding::max(weight_out_layout.data_padding, padding({0}, new_paddings));
-                    auto weights_reorder_params = std::make_shared<WeightsReorderParams>(weight_layout, weight_out_layout, false, false);
+                    auto weights_reorder_params = std::make_shared<WeightsReorderParams>(weight_in_layout, weight_out_layout, false, false);
 
                     auto new_reorder = std::make_shared<reorder>("padding_reorder_for_" + weight_node.id(),
                                                                     weight_node.id(), weights_reorder_params);
