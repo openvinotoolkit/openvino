@@ -114,7 +114,7 @@ MemoryCounters MemoryCounters::sample() {
 #endif
 
 
-std::string jsonescape(const std::string &str) {
+inline std::string jsonescape(const std::string &str) {
     std::string newstr;
     newstr.reserve(str.size() * 2);
     for (auto chr: str) {
