@@ -182,6 +182,9 @@ public:
         offset += has_second_output();
         return dep_memory_ptr(offset);
     }
+
+private:
+    void on_execute() override;
 };
 
 using non_max_suppression_inst = typed_primitive_inst<non_max_suppression>;

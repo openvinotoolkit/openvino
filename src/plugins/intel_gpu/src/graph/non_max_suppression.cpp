@@ -85,6 +85,13 @@ std::string non_max_suppression_inst::to_string(non_max_suppression_node const& 
     return description.str();
 }
 
+void non_max_suppression_inst::on_execute() {
+    //fill second output to be sure that in case of not executing valid_outputs will be 0
+    const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
+    auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                     : std::vector<event::ptr>{};
+    add_dep_event(_outputs[2]->fill(get_network().get_stream(), dep_events));
+}
 // -----------------------------------------------
 // non_max_suppression_gather
 // -----------------------------------------------
@@ -107,8 +114,11 @@ std::vector<layout> non_max_suppression_gather_inst::calc_output_layouts(non_max
         auto third_output = memory_deps.at(2);
         cldnn::mem_lock<int32_t, mem_lock_type::read> third_output_lock(third_output, impl_param.get_stream());
         auto third_output_data = third_output_lock.data();
-
+        std::cout << "third_output_lock.data()" << third_output_lock.data() << "val is " << third_output_data[0] << std::endl;
         output_shapes[0] = ShapeType{third_output_data[0], 3};
+        if (impl_param.get_input_layout(0).get_partial_shape().is_static() && impl_param.get_input_layout(0).get_shape()[0] == 0) {
+            output_shapes[0] = ShapeType{0, 3};
+        }
     } else {
         output_shapes[0] = ShapeType{ov::Dimension::dynamic(), 3};
     }
