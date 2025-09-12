@@ -23,6 +23,9 @@ import utils
 
 import openvino as ov
 
+#-S-
+import providers.ov.test
+
 def ov_layout_to_string(layout : ov.Layout):
     return ''.join(layout.to_string()[1:-1].split(","))
 

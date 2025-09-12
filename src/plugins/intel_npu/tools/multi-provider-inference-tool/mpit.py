@@ -13,7 +13,7 @@ import textwrap
 
 from pathlib import Path
 
-from providers import mpit_providers
+from providers import plugin_loader
 from params import UseCaseFiles
 from params import Config
 from params import FilesStorage
@@ -125,7 +125,7 @@ def serialize_inference_output_artefacts(serializer, provider_name, output_tenso
 if __name__ == "__main__":
     loader = None
     try:
-        loader = mpit_providers.ProviderFactory()
+        loader = plugin_loader.ProviderFactory()
     except Exception as ex:
         print(f"ERROR: The application is inoperable, error: {ex}", file=sys.stderr)
         exit(-1)
