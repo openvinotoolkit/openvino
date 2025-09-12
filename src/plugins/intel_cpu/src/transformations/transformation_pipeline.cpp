@@ -1197,14 +1197,18 @@ void Transformations::MainSnippets() {
     // shouldn't tokenize dynamic Subgraphs - it will lead to performance degradations
     bool is_dynamic_mha_token_enabled = config.snippetsCacheCapacity != 0;
 #if defined(OPENVINO_ARCH_ARM64)
-    // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform
-    // register, 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
-    size_t data_ptr_gpr_count = 23;
+    // ARM has 32 gprs, but the following registers should be excluded from available registers:
+    // - abi_param1: used for runtime parameters
+    // - X18: platform register
+    // - 2 (SP, X29) stack related registers
+    // - 3 (X_TMP_0, X_TMP_1, X_DEFAULT_ADDR) registers for temporary use
+    size_t available_gprs_count = 25;
     snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #elif defined(OPENVINO_ARCH_X86_64)
-    // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
-    // and 2 stack related registers, it has 11 remaining registers.
-    size_t data_ptr_gpr_count = 11;
+    // X64 has 16 gprs, but the following registers should be excluded from available registers:
+    // - abi_param1: used for runtime parameters
+    // - RSP: stack related register
+    size_t available_gprs_count = 14;
     auto supported_as_postop = [this](const std::shared_ptr<const ov::op::v0::MatMul>& matmul,
                                       const std::shared_ptr<const ov::Node>& node) {
         if (!pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(node)) {
@@ -1220,7 +1224,7 @@ void Transformations::MainSnippets() {
         return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(input_precision);
     };
 #else
-    size_t data_ptr_gpr_count = 0;
+    size_t available_gprs_count = 0;
     snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
@@ -1230,7 +1234,7 @@ void Transformations::MainSnippets() {
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = {4};
     snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency,
-                                                                     data_ptr_gpr_count,
+                                                                     available_gprs_count,
                                                                      split_m_dimension,
                                                                      mha_token_enable_transpose_on_output,
                                                                      is_dynamic_mha_token_enabled,
