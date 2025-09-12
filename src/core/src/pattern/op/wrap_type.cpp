@@ -14,6 +14,7 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
                                                   const Output<Node>& graph_value) {
     // Check output indices match (for single-output nodes both will be 0)
     if (pattern_value.get_index() != graph_value.get_index()) {
+        OPENVINO_LOG_WRAPTYPE0(matcher, pattern_value, graph_value);
         return false;
     }
 
