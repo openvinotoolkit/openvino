@@ -496,7 +496,7 @@ void regclass_graph_Model(py::module m) {
 
             // Check if input is a dict
             if (py::isinstance<py::dict>(shapes)) {
-                // Handle dict case - similar to lines 842-911
+                // Handle dict case
                 py::dict shapes_dict = shapes.cast<py::dict>();
                 for (const auto& item : shapes_dict) {
                     new_shapes.emplace_hint(new_shapes.end(),
