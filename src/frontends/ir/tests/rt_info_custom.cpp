@@ -12,18 +12,6 @@
 
 namespace ov {
 namespace test {
-namespace {
-
-std::string get_prefixed_name(const std::string& custom_name) {
-    return std::string{util::rt_map_user_data_prefix} + custom_name;
-}
-Any& get_user_data(AnyMap& rt_map, const std::string& custom_name) {
-    return rt_map.at(get_prefixed_name(custom_name));
-}
-const Any& get_user_data(const AnyMap& rt_map, const std::string& custom_name) {
-    return rt_map.at(get_prefixed_name(custom_name));
-}
-}  // namespace
 
 TEST(RTInfoCustom, simple_entries) {
     std::string ref_ir_xml = R"V0G0N(
@@ -92,14 +80,14 @@ TEST(RTInfoCustom, simple_entries) {
 
         OV_ASSERT_NO_THROW(value = param_rti.at("fused_names_0").as<std::string>());
         EXPECT_EQ(value.compare("the_name"), 0);
-        OV_ASSERT_NO_THROW(value = get_user_data(param_rti, "fused_names_0").as<std::string>());
+        OV_ASSERT_NO_THROW(value = util::rt_info_get_user_data(param_rti, "fused_names_0").as<std::string>());
         EXPECT_EQ(value.compare("a_name"), 0);
-        OV_ASSERT_NO_THROW(value = get_user_data(param_rti, "fused_names").as<std::string>());
+        OV_ASSERT_NO_THROW(value = util::rt_info_get_user_data(param_rti, "fused_names").as<std::string>());
         EXPECT_EQ(value.compare("b_name"), 0);
 
-        OV_ASSERT_NO_THROW(value = get_user_data(param_rti, "infoA").as<std::string>());
+        OV_ASSERT_NO_THROW(value = util::rt_info_get_user_data(param_rti, "infoA").as<std::string>());
         EXPECT_EQ(value.compare("A"), 0);
-        OV_ASSERT_NO_THROW(value = get_user_data(param_rti, "infoB").as<std::string>());
+        OV_ASSERT_NO_THROW(value = util::rt_info_get_user_data(param_rti, "infoB").as<std::string>());
         EXPECT_EQ(value.compare("B"), 0);
 
         const auto& result = model->get_results().at(0);
@@ -107,19 +95,19 @@ TEST(RTInfoCustom, simple_entries) {
 
         const auto& abs_rti = abs->get_rt_info();
         EXPECT_EQ(abs_rti.size(), 2);
-        OV_ASSERT_NO_THROW(value = get_user_data(abs_rti, "infoC").as<std::string>());
+        OV_ASSERT_NO_THROW(value = util::rt_info_get_user_data(abs_rti, "infoC").as<std::string>());
         EXPECT_EQ(value.compare("C"), 0);
 
         const auto& abs_output_rti = abs->output(0).get_rt_info();
         EXPECT_EQ(abs_output_rti.size(), 1);
-        OV_ASSERT_NO_THROW(value = get_user_data(abs_output_rti, "infoD").as<std::string>());
+        OV_ASSERT_NO_THROW(value = util::rt_info_get_user_data(abs_output_rti, "infoD").as<std::string>());
         EXPECT_EQ(value.compare("D"), 0);
 
         const auto& result_rti = result->get_rt_info();
         EXPECT_EQ(result_rti.size(), 2);
         OV_ASSERT_NO_THROW(value = result_rti.at("primitives_priority_0").as<std::string>());
         EXPECT_EQ(value.compare("the_prior"), 0);
-        OV_ASSERT_NO_THROW(value = get_user_data(result_rti, "primitives_priority_0").as<std::string>());
+        OV_ASSERT_NO_THROW(value = util::rt_info_get_user_data(result_rti, "primitives_priority_0").as<std::string>());
         EXPECT_EQ(value.compare("a_prior"), 0);
     };
 
@@ -195,7 +183,7 @@ TEST(RTInfoCustom, nested_entries) {
 
     const auto& param_rti = model->get_parameters().at(0)->get_rt_info();
     EXPECT_EQ(param_rti.size(), 2);
-    OV_ASSERT_NO_THROW(any_map = get_user_data(param_rti, "nested").as<AnyMap>());
+    OV_ASSERT_NO_THROW(any_map = util::rt_info_get_user_data(param_rti, "nested").as<AnyMap>());
     EXPECT_EQ(any_map.size(), 2);
     OV_ASSERT_NO_THROW(value = any_map.at("infoB").as<std::string>());
     EXPECT_EQ(value.compare("B"), 0);
@@ -205,7 +193,7 @@ TEST(RTInfoCustom, nested_entries) {
     const auto abs = model->get_results().at(0)->get_input_node_ptr(0);
     const auto& abs_rti = abs->output(0).get_rt_info();
     EXPECT_EQ(abs_rti.size(), 1);
-    OV_ASSERT_NO_THROW(any_map = get_user_data(abs_rti, "nested_0").as<AnyMap>());
+    OV_ASSERT_NO_THROW(any_map = util::rt_info_get_user_data(abs_rti, "nested_0").as<AnyMap>());
     EXPECT_EQ(any_map.size(), 1);
 
     AnyMap nested_map;
@@ -222,7 +210,7 @@ TEST(RTInfoCustom, RuntimeAttribute_priority) {
     const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
 
     auto& info = abs->get_rt_info();
-    const auto layout_custom_id = get_prefixed_name("layout");
+    const auto layout_custom_id = util::rt_info_get_user_name("layout");
     const auto layout_custom_value = std::string{"ABCxyz"};
     const auto layout_attribute_id = std::string{LayoutAttribute::get_type_info_static()};
     const auto layout_attribute_value = LayoutAttribute{"NCHW"};

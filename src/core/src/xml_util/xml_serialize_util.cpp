@@ -1140,4 +1140,16 @@ std::string get_ir_precision_name(const element::Type& precision) {
         return ov::util::to_upper(precision.get_type_name());
     }
 }
+
+std::string rt_info_get_user_name(const std::string& custom_name) {
+    return std::string{util::rt_map_user_data_prefix} + custom_name;
+}
+
+Any& rt_info_get_user_data(AnyMap& rt_map, const std::string& custom_name) {
+    return rt_map.at(rt_info_get_user_name(custom_name));
+}
+
+const Any& rt_info_get_user_data(const AnyMap& rt_map, const std::string& custom_name) {
+    return rt_map.at(rt_info_get_user_name(custom_name));
+}
 }  // namespace ov::util
