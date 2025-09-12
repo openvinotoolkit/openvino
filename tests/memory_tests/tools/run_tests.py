@@ -9,6 +9,7 @@ import re
 import itertools
 import subprocess
 import json
+import time
 
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -25,6 +26,18 @@ def value_diff(value, reference):
     difference = value - reference
     diff_ratio = difference / reference
     return (value, reference, difference, diff_ratio)
+
+
+def attempt(func, *args, **kwargs):
+    tries = 3
+    while tries:
+        tries -= 1
+        try:
+            return func(*args, **kwargs)
+        except Exception as ex:
+            print(f"Error: {ex}; tries left: {tries}")
+        time.sleep(5)
+    print("No more attempts will be made")
 
 
 @dataclass
@@ -106,7 +119,7 @@ class TestSession:
             self.reference_values = self.api_get_reference_values()
 
     def api(self, method, data=None, **kwargs):
-        extra_args = {"timeout": 5}
+        extra_args = {"timeout": 30}
         extra_args.update(kwargs)
         if self.report_api is None:
             raise Exception("Report API was not specified")
@@ -116,7 +129,7 @@ class TestSession:
         return requests.post(endpoint, json=data, **extra_args).json()
 
     def api_get_reference_values(self):
-        api_response = self.api("v1/reports/memory/root-ref-metrics", [], timeout=10)
+        api_response = self.api("v1/reports/memory/root-ref-metrics", [], timeout=5)
         reference_test_values = defaultdict(lambda: defaultdict(dict))
         for ref_item in api_response:
             try:
@@ -145,8 +158,9 @@ class TestSession:
             }
             sample_report.update(sample.as_dict())
             test_report.append(sample_report)
-        response = self.api("v1/memory/push-2-db-facade/root-ref-metrics", test_report)
-        print(f"Push reference to API: {response}")
+        response = attempt(self.api, "v1/memory/push-2-db-facade/root-ref-metrics", test_report)
+        if response:
+            print(f"Push reference to API: {response}")
 
     def api_push_test_result(self, source, modelid, device, result, refsamples=None):
         if refsamples is None:
@@ -178,8 +192,9 @@ class TestSession:
                 "ref_metrics": (refsamples.get(sname) or sample).as_dict()
             })
             test_report.append(sample_report)
-        response = self.api("v1/memory/push-2-db-facade", {"data": test_report})
-        print(f"Push result to API: {response}")
+        response = attempt(self.api, "v1/memory/push-2-db-facade", {"data": test_report})
+        if response:
+            print(f"Push result to API: {response}")
 
     def detect_report_metadata(self):
         try:
