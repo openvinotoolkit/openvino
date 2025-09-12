@@ -330,6 +330,7 @@ public:
     void createFunction(const std::string& func_name);
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
+    void dynamic(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -1880,6 +1881,47 @@ void Partitioner::spatial(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
+void Partitioner::dynamic(const std::string& func_name) {
+    ov::npuw::Function& f = P.functions.at(func_name);
+
+    // Support only attention at the time
+    if (f._tag != "attn") {
+        LOG_VERB("No dynamic handling be done to  " << func_name << " in model " << model->get_friendly_name()
+                 << "...");
+        return;
+    }
+
+    // Just construct an empty object with no idea what to do in
+    f._dynamic = ov::npuw::function::Dynamic{};
+
+    const auto& f_params = f._model->get_parameters();
+    NPUW_ASSERT(f_params.size() > 0);
+    for (auto &&param : f_params) {
+        // A bad test but it is what it is
+        if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
+            // FIME: Take KV_DIM elsewhere!!!
+            f._dynamic->_inputs.push_back(ov::npuw::function::Dynamic::Param{param, 2});
+        }
+    }
+    if (f._dynamic->_inputs.empty()) {
+        LOG_VERB("No dynamic input founds for " << func_name << " in model " << model->get_friendly_name() << ", discarding dynamic");
+        f._dynamic.reset();
+        return;
+    }
+
+    // Apply transformation to the model. Note: only function body is modified
+    // Accumulate the reshape map
+    std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+    for (auto&& p : f._dynamic->_inputs) {
+        ov::PartialShape dyn_shape = p.param->get_shape(); // Here it is yet static
+        dyn_shape[p.dim] = ov::Dimension(); // ..and now is dynamic
+        new_shapes[p.param->output(0)] = std::move(dyn_shape);
+    }
+    f._model->reshape(new_shapes);
+
+    LOG_VERB("Done");
+}
+
 void Partitioner::optimize(const std::string& func_name) {
     using namespace ov::npuw::weights;
 
@@ -2475,6 +2517,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
+                p.dynamic(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }

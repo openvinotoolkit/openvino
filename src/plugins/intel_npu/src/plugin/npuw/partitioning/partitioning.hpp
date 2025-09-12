@@ -11,6 +11,7 @@
 
 #include "../lazy_tensor.hpp"
 #include "../spatial.hpp"
+#include "../dynamic.hpp"
 #include "intel_npu/config/config.hpp"
 #include "openvino/openvino.hpp"
 
@@ -85,6 +86,8 @@ struct Function {
     std::map<std::pair<std::string, std::size_t>, std::size_t> _param_mapping;
 
     std::optional<ov::npuw::function::Spatial> _spatial;
+    std::optional<ov::npuw::function::Dynamic> _dynamic;
+    // FIXME: They should exclude each other (introduce a hierarchy, finally?)
 
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;
