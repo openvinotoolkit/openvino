@@ -294,12 +294,32 @@ ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const
     return allocMem(node.get_element_type(), node.get_shape(), device);
 }
 
+#include <regex>
+
+bool isPastKeyValuesKey(const std::string& str) {
+    // 定义正则表达式，匹配 "past_key_values.n.key" 格式，其中 n 是一个或多个数字
+    std::regex pattern(R"(past_key_values\.\d+\.key)");
+    return std::regex_match(str, pattern);
+}
+
+bool isPastKeyValuesValue(const std::string& str) {
+    // 定义正则表达式，匹配 "past_key_values.n.key" 格式，其中 n 是一个或多个数字
+    std::regex pattern(R"(past_key_values\.\d+\.value)");
+    return std::regex_match(str, pattern);
+}
+
 void ov::npuw::IBaseInferRequest::alloc_io() {
     // Preallocate input tensors
     LOG_INFO("Preallocating input tensors...");
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
-        ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
+        auto port_name = port.get_any_name();
+        std::string device = m_npuw_model->global_mem_device();
+        if (isPastKeyValuesKey(port_name) || isPastKeyValuesValue(port_name)) {
+            device = "GPU";
+            std::cout << "alloc global input: " << port_name << " on device: " << device << std::endl;
+        }
+        ov::SoPtr<ov::ITensor> allocated = allocOut(port, device);
         m_input_allocated.insert(allocated->data());
         m_port_to_tensor[port] = TensorStorage{allocated, true};
     }  // for(inputs)
