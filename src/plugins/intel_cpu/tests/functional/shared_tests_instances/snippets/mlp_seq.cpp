@@ -12,20 +12,31 @@ namespace snippets {
 
 namespace {
 
-std::vector<std::vector<InputShape>> inputShape_2D() {
-    auto shapes = SNIPPETS_TESTS_STATIC_SHAPES(
+enum ShapeType : uint8_t {
+    STATIC = 1,
+    DYNAMIC = 2,
+    BOTH_STATIC_AND_DYNAMIC = 0xFF,
+};
+std::vector<std::vector<InputShape>> inputShape_2D(ShapeType type = BOTH_STATIC_AND_DYNAMIC) {
+    std::vector<std::vector<ov::test::InputShape>> shapes;
+    if (type & STATIC) {
+        auto static_shapes = SNIPPETS_TESTS_STATIC_SHAPES(
         {{1, 64}},
         {{2, 64}},
         {{4, 64}},
         {{8, 64}});
-    shapes.push_back({{PartialShape{-1, 64}, {{1, 64}, {8, 64}, {6, 64}, {8, 64}}}});
+        shapes.insert(shapes.end(), static_shapes.begin(), static_shapes.end());
+    }
+    if (type & DYNAMIC) {
+        shapes.push_back({{PartialShape{-1, 64}, {{1, 64}, {8, 64}, {6, 64}, {8, 64}}}});
+    }
     return shapes;
 }
 
 // Returns a vector of pairs where:
 //   - The first element is the number of hidden layers in the MLP
 //   - The second element is a pair: {expected number of subgraphs, expected number of nodes}
-std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectations() {
+std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectations(bool is_dynamic) {
 #if defined(OPENVINO_ARCH_ARM64)
     return {
         {1, {1, 1}},
@@ -33,6 +44,14 @@ std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExp
         {5, {1, 1}},
     };
 #else
+    if (is_dynamic) {
+        // Note: SplitLoops + non-fused postops lead to bigger amount of GPRs needed for kernel execution
+        return {
+            {1, {2, 2}},
+            {3, {3, 3}},
+            {5, {4, 4}},
+        };
+    }
     return {
         {1, {1, 1}},
         {3, {2, 2}},
@@ -72,15 +91,27 @@ std::vector<size_t> hiddenMatmulSizes() {
     return {64, 128, 256};
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32,
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32_static,
                          MLPSeq,
-                         ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
+                         ::testing::Combine(::testing::ValuesIn(inputShape_2D(STATIC)),
                                             ::testing::ValuesIn(precision_f32(1)),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(MLPSeq::default_thread_count),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config),
-                                            ::testing::ValuesIn(numHiddenLayersWithExpectations()),
+                                            ::testing::ValuesIn(numHiddenLayersWithExpectations(false)),
+                                            ::testing::ValuesIn(hiddenMatmulSizes())),
+                         MLPSeq::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32_dynamic,
+                         MLPSeq,
+                         ::testing::Combine(::testing::ValuesIn(inputShape_2D(DYNAMIC)),
+                                            ::testing::ValuesIn(precision_f32(1)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(MLPSeq::default_thread_count),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config),
+                                            ::testing::ValuesIn(numHiddenLayersWithExpectations(true)),
                                             ::testing::ValuesIn(hiddenMatmulSizes())),
                          MLPSeq::getTestCaseName);
 
