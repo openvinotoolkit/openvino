@@ -21,7 +21,7 @@ using OVDynamicBatchParams = std::tuple<std::vector<InputShape>,  // dynamic and
 class OVDynamicBatchShape_Tests : public ::testing::WithParamInterface<OVDynamicBatchParams>,
                                   virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(::testing::TestParamInfo<OVDynamicBatchParams> obj) {
+    static std::string getTestCaseName(const ::testing::TestParamInfo<OVDynamicBatchParams>& obj) {
         const auto& [input_shapes, model_type, target_device, configuration] = obj.param;
 
         std::ostringstream result;

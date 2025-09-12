@@ -61,7 +61,7 @@ public:
 
     bool m_terminate;
 
-    static std::string getTestCaseName(testing::TestParamInfo<AutoBatchRequestTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchRequestTestParams>& obj) {
         const auto& [batch_size, element_type, infer_interval] = obj.param;
 
         std::string res;

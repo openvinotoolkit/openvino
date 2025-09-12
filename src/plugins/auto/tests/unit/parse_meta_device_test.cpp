@@ -18,7 +18,7 @@ using ConfigParams = std::tuple<std::string,                     // Priority dev
                                 >;
 class ParseMetaDeviceTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [priorityDevices, metaDevices, throwException, expectedTimes] = obj.param;
         std::ostringstream result;
         result << "priorityDevices_" << priorityDevices;

@@ -22,7 +22,7 @@ using test_params = std::tuple<std::string, ov::AnyMap>;
 
 class InferRequest_IOTensor_Test : public AutoFuncTests, public ::testing::WithParamInterface<test_params> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<test_params> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<test_params>& obj) {
         const auto& [target_device, configuration] = obj.param;
         std::ostringstream result;
         result << "target_device=" << target_device << "_";

@@ -29,7 +29,7 @@ public:
     std::shared_ptr<NiceMock<MockIPlugin>> m_hardware_plugin;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<plugin_compile_model_param> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<plugin_compile_model_param>& obj) {
         const auto& [core_properities, plugin_properities, expect_batch_size] = obj.param;
 
         std::string res;

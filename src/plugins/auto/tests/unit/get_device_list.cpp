@@ -15,7 +15,7 @@ using ConfigParams = std::tuple<std::vector<std::string>,  // Available devices 
                                 >;
 class GetDeviceListTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [availableDevices, priorityAndMetaDev] = obj.param;
         const auto& [priorityDevices, metaDevices, expectedTimes] = priorityAndMetaDev;
         std::ostringstream result;

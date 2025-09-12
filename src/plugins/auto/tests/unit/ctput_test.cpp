@@ -9,7 +9,7 @@ using ConfigParams = std::tuple<std::vector<std::string>>;
 
 class LoadNetworkWithCTPUTMockTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [targetDevices] = obj.param;
         std::ostringstream result;
         result << "ctput_loadnetwork_to_device_";
@@ -125,7 +125,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoCTPUTExecutionDevice,
 using ConfigParams_1 = std::tuple<bool, std::vector<std::string>>;
 class AutoCTPUTCallMulti : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams_1> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams_1> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams_1>& obj) {
         const auto& [AutoCallMulti, targetDevices] = obj.param;
         std::ostringstream result;
         if (AutoCallMulti) {
