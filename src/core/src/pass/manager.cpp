@@ -324,6 +324,9 @@ ov::pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config, st
     : m_pass_config(std::move(pass_config)),
       m_name(std::move(name)) {}
 
+ov::pass::Manager::Manager(const PassConfig& pass_config, std::string name)
+    : Manager(std::make_shared<PassConfig>(pass_config), std::move(name)) {}
+
 void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
