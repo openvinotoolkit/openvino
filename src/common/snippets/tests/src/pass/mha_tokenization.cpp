@@ -64,11 +64,11 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic_Disable
                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
     model = f.getOriginal();
     common_config = ov::snippets::pass::CommonOptimizations::Config(1, true);
-    mha_config =
-        ov::snippets::pass::TokenizeMHASnippets::Config(std::numeric_limits<size_t>::max(),
-                                                        true,
-                                                        false,
-                                                        {3, 4});
+    mha_config = ov::snippets::pass::TokenizeMHASnippets::Config(
+        ov::snippets::pass::TokenizationConfig(std::numeric_limits<size_t>::max()),
+        true,
+        false,
+        {3, 4});
     run();
 }
 

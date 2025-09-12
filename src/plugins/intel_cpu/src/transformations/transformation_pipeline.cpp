@@ -1237,11 +1237,11 @@ void Transformations::MainSnippets() {
     std::set<size_t> mha_supported_transpose_ranks = {4};
     TokenizationConfig tokenization_config(available_gprs_count);
     CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
-    TokenizeMHASnippets::Config mha_config(available_gprs_count,
+    TokenizeMHASnippets::Config mha_config(tokenization_config,
                                            mha_token_enable_transpose_on_output,
                                            is_dynamic_mha_token_enabled,
                                            mha_supported_transpose_ranks);
-    TokenizeMLPSeqSnippets::Config mlp_seq_config(available_gprs_count, supported_as_postop);
+    TokenizeMLPSeqSnippets::Config mlp_seq_config(tokenization_config, supported_as_postop);
 
     ov::pass::Manager snippetsManager("CPU:Snippets");
     snippetsManager.set_per_pass_validation(false);

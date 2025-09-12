@@ -27,12 +27,15 @@ CommonOptimizations::Config get_default_common_optimizations_config() {
 }
 
 TokenizeMHASnippets::Config get_default_mha_config() {
-    static const TokenizeMHASnippets::Config conf(std::numeric_limits<size_t>::max(), true, true, {3, 4});
+    static const TokenizeMHASnippets::Config conf(TokenizationConfig(std::numeric_limits<size_t>::max()),
+                                                  true,
+                                                  true,
+                                                  {3, 4});
     return conf;
 }
 
 TokenizeMLPSeqSnippets::Config get_default_mlp_seq_config() {
-    static const TokenizeMLPSeqSnippets::Config conf(std::numeric_limits<size_t>::max(), nullptr);
+    static const TokenizeMLPSeqSnippets::Config conf(TokenizationConfig(std::numeric_limits<size_t>::max()), nullptr);
     return conf;
 }
 
