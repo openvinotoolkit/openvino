@@ -20,6 +20,9 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/emitter.hpp"
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/aarch64/verbose.hpp"
+#endif
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -71,6 +74,15 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
     static constexpr int sp_alignment = 16;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    const char* info() const {
+        if (!info_.is_initialized()) {
+            info_.init(this);
+        }
+        return info_.c_str();
+    }
+#endif
 
 protected:
     static size_t get_max_vecs_count();
@@ -192,6 +204,11 @@ private:
     void restore_context(const std::vector<size_t>& gpr_regs,
                          const std::vector<size_t>& vec_regs,
                          const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend class jit_debug_emitter;
+    mutable ov::intel_cpu::jit_emitter_info_t info_;
+#endif
 };
 
 }  // namespace ov::intel_cpu::aarch64
