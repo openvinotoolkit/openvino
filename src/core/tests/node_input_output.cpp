@@ -243,10 +243,14 @@ TEST(node_input_output, output_replace_order_independence) {
     // Verify specific connections - mul appears twice (2 inputs)
     int relu1_count = 0, relu2_count = 0, mul_count = 0, convert_count = 0;
     for (const auto& input : add2_targets) {
-        if (input.get_node() == relu1.get()) relu1_count++;
-        if (input.get_node() == relu2.get()) relu2_count++;
-        if (input.get_node() == mul.get()) mul_count++;
-        if (input.get_node() == convert.get()) convert_count++;
+        if (input.get_node() == relu1.get())
+            relu1_count++;
+        if (input.get_node() == relu2.get())
+            relu2_count++;
+        if (input.get_node() == mul.get())
+            mul_count++;
+        if (input.get_node() == convert.get())
+            convert_count++;
     }
     EXPECT_EQ(relu1_count, 1) << "relu1 should connect to add2 once";
     EXPECT_EQ(relu2_count, 1) << "relu2 should connect to add2 once";
@@ -303,8 +307,10 @@ TEST(node_input_output, output_replace_chain_of_converts) {
     // Verify both expected targets are present
     bool has_conv_b = false, has_conv_d = false;
     for (const auto& input : conv_a_targets) {
-        if (input.get_node() == conv_b.get()) has_conv_b = true;
-        if (input.get_node() == conv_d.get()) has_conv_d = true;
+        if (input.get_node() == conv_b.get())
+            has_conv_b = true;
+        if (input.get_node() == conv_d.get())
+            has_conv_d = true;
     }
     EXPECT_TRUE(has_conv_b) << "conv_b should still connect to conv_a";
     EXPECT_TRUE(has_conv_d) << "conv_d should now connect to conv_a";
@@ -334,13 +340,16 @@ TEST(node_input_output, output_replace_multiple_outputs) {
 
     auto add2_targets = add2->output(0).get_target_inputs();
     EXPECT_EQ(add2_targets.size(), 3) << "add2 should have relu1, relu2, and conv as targets";
-    
+
     // Verify all expected targets are present
     bool has_relu1 = false, has_relu2 = false, has_conv = false;
     for (const auto& input : add2_targets) {
-        if (input.get_node() == relu1.get()) has_relu1 = true;
-        if (input.get_node() == relu2.get()) has_relu2 = true;
-        if (input.get_node() == conv.get()) has_conv = true;
+        if (input.get_node() == relu1.get())
+            has_relu1 = true;
+        if (input.get_node() == relu2.get())
+            has_relu2 = true;
+        if (input.get_node() == conv.get())
+            has_conv = true;
     }
     EXPECT_TRUE(has_relu1) << "relu1 should connect to add2";
     EXPECT_TRUE(has_relu2) << "relu2 should connect to add2";
@@ -376,8 +385,10 @@ TEST(node_input_output, output_replace_bidirectional_connection) {
     // Count connections to each node
     int relu_count = 0, mul_count = 0;
     for (const auto& input : add2_targets) {
-        if (input.get_node() == relu.get()) relu_count++;
-        if (input.get_node() == mul.get()) mul_count++;
+        if (input.get_node() == relu.get())
+            relu_count++;
+        if (input.get_node() == mul.get())
+            mul_count++;
     }
     EXPECT_EQ(relu_count, 1) << "relu should have exactly 1 connection from add2";
     EXPECT_EQ(mul_count, 2) << "mul should have exactly 2 connections from add2";
