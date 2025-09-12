@@ -93,9 +93,9 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     graph.RemoveDroppedNodes();
 
     //FIXME: this is disabled since ACL does not support fp bias for int inputs
-    //OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvMatmulFCDeconvAndDQScales");
-    //FuseConvMatmulFCDeconvAndDQScales(graph);
-    //graph.RemoveDroppedNodes();
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvMatmulFCDeconvAndDQScales");
+    FuseConvMatmulFCDeconvAndDQScales(graph);
+    graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
@@ -1462,7 +1462,6 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph& graph) {
     auto parent = graphNodes.begin();
     while (parent != graphNodes.end()) {
         auto parentNode = *parent;
-        std::cout << "parent node: " << parentNode->getName() << std::endl;
         if (!isSuitableParentNode(parentNode)) {
             parent++;
             continue;
@@ -1473,7 +1472,6 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph& graph) {
         const auto parentNodeType = parentNode->getType();
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        std::cout << "child node: " << childNode->getName() << std::endl;
         if (!parentNode->canFuse(childNode)) {
             parent++;
             continue;

@@ -12,7 +12,7 @@ namespace ov::intel_cpu {
 class ACLConvolutionExecutor : public ACLCommonExecutor {
 public:
     ACLConvolutionExecutor(const ConvAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
-    ~ACLConvolutionExecutor();
+    //~ACLConvolutionExecutor();
 
     static bool supports(const ConvConfig& config);
 
@@ -21,7 +21,7 @@ public:
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
 
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
-    ACLFunction configureFunctionPostOp(const ACLTensors& aclMemoryTensors) override;
+    //ACLFunction configureFunctionPostOp(const ACLTensors& aclMemoryTensors) override;
 
     arm_compute::TensorShape normalizeDimsTo2D(const arm_compute::TensorShape shape);
 
@@ -30,7 +30,7 @@ protected:
                                                             const arm_compute::DataType& dataType,
                                                             const arm_compute::DataLayout& dataLayout) override;
 private:
-    std::shared_ptr<arm_compute::TensorInfo> dstTensorInfo;
+    //std::shared_ptr<arm_compute::TensorInfo> dstTensorInfo;
     std::shared_ptr<arm_compute::Tensor> dstTensor;
 
     arm_compute::PadStrideInfo padStrideInfo;

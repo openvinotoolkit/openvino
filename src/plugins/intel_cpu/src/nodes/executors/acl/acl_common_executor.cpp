@@ -106,7 +106,6 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
     // Configure arm_compute::IFunction object
     configureThreadSafe([&] {
         iFunction = configureFunction(aclMemoryTensors);
-        iFunctionPostOp = configureFunctionPostOp(aclMemoryTensors);
     });
     return true;
 }
@@ -120,9 +119,6 @@ void ACLCommonExecutor::execute(const MemoryArgs& memory) {
         }
     }
     iFunction->run();
-    if (iFunctionPostOp) {
-        iFunctionPostOp->run();
-    }
 }
 
 ACLCommonExecutor::~ACLCommonExecutor() {
