@@ -9,7 +9,6 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
-#include <atomic>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -75,6 +74,10 @@
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "weights_cache.hpp"
+
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+#    include <atomic>
+#endif
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
