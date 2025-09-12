@@ -1327,6 +1327,10 @@ table#model-accuracy-and-perf-int8-fp32-table td.data {
     padding-left: 30px;
 }
 
+.newsletter-btn {
+    display: none !important;
+}
+
 /* Scrollbox Extension */
 /* =================================================== */
 .scrollbox {
