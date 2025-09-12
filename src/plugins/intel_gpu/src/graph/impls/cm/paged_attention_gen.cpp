@@ -828,11 +828,13 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // block_mask
 
     // scalar
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_stride
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_stride_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // causal_start_index
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // thresh
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_stride
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // q_stride_pad
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // q_block_pad
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 4});  // k_block_pad
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 5});  // causal_start_index
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 6});  // thresh
 
     return args;
 }
@@ -872,20 +874,21 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         const uint32_t sum_per_token_in_block = block_size / STRIDE;
         const uint32_t k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
         const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
+        const uint32_t q_block_pad = ceil_div(q_len, block_size);
 
         const uint32_t q_block = ceil_div(q_stride, sum_per_n_token_in_block);
         const uint32_t k_block = ceil_div(k_stride, sum_per_n_token_in_block);
 
         const float xattn_thresh = get_xattn_thresh(params, 0); // TODO: seq_idx
 
-        wgs.global = {q_stride_pad / sum_per_n_token_in_block, heads_num, 1};
+        wgs.global = {q_block_pad, heads_num, 1};
         wgs.local = {1, 1, 1};
 
         auto& scalars = kd.params.scalars;
-        std::vector<size_t> scaler_value = {q_stride, q_stride_pad, k_block_pad, k_block - q_block};
+        std::vector<size_t> scaler_value = {q_len, q_stride, q_stride_pad, q_block_pad, k_block_pad, k_block - q_block};
         scalars.resize(scaler_value.size() + 1);
 
-        if (1 || DEBUG_ENABLED) {  // Debug
+        if (DEBUG_ENABLED) {  // Debug
             std::cout << "XAttentionEstimateFindBlock::get_dispatch_data_func: "
                       << "xattn_thresh : " << xattn_thresh
                       << " k_block: " << k_block << ", q_block: " << q_block

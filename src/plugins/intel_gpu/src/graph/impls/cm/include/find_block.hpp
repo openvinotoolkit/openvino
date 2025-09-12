@@ -35,7 +35,7 @@
 // kq_max_wg:          [b, hq, n_groups, q_stride_pad]
 // kq_exp_partial_sum: [b, hq, q_stride_pad, k_block_pad]
 // kq_sum:             [b, hq, q_stride_pad/TOKEN_IN_BLOCK, k_block_pad]
-CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_partial_sum, svmptr_t block_mask, uint q_stride, uint q_stride_pad, uint k_block_pad, float thresh, uint causal_start_index
+CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_partial_sum, svmptr_t block_mask, uint q_len, uint q_stride, uint q_stride_pad, uint k_block_pad, float thresh, uint causal_start_index
 #if DEBUG_ACC == 1
     , svmptr_t kq_sum
 #endif
@@ -66,8 +66,17 @@ CM_INLINE void find(uint slm, int m_block, svmptr_t kq_max_wg, svmptr_t kq_exp_p
     int m_start = MYMIN(m, q_stride);
     int m_end = MYMIN(m_start + TOKEN_SHARE_MAX, q_stride);
     int valid_m = m_end - m_start;
-    if (valid_m == 0) return;
     block_mask += m_block * k_block_pad;
+    if (valid_m == 0) {
+        // case for tails: q is not inside mask, aka q % BLOCK_SIZE < STRIDE
+        if (m * STRIDE < q_len) {
+            vector<uchar, TOKEN_SHARE_MAX> one = 1;
+            for (int j = 0; j < k_block_pad; j += TOKEN_SHARE_MAX) {
+                cm_ptr_store<int, TOKEN_SHARE_MAX / 4>((int*)block_mask, j, one.format<int>());
+            }
+        }
+        return;
+    }
     lsc::block_2d_desc<SOFTMAX_TYPE, 1, TOKEN_IN_BLOCK, TOKEN_SHARE_MAX / (sizeof(SOFTMAX_TYPE) / sizeof(half))> desc_sum{ kq_exp_partial_sum, (uint)valid_m - 1, (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1), (uint)(k_block_pad * sizeof(SOFTMAX_TYPE) - 1),
         0, 0 };
     {
