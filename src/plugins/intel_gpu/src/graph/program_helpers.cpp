@@ -4,12 +4,14 @@
 
 #include "program_helpers.h"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/layout.hpp"
 #include "data_inst.h"
 #include "pooling_inst.h"
 #include <algorithm>
 #include <utility>
 #include <vector>
 #include <sstream>
+#include <functional>
 
 namespace cldnn {
 void program_helpers::reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
@@ -175,4 +177,5 @@ int32_t onednn_add_fusing_helpers::get_reused_eltwmem_idx(const program_node& no
     }
     return -1;   // if -1, no reused input memory
 }
+
 }  // namespace cldnn
