@@ -26,7 +26,7 @@ using PadLayerGPUTestParamSet = std::tuple<
 class PadLayerGPUTest : public testing::WithParamInterface<PadLayerGPUTestParamSet>,
                         virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PadLayerGPUTestParamSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<PadLayerGPUTestParamSet>& obj) {
         const auto& [shapes, model_type, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode] = obj.param;
 
         std::ostringstream results;

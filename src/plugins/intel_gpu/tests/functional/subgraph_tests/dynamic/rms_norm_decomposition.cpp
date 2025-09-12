@@ -46,7 +46,7 @@ using RMSNormDecompositionParams = std::tuple<std::vector<InputShape>,          
 class RMSNormDecomposition : public testing::WithParamInterface<RMSNormDecompositionParams>,
                              virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RMSNormDecompositionParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<RMSNormDecompositionParams>& obj) {
         const auto& [input_shapes, input_precision] = obj.param;
 
         std::ostringstream result;

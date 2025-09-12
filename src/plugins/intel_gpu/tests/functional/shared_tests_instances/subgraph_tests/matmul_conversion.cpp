@@ -51,7 +51,7 @@ using MatmulConversionParams = std::tuple<std::vector<InputShape>,  // input sha
 class MatmulConversionsSameParent : public testing::WithParamInterface<MatmulConversionSharedParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulConversionSharedParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulConversionSharedParams>& obj) {
         const auto& [shape_params, input_precision, matmul0_tran_0, matmul0_tran_1, matmul1_tran_0, matmul1_tran_1] = obj.param;
 
         std::ostringstream result;
@@ -168,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(MatmulConversionsSameParent_transposed,
 class MatmulConversions : public testing::WithParamInterface<MatmulConversionParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulConversionParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulConversionParams>& obj) {
         const auto& [input_shapes, input_precision, matmul0_tran_0, matmul0_tran_1, matmul1_tran_0, matmul1_tran_1] = obj.param;
 
         std::ostringstream result;

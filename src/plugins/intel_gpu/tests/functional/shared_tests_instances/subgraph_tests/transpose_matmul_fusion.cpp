@@ -21,7 +21,7 @@ using TransposeMatMulFusionParams = std::tuple<ov::PartialShape,  // input A sha
 class TransposeMatMulFusionOnGPU: public testing::WithParamInterface<TransposeMatMulFusionParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TransposeMatMulFusionParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TransposeMatMulFusionParams>& obj) {
         const auto& [input0, input1, is_fused] = obj.param;
 
         std::ostringstream result;
@@ -107,7 +107,7 @@ using MatMulTransposeFusionParams = std::tuple<ov::PartialShape,  // input A sha
 class MatMulTransposeFusionOnGPU: public testing::WithParamInterface<MatMulTransposeFusionParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatMulTransposeFusionParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulTransposeFusionParams>& obj) {
         const auto& [input0, input1, input2] = obj.param;
 
         std::ostringstream result;

@@ -41,7 +41,7 @@ using ActivationsScalingParams = std::tuple<ShapeParams,             // input sh
 class ActivationsScaling : public testing::WithParamInterface<ActivationsScalingParams>,
                              virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ActivationsScalingParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ActivationsScalingParams>& obj) {
         const auto& [shape_params, input_precision] = obj.param;
 
         std::ostringstream result;

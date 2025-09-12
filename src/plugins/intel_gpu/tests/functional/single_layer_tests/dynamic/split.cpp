@@ -26,7 +26,7 @@ typedef std::tuple<
 class SplitLayerGPUDynamicTest : public testing::WithParamInterface<splitDynamicGPUTestParams>,
                           virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<splitDynamicGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<splitDynamicGPUTestParams>& obj) {
         std::ostringstream result;
 
         const auto& [num_splits, axis, model_type, input_shape, out_indices] = obj.param;
@@ -130,7 +130,7 @@ typedef std::tuple<
 class VariadicSplitLayerGPUDynamicTest : public testing::WithParamInterface<varSplitDynamicGPUTestParams>,
                                          virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<varSplitDynamicGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<varSplitDynamicGPUTestParams>& obj) {
         std::ostringstream result;
 
         const auto& [axis, split_length, model_type, input_shape, inputType] = obj.param;

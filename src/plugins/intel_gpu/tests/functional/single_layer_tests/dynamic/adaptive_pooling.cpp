@@ -28,7 +28,7 @@ using AdaPoolLayerGPUTestParams = std::tuple<AdaPoolSpecificParams,
 class AdaPoolLayerGPUTest : public testing::WithParamInterface<AdaPoolLayerGPUTestParams>,
                             virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<AdaPoolLayerGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<AdaPoolLayerGPUTestParams>& obj) {
         AdaPoolLayerGPUTestParams basicParamsSet;
         basicParamsSet = obj.param;
 

@@ -34,7 +34,7 @@ typedef std::tuple<
 class PriorBoxLayerGPUTest : public testing::WithParamInterface<PriorBoxLayerGPUTestParamsSet>,
                              virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PriorBoxLayerGPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxLayerGPUTestParamsSet>& obj) {
         const auto& [input1Shape, input2Shape, model_type, max_size, priorboxType] = obj.param;
 
         std::ostringstream result;
