@@ -3,7 +3,7 @@ inline float convert_as_int4_float(uchar source, uint index) {
     if (index % 2 == 0) {
        out =  source & 0xF;
     } else {
-       out =  source >> 4 & 0xF;
+       out =  source >> 4;
     }
 
     if (out > 7.f)
