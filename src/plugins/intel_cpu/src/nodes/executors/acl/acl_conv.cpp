@@ -26,8 +26,6 @@ namespace ov::intel_cpu {
 ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context) {
-    dequantizationScales = getDeQuantizedScales(memory);
-
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();
     MemoryDescPtr weiMemPtr = memory.at(ARG_WEI)->getDescPtr();
     MemoryDescPtr dstMemPtr = memory.at(ARG_DST)->getDescPtr();
@@ -70,25 +68,6 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     } else {
         DEBUG_LOG("ACLConvolutionExecutor: post op is not applied!");
     }
-}
-
-arm_compute::TensorShape ACLConvolutionExecutor::normalizeDimsTo2D(const arm_compute::TensorShape shape) {
-    size_t norm_dim = std::accumulate(shape.begin() + 1, shape.end(), 1, std::multiplies<>());
-    return arm_compute::TensorShape(shape[0], norm_dim);
-}
-
-void ACLConvolutionExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
-    //TODO: doing the same as for FC executor.
-    //If this is correct than normalizeDimsTo2D/updateFCTensorsShapes should be moved from FC into common logic
-    //aclMemoryShapes[ACLArgs::ACL_WEI] = normalizeDimsTo2D(aclMemoryShapes[ACLArgs::ACL_WEI]);
-    //aclMemoryShapes[ACLArgs::ACL_SRC_0] = normalizeDimsTo2D(aclMemoryShapes[ACLArgs::ACL_SRC_0]);
-    //aclMemoryShapes[ACLArgs::ACL_DST] = normalizeDimsTo2D(aclMemoryShapes[ACLArgs::ACL_DST]);
-    //std::swap(aclMemoryShapes[ACLArgs::ACL_WEI][0], aclMemoryShapes[ACLArgs::ACL_WEI][1]);
-}
-
-bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
-    //std::cout << "ACLConvolutionExecutor::supports - PASSED PREC CHECKS!!!" << std::endl;
-    return true;
 }
 
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {

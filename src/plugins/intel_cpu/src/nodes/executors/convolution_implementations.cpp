@@ -286,14 +286,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_nspc_nspc_unconditional_acl", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
-                std::cout << "convolution_acl_normal: src: " << srcType(config).to_string() << " wei: " << weiType(config).to_string() <<
-                " bia: " << biaType(config).to_string() << " dst: " << dstType(config).to_string() << std::endl;
                 if (!MatchesMemoryFormatFilter(config, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                memoryFormatFilter)) {
                     return false;
                 }
                 return one_of(srcType(config), ov::element::f32, ov::element::f16);
-                //return true;
             },
             RequiresFallbackDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>{},
@@ -303,11 +300,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution, ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
-                //VERIFY(everyone_is(i8, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
-                //VERIFY(everyone_is(i32, biaType(config)), UNSUPPORTED_SRC_PRECISIONS);
-                std::cout << "convolution_acl_lowp: src: " << srcType(config).to_string() << " wei: " << weiType(config).to_string() <<
-                " bia: " << biaType(config).to_string() << " dst: " << dstType(config).to_string() << std::endl;
-                return ACLConvolutionExecutor::supports(config);
+                return one_of(srcType(config), ov::element::i8, ov::element::u8);
             },
             [](const ConvConfig& config) -> std::optional<executor::Config<ConvAttrs>> {
                 return requiresFallbackCommon(config,

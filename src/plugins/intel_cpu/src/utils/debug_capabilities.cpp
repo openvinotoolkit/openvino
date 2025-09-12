@@ -560,15 +560,15 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
                 os << printable(constop->get_vector<uint8_t>());
             } else {
                 auto sz = shape_size(constop->get_shape());
-                /*if (sz < 9) {
+                if (sz < 9) {
                     sep = "";
-                    for (const auto& v : constop->toString()) {
+                    for (const auto& v : constop->get_value_strings()) {
                         os << sep << v;
                         sep = ",";
                     }
                 } else {
                     os << "...";
-                }*/
+                }
             }
         }
 

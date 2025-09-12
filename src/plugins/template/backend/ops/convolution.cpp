@@ -8,8 +8,6 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/convolution.hpp"
 
-std::mutex cout_mutex;
-
 template <ov::element::Type_t T>
 bool evaluate(const std::shared_ptr<ov::op::v1::Convolution>& op,
               ov::TensorVector& outputs,
@@ -31,19 +29,6 @@ bool evaluate(const std::shared_ptr<ov::op::v1::Convolution>& op,
                                    op->get_dilations(),
                                    op->get_pads_begin(),
                                    op->get_pads_end());
-    std::lock_guard<std::mutex> lock(cout_mutex);
-    std::cout << "SRC" << std::endl;
-    for (size_t i = 0; i < shape_size(in_shape); ++i) {
-        std::cout << inputs[0].data<ET>()[i] << std::endl;
-    }
-    std::cout << "WEI" << std::endl;
-    for (size_t i = 0; i < shape_size(filter_shape); ++i) {
-        std::cout << inputs[1].data<ET>()[i] << std::endl;
-    }
-    std::cout << "DST" << std::endl;
-    for (size_t i = 0; i < shape_size(out_shape); ++i) {
-        std::cout << outputs[0].data<ET>()[i] << std::endl;
-    }
     return true;
 }
 
