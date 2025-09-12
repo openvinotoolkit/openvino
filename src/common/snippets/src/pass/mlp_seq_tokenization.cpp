@@ -139,7 +139,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
             std::shared_ptr<ov::Node> prev_op = matmul0;
             auto interm_op = prev_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             bool postops_fusion_possible = true;
-            std::shared_ptr<ov::op::v0::MatMul> cur_matmul = matmul0;
+            std::vector<std::shared_ptr<ov::op::v0::MatMul>> matmuls = {matmul0};
             while (has_one_consumer(prev_op)) {
                 auto current_io_count = io_count;
 
@@ -148,12 +148,13 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
                     current_io_count++;
                     // If MatMul is the first in the sequence, postops fusion status is reset
                     postops_fusion_possible = true;
-                    cur_matmul = ov::as_type_ptr<ov::op::v0::MatMul>(interm_op);
+                    auto cur_matmul = ov::as_type_ptr<ov::op::v0::MatMul>(interm_op);
                     OPENVINO_ASSERT(cur_matmul, "MatMul is expected");
+                    matmuls.push_back(cur_matmul);
                 } else if (is_supported_intermediate_op(interm_op)) {
                     // Intermediate op contributes to the body params count only if can't be fused as post-op
                     // or if a previous node between MatMul and this op is not supported by post-op fusion
-                    if (!postops_fusion_possible || !config.get_can_be_fused_as_postop()(cur_matmul, interm_op)) {
+                    if (!postops_fusion_possible || !config.get_can_be_fused_as_postop()(matmuls.back(), interm_op)) {
                         postops_fusion_possible = false;
                         current_io_count += get_potential_body_params(interm_op);
                     }
@@ -162,13 +163,40 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
                     break;
                 }
 
-                // TODO [75567]: move this plugin-specific constraint to the plugin callback
-                // Heuiristic count of possible buffers - upper-bound value
-                static constexpr size_t n_buffer_reg_groups = 2;
-                const bool small_m = m_dim.is_static() && (m_dim.get_length() <= 32);
-                // Loop depth could reach 3 because of SplitLoops optimization.
-                // If M is small enough, SplitLoops is not needed
-                const size_t loops_depth = small_m ? 2 : 3;
+                auto compute_gpr_params = [](const ov::Dimension& m,
+                                             const std::vector<std::shared_ptr<ov::op::v0::MatMul>>& matmuls,
+                                             const ov::element::Type& inference_precision) {
+                    const size_t m_default_block_size = 32;
+                    const bool small_m = m.is_static() && (static_cast<size_t>(m.get_length()) <= m_default_block_size);
+                    if (small_m) {
+                        // If M is small enough, SplitLoops is not needed
+                        const size_t loop_depth = 2;
+                        const size_t reg_groups = 2;
+                        return std::make_pair(loop_depth, reg_groups);
+                    }
+                    const bool postops_can_ba_applied = inference_precision == ov::element::bf16 || std::all_of(
+                        matmuls.begin(),
+                        matmuls.end(),
+                        [](const std::shared_ptr<ov::op::v0::MatMul>& mm) {
+                            return mm->get_input_element_type(0) != element::f32 &&
+                                   mm->get_input_element_type(1) != element::f32;
+                        });
+                    if (postops_can_ba_applied) {
+                        const size_t loop_depth = 3;
+                        const size_t reg_groups = 1;
+                        return std::make_pair(loop_depth, reg_groups);
+                    }
+                    // Loop depth could reach 4 because of SplitLoops optimization (M and N loops are split).
+                    const size_t loop_depth = 4;
+                    // In case of SplitLoops, 3 register groups are needed:
+                    // 1. Buffer before intermediate matmul
+                    // 2. Buffer inside N block right after intermediate matmul before postops
+                    // 3. Buffer outside of N block after postops
+                    const size_t reg_groups = 3;
+                    return std::make_pair(loop_depth, reg_groups);
+                };
+
+                const auto& [loops_depth, n_buffer_reg_groups] = compute_gpr_params(m_dim, matmuls, ov::element::f32);
                 is_dynamic = is_dynamic || interm_op->is_dynamic();
                 if (!config.is_gprs_count_sufficient(current_io_count, n_buffer_reg_groups, loops_depth, is_dynamic)) {
                     break;
