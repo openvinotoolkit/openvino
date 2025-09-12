@@ -66,7 +66,7 @@ macro(ov_parse_ci_build_number repo_root)
         set(OpenVINO_VERSION_MAJOR ${CMAKE_MATCH_1})
         set(OpenVINO_VERSION_MINOR ${CMAKE_MATCH_2})
         set(OpenVINO_VERSION_PATCH ${CMAKE_MATCH_3})
-        set(OpenVINO_VERSION_REVISION ${CMAKE_MATCH_5}) # optional, revision is not used in openvino but it is used in openvino extensions
+        set(OpenVINO_VERSION_TWEAK ${CMAKE_MATCH_5}) # optional, the 4th version number is not used in OpenVINO, but it is used in OpenVINO extensions
         set(OpenVINO_VERSION_BUILD ${CMAKE_MATCH_6})
         set(the_whole_version_is_defined_by_ci ON)
     elseif(CI_BUILD_NUMBER MATCHES "^[0-9]+$")
