@@ -30,9 +30,9 @@
 #include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/brgemm.hpp"
-#include "snippets/pass/base_tokenization_config.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
 #include "snippets/utils/utils.hpp"
 

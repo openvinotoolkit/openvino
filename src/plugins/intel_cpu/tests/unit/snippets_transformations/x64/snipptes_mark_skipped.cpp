@@ -8,7 +8,7 @@
 #include <transformations/snippets/x64/pass/snippets_mark_skipped.hpp>
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/pass/tokenization.hpp"
-#include "snippets/pass/base_tokenization_config.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 
 namespace ov {

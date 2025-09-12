@@ -17,10 +17,10 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/pass/pass.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/pass/base_tokenization_config.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 
 namespace ov::snippets::pass {
 

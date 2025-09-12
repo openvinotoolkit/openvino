@@ -8,7 +8,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/tokenization.hpp"
-#include "snippets/pass/base_tokenization_config.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "fake_quantize_helper.hpp"
 #include "snippets/op/subgraph.hpp"

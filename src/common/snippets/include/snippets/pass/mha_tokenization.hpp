@@ -11,7 +11,7 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/matcher_pass.hpp"
-#include "snippets/pass/base_tokenization_config.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 
 namespace ov::snippets::pass {
 
