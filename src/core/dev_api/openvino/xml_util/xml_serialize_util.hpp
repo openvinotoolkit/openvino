@@ -109,4 +109,5 @@ inline constexpr std::string_view rt_info_user_data_xml_tag{"user_data"};
 OPENVINO_API std::string rt_info_get_user_name(const std::string& custom_name);
 OPENVINO_API Any& rt_info_get_user_data(AnyMap& rt_map, const std::string& custom_name);
 OPENVINO_API const Any& rt_info_get_user_data(const AnyMap& rt_map, const std::string& custom_name);
+OPENVINO_API void rt_info_set_user_data(AnyMap& rt_map, const std::string& custom_name, const Any& value);
 }  // namespace ov::util

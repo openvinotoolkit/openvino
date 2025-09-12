@@ -162,9 +162,11 @@ void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info, boo
                 if (getStrAttribute(item, "value", custom_value)) {
                     rt_info.emplace(name, custom_value);
                 } else {
-                    auto i = rt_info.emplace(name, ov::AnyMap{});
-                    auto& nested = rt_info[name].as<ov::AnyMap>();
-                    set_custom_rt_info(item, nested, false);
+                    rt_info.erase(name);
+                    if (auto map_elem = rt_info.emplace(name, ov::AnyMap{}); map_elem.second) {
+                        auto& nested_map = map_elem.first->second.as<ov::AnyMap>();
+                        set_custom_rt_info(item, nested_map, false);
+                    }
                 }
             }
         }

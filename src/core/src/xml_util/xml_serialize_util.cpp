@@ -1152,4 +1152,8 @@ Any& rt_info_get_user_data(AnyMap& rt_map, const std::string& custom_name) {
 const Any& rt_info_get_user_data(const AnyMap& rt_map, const std::string& custom_name) {
     return rt_map.at(rt_info_get_user_name(custom_name));
 }
+
+void rt_info_set_user_data(AnyMap& rt_map, const std::string& custom_name, const Any& value) {
+    rt_map[rt_info_get_user_name(custom_name)] = value;
+}
 }  // namespace ov::util
