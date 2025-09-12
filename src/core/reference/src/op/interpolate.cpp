@@ -125,12 +125,15 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_i
     Shape input_shape(5, 1);
     Shape output_shape(5, 1);
 
+    // Align 2D/3D/4D/5D cases to 5D (NCDHW) avoiding special cases
     std::copy(m_input_data_shape.rbegin(), m_input_data_shape.rend(), input_shape.rbegin());
     std::copy(m_out_shape.rbegin(), m_out_shape.rend(), output_shape.rbegin());
 
     int64_t batch_size = input_shape[0];
     std::size_t spatial_rank = input_shape.size() - 2;
 
+    // For NCDHW cases treat CD as one dimension when they are not changed
+    // In this way, the computation complexity is reduced, only need 2 loops instead of 3 loops
     if (input_shape[1] == output_shape[1] && input_shape[2] == output_shape[2]) {
         input_shape[1] *= input_shape[2];
         input_shape[2] = 1;
