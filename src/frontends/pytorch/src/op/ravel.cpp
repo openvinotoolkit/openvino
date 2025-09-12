@@ -18,9 +18,9 @@ OutputVector translate_ravel(const NodeContext& context) {
     // The ravel operation is equivalent to flattening the tensor.
     num_inputs_check(context, 1, 1, true);
     auto tensor = context.get_input(0);
-    std::shared_ptr<Node> new_shape{nullptr};
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(tensor.get_node_shared_ptr());
+    std::shared_ptr<Node> new_shape;
     if (complex_type_mark) {
         tensor = complex_type_mark->get_data();
         new_shape = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {-1, 2}));
