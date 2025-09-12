@@ -9,7 +9,7 @@ import numpy as np
 """
 Helper functions for validating user input.
 """
-__all__ = ['Callable', 'Iterable', 'UserInputError', 'assert_list_of_ints', 'check_valid_attribute', 'check_valid_attributes', 'is_non_negative_value', 'is_positive_value', 'log', 'logging', 'np']
+__all__: list[str] = ['Callable', 'Iterable', 'UserInputError', 'assert_list_of_ints', 'check_valid_attribute', 'check_valid_attributes', 'is_non_negative_value', 'is_positive_value', 'log', 'logging', 'np']
 def _check_value(op_name, attr_key, value, val_type, cond = None):
     """
     Check whether provided value satisfies specified criteria.
