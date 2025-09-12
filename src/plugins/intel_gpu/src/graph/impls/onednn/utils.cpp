@@ -817,110 +817,6 @@ bool is_supported_pad(const layout& layout) {
     return (no_spatial_padding && no_batch_padding);
 }
 
-post_op_dnnl_policy_type onednn_post_ops_fusing_helpers::get_post_op_dnnl_policy_type(const layout& data_layout, const layout& slope_layout) {
-    // data_layout and slope_layout should have static shape
-    OPENVINO_ASSERT(data_layout.is_static() && slope_layout.is_static(),
-                    "[GPU] onednn_post_ops_fusing_helpers::get_post_op_dnnl_policy_type - data and slope layouts should be static");
-
-    const auto& data_shape = data_layout.get_shape();
-    const auto& slope_shape = slope_layout.get_shape();
-    size_t data_rank = data_shape.size();
-    size_t slope_rank = slope_shape.size();
-
-    // Scalar slope (broadcast to all)
-    if (slope_layout.count() == 1) {
-        return post_op_dnnl_policy_type::COMMON;
-    }
-
-    // If slope is 1D, check for broadcasting along any axis
-    if (slope_rank == 1) {
-        // Check channel dimension first (index 1)
-        if (data_rank > 1 && slope_shape[0] == data_shape[1]) {
-            return post_op_dnnl_policy_type::PER_DIM_1;
-        }
-        // Then check batch dimension (index 0)
-        if (slope_shape[0] == data_shape[0]) {
-            return post_op_dnnl_policy_type::PER_DIM_0;
-        }
-        // Then check spatial dimensions
-        for (size_t i = 2; i < data_rank; ++i) {
-            if (slope_shape[0] == data_shape[i]) {
-                switch (i) {
-                    case 2: return post_op_dnnl_policy_type::PER_DIM_2;
-                    case 3: return post_op_dnnl_policy_type::PER_DIM_3;
-                    default: break;
-                }
-            }
-        }
-    }
-
-    // Check if slope is broadcastable to data (numpy rules)
-    bool broadcastable = true;
-    std::vector<int> broadcast_axes;
-    size_t rank_diff = data_rank > slope_rank ? data_rank - slope_rank : 0;
-
-    for (size_t i = 0; i < data_rank; ++i) {
-        size_t data_dim = data_shape[i];
-        size_t slope_dim = (i < rank_diff) ? 1 : slope_shape[i - rank_diff];
-
-        // Numpy broadcasting rule: dimensions are compatible if they are equal OR one of them is 1
-        if (data_dim != slope_dim && data_dim != 1 && slope_dim != 1) {
-            broadcastable = false;
-            break;
-        }
-        // A dimension participates in broadcasting if both dimensions are non-1 and equal.
-        if (slope_dim != 1 && slope_dim == data_dim) {
-            broadcast_axes.push_back(static_cast<int>(i));
-        }
-    }
-
-    if (!broadcastable) {
-        // If not broadcastable, fallback to POLICY_TOTAL to exception throw
-        return post_op_dnnl_policy_type::POLICY_TOTAL;
-    }
-
-    // Sort axes for consistent multi-axis policy checks
-    std::sort(broadcast_axes.begin(), broadcast_axes.end());
-
-    // Single axis policies - check if only one axis has non-1 slope dimension
-    if (broadcast_axes.size() == 1) {
-        int axis = broadcast_axes[0];
-        switch (axis) {
-            case 0: return post_op_dnnl_policy_type::PER_DIM_0;
-            case 1: return post_op_dnnl_policy_type::PER_DIM_1;
-            case 2: return post_op_dnnl_policy_type::PER_DIM_2;
-            case 3: return post_op_dnnl_policy_type::PER_DIM_3;
-            default: break;
-        }
-    }
-
-    // Two axes policies
-    if (broadcast_axes.size() == 2) {
-        int axis0 = broadcast_axes[0];
-        int axis1 = broadcast_axes[1];
-        // Check for PER_DIM_01 (N, C)
-        if (axis0 == 0 && axis1 == 1) {
-            return post_op_dnnl_policy_type::PER_DIM_01;
-        }
-    }
-
-    // For cases where slope can be broadcast to data shape, treat as PER_TENSOR
-    // This handles cases like data={1,4,1,1} slope={1,4}
-    if (broadcast_axes.size() > 0) {
-        return post_op_dnnl_policy_type::PER_TENSOR;
-    } else {
-        return post_op_dnnl_policy_type::COMMON;
-    }
-
-    // If no case, fallback to POLICY_TOTAL to exception throw
-    return post_op_dnnl_policy_type::POLICY_TOTAL;
-}
-
-int onednn_post_ops_fusing_helpers::get_prelu_mask(const layout& data_layout, const layout& slope_layout) {
-    auto policy = get_post_op_dnnl_policy_type(data_layout, slope_layout);
-    return get_default_mask(policy, static_cast<int>(data_layout.get_rank()));
-}
-
 int onednn_post_ops_fusing_helpers::get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
                                                                 const std::function<layout(int32_t)>& get_input_layout,
                                                                 int32_t slope_input_idx) {
@@ -930,13 +826,23 @@ int onednn_post_ops_fusing_helpers::get_prelu_mask_from_layouts(const std::funct
     auto data_shape = data_layout.get_shape();
     auto slope_shape = slope_layout.get_shape();
     auto input_shape = input_layout.get_shape();
-    if ((input_shape.size() == slope_shape.size())
-        && (data_shape.size() > slope_shape.size())
-        && (data_shape[1] == slope_shape[1])) {
-        return get_default_mask(post_op_dnnl_policy_type::PER_OC, static_cast<int>(data_layout.get_rank()));
-    } else {
-        return get_prelu_mask(data_layout, slope_layout);
+    int ndims = slope_shape.size() == 1 ? static_cast<int>(input_shape.size()) : static_cast<int>(slope_shape.size());
+
+    bool is_scalar = true;
+    bool is_per_tensor = true;
+    for (size_t i = 0; i < slope_shape.size(); i++) {
+        if (slope_shape[i] != 1)
+            is_scalar = false;
+        if (slope_shape[i] != data_shape[i])
+            is_per_tensor = false;
     }
+
+    if (is_scalar)
+        return get_default_mask(post_op_dnnl_policy_type::COMMON, ndims);
+    else if (slope_shape.size() != 1 && is_per_tensor)
+        return get_default_mask(post_op_dnnl_policy_type::PER_TENSOR, ndims);
+    else
+        return get_default_mask(post_op_dnnl_policy_type::PER_OC, ndims);
 }
 
 int onednn_post_ops_fusing_helpers::get_default_mask(post_op_dnnl_policy_type policy, int ndims) {
