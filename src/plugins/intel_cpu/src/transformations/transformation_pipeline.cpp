@@ -1522,11 +1522,26 @@ void Transformations::PostSnippets() {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
-    CPU_SET_CALLBACK_COMMON(
+    CPU_SET_CALLBACK_X64(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
             std::string errMsg;
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
+        },
+        ov::pass::FakeQuantizeDecomposition);
+    CPU_SET_CALLBACK_ARM(
+        postSnippetsManager,
+        [](const_node_ptr& node) -> bool {
+            if(ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
+               ov::intel_cpu::one_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
+                auto child = node->get_input_node_shared_ptr(0);
+                if (ov::is_type<const ov::op::v1::Multiply>(child) &&
+                    child->inputs().size() > 0 &&
+                    ov::is_type<const ov::op::v1::Convolution>(child->get_input_node_shared_ptr(0))) {
+                        return true;
+                    }
+            }
+            return false;
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
