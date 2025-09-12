@@ -42,7 +42,7 @@ private:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
-    template <typename T, std::enable_if_t<std::is_base_of_v<x64::BrgemmBaseKernelExecutor, T>, bool> = true>
+    template <typename T, typename Enable = std::enable_if_t<std::is_base_of_v<x64::BrgemmBaseKernelExecutor, T>>>
     void emit_call(const std::vector<size_t>& mem_ptrs_idxs) const;
 
     // Note: offsets order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if offset is calculated in
