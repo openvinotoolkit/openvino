@@ -73,6 +73,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_22_04_android
+            ov_test/ubuntu_22_04_android
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -163,7 +164,7 @@ jobs:
           path: ${{ env.TBB_SRC }}
           submodules: 'true'
           ref: ${{ env.TBB_BRANCH }}
-          
+
       - name: Configure OneTBB CMake project
         run: |
           cmake \
@@ -220,7 +221,7 @@ jobs:
         run: ${SCCACHE_PATH} --show-stats
 
       #
-      # Upload build logs
+      # Upload build logs and artifacts
       #
       - name: Upload build logs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -230,9 +231,151 @@ jobs:
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
+      - name: Prepare CPU test artifacts
+        run: |
+          mkdir -p android_tests/bin/intel64/Release
+          mkdir -p android_tests/lib
+
+          echo "Debug: Searching for test binaries..."
+          echo "BUILD_DIR contents:"
+          find ${BUILD_DIR} -name "*cpu*test*" -type f | head -10 || echo "No CPU test files found in BUILD_DIR"
+          echo "OPENVINO_REPO/bin contents:"
+          find ${OPENVINO_REPO}/bin -name "*cpu*test*" -type f 2>/dev/null | head -10 || echo "No CPU test files found in OPENVINO_REPO/bin"
+          
+          echo "Copying test binaries..."
+          # Try specific paths first, then search broadly
+          if [ -f "${OPENVINO_REPO}/bin/intel64/Release/ov_cpu_unit_tests" ]; then
+            cp "${OPENVINO_REPO}/bin/intel64/Release/ov_cpu_unit_tests" android_tests/bin/intel64/Release/
+            echo "Found ov_cpu_unit_tests in OPENVINO_REPO/bin/intel64/Release/"
+          elif [ -f "${BUILD_DIR}/bin/intel64/Release/ov_cpu_unit_tests" ]; then
+            cp "${BUILD_DIR}/bin/intel64/Release/ov_cpu_unit_tests" android_tests/bin/intel64/Release/
+            echo "Found ov_cpu_unit_tests in BUILD_DIR/bin/intel64/Release/"
+          else
+            find ${OPENVINO_REPO} ${BUILD_DIR} -name "ov_cpu_unit_tests" -executable -type f | head -1 | xargs -I {} cp {} android_tests/bin/intel64/Release/ || echo "ov_cpu_unit_tests not found anywhere"
+          fi
+          
+          if [ -f "${OPENVINO_REPO}/bin/intel64/Release/ov_cpu_func_tests" ]; then
+            cp "${OPENVINO_REPO}/bin/intel64/Release/ov_cpu_func_tests" android_tests/bin/intel64/Release/
+            echo "Found ov_cpu_func_tests in OPENVINO_REPO/bin/intel64/Release/"
+          elif [ -f "${BUILD_DIR}/bin/intel64/Release/ov_cpu_func_tests" ]; then
+            cp "${BUILD_DIR}/bin/intel64/Release/ov_cpu_func_tests" android_tests/bin/intel64/Release/
+            echo "Found ov_cpu_func_tests in BUILD_DIR/bin/intel64/Release/"
+          else
+            find ${OPENVINO_REPO} ${BUILD_DIR} -name "ov_cpu_func_tests" -executable -type f | head -1 | xargs -I {} cp {} android_tests/bin/intel64/Release/ || echo "ov_cpu_func_tests not found anywhere"
+          fi
+
+          echo "Copying OpenVINO libraries from same location as test binaries..."
+          find ${OPENVINO_REPO}/bin/intel64/Release ${BUILD_DIR}/bin/intel64/Release -name "*.so*" -type f -exec cp {} android_tests/bin/intel64/Release/ \; 2>/dev/null || echo "No .so files found"
+
+          echo "Copying TBB libraries..."
+          find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} android_tests/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
+
+          echo "Copying NDK C++ shared library..."
+          cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" android_tests/lib/ || echo "libc++_shared.so not found"
+
+          echo "Artifact structure:"
+          find android_tests -type f | head -20
+
+      - name: Upload CPU test binaries
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ov_cpu_tests_android_${{ matrix.arch }}
+          path: android_tests/
+          if-no-files-found: 'error'
+
+  Test:
+    needs: [Smart_CI, Docker, Build]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    timeout-minutes: 120
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_android }}
+      volumes:
+        - /mount:/mount
+      options: --privileged --device /dev/kvm
+    env:
+      ANDROID_API_LEVEL: 30
+      ANDROID_TARGET: google_apis
+      ANDROID_ARCH: x86_64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+
+      - name: Download CPU test binaries
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: ov_cpu_tests_android_x64
+          path: ./android_tests
+
+      - name: Setup KVM permissions
+        run: |
+          /usr/local/bin/setup-kvm.sh || true
+          ls -la /dev/kvm || echo "KVM device not available"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@8df1039502a15bceb9433410b1a100fbe190c53b # v4.5.0
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ env.ANDROID_API_LEVEL }}-${{ env.ANDROID_TARGET }}-${{ env.ANDROID_ARCH }}
+
+      - name: Run CPU unit tests on emulator
+        id: unit-tests
+        uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed # v2.34.0
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          target: ${{ env.ANDROID_TARGET }}
+          arch: ${{ env.ANDROID_ARCH }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 8192 -qemu -cpu host
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            set -e
+            adb wait-for-device
+
+            [ -f "./android_tests/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
+            chmod +x ./android_tests/bin/intel64/Release/ov_cpu_unit_tests
+            adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test/intel64/Release"
+            echo "Pushing unit test binary and libraries to device..."
+            adb push ./android_tests/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
+            # Push OpenVINO libraries
+            for lib in ./android_tests/bin/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            # Push TBB libraries
+            for lib in ./android_tests/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            # Push NDK C++ shared library
+            [ -f "./android_tests/lib/libc++_shared.so" ] && adb push "./android_tests/lib/libc++_shared.so" /data/local/tmp/ov_test/ || echo "libc++_shared.so not found"
+            adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
+            echo "Running CPU unit tests..."
+            adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
+            echo "Pulling unit test results..."
+            adb pull /data/local/tmp/ov_test/unit_test_results.xml ./unit_test_results.xml || { echo "Warning: Could not pull unit test results"; adb shell "ls -la /data/local/tmp/ov_test/"; adb shell "cat /data/local/tmp/ov_test/unit_test_results.xml" || echo "No unit test results file"; }
+
+      - name: Upload test results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: cpu_tests_results_android_x64
+          path: |
+            ./unit_test_results.xml
+            ./func_test_results.xml
+          if-no-files-found: 'ignore'
+
   Overall_Status:
     name: ci/gha_overall_status_android
-    needs: [Smart_CI, Build]
+    needs: [Smart_CI, Build, Test]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
