@@ -48,6 +48,7 @@
 #include "nodes/interpolate.h"
 #include "nodes/inverse.hpp"
 #include "nodes/istft.h"
+#include "nodes/fake_quantize.h"
 #include "nodes/log_softmax.h"
 #include "nodes/lora.h"
 #include "nodes/lrn.h"
@@ -109,7 +110,6 @@
 #include "selective_build.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include "nodes/fake_quantize.h"
 #    include "nodes/grid_sample.hpp"
 #    include "nodes/interaction.h"
 #    include "nodes/llm_mlp.h"

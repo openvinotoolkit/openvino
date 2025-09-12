@@ -375,8 +375,8 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
         }
 //ACL does not support fp bias for int inputs
 #if defined (OV_CPU_WITH_ACL)
-        if (one_of(biasNode->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::f16) &&
-            one_of(parentNode->getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8)) {
+        if (any_of(biasNode->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::f16) &&
+            any_of(parentNode->getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8)) {
             return false;
         }
 #endif

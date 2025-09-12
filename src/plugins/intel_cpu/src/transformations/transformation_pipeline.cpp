@@ -1594,7 +1594,7 @@ void Transformations::PostSnippets() {
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
             if(ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
-               ov::intel_cpu::one_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
+               ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
                 auto child = node->get_input_node_shared_ptr(0);
                 if (ov::is_type<const ov::op::v1::Multiply>(child) &&
                     child->inputs().size() > 0 &&
