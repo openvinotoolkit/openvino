@@ -279,6 +279,22 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     return resCPUParams;
 }
 
+// 3Dims resize is not supported for nChw16c and nChw8c layouts
+std::vector<CPUSpecificParams> filterCPUInfoForDevice3DimResizeIn4D() {
+    std::vector<CPUSpecificParams> resCPUParams;
+    if (ov::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512"});
+    } else if (ov::with_cpu_x86_avx2()) {
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2"});
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2"});
+    } else if (ov::with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x, x}, {nhwc}, {"jit_sse42"}, "jit_sse42"});
+    } else {
+        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x, x}, {nchw}, {"ref"}, "ref"});
+    }
+    return resCPUParams;
+}
+
 const std::vector<std::vector<size_t>> pads4D = {
         {0, 0, 0, 0},
         {0, 0, 1, 1},
@@ -315,6 +331,37 @@ const std::vector<ShapeParams> shapeParams4D_Smoke = {
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
         ov::test::utils::InputLayerType::PARAMETER,
         {{1, 11, 6, 7}, {2, 7, 8, 7}, {1, 11, 6, 7}},
+        defaultAxes4D.front()
+    }
+};
+
+const std::vector<ShapeParams> shapeParams4D_Smoke_Resize3Dims = {
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{}, {{1, 1, 1, 1}}},
+        ov::test::utils::InputLayerType::CONSTANT,
+        {{1, 2, 2, 2}},
+        defaultAxes4D.front()
+    },
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{}, {{1, 2, 1, 1}}},
+        ov::test::utils::InputLayerType::CONSTANT,
+        {{1, 4, 4, 4}},
+        defaultAxes4D.front()
+    },
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{}, {{1, 2, 2, 1}}},
+        ov::test::utils::InputLayerType::CONSTANT,
+        {{1, 4, 4, 1}},
+        defaultAxes4D.front()
+    },
+    ShapeParams{
+        ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
+        ov::test::utils::InputLayerType::PARAMETER,
+        {{1.f, 2.f, 1.25f, 1.5f}, {1.f, 2.f, 1.25f, 1.25f}, {1.f, 2.f, 1.25f, 1.5f}},
         defaultAxes4D.front()
     }
 };
@@ -363,6 +410,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTes
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Resize3Dims_Test,
+                         InterpolateLayerCPUTest,
+                         ::testing::Combine(interpolateCasesNN_Smoke,
+                                            ::testing::ValuesIn(shapeParams4D_Smoke_Resize3Dims),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice3DimResizeIn4D()),
+                                            ::testing::ValuesIn(interpolateFusingParamsSet),
+                                            ::testing::ValuesIn(filterAdditionalConfig())),
+                         InterpolateLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
          ::testing::Combine(
@@ -444,6 +501,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLay
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinearOnnx_Layout_Resize3Dims_Test,
+                         InterpolateLayerCPUTest,
+                         ::testing::Combine(interpolateCasesLinearOnnx_Smoke,
+                                            ::testing::ValuesIn(shapeParams4D_Smoke_Resize3Dims),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice3DimResizeIn4D()),
+                                            ::testing::ValuesIn(interpolateFusingParamsSet),
+                                            ::testing::ValuesIn(filterAdditionalConfig())),
+                         InterpolateLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             interpolateCasesLinearOnnx_Full,
@@ -481,6 +548,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinear_Layout_Test, InterpolateLayerCP
             ::testing::ValuesIn(interpolateFusingParamsSet),
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateLinear_Layout_Resize3Dims_Test,
+                         InterpolateLayerCPUTest,
+                         ::testing::Combine(interpolateCasesLinear_Smoke,
+                                            ::testing::ValuesIn(shapeParams4D_Smoke_Resize3Dims),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice3DimResizeIn4D()),
+                                            ::testing::ValuesIn(interpolateFusingParamsSet),
+                                            ::testing::ValuesIn(filterAdditionalConfig())),
+                         InterpolateLayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(InterpolateLinear_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
