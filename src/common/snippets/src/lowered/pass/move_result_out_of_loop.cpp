@@ -22,7 +22,7 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
     }
 
     bool modified = false;
-    const auto loop_manager = linear_ir.get_loop_manager();
+    const lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
     // Visit expressions in reverse order, so we'll move Result to an already visited area.
     // This is needed to avoid extra hits, when we match to the same Result twice
     for (auto expr_it = linear_ir.crbegin(); expr_it != linear_ir.crend(); expr_it++) {

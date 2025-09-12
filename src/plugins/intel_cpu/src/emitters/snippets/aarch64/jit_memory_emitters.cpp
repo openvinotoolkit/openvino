@@ -23,7 +23,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
-#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/broadcastload.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/memory_access.hpp"

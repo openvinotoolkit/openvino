@@ -22,7 +22,7 @@ bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir,
                                        lowered::LinearIR::constExprIt begin,
                                        lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::OptimizeLoopSingleEvaluation")
-    const auto& loop_manager = linear_ir.get_loop_manager();
+    const lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
 
     bool is_modified = false;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {

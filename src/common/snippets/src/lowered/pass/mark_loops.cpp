@@ -28,7 +28,7 @@ MarkLoops::MarkLoops(size_t vector_size) : RangedPass(), m_vector_size(vector_si
 bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MarkLoops")
     const auto& lowering_config = linear_ir.get_config();
-    const auto& loop_manager = linear_ir.get_loop_manager();
+    const lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
     auto loop_depth = lowering_config.m_loop_depth;
 
     // Parameters, Results or Constants are ignored. They can't be in Loops

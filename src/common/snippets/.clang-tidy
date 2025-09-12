@@ -125,11 +125,8 @@ CheckOptions:
     value: "1"
   # itt and conditional compilation are implemented via tricky macro combinations
   - key: misc-include-cleaner.IgnoreHeaders
-    # TODO: remove snippets/*.hpp from the list
     value: >
       .*/itt.hpp;
-      snippets/runtime_configurator.hpp;
-      snippets/lowered/loop_manager.hpp;
 #  Reasonable way to enforce splitting complex code into simple functions
   - key: readability-function-size.StatementThreshold
     value: "800"

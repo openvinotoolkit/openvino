@@ -80,7 +80,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
     };
 
     bool modified = false;
-    const auto& loop_manager = linear_ir.get_loop_manager();
+    const lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& reduce_expr = *expr_it;
         const auto& reduce = ov::as_type_ptr<ov::snippets::op::ReduceBase>(reduce_expr->get_node());

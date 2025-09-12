@@ -116,7 +116,7 @@ std::unordered_set<lowered::ExpressionPtr> MHAParallelWAOptimizer::find_applicab
         brgemms.insert(*brgemm_it);
         brgemm_it = std::find_if(std::next(brgemm_it), linear_ir->end(), is_brgemm);
     }
-    const auto& loop_manager = linear_ir->get_loop_manager();
+    const lowered::LoopManagerPtr& loop_manager = linear_ir->get_loop_manager();
     auto applicable_brgemm = [&loop_manager, check_dynamic_wa](const lowered::ExpressionPtr& expr) {
         const auto& loop_idces = expr->get_loop_ids();
         if (loop_idces.empty()) {
@@ -170,7 +170,7 @@ std::unordered_set<size_t> MHAParallelWAOptimizer::find_unsqueezed_params(
 std::vector<lowered::ExpandedLoopInfoPtr> MHAParallelWAOptimizer::find_loops_to_split(
     const lowered::LinearIRCPtr& linear_ir,
     const std::unordered_set<size_t>& unsqueezed_params) {
-    const auto loop_manager = linear_ir->get_loop_manager();
+    const lowered::LoopManagerPtr& loop_manager = linear_ir->get_loop_manager();
     std::set<size_t> loop_idces_to_split;
     std::vector<size_t> prev_loop_idces;
 
@@ -196,7 +196,8 @@ std::vector<lowered::ExpandedLoopInfoPtr> MHAParallelWAOptimizer::find_loops_to_
         utils::visit_path(param, visited, add_loop_idx_to_split, false);
     }
 
-    const auto& loops_map = linear_ir->get_loop_manager()->get_map();
+    const lowered::LoopManagerPtr& loop_manager_map_owner = linear_ir->get_loop_manager();
+    const auto& loops_map = loop_manager_map_owner->get_map();
     std::vector<lowered::ExpandedLoopInfoPtr> loops_to_split;
     loops_to_split.reserve(loop_idces_to_split.size());
     for (const auto& id : loop_idces_to_split) {

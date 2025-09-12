@@ -33,7 +33,7 @@ bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
     }
     const auto& linear_ir = m_update_dynamic_ops ? LinearIRBuilder().clone(original_linear_ir) : original_linear_ir;
 
-    const auto& loop_manager = linear_ir.get_loop_manager();
+    const lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
     const auto& loop_info_map = loop_manager ? loop_manager->get_map() : std::map<size_t, LoopInfoPtr>{};
 
     auto first_node = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});

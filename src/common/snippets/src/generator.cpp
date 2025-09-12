@@ -5,6 +5,8 @@
 #include "snippets/generator.hpp"
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -20,6 +22,7 @@
 #include "snippets/emitter.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/reg_manager.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/broadcastload.hpp"
@@ -28,6 +31,7 @@
 #include "snippets/op/fill.hpp"
 #include "snippets/op/horizon_max.hpp"
 #include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/kernel.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/perf_count.hpp"
@@ -41,21 +45,14 @@
 #include "snippets/target_machine.hpp"
 #include "snippets/utils/reg_utils.hpp"
 
-#if defined(OPENVINO_ARCH_X86_64)
-#    include <string>
-#    include <vector>
-
-#    include "snippets/lowered/port_connector.hpp"
-#    include "snippets/op/kernel.hpp"
-#endif
-
 namespace ov::snippets {
 
 LoweringResult Generator::generate(const lowered::LinearIRPtr& linear_ir, const void* compile_params) const {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
 
     // Before code gen we have to reset KernelExecutor Table - it should be empty
-    target->get_runtime_configurator()->reset_kernel_executor_table();
+    const std::shared_ptr<ov::snippets::RuntimeConfigurator>& runtime_configurator = target->get_runtime_configurator();
+    runtime_configurator->reset_kernel_executor_table();
 
     OV_ITT_TASK_CHAIN(GENERATE, ov::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::InitEmitters")
 
@@ -91,7 +88,7 @@ LoweringResult Generator::generate(const lowered::LinearIRPtr& linear_ir, const 
         }
     }
     result.compiled_snippet = target->get_snippet();
-    result.kernel_executor_table = target->get_runtime_configurator()->get_kernel_executor_table();
+    result.kernel_executor_table = runtime_configurator->get_kernel_executor_table();
     // In static case some kernel executors might've been registered during code emission.
     // We need to update them, so appropriate kernels will be compiled.
     // In dynamic case it should be handled by RuntimeConfigurator
