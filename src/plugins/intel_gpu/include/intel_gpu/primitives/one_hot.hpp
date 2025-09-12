@@ -45,12 +45,14 @@ struct one_hot : public primitive_base<one_hot> {
             const tensor& shape,
             const int64_t& one_hot_axis,
             const int64_t& depth,
+            const bool indices_normalize_mode = false,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f)
         : primitive_base(id, {input})
         , shape(shape)
         , one_hot_axis(one_hot_axis)
         , depth(depth)
+        , indices_normalize_mode(indices_normalize_mode)
         , on_value(on_value)
         , off_value(off_value) {}
 
@@ -61,11 +63,13 @@ struct one_hot : public primitive_base<one_hot> {
             const tensor& shape,
             const data_types output_dt,
             const int64_t& one_hot_axis,
+            const bool indices_normalize_mode = false,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f)
         : primitive_base(id, {input, input_depth}, 1, {optional_data_type{output_dt}})
         , shape(shape)
         , one_hot_axis(one_hot_axis)
+        , indices_normalize_mode(indices_normalize_mode)
         , on_value(on_value)
         , off_value(off_value) {}
 
@@ -81,12 +85,14 @@ struct one_hot : public primitive_base<one_hot> {
             const data_types output_dt,
             const int64_t& one_hot_axis,
             const int64_t& depth,
+            const bool indices_normalize_mode = false,
             const float& on_value = 1.0f,
             const float& off_value = 0.0f)
         : primitive_base(id, {input}, 1, {optional_data_type{output_dt}})
         , shape(shape)
         , one_hot_axis(one_hot_axis)
         , depth(depth)
+        , indices_normalize_mode(indices_normalize_mode)
         , on_value(on_value)
         , off_value(off_value) {}
 
@@ -96,6 +102,8 @@ struct one_hot : public primitive_base<one_hot> {
     int64_t one_hot_axis = 0;
     /// @brief The number of classes and thus the size of the one-hot dimension
     int64_t depth = 0;
+    /// @brief Negative indices mode, read specification to find out more.
+    bool indices_normalize_mode = false;
     /// @brief The locations represented by indices in indices take this value.
     float on_value = 1.0f;
     /// @brief all other locations take value this value.
@@ -106,6 +114,7 @@ struct one_hot : public primitive_base<one_hot> {
         seed = hash_combine(seed, one_hot_axis);
         seed = hash_combine(seed, on_value);
         seed = hash_combine(seed, off_value);
+        seed = hash_combine(seed, indices_normalize_mode);
         return seed;
     }
 
@@ -118,7 +127,8 @@ struct one_hot : public primitive_base<one_hot> {
         return one_hot_axis == rhs_casted.one_hot_axis &&
                depth == rhs_casted.depth &&
                on_value == rhs_casted.on_value &&
-               off_value == rhs_casted.off_value;
+               off_value == rhs_casted.off_value &&
+               indices_normalize_mode == rhs_casted.indices_normalize_mode;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -128,6 +138,7 @@ struct one_hot : public primitive_base<one_hot> {
         ob << depth;
         ob << on_value;
         ob << off_value;
+        ob << indices_normalize_mode;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -137,6 +148,7 @@ struct one_hot : public primitive_base<one_hot> {
         ib >> depth;
         ib >> on_value;
         ib >> off_value;
+        ib >> indices_normalize_mode;
     }
 };
 }  // namespace cldnn
