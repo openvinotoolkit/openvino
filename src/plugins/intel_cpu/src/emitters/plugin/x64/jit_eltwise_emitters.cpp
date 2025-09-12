@@ -2365,16 +2365,21 @@ void jit_soft_sign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
     auto vmm_src = Vmm(in_vec_idxs[0]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_aux = Vmm(aux_vec_idxs[0]);
 
-    h->uni_vmovups(vmm_dst, vmm_src);                             // y = x
-    h->uni_vandps(vmm_src, vmm_src, table_val("positive_mask"));  // x = abs(x)
-    h->uni_vaddps(vmm_src, vmm_src, table_val("one"));            // x++
-    h->uni_vdivps(vmm_dst, vmm_dst, vmm_src);                     // y = y/x
+    h->uni_vmovups(vmm_aux, vmm_src);                             // y = x
+    h->uni_vandps(vmm_dst, vmm_src, table_val("positive_mask"));  // x = abs(x)
+    h->uni_vaddps(vmm_dst, vmm_dst, table_val("one"));            // x++
+    h->uni_vdivps(vmm_dst, vmm_aux, vmm_dst);                     // y = y/x
 }
 
 void jit_soft_sign_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F, true);
     push_arg_entry_of("positive_mask", 0x7fffffff, true);
+}
+
+size_t jit_soft_sign_emitter::aux_vecs_count() const {
+    return 1;
 }
 
 /// IS_FINITE ///
