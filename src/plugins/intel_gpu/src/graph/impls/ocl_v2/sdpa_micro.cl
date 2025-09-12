@@ -472,7 +472,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Calculate S = (K^T) * Q */
 #if IS_PAGED_ATTENTION && IS_PREFILL == 0
-        int k_block_num = k0 / ugemm_kq_sg_tile_m + sg_i_kq;
+        int k_block_num = k0 / PAGED_ATTENTION_BLOCK_SIZE + sg_i_kq;
         global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
                                - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
         #if IS_KV_COMPRESSED_PA
