@@ -9,6 +9,9 @@
 #include <snippets/op/subgraph.hpp>
 #include <snippets/op/reduce.hpp>
 #include <snippets/op/powerstatic.hpp>
+#include <snippets/op/online_softmax.hpp>
+#include <snippets/op/online_softmax_update_max.hpp>
+#include <snippets/op/online_softmax_update_sum.hpp>
 #include "openvino/core/validation_util.hpp"
 
 namespace ov {
@@ -99,6 +102,35 @@ std::shared_ptr<ov::Model> SoftmaxSumFunction::initOriginal() const {
     auto softmax2 = std::make_shared<ov::op::v8::Softmax>(data1, axis);
     auto add = std::make_shared<ov::op::v1::Add>(softmax1, softmax2);
     return std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{data0, data1});
+}
+
+std::shared_ptr<ov::Model> OnlineSoftmaxFunction::initOriginal() const {
+    auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    const auto online_softmax = std::make_shared<ov::snippets::op::OnlineSoftmax>(data);
+    return std::make_shared<ov::Model>(OutputVector{online_softmax->output(0), online_softmax->output(1)},
+                                       ParameterVector{data});
+}
+
+std::shared_ptr<ov::Model> OnlineSoftmaxFunction::initReference() const {
+    auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    const auto axis = input_shapes[0].size() - 1;
+
+    const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(data, axis);
+    const auto updated_max = std::make_shared<ov::snippets::op::OnlineSoftmaxUpdateMax>(reduce_max);
+
+    const auto subtract = std::make_shared<ov::op::v1::Subtract>(data, updated_max->output(0));
+    const auto exp = std::make_shared<ov::op::v0::Exp>(subtract);
+    const auto reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(exp, axis);
+
+    const auto coeff_exp = std::make_shared<ov::op::v0::Exp>(updated_max->output(1));
+
+    const auto updated_sum = std::make_shared<ov::snippets::op::OnlineSoftmaxUpdateSum>(reduce_sum, coeff_exp);
+    const auto power = std::make_shared<ov::snippets::op::PowerStatic>(updated_sum->output(0), -1.F);
+    const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
+
+    const auto brgemm_coeff = std::make_shared<ov::op::v1::Divide>(updated_sum->output(1), updated_sum->output(0));
+
+    return std::make_shared<ov::Model>(OutputVector{multiply, brgemm_coeff}, ParameterVector{data});
 }
 
 }  // namespace snippets
