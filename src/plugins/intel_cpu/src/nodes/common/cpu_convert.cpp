@@ -559,7 +559,15 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
             return;
         }
 
-        if (std::is_integral_v<src_t> || ctx.interimPrc.is_real() || std::is_integral_v<dst_t>) {
+        if (std::is_integral_v<src_t> && std::is_integral_v<dst_t>) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(src[i]);
+            });
+        } else if (std::is_floating_point_v<src_t> || std::is_integral_v<dst_t>) {
+            parallel_for(ctx.size, [&](size_t i) {
+                dst[i] = static_cast<dst_t>(std::round(src[i]));
+            });
+        } else if (std::is_integral_v<src_t> || ctx.interimPrc.is_real() || std::is_integral_v<dst_t>) {
             parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
                 dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
             });
@@ -687,7 +695,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
                 jit_convert(src + offset, tmp, current_batch_size);  // fp16 -> fp32
                 for (size_t j = 0; j < current_batch_size; ++j) {    // fp32 -> dst_t
-                    dst[offset + j] = static_cast<dst_t>(std::max(std::min(tmp[j], ubound), lbound));
+                    dst[offset + j] = static_cast<dst_t>(std::round(tmp[j]));
                 }
             });
         } else if (ctx.interimPrc.is_real()) {
