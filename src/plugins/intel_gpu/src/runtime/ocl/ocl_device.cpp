@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
 #include "gpu/intel/jit/generator.hpp"
-#endif  // ENABLE_ONEDNN_FOR_GPU
+#endif
 
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"

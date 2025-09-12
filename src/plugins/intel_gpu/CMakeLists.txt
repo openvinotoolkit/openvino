@@ -38,6 +38,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
 endif()
 
+if(WIN32)
+    add_definitions(-DNOMINMAX)
+endif()
+
 if(ENABLE_GPU_DEBUG_CAPS)
     add_definitions(-DGPU_DEBUG_CONFIG=1)
     add_definitions(-DENABLE_DEBUG_CAPS=1)

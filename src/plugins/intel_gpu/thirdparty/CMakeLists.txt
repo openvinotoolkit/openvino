@@ -155,14 +155,20 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 DEPENDEES install  # Ensures this runs after install
             )
         endif()
-
+        if(GPU_RUNTIME STREQUAL "L0")
+            set(DNNL_GPU_RUNTIME_VALUE DNNL_RUNTIME_L0)
+        elseif(GPU_RUNTIME STREQUAL "OCL")
+            set(DNNL_GPU_RUNTIME_VALUE  DNNL_RUNTIME_OCL)
+        endif()
         set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/ngen"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/config"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/gemm/jit/include"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party"
                              "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party/ngen")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
+                            DNNL_GPU_RUNTIME={$DNNL_GPU_RUNTIME_VALUE}
                             DNNL_DLL
                             DNNL_DLL_EXPORTS
                             DNNL_ENABLE_CPU_ISA_HINTS
