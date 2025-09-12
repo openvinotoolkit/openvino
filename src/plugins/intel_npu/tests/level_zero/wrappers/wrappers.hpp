@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "ze_graph_ext_wrappers.hpp"
+#include "zero_init_struct.hpp"
 
 using namespace intel_npu;
 
@@ -15,7 +16,7 @@ protected:
     void TearDown() override;
 
 public:
-    std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
+    std::shared_ptr<ZeroInitStructsMock> zeroInitStruct;
 
     std::shared_ptr<ZeGraphExtWrappers> zeGraphExt;
 

@@ -194,7 +194,13 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraph) {
     allocator->deallocate(ptr, totalSize);
 }
 
+// TODO: convert this test into one which tests all the combinations of graph flags
 TEST_P(ZeroGraphTest, GetGraphDescriptorBadGraphFlag) {
+    auto compilerProperties = zeroInitStruct->getCompilerProperties();
+    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    auto cfg = ::intel_npu::Config(opt_desc);
+    buildFlags += serializeConfig(cfg, compilerProperties.compilerVersion, zeGraphExt);
+
     graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, 0xBADBAD);
     ASSERT_EQ(graphDescriptor._handle, nullptr);
 }

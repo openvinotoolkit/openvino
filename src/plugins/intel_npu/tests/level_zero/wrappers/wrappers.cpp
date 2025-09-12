@@ -10,20 +10,24 @@
 
 // there is something wrong in here
 void ZeroWrappersTest::SetUp() {
+    int flag;
+    std::string extVersion;
+    std::tie(flag, extVersion) = GetParam();
     model = ov::test::utils::make_multi_single_conv();
-    zeroInitStruct = std::make_shared<ZeroInitStructsHolder>();
+    zeroInitStruct = std::make_shared<ZeroInitStructsMock>(extVersion);
 
-    zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
+    zeGraphExt = std::make_shared<ZeGraphExtWrappers>(std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitStruct));
 
     auto compilerProperties = zeroInitStruct->getCompilerProperties();
     const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
     const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
     serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
-
+    std::cout << " aaa \n\n";
     buildFlags = "";
 
     // should this be here?
-    graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, ZE_GRAPH_FLAG_NONE);
+    graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, flag);
+    std::cout << " aaa \n\n";
 }
 
 void ZeroWrappersTest::TearDown() {}
@@ -40,7 +44,7 @@ TEST_P(ZeroWrappersTest, GetGraphBinary) {
 TEST_P(ZeroWrappersTest, InitializeGraph) {
     // int max?
     auto commandQueueGroupOrdinal =
-        zeroUtils::findCommandQueueGroupOrdinal(ZeroInitStructsHolder::getInstance()->getDevice(),
+        zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
                                                 ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
     zeGraphExt->initializeGraph(graphDescriptor, commandQueueGroupOrdinal);
