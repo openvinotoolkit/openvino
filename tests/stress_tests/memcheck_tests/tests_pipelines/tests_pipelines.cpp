@@ -13,11 +13,7 @@
 
 
 MemCheckPipeline::MemCheckPipeline() {
-    start_measures[VMRSS] = (long) getVmRSSInKB();
-    start_measures[VMHWM] = start_measures[VMRSS];
-    start_measures[VMSIZE] = (long) getVmSizeInKB();
-    start_measures[VMPEAK] = start_measures[VMSIZE];
-    start_measures[THREADS] = (long) getThreadsNum();
+    start_measures = _measure();
 }
 
 std::array<long, MeasureValueMax> MemCheckPipeline::_measure() {
@@ -32,10 +28,11 @@ std::array<long, MeasureValueMax> MemCheckPipeline::_measure() {
 
 std::array<long, MeasureValueMax> MemCheckPipeline::measure() {
     std::array<long, MeasureValueMax> measures = _measure();
-    std::transform(std::begin(measures), std::end(measures), std::begin(start_measures), std::begin(measures),
-                   [](long measure, long start_measure) -> long {
-                       return measure - start_measure;
-                   });
+    measures[VMRSS] -= start_measures[VMRSS];
+    measures[VMHWM] -= start_measures[VMHWM];
+    measures[VMSIZE] -= start_measures[VMSIZE];
+    measures[VMPEAK] -= start_measures[VMPEAK];
+    measures[THREADS] -= start_measures[THREADS];
     return measures;
 }
 
@@ -55,10 +52,10 @@ std::string MemCheckPipeline::get_reference_record_for_test(std::string test_nam
        "\" precision=\"" << precision <<
        "\" test=\"" << test_name <<
        "\" device=\"" << target_device <<
-       "\" vmsize=\"" << (int) (measures[VMSIZE] * REPORTING_THRESHOLD) <<
-       "\" vmpeak=\"" << (int) (measures[VMPEAK] * REPORTING_THRESHOLD) <<
-       "\" vmrss=\"" << (int) (measures[VMRSS] * REPORTING_THRESHOLD) <<
-       "\" vmhwm=\"" << (int) (measures[VMHWM] * REPORTING_THRESHOLD) << "\" />";
+       "\" vmsize=\"" << (long) (measures[VMSIZE] * REPORTING_THRESHOLD) <<
+       "\" vmpeak=\"" << (long) (measures[VMPEAK] * REPORTING_THRESHOLD) <<
+       "\" vmrss=\"" << (long) (measures[VMRSS] * REPORTING_THRESHOLD) <<
+       "\" vmhwm=\"" << (long) (measures[VMHWM] * REPORTING_THRESHOLD) << "\" />";
     return ss.str();
 }
 
