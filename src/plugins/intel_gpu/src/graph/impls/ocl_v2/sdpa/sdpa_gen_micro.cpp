@@ -264,7 +264,7 @@ struct sdpa_config_t {
 //  s<M> -- target sequence length = M
 //   2nd -- second token (thin Q)
 //    pa -- paged attention
-sdpa_config_t xehpg_h32_pa = {16, 16, 16, 16, 8, 8, 8, 8};
+sdpa_config_t xehpg_h32_pa = {16, 16, 16, 16, 2, 8, 2, 8};
 sdpa_config_t xehpg_h32 = {32, 16, 16, 16, 2, 16, 2, 16};
 sdpa_config_t xehpg_h32_s256 = {16, 16, 16, 16, 2, 8, 2, 8};
 sdpa_config_t xehpg_h32_s64 = {16, 16, 16, 8, 4, 4, 2, 8};
@@ -274,7 +274,7 @@ sdpa_config_t xehpg_h32_2nd = {8, 32, 16, 8, 8, 1, 2, 4};
 sdpa_config_t xehpg_q_h32 = {32, 16, 16, 16, 2, 8, 2, 8};
 sdpa_config_t xehpg_q_h32_2nd = {32, 16, 8, 8, 8, 1, 4, 2};
 
-sdpa_config_t xehpg_h64_pa = {16, 16, 16, 16, 8, 8, 8, 8};
+sdpa_config_t xehpg_h64_pa = {16, 16, 16, 16, 4, 8, 4, 8};
 sdpa_config_t xehpg_h64 = {32, 16, 16, 16, 4, 8, 4, 8};
 sdpa_config_t xehpg_h64_s128 = {16, 16, 16, 16, 4, 8, 4, 8};
 sdpa_config_t xehpg_h64_s64 = {32, 16, 16, 8, 8, 4, 4, 8};
