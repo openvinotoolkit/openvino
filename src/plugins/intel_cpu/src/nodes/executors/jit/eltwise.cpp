@@ -480,6 +480,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                 Algorithm::EltwiseRoundHalfAwayFromZero,
                 Algorithm::EltwiseRoundHalfToEven,
                 Algorithm::EltwiseSigmoid,
+                Algorithm::EltwiseSoftRelu,
                 Algorithm::EltwiseSqrt,
                 Algorithm::EltwiseSubtract,
                 Algorithm::EltwiseTanh)) {
