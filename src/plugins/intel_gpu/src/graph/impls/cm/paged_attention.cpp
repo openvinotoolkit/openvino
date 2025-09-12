@@ -168,14 +168,14 @@ public:
             const size_t block_size = get_xattn_block_size(params);
             if (block_size > 1) {
                 OPENVINO_ASSERT(block_size % STRIDE == 0, "sparse block_size must be devidable by stride.");
-                const size_t sum_per_n_token_in_block = block_size / STRIDE;  // FIXME
+                const uint32_t q_block_pad = ceil_div(q_len, block_size);
                 const uint32_t sum_per_token_in_block = block_size / STRIDE;
                 const uint32_t k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
                 const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
                 auto count_kq_exp_partial_sum = static_cast<int64_t>(desc->heads_num * q_stride_pad * k_block_pad);
                 internal_buffers.emplace_back(count_kq_exp_partial_sum, ov::element::f32);       // 3: kq_exp_partial_sum
 
-                auto count_elements_mask = static_cast<int64_t>(desc->heads_num * (q_stride_pad / sum_per_n_token_in_block) * k_block_pad);
+                auto count_elements_mask = static_cast<int64_t>(desc->heads_num * q_block_pad * k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);        // 4: sparse_block_mask
             }
         }
