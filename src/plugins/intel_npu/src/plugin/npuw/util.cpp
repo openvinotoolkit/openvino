@@ -905,3 +905,13 @@ bool ov::npuw::util::matchLoRAMatMulBString(const std::string& input) {
 bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
     return ov::npuw::util::matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
 }
+
+bool ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
+    std::regex pattern(R"(past_key_values\.\d+\.key)");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
+    std::regex pattern(R"(past_key_values\.\d+\.value)");
+    return std::regex_match(str, pattern);
+}

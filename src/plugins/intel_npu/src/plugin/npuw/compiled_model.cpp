@@ -175,6 +175,81 @@ bool containsSoftmaxV8WithNonUnitSecondDim(const ov::Model& model) {
     return false;
 }
 
+void reshape_to_dynamic(std::shared_ptr<ov::Model> model, const int64_t history_size) {
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& input_name = input.get_any_name();
+        ov::PartialShape new_shape;
+        if (ov::npuw::util::isPastKeyValuesKey(input_name)) {
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            new_shape[2] = history_size;
+        } else if (ov::npuw::util::isPastKeyValuesValue(input_name)) {
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            new_shape[3] = history_size;
+        } else {
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            if (new_shape[new_shape.size() - 1] == 8192) {
+                // Reshape mask to dynamic
+                new_shape[new_shape.size() - 1] = -1;
+            }
+        }
+        new_shapes.emplace(input_name, new_shape);
+
+        std::cout << "Reshape input_name: " << input_name << " to: " << new_shape << std::endl;
+    }
+    model->reshape(new_shapes);
+
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto broadcast_node = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(node)) {
+            auto target_shape_input = broadcast_node->input_value(1).get_node_shared_ptr();
+            if (auto constant_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(target_shape_input)) {
+                auto target_shape_values = constant_node->cast_vector<int64_t>();
+                size_t target_dim = 0;
+                for (size_t d = 0; d < target_shape_values.size(); d++) {
+                    if (target_shape_values[d] == 8192) {
+                        target_dim = d;
+                        break;
+                    }
+                }
+                target_shape_values[target_dim] = -1;
+                auto new_constant_node = std::make_shared<ov::op::v0::Constant>(constant_node->get_element_type(),
+                                                                                constant_node->get_shape(),
+                                                                                target_shape_values);
+                broadcast_node->input(1).replace_source_output(new_constant_node->output(0));
+            }
+        }
+#if 0  // Best config
+        if (auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node)) {
+            auto target_shape_input = reshape_node->input_value(1).get_node_shared_ptr();
+            if (auto constant_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(target_shape_input)) {
+                auto target_shape_values = constant_node->cast_vector<int64_t>();
+                size_t target_dim = 0;
+                for (size_t d = 0; d < target_shape_values.size(); d++) {
+                    if (target_shape_values[d] == 8192) {
+                        target_dim = d;
+                        break;
+                    }
+                }
+                if (target_dim == 0) {
+                    continue;
+                }
+                target_shape_values[target_dim] = -1;
+
+                auto new_constant_node = std::make_shared<ov::op::v0::Constant>(
+                    constant_node->get_element_type(),
+                    constant_node->get_shape(),
+                    target_shape_values);
+
+                reshape_node->input(1).replace_source_output(new_constant_node->output(0));
+            }
+        }
+#endif
+    }
+}
+
 ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin)
     : ov::ICompiledModel(model, plugin) {}
@@ -411,6 +486,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         if (real_id == id) {
             remove_long_output_names(m_compiled_submodels[real_id].model);
             fill_empty_tensor_names(m_compiled_submodels[real_id].model);
+
+            if (m_compiled_submodels[real_id].is_sdpa) {
+                reshape_to_dynamic(m_compiled_submodels[real_id].model, -1);
+            }
         }
 
         if (ov::npuw::util::is_set(id, dump_sub_opt, real_id, end_sub_idx)) {
@@ -1499,7 +1578,8 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
         device = "GPU";
         std::cout << "Subgraph[" << id << "] is marked as SDPA, forcing GPU device for compilation" << std::endl;
     } else {
-        std::cout << "Subgraph[" << id << "] is not marked as SDPA, using " << device << " for compilation" << std::endl;
+        std::cout << "Subgraph[" << id << "] is not marked as SDPA, using " << device << " for compilation"
+                  << std::endl;
     }
 
     try {
@@ -1860,7 +1940,6 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
                           BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
                           BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),
-                          BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)
-    });
+                          BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)});
 #undef BIND
 }
