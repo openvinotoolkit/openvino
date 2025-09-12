@@ -1079,12 +1079,37 @@ TEST_P(fc_fp32_activation_prelu_full_tensor, basic) {
         reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-1f;
+    tolerance = 1e-5f;
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation_prelu_full_tensor, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP32_4, 2, 3 }
+}));
+
+class fc_fp32_activation_prelu_3d : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp32_activation_prelu_3d, basic) {
+    auto p = GetParam();
+    // auto bias_shape = p.out_shape.size() == 3 ? ov::PartialShape{1, p.out_shape[1], 1} : ov::PartialShape{1, p.out_shape[1]};
+    // auto bias_layout = layout{ bias_shape, p.default_type, p.default_format };
+    // auto prelu_shape = ov::PartialShape{p.out_shape[1]};
+    // auto prelu_layout = layout{prelu_shape, p.default_type, p.default_format};
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("data", get_mem(get_bias_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p), get_input_weights_rank(p)),
+        activation("activation", input_info("fc_prim"), "data", activation_func::relu_negative_slope),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation_prelu_3d, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP32_3D_1, 2, 3 }
 }));
 
 class fc_fp32_activation_relu : public FullyConnectedFusingTestOneDNN {};
