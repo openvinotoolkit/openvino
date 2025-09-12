@@ -62,15 +62,16 @@ public:
     /**
      * @brief Getter to check if tensor is continuous
      * @return Napi::Boolean
-    */
+     */
     Napi::Value is_continuous(const Napi::CallbackInfo& info);
     /**
-    * @brief Binds the C++ ov::Tensor::set_shape() method to JavaScript as Tensor.setShape().
-    * @param info Callback info containing a single argument: an array of numbers
-    *             representing the new tensor dimensions.
-    * @return JavaScript undefined on success, or throws a JS exception on error.
-    */
+     * @brief Binds the C++ ov::Tensor::set_shape() method to JavaScript as Tensor.setShape().
+     * @param info Callback info containing a single argument: an array of numbers
+     *             representing the new tensor dimensions.
+     * @return JavaScript undefined on success, or throws a JS exception on error.
+     */
     Napi::Value set_shape(const Napi::CallbackInfo& info);
+
 private:
     ov::Tensor _tensor;
 };

@@ -45,8 +45,7 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
                         InstanceMethod("isContinuous", &TensorWrap::is_continuous),
-                        InstanceMethod("setShape", &TensorWrap::set_shape)
-                    });
+                        InstanceMethod("setShape", &TensorWrap::set_shape)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -170,70 +169,20 @@ Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
     }
     return cpp_to_js<ov::Shape, Napi::Array>(info, _tensor.get_shape());
 }
-
 Napi::Value TensorWrap::set_shape(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    if (info.Length() != 1) {
-         Napi::TypeError::New(env, "Expected exactly 1 argument (the shape array).")
-        .ThrowAsJavaScriptException();
-
-    return env.Null();
-  }
-
-    if (!info[0].IsArray()) {
-        Napi::TypeError::New(env, "Shape must be an array of numbers.")
-        .ThrowAsJavaScriptException();
-
-    return env.Null();
-  }
-
-    Napi::Array jsShape = info[0].As<Napi::Array>();
-    ov::Shape newShape;
-
-    for (uint32_t i = 0; i < jsShape.Length(); i++) {
-       Napi::Value element = jsShape[i];
-
-    if (!element.IsNumber()) {
-      std::string errorMsg =
-          "Shape dimension at index " + std::to_string(i) + " is not a number.";
-      Napi::TypeError::New(env, errorMsg).ThrowAsJavaScriptException();
-
-      return env.Null();
+    if (info.Length() == 1) {
+        try {
+            const auto& shape = js_to_cpp<ov::Shape>(info, 0);
+            _tensor.set_shape(shape);
+        } catch (const std::exception& e) {
+            reportError(info.Env(), e.what());
+        }
+    } else {
+        reportError(info.Env(), "Error in setShape(). Wrong number of parameters.");
     }
 
-    Napi::Number numElement = element.As<Napi::Number>();
-    double val = numElement.DoubleValue();
-
-    if (val < 0) {
-      std::string errorMsg = "Shape dimension at index " + std::to_string(i) +
-                             " cannot be negative.";
-      Napi::TypeError::New(env, errorMsg).ThrowAsJavaScriptException();
-
-      return env.Null();
-    }
-    if (val != static_cast<uint32_t>(val)) {
-      std::string errorMsg =
-          "Shape dimension at index " + std::to_string(i) + " must be an integer.";
-      Napi::TypeError::New(env, errorMsg).ThrowAsJavaScriptException();
-
-      return env.Null();
-    }
-
-    newShape.push_back(numElement.Uint32Value());
-  }
-
-  try {
-    _tensor.set_shape(newShape);
-  } catch (const std::exception& e) {
-    Napi::Error::New(env, "OpenVINO Error: " + std::string(e.what()))
-        .ThrowAsJavaScriptException();
-
-    return env.Null();
-  }
-
-  return env.Undefined();
+    return info.Env().Undefined();
 }
-
 
 Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::element::Type_t, Napi::String>(info, _tensor.get_element_type());
