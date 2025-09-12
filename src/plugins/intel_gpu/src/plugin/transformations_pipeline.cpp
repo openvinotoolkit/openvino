@@ -13,8 +13,9 @@
 #include <string>
 #include <tuple>
 #include <vector>
-
 #include "intel_gpu/runtime/debug_configuration.hpp"
+
+#include <openvino/opsets/opset8.hpp>
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "low_precision/add.hpp"
@@ -90,9 +91,11 @@
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
+#include "plugin/transformations/transpose_conv1x1_to_fc.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/disable_fp16_comp_for_periodic_funcs.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -193,6 +196,7 @@
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/pass/make_stateful.hpp"
 
 namespace {
 template<typename T>
@@ -443,6 +447,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
 
+        if (infer_precision == ov::element::f16) {
+            manager.register_pass<DisableFP16CompressionForPeriodicFuncs>();
+        }
         type_to_fuse_map empty_fuse_map = {};
         manager.register_pass<ov::pass::Validate>();
 
@@ -484,7 +491,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        manager.register_pass<ov::pass::RMSFusion>(false, true);
+        manager.register_pass<ov::pass::RMSFusion>(false);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -1194,10 +1201,46 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
 
+        manager.register_pass<ov::intel_gpu::TransposeConv1x1TransposeFusion>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
-        manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
+        manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
+        std::vector<std::pair<std::shared_ptr<ov::opset8::Parameter>, std::shared_ptr<ov::opset8::Result>>> pairs = {
+        
+    };
+        std::map<std::string, std::string> param_res_names = {
+            {"past_values_30", "present_values_30"}, {"past_values_29", "present_values_29"}, 
+            {"past_values_27", "present_values_27"},  {"past_values_26", "present_values_26"}, {"past_values_25", "present_values_25"},
+            {"past_values_24", "present_values_24"},  {"past_values_23", "present_values_23"}, {"past_values_22", "present_values_22"},
+            {"past_values_17", "present_values_17"},  {"past_values_13", "present_values_13"}, {"past_values_21", "present_values_21"},
+            {"past_values_16", "present_values_16"},  {"past_values_12", "present_values_12"}, {"past_values_20", "present_values_20"},
+            {"past_values_15", "present_values_15"},  {"past_values_11", "present_values_11"}, {"past_values_19", "present_values_19"},
+            {"past_values_14", "present_values_14"},  {"past_values_18", "present_values_18"}, {"past_values_10", "present_values_10"},
+            {"past_values_7", "present_values_7"},    {"past_values_6", "present_values_6"},   {"past_values_9", "present_values_9"},
+            {"past_values_8", "present_values_8"},    {"past_values_31", "present_values_31"},
+            {"past_values_5", "present_values_5"},
+            {"past_values_3", "present_values_3"},    {"past_values_2", "present_values_2"},   {"past_values_4", "present_values_4"},
+            {"past_values_1", "present_values_1"},    {"past_values_0", "present_values_0"},
+            {"past_values_28", "present_values_28"},
+
+            {"past_keys_30", "present_keys_30"},      {"past_keys_29", "present_keys_29"},     
+            {"past_keys_27", "present_keys_27"},      {"past_keys_26", "present_keys_26"},     {"past_keys_25", "present_keys_25"},
+            {"past_keys_24", "present_keys_24"},      {"past_keys_23", "present_keys_23"},     {"past_keys_22", "present_keys_22"},
+            {"past_keys_17", "present_keys_17"},      {"past_keys_13", "present_keys_13"},     {"past_keys_21", "present_keys_21"},
+            {"past_keys_16", "present_keys_16"},      {"past_keys_12", "present_keys_12"},     {"past_keys_20", "present_keys_20"},
+            {"past_keys_15", "present_keys_15"},      {"past_keys_11", "present_keys_11"},     {"past_keys_19", "present_keys_19"},
+            {"past_keys_14", "present_keys_14"},      {"past_keys_18", "present_keys_18"},     {"past_keys_10", "present_keys_10"},
+            {"past_keys_7", "present_keys_7"},        {"past_keys_6", "present_keys_6"},       {"past_keys_9", "present_keys_9"},
+            {"past_keys_6", "present_keys_6"},        {"past_keys_8", "present_keys_8"},       {"past_keys_6", "present_keys_6"},
+            {"past_keys_5", "present_keys_5"},        {"past_keys_3", "present_keys_3"},       {"past_keys_2", "present_keys_2"},
+            {"past_keys_4", "present_keys_4"},        {"past_keys_1", "present_keys_1"},       {"past_keys_0", "present_keys_0"},
+            {"past_keys_31", "present_keys_31"},     {"past_keys_28", "present_keys_28"}
+
+        };
+
+        
+        manager.register_pass<ov::pass::MakeStateful>(param_res_names);
 
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
         const bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);
