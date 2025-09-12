@@ -37,6 +37,7 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/pass/base_tokenization_config.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/remarks.hpp"
 #include "snippets/utils/utils.hpp"

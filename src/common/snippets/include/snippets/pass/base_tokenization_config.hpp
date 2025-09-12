@@ -16,7 +16,7 @@ namespace ov::snippets::pass {
  * @ingroup snippets
  */
 struct TokenizationConfig {
-    TokenizationConfig(size_t available_gprs_count) : m_available_gprs_count(available_gprs_count) {
+    explicit TokenizationConfig(size_t available_gprs_count) : m_available_gprs_count(available_gprs_count) {
         OPENVINO_ASSERT(available_gprs_count > 0, "available_gprs_count should be greater than 0");
     }
 

@@ -20,7 +20,6 @@
 #include "snippets/pass/softmax_reshape_elimination.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/subgraph_manager.hpp"
-#include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/validate.hpp"
 

@@ -79,6 +79,7 @@
 #include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/pass/base_tokenization_config.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/tokenization.hpp"

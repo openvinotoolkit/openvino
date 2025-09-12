@@ -57,6 +57,7 @@
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/validate.hpp"
 #include "selective_build.h"
+#include "snippets/pass/base_tokenization_config.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
