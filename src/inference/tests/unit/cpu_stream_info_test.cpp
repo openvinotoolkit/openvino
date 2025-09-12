@@ -65,6 +65,7 @@ public:
             int test_numa_node_id;
             int test_socket_id = 0;
             int test_max_threads_per_core;
+            bool test_pin_processors = false;
             get_cur_stream_info(i,
                                 test_data._cpu_pinning,
                                 test_data._proc_type_table,
@@ -74,7 +75,8 @@ public:
                                 test_core_type,
                                 test_numa_node_id,
                                 test_socket_id,
-                                test_max_threads_per_core);
+                                test_max_threads_per_core,
+                                test_pin_processors);
             test_stream_types.push_back(test_stream_type);
             test_concurrencys.push_back(test_concurrency);
             test_core_types.push_back(test_core_type);
