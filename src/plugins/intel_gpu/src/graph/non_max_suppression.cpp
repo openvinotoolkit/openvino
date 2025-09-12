@@ -109,6 +109,9 @@ std::vector<layout> non_max_suppression_gather_inst::calc_output_layouts(non_max
         auto third_output_data = third_output_lock.data();
 
         output_shapes[0] = ShapeType{third_output_data[0], 3};
+        if (impl_param.get_input_layout(0).get_partial_shape().is_static() && impl_param.get_input_layout(0).get_shape()[0] == 0) {
+            output_shapes[0] = ShapeType{0, 3};
+        }
     } else {
         output_shapes[0] = ShapeType{ov::Dimension::dynamic(), 3};
     }
