@@ -60,8 +60,16 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
     auto cos_multiply = wrap_type<ov::op::v1::Multiply>({cos, wrap_type<ov::op::v0::Constant>()});
     auto cos_multiply_reshape = wrap_type<ov::op::v1::Reshape>({cos_multiply, wrap_type<ov::op::v0::Constant>()});
 
-    auto rope_sin_input = std::make_shared<Or>(OutputVector{sin_reshape, sin_squeeze, sin_unsqueeze, sin_multiply_reshape, sin});
-    auto rope_cos_input = std::make_shared<Or>(OutputVector{cos_reshape, cos_squeeze, cos_unsqueeze, cos_multiply_reshape, cos});
+    auto sin_slice = wrap_type<ov::op::v1::StridedSlice>({sin, any_input(), any_input(), any_input()});
+    auto sin_gather = wrap_type<ov::op::v8::Gather>({sin_slice, any_input(), any_input()});
+    auto sin_unsqueeze2 = wrap_type<ov::op::v0::Unsqueeze>({sin_gather, wrap_type<ov::op::v0::Constant>()});
+
+    auto cos_slice = wrap_type<ov::op::v1::StridedSlice>({cos, any_input(), any_input(), any_input()});
+    auto cos_gather = wrap_type<ov::op::v8::Gather>({cos_slice, any_input(), any_input()});
+    auto cos_unsqueeze2 = wrap_type<ov::op::v0::Unsqueeze>({cos_gather, wrap_type<ov::op::v0::Constant>()});
+
+    auto rope_sin_input = std::make_shared<Or>(OutputVector{sin_reshape, sin_squeeze, sin_unsqueeze, sin_unsqueeze2, sin_multiply_reshape, sin});
+    auto rope_cos_input = std::make_shared<Or>(OutputVector{cos_reshape, cos_squeeze, cos_unsqueeze, cos_unsqueeze2, cos_multiply_reshape, cos});
 
     auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), rope_cos_input, rope_sin_input});
 
@@ -79,6 +87,7 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
         const auto original_et = matmul_node->get_output_element_type(0);
         if (original_et == desired_et)
             return false;
+
         size_t input_idx = 0;
         bool is_changed = insert_converts_before_if_needed(matmul_node, desired_et, input_idx);
 
