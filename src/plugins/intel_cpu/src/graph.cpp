@@ -334,7 +334,7 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
     std::vector<NodePtr> executableGraphNodes;
     for (size_t i = 0; i < graphNodes.size(); i++) {
         const auto& node = graphNodes[i];
-        const bool staticZeroDims = !node->isDynamicNode() && !node->isExecutable() && !node->isInPlace();
+        const bool staticZeroDims = !node->isDynamicNode() && !node->isExecutable() && !node->isInPlace() && !node->getTypeStr() == "Result";
         const bool dynamicNonInputOutput = node->isDynamicNode() && none_of(node->getType(), Type::Input, Type::Output);
 
         if (!node->isConstant() &&  // constants are executed once in scope of compile_model
