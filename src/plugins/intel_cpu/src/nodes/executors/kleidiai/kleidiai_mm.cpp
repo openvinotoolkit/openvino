@@ -247,6 +247,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
         const size_t N_BLOCKS = (N + n_step - 1) / n_step;
         const size_t lhs_packed_offset = ukernel_i8->get_lhs_packed_offset(0, K);
 
+        ParallelNestingContext nested_context;
         parallel_for(M_BLOCKS, [&](size_t m_blk) {
             const size_t M_iter = std::min(M - m_blk * m_step, m_step);
             auto* lhs_packed_qa8dx_B = lhs_packed_qa8dx + m_blk * packed_lhs_block_in_bytes_int8;
