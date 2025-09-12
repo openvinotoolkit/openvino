@@ -13,6 +13,8 @@
 #include "input_layout_inst.h"
 #include "paged_attention_inst.h"
 #include "pass_manager.h"
+#include "fully_connected_inst.h"
+#include "gemm_inst.h"
 
 #include "intel_gpu/graph/program.hpp"
 
@@ -71,8 +73,9 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
     if (node.has_fused_primitives())
         return false;
 
-    // read_value may have initializer which is shape_of sub-graph, but read_value itself is not a part of such sub-graph
-    if (node.is_type<read_value>())
+    // read_value, convolution, fully_connected, and gemm may have initializers that are part of a shape_of sub-graph,
+    // but these nodes themselves are not considered part of such sub-graph
+    if (node.is_type<read_value>() || node.is_type<convolution>() || node.is_type<fully_connected>() || node.is_type<gemm>())
         return false;
 
     // CPU implementation does not support float data types for mask and mixed types for data inputs, so check them
