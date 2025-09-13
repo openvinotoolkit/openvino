@@ -254,6 +254,7 @@
 #    include "low_precision/avg_pool.hpp"
 #    include "low_precision/convolution.hpp"
 #    include "low_precision/convolution_backprop_data.hpp"
+#    include "low_precision/fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
@@ -902,9 +903,13 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     ov::pass::Manager lptManager("CPU:LPT");
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
+        {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
+         QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
-        PrecisionsRestriction::create<ov::op::v0::MatMul>({{{0, 1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::Convolution>({{{0, 1}, {ov::element::u8, ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>({{{0,1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::op::v0::MatMul>({{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
     });
 #else
     // Only enable conv/group conv signed input on AMX and avx2_vnni_2 platform.
@@ -956,9 +961,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         AddTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
+    CPU_DISABLE_PASS_ARM(lptManager, FakeQuantizeTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
@@ -1584,6 +1588,21 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             std::string errMsg;
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
+        },
+        ov::pass::FakeQuantizeDecomposition);
+    CPU_SET_CALLBACK_ARM(
+        postSnippetsManager,
+        [](const_node_ptr& node) -> bool {
+            if(ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
+               ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
+                auto child = node->get_input_node_shared_ptr(0);
+                if (ov::is_type<const ov::op::v1::Multiply>(child) &&
+                    child->inputs().size() > 0 &&
+                    ov::is_type<const ov::op::v1::Convolution>(child->get_input_node_shared_ptr(0))) {
+                        return true;
+                    }
+            }
+            return false;
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);

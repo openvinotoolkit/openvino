@@ -48,6 +48,7 @@
 #include "nodes/interpolate.h"
 #include "nodes/inverse.hpp"
 #include "nodes/istft.h"
+#include "nodes/fake_quantize.h"
 #include "nodes/log_softmax.h"
 #include "nodes/lora.h"
 #include "nodes/lrn.h"
@@ -109,7 +110,6 @@
 #include "selective_build.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include "nodes/fake_quantize.h"
 #    include "nodes/grid_sample.hpp"
 #    include "nodes/interaction.h"
 #    include "nodes/llm_mlp.h"
@@ -246,6 +246,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
 #elif defined(OPENVINO_ARCH_ARM64)
+    INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
 #endif
 }
