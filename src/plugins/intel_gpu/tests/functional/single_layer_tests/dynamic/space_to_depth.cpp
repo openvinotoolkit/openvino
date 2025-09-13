@@ -24,7 +24,7 @@ typedef std::tuple<
 class SpaceToDepthLayerGPUTest : public testing::WithParamInterface<SpaceToDepthLayerGPUTestParams>,
                                  virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SpaceToDepthLayerGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<SpaceToDepthLayerGPUTestParams>& obj) {
         const auto& [shapes, model_type, mode, block_size] = obj.param;
 
         std::ostringstream results;
