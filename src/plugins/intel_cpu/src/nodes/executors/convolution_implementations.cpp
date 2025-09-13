@@ -7,7 +7,6 @@
 
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_format_filter.hpp"
-#include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
@@ -252,7 +251,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
-                VERIFY(any_of(srcType(config), ov::element::f32, ov::element::f16), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(none_of(srcType(config), ov::element::i8, ov::element::u8), UNSUPPORTED_SRC_PRECISIONS);
                 return true;
             },
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
