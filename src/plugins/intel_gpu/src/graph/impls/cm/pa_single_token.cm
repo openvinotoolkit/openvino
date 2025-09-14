@@ -45,9 +45,6 @@
 
 #define KV_PARTITION_STEP_NUM  (KV_PARTITION_SIZE / KV_STEP)
 
-#define KV_SCALE_ZP_SIZE 0 // 4: scale/zp size
-
-
 #define DEBUG_ENABLE 0
 #if DEBUG_ENABLE
 template<typename T, int M, int N>
@@ -103,7 +100,7 @@ void show(vector<T, N> vec) {
 
 //prepack [K, N] to [K/2, N, 2] layout.
 template <typename T1, typename T2, int K, int N>
-inline void prepackAsVNNIWidth2(matrix_ref<T1, K, N> input, matrix_ref<T2, K/2, N*2> out) {
+inline void prepack_to_VNNI_W2(matrix_ref<T1, K, N> input, matrix_ref<T2, K/2, N*2> out) {
     #pragma unroll
     for (int r = 0; r < K/2; r++) {
         out.row(r).select<N, 2>(0) = input.row(r*2);
@@ -498,7 +495,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             VmatNormal[r] = 0;
                         }
                     }
-                    prepackAsVNNIWidth2(VmatNormal, Vmat.format<half, REG_K/2, REG_N*2>());
+                    prepack_to_VNNI_W2(VmatNormal, Vmat.format<half, REG_K/2, REG_N*2>());
                 #else
                     cm_load<lsc::VNNI>(Vmat[0].format<half>(), b2dV.set_block_y(kv_pos));
                 #endif
