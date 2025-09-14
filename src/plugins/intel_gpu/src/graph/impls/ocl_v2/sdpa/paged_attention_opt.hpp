@@ -26,7 +26,7 @@ struct PagedAttentionOpt : public ImplementationManager {
         };
         static constexpr std::array supported_kv_types = {
             #if ENABLE_PA_CM_PATH
-            ov::element::i8,
+            ov::element::f32,
             #else
             ov::element::f32,
             ov::element::f16,
