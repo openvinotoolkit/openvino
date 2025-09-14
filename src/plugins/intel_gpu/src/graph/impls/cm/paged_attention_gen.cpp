@@ -174,7 +174,11 @@ size_t get_partition_size() {
     //     k_partition_blok_num = 1;
     // const size_t k_partition_blok_num = 16;
     // return k_partition_blok_num * PA_KV_CACHE_BLOCK_SIZE; // 128
-    return 256;
+    if (PA_KV_CACHE_BLOCK_SIZE < 128) {
+        return 128;
+    } else {
+        return PA_KV_CACHE_BLOCK_SIZE;
+    }
 }
 
 size_t get_partition_num(const size_t kv_len) {
