@@ -66,8 +66,23 @@ inline size_t get_kv_len(const RuntimeParams& params, const PagedAttentionStage&
     return 0;  // Fallback case, should not be reached
 }
 
+inline size_t get_input_kv_len(const RuntimeParams& params) {
+    auto key_shape = params.input_layouts[PagedAttentionInputIdx::KEY].get_shape();
+    const size_t kv_len = key_shape[key_shape.size() - 2];
+    return kv_len;
+}
+
 inline size_t get_aligned_kv_len(const size_t kv_len) {
     return (kv_len + PA_KV_CACHE_BLOCK_SIZE - 1) / PA_KV_CACHE_BLOCK_SIZE * PA_KV_CACHE_BLOCK_SIZE;
+}
+
+inline bool get_kv_compressed(const RuntimeParams& params) {
+    auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
+    if (data_type_traits::is_i8_u8(key_cache_layout.data_type)) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size = 16) {
@@ -240,9 +255,17 @@ JitConstants PagedAttentionGeneratorKVCacheUpdate::get_jit_constants(const kerne
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
     jit.make("K_HEAD_SIZE", desc->k_head_size);
     jit.make("V_HEAD_SIZE", desc->v_head_size);
-    jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
-    jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
     jit.make("PAGED_ATTENTION_BLOCK_SIZE", PA_KV_CACHE_BLOCK_SIZE);
+
+    if (get_kv_compressed(params)) {
+        jit.make("KV_CACHE_COMPRESSION_PER_TOKEN", 1);
+        jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + 4);
+        jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + 4);
+    } else {
+        jit.make("KV_CACHE_COMPRESSION_PER_TOKEN", 0);
+        jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+        jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
+    }
 
     return jit;
 }
@@ -274,7 +297,8 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         const auto desc = params.typed_desc<paged_attention>();
         // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
-        const size_t kv_len = get_max_context_len(params);
+        // const size_t kv_len = get_max_context_len(params);
+        const size_t kv_len = get_input_kv_len(params);
         const size_t kv_heads_num = desc->kv_heads_num;
         const size_t wg_count = (kv_len + WG_SIZE - 1) / WG_SIZE;
 
@@ -344,7 +368,8 @@ DispatchDataFunc PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func() 
         if (DEBUG_ENABLED) {  // Debug
             std::cout << "PagedAttentionGeneratorKVCacheUpdate::get_dispatch_data_func: "
                       << "kv_len: " << kv_len << ", key_pitch: " << key_pitch << ", key_offset: " << key_offset << ", value_pitch: " << value_pitch
-                      << ", value_offset: " << value_offset << ", "<< std::endl;
+                      << ", value_offset: " << value_offset << ", gws: [" << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << "]"
+                      << ", lws: [" << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << "]" << std::endl;
         }
 
         // TODO: support multiple sequences
@@ -376,6 +401,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence_begins
 #if PA_SPARSE_BLOCK_SIZE > 1
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SPARSE_BLOCK_MASK});  // sparse_block_mask
+    // args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SPARSE_BLOCK_MASK_WG});  // sparse_block_mask_wg
 #endif
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
@@ -397,6 +423,12 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
     jit.make("SPARSE_BLOCK_SIZE", PA_SPARSE_BLOCK_SIZE);
     jit.make("Q_STEP", get_q_step(xe_arch, true));
+
+    if (get_kv_compressed(params)) {
+        jit.make("CMPA_KVCACHE_U8", 1);
+    } else {
+        jit.make("CMPA_KVCACHE_U8", 0);
+    }
     // for (auto& it : jit) {
     //     std::cout << "\tjit[" << it.name << "] = " << it.value << std::endl;
     // }
@@ -477,7 +509,11 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
     jit.make("Q_STEP", get_q_step(xe_arch, true));
 
-    jit.make("KV_CACHE_COMPRESSION", 0);
+    if (get_kv_compressed(params)) {
+        jit.make("KV_CACHE_COMPRESSION", 1);
+    } else {
+        jit.make("KV_CACHE_COMPRESSION", 0);
+    }
 
     return jit;
 }
