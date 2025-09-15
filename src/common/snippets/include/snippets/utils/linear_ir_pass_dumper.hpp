@@ -18,25 +18,40 @@ namespace ov::snippets {
 
 class LIRPassDump {
 public:
-    explicit LIRPassDump(const lowered::LinearIR& linear_ir, std::string pass_name, std::string name_prefix = "")
+    enum class DumpMode : uint8_t { Both, SingleDump };
+
+    explicit LIRPassDump(const lowered::LinearIR& linear_ir,
+                         std::string pass_name,
+                         std::string name_prefix = "",
+                         DumpMode mode = DumpMode::Both)
         : linear_ir(linear_ir),
           pass_name(std::move(pass_name)),
           name_prefix(std::move(name_prefix)),
+          dump_mode(mode),
           debug_config(*linear_ir.get_config().debug_config) {
-        dump("_in");
+        if (dump_mode == DumpMode::Both) {
+            dump("_in");
+        } else {
+            dump("");
+        }
     }
     ~LIRPassDump() {
-        dump("_out");
+        if (dump_mode == DumpMode::Both) {
+            dump("_out");
+        }
     }
 
 private:
     void dump(const std::string&& postfix) const {
         static int num = 0;  // just to keep dumped IRs ordered in filesystem
         auto pathAndName = debug_config.dumpLIR.dir + "/";
-        const bool use_subgraph_prefix =
-            ov::util::to_lower(debug_config.dumpLIR.name_modifier) == std::string("subgraph_name");
-        if (use_subgraph_prefix && !name_prefix.empty()) {
-            pathAndName += name_prefix + "_";
+        const auto nm_lower = ov::util::to_lower(debug_config.dumpLIR.name_modifier);
+        if (nm_lower == std::string("subgraph_name")) {
+            if (!name_prefix.empty()) {
+                pathAndName += name_prefix + "_";
+            }
+        } else if (!debug_config.dumpLIR.name_modifier.empty()) {
+            pathAndName += debug_config.dumpLIR.name_modifier + "_";
         }
         pathAndName += "lir_";
 
@@ -60,6 +75,7 @@ private:
     const lowered::LinearIR& linear_ir;
     const std::string pass_name;
     const std::string name_prefix;
+    const DumpMode dump_mode;
     const DebugCapsConfig& debug_config;
 };
 

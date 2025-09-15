@@ -637,7 +637,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
             std::replace(name_prefix.begin(), name_prefix.end(), '/', '_');
             std::replace(name_prefix.begin(), name_prefix.end(), ':', '_');
         }
-        LIRPassDump final_dump(*linear_ir, std::string("Final"), name_prefix);
+        LIRPassDump final_dump(*linear_ir, std::string("Final"), name_prefix, LIRPassDump::DumpMode::SingleDump);
     }
 #endif
 
