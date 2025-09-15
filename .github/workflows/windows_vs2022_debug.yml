@@ -7,7 +7,6 @@ on:
         type: string
         required: false
   merge_group:
-  pull_request:
   push:
     branches:
       - master
