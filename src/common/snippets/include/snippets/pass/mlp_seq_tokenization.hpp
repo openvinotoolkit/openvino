@@ -44,8 +44,8 @@ public:
         using CanBeFusedAsPostOpPred = std::function<bool(const std::shared_ptr<const ov::op::v0::MatMul>&,
                                                           const std::shared_ptr<const ov::Node>&)>;
 
-        static bool postops_are_not_supported(const std::shared_ptr<const ov::op::v0::MatMul>&,
-                                              const std::shared_ptr<const ov::Node>&) {
+        static bool postops_are_not_supported([[maybe_unused]] const std::shared_ptr<const ov::op::v0::MatMul>& matmul,
+                                              [[maybe_unused]] const std::shared_ptr<const ov::Node>& postop) {
             return false;
         }
 
