@@ -164,7 +164,8 @@ bool ov::npuw::patterns::pre_compute::RopeCache::run_on_model(const std::shared_
 
 //     Const -------> Gather ---> Convert ---> Squeeze ---> Unsqeeze
 //     Parameter --->
-ov::npuw::patterns::pre_compute::PreserveConstsRope::PreserveConstsRope(ov::npuw::patterns::pre_compute::PreserveConstsRope::Results to_keep) {
+ov::npuw::patterns::pre_compute::PreserveConstsRope::PreserveConstsRope(
+    ov::npuw::patterns::pre_compute::PreserveConstsRope::Results to_keep) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
 
     auto cnst = opp::wrap_type<ov::op::v0::Constant>();
