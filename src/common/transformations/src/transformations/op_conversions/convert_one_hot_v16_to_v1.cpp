@@ -28,7 +28,7 @@ ov::pass::ConvertOneHot16To1::ConvertOneHot16To1() {
         auto one_hot_v1_node = std::make_shared<ov::op::v1::OneHot>(one_hot_v16_node->input_value(0),
                                                                     one_hot_v16_node->input_value(1),
                                                                     one_hot_v16_node->input_value(2),
-                                                                    one_hot_v16_node->input_value(4),
+                                                                    one_hot_v16_node->input_value(3),
                                                                     one_hot_v16_node->get_axis());
 
         one_hot_v1_node->set_friendly_name(one_hot_v16_node->get_friendly_name());
