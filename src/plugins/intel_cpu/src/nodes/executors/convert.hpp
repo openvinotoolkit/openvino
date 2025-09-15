@@ -18,6 +18,7 @@ struct ConvertParams {
     ov::element::Type srcPrc;
     ov::element::Type origPrc;
     ov::element::Type dstPrc;
+    bool bypass_clamp = false;
     size_t size = 0UL;
 };
 

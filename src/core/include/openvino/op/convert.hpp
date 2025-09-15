@@ -23,6 +23,12 @@ public:
     /// \param arg          Node that produces the input tensor.
     /// \param destination_type  Element type for the output tensor.
     Convert(const Output<Node>& arg, const ov::element::Type& destination_type);
+    /// \brief Constructs a conversion operation
+    ///
+    /// \param arg          Node that produces the input tensor.
+    /// \param destination_type  Element type for the output tensor.
+    /// \param bypass_clamp  If true, clamp will be disabled.
+    Convert(const Output<Node>& arg, const ov::element::Type& destination_type, bool bypass_clamp);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -39,6 +45,12 @@ public:
     void set_convert_element_type(const element::Type& destination_type) {
         m_destination_type = destination_type;
     }
+    bool get_bypass_clamp() const {
+        return m_bypass_clamp;
+    }
+    void set_bypass_clamp(bool bypass_clamp) {
+        m_bypass_clamp = bypass_clamp;
+    }
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
@@ -48,6 +60,7 @@ public:
 
 protected:
     ov::element::Type m_destination_type;
+    bool m_bypass_clamp;
 };
 }  // namespace v0
 }  // namespace op

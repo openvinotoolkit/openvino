@@ -528,6 +528,7 @@ struct ConvertContext {
     ov::element::Type interimPrc;
     ov::element::Type dstPrc;
     bool converted;
+    bool bypass_clamp;
 
     template <typename T>
     [[nodiscard]] std::tuple<T, T> range() const {
@@ -559,14 +560,26 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
             return;
         }
 
-        if (std::is_integral_v<src_t> || ctx.interimPrc.is_real() || std::is_integral_v<dst_t>) {
-            parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
-                dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
-            });
+        if (std::is_integral_v<src_t>) {
+            if (ctx.bypass_clamp) {
+                parallel_for(ctx.size, [&](size_t i) {
+                    dst[i] = static_cast<dst_t>(src[i]);
+                });
+            } else {
+                parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
+                    dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
+                });
+            }
         } else {
-            parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
-                dst[i] = static_cast<dst_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
-            });
+            if (ctx.bypass_clamp) {
+                parallel_for(ctx.size, [&](size_t i) {
+                    dst[i] = static_cast<dst_t>(std::trunc(src[i]));
+                });
+            } else {
+                parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
+                    dst[i] = static_cast<dst_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
+                });
+            }
         }
 
         ctx.converted = true;
@@ -1026,7 +1039,8 @@ void cpu_convert(const void* srcPtr,
                  ov::element::Type srcPrc,
                  ov::element::Type interimPrc,
                  ov::element::Type dstPrc,
-                 const size_t size) {
+                 const size_t size,
+                 bool bypass_clamp) {
     if (size == 0) {
         return;
     }
@@ -1094,7 +1108,7 @@ void cpu_convert(const void* srcPtr,
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
 #endif
     } else {
-        ConvertContext ctx{srcPtr, dstPtr, size, interimPrc, dstPrc, false};
+        ConvertContext ctx{srcPtr, dstPtr, size, interimPrc, dstPrc, false, bypass_clamp};
         OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     }
