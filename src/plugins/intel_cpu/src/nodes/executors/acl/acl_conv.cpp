@@ -4,28 +4,33 @@
 
 #include "acl_conv.hpp"
 
-#include <common/primitive_desc_iface.hpp>
-#include <cpu/acl/acl_utils.hpp>
+#include <any>
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Types.h>
+#include <arm_compute/core/QuantizationInfo.h>
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/TensorShape.h>
+#include <arm_compute/runtime/NEON/functions/NEConvolutionLayer.h>
+#include <cmath>
+#include <memory>
 
 #include "acl_utils.hpp"
-#include "memory_desc/cpu_memory_desc_utils.h"
+#include "cpu_shape.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "nodes/common/reorder_prim.h"
-#include "nodes/convert.h"
-#include "nodes/executors/common/common_utils.hpp"
-#include "nodes/executors/debug_messages.hpp"
+#include "nodes/executors/acl/acl_common_executor.hpp"
+#include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/executor.hpp"
-#include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "utils/cpu_utils.hpp"
+#include "post_ops.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
 ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                const MemoryArgs& memory,
-                                               const ExecutorContext::CPtr& context) {
+                                               [[maybe_unused]] const ExecutorContext::CPtr& context)
+    : weightScale(attrs.dqScales) {
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();
     MemoryDescPtr weiMemPtr = memory.at(ARG_WEI)->getDescPtr();
     MemoryDescPtr dstMemPtr = memory.at(ARG_DST)->getDescPtr();
@@ -34,31 +39,27 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     Shape srcShape = srcMemPtr->getShape();
     Shape dstShape = dstMemPtr->getShape();
 
-    size_t srcDims = srcShape.getRank();
-    const int with_groups = weiShape.getRank() == srcDims + 1;
-
-    const int kh = weiShape.getDims()[with_groups + srcDims - 2];
-    const int kw = weiShape.getDims()[with_groups + srcDims - 1];
+    const int with_groups = static_cast<const int>(weiShape.getRank() == srcShape.getRank() + 1);
+    const int kh = weiShape.getDims()[with_groups + srcShape.getRank() - 2];
+    const int kw = weiShape.getDims()[with_groups + srcShape.getRank() - 1];
     const int oc = dstShape.getDims()[1];
 
     weightsInfo = arm_compute::WeightsInfo(false, kw, kh, oc, false, arm_compute::WeightFormat::UNSPECIFIED);
     padStrideInfo = arm_compute::PadStrideInfo(attrs.stride[0], attrs.stride[1], attrs.paddingL[0], attrs.paddingR[0]);
     dilation = arm_compute::Size2D(attrs.dilation[1] + 1, attrs.dilation[0] + 1);
-    weightScale = attrs.dqScales;
-    enableFastMath = false;
 
     if (!attrs.postOps.empty() && attrs.postOps.size() == 1) {
-        if (const auto activation = std::any_cast<ActivationPostOp>(&attrs.postOps[0])) {
+        if (const auto *const activation = std::any_cast<ActivationPostOp>(attrs.postOps.data())) {
             activationLayerInfo = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
                                                          activation->alpha(),
                                                          activation->beta(),
                                                          activation->gamma());
-        } else if (const auto fq = std::any_cast<FakeQuantizePostOp>(&attrs.postOps[0])) {
+        } else if (const auto *const fq = std::any_cast<FakeQuantizePostOp>(attrs.postOps.data())) {
             inputScale = fq->inputScale();
             inputShift = fq->inputShift();
             outputScale = fq->outputScale();
             outputShift = fq->outputShift();
-            if (outputScale.size() == 1 && outputScale[0] == 1.0f && outputShift.size() == 1 &&
+            if (outputScale.size() == 1 && outputScale[0] == 1.0F && outputShift.size() == 1 &&
                 outputShift[0] == std::trunc(outputShift[0])) {
                 for (auto& v : inputShift) {
                     v += outputShift[0];
@@ -73,24 +74,22 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
-    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(arm_compute::QuantizationInfo(
-       weightScale.empty() ? 1.0 : weightScale[0]));
+    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
+        arm_compute::QuantizationInfo(weightScale.empty() ? 1.0F : weightScale[0]));
     aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
-        arm_compute::QuantizationInfo(inputScale.empty() ? 1.0 : 1.0 / inputScale[0],
-        inputShift.empty() ? 0 : inputShift[0],
-        false));
+        arm_compute::QuantizationInfo(inputScale.empty() ? 1.0F : 1.0F / inputScale[0],
+                                      inputShift.empty() ? 0 : inputShift[0],
+                                      false));
 
-    arm_compute::Status s = arm_compute::NEConvolutionLayer::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
-                                                                      aclMemoryInfos[ACLArgs::ACL_WEI].get(),
-                                                                      aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
-                                                                      aclMemoryInfos[ACLArgs::ACL_DST].get(),
-                                                                      padStrideInfo,
-                                                                      weightsInfo,
-                                                                      dilation,
-                                                                      activationLayerInfo,
-                                                                      enableFastMath);
-
-    return s;
+    return arm_compute::NEConvolutionLayer::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
+                                                     aclMemoryInfos[ACLArgs::ACL_WEI].get(),
+                                                     aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
+                                                     aclMemoryInfos[ACLArgs::ACL_DST].get(),
+                                                     padStrideInfo,
+                                                     weightsInfo,
+                                                     dilation,
+                                                     activationLayerInfo,
+                                                     enableFastMath);
 }
 
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
@@ -112,7 +111,7 @@ std::shared_ptr<arm_compute::TensorInfo> ACLConvolutionExecutor::initTensorInfo(
     const arm_compute::TensorShape& tensorShape,
     const arm_compute::DataType& dataType,
     const arm_compute::DataLayout& dataLayout) {
-    arm_compute::DataType result;
+    arm_compute::DataType result = arm_compute::DataType::UNKNOWN;
     switch (dataType) {
     case arm_compute::DataType::S8: {
         result = arm_compute::DataType::QASYMM8_SIGNED;

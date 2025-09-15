@@ -28,7 +28,7 @@ private:
     arm_compute::WeightsInfo weightsInfo;
     arm_compute::Size2D dilation;
     arm_compute::ActivationLayerInfo activationLayerInfo;
-    bool enableFastMath;
+    bool enableFastMath = false;
 
     std::vector<float> inputScale;
     std::vector<float> outputScale;

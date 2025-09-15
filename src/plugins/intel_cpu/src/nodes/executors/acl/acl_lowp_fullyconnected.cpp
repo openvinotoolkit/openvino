@@ -41,7 +41,7 @@ static bool checkPostOps(const PostOps& postOps) {
         return false;
     }
 
-    if (const auto& activation = std::any_cast<const ActivationPostOp>(&postOps[0])) {
+    if (const auto& activation = std::any_cast<const ActivationPostOp>(postOps.data())) {
         return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()));
     }
     return false;

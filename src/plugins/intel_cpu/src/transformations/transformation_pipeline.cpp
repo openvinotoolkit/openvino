@@ -252,8 +252,6 @@
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
-#    include "low_precision/convolution.hpp"
-#    include "low_precision/convolution_backprop_data.hpp"
 #    include "low_precision/fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
@@ -266,6 +264,7 @@
 #    include "low_precision/reduce_mean.hpp"
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
+#    include "openvino/op/convolution.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -1594,11 +1593,10 @@ void Transformations::PostSnippets() {
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
-
-            if(ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
-               ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
+            if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
+                ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
                 auto child = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(child) && child->inputs().size() > 0 &&
+                if (ov::is_type<const ov::op::v1::Multiply>(child) && !child->inputs().empty() &&
                     ov::is_type<const ov::op::v1::Convolution>(child->get_input_node_shared_ptr(0))) {
                     return true;
                 }

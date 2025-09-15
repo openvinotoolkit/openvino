@@ -277,7 +277,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
         OV_CPU_INSTANCE_ACL(
             "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution,
             // supports
-            [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+            [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(any_of(srcType(config), ov::element::i8, ov::element::u8), UNSUPPORTED_SRC_PRECISIONS);
                 return true;
             },

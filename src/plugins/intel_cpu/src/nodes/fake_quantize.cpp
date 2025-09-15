@@ -1821,7 +1821,7 @@ void FakeQuantize::executeReference() {
                 dst_off += c * d_str[1];
             }
 
-            dst[dst_off] = dst_val;
+            dst[dst_off] = static_cast<int8_t>(dst_val);
         });
     }
 }
