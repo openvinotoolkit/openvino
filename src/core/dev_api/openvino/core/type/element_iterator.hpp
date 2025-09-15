@@ -74,7 +74,9 @@ constexpr bool is_byte_type(Type_t et) {
  * @return True if type is packet LSB first, false otherwise.
  */
 constexpr bool is_lsb_packed(Type_t et) {
-    return et != u1;
+    // u1, u4, and i4 types should be packed MSB first (high nibble first)
+    // All other sub-byte types are packed LSB first
+    return (et != u1) && (et != u4) && (et != i4);
 }
 
 /**
