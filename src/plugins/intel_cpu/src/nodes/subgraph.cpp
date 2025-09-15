@@ -208,7 +208,7 @@ static _ov_dnnl_cpu_isa getHostIsa() {
 #elif defined(OPENVINO_ARCH_RISCV64)
     return static_cast<_ov_dnnl_cpu_isa>(ov::intel_cpu::riscv64::gv);
 #else
-    CPU_NODE_THROW("Subgraphs code-generator is not supported on this platform");
+    OPENVINO_THROW("Subgraphs code-generator is not supported on this platform");
 #endif
 }
 
@@ -231,7 +231,7 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
         std::make_shared<riscv64::CPUGenerator>(static_cast<ov::intel_cpu::riscv64::cpu_isa_t>(host_isa),
                                                 context->getSnippetsParamsCache()));
 #else
-    CPU_NODE_THROW("Subgraphs code-generator is not supported on this platform");
+    OPENVINO_THROW("Subgraphs code-generator is not supported on this platform");
 #endif
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy

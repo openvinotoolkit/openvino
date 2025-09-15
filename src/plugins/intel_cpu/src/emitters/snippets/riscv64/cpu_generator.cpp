@@ -159,7 +159,7 @@ std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 1; i < num_gp_regs; i++) {
         // Reserve: x0 (zero), x1 (ra), x2 (sp), x3 (gp), x4 (tp), x8 (s0/fp)
-        if (none_of(i,
+        if (none_of(static_cast<int>(i),
                     Xbyak_riscv::ra.getIdx(),
                     Xbyak_riscv::sp.getIdx(),
                     Xbyak_riscv::gp.getIdx(),
