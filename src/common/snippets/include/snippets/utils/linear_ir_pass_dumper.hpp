@@ -47,8 +47,9 @@ private:
         auto pathAndName = debug_config.dumpLIR.dir + "/";
         const auto nm_lower = ov::util::to_lower(debug_config.dumpLIR.name_modifier);
         if (nm_lower == std::string("subgraph_name")) {
-            if (!name_prefix.empty()) {
-                pathAndName += name_prefix + "_";
+            const std::string effective_prefix = name_prefix.empty() ? linear_ir.get_friendly_name() : name_prefix;
+            if (!effective_prefix.empty()) {
+                pathAndName += effective_prefix + "_";
             }
         } else if (!debug_config.dumpLIR.name_modifier.empty()) {
             pathAndName += debug_config.dumpLIR.name_modifier + "_";

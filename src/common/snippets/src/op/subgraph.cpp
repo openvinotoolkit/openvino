@@ -415,6 +415,7 @@ std::shared_ptr<lowered::LinearIR> Subgraph::convert_body_to_linear_ir(
 #endif  // SNIPPETS_DEBUG_CAPS
 
     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
+    m_linear_ir->set_friendly_name(get_friendly_name());
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
     return m_linear_ir;
 }
