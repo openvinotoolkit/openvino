@@ -9,8 +9,8 @@
 #include <list>
 #include <memory>
 #include <set>
-#include <type_traits>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
