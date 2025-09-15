@@ -115,7 +115,9 @@ endif()
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
 elseif(gflags_required)
-    # set CMAKE_POLICY_VERSION_MINIMUM because gflags requires cmake 3.0.2 or higher
+    # CMake 4.0 and higher will drop support for CMake versions <= 3.5.
+    # By explicitly setting CMAKE_POLICY_VERSION_MINIMUM, we ensure compatibility with dependencies like gflags,
+    # which require at least CMake 3.0.2, and avoid policy warnings or errors in future CMake versions.
     set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
     set(GFLAGS_TARGET gflags_nothreads_static)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
