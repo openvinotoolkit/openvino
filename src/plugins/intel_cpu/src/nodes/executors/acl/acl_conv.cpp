@@ -5,6 +5,7 @@
 #include "acl_conv.hpp"
 
 #include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
 #include <arm_compute/core/QuantizationInfo.h>
 #include <arm_compute/core/TensorInfo.h>
 #include <arm_compute/core/TensorShape.h>
@@ -40,7 +41,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     Shape srcShape = srcMemPtr->getShape();
     Shape dstShape = dstMemPtr->getShape();
 
-    const int with_groups = static_cast<const int>(weiShape.getRank() == srcShape.getRank() + 1);
+    const auto with_groups = static_cast<const int>(weiShape.getRank() == srcShape.getRank() + 1);
     const int kh = weiShape.getDims()[with_groups + srcShape.getRank() - 2];
     const int kw = weiShape.getDims()[with_groups + srcShape.getRank() - 1];
     const int oc = dstShape.getDims()[1];

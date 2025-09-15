@@ -36,7 +36,6 @@
 #include "nodes/experimental_detectron_topkrois.h"
 #include "nodes/extract_image_patches.h"
 #include "nodes/eye.h"
-#include "nodes/fake_quantize.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/gather.h"
 #include "nodes/gather_elements.h"
@@ -110,6 +109,7 @@
 #include "selective_build.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/fake_quantize.h"
 #    include "nodes/grid_sample.hpp"
 #    include "nodes/interaction.h"
 #    include "nodes/llm_mlp.h"
@@ -119,6 +119,7 @@
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/fake_quantize.h"
 #    include "nodes/paged_attn.h"
 #endif
 
