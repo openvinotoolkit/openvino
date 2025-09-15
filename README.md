@@ -1,3 +1,5 @@
+PLEASE DISCARD
+
 <div align="center">
 <img src="docs/dev/assets/openvino-logo-purple-black.svg" width="400px">
 
