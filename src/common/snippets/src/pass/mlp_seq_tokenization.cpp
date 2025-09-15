@@ -159,8 +159,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
                 } else if (is_supported_intermediate_op(interm_op)) {
                     // Intermediate op contributes to the body params count only if can't be fused as post-op
                     // or if a previous node between MatMul and this op is not supported by post-op fusion
-                    if (!postops_fusion_possible || config.get_can_be_fused_as_postop() == nullptr ||
-                        !config.get_can_be_fused_as_postop()(cur_matmul, interm_op)) {
+                    if (!postops_fusion_possible || !config.get_can_be_fused_as_postop()(cur_matmul, interm_op)) {
                         postops_fusion_possible = false;
                         current_io_count += get_potential_body_params(interm_op);
                     }

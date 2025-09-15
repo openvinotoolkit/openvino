@@ -1182,22 +1182,6 @@ void Transformations::MainSnippets() {
     // TODO [123659] Implement common logic to split optimization and limitation conditions
     const auto ignoreCallback = config.snippetsMode == Config::SnippetsMode::IgnoreCallback;
 
-    // [111813]: At the moment Snippets supports Transpose on output of MHA pattern only if it is an one node between
-    // MatMul and Result. However there may be Convert [f32->bf16] before Result since:
-    //  - bf16 Brgemm has f32 output;
-    //  - CPU Node Subgraph requires bf16 on output when inference precision is bf16.
-    // To avoid situations when Transpose is not alone node between MatMul and Result,
-    // Plugin disables Transpose tokenization on output
-    bool mha_token_enable_transpose_on_output = any_of(config.inferencePrecision, element::f32, element::dynamic);
-    size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
-    if (concurrency == 0) {
-        concurrency = parallel_get_max_threads();
-    }
-
-    // Runtime caching should be enabled in case of dynamic Subgraphs in CPU Plugin: to reduce overheads of
-    // ShapeInference and CodeGeneration If runtime cache capacity is zero, it means that rtCache won't be used and we
-    // shouldn't tokenize dynamic Subgraphs - it will lead to performance degradations
-    bool is_dynamic_mha_token_enabled = config.snippetsCacheCapacity != 0;
 #if defined(OPENVINO_ARCH_ARM64)
     // ARM has 32 gprs, but the following registers should be excluded from available registers:
     // - abi_param1: used for runtime parameters
@@ -1205,12 +1189,46 @@ void Transformations::MainSnippets() {
     // - 2 (SP, X29) stack related registers
     // - 3 (X_TMP_0, X_TMP_1, X_DEFAULT_ADDR) registers for temporary use
     size_t available_gprs_count = 25;
-    TokenizeMLPSeqSnippets::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #elif defined(OPENVINO_ARCH_X86_64)
     // X64 has 16 gprs, but the following registers should be excluded from available registers:
     // - abi_param1: used for runtime parameters
     // - RSP: stack related register
     size_t available_gprs_count = 14;
+#else
+    size_t available_gprs_count = 0;
+#endif
+    TokenizationConfig tokenization_config(available_gprs_count);
+
+    size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
+    if (concurrency == 0) {
+        concurrency = parallel_get_max_threads();
+    }
+    // The optimization "SplitDimensionM" depends on target machine (thread count).
+    // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
+    // Config::SnippetsMode::IgnoreCallback
+    bool split_m_dimension = !ignoreCallback;
+    CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
+
+    // [111813]: At the moment Snippets supports Transpose on output of MHA pattern only if it is an one node between
+    // MatMul and Result. However there may be Convert [f32->bf16] before Result since:
+    //  - bf16 Brgemm has f32 output;
+    //  - CPU Node Subgraph requires bf16 on output when inference precision is bf16.
+    // To avoid situations when Transpose is not alone node between MatMul and Result,
+    // Plugin disables Transpose tokenization on output
+    bool mha_token_enable_transpose_on_output = any_of(config.inferencePrecision, element::f32, element::dynamic);
+    // Runtime caching should be enabled in case of dynamic Subgraphs in CPU Plugin: to reduce overheads of
+    // ShapeInference and CodeGeneration If runtime cache capacity is zero, it means that rtCache won't be used and we
+    // shouldn't tokenize dynamic Subgraphs - it will lead to performance degradations
+    bool is_dynamic_mha_token_enabled = config.snippetsCacheCapacity != 0;
+    // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
+    std::set<size_t> mha_supported_transpose_ranks = {4};
+    TokenizeMHASnippets::Config mha_config(tokenization_config,
+                                           mha_token_enable_transpose_on_output,
+                                           is_dynamic_mha_token_enabled,
+                                           mha_supported_transpose_ranks);
+#if defined(OPENVINO_ARCH_ARM64)
+    TokenizeMLPSeqSnippets::Config mlp_seq_config(tokenization_config);
+#elif defined(OPENVINO_ARCH_X86_64)
     auto supported_as_postop = [this](const std::shared_ptr<const ov::op::v0::MatMul>& matmul,
                                       const std::shared_ptr<const ov::Node>& node) {
         if (!pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(node)) {
@@ -1225,23 +1243,10 @@ void Transformations::MainSnippets() {
         }
         return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(input_precision);
     };
-#else
-    size_t available_gprs_count = 0;
-    TokenizeMLPSeqSnippets::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
-#endif
-    // The optimization "SplitDimensionM" depends on target machine (thread count).
-    // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
-    // Config::SnippetsMode::IgnoreCallback
-    bool split_m_dimension = !ignoreCallback;
-    // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
-    std::set<size_t> mha_supported_transpose_ranks = {4};
-    TokenizationConfig tokenization_config(available_gprs_count);
-    CommonOptimizations::Config common_optimizations_config(concurrency, split_m_dimension);
-    TokenizeMHASnippets::Config mha_config(tokenization_config,
-                                           mha_token_enable_transpose_on_output,
-                                           is_dynamic_mha_token_enabled,
-                                           mha_supported_transpose_ranks);
     TokenizeMLPSeqSnippets::Config mlp_seq_config(tokenization_config, supported_as_postop);
+#else
+    TokenizeMLPSeqSnippets::Config mlp_seq_config(tokenization_config);
+#endif
 
     ov::pass::Manager snippetsManager("CPU:Snippets");
     snippetsManager.set_per_pass_validation(false);

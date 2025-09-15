@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -43,18 +44,24 @@ public:
         using CanBeFusedAsPostOpPred = std::function<bool(const std::shared_ptr<const ov::op::v0::MatMul>&,
                                                           const std::shared_ptr<const ov::Node>&)>;
 
+        static bool postops_are_not_supported(const std::shared_ptr<const ov::op::v0::MatMul>&,
+                                              const std::shared_ptr<const ov::Node>&) {
+            return false;
+        }
+
         explicit Config(const TokenizationConfig& tokenization_config,
-                        CanBeFusedAsPostOpPred can_be_fused_as_postop = nullptr)
+                        CanBeFusedAsPostOpPred can_be_fused_as_postop = postops_are_not_supported)
             : TokenizationConfig(tokenization_config),
               m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {}
 
         [[nodiscard]] const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
+            OPENVINO_ASSERT(m_can_be_fused_as_postop, "m_can_be_fused_as_postop mustn't be nullptr");
             return m_can_be_fused_as_postop;
         }
 
     private:
         // Predicate that checks if the node can be fused as MatMul post-op.
-        CanBeFusedAsPostOpPred m_can_be_fused_as_postop = nullptr;
+        CanBeFusedAsPostOpPred m_can_be_fused_as_postop = postops_are_not_supported;
     };
 
     explicit TokenizeMLPSeqSnippets(const Config& config);
