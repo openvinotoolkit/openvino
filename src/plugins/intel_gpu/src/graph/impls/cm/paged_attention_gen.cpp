@@ -757,8 +757,8 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t q_len = out_shape[0];
 
-        const uint32_t M = q_len / STRIDE;   //# will slient drop the tails which is less than `stride`
-        const uint32_t N = kv_len / STRIDE;
+        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);   //# will slient drop the tails which is less than `stride`
+        const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
         const uint32_t K = STRIDE * head_size;
         auto get_simple_pitch = [](const layout& layout) {
             size_t pitch = 1;
@@ -858,7 +858,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         OPENVINO_ASSERT(wg_k % block_size == 0, "wg_k should be multiple of block_size then there is no tails from block_size");
         OPENVINO_ASSERT(wg_q % block_size == 0, "wg_q should be multiple of block_size then there is no tails from block_size");
 
-        const size_t sum_per_n_token_in_block = block_size / STRIDE;
+        const size_t sum_per_n_token_in_block = static_cast<size_t>(block_size / STRIDE);
 
         // const size_t batch = params.input_layouts[PagedAttentionInputIdx::QUERY].get_partial_shape()[0].get_length();
         const size_t heads_num = desc->heads_num;
@@ -867,15 +867,15 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         auto out_shape = params.output_layouts[0].get_shape();
         const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
         const size_t q_len = out_shape[0];
-        const uint32_t M = q_len / STRIDE;   //# will slient drop the tails which is less than `stride`
-        const uint32_t N = kv_len / STRIDE;
+        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);   //# will slient drop the tails which is less than `stride`
+        const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
         const uint32_t q_stride = M;
         const uint32_t k_stride = N;
         const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
         const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
-        const uint32_t sum_per_token_in_block = block_size / STRIDE;
-        const uint32_t k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
+        const uint32_t sum_per_token_in_block = static_cast<uint32_t>(block_size / STRIDE);
+        const uint32_t k_block_in_group = static_cast<uint32_t>(BLOCK_WG_N / sum_per_token_in_block);
         const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
         const uint32_t q_block_pad = ceil_div(q_len, block_size);
 
