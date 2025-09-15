@@ -4,13 +4,13 @@
 
 #include "acl_conv.hpp"
 
-#include <any>
 #include <arm_compute/core/CoreTypes.h>
-#include <arm_compute/core/Types.h>
 #include <arm_compute/core/QuantizationInfo.h>
 #include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/Types.h>
 #include <arm_compute/core/TensorShape.h>
 #include <arm_compute/runtime/NEON/functions/NEConvolutionLayer.h>
+#include <any>
 #include <cmath>
 #include <memory>
 
@@ -49,12 +49,12 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     dilation = arm_compute::Size2D(attrs.dilation[1] + 1, attrs.dilation[0] + 1);
 
     if (!attrs.postOps.empty() && attrs.postOps.size() == 1) {
-        if (const auto *const activation = std::any_cast<ActivationPostOp>(attrs.postOps.data())) {
+        if (const auto* const activation = std::any_cast<ActivationPostOp>(attrs.postOps.data())) {
             activationLayerInfo = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
                                                          activation->alpha(),
                                                          activation->beta(),
                                                          activation->gamma());
-        } else if (const auto *const fq = std::any_cast<FakeQuantizePostOp>(attrs.postOps.data())) {
+        } else if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(attrs.postOps.data())) {
             inputScale = fq->inputScale();
             inputShift = fq->inputShift();
             outputScale = fq->outputScale();
