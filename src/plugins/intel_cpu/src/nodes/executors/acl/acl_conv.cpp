@@ -7,9 +7,10 @@
 #include <arm_compute/core/CoreTypes.h>
 #include <arm_compute/core/QuantizationInfo.h>
 #include <arm_compute/core/TensorInfo.h>
-#include <arm_compute/core/Types.h>
 #include <arm_compute/core/TensorShape.h>
+#include <arm_compute/core/Types.h>
 #include <arm_compute/runtime/NEON/functions/NEConvolutionLayer.h>
+
 #include <any>
 #include <cmath>
 #include <memory>
