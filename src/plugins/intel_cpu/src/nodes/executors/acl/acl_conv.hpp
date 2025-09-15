@@ -22,6 +22,7 @@ protected:
                                                             const arm_compute::DataType& dataType,
                                                             const arm_compute::DataLayout& dataLayout) override;
 private:
+
     ConvAttrs convAttrs;
     arm_compute::PadStrideInfo padStrideInfo;
     arm_compute::WeightsInfo weightsInfo;

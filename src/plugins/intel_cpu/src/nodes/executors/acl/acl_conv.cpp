@@ -29,7 +29,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();
     MemoryDescPtr weiMemPtr = memory.at(ARG_WEI)->getDescPtr();
     MemoryDescPtr dstMemPtr = memory.at(ARG_DST)->getDescPtr();
-    
+
     Shape weiShape = weiMemPtr->getShape();
     Shape srcShape = srcMemPtr->getShape();
     Shape dstShape = dstMemPtr->getShape();
@@ -50,15 +50,16 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     if (!attrs.postOps.empty() && attrs.postOps.size() == 1) {
         if (const auto activation = std::any_cast<ActivationPostOp>(&attrs.postOps[0])) {
             activationLayerInfo = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
-                                                        activation->alpha(),
-                                                        activation->beta(),
-                                                        activation->gamma());
+                                                         activation->alpha(),
+                                                         activation->beta(),
+                                                         activation->gamma());
         } else if (const auto fq = std::any_cast<FakeQuantizePostOp>(&attrs.postOps[0])) {
             inputScale = fq->inputScale();
             inputShift = fq->inputShift();
             outputScale = fq->outputScale();
             outputShift = fq->outputShift();
-            if (outputScale.size() == 1 && outputScale[0] == 1.0f && outputShift.size() == 1 && outputShift[0] == std::trunc(outputShift[0])) {
+            if (outputScale.size() == 1 && outputScale[0] == 1.0f && outputShift.size() == 1 &&
+                outputShift[0] == std::trunc(outputShift[0])) {
                 for (auto& v : inputShift) {
                     v += outputShift[0];
                 }
@@ -72,19 +73,22 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
-    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(arm_compute::QuantizationInfo(weightScale.empty() ? 1.0 : weightScale[0]));
-    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(arm_compute::QuantizationInfo(inputScale.empty() ? 1.0 : 1.0 / inputScale[0], inputShift.empty() ? 0 : inputShift[0], false));
+    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(arm_compute::QuantizationInfo(
+       weightScale.empty() ? 1.0 : weightScale[0]));
+    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
+        arm_compute::QuantizationInfo(inputScale.empty() ? 1.0 : 1.0 / inputScale[0],
+        inputShift.empty() ? 0 : inputShift[0],
+        false));
 
-    arm_compute::Status s = arm_compute::NEConvolutionLayer::validate(
-        aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
-        aclMemoryInfos[ACLArgs::ACL_WEI].get(),
-        aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
-        aclMemoryInfos[ACLArgs::ACL_DST].get(),
-        padStrideInfo,
-        weightsInfo,
-        dilation,
-        activationLayerInfo,
-        enableFastMath);
+    arm_compute::Status s = arm_compute::NEConvolutionLayer::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
+                                                                      aclMemoryInfos[ACLArgs::ACL_WEI].get(),
+                                                                      aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
+                                                                      aclMemoryInfos[ACLArgs::ACL_DST].get(),
+                                                                      padStrideInfo,
+                                                                      weightsInfo,
+                                                                      dilation,
+                                                                      activationLayerInfo,
+                                                                      enableFastMath);
 
     return s;
 }
@@ -110,18 +114,18 @@ std::shared_ptr<arm_compute::TensorInfo> ACLConvolutionExecutor::initTensorInfo(
     const arm_compute::DataLayout& dataLayout) {
     arm_compute::DataType result;
     switch (dataType) {
-        case arm_compute::DataType::S8: {
-            result = arm_compute::DataType::QASYMM8_SIGNED;
-            break;
-        }
-        case arm_compute::DataType::U8: {
-            result = arm_compute::DataType::QASYMM8;
-            break;
-        }
-        default: {
-            result = dataType;
-            break;
-        }
+    case arm_compute::DataType::S8: {
+        result = arm_compute::DataType::QASYMM8_SIGNED;
+        break;
+    }
+    case arm_compute::DataType::U8: {
+        result = arm_compute::DataType::QASYMM8;
+        break;
+    }
+    default: {
+        result = dataType;
+        break;
+    }
     }
 
     return ACLCommonExecutor::initTensorInfo(tensorShape, result, dataLayout);

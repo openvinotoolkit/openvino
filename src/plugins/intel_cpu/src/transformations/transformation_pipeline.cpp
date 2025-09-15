@@ -908,8 +908,9 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
          QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ov::opset1::Convolution>({{{0, 1}, {ov::element::u8, ov::element::i8}}}),
-        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>({{{0,1}, {ov::element::i8}}}),
-        PrecisionsRestriction::create<ov::op::v0::MatMul>({{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>({{{0, 1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::op::v0::MatMul>(
+            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
     });
 #else
     // Only enable conv/group conv signed input on AMX and avx2_vnni_2 platform.
@@ -1593,14 +1594,14 @@ void Transformations::PostSnippets() {
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
+
             if(ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
                 auto child = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(child) &&
-                    child->inputs().size() > 0 &&
+                if (ov::is_type<const ov::op::v1::Multiply>(child) && child->inputs().size() > 0 &&
                     ov::is_type<const ov::op::v1::Convolution>(child->get_input_node_shared_ptr(0))) {
-                        return true;
-                    }
+                    return true;
+                }
             }
             return false;
         },
