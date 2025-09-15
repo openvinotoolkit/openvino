@@ -106,7 +106,7 @@ void transpose_16NxK(TDST* dst,
 #    if defined(HAVE_AVX512F)
 template <typename T,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<(SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16) &&
+          typename std::enable_if<any_of(SRC_PREC, ov::element::bf16, ov::element::f16) &&
                                       (SRC_PREC == precision_of<T>::value),
                                   bool>::type = true>
 static void transpose_16NxK(T* dst,
@@ -171,7 +171,7 @@ void transpose_16NxK(TDST* dst,
             size_t src_offset = 0;
             size_t dst_offset = 0;
             while (dst_offset < K) {
-                auto params = reinterpret_cast<float*>(s + src_offset);
+                auto* params = reinterpret_cast<float*>(s + src_offset);
                 attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + sizeof(float) * param_count,
                                                     t + dst_offset,
                                                     group_size,
@@ -228,7 +228,7 @@ static inline void dequant(float* dst,
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<SRC_PREC == ov::element::u4 || SRC_PREC == ov::element::u8, bool> = true>
+          std::enable_if_t<any_of(SRC_PREC, ov::element::u4, ov::element::u8), bool> = true>
 void dequant(TDST* dst,
              void* src,
              const size_t N,
@@ -254,7 +254,7 @@ void dequant(TDST* dst,
             size_t src_offset = 0;
             size_t dst_offset = 0;
             while (dst_offset < K) {
-                auto params = reinterpret_cast<float*>(s + src_offset);
+                auto* params = reinterpret_cast<float*>(s + src_offset);
                 attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + params_offset,
                                                     dst + dst_offset,
                                                     group_size,
@@ -275,7 +275,7 @@ void dequant(TDST* dst,
 #    if defined(HAVE_AVX512F)
 template <
     typename T,
-    typename = typename std::enable_if<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>::type>
+    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
 static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -299,7 +299,7 @@ static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
 
 template <
     typename T,
-    typename = typename std::enable_if<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>::type>
+    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
 static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -320,7 +320,7 @@ static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
 
 template <
     typename T,
-    typename = typename std::enable_if<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>::type>
+    typename = typename std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
 static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride, size_t K) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -341,9 +341,9 @@ static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_strid
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 &&
-                                      (SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16),
-                                  bool>::type = true>
+          typename std::enable_if_t<precision_of<TDST>::value != ov::element::f32 &&
+                                        any_of(SRC_PREC, ov::element::bf16, ov::element::f16),
+                                    bool> = true>
 static void pack_32NxK(TDST* dst,
                        void* src,
                        TDST* tmp,
@@ -855,8 +855,8 @@ struct MHAHelper {
 #    if defined(OPENVINO_ARCH_X86_64)
                     auto* q_ptr = _quantized_q.ptr<int8_t>(ithr);
                     auto* k_ptr = qk_scratch_b.ptr<int8_t>(k_blk, hk);
-                    int32_t* temp_C = reinterpret_cast<int32_t*>(_output.ptr<float>(ithr, 0, 0, 0));
-                    float* scale_b = reinterpret_cast<float*>(qk_scratch_b.ptr<int8_t>(k_blk, hk, _block_size * S));
+                    auto* temp_C = reinterpret_cast<int32_t*>(_output.ptr<float>(ithr, 0, 0, 0));
+                    auto* scale_b = reinterpret_cast<float*>(qk_scratch_b.ptr<int8_t>(k_blk, hk, _block_size * S));
                     float* dst_f32 = c_ptr + k_blk * _block_size;
                     _qk_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
                                                      q_ptr + sizeof(float),
@@ -1524,13 +1524,13 @@ struct MHA {
             const auto batch_in_seq = item.batch_in_seq;
             const auto batch_in_reorder = item.batch_in_reorder;
             const auto kv_block = item.kv_block_id;
-            auto block_number =
+            const auto block_number =
                 block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[batch_in_seq] + kv_block];
             if (block_number < 0) {
                 return;
             }
 
-            size_t ithr = static_cast<size_t>(parallel_get_thread_num());
+            const auto ithr = static_cast<size_t>(parallel_get_thread_num());
             const size_t valid_len = item.valid_block_len;
             if (_helper._params.is_sage_attn) {
 #    if defined(OPENVINO_ARCH_X86_64)
@@ -1640,7 +1640,7 @@ struct MHA {
             const auto batch_in_seq = item.batch_in_seq;
             const auto batch_in_token = subsequence_begins.ptr<int32_t>()[batch_in_seq];
             const auto q_len = static_cast<size_t>(item.q_len);
-            size_t ithr = static_cast<size_t>(parallel_get_thread_num());
+            const auto ithr = static_cast<size_t>(parallel_get_thread_num());
 
             if (q_len == 1) {
                 const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + 1;
@@ -2040,8 +2040,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // Only K entries are needed to be rotated, since position is encoded at the Q^T @ (effective_RoPE_matrix) @
             // K matrix multiplication
             rotation_deltas.assert_dims({rotated_block_indices.size(0), 0}, /* special_zero = */ true);
-            OPENVINO_ASSERT(rotation_deltas.shape()[1] == 1 ||
-                            rotation_deltas.shape()[1] == block_size);  // per-block or per-token granularity
+            OPENVINO_ASSERT(any_of(rotation_deltas.shape()[1], 1U, block_size));  // per-block or per-token granularity
             rotation_trig_lut.assert_dims({0, S}, /* special_zero = */ true);
             init_rotation_coefficient_scratch = true;
         }
@@ -2316,7 +2315,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                             value_cache_type);
             executor = std::make_shared<AttentionExecutor<float, ov::element::f16, ov::element::f16>>(params);
         } else {
-            OPENVINO_ASSERT(key_cache_type == ov::element::f32 && value_cache_type == ov::element::f32,
+            OPENVINO_ASSERT(all_of(ov::element::f32, key_cache_type, value_cache_type),
                             "expect kvcache type f32, current: ",
                             key_cache_type,
                             " , ",

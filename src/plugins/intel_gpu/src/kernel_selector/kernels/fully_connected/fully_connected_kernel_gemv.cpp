@@ -177,6 +177,10 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
     jit.AddConstant(MakeJitConstant("WEIGHTS_N", params.weights.OFM().v));
 
     auto activation_dt = GetActivationType(params);
+    // Activation is computed in F32, so we need to convert it to F32
+    if (activation_dt == Datatype::F16) {
+        activation_dt = Datatype::F32;
+    }
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 

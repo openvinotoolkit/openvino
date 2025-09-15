@@ -11,7 +11,7 @@
 #include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/convolution_config.hpp"
-#include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
+#include "nodes/executors/dnnl/dnnl_executor.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
@@ -86,8 +86,12 @@ static const TypeMapping dnnlFCTypeMapping {
     {{_bf16, _f16, _any, _any},                        {bypass(), bypass(), use<0>(), use<0>()}},
     {{_f16, _bf16, _any, _any},                        {bypass(), bypass(), use<0>(), use<0>()}},
     // quantization configuration
-    // int8 inner_product does not support f16 output and bias
+    // int8 inner_product does not support f16 output or bias (f16 output is only supported on X86_64 platforms)
+#if defined(OPENVINO_ARCH_X86_64)
+    {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _dynamic, _u8 | _i8 | _i32 | _bf16 | _f16 | _f32}, {bypass(), bypass(), bypass(),  bypass()}},
+#else
     {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _dynamic, _u8 | _i8 | _i32 | _bf16 | _f32}, {bypass(), bypass(), bypass(),  bypass()}},
+#endif
     {{_u8 | _i8, _i8, _f16, _u8 | _i8 | _i32 | _bf16 | _f32}, {bypass(), bypass(), just<f32>(), bypass()}},
     {{_u8 | _i8, _i8, _any, _any}, {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights (@todo more strict requrements for output precision?)
@@ -277,7 +281,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         ConvAttrs convAttrs{{1}, {0}, {0}, {0},
                                             AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
                                             false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
-                        
+
                         auto primitive =
                             DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
                             memory,
@@ -285,10 +289,11 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                             context,
                             shareAgnosticData);
 
+                        // only brgconv_avx512_1x1 primitive is acceptable from the performance perspective
                         if (!primitive || primitive->implType() != brgconv_avx512_1x1) {
-                            // only brgconv_avx512_1x1 primitive is acceptable from the performance perspective
                             return nullptr;
                         }
+
                         return primitive;
                     }
                 };
@@ -417,27 +422,16 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                struct MatMulInstantiator {
-                    std::shared_ptr<DnnlMatMulPrimitive> operator()(
-                        const MemoryArgs& memory,
-                        [[maybe_unused]] const FCAttrs& attrs,
-                        const ExecutorContext::CPtr& context,
-                        const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
-                        MatMulAttrs matMulAttrs{false,
-                                                false};
-                        auto primitive =
-                            DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>{}(
-                            memory,
-                            matMulAttrs,
-                            context,
-                            shareAgnosticData);
-                        return primitive;
-                    }
-                };
-
+                MatMulAttrs matMulAttrs{false,
+                                        false};
+                matMulAttrs.postOps = attrs.postOps;
+                matMulAttrs.transposeB = attrs.weightsNonTransposed;
+                matMulAttrs.constantWeights = true;
+                
                 return std::make_shared<
-                    DnnlExecutor<DnnlMatMulPrimitive, FCAttrs, DnnlShapeAgnosticData, MatMulInstantiator>>(
-                    attrs,
+                    DnnlExecutor<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData,
+                                 DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>>>(
+                    matMulAttrs,
                     memory,
                     context,
                     false);
