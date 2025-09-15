@@ -48,6 +48,8 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t partition_size;
     size_t max_context_len;
     size_t paged_attention_aligned_seq_len;
+    int xattn_q_block_pad;
+    int xattn_k_block_pad;
 };
 
 

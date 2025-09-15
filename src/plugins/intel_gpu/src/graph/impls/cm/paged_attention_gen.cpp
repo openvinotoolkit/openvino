@@ -409,7 +409,11 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
 
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});               // q_len
+    if (block_size > 1) {
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});           // q_block_pad
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});           // k_block_pad
+    }
     return args;
 }
 
@@ -441,7 +445,7 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         auto desc = params.typed_desc<paged_attention>();
-        // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
         // assert(rt_params != nullptr);
         const size_t heads_num = desc->heads_num;
 
@@ -482,6 +486,12 @@ DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() con
         }
 
         std::vector<size_t> scaler_value = {q_len};
+        const size_t block_size = get_xattn_block_size(params);
+        if (block_size > 1) {
+            scaler_value.push_back(static_cast<size_t>(rtp->xattn_q_block_pad));
+            scaler_value.push_back(static_cast<size_t>(rtp->xattn_k_block_pad));
+        }
+
         scalars.resize(scaler_value.size());
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;

@@ -743,6 +743,7 @@ void pa_kernel_lsc_prefetch(
     svmptr_t v_base [[type("svmptr_t")]],
 #if SPARSE_BLOCK_SIZE > 1
     svmptr_t sparse_mask_base [[type("svmptr_t")]],
+    int xattn_k_block_pad,
 #endif
     svmptr_t o_base [[type("svmptr_t")]],
     int32_t past_lens,
@@ -816,12 +817,15 @@ void pa_kernel_lsc_prefetch(
 #if SPARSE_BLOCK_SIZE > 1
             {
                 auto kv_start_block = kv_pos/ SPARSE_BLOCK_SIZE;
-                bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
-                if (!sparse_mask) {
-                    if constexpr (use_causal_mask) {
-                        causal_left -= kv_step;
+                // when kv_len % 128 < 16, the result will be discard, find_block will not generate mask for the point
+                if (kv_start_block < xattn_k_block_pad) {
+                    bool sparse_mask = *(reinterpret_cast<bool*>(sparse_mask_base) + kv_start_block);
+                    if (!sparse_mask) {
+                        if constexpr (use_causal_mask) {
+                            causal_left -= kv_step;
+                        }
+                        continue;
                     }
-                    continue;
                 }
             }
 #endif
