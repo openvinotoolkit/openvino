@@ -44,6 +44,7 @@ const std::vector<std::pair<std::string, ov::Any>> compiledModelProperties = {
     {ov::hint::num_requests.name(), ov::Any(4u)},
     {ov::hint::inference_precision.name(), ov::Any(ov::element::i8)},
     {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
+    {ov::hint::model.name(), ov::Any(std::shared_ptr<const ov::Model>(nullptr))},
     {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::HIGH)},
     {ov::intel_npu::tiles.name(), ov::Any(2)},
     {ov::intel_npu::profiling_type.name(), ov::Any(ov::intel_npu::ProfilingType::INFER)},

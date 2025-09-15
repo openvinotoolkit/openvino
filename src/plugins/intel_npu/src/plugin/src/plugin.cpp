@@ -534,6 +534,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    [[maybe_unused]] std::shared_ptr<const ov::Model> modelPtr = nullptr;
+    if (auto modelPtrIt = localProperties.find(ov::hint::model.name()); modelPtrIt != localProperties.end()) {
+        modelPtr = modelPtrIt->second.as<std::shared_ptr<const ov::Model>>();
+        localProperties.erase(modelPtrIt);
+        /* if (*modelPtr != *model) {
+            _logger.warning("Model received in config differs from model given to compile_model function.");
+        } */
+    }
+
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     update_log_level(localPropertiesMap);
 
@@ -820,7 +831,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     CompilerAdapterFactory compilerAdapterFactory;
     const auto propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
+    auto compiler =
+        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
@@ -882,12 +894,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                     WEIGHTS_EXTENSION.length(),
                                     XML_EXTENSION);
                 } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
-                        weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
-                                            ONNX_EXTENSION.length(),
-                                            ONNX_EXTENSION)) {
+                           weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
+                                               ONNX_EXTENSION.length(),
+                                               ONNX_EXTENSION)) {
                     OPENVINO_THROW("Invalid path to the weights: ",
-                                weightsPath,
-                                ". A \".bin\" or \".onnx\" extension was expected.");
+                                   weightsPath,
+                                   ". A \".bin\" or \".onnx\" extension was expected.");
                 }
 
                 originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
