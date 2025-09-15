@@ -35,7 +35,7 @@ TokenizeMHASnippets::Config get_default_mha_config() {
 }
 
 TokenizeMLPSeqSnippets::Config get_default_mlp_seq_config() {
-    static const TokenizeMLPSeqSnippets::Config conf(TokenizationConfig(std::numeric_limits<size_t>::max()), nullptr);
+    static const TokenizeMLPSeqSnippets::Config conf(get_default_tokenization_config());
     return conf;
 }
 
