@@ -29,7 +29,7 @@ void inline resolve_axis(OneHotBase* op) {
     }
     const auto& indices_shape = op->get_input_partial_shape(0);
     if (indices_shape.rank().is_static()) {
-        op->m_axis = ov::util::try_normalize_axis(op->m_axis, indices_shape.rank() + 1, *op);
+        op->m_axis = ov::util::try_normalize_axis(op->get_axis(), indices_shape.rank() + 1, *op);
     }
 }  // namespace util
 
