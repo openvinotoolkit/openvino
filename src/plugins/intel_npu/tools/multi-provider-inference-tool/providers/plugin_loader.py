@@ -5,15 +5,13 @@
 # SPDX-License-Identifier: Apache 2.0
 #
 
-import providers.interfaces
+import importlib.util
 import os
-import params
 import re
 import sys
 
-import importlib.util
-
 from pathlib import Path
+import providers.interfaces
 
 class ProviderFactory():
     def __init__(self):

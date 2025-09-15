@@ -18,7 +18,6 @@ import numpy as np
 from providers.interfaces import Context
 from providers.interfaces import Provider
 from providers.interfaces import ProviderHolder
-from params import if_file
 from common.provider_description import Config, ModelInfo, TensorInfo
 
 import utils
@@ -320,7 +319,7 @@ class OVEPNPU(CPUExecutionProvider):
         # OPENVINOExecution provider expects JSON object serialized in string
         # provided you specify 'load_config' value
         if "load_config" in external_provider_dict_options.keys():
-            if if_file(external_provider_dict_options["load_config"]):
+            if os.path.isfile(external_provider_dict_options["load_config"]):
                 with open(external_provider_dict_options["load_config"], "r") as file:
                     json_cfg = json.load(file)
                     external_provider_dict_options["load_config"] = json.dumps(json_cfg)

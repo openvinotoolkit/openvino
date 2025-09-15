@@ -12,33 +12,10 @@ import enum
 import hashlib
 import json
 import os
+
 from pathlib import Path
 
-BatchedImage = list
-
-
-def splitOnBatch(files_list) -> BatchedImage:
-    return files_list.split("|")
-
-
-def if_file(file_path):
-    return os.path.isfile(file_path)
-
-
-def is_directory(directory_path):
-    return os.path.isdir(directory_path)
-
-def shape_to_list(shape):
-    ret = shape
-    if isinstance(shape, (str, bytes)):
-        ret = json.loads(shape)
-    return ret
-
-def layout_to_str(layout):
-    ret = layout
-    if isinstance(layout, list):
-        ret = "".join(layout)
-    return ret
+from common.converters import layout_to_str, shape_to_list
 
 class FilesStorage:
     class InputSourceFileType(enum.IntEnum):
@@ -146,7 +123,7 @@ or
         return return_json_data
 
     def parse_inputs(self, console_input_files_list_per_model: str):
-        if if_file(console_input_files_list_per_model):
+        if os.path.isfile(console_input_files_list_per_model):
             with open(console_input_files_list_per_model) as file:
                 json_input = json.load(file)
         else:

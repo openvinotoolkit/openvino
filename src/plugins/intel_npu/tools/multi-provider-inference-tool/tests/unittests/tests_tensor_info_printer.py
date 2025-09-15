@@ -16,10 +16,11 @@ from pathlib import Path
 
 sys.path.append("../..")
 
-from params import FilesStorage
-from params import layout_to_str
 from utils import prepare_input_description
+from common.converters import layout_to_str
 from common.provider_description import ModelInfo, TensorInfo, TensorsInfoPrinter
+from common.source_description import FilesStorage
+
 
 class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
 

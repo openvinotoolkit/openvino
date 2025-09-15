@@ -14,10 +14,8 @@ import textwrap
 from pathlib import Path
 
 from providers import plugin_loader
-from params import UseCaseFiles
-from params import FilesStorage
-
 from common.provider_description import Config, ModelInfo, ModelInfoPrinter, TensorsInfoPrinter
+from common.source_description import FilesStorage, UseCaseFiles
 
 from __version__ import __version__
 

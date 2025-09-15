@@ -11,7 +11,7 @@ import sys
 import unittest
 
 sys.path.append("../..")
-from params import FilesStorage
+from common.source_description import FilesStorage
 
 class UtilsTests_file_input_validation(unittest.TestCase):
     def get_result_test_string_input_files_correct(test_string):
