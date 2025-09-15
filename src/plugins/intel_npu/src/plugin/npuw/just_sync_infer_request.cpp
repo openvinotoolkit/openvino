@@ -553,6 +553,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             std::size_t prod_port;
             std::tie(prod_idx, prod_port) = link_iter->second;
 
+            auto port_name = iport.get_any_name();
             if (!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by) {
                 // Producer is a normal model -> take its tensor directly
                 const auto& oport = m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
@@ -570,8 +571,18 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                 const auto& i_tensor = m_funcall_result.at({prod_idx, prod_port});
                 if (!is_spatial) {
                     // Non-spatial case - again, set immediately
-                    if (m_npuw_model->m_compiled_submodels[prod_idx].is_sdpa) {
-                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    if (m_npuw_model->m_compiled_submodels[real_idx].is_sdpa) {
+                        if (port_name == "npuw_in_tensor_3") {
+                            auto data = i_tensor->data();
+                            auto shape = i_tensor->get_shape();
+                            // std::cout << "npuw_in_tensor_3 m_run_iter: " << m_run_iter << std::endl;
+                            shape[3] = 1024 * (m_run_iter + 1);
+                            auto new_tensor =
+                                ov::get_tensor_impl(ov::Tensor(i_tensor->get_element_type(), shape, data));
+                            m_subrequests[real_idx]->set_tensor(iport, new_tensor);
+                        } else {
+                            m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                        }
                     } else {
                         m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                     }
@@ -679,6 +690,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             LOG_DEBUG("Done: " << idx << "(exec subrequest)");
         } catch (const std::exception& ex) {
             LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request:" << std::endl << ex.what());
+            std::cout << "Subgraph [" << idx << "] - FAILED to run infer request:" << std::endl << ex.what();
             should_recreate = true;
         } catch (...) {
             LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request: REASON UNKNOWN");

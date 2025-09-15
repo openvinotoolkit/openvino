@@ -221,7 +221,7 @@ void reshape_to_dynamic(std::shared_ptr<ov::Model> model, const int64_t history_
                 broadcast_node->input(1).replace_source_output(new_constant_node->output(0));
             }
         }
-#if 0  // Best config
+#if 1  // Best config
         if (auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node)) {
             auto target_shape_input = reshape_node->input_value(1).get_node_shared_ptr();
             if (auto constant_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(target_shape_input)) {
@@ -1540,6 +1540,7 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id) {
     for (auto iter = m_compiled_submodels[id].device_it; iter != m_dev_list.cend(); ++iter) {
         LOG_BLOCK();
         const auto& device_name = *iter;
+        std::cout << "compile_for_success: " << device_name << std::endl;
         if (m_compiled_submodels[id].devices_to_avoid.count(device_name) > 0) {
             LOG_INFO(device_name << " was found in the 'Avoid' list for this subgraph, skipping...");
         } else if (compile_for_device(id, device_name)) {
@@ -1557,6 +1558,7 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     auto plugin = get_npuw_plugin();
 
     LOG_INFO("Trying to compile for " << device_to_try << "...");
+    std::cout << "Trying to compile for " << device_to_try << "..." << std::endl;
 
     // Only function bodies can reach this point.
     // compile_for_device() behavior is not specified for funcalls.
@@ -1570,6 +1572,7 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     if (npuw::util::starts_with(device_to_try, "NPU") && m_compiled_submodels[id].model->inputs().empty()) {
         LOG_INFO("Avoid compilation for " << device_to_try << " as the model should be constant-folded");
         dump_on_fail(id, device_to_try, "Avoided due to workaround");
+        std::cout << "Avoid compilation for " << device_to_try << " as the model should be constant-folded" << std::endl;
         return false;
     }
 
@@ -1586,6 +1589,7 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
         m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device);
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
+        std::cout << "Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what();
         dump_on_fail(id, device, ex.what());
         return false;
     } catch (...) {

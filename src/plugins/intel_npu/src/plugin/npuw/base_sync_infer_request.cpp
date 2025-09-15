@@ -3,6 +3,7 @@
 //
 
 #include "base_sync_infer_request.hpp"
+
 #include <iostream>
 
 #include "compiled_model.hpp"
@@ -267,7 +268,6 @@ void ov::npuw::IBaseInferRequest::infer() {
     std::cout << "IBaseInferRequest::infer() sdpa time: " << sdpa_time << std::endl;
     std::cout << "IBaseInferRequest::infer() gemm time: " << gemm_time << std::endl;
 
-
     // Increment counter regardless if dumps etc are enabled or not.
     m_run_iter++;
 
@@ -496,7 +496,27 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                 copy_list.emplace_back(g_tnsr, s_port);
             } else {
                 LOG_DEBUG("Will be set");
-                request->set_tensor(s_port, g_tnsr);
+                if (m_npuw_model->m_compiled_submodels[real_idx].is_sdpa) {
+                    auto port_name = s_port.get_any_name();
+                    // std::cout << "port_name: " << port_name << " m_run_iter: " << m_run_iter << std::endl;
+                    if (ov::npuw::util::isPastKeyValuesKey(port_name)) {
+                        auto data = g_tnsr->data();
+                        auto shape = g_tnsr->get_shape();
+                        shape[2] = m_run_iter * 1024;
+                        auto new_tensor = ov::get_tensor_impl(ov::Tensor(g_tnsr->get_element_type(), shape, data));
+                        request->set_tensor(s_port, new_tensor);
+                    } else if (ov::npuw::util::isPastKeyValuesValue(port_name)) {
+                        auto data = g_tnsr->data();
+                        auto shape = g_tnsr->get_shape();
+                        shape[3] = m_run_iter * 1024;
+                        auto new_tensor = ov::get_tensor_impl(ov::Tensor(g_tnsr->get_element_type(), shape, data));
+                        request->set_tensor(s_port, new_tensor);
+                    } else {
+                        request->set_tensor(s_port, g_tnsr);
+                    }
+                } else {
+                    request->set_tensor(s_port, g_tnsr);
+                }
             }
         } else {
             // Register for future use
