@@ -17,7 +17,7 @@
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
-#define USE_SINGLE_THREADED_RUN_INIT 0
+#define USE_SINGLE_THREADED_RUN_INIT 1
 
 namespace intel_npu {
 
@@ -469,13 +469,16 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
 
 void WeightlessGraph::run_init_single_threaded() {
     auto constants = get_all_constants_in_topological_order(_model, _logger);
+    const size_t numberOfInits = _initsGraphDesc.size();
 
-    for (size_t initIndex = 0; initIndex < _initsGraphDesc.size(); ++initIndex) {
+    for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         auto [initInputsViewTensors, initInputsAllocatedTensor] = allocate_inputs(initIndex, constants);
+        if (initIndex == numberOfInits - 1) {
+            // We don't need these anymore, potentially save some memory
+            _model = nullptr;
+            constants = {};
+        }
 
-        // We don't need these anymore, potentially save some memory
-        _model = nullptr;
-        constants = {};
         auto [initOutputsViewTensors, initOutputsAllocatedTensor, initOutputsViewTensorsMap] =
             allocate_outputs(initIndex);
 
