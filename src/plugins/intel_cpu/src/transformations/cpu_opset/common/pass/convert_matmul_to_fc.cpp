@@ -83,9 +83,14 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         // Check that if second inputs is Constant path and it's shape without ones dimensions has length <= 2
         // we replace MatMul with FullyConnected operation.
         // weight shape:
-        // [1,2,3,4] --> matmul
-        // [1,2,3] --> fc
-        // [2,3,4] --> fc
+        // 4-d cases:
+        //   [1,2,3,4] --> node::matmul
+        //   [5,2,3,4] --> node::matmul
+        //   [2,1,3,4] --> node::matmul
+        //   [1,1,3,4] --> node::fc --> dnnl::inner-product
+        // 3-d case:
+        //   [1,2,3] --> node::fc --> dnnl::inner-product
+        //   [2,3,4] --> node::fc --> dnnl::matmul
         if (std::count_if(shape_b.begin(),
                           shape_b.end(),
                           [](const ov::Dimension& x) {
@@ -120,16 +125,32 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                 std::swap(*(shape_b_aligned.end() - 1), *(shape_b_aligned.end() - 2));
             }
 
-            // check on per-batch MatMul which can't be converted to FC
-            for (size_t i = 0; i < max_size - 3; ++i) {
-                if (shape_b_aligned[i] == 1) {
-                    shape_b_aligned[i] = shape_a_aligned[i];
-                } else {
-                    return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
+            // check on Ndim >= 4 MatMul which first two dim must be 1. Otherwise fallback to matmul node.
+            // wei shape:
+            //   [1,2,1,4] --> node::matmul
+            //   [2,1,1,4] --> node::matmul
+            //   [1,1,2,4] --> node::fc
+            //   [2,3,4] --> node::fc --> dnnl::matmul
+            if (max_size > 3) {
+                for (size_t i = 0; i < max_size - 2; ++i) {
+                    if (shape_b_aligned[i] != 1) {
+                        return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
+                    }
                 }
             }
             return std::make_tuple(true, std::move(shape_a_aligned), std::move(shape_b_aligned));
         };
+
+        auto [success, shape_a_aligned, shape_b_aligned] = get_aligned_shapes();
+        if (!success) {
+            return false;  // convert to fc failed and then fallback to matmul node
+        }
+
+        auto aligned_a_rank = shape_a_aligned.rank();
+        auto aligned_b_rank = shape_b_aligned.rank();
+        OPENVINO_ASSERT(aligned_a_rank.is_static() && aligned_b_rank.is_static() && aligned_a_rank.get_length() >= 2 &&
+                            aligned_b_rank.get_length() >= 2,
+                        "MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
 
         /*
          *  create_transpose function return Transpose operation to replace transpose_a or transpose_b
@@ -157,17 +178,6 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             new_ops.push_back(transpose);
             return transpose;
         };
-
-        auto [success, shape_a_aligned, shape_b_aligned] = get_aligned_shapes();
-        if (!success) {
-            return false;
-        }
-
-        auto aligned_a_rank = shape_a_aligned.rank();
-        auto aligned_b_rank = shape_b_aligned.rank();
-        OPENVINO_ASSERT(aligned_a_rank.is_static() && aligned_b_rank.is_static() && aligned_a_rank.get_length() >= 2 &&
-                            aligned_b_rank.get_length() >= 2,
-                        "MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
 
         // Weights normalization
         if (!matmul->get_transpose_b()) {
