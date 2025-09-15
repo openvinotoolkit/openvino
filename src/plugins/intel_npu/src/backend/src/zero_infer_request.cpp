@@ -398,7 +398,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             levelZeroTensors = std::make_shared<ZeroTensor>(_initStructs, tensor, _config);
             levelZeroTensorSharedWithUser = true;
             updateCommandListArg = true;
-        } catch (const ov::Exception&) {
+        } catch (const ZeroTensorException&) {
             if (_dynamicBatchValueChanged || levelZeroTensors == nullptr || levelZeroTensorSharedWithUser) {
                 _logger.debug("ZeroInferRequest::set_tensor - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
@@ -489,7 +489,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
                 get_level_zero_input(foundPort.idx, i) =
                     std::make_shared<ZeroTensor>(_initStructs, tensors.at(i), _config);
-            } catch (const ov::Exception&) {
+            } catch (const ZeroTensorException&) {
                 _logger.debug("ZeroInferRequest::set_tensors - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
 

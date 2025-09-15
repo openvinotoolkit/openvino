@@ -271,7 +271,7 @@ TEST_P(ZeroTensorRunTests, CopyDefaultTensorExpectedThrow) {
     auto data = static_cast<float*>(::operator new(ov::shape_size(shape) * 4, std::align_val_t(64)));
     auto default_tensor = make_tensor(ov::element::f32, shape, data);
     ASSERT_THROW(auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, default_tensor, npu_config),
-                 ov::Exception);
+                 ::intel_npu::ZeroTensorException);
 
     ::operator delete(data, std::align_val_t(64));
 

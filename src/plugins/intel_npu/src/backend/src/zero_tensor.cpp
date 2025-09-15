@@ -72,7 +72,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
 
             _ptr = _imported_tensor->data();
         } else {
-            OPENVINO_THROW("Tensor was not created in the same zero context");
+            throw ZeroTensorException("Tensor was not created in the same zero context");
         }
     } else {
         _ptr = remoteTensor->get_original_memory();

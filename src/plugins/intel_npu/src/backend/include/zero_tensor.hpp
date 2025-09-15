@@ -91,4 +91,9 @@ private:
     ov::SoPtr<ov::ITensor> _imported_tensor;
 };
 
+class ZeroTensorException : public std::runtime_error {
+public:
+    explicit ZeroTensorException(const std::string& msg) : std::runtime_error(msg) {}
+};
+
 }  // namespace intel_npu
