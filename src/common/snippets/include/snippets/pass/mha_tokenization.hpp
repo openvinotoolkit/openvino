@@ -69,7 +69,7 @@ public:
             return m_is_dynamic_mha_token_enabled;
         }
 
-        [[nodiscard]] std::set<size_t> get_mha_supported_transpose_ranks() const {
+        [[nodiscard]] const std::set<size_t>& get_mha_supported_transpose_ranks() const {
             return m_mha_supported_transpose_ranks;
         }
 
@@ -80,7 +80,6 @@ public:
         bool m_mha_token_enable_transpose_on_output = true;
         // If True, MHA pattern with dynamic nodes will be tokenized
         // Otherwise dynamic MHA won't be tokenized
-        // Currently, the flag can be set to `True` only for testing purposes.
         bool m_is_dynamic_mha_token_enabled = true;
         // Set of supported Transpose shape ranks for tokenization in MHATokenization pass.
         // Note that in general Snippets support Transpose of any ranks.

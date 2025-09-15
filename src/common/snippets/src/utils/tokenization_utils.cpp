@@ -393,6 +393,8 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const TokenizationConf
     // TODO [75567]: move this plugin-specific constraint to the plugin callback
     const auto io_count = body_parameters.size() + body_results.size() + hidden_data_count;
     const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(ops_for_buffer_count);
+    // This helper is usually used for eltwises tokenization, where maximal loops depth is always 2
+    // (no additional loops optimizations are applied)
     static constexpr size_t loops_depth = 2;
     if (!config.is_gprs_count_sufficient(io_count, unique_buffer_count, loops_depth)) {
         const std::string message_reset =

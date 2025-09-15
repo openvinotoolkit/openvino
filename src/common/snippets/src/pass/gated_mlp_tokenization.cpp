@@ -116,7 +116,7 @@ TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const TokenizationConfig& con
             OPENVINO_ASSERT(mm_gate && mm_up, "fc_gate and fc_up must have MatMul type");
             return mm_gate->get_transpose_a() == mm_up->get_transpose_a();
         }();
-        // data input (can be shared or not) + 3x matmul weights + result
+        // 1x data input (can be shared or not) + 3x matmul weights + 1x result
         const size_t io_count = (allow_shared_params ? 4 : 5) + 1;
         static constexpr size_t n_reg_group = 3;
         // Loop depth could reach 3 because of SplitLoops optimization

@@ -24,7 +24,7 @@ struct TokenizationConfig {
      * @brief Checks if the available GPRs count is sufficient for the given requirements.
      * @param io_count Number of input/output,
      *        each of which requires GPR allocated throughout the life of the kernel.
-     * @param expected_bufer_reg_groups Number of unique buffer register groups,
+     * @param expected_buffer_reg_groups Number of unique buffer register groups,
      *        each of which requires GPR allocated throughout the life of the kernel.
      * @param expected_maximal_loop_depth Each loop uses GPR for work amount storage.
      *        For the expressions covered with all `expected_maximal_loop_depth` loops,
@@ -35,15 +35,15 @@ struct TokenizationConfig {
      * @return true if the available GPRs are sufficient; false otherwise.
      */
     [[nodiscard]] bool is_gprs_count_sufficient(const size_t io_count,
-                                                const size_t expected_bufer_reg_groups,
+                                                const size_t expected_buffer_reg_groups,
                                                 const size_t expected_maximal_loop_depth,
                                                 bool is_dynamic = false) const {
         const auto available_gprs_count = is_dynamic ? m_available_gprs_count : m_available_gprs_count - 1;
-        return (io_count + expected_bufer_reg_groups + expected_maximal_loop_depth) <= available_gprs_count;
+        return (io_count + expected_buffer_reg_groups + expected_maximal_loop_depth) <= available_gprs_count;
     }
 
 protected:
-    // The number of gpr that can be used inside snippets kernel
+    // The total number of GPRs that can be used inside snippets kernel
     // (data pointers for Parameters/Results/Buffers, as well as loop work amounts)
     size_t m_available_gprs_count = 0;
 };

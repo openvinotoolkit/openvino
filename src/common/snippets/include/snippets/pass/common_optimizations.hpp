@@ -40,7 +40,7 @@ public:
 
     private:
         size_t m_concurrency = 0;
-        // True if "SplitDimensionM" optimization is enabled. Otherwise, it's disabled.
+        // True if "SplitDimensionM" optimization is enabled.
         bool m_split_m_dimension = true;
     };
 
