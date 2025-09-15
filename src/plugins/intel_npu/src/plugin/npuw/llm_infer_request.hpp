@@ -90,6 +90,11 @@ private:
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
+
+    bool m_past_kv_binded = false;
+    void bind_past_kv();
+    std::string m_pre_alloc_device = "CPU";
+    std::string init_pre_alloc_device();
 };
 
 }  // namespace npuw

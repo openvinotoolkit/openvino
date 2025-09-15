@@ -187,17 +187,7 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
                                                           const ov::SoPtr<ov::ITensor>& tensor) {
     for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
         if (m_npuw_model->inputs()[i] == port) {
-            // This is a tricky case:
-            // 1) We already stored an input tensor ptr in m_input_allocated via FMM
-            // 2) We got an input tensor from outside
-            // Later in runtime we rely on m_input_allocated to check if the memory is
-            // allocated internally to prevent the copy. Here we need to check if the memory
-            // is properly allocated externally, to prevent runtime copy as well.
-            if (std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(tensor._ptr) != nullptr ||
-                std::dynamic_pointer_cast<::intel_npu::ZeroHostTensor>(tensor._ptr) != nullptr) {
-                // ZeroRemoteTensor and ZeroHostTensor should guarantee the correct memory allocation
-                m_input_allocated.insert(tensor->data());
-            }
+            m_input_allocated.insert(tensor->data());
         }
     }
 }
