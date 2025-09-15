@@ -899,6 +899,6 @@ std::string parameter_name_to_tensor_name(const std::string& name,
             return port.get_any_name();
         }
     }
-    throw std::runtime_error("Provided I/O name \"" + name +
-                             "\" is not found neither in tensor names nor in nodes names.");
+    //throw std::runtime_error("Provided I/O name \"" + name +
+    //                         "\" is not found neither in tensor names nor in nodes names.");
 }
