@@ -400,11 +400,16 @@ protected:
     };
 
     std::vector<IncorrectValue> incorrect_values_abs;
+    std::vector<IncorrectValue> correct_values_abs;
     double abs_threshold, rel_threshold, mvn_threshold, topk_threshold, mvn_results, topk_results;
     size_t tensor_size;
 
     void emplace_back(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
         incorrect_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
+    }
+
+    void emplace_back_correct(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
+        correct_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
     }
 
 public:
@@ -426,6 +431,7 @@ public:
         const auto threshold = calculate_threshold(abs_threshold, rel_threshold, expected);
         mvn_results += equal(threshold, 0.f) ? diff : (diff / threshold);
         if (less_or_equal(diff, threshold)) {
+            emplace_back_correct(actual, expected, threshold, coordinate);
             return true;
         }
         emplace_back(actual, expected, threshold, coordinate);
@@ -435,6 +441,32 @@ public:
     void check_results() {
         topk_results = static_cast<double>(incorrect_values_abs.size()) / (tensor_size ? tensor_size : 1);
         mvn_results /= tensor_size ? tensor_size : 1;
+
+        std::sort( correct_values_abs.begin(), correct_values_abs.end(),
+              []( const IncorrectValue &left, const IncorrectValue &right )
+                 { return ( std::fabs(left.actual_value - left.expected_value) < std::fabs(right.actual_value - right.expected_value) ); } );
+
+        std::cout << "Count of correct values: " << correct_values_abs.size() << "\n";
+        auto val_smaller = correct_values_abs[0];
+        std::cout << "Coordinate: " << std::setw(2) << val_smaller.coordinate << " Expected: " << val_smaller.expected_value
+                    << " Actual: " << val_smaller.actual_value
+                    << " Diff: " << std::fabs(val_smaller.expected_value - val_smaller.actual_value)
+                    << " abs_threshold: " << val_smaller.threshold << "\n";
+        auto val_middle = correct_values_abs[std::round(correct_values_abs.size() / 2)];
+        std::cout << "middle value: " << std::round(correct_values_abs.size() / 2) << "\n";
+        std::cout << "Coordinate: " << std::setw(2) << val_middle.coordinate << " Expected: " << val_middle.expected_value
+                    << " Actual: " << val_middle.actual_value
+                    << " Diff: " << std::fabs(val_middle.expected_value - val_middle.actual_value)
+                    << " abs_threshold: " << val_middle.threshold << "\n";
+        size_t j = (correct_values_abs.size() >= 10) ? (correct_values_abs.size() - 10) : 0;
+        for (; j < correct_values_abs.size(); ++j) {
+            auto val = correct_values_abs[j];
+            std::cout << "Coordinate: " << std::setw(2) << val.coordinate << " Expected: " << val.expected_value
+                        << " Actual: " << val.actual_value
+                        << " Diff: " << std::fabs(val.expected_value - val.actual_value)
+                        << " abs_threshold: " << val.threshold << "\n";
+        }
+
         if (!incorrect_values_abs.empty() && equal(1.f, topk_threshold) ||
             incorrect_values_abs.size() > static_cast<int>(std::floor(topk_threshold * tensor_size))) {
             std::string msg = "[ COMPARATION ] COMPARATION FAILED!";
@@ -461,9 +493,9 @@ public:
                           << " abs_threshold: " << val.threshold << "\n";
             }
 
-            if constexpr (max_num_to_print > 1) {
-                std::cout << i << " of " << incorrect_values_abs.size() << " incorrect elements printed" << "\n";
-            }
+            // if constexpr (max_num_to_print > 1) {
+            std::cout << i << " of " << incorrect_values_abs.size() << " incorrect elements printed" << "\n";
+            // }
 
             throw std::runtime_error(msg);
         } else if (!less_or_equal(mvn_results, mvn_threshold)) {
