@@ -261,7 +261,8 @@ ov_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              openvino::shape_inference
-                                             openvino::snippets)
+                                             openvino::snippets
+                                             openvino_xml_util)
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 if (ENABLE_MLAS_FOR_CPU)

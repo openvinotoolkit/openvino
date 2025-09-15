@@ -18,7 +18,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
-#include "utils/serialize.hpp"
+#include "utils/graph_serializer/deserializer.hpp" // TODO remove
 
 namespace ov::intel_cpu {
 
@@ -66,7 +66,7 @@ public:
 
 private:
     std::shared_ptr<ov::ICompiledModel> deserialize_model(ModelDeserializer& deserializer,
-                                                          const ov::AnyMap& config) const;
+                                                          const ov::AnyMap& config) const; // TODO make local in cpp
 
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
 

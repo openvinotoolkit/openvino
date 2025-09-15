@@ -25,6 +25,9 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
     };
+    auto WO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::WO);
+    };
 
     std::vector<ov::PropertyName> expectedSupportedProperties{
         // read only
@@ -54,6 +57,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::value_cache_precision.name()),
         RO_property(ov::key_cache_group_size.name()),
         RO_property(ov::value_cache_group_size.name()),
+        // Write only
+        WO_property(ov::weights_path.name())
     };
 
     ov::Core ie;

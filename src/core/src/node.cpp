@@ -16,6 +16,7 @@
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/log_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
