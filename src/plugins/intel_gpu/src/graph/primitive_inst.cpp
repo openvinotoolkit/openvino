@@ -17,6 +17,7 @@
 #include "pooling_inst.h"
 #include "permute_inst.h"
 #include "resample_inst.h"
+#include "non_max_suppression_inst.h"
 #include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "eltwise_inst.h"
@@ -528,6 +529,15 @@ void primitive_inst::update_shape() {
             set_can_be_optimized(true);
         else
             set_can_be_optimized(false);
+    }
+
+    if (get_node().is_type<non_max_suppression>()) {
+        if (!_impl_params->output_layouts[0].count() && _outputs.size() == 3 && _outputs[2]) {
+            const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
+            auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                            : std::vector<event::ptr>{};
+            add_dep_event(_outputs[2]->fill(get_network().get_stream(), dep_events));
+        }
     }
 }
 
