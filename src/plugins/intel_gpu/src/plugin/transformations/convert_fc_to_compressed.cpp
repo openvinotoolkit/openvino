@@ -5,6 +5,8 @@
 #include "convert_fc_to_compressed.hpp"
 
 #include <memory>
+#include <iostream>
+#include <iomanip>
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
@@ -91,8 +93,28 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             // Convert ZP to u8
             if (constant->get_element_type() == ov::element::u8)
                 result = std::dynamic_pointer_cast<ov::Node>(constant);
-            else if (constant->get_element_type() == ov::element::u4)
+            else if (constant->get_element_type() == ov::element::u4) {
+                std::cerr << "[4-bit Debug] ConvertFullyConnectedToFullyConnectedCompressed: Creating Convert u4->u8 for zero point" << std::endl;
+                std::cerr << "  Constant shape: " << constant->get_shape() << std::endl;
+                std::cerr << "  Constant name: " << constant->get_friendly_name() << std::endl;
+                
+                // Debug: Check first few bytes of the constant data
+                try {
+                    auto data_ptr = constant->get_data_ptr();
+                    if (data_ptr) {
+                        auto bytes = reinterpret_cast<const uint8_t*>(data_ptr);
+                        std::cerr << "  First 8 bytes (hex): ";
+                        for (size_t i = 0; i < std::min(size_t(8), constant->get_byte_size()); ++i) {
+                            std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)bytes[i] << " ";
+                        }
+                        std::cerr << std::dec << std::endl;
+                    }
+                } catch (...) {
+                    std::cerr << "  Could not access constant data" << std::endl;
+                }
+                
                 result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
+            }
             else if (weight_u8 && sub_with_convert)
                 result = std::dynamic_pointer_cast<ov::Node>(std::make_shared<ov::op::v0::Convert>(node, ov::element::u8));
             else

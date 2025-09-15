@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <climits>
 #include <variant>
+#include <iostream>
+#include <iomanip>
 
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -278,23 +280,105 @@ private:
                     std::make_shared<ov::op::v0::Constant>(original_dtype, shape, get_intermediate_data(), shared_buf);
             }
 
-            ov::ParameterVector inputParams;
-            ov::ResultVector results;
-            ov::pass::Manager manager("Plugin:GPU:weightless_cache_transformations");
-            std::shared_ptr<ov::Model> model = nullptr;
+            // Debug: Compare ConvertPrecision vs Convert+ConstantFolding for 4-bit types
+            bool is_4bit_conversion = (original_dtype == ov::element::u4 || original_dtype == ov::element::i4) &&
+                                      (curr_dtype == ov::element::u8 || curr_dtype == ov::element::i8);
+            
+            if (is_4bit_conversion) {
+                std::cerr << "[4-bit Debug] Processing 4-bit conversion: " 
+                          << original_dtype << " -> " << curr_dtype 
+                          << ", shape: " << shape << std::endl;
+                // Method 1: Using ConvertPrecision transformation
+                ov::ParameterVector inputParams1;
+                ov::ResultVector results1;
+                results1.push_back(std::make_shared<ov::op::v0::Result>(orig_constant->output(0)));
+                auto model1 = std::make_shared<ov::Model>(results1, inputParams1, "convert_precision_model");
+                
+                ov::pass::Manager manager1("ConvertPrecision");
+                manager1.register_pass<ov::pass::ConvertPrecision>(original_dtype, curr_dtype);
+                manager1.run_passes(model1);
+                
+                const auto& ops1 = model1->get_ops();
+                auto it1 = std::find_if(ops1.begin(), ops1.end(), [](const std::shared_ptr<ov::Node>& node) {
+                    return ov::op::util::is_constant(node);
+                });
+                OPENVINO_ASSERT(it1 != ops1.end());
+                auto constant1 = ov::as_type_ptr<ov::op::v0::Constant>(*it1);
+                
+                // Method 2: Using Convert + ConstantFolding
+                ov::ParameterVector inputParams2;
+                ov::ResultVector results2;
+                auto convert_op = std::make_shared<ov::op::v0::Convert>(orig_constant, curr_dtype);
+                results2.push_back(std::make_shared<ov::op::v0::Result>(convert_op->output(0)));
+                auto model2 = std::make_shared<ov::Model>(results2, inputParams2, "convert_folding_model");
+                
+                ov::pass::Manager manager2("Convert+ConstantFolding");
+                manager2.register_pass<ov::pass::ConstantFolding>();
+                manager2.run_passes(model2);
+                
+                const auto& ops2 = model2->get_ops();
+                auto it2 = std::find_if(ops2.begin(), ops2.end(), [](const std::shared_ptr<ov::Node>& node) {
+                    return ov::op::util::is_constant(node);
+                });
+                OPENVINO_ASSERT(it2 != ops2.end());
+                auto constant2 = ov::as_type_ptr<ov::op::v0::Constant>(*it2);
+                
+                // Compare results
+                auto data1 = reinterpret_cast<const uint8_t*>(constant1->get_data_ptr());
+                auto data2 = reinterpret_cast<const uint8_t*>(constant2->get_data_ptr());
+                size_t byte_size = constant1->get_byte_size();
+                
+                bool mismatch = false;
+                for (size_t i = 0; i < byte_size && i < 16; ++i) {
+                    if (data1[i] != data2[i]) {
+                        mismatch = true;
+                        break;
+                    }
+                }
+                
+                if (mismatch) {
+                    std::cerr << "[4-bit Nibble Order Debug] Mismatch detected!" << std::endl;
+                    std::cerr << "  Original type: " << original_dtype << " -> Target type: " << curr_dtype << std::endl;
+                    std::cerr << "  Shape: " << shape << std::endl;
+                    std::cerr << "  First 16 bytes comparison:" << std::endl;
+                    std::cerr << "  ConvertPrecision:     ";
+                    for (size_t i = 0; i < std::min(byte_size, size_t(16)); ++i) {
+                        std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)data1[i] << " ";
+                    }
+                    std::cerr << std::endl;
+                    std::cerr << "  Convert+ConstFolding: ";
+                    for (size_t i = 0; i < std::min(byte_size, size_t(16)); ++i) {
+                        std::cerr << std::hex << std::setw(2) << std::setfill('0') << (int)data2[i] << " ";
+                    }
+                    std::cerr << std::endl;
+                    
+                    // Use ConvertPrecision result for now as it might be the correct one
+                    transformed_constant = constant1;
+                } else {
+                    // No mismatch, use either result
+                    transformed_constant = constant2;
+                }
+            } else {
+                // Original code for non-4bit conversions
+                ov::ParameterVector inputParams;
+                ov::ResultVector results;
+                ov::pass::Manager manager("Plugin:GPU:weightless_cache_transformations");
+                std::shared_ptr<ov::Model> model = nullptr;
 
-            auto convert_op = std::make_shared<ov::op::v0::Convert>(orig_constant, curr_dtype);
-            results.push_back(std::make_shared<ov::op::v0::Result>(convert_op->output(0)));
-            model = std::make_shared<ov::Model>(results, inputParams, "aux");
-            manager.register_pass<ov::pass::ConstantFolding>();
+                auto convert_op = std::make_shared<ov::op::v0::Convert>(orig_constant, curr_dtype);
+                results.push_back(std::make_shared<ov::op::v0::Result>(convert_op->output(0)));
+                model = std::make_shared<ov::Model>(results, inputParams, "aux");
+                manager.register_pass<ov::pass::ConstantFolding>();
 
-            manager.run_passes(model);
-            const auto& ops = model->get_ops();
-            auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
-                return ov::op::util::is_constant(node);
-            });
-            OPENVINO_ASSERT(it != ops.end());
-            transformed_constant = ov::as_type_ptr<ov::op::v0::Constant>(*it);
+                manager.run_passes(model);
+                const auto& ops = model->get_ops();
+                auto it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
+                    return ov::op::util::is_constant(node);
+                });
+                OPENVINO_ASSERT(it != ops.end());
+                transformed_constant = ov::as_type_ptr<ov::op::v0::Constant>(*it);
+            }
+            
             OPENVINO_ASSERT(transformed_constant->get_element_type() == curr_dtype);
         }
 
