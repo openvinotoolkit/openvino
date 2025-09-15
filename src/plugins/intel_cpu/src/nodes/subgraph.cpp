@@ -200,13 +200,15 @@ struct SubgraphShapeInferResult {
 }  // namespace
 
 static _ov_dnnl_cpu_isa getHostIsa() {
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64)
+    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? dnnl::impl::cpu::x64::avx512_core
+                                                                            : dnnl::impl::cpu::x64::avx2;
+#elif defined(OPENVINO_ARCH_ARM64)
     return dnnl::impl::cpu::aarch64::asimd;
 #elif defined(OPENVINO_ARCH_RISCV64)
     return static_cast<_ov_dnnl_cpu_isa>(ov::intel_cpu::riscv64::gv);
 #else
-    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? dnnl::impl::cpu::x64::avx512_core
-                                                                            : dnnl::impl::cpu::x64::avx2;
+    CPU_NODE_THROW("Subgraphs code-generator is not supported on this platform");
 #endif
 }
 

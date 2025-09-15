@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
-#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
@@ -32,14 +31,14 @@
 #include "snippets/generator.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/broadcastload.hpp"
-#include "snippets/op/buffer.hpp"
 #include "snippets/op/kernel.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
-#include "snippets/op/vector_buffer.hpp"
 #include "snippets/target_machine.hpp"
+#include "utils/general_utils.h"
+#include "xbyak_riscv/xbyak_riscv.hpp"
 
 namespace ov {
 
@@ -97,8 +96,6 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
-    jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
-    jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_scalar_emitter);
 
     // memory access
@@ -157,11 +154,17 @@ std::vector<snippets::Reg> CPUTargetMachine::get_abi_arg_regs() const {
 }
 
 std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
+    using Xbyak_riscv::Reg;
     const auto num_gp_regs = 32;
     std::vector<snippets::Reg> reg_pool;
-    for (size_t i = 0; i < num_gp_regs; i++) {
+    for (size_t i = 1; i < num_gp_regs; i++) {
         // Reserve: x0 (zero), x1 (ra), x2 (sp), x3 (gp), x4 (tp), x8 (s0/fp)
-        if (i != 0 && i != 1 && i != 2 && i != 3 && i != 4 && i != 8) {
+        if (none_of(i,
+                    Xbyak_riscv::ra.getIdx(),
+                    Xbyak_riscv::sp.getIdx(),
+                    Xbyak_riscv::gp.getIdx(),
+                    Xbyak_riscv::tp.getIdx(),
+                    Xbyak_riscv::s0.getIdx())) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }
     }
@@ -196,16 +199,13 @@ std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
     return std::make_shared<CPUGenerator>(cpu_target_machine);
 }
 
-ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
-    // For basic Add operation, use vector register
-    const auto op = out.get_node_shared_ptr();
-    if (ov::is_type<op::v1::Add>(op)) {
-        return ov::snippets::RegType::vec;
-    }
+ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(
+    [[maybe_unused]] const ov::Output<ov::Node>& out) const {
     return ov::snippets::RegType::undefined;
 }
 
 bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<snippets::Emitter>& e) const {
+    // RISC-V platform doesn't currently use precompiled kernels
     return false;
 }
 

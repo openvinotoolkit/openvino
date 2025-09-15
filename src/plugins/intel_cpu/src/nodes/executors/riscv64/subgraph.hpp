@@ -48,7 +48,9 @@ public:
                                        size_t in_num,
                                        Args&&... rest)
         : SubgraphExecutor(config, std::forward<Args>(rest)...),
-          SubgraphDynamicSpecializedBaseExecutor(config, external_ptrs_idces, in_num) {}
+          SubgraphDynamicSpecializedBaseExecutor(config, external_ptrs_idces, in_num) {
+        OPENVINO_THROW("SubgraphDynamicSpecializedExecutor is not supported on RISC-V platform");
+    }
 
     void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 };
