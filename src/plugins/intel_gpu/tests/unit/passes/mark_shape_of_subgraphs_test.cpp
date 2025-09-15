@@ -19,6 +19,8 @@
 #include "strided_slice_inst.h"
 #include "broadcast_inst.h"
 #include "paged_attention_inst.h"
+#include "fully_connected_inst.h"
+#include "gemm_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -348,7 +350,7 @@ TEST(mark_shape_of_subgraphs, broadcast_not_existed_after_shapeof) {
     auto prog = network.get_program();
     ASSERT_NE(prog, nullptr);
 
-    ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("convolution")));
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("convolution")));
 }
 
 TEST(mark_shape_of_subgraphs, broadcast_w_data_and_direct_shapeof_no_mark) {
@@ -541,3 +543,94 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("updated_broadcast"), {{"updated_broadcast", 2}}));
     ASSERT_TRUE(check_subgraph(prog->get_node("max_context_len"), prog->get_node("updated_broadcast"), {{"updated_broadcast", 2}, {"paged_attention", 0}}));
 }
+
+TEST(mark_shape_of_subgraphs, convolution_and_activation_not_marked) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f32, format::bfyx};
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{1152, 4, 1, 1}, data_types::f16, format::bfyx});
+    auto shape_target = engine.allocate_memory({ ov::PartialShape{4}, data_types::i32, format::bfyx });
+    set_values(shape_target, {1, 4, 1, 1});
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("shape_target", shape_target));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(reshape("reshape", input_info("shape_of"), input_info("shape_target"), false, {}));
+    topology.add(convolution("conv", input_info("reshape"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(activation("relu", input_info("conv"), activation_func::relu));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("reshape")));
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("conv")));
+    ASSERT_FALSE(prog->get_node("relu").is_in_shape_of_subgraph());
+}
+
+TEST(mark_shape_of_subgraphs, fully_connected_not_marked) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 2},
+                                       data_types::f32, format::bfyx};
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{256, 2}, data_types::f32, format::bfyx});
+    auto shape_target = engine.allocate_memory({ ov::PartialShape{2}, data_types::i32, format::bfyx });
+    set_values(shape_target, {1, 2});
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("shape_target", shape_target));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(reshape("reshape", input_info("shape_of"), input_info("shape_target"), false, {}));
+    topology.add(fully_connected("fc", input_info("reshape"), "weights"));
+    topology.add(activation("relu", input_info("fc"), activation_func::relu));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("reshape")));
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("fc")));
+    ASSERT_FALSE(prog->get_node("relu").is_in_shape_of_subgraph());
+}
+
+TEST(mark_shape_of_subgraphs, gemm_not_marked) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 2, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                               data_types::f32, format::bfyx};
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{4, 256, 1, 1}, data_types::f32, format::bfyx});
+    auto shape_target = engine.allocate_memory({ ov::PartialShape{4}, data_types::i32, format::bfyx });
+    set_values(shape_target, {1, 2, 2, 1});
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("shape_target", shape_target));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(reshape("reshape", input_info("shape_of"), input_info("shape_target"), false, {}));
+    topology.add(gemm("gemm", {input_info("reshape"), input_info("weights")}, data_types::f32));
+    topology.add(activation("relu", input_info("gemm"), activation_func::relu));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_TRUE(check_subgraph(prog->get_node("shape_of"), prog->get_node("reshape")));
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("gemm")));
+    ASSERT_FALSE(prog->get_node("relu").is_in_shape_of_subgraph());
+}
+
