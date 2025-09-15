@@ -27,7 +27,7 @@ typedef std::tuple<
 class GridSampleLayerTestGPU : public testing::WithParamInterface<GridSampleLayerTestGPUParams>,
                                virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GridSampleLayerTestGPUParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GridSampleLayerTestGPUParams>& obj) {
         const auto& [inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision] = obj.param;
 
         std::ostringstream result;
