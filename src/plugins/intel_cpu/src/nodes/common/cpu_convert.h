@@ -47,7 +47,8 @@ void cpu_convert(const void* srcPtr,
                  ov::element::Type srcPrc,
                  ov::element::Type interimPrc,
                  ov::element::Type dstPrc,
-                 size_t size);
+                 size_t size,
+                 bool bypass_clamp = false);
 
 bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc);
 

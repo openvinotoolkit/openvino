@@ -37,7 +37,8 @@ void CommonConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::
                 commonConvertParams.srcPrc,
                 commonConvertParams.origPrc,
                 commonConvertParams.dstPrc,
-                commonConvertParams.size);
+                commonConvertParams.size,
+                commonConvertParams.bypass_clamp);
 }
 
 }  // namespace ov::intel_cpu

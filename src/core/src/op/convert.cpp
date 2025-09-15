@@ -177,7 +177,15 @@ namespace v0 {
 
 Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
     : Op({arg}),
-      m_destination_type(destination_type) {
+      m_destination_type(destination_type),
+      m_bypass_clamp(false) {
+    constructor_validate_and_infer_types();
+}
+
+Convert::Convert(const Output<Node>& arg, const element::Type& destination_type, bool bypass_clamp)
+    : Op({arg}),
+      m_destination_type(destination_type),
+      m_bypass_clamp(bypass_clamp) {
     constructor_validate_and_infer_types();
 }
 
@@ -190,13 +198,14 @@ void Convert::validate_and_infer_types() {
 bool Convert::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Convert_visit_attributes);
     visitor.on_attribute("destination_type", m_destination_type);
+    visitor.on_attribute("bypass_clamp", m_bypass_clamp);
     return true;
 }
 
 std::shared_ptr<Node> Convert::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Convert_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<Convert>(new_args.at(0), m_destination_type);
+    return std::make_shared<Convert>(new_args.at(0), m_destination_type, m_bypass_clamp);
 }
 
 bool Convert::evaluate(TensorVector& outputs, const TensorVector& inputs) const {

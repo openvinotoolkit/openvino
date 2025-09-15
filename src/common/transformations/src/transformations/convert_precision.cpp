@@ -337,7 +337,12 @@ bool convert_function_precision(ov::pass::PassBase& pass,
             auto& result = results[i];
             if (result->get_input_element_type(0) != orig_result_types[i]) {
                 auto result_input = result->input_value(0);
-                const auto convert = std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i]);
+                bool bypass_clamp = false;
+                if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(result_input.get_node_shared_ptr())) {
+                    bypass_clamp = convert->get_bypass_clamp();
+                }
+                const auto convert =
+                    std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i], bypass_clamp);
 
                 auto convert_f_name = result_input.get_node()->get_friendly_name();
                 if (names_compatibility_mode) {
