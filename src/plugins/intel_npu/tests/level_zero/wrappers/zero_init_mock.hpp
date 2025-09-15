@@ -17,8 +17,9 @@
 
 namespace intel_npu {
 
-class ZeroInitStructsMock final {
-public:
+struct ZeroInitStructsMock {
+    ZeroInitStructsMock(std::string extVersionString);
+
     ZeroInitStructsMock(const ZeroInitStructsMock&) = delete;
     ZeroInitStructsMock& operator=(const ZeroInitStructsMock&) = delete;
 
@@ -67,8 +68,6 @@ public:
         }
         return false;
     }
-
-private:
     void initNpuDriver();
 
     // keep zero_api alive until context is destroyed
@@ -92,9 +91,6 @@ private:
     ze_api_version_t ze_drv_api_version = {};
 
     ze_device_graph_properties_t compiler_properties = {};
-
-public:
-    ZeroInitStructsMock(std::string extVersionString);    
 };
 
 }

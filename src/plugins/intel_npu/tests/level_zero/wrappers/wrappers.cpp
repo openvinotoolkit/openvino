@@ -8,36 +8,39 @@
 #include "driver_compiler_adapter.hpp"
 #include "ir_serializer.hpp"
 
-// there is something wrong in here
+// what about some tests which set wrong extVersion?
 void ZeroWrappersTest::SetUp() {
     int flag;
     std::string extVersion;
     std::tie(flag, extVersion) = GetParam();
-    model = ov::test::utils::make_multi_single_conv();
-    zeroInitStruct = std::make_shared<ZeroInitStructsMock>(extVersion);
 
-    zeGraphExt = std::make_shared<ZeGraphExtWrappers>(std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitStruct));
+    model = ov::test::utils::make_multi_single_conv();
+
+    zeroInitMock = std::make_shared<ZeroInitStructsMock>(extVersion);
+
+    zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
+
+    zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
 
     auto compilerProperties = zeroInitStruct->getCompilerProperties();
     const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
     const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
     serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
-    std::cout << " aaa \n\n";
     buildFlags = "";
 
     // should this be here?
     graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, flag);
-    std::cout << " aaa \n\n";
 }
 
 void ZeroWrappersTest::TearDown() {}
 
-// coverage on all ifelse branches
+// the "fourth" branch is not being tested
 TEST_P(ZeroWrappersTest, QueryGraph) {
+    // add checks for set emptyness?
     const auto supportedLayers = zeGraphExt->queryGraph(std::move(serializedIR), buildFlags);
 }
 
-TEST_P(ZeroWrappersTest, GetGraphBinary) {
+TEST_P(ZeroWrappersTest, DISABLED_GetGraphBinary) {
     // zeGraphExt->getGraphBinary(graphDescriptor, __, __, __);
 }
 
@@ -52,6 +55,7 @@ TEST_P(ZeroWrappersTest, InitializeGraph) {
 
 TEST_P(ZeroWrappersTest, DestroyGraph) {
     zeGraphExt->destroyGraph(graphDescriptor);
+    ASSERT_EQ(graphDescriptor._handle, nullptr);
 }
 
 std::vector<int> _graphDescflags = {ZE_GRAPH_FLAG_NONE,

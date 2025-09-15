@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_init_struct.hpp"
+#include "zero_init_mock.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 // #include "ze_api.h"
 #include <ze_command_queue_npu_ext.h>

@@ -19,14 +19,17 @@
 
 void ZeroGraphTest::SetUp() {
     std::tie(graphDescFlag, extVersion) = GetParam();
-#ifdef _WIN32
-    _putenv_s("NPU_ZE_GRAPH_EXT_VERSION", extVersion.c_str());
-#else
-    setenv("NPU_ZE_GRAPH_EXT_VERSION", extVersion, 1);
-#endif
 
     model = ov::test::utils::make_multi_single_conv();
-    zeroInitStruct = std::make_shared<ZeroInitStructsHolder>();
+
+    zeroInitMock = std::make_shared<ZeroInitStructsMock>(extVersion);
+
+    zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
+
+    zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
+    
+    std::shared_ptr<ZeroInitStructsMock> mock = std::make_shared<ZeroInitStructsMock>(extVersion);
+    zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(mock);
     zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
 
     auto compilerProperties = zeroInitStruct->getCompilerProperties();
@@ -195,14 +198,25 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraph) {
 }
 
 // TODO: convert this test into one which tests all the combinations of graph flags
-TEST_P(ZeroGraphTest, GetGraphDescriptorBadGraphFlag) {
+TEST_P(ZeroGraphTest, GetGraphDescriptorCombinedFlags) {
     auto compilerProperties = zeroInitStruct->getCompilerProperties();
     auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
     auto cfg = ::intel_npu::Config(opt_desc);
     buildFlags += serializeConfig(cfg, compilerProperties.compilerVersion, zeGraphExt);
 
-    graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, 0xBADBAD);
-    ASSERT_EQ(graphDescriptor._handle, nullptr);
+    std::vector<int> flags = {ZE_GRAPH_FLAG_NONE,
+                                ZE_GRAPH_FLAG_DISABLE_CACHING,
+                                ZE_GRAPH_FLAG_ENABLE_PROFILING,
+                                ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT};
+    do {
+        uint32_t flagsCombined = 0;
+        for (int flag : flags) {
+            flagsCombined |= flag;
+        }
+
+        graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, flagsCombined);
+        ASSERT_NE(graphDescriptor._handle, nullptr);
+    } while (std::next_permutation(flags.begin(), flags.end()));
 }
 
 std::vector<int> graphDescflags = {ZE_GRAPH_FLAG_NONE,
