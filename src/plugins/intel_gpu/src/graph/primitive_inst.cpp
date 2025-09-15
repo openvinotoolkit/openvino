@@ -2525,7 +2525,10 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
-
+    if (node.id().find("last_hidden_state") != std::string::npos) {
+        GPU_DEBUG_LOG << "[" << node.id() << ": force to usm device for hidden output]" << std::endl;
+        alloc_type = allocation_type::usm_device;
+    }
     if (is_internal) {
         bool is_reorder_weights = node.is_type<reorder>() && node.as<reorder>().get_primitive()->weights_reorder_params;
         if (node.can_be_optimized() || is_reorder_weights) {
