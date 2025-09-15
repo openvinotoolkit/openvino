@@ -576,7 +576,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                             auto data = i_tensor->data();
                             auto shape = i_tensor->get_shape();
                             // std::cout << "npuw_in_tensor_3 m_run_iter: " << m_run_iter << std::endl;
-                            shape[3] = 1024 * (m_run_iter + 1);
+                            shape[3] = 1024 * (m_run_iter % 8 + 1);
                             auto new_tensor =
                                 ov::get_tensor_impl(ov::Tensor(i_tensor->get_element_type(), shape, data));
                             m_subrequests[real_idx]->set_tensor(iport, new_tensor);

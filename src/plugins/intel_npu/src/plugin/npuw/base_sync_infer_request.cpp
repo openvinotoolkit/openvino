@@ -492,13 +492,13 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                     if (ov::npuw::util::isPastKeyValuesKey(port_name)) {
                         auto data = g_tnsr->data();
                         auto shape = g_tnsr->get_shape();
-                        shape[2] = m_run_iter * 1024;
+                        shape[2] = (m_run_iter % 8) * 1024;
                         auto new_tensor = ov::get_tensor_impl(ov::Tensor(g_tnsr->get_element_type(), shape, data));
                         request->set_tensor(s_port, new_tensor);
                     } else if (ov::npuw::util::isPastKeyValuesValue(port_name)) {
                         auto data = g_tnsr->data();
                         auto shape = g_tnsr->get_shape();
-                        shape[3] = m_run_iter * 1024;
+                        shape[3] = (m_run_iter % 8) * 1024;
                         auto new_tensor = ov::get_tensor_impl(ov::Tensor(g_tnsr->get_element_type(), shape, data));
                         request->set_tensor(s_port, new_tensor);
                     } else {
