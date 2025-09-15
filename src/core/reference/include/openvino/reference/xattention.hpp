@@ -203,9 +203,9 @@ public:
         }
     }
 
-    /** Selects the elements of the input tensor along the last two dimensions, independently along the first dimension, so
-     * that the elements constitute a smallest subset constituting a sum portion no less than `threshold` of the total
-     * element sum.
+    /** Selects the elements of the input tensor along the last two dimensions, independently along the first dimension,
+     * so that the elements constitute a smallest subset constituting a sum portion no less than `threshold` of the
+     * total element sum.
      * @param blocked_scores_data Pointer to the blocked score input.
      * @param blocked_attention_scores_shape Shape of the blocked score input tensor. Expected shape is [num_heads,
      * num_query_tokens / block_size, num_key_tokens / block_size]
