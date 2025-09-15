@@ -16,15 +16,10 @@ import cv2
 from providers.interfaces import Context
 from providers.interfaces import Provider
 from providers.interfaces import ProviderHolder
-from params import Config
-from params import ModelInfo
-from params import TensorInfo
+from common.provider_description import Config, ModelInfo, TensorInfo
 import utils
 
 import openvino as ov
-
-#-S-
-import providers.ov.test
 
 def ov_layout_to_string(layout : ov.Layout):
     return ''.join(layout.to_string()[1:-1].split(","))

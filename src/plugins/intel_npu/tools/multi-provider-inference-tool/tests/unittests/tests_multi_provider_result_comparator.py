@@ -15,7 +15,7 @@ import unittest
 
 sys.path.append("../..")
 
-from params import TensorsInfoPrinter
+from common.provider_description import TensorsInfoPrinter
 from tools.multi_provider_blobs_comparison import multi_provider_result_comparator
 
 def generate_posix_file_paths_from_file_names(root_dir, provider_name, file_names):

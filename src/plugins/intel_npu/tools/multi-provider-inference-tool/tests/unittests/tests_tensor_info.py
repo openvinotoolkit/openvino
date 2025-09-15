@@ -12,7 +12,7 @@ import sys
 import unittest
 
 sys.path.append("../..")
-from params import TensorInfo
+from common.provider_description import  TensorInfo
 
 class UtilsTests_tensor_info_validation(unittest.TestCase):
 

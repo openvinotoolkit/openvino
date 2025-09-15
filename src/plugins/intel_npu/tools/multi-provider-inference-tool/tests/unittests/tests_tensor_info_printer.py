@@ -16,12 +16,10 @@ from pathlib import Path
 
 sys.path.append("../..")
 
-from params import ModelInfo
-from params import TensorInfo
-from params import TensorsInfoPrinter
 from params import FilesStorage
 from params import layout_to_str
 from utils import prepare_input_description
+from common.provider_description import ModelInfo, TensorInfo, TensorsInfoPrinter
 
 class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
 
@@ -124,7 +122,7 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
             tensor_info_from_provider = UtilsTests_TIF_n_FS_integration.stub_get_tensor_info(
                         out_model_name,
                         in_model_info.get_model_io_info(output_name),
-                        {"type" : FilesStorage.SourceType.bin.name})
+                        {"type" : FilesStorage.InputSourceFileType.bin.name})
             tensor_info_from_provider.set_type("output")
             if output_name in in_model_info.get_model_io_names():
                 tensor_input_info = dict(in_model_info.get_model_io_info(output_name))
@@ -194,7 +192,7 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
 
         sandbox_model_sources_info_file_path = os.path.join(sandbox_model_dir, TensorsInfoPrinter.get_file_name_to_dump_model_source("output"))
         candidate_tensors_info = {"my_output": {}}
-        for f in FilesStorage.source_json_schema_allowable[FilesStorage.SourceType.bin.name]:
+        for f in FilesStorage.source_json_schema_allowable[FilesStorage.InputSourceFileType.bin.name]:
             candidate_tensors_info["my_output"][f] = "value"
         # inject non-typical layout as well
         candidate_tensors_info["my_output"]["layout"] = ["N","C","H","W"]
@@ -391,7 +389,7 @@ class UtilsTests_TIF_n_FS_io_canonization_integration(unittest.TestCase):
 
         sandbox_model_sources_info_file_path = os.path.join(sandbox_model_dir, TensorsInfoPrinter.get_file_name_to_dump_model_source("output"))
         candidate_tensors_info = {"my_output": {}}
-        for f in FilesStorage.source_json_schema_allowable[FilesStorage.SourceType.bin.name]:
+        for f in FilesStorage.source_json_schema_allowable[FilesStorage.InputSourceFileType.bin.name]:
             candidate_tensors_info["my_output"][f] = "value"
         # inject non-typical layout as well
         candidate_tensors_info["my_output"]["layout"] = ["N","C","H","W"]

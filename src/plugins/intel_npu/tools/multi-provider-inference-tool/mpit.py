@@ -15,12 +15,9 @@ from pathlib import Path
 
 from providers import plugin_loader
 from params import UseCaseFiles
-from params import Config
 from params import FilesStorage
-from params import ModelInfo
-from params import ModelInfoPrinter
-from params import if_file
-from params import TensorsInfoPrinter
+
+from common.provider_description import Config, ModelInfo, ModelInfoPrinter, TensorsInfoPrinter
 
 from __version__ import __version__
 

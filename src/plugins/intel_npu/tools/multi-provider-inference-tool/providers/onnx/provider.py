@@ -19,9 +19,7 @@ from providers.interfaces import Context
 from providers.interfaces import Provider
 from providers.interfaces import ProviderHolder
 from params import if_file
-from params import Config
-from params import ModelInfo
-from params import TensorInfo
+from common.provider_description import Config, ModelInfo, TensorInfo
 
 import utils
 

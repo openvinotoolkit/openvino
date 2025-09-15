@@ -14,8 +14,8 @@ import unittest
 from pathlib import PurePath
 
 sys.path.append("../..")
-from params import ModelInfo
-from params import ModelInfoPrinter
+
+from common.provider_description import ModelInfo, ModelInfoPrinter
 
 class UtilsTests_model_info_printer_validation(unittest.TestCase):
     def setUp(self):

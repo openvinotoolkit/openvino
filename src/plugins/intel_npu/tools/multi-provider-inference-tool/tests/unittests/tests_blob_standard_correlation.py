@@ -15,7 +15,7 @@ import unittest
 
 sys.path.append("../..")
 
-from params import TensorsInfoPrinter
+from common.provider_description import TensorsInfoPrinter
 from tools.blob_standard_correlation import get_blobs_std_correlation
 
 class UtilsTests_Tools_get_blobs_std_correlation(unittest.TestCase):

@@ -11,7 +11,7 @@ import sys
 import unittest
 
 sys.path.append("../..")
-from params import ModelInfo
+from common.provider_description import ModelInfo
 
 class UtilsTests_model_info_validation(unittest.TestCase):
 

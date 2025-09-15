@@ -17,7 +17,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),".."))
 import bin_diff
 from collections import defaultdict
 from pathlib import Path
-from params import TensorsInfoPrinter
+from common.provider_description import TensorsInfoPrinter
 
 def get_model_name(model_path):
     return os.path.basename(model_path).split('.')[0]
