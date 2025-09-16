@@ -80,7 +80,7 @@
 #    include <tbb/task.h>
 #endif
 
-#if defined(__x86_64__) && defined(__linux__)
+#if defined(OPENVINO_ARCH_X86_64) && defined(__linux__)
 #    include "openvino/runtime/properties.hpp"
 #endif
 
@@ -1633,7 +1633,7 @@ void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&&
 
 static int GetNumaNodeId([[maybe_unused]] const GraphContext::CPtr& context) {
     int numaNodeId = -1;
-#if defined(__x86_64__) && defined(__linux__)
+#if defined(OPENVINO_ARCH_X86_64) && defined(__linux__)
     if ((context->getCPUStreamExecutor()) &&
         (context->getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
         numaNodeId = context->getCPUStreamExecutor()->get_numa_node_id();
@@ -1752,10 +1752,6 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
 
             for (const auto& fusedNode : node->fusedWith) {
                 getPerfMapFor(perfMap, fusedNode);
-            }
-
-            for (const auto& mergedWith : node->mergedWith) {
-                getPerfMapFor(perfMap, mergedWith);
             }
         };
 

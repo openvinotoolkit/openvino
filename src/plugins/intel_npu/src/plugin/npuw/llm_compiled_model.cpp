@@ -499,10 +499,13 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
     model->reshape(new_shapes);
 }
 
-void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model, const uint32_t& batch_dim) {
-    // We have only one input with dynamic shapes: output of Slice operation, and this output
-    // should have "1" for dimension representing number of embeddings to send to the matmul.
-    // Batch size should be also equal "1" for NPU.
+void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model,
+                                   const uint32_t& batch_dim,
+                                   std::size_t max_generation_token_len) {
+    // We have only one input with dynamic shapes: output embeds.
+    // Output embeds should have "max_generation_token_len" for dimension representing
+    // number of embeddings to send to the matmul. Batch size should be equal to "1"
+    // for NPU.
     const auto& input = lm_head_model->input(0);
     const auto& partial_shape = input.get_partial_shape();
     NPUW_ASSERT(partial_shape.size() == 3);
@@ -512,7 +515,7 @@ void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model, con
     // Left dynamic axis will be for number of embeddings
     for (auto i = 0; i < new_shape.rank().get_length(); i++) {
         if (new_shape[i].is_dynamic()) {
-            new_shape[i] = 1;
+            new_shape[i] = max_generation_token_len;
             // Sanity check that only one left dimension is dynamic, as
             // another one should contain embedding space rank
             break;
@@ -522,7 +525,9 @@ void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model, con
     lm_head_model->reshape(new_shape);
 }
 
-void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_dim) {
+void slice_out_embeds(std::shared_ptr<ov::Model> model,
+                      const uint32_t& batch_dim,
+                      std::size_t max_generation_token_len) {
     std::shared_ptr<ov::Node> embed_result;
     for (auto&& output : model->outputs()) {
         if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
@@ -533,15 +538,16 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_di
     if (embed_result) {
         auto shape = embed_result->input(0).get_shape();
         // If shape.size() is 3, then last axis should be the Vocab size.
-        // But 1st and 2nd axis can mean different things.
+        // But 1st and 2nd axes can mean different things.
         // 1st axis can represent the batch size, while 2nd - the number of embeddings,
         // or vice-versa (in chatglm)
         if (shape.size() == 3) {
             uint32_t num_embeds_dim = 1 - batch_dim;
-            if (shape[num_embeds_dim] > 1) {
-                std::vector<int32_t> start_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)),
-                                               static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)),
-                                               0};
+            if (shape[num_embeds_dim] > max_generation_token_len) {
+                std::vector<int32_t> start_pos{
+                    static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - max_generation_token_len)),
+                    static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - max_generation_token_len)),
+                    0};
                 std::vector<int32_t> stop_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)) + 1,
                                               static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
                                               static_cast<int32_t>(shape[2])};
@@ -673,6 +679,9 @@ ov::AnyMap get_default_generate_config(const std::optional<NPUDesc>& npudesc,
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
     }
+    // We don't need slice out for kv cache model, especially for speculative decoding which need
+    // to generate more than 1 token for each inference
+    config.erase("NPUW_SLICE_OUT");
     return config;
 }
 
@@ -843,38 +852,42 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
     m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
-    const auto prompt_alignment = static_cast<uint32_t>(m_use_chunk_prefill ? m_prefill_chunk_size : 64u);
 
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
-    const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), prompt_alignment);
+    uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
+    uint32_t max_generation_token_len = m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
+    if (max_generation_token_len != 1) {
+        max_generation_token_len = align_to(max_generation_token_len, 8u);
+    }
+
+    // If chunk size covers the entire prompt, just follow the static behavior.
+    // Otherwise, use chunking and align the prompt size to the chunk size.
+    if (m_use_chunk_prefill) {
+        if (m_prefill_chunk_size >= max_prompt_len) {
+            m_use_chunk_prefill = false;
+        } else {
+            const auto is_power_of_two = [](uint64_t n) {
+                return n > 0 && (n & (n - 1)) == 0;
+            };
+            if (!is_power_of_two(m_prefill_chunk_size)) {
+                OPENVINO_THROW("Configuration Error: chunk size (",
+                               m_prefill_chunk_size,
+                               ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
+            }
+            max_prompt_len = align_to(max_prompt_len, static_cast<uint32_t>(m_prefill_chunk_size));
+        }
+    }
 
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
-    auto is_power_of_two = [](uint64_t n) {
-        return n > 0 && (n & (n - 1)) == 0;
-    };
-    if (m_use_chunk_prefill) {
-        if (!is_power_of_two(m_prefill_chunk_size)) {
-            OPENVINO_THROW("Configuration Error: chunk size (",
-                           m_prefill_chunk_size,
-                           ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
-        }
+    m_kvcache_desc =
+        KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
 
-        if (max_prompt_len % m_prefill_chunk_size) {
-            OPENVINO_THROW("Configuration Error: The maximum prompt length (",
-                           max_prompt_len,
-                           ") is not a multiple of chunk size (",
-                           m_prefill_chunk_size,
-                           "). Please adjust NPUW_LLM_MAX_PROMPT_LEN to be a multiple of NPUW_LLM_PREFILL_CHUNK_SIZE.");
-        }
-    }
-
-    m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("Make prefill model with static shapes");
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
     if (m_use_chunk_prefill) {
@@ -891,14 +904,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                           m_max_lora_rank);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
-    reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes, m_max_lora_rank);
+    reshape_to_static(kvcache_model,
+                      m_kvcache_desc.max_generation_token_len,
+                      m_kvcache_desc.total_size,
+                      axes,
+                      m_max_lora_rank);
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
-        // KVCache model is already reshaped to [1, 1, embed size], so only apply slice to
-        // the Prefill model:
-        slice_out_embeds(prefill_model, axes.batch);
+        // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
+        // so only apply slice to the Prefill model:
+        slice_out_embeds(prefill_model, axes.batch, m_kvcache_desc.max_generation_token_len);
         LOG_DEBUG("Make LM head model with static shapes");
-        reshape_sliced_head_to_static(lm_head_model, axes.batch);
+        reshape_sliced_head_to_static(lm_head_model, axes.batch, m_kvcache_desc.max_generation_token_len);
     }
 
     LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
@@ -1091,6 +1108,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.total_size);
         write(model_stream, m_kvcache_desc.num_stored_tokens);
         write(model_stream, m_kvcache_desc.dim);
+        write(model_stream, m_kvcache_desc.max_generation_token_len);
         write(model_stream, m_kvcache_desc.v_tensors_transposed);
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
@@ -1299,6 +1317,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.total_size);
         read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
         read(model_stream, compiled->m_kvcache_desc.dim);
+        read(model_stream, compiled->m_kvcache_desc.max_generation_token_len);
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);

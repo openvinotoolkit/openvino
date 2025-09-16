@@ -476,7 +476,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
     m_attrs.isGraphQuantized = context->isGraphQuantized();
     m_attrs.fcSemantic = false;
-    m_attrs.nonConstantWeights = !getParentEdgeAt(WEIGHTS)->getParent()->isConstant();
+    m_attrs.constantWeights = getParentEdgeAt(WEIGHTS)->getParent()->isConstant();
     m_attrs.weightsNonTransposed = false;
     m_attrs.dqScales = getDQScales();
 
