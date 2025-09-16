@@ -14,6 +14,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -239,6 +240,9 @@ private:
     // NB(dm): This method should get a better place, it is here only because
     // it is tied to the Function structure (but, in fact, not so much)
     void identifySpatialRange(ov::npuw::Function& f);
+
+    // NB(dm): Same note here
+    void identifyDynamicParams(ov::npuw::Function& f);
 
     template <typename T, typename M>
     void rearrange_to_function_protocol(ov::npuw::Subgraph::Ref func_ref,
@@ -1754,6 +1758,57 @@ void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
     f._spatial = std::move(spatial);
 }
 
+void Partitioner::identifyDynamicParams(ov::npuw::Function& f) {
+    NPUW_ASSERT(f._tag == "attn");
+
+    ov::npuw::function::Dynamic dyn;
+
+    const auto& f_params = f._model->get_parameters();
+    NPUW_ASSERT(f_params.size() > 0);
+
+    // Find the attention inputs with dynamic range
+    for (auto &&param : f_params) {
+        // A bad test but it is what it is
+        if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
+            // FIXME: Take KV_DIM elsewhere!!!
+            dyn._inputs.push_back(ov::npuw::function::Dynamic::Param{param, 2});
+        }
+    }
+
+    // Find the mask input (also sizeable). FIXME: We know too much at this point
+    auto ops = f._model->get_ordered_ops();
+    auto sdpa_iter = std::find_if(ops.begin(), ops.end(), [](auto &&node_ptr) {
+        return ov::is_type<ov::op::v13::ScaledDotProductAttention>(node_ptr);
+    });
+    if (sdpa_iter == ops.end()) {
+        LOG_WARN("SDPA is not found in the attn subgraph!");
+        return;  // do nothing
+    }
+
+    // Traverse the SDPA's mask input upwards to find the proper Parameter.
+    // Only unary ops are allowed along the way
+    auto sdpa_node = *sdpa_iter;
+    NPUW_ASSERT(sdpa_node->inputs().size() >= 4);
+
+    auto mask_in_node = sdpa_node->inputs()[3].get_source_output().get_node_shared_ptr();
+    while (mask_in_node && !ov::op::util::is_parameter(mask_in_node)) {
+        if (mask_in_node->inputs().size() != 1) {
+            LOG_WARN("Non-unary or disconnected op on the way from SDPA to input mask");
+            return;
+        }
+        mask_in_node = mask_in_node->inputs()[0].get_source_output().get_node_shared_ptr();
+    }
+    NPUW_ASSERT(ov::op::util::is_parameter(mask_in_node));
+    dyn._mask = std::static_pointer_cast<ov::op::v0::Parameter>(mask_in_node);
+
+    if (dyn._inputs.empty() || !dyn._mask) {
+        return;  // do nothing
+    }
+
+    // Accept the change
+    f._dynamic = std::move(dyn);
+}
+
 void Partitioner::createFunction(const std::string& func_name) {
     createFunction(all_functions.at(func_name));
 }
@@ -1891,21 +1946,9 @@ void Partitioner::dynamic(const std::string& func_name) {
         return;
     }
 
-    // Just construct an empty object with no idea what to do in
-    f._dynamic = ov::npuw::function::Dynamic{};
-
-    const auto& f_params = f._model->get_parameters();
-    NPUW_ASSERT(f_params.size() > 0);
-    for (auto &&param : f_params) {
-        // A bad test but it is what it is
-        if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
-            // FIME: Take KV_DIM elsewhere!!!
-            f._dynamic->_inputs.push_back(ov::npuw::function::Dynamic::Param{param, 2});
-        }
-    }
-    if (f._dynamic->_inputs.empty()) {
-        LOG_VERB("No dynamic input founds for " << func_name << " in model " << model->get_friendly_name() << ", discarding dynamic");
-        f._dynamic.reset();
+    identifyDynamicParams(f);
+    if (!f._dynamic) {
+        LOG_WARN("Do dynamic ranges found in the ATTN block");
         return;
     }
 
@@ -1916,6 +1959,13 @@ void Partitioner::dynamic(const std::string& func_name) {
         ov::PartialShape dyn_shape = p.param->get_shape(); // Here it is yet static
         dyn_shape[p.dim] = ov::Dimension(); // ..and now is dynamic
         new_shapes[p.param->output(0)] = std::move(dyn_shape);
+    }
+    // Mask
+    {
+        f._dynamic->_mask_shape = f._dynamic->_mask->get_shape();
+        ov::PartialShape dyn_shape = f._dynamic->_mask_shape;
+        dyn_shape[dyn_shape.size()-1] = ov::Dimension();
+        new_shapes[f._dynamic->_mask->output(0)] = std::move(dyn_shape);
     }
     f._model->reshape(new_shapes);
 

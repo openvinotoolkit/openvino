@@ -203,7 +203,8 @@ void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const o
         size_t position_offset = batch * position_shape[diff_dim];
         std::copy_n(position_data + position_offset,
                     position_shape[diff_dim],
-                    padded_data + padded_offset + keep_elements);
+                    padded_data + padded_offset // + keep_elements
+                    );
     }
 }
 
@@ -533,8 +534,10 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             auto prefill_present_kv_chunk =
                 make_tensor_slice(prefill_out_tensor,
                                   kv_dim,
-                                  static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk),
-                                  static_cast<uint32_t>(prefill_chunk_size));
+                                  0// static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk)
+                                  ,
+                                  // static_cast<uint32_t>(prefill_chunk_size)
+                                  static_cast<uint32_t>(tokens_in_present_chunk));
 
             auto kvcache_last_kv_chunk = make_tensor_slice(kvcache_in_tensor,
                                                            kv_dim,
@@ -642,11 +645,14 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // We will populate current_prompts_len on the right side of attention mask for the processing tokens
             // If the current prompt length is smaller than the chunk prompt length,
             // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
-            fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
+            fill_tensor<int64_t>(attn_mask_in_tensor, 0// ,
+                                 // attn_mask_in_tensor->get_size()// last_chunk_offset
+                                 );
         }
         std::copy_n(attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
                     current_prompts_len,
-                    attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
+                    attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len
+                    );
 
         auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
         auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
@@ -657,8 +663,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
                     current_prefill_bytes,
-                    reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
-                        current_prefill_bytes);
+                    reinterpret_cast<uint8_t*>(input_ids_in_tensor->data())//  + input_ids_in_tensor->get_byte_size() -
+                        // current_prefill_bytes
+                    );
 
         // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH,
         // SEQ_LEN]

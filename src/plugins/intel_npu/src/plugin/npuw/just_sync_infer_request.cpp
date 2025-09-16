@@ -196,11 +196,13 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }
 
     m_spatial_io.resize(m_num_submodels);
+    m_dynamic_io.resize(m_num_submodels);
 
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
     bool failover_happened = false;
     bool has_spatial = false;
+    bool has_dynamic = false;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -246,6 +248,12 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     }
                 }
             }  // if(spatial)
+
+            // Initialize the dynamic IO placeholders, if required
+            if (proto_comp_model_desc.dynamic) {
+                has_dynamic = true;
+                m_dynamic_io[i].inputs.resize(proto_comp_model_desc.param_base);
+            }  // if(dynamic)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
@@ -348,6 +356,16 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         } else {
             // Just force selector to ALL
             m_spatial_selector.reset(new runtime::spatial::All());
+        }
+        LOG_VERB("Done");
+    }
+
+    // Handle dynamic submission
+    if (has_dynamic) {
+        m_dynamic_selector = runtime::dynamic::PositionIDs::find(*this);
+        if (!m_dynamic_selector) {
+            LOG_WARN("Dynamic capability is enabled, but no run-time features were found.");
+            m_dynamic_selector.reset(new runtime::dynamic::All());
         }
         LOG_VERB("Done");
     }
@@ -474,6 +492,12 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     if (m_spatial_selector) {
         m_spatial_selector->prepare();
     }
+
+    // So do the dynamic range
+    if (m_dynamic_selector) {
+        m_dynamic_selector->prepare();
+    }
+
     LOG_DEBUG("Done");
 }
 
@@ -536,6 +560,15 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
     const bool is_spatial = func_desc.spatial.has_value();
+    const bool is_dynamic = func_desc.dynamic.has_value();
+
+    const auto non_dynamic_act_in = [](const ov::npuw::compiled::Dynamic &d, std::size_t in_idx) {
+        const bool not_param = std::none_of(d.params.begin(), d.params.end(), [&](auto &&p) {
+            return p.idx == in_idx;
+        });
+        const bool not_mask = in_idx != d.mask_idx;
+        return not_param && not_mask;
+    };
 
     // Function call prologue:
     // 1. Walk through function dependencies and set the respective tensors
@@ -551,30 +584,41 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             std::size_t prod_port;
             std::tie(prod_idx, prod_port) = link_iter->second;
 
+            // FIXME: This IF can be rewritten down to 2x
             if (!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by) {
                 // Producer is a normal model -> take its tensor directly
                 const auto& oport = m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
                 auto i_tensor = m_subrequests[prod_idx]->get_tensor(oport);
-                if (!is_spatial) {
-                    // Non-spatial case - set immediately
-                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
-                } else {
+                if (is_spatial) {
                     // Spatial case - defer
                     m_spatial_io[real_idx].inputs.at(i) = i_tensor;
+                } else if (is_dynamic) {
+                    // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
+                    if (non_dynamic_act_in(*func_desc.dynamic, i)) {
+                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    }
+                } else {
+                    // Default case
+                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                 }
             } else {
                 // Producer is a function - maybe the same as we're calling now.
                 // Take its tensor from the storage
                 const auto& i_tensor = m_funcall_result.at({prod_idx, prod_port});
-                if (!is_spatial) {
-                    // Non-spatial case - again, set immediately
-                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
-                } else {
+                if (is_spatial) {
                     // Spatial case - defer
                     m_spatial_io[real_idx].inputs.at(i) = i_tensor;
+                } else if (is_dynamic) {
+                    // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
+                    if (non_dynamic_act_in(*func_desc.dynamic, i)) {
+                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    }
+                } else {
+                    // Default case
+                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                 }
-            }
-        }
+            } // if (prod.replaced_by)
+        } // if (link_iter)
     }  // for(param_base)
 
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
@@ -701,129 +745,224 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, const std::function<void()>& f) {
+void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    if (!comp_model_desc.spatial) {
-        // Non-spatial execution: trigger request asynchronously, run `f` in this context
+    if (!comp_model_desc.spatial && !comp_model_desc.dynamic) {
+        // Normal: trigger request asynchronously, run `f` in this context
+        // FIXME: dynamic could hit here too, but it has special logic
+        // around execution which makes it harder to run than a plain start_async()
         auto& r = m_subrequests[real_idx];
         r->start_async();
         f();  // expect noexcept
         r->wait();
     } else {
-        // Spatial execution... Do the opposite - run f asynchronously, and meanwhile run the
-        // spatial inference
+        // Spatial OR dynamic execution... Do the opposite - run f
+        // asynchronously, and meanwhile run the spatial inference
         auto future = std::async(std::launch::async, f);
-        unsafe_infer(real_idx);
+        unsafe_infer(real_idx, idx);
         future.wait();
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
+void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std::size_t) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(comp_model_desc.spatial.has_value());
+
+    auto& r = m_subrequests[real_idx];
+
+    // Run over the specified range... Note: the full inputs/outputs
+    // must be prepared in the m_spatial_io at this point
+    const auto& spatial = comp_model_desc.spatial.value();
+    const auto num_outputs = comp_model_desc.compiled_model->outputs().size();
+    NPUW_ASSERT(m_spatial_selector);
+
+    // Create a sparse vector with full input sizes.
+    // For the access simplicity, its size is aligned with function's
+    // number of input parameters (activations) so some slots may be
+    // not used here.
+    // FIXME: All these preparations could be done statically (just once)
+    std::vector<ov::Shape> full_in_shapes(comp_model_desc.param_base);
+    for (auto&& param : spatial.params) {
+        full_in_shapes[param.idx] = m_spatial_io[real_idx].inputs.at(param.idx)->get_shape();
+    }
+
+    // Now handle the range, even if it is not a multiply of nway (slice):
+    //
+    // |<- - - - full range  - - - ->|
+    // +------+------+------+------+-+
+    // | nway | nway | nway | nway | |
+    // +------+------+------+------+-+
+    //                              ^tail
+    // The block is always compiled to produce nway. If we need a smaller tensor
+    // on the last iteration, the sub-nway will be copied from the input range to
+    // a temporary tensor, and then the sub-nwway range will be copied from the
+    // request's output range.
+
+    std::size_t offset = 0u;
+    for (std::size_t i = 0u; i < spatial.nway_iters; i++, offset += spatial.nway) {
+        if (!m_spatial_selector->need_submit(offset, spatial.nway)) {
+            continue;
+        }
+
+        // Collect spatial inputs for this offset
+        for (auto&& param : spatial.params) {
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            const auto& iview =
+                ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, spatial.nway);
+            r->set_tensor(iport, iview);
+        }  // for(params)
+
+        // Now set the spatial outputs
+        for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+            const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
+            r->set_tensor(oport,
+                          ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
+                                               spatial.out_dim,
+                                               offset,
+                                               spatial.nway));
+        }  // for(outputs)
+
+        // Now run the part
+        r->infer();
+    }  // for(full_nway_times)
+
+    // Now process the tail, if required
+    if (spatial.tail_size && m_spatial_selector->need_submit(offset, spatial.tail_size)) {
+        // Copy the sub-ranges to spatial inputs
+        // NOTE: tails buffers are read from/written to at 0th offset!
+        for (auto&& param : spatial.params) {
+            auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx),
+                                                param.dim,
+                                                offset,
+                                                spatial.tail_size);
+
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx),
+                                                 param.dim,
+                                                 0,
+                                                 spatial.tail_size);
+
+            in_view->copy_to(out_view._ptr);
+            r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
+        }  // for(params)
+
+        // Now set the tail tensors
+        for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+            const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
+            r->set_tensor(oport, m_spatial_io[real_idx].output_tails.at(out_idx));
+        }  // for(outputs)
+
+        // Now run the tail infer
+        r->infer();
+
+        // Now copy the views from the output full-nway tensor to the output tensors
+        for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+            auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].output_tails.at(out_idx),
+                                                spatial.out_dim,
+                                                0,
+                                                spatial.tail_size);
+
+            auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
+                                                 spatial.out_dim,
+                                                 offset,
+                                                 spatial.tail_size);
+            in_view->copy_to(out_view._ptr);
+        }  // for(outputs)
+    }
+}
+
+void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std::size_t idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(comp_model_desc.dynamic.has_value());
+
+    auto& r = m_subrequests[real_idx];
+
+    const auto& dynamic = comp_model_desc.dynamic.value();
+    auto mask_iport = comp_model_desc.compiled_model->inputs()[dynamic.mask_idx];
+    auto mask_shape = dynamic.mask_data.get_shape();
+    NPUW_ASSERT(mask_shape.size() == 4);
+    auto query_size = mask_shape[2];
+    auto ctx_size = mask_shape[3];
+
+    auto pos_id = m_dynamic_selector->length();
+    auto past_len = query_size == 1
+        ? pos_id // decode case, we have pos_id-1 past elements to take from kvcache
+        : (pos_id / query_size) * query_size; // chunked prefill case. how much chunks do we have?
+    // FIXME: speculative decode is indistinguishable at this point!
+
+    // Set the past k/v values first, it is easy!
+    for (auto&& param : dynamic.params) {
+        const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+        const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
+
+        if (pos_id > 0) {
+            // std::cout << "past " << iport << " -- " << past_len << std::endl;
+            r->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, past_len));
+        } else {
+            std::cout << "Shite! " << pos_id << std::endl;
+            r->set_tensor(iport, input);
+        }
+    }  // for(params)
+
+    // Now set the mask. Here comes very strong SDPA knowledge again
+
+    // Possible values for query_size:
+    // 1    - decode
+    // n    - n-way decode (speculative)
+    // N>>n - prefill chunk
+
+    // Here's how the _dense_ attention mask supposed to look like for each of these
+    // cases:
+    // - decode
+    //   [1111111111111 1]
+    // - speculative decode with n=4
+    //   [1111111111111 1000]
+    //   [1111111111111 1100]
+    //   [1111111111111 1110]
+    //   [1111111111111 1111]
+    // - prefill chunk
+    //   <past length>  <chunk>
+    //   [1111111111111 10...00] ^
+    //   [1111111111111 110..00] chunk
+    //   [...                  ] :
+    //   [1111111111111 1111111] v
+    // BTW since we add this mask, it is not 11/00 but 00/-inf.
+    // The mask itself is prepared for us by the compiled::Dynamic object.
+    // All we need to do here is to take a proper ROI from that tensor. Here's
+    // the rules:
+    // - "Proper ROI" calculation starts at the CTX-Q'th element
+    //   (separated by space in the diagrams above). Use this as a base point.
+    // - From that base point, we need to look to the left by position_ids-1 size.
+    // - We need to look to the right by Q size (query).
+    // - We take all rows.
+    // So it is just 1D slice!
+    try {
+
+    if (pos_id > 0) {
+        auto dyn_ctx_size = past_len + query_size;
+        // std::cout << "dyn ctx size: " << dyn_ctx_size << std::endl;
+        const auto midnight_patch = query_size == 1 ? 0 : 1;
+        r->set_tensor(mask_iport, ov::npuw::util::view(ov::get_tensor_impl(dynamic.mask_data), 3, ctx_size - dyn_ctx_size - midnight_patch, dyn_ctx_size));
+    } else {
+        std::cout << "I was not prepared to that!" << std::endl;
+    }
+
+    r->infer();
+    } catch (std::exception &ex) {
+        std::cout << ex.what() << std::endl;
+        throw;
+    }
+}
+
+void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
-    if (!comp_model_desc.spatial) {
-        // Run normally
-        r->infer();
+    if (comp_model_desc.spatial) {
+        unsafe_infer_spatial(real_idx, idx);
+    } else if (comp_model_desc.dynamic) {
+        unsafe_infer_dynamic(real_idx, idx);
     } else {
-        // Run over the specified range... Note: the full inputs/outputs
-        // must be prepared in the m_spatial_io at this point
-        const auto& spatial = comp_model_desc.spatial.value();
-        const auto num_outputs = comp_model_desc.compiled_model->outputs().size();
-        NPUW_ASSERT(m_spatial_selector);
-
-        // Create a sparse vector with full input sizes.
-        // For the access simplicity, its size is aligned with function's
-        // number of input parameters (activations) so some slots may be
-        // not used here.
-        // FIXME: All these preparations could be done statically (just once)
-        std::vector<ov::Shape> full_in_shapes(comp_model_desc.param_base);
-        for (auto&& param : spatial.params) {
-            full_in_shapes[param.idx] = m_spatial_io[real_idx].inputs.at(param.idx)->get_shape();
-        }
-
-        // Now handle the range, even if it is not a multiply of nway (slice):
-        //
-        // |<- - - - full range  - - - ->|
-        // +------+------+------+------+-+
-        // | nway | nway | nway | nway | |
-        // +------+------+------+------+-+
-        //                              ^tail
-        // The block is always compiled to produce nway. If we need a smaller tensor
-        // on the last iteration, the sub-nway will be copied from the input range to
-        // a temporary tensor, and then the sub-nwway range will be copied from the
-        // request's output range.
-
-        std::size_t offset = 0u;
-        for (std::size_t i = 0u; i < spatial.nway_iters; i++, offset += spatial.nway) {
-            if (!m_spatial_selector->need_submit(offset, spatial.nway)) {
-                continue;
-            }
-
-            // Collect spatial inputs for this offset
-            for (auto&& param : spatial.params) {
-                const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-                const auto& iview =
-                    ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, spatial.nway);
-                r->set_tensor(iport, iview);
-            }  // for(params)
-
-            // Now set the spatial outputs
-            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-                const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
-                r->set_tensor(oport,
-                              ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
-                                                   spatial.out_dim,
-                                                   offset,
-                                                   spatial.nway));
-            }  // for(outputs)
-
-            // Now run the part
-            r->infer();
-        }  // for(full_nway_times)
-
-        // Now process the tail, if required
-        if (spatial.tail_size && m_spatial_selector->need_submit(offset, spatial.tail_size)) {
-            // Copy the sub-ranges to spatial inputs
-            // NOTE: tails buffers are read from/written to at 0th offset!
-            for (auto&& param : spatial.params) {
-                auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx),
-                                                    param.dim,
-                                                    offset,
-                                                    spatial.tail_size);
-
-                const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-                auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx),
-                                                     param.dim,
-                                                     0,
-                                                     spatial.tail_size);
-
-                in_view->copy_to(out_view._ptr);
-                r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
-            }  // for(params)
-
-            // Now set the tail tensors
-            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-                const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
-                r->set_tensor(oport, m_spatial_io[real_idx].output_tails.at(out_idx));
-            }  // for(outputs)
-
-            // Now run the tail infer
-            r->infer();
-
-            // Now copy the views from the output full-nway tensor to the output tensors
-            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-                auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].output_tails.at(out_idx),
-                                                    spatial.out_dim,
-                                                    0,
-                                                    spatial.tail_size);
-
-                auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
-                                                     spatial.out_dim,
-                                                     offset,
-                                                     spatial.tail_size);
-                in_view->copy_to(out_view._ptr);
-            }  // for(outputs)
-        }
+        r->infer();    // Run normally
     }
 }
 
@@ -841,7 +980,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (is_pipelined(real_idx)) {
                 // function pipelining is here! and the next rq is ours.
                 NPUW_ASSERT(m_funcall_pipeline[idx].next.value() == next_idx);
-                unsafe_during(real_idx, [&]() {
+                unsafe_during(real_idx, idx, [&]() {
                     LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << next_idx << "]...");
                     LOG_BLOCK();
                     // Note: do it here unconditionally - if this request fails,
@@ -852,7 +991,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             } else {
                 // Function pipelining is not used. THIS infer request
                 // is also the NEXT one. Nothing much to do here
-                unsafe_infer(real_idx);
+                unsafe_infer(real_idx, idx);
                 bind_global_parameters(next_idx);
             }
         } else {
@@ -862,9 +1001,9 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (next_idx == 0) {
                 // Note: even if m_function_pipelining is ON,
                 // SWAP won't happen here - see the below check for .next
-                unsafe_infer(real_idx);
+                unsafe_infer(real_idx, idx);
             } else {
-                unsafe_during(real_idx, [&]() {
+                unsafe_during(real_idx, idx, [&]() {
                     if (!next_prepared) {
                         bind_global_parameters(next_idx);
                         next_prepared = true;
@@ -882,9 +1021,9 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
         // This is a regular subgraph. Start it async to prepare the next
         // parameters
         if (next_idx == 0) {
-            unsafe_infer(real_idx);
+            unsafe_infer(real_idx, idx);
         } else {
-            unsafe_during(real_idx, [&]() {
+            unsafe_during(real_idx, idx, [&]() {
                 if (!next_prepared) {
                     bind_global_parameters(next_idx);
                     next_prepared = true;
