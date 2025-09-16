@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 
+#include "../dynamic.hpp"
 #include "../lazy_tensor.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"
