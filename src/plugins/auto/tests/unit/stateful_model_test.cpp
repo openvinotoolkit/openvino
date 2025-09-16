@@ -23,7 +23,7 @@ public:
     std::shared_ptr<ov::Model> create_dynamic_output_model();
     std::shared_ptr<ov::Model> create_stateful_model();
     std::shared_ptr<ov::Model> create_stateful_dynamic_model();
-    static std::string getTestCaseName(testing::TestParamInfo<StatefulModelConfigParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<StatefulModelConfigParams>& obj);
     void SetUp() override;
 
 protected:
@@ -36,7 +36,7 @@ protected:
     std::string expectedExecuteDev;
 };
 
-std::string StatefulModelSupportedTest::getTestCaseName(testing::TestParamInfo<StatefulModelConfigParams> obj) {
+std::string StatefulModelSupportedTest::getTestCaseName(const testing::TestParamInfo<StatefulModelConfigParams>& obj) {
     const auto& [devicesList,
                  isDynamicModel,
                  isStatefulModel,
