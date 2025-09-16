@@ -444,12 +444,35 @@ std::map<std::string, std::vector<std::string>> parse_input_parameters(
     // inputs)
     std::map<std::string, std::vector<std::string>> return_value;
     std::string search_string = parameter_string;
+    // When convert Stateless onnx LLM to statefull OV model, the input tensors in OV reduce since all {past_key, present_key} 
+    // and {past_value,present_value} are converted to Variables in OV model
     auto start_pos = search_string.find_first_of('[');
     auto input_name = search_string.substr(0, start_pos);
     while (start_pos != std::string::npos) {
         auto end_pos = search_string.find_first_of(']');
         if (end_pos == std::string::npos)
             break;
+        size_t found_past = input_name.find("past");
+        size_t found_key = input_name.find("key");
+        size_t found_value = input_name.find("value");
+        size_t found_present = input_name.find("present");
+
+        if (found_past != std::string::npos && found_key != std::string::npos){
+            search_string = "";
+            break;
+        }
+        if (found_past != std::string::npos && found_value != std::string::npos) {
+            search_string = "";
+            break;
+        }
+        if (found_present != std::string::npos && found_key != std::string::npos) {
+            search_string = "";
+            break;
+        }
+        if (found_present != std::string::npos && found_value != std::string::npos) {
+            search_string = "";
+            break;
+        }
         if (start_pos)
             input_name = search_string.substr(0, start_pos);
         auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
@@ -899,6 +922,6 @@ std::string parameter_name_to_tensor_name(const std::string& name,
             return port.get_any_name();
         }
     }
-    //throw std::runtime_error("Provided I/O name \"" + name +
-    //                         "\" is not found neither in tensor names nor in nodes names.");
+    throw std::runtime_error("Provided I/O name \"" + name +
+                             "\" is not found neither in tensor names nor in nodes names.");
 }

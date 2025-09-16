@@ -78,6 +78,7 @@ protected:
     void remove_dangling_parameters();
     void set_metadata(std::shared_ptr<ov::Model>& model) const;
     std::shared_ptr<ov::Model> create_model();
+    void convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& model);
 
     ov::ParameterVector m_parameters;
     std::unique_ptr<Model> m_model;

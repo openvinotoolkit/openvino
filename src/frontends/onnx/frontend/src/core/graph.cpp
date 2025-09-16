@@ -23,6 +23,10 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
 #include "utils/common.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/make_stateful.hpp"
+#include "../../../../../common/snippets/include/snippets/pass/manager.hpp"
+
 
 using namespace ov;
 using namespace ::ONNX_NAMESPACE;
@@ -201,6 +205,52 @@ void Graph::convert_to_ov_nodes() {
         }
     }
 }
+void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& model) {
+    
+    const auto& params = model->get_parameters();
+    const auto& results = model->get_results();
+    
+    std::vector<std::string> past_keys;
+    std::vector<std::string> past_values;
+    std::vector<std::string> present_keys;
+    std::vector<std::string> present_values;
+   
+    for(auto i = 0; i < params.size(); i++) {
+        auto param_name = params.at(i)->output(0).get_any_name();
+        size_t found_past = param_name.find("past");
+        size_t found_key = param_name.find("key");
+        size_t found_value = param_name.find("value");
+        if (found_past != std::string::npos && found_key != std::string::npos)
+            past_keys.push_back(param_name);
+        if (found_past != std::string::npos && found_value != std::string::npos)
+            past_values.push_back(param_name);
+    }
+    
+     for(auto i = 0; i < results.size(); i++){
+        auto res_name = results.at(i)->output(0).get_any_name();
+        size_t found_present = res_name.find("present");
+        size_t found_key = res_name.find("key");
+        size_t found_value = res_name.find("value");
+        if (found_present != std::string::npos && found_key != std::string::npos)
+            present_keys.push_back(res_name);
+        if (found_present != std::string::npos && found_value != std::string::npos)
+            present_values.push_back(res_name);
+    }
+    
+    std::map<std::string, std::string> param_res_names;
+    // return error if size of past_keys not match with size of past_values
+    // return error if size of present_keys not match with size of present_values;
+    OPENVINO_ASSERT(past_values.size() == past_keys.size());
+    OPENVINO_ASSERT(present_keys.size() == present_values.size());
+    for (auto i = 0; i < past_keys.size(); i++) {
+        param_res_names.insert({past_keys[i], present_keys[i]});
+        param_res_names.insert({past_values[i], present_values[i]});
+    }
+    
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::MakeStateful>(param_res_names);
+    manager.run_passes(model);
+}
 
 void Graph::remove_dangling_parameters() {
     const auto any_tensor_name_matches_onnx_output = [](const Output<ov::Node>& param_output, const GraphProto& graph) {
@@ -242,6 +292,7 @@ std::shared_ptr<ov::Model> Graph::convert() {
     convert_to_ov_nodes();
     remove_dangling_parameters();
     auto function = create_model();
+    convert_stateless_LLM_to_stateful_LLM(function);
     set_metadata(function);
     return function;
 }
