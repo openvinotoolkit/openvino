@@ -96,7 +96,7 @@ protected:
         cmp(idx, end);
         jge(exit);
 
-        fn(idx);
+        std::move(fn)(idx);
 
         add(idx, step);
         jmp(loop);
