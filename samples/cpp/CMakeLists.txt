@@ -115,6 +115,8 @@ endif()
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
 elseif(gflags_required)
+    # set CMAKE_POLICY_VERSION_MINIMUM because gflags requires cmake 3.0.2 or higher
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
     set(GFLAGS_TARGET gflags_nothreads_static)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
