@@ -18,14 +18,19 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "remote_context.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "zero_backend.hpp"
 #include "zero_tensor.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -281,7 +286,6 @@ TEST_P(ZeroTensorRunTests, CopyDefaultTensorExpectedThrow) {
                  ::intel_npu::ZeroTensorException);
 
     ::operator delete(data, std::align_val_t(64));
-
 }
 
 TEST_P(ZeroTensorRunTests, CopyZeroTensorAndKeepAlive) {
@@ -303,6 +307,71 @@ TEST_P(ZeroTensorRunTests, CopyZeroTensorAndKeepAlive) {
     ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
                                                                                     copy_zero_tensor->data()));
     ASSERT_THROW(copy_zero_tensor->set_shape({1, 20, 20, 20}), ov::Exception);
+}
+
+TEST_P(ZeroTensorRunTests, CopyHostTensorAndKeepAlive) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+    auto shape = Shape{1, 2, 2, 2};
+
+    auto host_tensor =
+        std::make_shared<::intel_npu::ZeroHostTensor>(zero_context, init_struct, ov::element::f32, shape);
+
+    auto copy_zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, host_tensor, npu_config);
+
+    EXPECT_EQ(host_tensor->get_shape(), copy_zero_tensor->get_shape());
+    EXPECT_EQ(host_tensor->data(), copy_zero_tensor->data());
+    EXPECT_EQ(host_tensor->get_byte_size(), copy_zero_tensor->get_byte_size());
+    EXPECT_EQ(host_tensor->get_size(), copy_zero_tensor->get_size());
+
+    host_tensor = {};
+    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+                                                                                    copy_zero_tensor->data()));
+    ASSERT_THROW(copy_zero_tensor->set_shape({1, 20, 20, 20}), ov::Exception);
+}
+
+TEST_P(ZeroTensorRunTests, CopyRemoteTensorAndKeepAlive) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+    auto shape = Shape{1, 2, 2, 2};
+
+    auto remote_tensor =
+        std::make_shared<::intel_npu::ZeroRemoteTensor>(zero_context, init_struct, ov::element::f32, shape);
+
+    auto copy_zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, remote_tensor, npu_config);
+
+    EXPECT_EQ(remote_tensor->get_shape(), copy_zero_tensor->get_shape());
+    EXPECT_EQ(remote_tensor->get_original_memory(), copy_zero_tensor->data());
+    EXPECT_EQ(remote_tensor->get_byte_size(), copy_zero_tensor->get_byte_size());
+    EXPECT_EQ(remote_tensor->get_size(), copy_zero_tensor->get_size());
+
+    remote_tensor = {};
+    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+                                                                                    copy_zero_tensor->data()));
+    ASSERT_THROW(copy_zero_tensor->set_shape({1, 20, 20, 20}), ov::Exception);
+}
+
+TEST_P(ZeroTensorRunTests, CopyRemoteTensorFromAnotherContextThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+    auto shape = Shape{1, 2, 2, 2};
+
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
+                         {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, params);
+    auto remote_tensor = context.create_tensor(ov::element::f32, shape);
+    auto remote_tensor_impl = get_tensor_impl(remote_tensor);
+
+    ASSERT_THROW(
+        auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, remote_tensor_impl, npu_config),
+        ::intel_npu::ZeroTensorException);
 }
 
 }  // namespace behavior
