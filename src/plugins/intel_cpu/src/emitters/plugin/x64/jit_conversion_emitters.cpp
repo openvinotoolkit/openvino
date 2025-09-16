@@ -144,7 +144,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
     switch (input_type) {
     case ov::element::f32:
         if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
-            h->uni_vcvtps2dq(vmm_dst, vmm_src);
+            h->uni_vcvttps2dq(vmm_dst, vmm_src);
         }
         break;
     case ov::element::i32:
@@ -156,7 +156,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
         h->vpmovzxwd(vmm_dst, vmm_src);
         h->uni_vpslld(vmm_dst, vmm_dst, 16);
         if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
-            h->uni_vcvtps2dq(vmm_dst, vmm_dst);
+            h->uni_vcvttps2dq(vmm_dst, vmm_dst);
         }
         break;
     case ov::element::f16:
@@ -167,7 +167,7 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
                          Xmm(vmm_src.getIdx()));  // for avx2_vnni_2?
         }
         if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
-            h->uni_vcvtps2dq(vmm_dst, vmm_dst);
+            h->uni_vcvttps2dq(vmm_dst, vmm_dst);
         }
         break;
     case ov::element::i8:
