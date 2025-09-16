@@ -73,9 +73,6 @@ private:
     mutable std::vector<std::vector<std::shared_ptr<ZeroTensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ZeroTensor>> _levelZeroOutputTensors;
 
-    mutable std::vector<bool> _levelZeroInputTensorsSharedWithUser;
-    mutable std::vector<bool> _levelZeroOutputTensorsSharedWithUser;
-
     std::unique_ptr<Pipeline> _pipeline;
 
     bool _pipelineIsCreated = false;

@@ -113,9 +113,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _graphInputDescriptors(_graph->get_input_descriptors()),
       _graphOutputDescriptors(_graph->get_output_descriptors()),
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ZeroTensor>>(1, nullptr)),
-      _levelZeroOutputTensors(_metadata.outputs.size(), nullptr),
-      _levelZeroInputTensorsSharedWithUser(_metadata.inputs.size(), false),
-      _levelZeroOutputTensorsSharedWithUser(_metadata.outputs.size(), false) {
+      _levelZeroOutputTensors(_metadata.outputs.size(), nullptr) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocating tensors");
 
     size_t ioIndex = 0;
@@ -268,18 +266,13 @@ void ZeroInferRequest::create_pipeline() {
                                                                   userInput->get_element_type(),
                                                                   userInput->get_shape(),
                                                                   INPUT);
-                    _levelZeroInputTensorsSharedWithUser.at(zeroState->get_tensor_index()) = true;
 
                     levelZeroOutput = levelZeroInput;
-                    _levelZeroOutputTensorsSharedWithUser.at(zeroState->get_related_tensor_index()) = true;
 
                     zeroState->reset_tensor_imported_flag();
                 } else {
                     levelZeroInput = std::make_shared<ZeroTensor>(_initStructs, userInput, _config);
-                    _levelZeroInputTensorsSharedWithUser.at(zeroState->get_tensor_index()) = true;
-
                     levelZeroOutput = levelZeroInput;
-                    _levelZeroOutputTensorsSharedWithUser.at(zeroState->get_related_tensor_index()) = true;
                 }
 
                 zeroState->reset_zero_tensor_updated_flag();
@@ -345,8 +338,10 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             // resize vector size to 1 if set_tensor is called after set_tensors
             get_level_zero_inputs(foundPort.idx).resize(1);
             get_level_zero_inputs(foundPort.idx).shrink_to_fit();
+            get_level_zero_input(foundPort.idx) = {};
             get_user_inputs(foundPort.idx).resize(1);
             get_user_inputs(foundPort.idx).shrink_to_fit();
+            get_user_input(foundPort.idx) = {};
         }
 
         get_user_input(foundPort.idx) = tensor;
@@ -383,29 +378,28 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-        auto& levelZeroTensors =
+        auto& levelZeroTensor =
             foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
-        bool levelZeroTensorSharedWithUser = foundPort.is_input()
-                                                 ? _levelZeroInputTensorsSharedWithUser.at(foundPort.idx)
-                                                 : _levelZeroOutputTensorsSharedWithUser.at(foundPort.idx);
 
         bool updateCommandListArg = false;
 
         try {
             _logger.debug("ZeroInferRequest::set_tensor - create zero tensor");
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
-
-            levelZeroTensors = std::make_shared<ZeroTensor>(_initStructs, tensor, _config);
-            levelZeroTensorSharedWithUser = true;
+            // Try to use the user directly - in case it has underlying data already allocated in the same level zero
+            // context.
+            levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor, _config);
             updateCommandListArg = true;
         } catch (const ZeroTensorException&) {
-            if (_dynamicBatchValueChanged || levelZeroTensors == nullptr || levelZeroTensorSharedWithUser) {
+            // Check if the current level zero tensor was previously shared with the user. The tensor cannot be re-used
+            // in such case, a new tensor must be allocated to backup the user tensor ( that cannot be imported or used
+            // directly).
+            if (_dynamicBatchValueChanged || levelZeroTensor == nullptr || levelZeroTensor->is_tensor_recycled()) {
                 _logger.debug("ZeroInferRequest::set_tensor - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
                 auto batch = _graph->get_batch_size();
-                levelZeroTensors = allocate_tensor(foundPort.idx, foundPort.is_input(), batch);
-                levelZeroTensorSharedWithUser = false;
+                levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), batch);
                 updateCommandListArg = true;
             } else {
                 _logger.debug("ZeroInferRequest::set_tensor - reusing the level zero tensor since it is not shared "
@@ -413,25 +407,20 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             }
         }
 
-        if (foundPort.is_input()) {
-            _levelZeroInputTensorsSharedWithUser.at(foundPort.idx) = levelZeroTensorSharedWithUser;
-        } else {
-            _levelZeroOutputTensorsSharedWithUser.at(foundPort.idx) = levelZeroTensorSharedWithUser;
-        }
-
         if (_pipelineIsCreated && updateCommandListArg && !_dynamicBatchValueChanged) {
             _logger.debug("ZeroInferRequest::infer_async - update command list");
 
-            OPENVINO_ASSERT(levelZeroTensors->data(), "Empty buffer");
+            OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
 
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
             _pipeline->update_graph_arguments(foundPort.is_input()
                                                   ? _graph->get_input_descriptors().at(foundPort.idx).idx
                                                   : _graph->get_output_descriptors().at(foundPort.idx).idx,
-                                              levelZeroTensors->data(),
-                                              levelZeroTensors->get_byte_size());
+                                              levelZeroTensor->data(),
+                                              levelZeroTensor->get_byte_size());
         }
     }
+    // Update command list is not supported, it will fall back on copies all the time.
 }
 
 void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
@@ -480,7 +469,6 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && batchSizeCandidate.has_value()) {
         get_level_zero_inputs(foundPort.idx).resize(tensors.size());
-        _levelZeroInputTensorsSharedWithUser.at(foundPort.idx) = true;
 
         for (size_t i = 0; i < tensors.size(); i++) {
             try {
@@ -506,6 +494,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
             }
         }
     }
+    // Update command list is not supported, it will fall back on copies all the time.
 }
 
 ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
@@ -521,7 +510,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
         OPENVINO_THROW("Cannot return tensors in a tensor.");
     }
 
-    auto& userTensors = isInput ? get_user_input(ioIndex) : _userOutputTensors.at(ioIndex);
+    auto& userTensor = isInput ? get_user_input(ioIndex) : _userOutputTensors.at(ioIndex);
 
     auto batchSize = _graph->get_batch_size();
 
@@ -536,33 +525,28 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     // by holding already the old tensor from get_tensor() with the old batch size.
     // OR we must reallocate that tensor by callback
 
-    if (userTensors) {
+    if (userTensor) {
         if (!_dynamicBatchValueChanged) {
             _logger.debug("ZeroInferRequest::get_tensor - tensor allocated, get the tensor by index: %zu", ioIndex);
 
-            if (std::dynamic_pointer_cast<ZeroTensor>(userTensors._ptr)) {
-                if (isInput) {
-                    _levelZeroInputTensorsSharedWithUser.at(ioIndex) = true;
-                } else {
-                    _levelZeroOutputTensorsSharedWithUser.at(ioIndex) = true;
-                }
+            auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensor._ptr);
+            if (zeroTensor != nullptr) {
+                zeroTensor->set_recycled_tensor();
             }
 
-            return userTensors;
+            return userTensor;
         } else {
-            if (batchSize.has_value() && userTensors->get_shape()[utils::BATCH_AXIS] == batchSize.value()) {
+            if (batchSize.has_value() && userTensor->get_shape()[utils::BATCH_AXIS] == batchSize.value()) {
                 _logger.debug("ZeroInferRequest::get_tensor - tensor by index: %zu is already allocated", ioIndex);
 
-                if (std::dynamic_pointer_cast<ZeroTensor>(userTensors._ptr)) {
-                    if (isInput) {
-                        _levelZeroInputTensorsSharedWithUser.at(ioIndex) = true;
-                    } else {
-                        _levelZeroOutputTensorsSharedWithUser.at(ioIndex) = true;
-                    }
+                auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensor._ptr);
+                if (zeroTensor != nullptr) {
+                    zeroTensor->set_recycled_tensor();
                 }
 
-                return userTensors;
+                return userTensor;
             }
+            // If different shape was found, go further and allocate new zero tensor for it.
         }
     }
 
@@ -573,25 +557,21 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
                   _dynamicBatchValueChanged ? "true" : "false",
                   metadata.nodeFriendlyName.c_str());
 
-    auto& levelZeroTensors = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
-    levelZeroTensors = allocate_tensor(ioIndex, isInput, batchSize);
+    auto& levelZeroTensor = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
+    levelZeroTensor = allocate_tensor(ioIndex, isInput, batchSize);
 
     if (!_dynamicBatchValueChanged) {
-        userTensors = levelZeroTensors;
+        userTensor = levelZeroTensor;
     }
 
     _logger.debug("ZeroInferRequest::get_tensor - tensor by index: %zu is allocated: %s, size: %zu",
                   ioIndex,
                   metadata.nodeFriendlyName.c_str(),
-                  levelZeroTensors->get_byte_size());
+                  levelZeroTensor->get_byte_size());
 
-    if (isInput) {
-        _levelZeroInputTensorsSharedWithUser.at(ioIndex) = true;
-    } else {
-        _levelZeroOutputTensorsSharedWithUser.at(ioIndex) = true;
-    }
+    levelZeroTensor->set_recycled_tensor();
 
-    return levelZeroTensors;
+    return levelZeroTensor;
 }
 
 std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index,
@@ -713,10 +693,8 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                                                                   userInput->get_element_type(),
                                                                   userInput->get_shape(),
                                                                   INPUT);
-                    _levelZeroInputTensorsSharedWithUser.at(zeroState->get_tensor_index()) = true;
 
                     levelZeroOutput = levelZeroInput;
-                    _levelZeroOutputTensorsSharedWithUser.at(zeroState->get_related_tensor_index()) = true;
 
                     _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                                       levelZeroInput->data(),
@@ -730,10 +708,7 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                     zeroState->reset_tensor_imported_flag();
                 } else {
                     levelZeroInput = std::make_shared<ZeroTensor>(_initStructs, zeroState->get_state(), _config);
-                    _levelZeroInputTensorsSharedWithUser.at(zeroState->get_tensor_index()) = true;
-
                     levelZeroOutput = levelZeroInput;
-                    _levelZeroOutputTensorsSharedWithUser.at(zeroState->get_related_tensor_index()) = true;
 
                     _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                                       levelZeroInput->data(),
@@ -747,17 +722,14 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                 zeroState->reset_zero_tensor_updated_flag();
             } else if (levelZeroInput) {
-                if (_levelZeroInputTensorsSharedWithUser.at(zeroState->get_tensor_index())) {
+                if (levelZeroInput->is_tensor_recycled()) {
                     levelZeroInput = std::make_shared<ZeroTensor>(
                         _initStructs,
                         _config,
                         _metadata.inputs.at(zeroState->get_tensor_index()).precision,
                         _metadata.inputs.at(zeroState->get_tensor_index()).shapeFromCompiler.get_max_shape(),
                         OUTPUT);
-                    _levelZeroInputTensorsSharedWithUser.at(zeroState->get_tensor_index()) = false;
-
                     levelZeroOutput = levelZeroInput;
-                    _levelZeroOutputTensorsSharedWithUser.at(zeroState->get_related_tensor_index()) = false;
 
                     _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                                       levelZeroOutput->data(),
@@ -801,6 +773,7 @@ void ZeroInferRequest::infer_async() {
                 update_pipeline_if_memory_changed();
                 update_states_if_memory_changed();
             }
+            // Update command list is not supported, it will fall back on copies all the time.
         }
     }
 
@@ -891,19 +864,19 @@ void ZeroInferRequest::infer_async() {
             continue;
         }
 
-        if (!is_remote_tensor(userTensor.at(SINGLE_TENSOR)._ptr)) {
-            void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
-            void* userBuffer = userTensor.at(SINGLE_TENSOR)->data();
+        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(SINGLE_TENSOR)._ptr);
+        void* userBuffer =
+            !userRemoteTensor ? userTensor.at(SINGLE_TENSOR)->data() : userRemoteTensor->get_original_memory();
+        void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
 
-            if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
-                OPENVINO_THROW("Empty buffer");
-            }
+        if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
+            OPENVINO_THROW("Empty buffer");
+        }
 
-            if (userBuffer != levelZeroBuffer) {
-                _logger.info("Tensor is not allocated in the current Level Zero context");
-                OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-                std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(SINGLE_TENSOR)->get_byte_size());
-            }
+        if (userBuffer != levelZeroBuffer) {
+            _logger.info("Tensor is not allocated in the current Level Zero context");
+            OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
+            std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(SINGLE_TENSOR)->get_byte_size());
         }
 
         ++inputIndex;
@@ -937,20 +910,18 @@ void ZeroInferRequest::get_result() {
             tensorToBeReshaped->set_shape(actualDims);
         }
 
-        if (!is_remote_tensor(userTensor._ptr)) {
-            void* levelZeroBuffer = _levelZeroOutputTensors.at(outputIndex)->data();
-            void* userBuffer = userTensor->data();
+        auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor._ptr);
+        void* userBuffer = !userRemoteTensor ? userTensor->data() : userRemoteTensor->get_original_memory();
+        void* levelZeroBuffer = _levelZeroOutputTensors.at(outputIndex)->data();
 
-            if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
-                OPENVINO_THROW("Empty buffer");
-            }
+        if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
+            OPENVINO_THROW("Empty buffer");
+        }
 
-            if (userBuffer != levelZeroBuffer) {
-                _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context",
-                             outputIndex);
-                OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-                std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
-            }
+        if (userBuffer != levelZeroBuffer) {
+            _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context", outputIndex);
+            OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
+            std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
         }
 
         ++outputIndex;

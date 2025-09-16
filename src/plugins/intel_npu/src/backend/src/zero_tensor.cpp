@@ -64,19 +64,33 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
       _imported_tensor(user_tensor) {
     OPENVINO_ASSERT(_element_type.is_static());
 
+    // Data pointer of the given user_tensor must be a valid address in the level zero context
+    // Check first if the given tensor is a ZeroRemoteTensor ( which has a different method to expose the internal
+    // storage)
     auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(_imported_tensor._ptr);
     if (remoteTensor == nullptr) {
-        if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(), user_tensor->data())) {
+        if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(),
+                                                                   _imported_tensor->data())) {
             _logger.debug("ZeroTensor::ZeroTensor - tensor was created in the same L0 context, size: %zu",
-                          user_tensor->get_byte_size());
+                          _imported_tensor->get_byte_size());
 
             _ptr = _imported_tensor->data();
         } else {
             throw ZeroTensorException("Tensor was not created in the same zero context");
         }
     } else {
-        _ptr = remoteTensor->get_original_memory();
+        if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(),
+                                                                   remoteTensor->get_original_memory())) {
+            _logger.debug("ZeroTensor::ZeroTensor - remote tensor was created in the same L0 context, size: %zu",
+                          remoteTensor->get_byte_size());
+
+            _ptr = remoteTensor->get_original_memory();
+        } else {
+            throw ZeroTensorException("Tensor was not created in the same zero context");
+        }
     }
+
+    _recycled = true;
 }
 
 // Note: Override data() members to not used OpenVINO library code to improve performance
@@ -212,6 +226,14 @@ bool ZeroTensor::memory_address_changed() {
 
 void ZeroTensor::reset_memory_flag() {
     _reset_tensor_memory = false;
+}
+
+void ZeroTensor::set_recycled_tensor() {
+    _recycled = true;
+}
+
+bool ZeroTensor::is_tensor_recycled() {
+    return _recycled;
 }
 
 void* ZeroTensor::allocate_zero_memory(const size_t bytes, const size_t alignment) noexcept {

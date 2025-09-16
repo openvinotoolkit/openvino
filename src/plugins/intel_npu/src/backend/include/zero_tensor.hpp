@@ -23,12 +23,13 @@ namespace intel_npu {
 class ZeroTensor final : public ov::ITensor {
 public:
     /**
-     * @brief Constructs ZeroTensor using element type and shape. Allocate internal NPU device storage.
-     * @param init_structs Shared pointer to ZeroInitStructsHolder
+     * @brief Constructs a ZeroTensor with the specified element type and shape. Allocates internal storage in the given
+     * level zero context.
+     * @param init_structs Shared pointer to the ZeroInitStructHolder instance that will provide the level zero context.
      * @param config NPU plugin configuration
-     * @param type Tensor element type
+     * @param type Data type of tensor elements
      * @param shape Tensor shape
-     * @param isInput True if tensor is input to the graph, false if output
+     * @param isInput Indicates if the tensor is used as a network input ( true) or output (false)
      */
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                const Config& config,
@@ -37,7 +38,9 @@ public:
                const bool isInput);
 
     /**
-     * @brief Create ZeroTensor from an existing tensor. Keep the tensor reference.
+     * @brief Creates a ZeroTensor from the given tensor. This constructor will throw if the memory of the given tensor
+     * is not allocated in the level zero context specified through init_structs or in case the memory cannot be
+     * imported in that context ( to be implemented). ZeroTensor will keep a reference to the source tensor.
      * @param init_structs Shared pointer to ZeroInitStructsHolder
      * @param user_tensor Tensor to create ZeroTensor from
      * @param config NPU plugin configuration
@@ -63,6 +66,9 @@ public:
     bool memory_address_changed();
     void reset_memory_flag();
 
+    void set_recycled_tensor();
+    bool is_tensor_recycled();
+
     ~ZeroTensor();
 
 private:
@@ -86,8 +92,8 @@ private:
     void* _ptr = nullptr;
     bool _reset_tensor_memory = false;
     uint32_t _zero_memory_flag = 0;
+    bool _recycled = false;
 
-    ov::SoPtr<ov::ITensor> _user_tensor;
     ov::SoPtr<ov::ITensor> _imported_tensor;
 };
 

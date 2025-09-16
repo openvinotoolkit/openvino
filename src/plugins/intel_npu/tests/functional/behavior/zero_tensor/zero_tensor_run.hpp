@@ -108,14 +108,18 @@ TEST_P(ZeroTensorRunTests, CheckSetSmallerShape) {
     auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
     EXPECT_EQ(shape, zero_tensor->get_shape());
     EXPECT_EQ(shape_size, zero_tensor->get_size());
-    EXPECT_EQ(shape_size * 4, zero_tensor->get_byte_size());
+    EXPECT_EQ(shape_size * sizeof(ov::element::f32), zero_tensor->get_byte_size());
+
+    auto data = zero_tensor->data();
 
     auto new_shape = Shape{1, 10, 10, 10};
     auto new_shape_size = ov::shape_size(new_shape);
+    // Reallocation is not required.
     zero_tensor->set_shape(new_shape);
     EXPECT_EQ(new_shape, zero_tensor->get_shape());
     EXPECT_EQ(new_shape_size, zero_tensor->get_size());
-    EXPECT_EQ(new_shape_size * 4, zero_tensor->get_byte_size());
+    EXPECT_EQ(new_shape_size * sizeof(ov::element::f32), zero_tensor->get_byte_size());
+    EXPECT_EQ(data, zero_tensor->data());
     ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
                                                                                     zero_tensor->data()));
 }
@@ -128,14 +132,16 @@ TEST_P(ZeroTensorRunTests, CheckSetBiggerShape) {
     auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, false);
     EXPECT_EQ(shape, zero_tensor->get_shape());
     EXPECT_EQ(shape_size, zero_tensor->get_size());
-    EXPECT_EQ(shape_size * 4, zero_tensor->get_byte_size());
+    EXPECT_EQ(shape_size * sizeof(ov::element::f32), zero_tensor->get_byte_size());
 
     auto new_shape = Shape{1, 50, 50, 50};
     auto new_shape_size = ov::shape_size(new_shape);
+    // set_shape() will force tensor reallocation for a larger shape. The new data pointer must also be a valid level
+    // zero address.
     zero_tensor->set_shape(new_shape);
     EXPECT_EQ(new_shape, zero_tensor->get_shape());
     EXPECT_EQ(new_shape_size, zero_tensor->get_size());
-    EXPECT_EQ(new_shape_size * 4, zero_tensor->get_byte_size());
+    EXPECT_EQ(new_shape_size * sizeof(ov::element::f32), zero_tensor->get_byte_size());
     ASSERT_TRUE(zero_tensor->memory_address_changed());
     ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
                                                                                     zero_tensor->data()));
@@ -268,7 +274,8 @@ TEST_P(ZeroTensorRunTests, CopyDefaultTensorExpectedThrow) {
 
     auto shape = Shape{1, 2, 2, 2};
 
-    auto data = static_cast<float*>(::operator new(ov::shape_size(shape) * 4, std::align_val_t(64)));
+    auto data =
+        static_cast<float*>(::operator new(ov::shape_size(shape) * sizeof(ov::element::f32), std::align_val_t(64)));
     auto default_tensor = make_tensor(ov::element::f32, shape, data);
     ASSERT_THROW(auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, default_tensor, npu_config),
                  ::intel_npu::ZeroTensorException);
