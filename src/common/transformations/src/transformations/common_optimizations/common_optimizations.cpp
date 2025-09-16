@@ -121,6 +121,7 @@
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
 #include "transformations/symbolic_transformations/dereshape_matmul.hpp"
+#include "transformations/op_conversions/convert_one_hot_v16_to_v1.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
@@ -241,6 +242,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertScatterNDUpdate15ToScatterNDUpdate3)
     REGISTER_PASS(manager, ConvertSliceScatter)
     REGISTER_PASS(manager, ConvertSqueeze15ToSqueeze0)
+    REGISTER_PASS(manager, ConvertOneHot16To1)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
