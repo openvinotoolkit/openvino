@@ -9,6 +9,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <tuple>
 #include <variant>
 #include <vector>
 
@@ -291,6 +292,14 @@ TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>
 TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
 
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API std::tuple<std::shared_ptr<ov::Node>,  // result
+                               std::shared_ptr<ov::Node>,  // reshape_kv
+                               std::shared_ptr<ov::Node>,  // unsqueeze_kv
+                               std::shared_ptr<ov::Node>,  // computed_bcst
+                               std::shared_ptr<ov::Node>,  // multiply_kv
+                               std::shared_ptr<ov::Node>>  // computed_bcst3
+match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv);
 
 template <typename T>
 ov::pass::pattern::op::Predicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {

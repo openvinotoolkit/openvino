@@ -424,12 +424,28 @@ static constexpr ov::Property<uint32_t> seq_len_dim{"NPUW_LLM_SEQ_LEN_DIM"};
 static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"};
 
 /**
++ * @brief
++ * Type: uint32_t.
++ * Desirable max input token length for generation.
++ * Default value: 1.
++ */
+static constexpr ov::Property<uint32_t> max_generation_token_len{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN"};
+
+/**
  * @brief
  * Type: uint32_t.
  * Desirable min response length.
  * Default value: 128.
  */
 static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_LEN"};
+
+/**
+ * @brief
+ * Type: uint32_t.
+ * Desirable max LoRA rank.
+ * Default value: 32.
+ */
+static constexpr ov::Property<uint32_t> max_lora_rank{"NPUW_LLM_MAX_LORA_RANK"};
 
 /**
  * @brief
@@ -442,11 +458,19 @@ static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENS
 
 /**
  * @brief
+ * Type: boolean
+ * Substitute part of the RoPE with compile-time precalculation in higher precision
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
+
+/**
+ * @brief
  * Type: uint64_t.
  * Prompt chunk size for chunk prefill.
  * The chunk size should be a power of two.
  * Chunk prefill feature is disabled in case the value is 0.
- * Default value: 0.
+ * Default value: 1024.
  */
 static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
 

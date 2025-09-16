@@ -34,25 +34,17 @@ public:
     std::shared_ptr<ov::threading::ImmediateExecutor> mockExecutorOTHER;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::vector<std::tuple<std::string, bool>> targetDevices;
-        int loadNetworkNum;
-        bool enableRumtimeFallback;
-        bool expectThrow;
-        bool loadNetworkFail;
-        bool generateWorkersFail;
-        std::tie(targetDevices,
-                 loadNetworkNum,
-                 enableRumtimeFallback,
-                 expectThrow,
-                 loadNetworkFail,
-                 generateWorkersFail) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
+        const auto& [targetDevices,
+                     loadNetworkNum,
+                     enableRumtimeFallback,
+                     expectThrow,
+                     loadNetworkFail,
+                     generateWorkersFail] = obj.param;
         std::ostringstream result;
         result << "auto_runtime_fallback_";
         for (auto deviceInfo : targetDevices) {
-            std::string deviceName;
-            bool ifThrow;
-            std::tie(deviceName, ifThrow) = deviceInfo;
+            const auto& [deviceName, ifThrow] = deviceInfo;
             result << deviceName << "_";
             if (ifThrow)
                 result << "true_";
@@ -149,14 +141,13 @@ using AutoCTPUTRuntimeFallback = AutoRuntimeFallback;
 
 TEST_P(AutoRuntimeFallback, releaseResource) {
     std::string targetDev;
-    std::vector<std::tuple<std::string, bool>> targetDevices;
-    int loadNetworkNum;
-    bool enableRumtimeFallback;
-    bool expectThrow;
-    bool loadNetworkFail;
-    bool generateWorkersFail;
-    std::tie(targetDevices, loadNetworkNum, enableRumtimeFallback, expectThrow, loadNetworkFail, generateWorkersFail) =
-        this->GetParam();
+
+    const auto& [targetDevices,
+                 loadNetworkNum,
+                 enableRumtimeFallback,
+                 expectThrow,
+                 loadNetworkFail,
+                 generateWorkersFail] = this->GetParam();
     if (loadNetworkFail) {
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -170,9 +161,8 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
     inferRequests["GPU.1"] = {};
     inferRequests["OTHER"] = {};
     for (auto& deviceInfo : targetDevices) {
-        std::string deviceName;
-        bool ifThrow;
-        std::tie(deviceName, ifThrow) = deviceInfo;
+        const auto& [_deviceName, ifThrow] = deviceInfo;
+        const auto& deviceName = _deviceName;
         targetDev += deviceName;
         targetDev += ((deviceInfo == targetDevices.back()) ? "" : ",");
         if (deviceName == "CPU") {
@@ -363,14 +353,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoRuntimeFallback,
 
 TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
     std::string targetDev;
-    std::vector<std::tuple<std::string, bool>> targetDevices;  // std::tuple<deviceName, will infer throw exception>
-    int loadNetworkNum;
-    bool enableRumtimeFallback;
-    bool expectThrow;
-    bool loadNetworkFail;
-    bool generateWorkersFail;
-    std::tie(targetDevices, loadNetworkNum, enableRumtimeFallback, expectThrow, loadNetworkFail, generateWorkersFail) =
-        this->GetParam();
+    // std::tuple<deviceName, will infer throw exception>
+
+    const auto& [targetDevices,
+                 loadNetworkNum,
+                 enableRumtimeFallback,
+                 expectThrow,
+                 loadNetworkFail,
+                 generateWorkersFail] = this->GetParam();
     if (loadNetworkFail) {
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -384,9 +374,8 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
     inferRequests["GPU.1"] = {};
     inferRequests["OTHER"] = {};
     for (auto& deviceInfo : targetDevices) {
-        std::string deviceName;
-        bool ifThrow;
-        std::tie(deviceName, ifThrow) = deviceInfo;
+        const auto& [_deviceName, ifThrow] = deviceInfo;
+        const auto& deviceName = _deviceName;
         targetDev += deviceName;
         targetDev += ((deviceInfo == targetDevices.back()) ? "" : ",");
         if (deviceName == "CPU") {
