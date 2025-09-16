@@ -132,7 +132,7 @@ OutputVector translate_pad_common(const NodeContext& context,
                                 "aten::pad conversion doesn't support [ ",
                                 mode,
                                 " ] padding mode");
-    return {context.mark_node(std::make_shared<v1::Pad>(data, pads_begin, pads_end, pad_value_, ov_mode->second))};
+    return {context.mark_node(std::make_shared<v12::Pad>(data, pads_begin, pads_end, pad_value_, ov_mode->second))};
 }
 }  // namespace
 
