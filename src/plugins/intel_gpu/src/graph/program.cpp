@@ -271,6 +271,7 @@ void program::init_primitives() {
 }
 
 kernels_cache& program::get_kernels_cache() const {
+    OPENVINO_ASSERT(_engine.runtime_type() != runtime_types::sycl, "[GPU] Kernels cache is not available for SYCL runtime");
     return *_kernels_cache;
 }
 
@@ -1905,16 +1906,19 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
     processing_order.save(ob);
 
-    if (_engine.runtime_type() != runtime_types::sycl) {
-        auto& kernels_cache = get_kernels_cache();
+    {
         std::vector<primitive_id> impl_ids;
         for (auto& node : processing_order) {
             if (node->get_selected_impl() != nullptr) {
                 impl_ids.emplace_back(node->id());
-                kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
+                if (_kernels_cache) {
+                    _kernels_cache->add_to_cached_kernels(node->get_selected_impl()->get_kernels());
+                }
             }
         }
-        ob << kernels_cache;
+        if (_kernels_cache) {
+            ob << *_kernels_cache;
+        }
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
             std::string type_name = get_node_ptr(impl_id)->get_selected_impl()->m_manager->get_type_info().name;
@@ -1922,7 +1926,9 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
             auto params = get_node_ptr(impl_id)->get_kernel_impl_params();
             ob.setKernelImplParams(params.get());
             ob << get_node_ptr(impl_id)->selected_impl;
-            ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
+            if (_kernels_cache) {
+                ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(*_kernels_cache);
+            }
         }
     }
 
@@ -2052,9 +2058,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
     processing_order.load(ib, *this);
 
-    if (_engine.runtime_type() != runtime_types::sycl) {
-        auto& kernels_cache = get_kernels_cache();
-        ib >> kernels_cache;
+    {
+        if (_kernels_cache) {
+            ib >> *_kernels_cache;
+        }
 
         std::vector<primitive_id> impl_ids;
         ib >> impl_ids;
@@ -2074,7 +2081,9 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
             std::vector<std::string> cached_kernel_ids;
             ib >> cached_kernel_ids;
-            p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
+            if (_kernels_cache) {
+                p_node.selected_impl->init_by_cached_kernels(*_kernels_cache, cached_kernel_ids);
+            }
         }
     }
 
