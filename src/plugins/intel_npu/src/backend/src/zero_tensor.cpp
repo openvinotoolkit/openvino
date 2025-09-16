@@ -71,21 +71,19 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     if (remoteTensor == nullptr) {
         if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(),
                                                                    _imported_tensor->data())) {
-            _logger.debug("ZeroTensor::ZeroTensor - tensor was created in the same L0 context, size: %zu",
-                          _imported_tensor->get_byte_size());
-
+            _logger.debug("ZeroTensor::ZeroTensor - tensor was created in the same L0 context");
             _ptr = _imported_tensor->data();
         } else {
+            _logger.debug("ZeroTensor::ZeroTensor - tensor was not created in the same L0 context");
             throw ZeroTensorException("Tensor was not created in the same zero context");
         }
     } else {
         if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(),
                                                                    remoteTensor->get_original_memory())) {
-            _logger.debug("ZeroTensor::ZeroTensor - remote tensor was created in the same L0 context, size: %zu",
-                          remoteTensor->get_byte_size());
-
+            _logger.debug("ZeroTensor::ZeroTensor - remote tensor was created in the same L0 context");
             _ptr = remoteTensor->get_original_memory();
         } else {
+            _logger.debug("ZeroTensor::ZeroTensor - remote tensor was not created in the same L0 context");
             throw ZeroTensorException("Tensor was not created in the same zero context");
         }
     }

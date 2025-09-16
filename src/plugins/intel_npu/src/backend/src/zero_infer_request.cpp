@@ -551,10 +551,8 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     }
 
     auto& metadata = isInput ? _metadata.inputs.at(ioIndex) : _metadata.outputs.at(ioIndex);
-    _logger.debug("ZeroInferRequest::get_tensor - tensor by index: %zu is not allocated, or the existing pipeline "
-                  "needs reallocation: %s. New tensor %s will be created",
+    _logger.debug("ZeroInferRequest::get_tensor - tensor by index: %zu is not allocated.New tensor %s will be created",
                   ioIndex,
-                  _dynamicBatchValueChanged ? "true" : "false",
                   metadata.nodeFriendlyName.c_str());
 
     auto& levelZeroTensor = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
@@ -563,11 +561,6 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     if (!_dynamicBatchValueChanged) {
         userTensor = levelZeroTensor;
     }
-
-    _logger.debug("ZeroInferRequest::get_tensor - tensor by index: %zu is allocated: %s, size: %zu",
-                  ioIndex,
-                  metadata.nodeFriendlyName.c_str(),
-                  levelZeroTensor->get_byte_size());
 
     levelZeroTensor->set_recycled_tensor();
 
