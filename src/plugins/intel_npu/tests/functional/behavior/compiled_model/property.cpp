@@ -17,6 +17,14 @@ using namespace ov::test::behavior;
 
 namespace {
 
+template <typename T>
+constexpr std::vector<T> operator+(const std::vector<T>& vec1, const std::vector<T>& vec2) {
+    std::vector<T> result;
+    result.insert(result.end(), vec1.begin(), vec1.end());
+    result.insert(result.end(), vec2.begin(), vec2.end());
+    return result;
+}
+
 std::vector<std::pair<std::string, ov::Any>> exe_network_supported_properties = {
     {ov::hint::num_requests.name(), ov::Any(8)},
     {ov::hint::enable_cpu_pinning.name(), ov::Any(true)},
@@ -29,7 +37,11 @@ std::vector<std::pair<std::string, ov::Any>> exe_network_immutable_properties = 
     {std::make_pair(ov::optimal_number_of_infer_requests.name(), ov::Any(2))},
     {std::make_pair(ov::hint::enable_cpu_pinning.name(), ov::Any(false))},
     {std::make_pair(ov::supported_properties.name(), ov::Any("deadbeef"))},
-    {std::make_pair(ov::model_name.name(), ov::Any("deadbeef"))}};
+    {std::make_pair(ov::model_name.name(), ov::Any("deadbeef"))},
+    {ov::hint::model.name(), ov::Any(std::shared_ptr<const ov::Model>(nullptr))},
+    {ov::hint::model.name(),
+     ov::Any(std::shared_ptr<ov::Model>(nullptr))},  // intentionally copied above to test constness
+};
 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_mutable_properties = {
     {ov::hint::num_requests.name(), ov::Any(5)},
@@ -126,7 +138,9 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_ClassPluginProperties
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_ClassPluginPropertiesOptsTest5NPU,
                          ClassPluginPropertiesTestSuite5NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
-                                            ::testing::ValuesIn(plugin_public_mutable_properties)),
+                                            ::testing::ValuesIn(plugin_public_mutable_properties +
+                                                                compat_plugin_internal_mutable_properties +
+                                                                plugin_internal_mutable_properties)),
                          ClassPluginPropertiesTestNPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(

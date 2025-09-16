@@ -214,7 +214,7 @@ namespace intel_npu {
     } while (0)
 
 /**
- * @brief Macro for defining properties which have simmple single value returning metrics
+ * @brief Macro for defining properties which have simple single value returning metrics
  *
  * The key differentiator for Metrics (from configs) is that they don't have an entry in the config map, nor an
  * OptionBase descriptor. Metrics are static, Read-Only properties returning fixed characteristics of the device, plugin
@@ -409,6 +409,10 @@ void Properties::registerPluginProperties() {
         return false;
     }());
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+
+    FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model, MODEL_PTR, true, ov::PropertyMutability::RW, [](const Config&) {
+        return nullptr;
+    });
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query.
@@ -610,6 +614,10 @@ void Properties::registerCompiledModelProperties() {
                                  [](const Config& config) {
                                      return config.get<WORKLOAD_TYPE>();
                                  });
+
+    FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model, MODEL_PTR, true, ov::PropertyMutability::RO, [](const Config&) {
+        return nullptr;
+    });
 
     // 2. Metrics (static device and enviroment properties)
     // ========

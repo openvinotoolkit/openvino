@@ -41,6 +41,9 @@ public:
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
         std::ostringstream result;
+        static uint8_t testCounter = 0;
+        result << "_testCounter=" << std::to_string(testCounter++)
+               << "_";  // used to avoid same names for different tests
         result << "targetDevice=" << ov::test::utils::getDeviceNameTestCase(targetDevice) << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
         result << "_targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
@@ -73,6 +76,9 @@ public:
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
         std::ostringstream result;
+        static uint8_t testCounter = 0;
+        result << "_testCounter="
+               << std::to_string(testCounter++) + "_";  // used to avoid same names for different tests
         result << "targetDevice=" << ov::test::utils::getDeviceNameTestCase(targetDevice) << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
         result << "_targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
@@ -216,7 +222,7 @@ TEST_P(ClassPluginPropertiesTestSuite4NPU, CanNotSetGetInexistentProperty) {
 
 using ClassPluginPropertiesTestSuite5NPU = ClassExecutableNetworkGetPropertiesTestNPU;
 
-TEST_P(ClassPluginPropertiesTestSuite5NPU, ValidModelPtrWorks) {
+TEST_P(ClassPluginPropertiesTestSuite5NPU, ValidMODEL_PTRWorks) {
     ov::AnyMap props = {{configKey, configValue},
                         {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SIZE},
                         {ov::hint::model.name(), model}};
