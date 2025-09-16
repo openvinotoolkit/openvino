@@ -979,7 +979,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
-    m_prefill_compiled->set_is_prefill(true);
+    ov::npuw::CompiledModel::prefill_info info;
+    info.is_prefill = true;
+    info.use_chunk_prefill = m_use_chunk_prefill;
+    info.prefill_chunk_size = m_prefill_chunk_size;
+    m_prefill_compiled->set_prefill_info(info);
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);

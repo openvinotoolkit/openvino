@@ -292,7 +292,7 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
         auto port_name = port.get_any_name();
         std::string device = m_npuw_model->global_mem_device();
         if (ov::npuw::util::isPastKeyValuesKey(port_name) || ov::npuw::util::isPastKeyValuesValue(port_name)) {
-            if (m_npuw_model->get_is_prefill()) {
+            if (m_npuw_model->m_prefill_info.is_prefill) {
                 device = "GPU";
                 std::cout << "alloc global input: " << port_name << " on device: " << device << std::endl;
             }
@@ -490,11 +490,13 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                 LOG_DEBUG("Will be set");
                 if (m_npuw_model->m_compiled_submodels[real_idx].is_sdpa) {
                     auto port_name = s_port.get_any_name();
-                    // std::cout << "port_name: " << port_name << " m_run_iter: " << m_run_iter << std::endl;
+                    auto history_size = get_history_size();
+                    // std::cout << "port_name: " << port_name << " history_size: " << history_size << std::endl;
                     if (ov::npuw::util::isPastKeyValuesKey(port_name)) {
                         auto data = g_tnsr->data();
                         auto shape = g_tnsr->get_shape();
-                        shape[2] = (m_run_iter % 8) * 1024;
+                        uint32_t key_dim = 2;  // remove the hard coding
+                        shape[key_dim] = history_size;
 
                         // allocate GPU memory
                         auto new_tensor = ov::npuw::util::allocMem(g_tnsr->get_element_type(),
@@ -502,15 +504,16 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                                                                    "GPU",
                                                                    m_npuw_model->get_plugin());
 
-                        if (m_run_iter % 8 != 0) {
-                            auto src_slice = make_tensor_slice(g_tnsr, 2, 0, static_cast<uint32_t>(shape[2]));
-                            copy_tensor_by_dim(src_slice, new_tensor, 2);
+                        if (history_size != 0) {
+                            auto src_slice = make_tensor_slice(g_tnsr, key_dim, 0, static_cast<uint32_t>(history_size));
+                            copy_tensor_by_dim(src_slice, new_tensor, key_dim);
                         }
                         request->set_tensor(s_port, new_tensor);
                     } else if (ov::npuw::util::isPastKeyValuesValue(port_name)) {
                         auto data = g_tnsr->data();
                         auto shape = g_tnsr->get_shape();
-                        shape[3] = (m_run_iter % 8) * 1024;
+                        uint32_t value_dim = 3;  // remove the hard coding
+                        shape[value_dim] = history_size;
 
                         // allocate GPU memory
                         auto new_tensor = ov::npuw::util::allocMem(g_tnsr->get_element_type(),
@@ -518,9 +521,10 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                                                                    "GPU",
                                                                    m_npuw_model->get_plugin());
 
-                        if (m_run_iter % 8 != 0) {
-                            auto src_slice = make_tensor_slice(g_tnsr, 3, 0, static_cast<uint32_t>(shape[3]));
-                            copy_tensor_by_dim(src_slice, new_tensor, 3);
+                        if (history_size != 0) {
+                            auto src_slice =
+                                make_tensor_slice(g_tnsr, value_dim, 0, static_cast<uint32_t>(history_size));
+                            copy_tensor_by_dim(src_slice, new_tensor, value_dim);
                         }
                         request->set_tensor(s_port, new_tensor);
                     } else {

@@ -58,12 +58,22 @@ public:
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
-    void set_is_prefill(bool is_prefill) {
-        m_is_prefill = is_prefill;
+    struct prefill_info {
+        bool is_prefill = false;
+        bool use_chunk_prefill = false;
+        uint64_t prefill_chunk_size = 0;
+    };
+
+    void set_prefill_info(struct prefill_info info) {
+        m_prefill_info = info;
     }
 
-    bool get_is_prefill() const {
-        return m_is_prefill;
+    prefill_info get_prefill_info() const {
+        return m_prefill_info;
+    }
+
+    std::shared_ptr<ov::ISyncInferRequest> get_internal_request() const {
+        return m_internal_request;
     }
 
 private:
@@ -76,7 +86,8 @@ private:
     friend class LLMCompiledModel;
     friend class LLMInferRequest;
 
-    bool m_is_prefill = false;
+    prefill_info m_prefill_info;
+    mutable std::shared_ptr<ov::ISyncInferRequest> m_internal_request;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);

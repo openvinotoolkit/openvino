@@ -1682,8 +1682,8 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
-    auto internal_request = create_sync_infer_request();
-    return std::make_shared<ov::IAsyncInferRequest>(internal_request, get_task_executor(), get_callback_executor());
+    m_internal_request = create_sync_infer_request();
+    return std::make_shared<ov::IAsyncInferRequest>(m_internal_request, get_task_executor(), get_callback_executor());
 }
 
 void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {

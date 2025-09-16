@@ -573,10 +573,15 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     // Non-spatial case - again, set immediately
                     if (m_npuw_model->m_compiled_submodels[real_idx].is_sdpa) {
                         if (port_name == "npuw_in_tensor_3") {
+                            // Handle attention mask concatenation for SDPA
                             auto data = i_tensor->data();
-                            auto shape = i_tensor->get_shape();
-                            // std::cout << "npuw_in_tensor_3 m_run_iter: " << m_run_iter << std::endl;
-                            shape[3] = 1024 * (m_run_iter % 8 + 1);
+                            auto orig_shape = i_tensor->get_shape();
+                            auto shape = orig_shape;
+                            uint32_t kv_dim = 3;  // Remove the hard coding
+                            shape[kv_dim] = get_history_size() + get_present_size();
+
+                            // std::cout << "npuw_in_tensor_3 history size: " << get_history_size()
+                            //           << " present size: " << get_present_size() << std::endl;
 
                             // allocate GPU memory
                             auto new_tensor = ov::npuw::util::allocMem(i_tensor->get_element_type(),
@@ -584,17 +589,25 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                                                                        "GPU",
                                                                        m_npuw_model->get_plugin());
 
+                            // Copy "present" attention mask
                             auto curr_slice = make_tensor_slice(new_tensor,
-                                                                3,
-                                                                static_cast<uint32_t>(shape[3] - 1024),
-                                                                static_cast<uint32_t>(shape[3] - 1024) + 1024);
-                            auto src_slice = make_tensor_slice(i_tensor, 3, 8192 - 1024, 8192);
-                            copy_tensor_by_dim(src_slice, curr_slice, 3);
+                                                                kv_dim,
+                                                                static_cast<uint32_t>(get_history_size()),
+                                                                static_cast<uint32_t>(shape[kv_dim]));
+                            auto src_slice =
+                                make_tensor_slice(i_tensor,
+                                                  kv_dim,
+                                                  static_cast<uint32_t>(orig_shape[kv_dim] - get_present_size()),
+                                                  static_cast<uint32_t>(orig_shape[kv_dim]));
+                            copy_tensor_by_dim(src_slice, curr_slice, kv_dim);
 
-                            if (m_run_iter % 8 > 0) {
-                                auto past_slice = make_tensor_slice(new_tensor, 3, 0, (m_run_iter % 8) * 1024);
-                                auto past_src_slice = make_tensor_slice(i_tensor, 3, 0, (m_run_iter % 8) * 1024);
-                                copy_tensor_by_dim(past_src_slice, past_slice, 3);
+                            if (get_history_size() > 0) {
+                                // Copy "past" attention mask
+                                auto past_slice =
+                                    make_tensor_slice(new_tensor, kv_dim, 0, static_cast<uint32_t>(get_history_size()));
+                                auto past_src_slice =
+                                    make_tensor_slice(i_tensor, kv_dim, 0, static_cast<uint32_t>(get_history_size()));
+                                copy_tensor_by_dim(past_src_slice, past_slice, kv_dim);
                             }
                             m_subrequests[real_idx]->set_tensor(iport, new_tensor);
                         } else {

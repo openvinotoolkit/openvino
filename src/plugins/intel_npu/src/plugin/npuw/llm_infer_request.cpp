@@ -6,6 +6,7 @@
 
 #include <regex>
 
+#include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -586,6 +587,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
     int64_t remaining_prompts = input_prompt_len;
+
+    auto internal_request = m_npuw_llm_compiled_model->m_prefill_compiled->get_internal_request();
+    auto base_request = std::dynamic_pointer_cast<ov::npuw::IBaseInferRequest>(internal_request);
+    int64_t chunk_id = 0;
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
@@ -630,10 +635,28 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         std::cout << "[infer chunked prefill] current_prompts_len: " << current_prompts_len
                   << ", total prompts: " << input_prompt_len << std::endl;
+
+        if (base_request != nullptr) {
+            // Update KV cache size parameters for dynamic SDPA inference
+            // Parameters:
+            //   - Past KV size: chunk_id * chunk_prompt_len (accumulated tokens from previous chunks)
+            //   - Present KV size: chunk_prompt_len (tokens in current chunk)
+            //
+            // Note: Although the last chunk may contain fewer actual tokens than chunk_prompt_len,
+            // we maintain chunk_prompt_len as the present KV size because:
+            // 1. NPU produces static-shaped output tensors with full chunk size
+            // 2. Dynamic SDPA can handle this padding
+            int64_t history_size = chunk_id * chunk_prompt_len;
+            int64_t present_size = chunk_prompt_len;
+            base_request->update_history_and_present_size(history_size, present_size);
+        }
+
         m_prefill_request->infer();
 
         remaining_prompts -= current_prompts_len;
         kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
+
+        chunk_id++;
 
         // Do not copy last computed chunk and preserve it in present k/v layer
         if (remaining_prompts <= 0) {
