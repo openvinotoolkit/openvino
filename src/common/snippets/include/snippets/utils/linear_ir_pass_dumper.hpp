@@ -20,9 +20,7 @@ class LIRPassDump {
 public:
     enum class DumpMode : uint8_t { Both, SingleDump };
 
-    explicit LIRPassDump(const lowered::LinearIR& linear_ir,
-                         std::string pass_name,
-                         DumpMode mode = DumpMode::Both)
+    explicit LIRPassDump(const lowered::LinearIR& linear_ir, std::string pass_name, DumpMode mode = DumpMode::Both)
         : linear_ir(linear_ir),
           pass_name(std::move(pass_name)),
           dump_mode(mode),
