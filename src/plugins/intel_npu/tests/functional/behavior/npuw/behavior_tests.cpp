@@ -6,6 +6,8 @@
 #include "comparators/nrmse.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/file_util.hpp"
+#include "npuw/compiled_model.hpp"
+#include "npuw/just_sync_infer_request.hpp"
 
 #include <filesystem>
 
@@ -688,7 +690,15 @@ TEST_F(BehaviorTestsNPUW, CanSayNoToPMMProperty) {
     EXPECT_EQ("NO", prop.as<std::string>());
 }
 
-TEST_F(BehaviorTestsNPUW, SetTensorRemoteTensorInputJust) {
+// TODO: add tests on Unfold, Base and Just for inputs and outputs (where applicable)
+TEST_F(BehaviorTestsNPUW, SetTensorRemoteTensorOutputJust) {
+    // Only run this test on NPU device
+    ov::Core ov_core;
+    auto core_devices = ov_core.get_available_devices();
+    if (std::find(core_devices.begin(), core_devices.end(), "NPU") == core_devices.end()) {
+        GTEST_SKIP() << "No available devices.";
+    }
+
     // Create model:
     model = model_generator.get_model_with_repeated_blocks();
 
@@ -699,101 +709,46 @@ TEST_F(BehaviorTestsNPUW, SetTensorRemoteTensorInputJust) {
     register_mock_plugins_in_ov();
 
     use_npuw_props.emplace(devices("MockNPU"));
-    // use_npuw_props.emplace(partitioning::par_matmul_merge_dims("NO"));
 
-    // ov::CompiledModel compiled_model;
-    // EXPECT_NO_THROW(compiled_model = core.compile_model(model, "NPU", use_npuw_props));
-    // auto prop = compiled_model.get_property(partitioning::par_matmul_merge_dims.name());
-    // EXPECT_EQ("NO", prop.as<std::string>());
+    ov::element::Type element_type = ov::element::i32;
+    auto output_tensor_shape = model->outputs()[0].get_shape();
+    // Calculate total number of elements
+    size_t total_elements = ov::shape_size(output_tensor_shape);
 
+    // Create output data
+    std::vector<int> data = std::vector<int>(total_elements, 0);
+    std::iota(data.begin(), data.end(), 1);
 
-    /* ---------------------- NEW ---------------------- */
+    // Create the remote tensor output
+    auto npu_context = ov_core.get_default_context("NPU");
+    auto output = npu_context.create_host_tensor(element_type, output_tensor_shape);
 
-    // ov::Core ov_core;
-    // auto devices = ov_core.get_available_devices();
+    // Initialize remote input with non-zero data
+    ov::Tensor values(element_type, output_tensor_shape, data.data());
+    values.copy_to(output);
 
-    // if (std::find(devices.begin(), devices.end(), "NPU") == devices.end()) {
-    //     GTEST_SKIP() << "No available devices.";
-    // }
+    // Compile NPUW
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, mock_npu_plugin, use_npuw_props);
 
-    // ModelGenerator mg;
-    // auto model = mg.get_model_with_repeated_blocks();
+    // Create infer request
+    std::shared_ptr<ov::ISyncInferRequest> request;
+    request = std::make_shared<ov::npuw::JustInferRequest>(compiled);
 
-    // ov::AnyMap config = {
-    //     {"NPU_USE_NPUW", "YES"},
-    //     {"NPUW_FUNCALL_FOR_ALL", "YES"},
-    //     {"NPUW_WEIGHTS_BANK", "shared"},
-    //     {"NPUW_DEVICES", "NPU"},
-    //     {"NPUW_FOLD" , "YES"}
-    // };
+    // Set remote io
+    request->set_tensor(compiled->outputs()[0], ov::get_tensor_impl(output));
 
-    // ov::element::Type element_type = ov::element::i32;
-    // auto input_tensor_shape = model->inputs()[0].get_shape();
-    // // Calculate total number of elements
-    // size_t total_elements = ov::shape_size(input_tensor_shape);
+    // Check output tensor is not zero
+    auto output_tensor = request->get_tensor(compiled->outputs()[0]);
 
-    // // Create input data
-    // std::vector<int> data = std::vector<int>(total_elements, 0);
-    // std::iota(data.begin(), data.end(), 1);
+    auto check_non_zero = [](const ov::npuw::util::TensorPtr& t, std::size_t size) {
+        int32_t* tdata = t->data<int32_t>();
+        for (int i = 0; i < size; i++) {
+            if (tdata[i] == 0) {
+                return false;
+            }
+        }
+        return true;
+    };
 
-    // // Create the remote tensor input
-    // auto npu_context = ov_core.get_default_context("NPU");
-    // auto input = npu_context.create_host_tensor(element_type, input_tensor_shape);
-
-    // // Initialize remote input with non-zero data
-    // ov::Tensor values(element_type, input_tensor_shape, data.data());
-    // values.copy_to(input);
-
-    // // Compile NPUW
-    // ::intel_npu::Plugin plugin;
-    // ov::npuw::CompiledModel compiled(model, plugin, config);
-    // // Create infer request
-    // ov::npuw::JustInferRequest request(compiled);
-
-    // ASSERT_EQ(request.get_input_allocated_size(), 1);
-
-    // // Set remote io
-    // request.set_tensor(input);
-
-    // ASSERT_EQ(request.get_input_allocated_size(), 2);
-
-    // ASSERT_NO_THROW(request.infer());
-}
-
-TEST_F(BehaviorTestsNPUW, SetTensorRemoteTensorInputUnfold) {
-    // Create model:
-    model = model_generator.get_model_with_repeated_blocks();
-
-    // Set expectation to npu plugin:
-    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
-
-    // Register mock npu plugin in OpenVINO:
-    register_mock_plugins_in_ov();
-
-    use_npuw_props.emplace(devices("MockNPU"));
-    // use_npuw_props.emplace(partitioning::par_matmul_merge_dims("NO"));
-
-    // ov::CompiledModel compiled_model;
-    // EXPECT_NO_THROW(compiled_model = core.compile_model(model, "NPU", use_npuw_props));
-    // auto prop = compiled_model.get_property(partitioning::par_matmul_merge_dims.name());
-    // EXPECT_EQ("NO", prop.as<std::string>());
-}
-
-TEST_F(BehaviorTestsNPUW, SetTensorRemoteTensorOutput) {
-    // Create model:
-    model = model_generator.get_model_with_repeated_blocks();
-
-    // Set expectation to npu plugin:
-    EXPECT_COMPILE_MODEL(mock_npu, TIMES(1));
-
-    // Register mock npu plugin in OpenVINO:
-    register_mock_plugins_in_ov();
-
-    use_npuw_props.emplace(devices("MockNPU"));
-    // use_npuw_props.emplace(partitioning::par_matmul_merge_dims("NO"));
-
-    // ov::CompiledModel compiled_model;
-    // EXPECT_NO_THROW(compiled_model = core.compile_model(model, "NPU", use_npuw_props));
-    // auto prop = compiled_model.get_property(partitioning::par_matmul_merge_dims.name());
-    // EXPECT_EQ("NO", prop.as<std::string>());
+    EXPECT_TRUE(check_non_zero(output_tensor, total_elements));
 }
