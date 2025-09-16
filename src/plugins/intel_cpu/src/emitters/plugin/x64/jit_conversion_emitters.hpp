@@ -14,6 +14,7 @@
 #include "jit_emitter.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace ov::intel_cpu {
 
@@ -73,6 +74,7 @@ private:
 
     bool is_i8_and_u8_case() const;
     void register_table_entries() override;
+    bool m_use_rounding;
 };
 
 // This emitter is covered by the common dnnl behavior. The implementation uses a "saturation" conversion.

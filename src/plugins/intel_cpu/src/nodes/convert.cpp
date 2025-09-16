@@ -64,6 +64,7 @@ Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     auto convert = ov::as_type_ptr<const ov::op::v0::Convert>(op);
     convertParams.origPrc = convert->get_destination_type();
     convertParams.bypass_clamp = convert->get_bypass_clamp();
+    convertParams.use_rounding = convert->get_use_rounding();
 }
 
 Convert::Convert(const Shape& shape,

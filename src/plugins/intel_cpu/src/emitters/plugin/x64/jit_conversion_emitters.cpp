@@ -92,6 +92,11 @@ jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator_t* 
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
     : jit_convert_emitter(host, host_isa, node, exec_prc) {
+    if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+        m_use_rounding = convert->get_use_rounding();
+    } else {
+        m_use_rounding = false;
+    }
     prepare_table();
 }
 
@@ -100,7 +105,8 @@ jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator_t* 
                                                                const ov::element::Type& in_prec,
                                                                const ov::element::Type& out_prec,
                                                                ov::element::Type exec_prc)
-    : jit_convert_emitter(host, host_isa, in_prec, out_prec, exec_prc) {
+    : jit_convert_emitter(host, host_isa, in_prec, out_prec, exec_prc),
+      m_use_rounding(false) {
     prepare_table();
 }
 
@@ -144,7 +150,11 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
     switch (input_type) {
     case ov::element::f32:
         if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
-            h->uni_vcvttps2dq(vmm_dst, vmm_src);
+            if (m_use_rounding) {
+                h->uni_vcvtps2dq(vmm_dst, vmm_src);
+            } else {
+                h->uni_vcvttps2dq(vmm_dst, vmm_src);
+            }
         }
         break;
     case ov::element::i32:
@@ -156,7 +166,11 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
         h->vpmovzxwd(vmm_dst, vmm_src);
         h->uni_vpslld(vmm_dst, vmm_dst, 16);
         if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
-            h->uni_vcvttps2dq(vmm_dst, vmm_dst);
+            if (m_use_rounding) {
+                h->uni_vcvtps2dq(vmm_dst, vmm_dst);
+            } else {
+                h->uni_vcvttps2dq(vmm_dst, vmm_dst);
+            }
         }
         break;
     case ov::element::f16:
@@ -167,7 +181,11 @@ void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_
                          Xmm(vmm_src.getIdx()));  // for avx2_vnni_2?
         }
         if (any_of(output_type, ov::element::i32, ov::element::i8, ov::element::u8)) {
-            h->uni_vcvttps2dq(vmm_dst, vmm_dst);
+            if (m_use_rounding) {
+                h->uni_vcvtps2dq(vmm_dst, vmm_dst);
+            } else {
+                h->uni_vcvttps2dq(vmm_dst, vmm_dst);
+            }
         }
         break;
     case ov::element::i8:
