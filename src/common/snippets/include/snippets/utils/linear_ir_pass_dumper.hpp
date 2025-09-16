@@ -22,11 +22,9 @@ public:
 
     explicit LIRPassDump(const lowered::LinearIR& linear_ir,
                          std::string pass_name,
-                         std::string name_prefix = "",
                          DumpMode mode = DumpMode::Both)
         : linear_ir(linear_ir),
           pass_name(std::move(pass_name)),
-          name_prefix(std::move(name_prefix)),
           dump_mode(mode),
           debug_config(*linear_ir.get_config().debug_config) {
         if (dump_mode == DumpMode::Both) {
@@ -47,10 +45,12 @@ private:
         auto pathAndName = debug_config.dumpLIR.dir + "/";
         const auto nm_lower = ov::util::to_lower(debug_config.dumpLIR.name_modifier);
         if (nm_lower == std::string("subgraph_name")) {
-            const std::string effective_prefix = name_prefix.empty() ? linear_ir.get_friendly_name() : name_prefix;
-            if (!effective_prefix.empty()) {
-                pathAndName += effective_prefix + "_";
-            }
+            auto name_prefix = linear_ir.get_friendly_name();
+            // Replace '/' and ':' characters with '_' to ensure filesystem compatibility
+            // These characters are problematic in file paths
+            std::replace(name_prefix.begin(), name_prefix.end(), '/', '_');
+            std::replace(name_prefix.begin(), name_prefix.end(), ':', '_');
+            pathAndName += name_prefix + "_";
         } else if (!debug_config.dumpLIR.name_modifier.empty()) {
             pathAndName += debug_config.dumpLIR.name_modifier + "_";
         }
@@ -75,7 +75,6 @@ private:
 
     const lowered::LinearIR& linear_ir;
     const std::string pass_name;
-    const std::string name_prefix;
     const DumpMode dump_mode;
     const DebugCapsConfig& debug_config;
 };

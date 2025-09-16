@@ -630,15 +630,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
         (std::find(dump_names.begin(), dump_names.end(), std::string("final")) != dump_names.end()) ||
         (std::find(dump_names.begin(), dump_names.end(), std::string("all")) != dump_names.end());
     if (dump_final) {
-        std::string name_prefix;
-        if (ov::util::to_lower(debug_conf.dumpLIR.name_modifier) == std::string("subgraph_name")) {
-            name_prefix = get_friendly_name();
-            // Replace '/' and ':' characters with '_' to ensure filesystem compatibility
-            // These characters are problematic in file paths
-            std::replace(name_prefix.begin(), name_prefix.end(), '/', '_');
-            std::replace(name_prefix.begin(), name_prefix.end(), ':', '_');
-        }
-        LIRPassDump final_dump(*linear_ir, std::string("Final"), name_prefix, LIRPassDump::DumpMode::SingleDump);
+        LIRPassDump final_dump(*linear_ir, std::string("Final"), LIRPassDump::DumpMode::SingleDump);
     }
 #endif
 
