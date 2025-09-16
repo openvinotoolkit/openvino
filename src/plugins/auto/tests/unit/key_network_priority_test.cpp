@@ -18,7 +18,7 @@ public:
     std::vector<DeviceInformation> metaDevices;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [netPrecision, enableDevicePriority, PriorityConfigs] = obj.param;
         std::ostringstream result;
         if (enableDevicePriority) {
