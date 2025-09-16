@@ -7,6 +7,7 @@
 
 namespace kernel_selector {
 static inline int SelectVecSizeFromSize(const DataTensor&);
+static inline int SelectGroupSize(size_t ele_size);
 
 ParamsKey ReorderKernelBlockedOpt::GetSupportedKey() const {
     ParamsKey k;
@@ -43,13 +44,13 @@ ParamsKey ReorderKernelBlockedOpt::GetSupportedKey() const {
 
 ReorderKernelBase::DispatchData ReorderKernelBlockedOpt::SetDefault(const reorder_params& params) const {
     DispatchData dispatchData;
+    size_t global_w_item = std::max(params.outputs[0].PhysicalSize() / SelectVecSizeFromSize(params.outputs[0]), (size_t)1);
+    size_t g_size = SelectGroupSize(global_w_item);
 
-    // Instead of using multiple channel(e.g. {{FEATURE}, {SPATIAL}, {BATCH}}), this kernel uses 1 channel which contains all logical size.
-    // so that each global id can be an index of each work group.
-    // It also makes an index for fomatted GET_INDEX macro if needed(e.g. feature broadcasting, fusing).
-    KernelData kd = KernelData::Default<reorder_params>(params);
-    dispatchData.gws = {std::max(params.outputs[0].PhysicalSize() / SelectVecSizeFromSize(params.outputs[0]), (size_t)1), 1, 1};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    //  dispatchData.gws = {global_w_item, 1, 1};
+    dispatchData.gws = {global_w_item/g_size, 1, 1};
+    // dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
 }
@@ -130,6 +131,11 @@ JitConstants ReorderKernelBlockedOpt::GetJitConstants(const reorder_params& para
 
     jit.AddConstant(MakeJitConstant("VEC_SIZE", SelectVecSizeFromSize(params.outputs[0])));
 
+    size_t global_w_item = std::max(params.outputs[0].PhysicalSize() / SelectVecSizeFromSize(params.outputs[0]), (size_t)1);
+    size_t g_size = SelectGroupSize(global_w_item);
+    jit.AddConstant(MakeJitConstant("ITEM_SIZE", g_size));
+    // std::cout << ">> " << params.layerID << " >> ITEM_SIZE : " << g_size << std::endl;
+
     // if ( params.inputs[0].GetDType() == Datatype::BF16 ) {
     //      jit.AddConstant(MakeJitConstant("BF16_INPUT", true));
     // }
@@ -148,11 +154,23 @@ KernelsPriority ReorderKernelBlockedOpt::GetKernelsPriority(const Params& /*para
 
 static inline int SelectVecSizeFromSize(const DataTensor& tensor) {
     size_t size = tensor.PhysicalSize();
-    auto preferred_vec_sizes = { 8, 4, 2 };
+    auto preferred_vec_sizes = { 16, 8, 4, 2 };
 
     for (auto vec_size : preferred_vec_sizes) {
         if (size % vec_size == 0)
             return vec_size;
+    }
+
+    return 1;
+}
+
+static inline int SelectGroupSize(size_t ele_size) {
+    // auto preferred_group_size = { 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2 };
+    // auto preferred_group_size = { 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2 };
+    auto preferred_group_size = { 32, 16, 8, 4, 2 };
+    for (auto g_size : preferred_group_size) {
+        if (ele_size % g_size == 0)
+            return g_size;
     }
 
     return 1;
