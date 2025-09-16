@@ -28,7 +28,8 @@ public:
     /// \param arg          Node that produces the input tensor.
     /// \param destination_type  Element type for the output tensor.
     /// \param bypass_clamp  If true, clamp will be disabled.
-    Convert(const Output<Node>& arg, const ov::element::Type& destination_type, bool bypass_clamp);
+    /// \param use_rounding  If true, use std::round() instead of std::trunc() for floating point values.
+    Convert(const Output<Node>& arg, const ov::element::Type& destination_type, bool bypass_clamp, bool use_rounding);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -51,6 +52,12 @@ public:
     void set_bypass_clamp(bool bypass_clamp) {
         m_bypass_clamp = bypass_clamp;
     }
+    bool get_use_rounding() const {
+        return m_use_rounding;
+    }
+    void set_use_rounding(bool use_rounding) {
+        m_use_rounding = use_rounding;
+    }
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
@@ -61,6 +68,7 @@ public:
 protected:
     ov::element::Type m_destination_type;
     bool m_bypass_clamp;
+    bool m_use_rounding;
 };
 }  // namespace v0
 }  // namespace op

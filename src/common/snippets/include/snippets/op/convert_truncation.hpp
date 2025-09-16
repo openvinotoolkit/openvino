@@ -29,6 +29,7 @@ public:
     OPENVINO_OP("ConvertTruncation", "SnippetsOpset", ov::op::v0::Convert);
 
     ConvertTruncation(const Output<Node>& x, const ov::element::Type& destination_type);
+    ConvertTruncation(const Output<Node>& x, const ov::element::Type& destination_type, bool use_rounding);
     ConvertTruncation() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -36,6 +37,9 @@ public:
     bool has_evaluate() const override {
         return false;
     }
+
+private:
+    bool m_use_rounding;
 };
 
 }  // namespace ov::snippets::op
