@@ -495,13 +495,33 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                         auto data = g_tnsr->data();
                         auto shape = g_tnsr->get_shape();
                         shape[2] = (m_run_iter % 8) * 1024;
-                        auto new_tensor = ov::get_tensor_impl(ov::Tensor(g_tnsr->get_element_type(), shape, data));
+
+                        // allocate GPU memory
+                        auto new_tensor = ov::npuw::util::allocMem(g_tnsr->get_element_type(),
+                                                                   shape,
+                                                                   "GPU",
+                                                                   m_npuw_model->get_plugin());
+
+                        if (m_run_iter % 8 != 0) {
+                            auto src_slice = make_tensor_slice(g_tnsr, 2, 0, static_cast<uint32_t>(shape[2]));
+                            copy_tensor_by_dim(src_slice, new_tensor, 2);
+                        }
                         request->set_tensor(s_port, new_tensor);
                     } else if (ov::npuw::util::isPastKeyValuesValue(port_name)) {
                         auto data = g_tnsr->data();
                         auto shape = g_tnsr->get_shape();
                         shape[3] = (m_run_iter % 8) * 1024;
-                        auto new_tensor = ov::get_tensor_impl(ov::Tensor(g_tnsr->get_element_type(), shape, data));
+
+                        // allocate GPU memory
+                        auto new_tensor = ov::npuw::util::allocMem(g_tnsr->get_element_type(),
+                                                                   shape,
+                                                                   "GPU",
+                                                                   m_npuw_model->get_plugin());
+
+                        if (m_run_iter % 8 != 0) {
+                            auto src_slice = make_tensor_slice(g_tnsr, 3, 0, static_cast<uint32_t>(shape[3]));
+                            copy_tensor_by_dim(src_slice, new_tensor, 3);
+                        }
                         request->set_tensor(s_port, new_tensor);
                     } else {
                         request->set_tensor(s_port, g_tnsr);

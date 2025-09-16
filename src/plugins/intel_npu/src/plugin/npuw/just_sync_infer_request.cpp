@@ -577,8 +577,25 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                             auto shape = i_tensor->get_shape();
                             // std::cout << "npuw_in_tensor_3 m_run_iter: " << m_run_iter << std::endl;
                             shape[3] = 1024 * (m_run_iter % 8 + 1);
-                            auto new_tensor =
-                                ov::get_tensor_impl(ov::Tensor(i_tensor->get_element_type(), shape, data));
+
+                            // allocate GPU memory
+                            auto new_tensor = ov::npuw::util::allocMem(i_tensor->get_element_type(),
+                                                                       shape,
+                                                                       "GPU",
+                                                                       m_npuw_model->get_plugin());
+
+                            auto curr_slice = make_tensor_slice(new_tensor,
+                                                                3,
+                                                                static_cast<uint32_t>(shape[3] - 1024),
+                                                                static_cast<uint32_t>(shape[3] - 1024) + 1024);
+                            auto src_slice = make_tensor_slice(i_tensor, 3, 8192 - 1024, 8192);
+                            copy_tensor_by_dim(src_slice, curr_slice, 3);
+
+                            if (m_run_iter % 8 > 0) {
+                                auto past_slice = make_tensor_slice(new_tensor, 3, 0, (m_run_iter % 8) * 1024);
+                                auto past_src_slice = make_tensor_slice(i_tensor, 3, 0, (m_run_iter % 8) * 1024);
+                                copy_tensor_by_dim(past_src_slice, past_slice, 3);
+                            }
                             m_subrequests[real_idx]->set_tensor(iport, new_tensor);
                         } else {
                             m_subrequests[real_idx]->set_tensor(iport, i_tensor);
