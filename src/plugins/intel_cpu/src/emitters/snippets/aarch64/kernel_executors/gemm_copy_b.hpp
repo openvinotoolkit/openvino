@@ -40,7 +40,7 @@ public:
     [[nodiscard]] std::string to_string() const override;
 #endif
 
-    void update(size_t N, size_t K, size_t stride, ov::element::Type prc);
+    void update(size_t N, size_t K, size_t row_stride_bytes, size_t col_stride_bytes, ov::element::Type prc);
 
     [[nodiscard]] size_t hash() const override {
         return m_hash;
@@ -54,6 +54,9 @@ public:
     }
     [[nodiscard]] size_t get_copy_b_wei_stride() const {
         return m_copy_b_wei_stride;
+    }
+    [[nodiscard]] size_t get_copy_b_col_stride() const {
+        return m_copy_b_col_stride;
     }
     [[nodiscard]] static size_t get_N_blk() {
         return m_N_blk;
@@ -71,6 +74,7 @@ private:
     size_t m_N = 0;
     size_t m_K = 0;
     size_t m_copy_b_wei_stride = 0;
+    size_t m_copy_b_col_stride = 0;
     size_t m_hash{SIZE_MAX};
 };
 
