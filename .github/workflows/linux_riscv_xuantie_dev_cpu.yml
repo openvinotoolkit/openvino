@@ -11,6 +11,12 @@ on:
         required: true
         default: 'CONCISE'
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
     paths:
       - '.github/workflows/linux_riscv_xuantie_dev_cpu.yml'
       - 'src/plugins/intel_cpu/src/emitters/plugin/aarch64/**'

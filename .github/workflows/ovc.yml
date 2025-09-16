@@ -12,6 +12,12 @@ on:
       - 'master'
       - 'releases/**'
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -1,6 +1,12 @@
 name: Documentation
 on:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
   merge_group:
 
 concurrency:

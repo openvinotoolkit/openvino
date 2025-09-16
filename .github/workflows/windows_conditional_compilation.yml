@@ -10,6 +10,12 @@ on:
     # run daily at 00:00
     - cron: '0 0 * * *'
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
   merge_group:
   push:
     branches:

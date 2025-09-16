@@ -2,6 +2,12 @@ name: Linux CPU Plugin Snippets with LIBXSMM (Ubuntu 20.04)
 on:
   workflow_dispatch:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
     paths:
       - '.github/workflows/dev_cpu_linux_snippets_libxsmm.yml'
       - 'src/common/snippets/**'

@@ -8,6 +8,12 @@ on:
         required: false
   merge_group:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+      - ready_for_review
   push:
     branches:
       - master
