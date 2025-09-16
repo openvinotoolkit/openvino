@@ -9,6 +9,7 @@
 #include <list>
 #include <memory>
 #include <set>
+#include <string>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -102,7 +103,12 @@ public:
     size_t get_static_buffer_scratchpad_size() const {
         return m_static_buffer_scratchpad_size;
     }
-
+    const std::string& get_friendly_name() const {
+        return m_friendly_name;
+    }
+    void set_friendly_name(std::string name) {
+        m_friendly_name = std::move(name);
+    }
     void set_loop_depth(size_t loop_depth) {
         m_config.m_loop_depth = loop_depth;
     }
@@ -394,6 +400,8 @@ private:
 
     // Size of static Buffer Scratchpad (Buffers with defined allocation size)
     size_t m_static_buffer_scratchpad_size = 0;
+    // Human-readable identifier; typically set from Subgraph node friendly name
+    std::string m_friendly_name;
 };
 using LinearIRPtr = std::shared_ptr<LinearIR>;
 using LinearIRCPtr = std::shared_ptr<const LinearIR>;

@@ -80,6 +80,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
 void LinearIRBuilder::clone(const LinearIR* src, LinearIR* dst, ExpressionMap& expression_map) const {
     OPENVINO_ASSERT(src && dst, "Invalid pointers were provided for LinearIRBuilder::clone");
     dst->m_config = src->m_config;
+    dst->m_friendly_name = src->m_friendly_name;
 
     dst->m_expressions = clone_range(src->m_expressions.cbegin(), src->m_expressions.cend(), expression_map);
     for (const auto& expr : dst->m_expressions) {
