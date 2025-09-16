@@ -16,7 +16,7 @@ void test_log_msg(const char* msg) {
 
 std::string got_message;
 void callback_func(const char* msg) {
-    got_message = {msg};
+    got_message = msg;
 }
 bool compare_msg(const char* msg) {
     const auto msg_size = std::strlen(msg);
