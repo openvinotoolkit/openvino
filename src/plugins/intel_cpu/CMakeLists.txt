@@ -304,6 +304,12 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,
 # is not (yet) needed.
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>)
 
+if(AARCH64)
+    file(GLOB KERNEL_EXECUTOR_FILES 
+         "${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/kernel_executors/*.cpp")
+    set_source_files_properties(${KERNEL_EXECUTOR_FILES} PROPERTIES COMPILE_OPTIONS "-march=armv8.2-a+fp16")
+endif()
+
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}

@@ -24,7 +24,8 @@
 namespace ov::intel_cpu::aarch64 {
 
 bool GemmCopyBKernelKaiConfig::operator==(const GemmCopyBKernelKaiConfig& rhs) const {
-    return m_N == rhs.m_N && m_K == rhs.m_K && m_copy_b_wei_stride == rhs.m_copy_b_wei_stride && m_hash == rhs.m_hash;
+    return m_N == rhs.m_N && m_K == rhs.m_K && m_copy_b_wei_stride == rhs.m_copy_b_wei_stride && precision == rhs.precision &&
+           m_hash == rhs.m_hash;
 }
 
 bool GemmCopyBKernelKaiConfig::is_completed() const {
@@ -47,7 +48,7 @@ std::string GemmCopyBKernelKaiConfig::to_string() const {
 #    undef PRINT
 #endif
 
-void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t stride) {
+void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t stride, ov::element::Type prc) {
     // If one of the dims is zero, it means that GemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
     if (ov::snippets::utils::any_of(0UL, N, K)) {
@@ -59,6 +60,7 @@ void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t stride) {
         m_K = K;
         m_copy_b_wei_stride = stride;
     }
+    precision = prc;
     m_hash = compute_hash();
 }
 
@@ -88,8 +90,9 @@ void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::Expr
     const auto& in0_shape = snippets::utils::get_planar_vdims(expr->get_input_port(0));
     const auto N = *in0_shape.rbegin();
     const auto K = *++in0_shape.rbegin();
-    const auto copy_b_wei_stride = snippets::utils::get_dim_stride(expr->get_input_port(0)) * sizeof(float);
-    config.update(N, K, copy_b_wei_stride);
+    const auto& prc = expr->get_node()->get_input_element_type(0);
+    const auto copy_b_wei_stride = snippets::utils::get_dim_stride(expr->get_input_port(0)) * prc.size();
+    config.update(N, K, copy_b_wei_stride, prc);
 }
 
 // regarding K*N(32*516),
@@ -100,37 +103,86 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
     // rhs is input, rhs_packed is output
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
-    const auto& ukernel = kernel->copy_b_ukernel;
+#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+    const bool is_fp16 = (config.precision == ov::element::f16);
+#else
+    const bool is_fp16 = false;
+#endif
+    fprintf(stderr, "gemm_copy_b is_fp16: %d\n", is_fp16);
     const auto K = config.get_K();                                   // K
     const auto N = config.get_N();                                   // N-rhs_stride
     const auto copy_b_wei_stride = config.get_copy_b_wei_stride();   // RHS stride in bytes
     const auto& n_blk_size = GemmCopyBKernelKaiConfig::get_N_blk();  // n_blk
-    const size_t nr = ukernel->get_nr();
-    const size_t kr = ukernel->get_kr();
-    const size_t sr = ukernel->get_sr();
+    size_t nr = 0, kr = 0, sr = 0;
+#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+    if (is_fp16) {
+        const auto& uk = *kernel->copy_b_ukernel_f16;
+        nr = uk.get_nr();
+        kr = uk.get_kr();
+        sr = uk.get_sr();
+    } else
+#endif
+    {
+        const auto& uk = *kernel->copy_b_ukernel_f32;
+        nr = uk.get_nr();
+        kr = uk.get_kr();
+        sr = uk.get_sr();
+    }
     size_t n_blocks = ov::snippets::utils::div_up(N, n_blk_size);
-    size_t dst_offset = 0;
-    const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_blk_size, K);
+    const size_t bias_elem_size = is_fp16 ? sizeof(uint16_t) : sizeof(float);
+    if (kernel->bias_buffer->size() != GemmCopyBKernelKaiConfig::get_N_blk() * bias_elem_size) {
+        kernel->bias_buffer->assign(GemmCopyBKernelKaiConfig::get_N_blk() * bias_elem_size, 0);
+    }
     for (size_t n_block = 0; n_block < n_blocks; n_block++) {
         size_t n_start = n_block * n_blk_size;
         size_t n_end = std::min(n_start + n_blk_size, N);
         size_t n_step = n_end - n_start;
-        int8_t* src_ptr = static_cast<int8_t*>(in0) + n_start * sizeof(int32_t);
-        int8_t* dst_ptr = static_cast<int8_t*>(out0) + dst_offset;
-        dst_offset += rhsPackedSize;
-        kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1,
-                                                         n_step,
-                                                         K,
-                                                         nr,
-                                                         kr,
-                                                         sr,                           // Packing arguments
-                                                         copy_b_wei_stride,            // RHS stride in bytes
-                                                         src_ptr,                      // RHS
-                                                         kernel->bias_buffer->data(),  // bias
-                                                         nullptr,                      // Scale
-                                                         dst_ptr,                      // RHS packed
-                                                         0,
-                                                         nullptr);
+        // Derive column stride from row stride and N for planar layout: row_stride_bytes = N * elem_size
+        // so col_stride_bytes = elem_size = row_stride_bytes / N
+        const size_t col_stride_bytes = N ? (copy_b_wei_stride / N) : 0;
+        int8_t* src_ptr = static_cast<int8_t*>(in0) + static_cast<size_t>(n_start) * col_stride_bytes;
+        int8_t* dst_base = static_cast<int8_t*>(out0);
+        if (
+#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+            is_fp16
+#else
+            false
+#endif
+        ) {
+            const auto& uk = *kernel->copy_b_ukernel_f16;
+            const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
+            int8_t* dst_ptr = dst_base + packed_off;
+            kai_run_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon(1,
+                                                             n_step,
+                                                             K,
+                                                             nr,
+                                                             kr,
+                                                             sr,                           // Packing arguments
+                                                             copy_b_wei_stride,            // RHS stride in bytes
+                                                             src_ptr,                      // RHS
+                                                             kernel->bias_buffer->data(),  // bias
+                                                             nullptr,                      // Scale
+                                                             dst_ptr,                      // RHS packed
+                                                             0,
+                                                             nullptr);
+        } else {
+            const auto& uk = *kernel->copy_b_ukernel_f32;
+            const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
+            int8_t* dst_ptr = dst_base + packed_off;
+            kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1,
+                                                             n_step,
+                                                             K,
+                                                             nr,
+                                                             kr,
+                                                             sr,                           // Packing arguments
+                                                             copy_b_wei_stride,            // RHS stride in bytes
+                                                             src_ptr,                      // RHS
+                                                             kernel->bias_buffer->data(),  // bias
+                                                             nullptr,                      // Scale
+                                                             dst_ptr,                      // RHS packed
+                                                             0,
+                                                             nullptr);
+        }
     }
 }
 
