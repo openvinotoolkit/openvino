@@ -82,6 +82,9 @@ OutputVector translate_pad_common(const NodeContext& context,
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto neg_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
 
+    // PyTorch paddings represented as [N_pad_begins, N_pad_ends, N-1_pad_begins, N-1_pad_ends, ... ]
+    // if len of paddings not equal to input rank * 2, zero padding added to first rank - N  dimensions
+    // OV expects paddings separated on begins and ends for each dimension from first to last
     auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     auto pads_shape = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {-1, 2}));
     auto pads_reshape = context.mark_node(std::make_shared<v1::Reshape>(paddings, pads_shape, false));
