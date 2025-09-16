@@ -30,7 +30,7 @@ typedef std::tuple<
 class GatherNDGPUTest : public testing::WithParamInterface<GatherNDGPUTestParams>,
                         virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherNDGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherNDGPUTestParams>& obj) {
         const auto& [Shapes, model_type, isIndicesConstant] = obj.param;
 
         std::ostringstream result;
