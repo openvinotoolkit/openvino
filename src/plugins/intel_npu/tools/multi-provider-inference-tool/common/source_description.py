@@ -16,12 +16,11 @@ import os
 from pathlib import Path
 
 from common.converters import layout_to_str, shape_to_list
+from common.enums import InputSourceFileType
+from common.json_schema import InputSource
+
 
 class FilesStorage:
-    class InputSourceFileType(enum.IntEnum):
-        image = 0
-        bin = 1
-
     source_file_types = [ name for name, _ in InputSourceFileType.__members__.items()]
     source_description = f'''It is possible to specify three types of inputs:
 two from the list {source_file_types} and a path to a JSON file contained inputs description."
@@ -73,53 +72,15 @@ or
     "<provider_name>/<model_name>/input_dump_data.json"
 
 '''
-    source_json_schema_allowable = {InputSourceFileType.image.name: {"files"},
-                                    InputSourceFileType.bin.name  : {"files", "element_type", "shape"}}
-    source_json_schema_forbidden = {InputSourceFileType.image.name: {"shape", "element_type"},
-                                    InputSourceFileType.bin.name  : {"convert"}}
+
     def __init__(self):
         self.files_per_input_json = {}
-
-    def __validate_image__(data):
-        if "convert" in data.keys():
-            if "shape" in data["convert"].keys():
-                data["convert"]["shape"] = shape_to_list(data["convert"]["shape"])
-            if "layout" in data["convert"].keys():
-                data["convert"]["layout"] = layout_to_str(data["convert"]["layout"])
-
-    def __validate_bin__(data):
-        if "shape" in data.keys():
-            data["shape"] = shape_to_list(data["shape"])
-        if "layout" in data.keys():
-            data["layout"] = layout_to_str(data["layout"])
-
-    def __validate__(files_per_input_json) :
-        for i,d in files_per_input_json.items():
-            if "type" not in d.keys():
-                raise RuntimeError(f"FilesStorage validity failed: important field \"type\" is absent for input source: \"{i}\": {d}\n. Please specify a one from: {FilesStorage.source_file_types}")
-            if d["type"] not in FilesStorage.source_file_types:
-                raise RuntimeError(f"FilesStorage validity failed: unsupported \"type\" value: \"{d['type']}\" for input source: \"{i}\": {d}\n. Please specify a correct one from: {FilesStorage.source_file_types}")
-            if not FilesStorage.source_json_schema_allowable[d["type"]].issubset(set(d.keys())):
-                raise RuntimeError(f"FilesStorage validity failed: some important fields: {FilesStorage.source_json_schema_allowable[d['type']]} are absent in the description of input source: \"{i}\": {d}\n. Please specify them all")
-            if len(FilesStorage.source_json_schema_forbidden[d["type"]] & (set(d.keys()))):
-                raise RuntimeError(f"FilesStorage validity failed: These fields: {FilesStorage.source_json_schema_forbidden[d['type']]} are not allowed in the description of input source: \"{i}\": {d}\n. Please remove them all.")
-
-            if d["type"] == FilesStorage.source_file_types[int(FilesStorage.InputSourceFileType.image)]:
-                FilesStorage.__validate_image__(d)
-            if d["type"] == FilesStorage.source_file_types[int(FilesStorage.InputSourceFileType.bin)]:
-                FilesStorage.__validate_bin__(d)
 
     @staticmethod
     def __parse_json_obj__(json_data):
         return_json_data = {}
         for io_name, io_data in json_data.items():
-            if isinstance(io_data, Mapping):
-                return_json_data[io_name] = io_data
-                if "type" not in io_data.keys():
-                    return_json_data[io_name]["type"] = FilesStorage.InputSourceFileType.bin.name
-            else:
-                return_json_data[io_name] = {"files": io_data, "type" :  FilesStorage.InputSourceFileType.image.name}
-        FilesStorage.__validate__(return_json_data)
+            return_json_data[io_name] = InputSource(io_data)
         return return_json_data
 
     def parse_inputs(self, console_input_files_list_per_model: str):

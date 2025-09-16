@@ -18,6 +18,7 @@ sys.path.append("../..")
 
 from utils import prepare_input_description
 from common.converters import layout_to_str
+from common.enums import InputSourceFileType
 from common.provider_description import ModelInfo, TensorInfo, TensorsInfoPrinter
 from common.source_description import FilesStorage
 
@@ -123,7 +124,7 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
             tensor_info_from_provider = UtilsTests_TIF_n_FS_integration.stub_get_tensor_info(
                         out_model_name,
                         in_model_info.get_model_io_info(output_name),
-                        {"type" : FilesStorage.InputSourceFileType.bin.name})
+                        {"type" : InputSourceFileType.bin.name})
             tensor_info_from_provider.set_type("output")
             if output_name in in_model_info.get_model_io_names():
                 tensor_input_info = dict(in_model_info.get_model_io_info(output_name))
@@ -192,9 +193,12 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
             printer.deserialize_output_tensor_descriptions(sandbox_dir, model_name)
 
         sandbox_model_sources_info_file_path = os.path.join(sandbox_model_dir, TensorsInfoPrinter.get_file_name_to_dump_model_source("output"))
-        candidate_tensors_info = {"my_output": {}}
-        for f in FilesStorage.source_json_schema_allowable[FilesStorage.InputSourceFileType.bin.name]:
-            candidate_tensors_info["my_output"][f] = "value"
+        candidate_tensors_info = {"my_output": {
+                                            "element_type": "value",
+                                            "shape": "[2,3,4,5]",
+                                            "files": ["file"]
+                                  }}
+
         # inject non-typical layout as well
         candidate_tensors_info["my_output"]["layout"] = ["N","C","H","W"]
         with open(sandbox_model_sources_info_file_path, "w") as file:
@@ -221,11 +225,10 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
 
         # important fields must be matched
         for input_name, input_data in self.files_info.inputs().items():
-            for major_data_field_name in FilesStorage.source_json_schema_allowable[input_data["type"]]:
-                if major_data_field_name in input_data.keys():
-                    self.assertTrue(major_data_field_name in restored_files_info.files_per_input_json[input_name].keys())
-                    self.assertEqual(restored_files_info.files_per_input_json[input_name][major_data_field_name],
-                                     input_data[major_data_field_name])
+            for major_data_field_name in input_data.keys():
+                self.assertTrue(major_data_field_name in restored_files_info.files_per_input_json[input_name].keys())
+                self.assertEqual(restored_files_info.files_per_input_json[input_name][major_data_field_name],
+                                 input_data[major_data_field_name])
             if "convert" in input_data.keys():
                 self.assertTrue("convert" in restored_files_info.files_per_input_json[input_name].keys())
         self.assertEqual(restored_files_info.files_per_input_json, self.files_info.files_per_input_json)
@@ -246,9 +249,7 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
         # cross compare original input as "image" and generated "bin"
         for input_name, input_data in self.files_info.inputs().items():
             if "convert" in input_data.keys():
-                for major_data_field_name in FilesStorage.source_json_schema_allowable[restored_files_info.files_per_input_json[input_name]["type"]]:
-                    if major_data_field_name == "files":
-                        continue
+                for major_data_field_name in input_data["convert"].keys():
                     self.assertEqual(restored_files_info.files_per_input_json[input_name][major_data_field_name],
                                      input_data["convert"][major_data_field_name])
 
@@ -389,9 +390,11 @@ class UtilsTests_TIF_n_FS_io_canonization_integration(unittest.TestCase):
             printer.deserialize_output_tensor_descriptions(sandbox_dir, model_name)
 
         sandbox_model_sources_info_file_path = os.path.join(sandbox_model_dir, TensorsInfoPrinter.get_file_name_to_dump_model_source("output"))
-        candidate_tensors_info = {"my_output": {}}
-        for f in FilesStorage.source_json_schema_allowable[FilesStorage.InputSourceFileType.bin.name]:
-            candidate_tensors_info["my_output"][f] = "value"
+        candidate_tensors_info = {"my_output": {
+                                            "element_type": "value",
+                                            "shape": "[2,3,4,5]",
+                                            "files": ["file"]
+                                  }}
         # inject non-typical layout as well
         candidate_tensors_info["my_output"]["layout"] = ["N","C","H","W"]
         with open(sandbox_model_sources_info_file_path, "w") as file:
@@ -424,11 +427,10 @@ class UtilsTests_TIF_n_FS_io_canonization_integration(unittest.TestCase):
         # important fields must be matched
         for input_name, input_data in self.files_info.inputs().items():
             self.assertTrue(input_name in restored_files_info.files_per_input_json.keys())
-            for major_data_field_name in FilesStorage.source_json_schema_allowable[input_data["type"]]:
-                if major_data_field_name in input_data.keys():
-                    self.assertTrue(major_data_field_name in restored_files_info.files_per_input_json[input_name].keys())
-                    self.assertEqual(restored_files_info.files_per_input_json[input_name][major_data_field_name],
-                                     input_data[major_data_field_name])
+            for major_data_field_name in input_data.keys():
+                self.assertTrue(major_data_field_name in restored_files_info.files_per_input_json[input_name].keys())
+                self.assertEqual(restored_files_info.files_per_input_json[input_name][major_data_field_name],
+                                 input_data[major_data_field_name])
             if "convert" in input_data.keys():
                 self.assertTrue("convert" in restored_files_info.files_per_input_json[input_name].keys())
         self.assertEqual(restored_files_info.files_per_input_json, self.files_info.files_per_input_json)
@@ -455,9 +457,7 @@ class UtilsTests_TIF_n_FS_io_canonization_integration(unittest.TestCase):
         for input_name, input_data in self.files_info.inputs().items():
             self.assertTrue(input_name in restored_files_info.files_per_input_json.keys())
             if "convert" in input_data.keys():
-                for major_data_field_name in FilesStorage.source_json_schema_allowable[restored_files_info.files_per_input_json[input_name]["type"]]:
-                    if major_data_field_name == "files":
-                        continue
+                for major_data_field_name in input_data["convert"].keys():
                     self.assertEqual(restored_files_info.files_per_input_json[input_name][major_data_field_name],
                                      input_data["convert"][major_data_field_name])
 

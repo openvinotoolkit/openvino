@@ -1,0 +1,67 @@
+{
+      "title": "Model input source",
+      "description": "Represents input files of 'type', which will be converted to tensors and bound to a specific model input.",
+      "type": "object",
+      "properties": {
+        "files": {
+          "$comment": "A list of files designated to infer for a specific model input",
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        },
+        "type": {
+          "$comment": "Describes a type of a 'files'",
+          "default": "bin",
+          "enum": ["bin","image"]
+        },
+        "shape": {
+          "$comment": "Is allowed only for 'type' of 'bin': specifies a shape of a binary blob",
+          "type": ["array", "string"]
+        },
+        "layout": {
+          "$comment": "Is allowed only for 'type' of 'bin': specifies a layout of a binary blob",
+          "type": ["array", "string"]
+        },
+        "element_type": {
+          "$comment": "Is allowed only for 'type' of 'bin': specifies an data type of a binary blob",
+          "type": "string"
+        },
+        "convert": {
+          "$comment": "Optional. it is allowed only for 'type' of 'image': specifies desired tensors attributes which initial images must be converted to",
+          "type": "object",
+          "properties": {
+            "shape": {
+              "type": ["array", "string"]
+            },
+            "layout": {
+              "type": ["array", "string"]
+            },
+            "element_type": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["files"],
+      "if": {
+        "properties": {
+          "type": {"const": "image"}
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "$comment": "When 'type' is 'image', these properties are forbidden",
+        "properties": {
+            "shape": {"type": "null"},
+            "layout": {"type": "null"},
+            "element_type": {"type": "null"}
+        }
+      },
+      "else": {
+        "$comment": "When 'type' is 'bin', thes properties are forbidden",
+        "properties": {
+            "convert": {"type": "null"},
+            "unevaluatedProperties": false
+        },
+        "required": ["shape", "element_type"]
+      }
+}

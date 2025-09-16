@@ -1,2 +1,3 @@
+jsonschema
 opencv-python
 onnx
