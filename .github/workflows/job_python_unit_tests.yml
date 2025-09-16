@@ -43,12 +43,6 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install      
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-    if: fromJSON(inputs.affected-components).Python_API.test ||
-        fromJSON(inputs.affected-components).OVC.test || 
-        fromJSON(inputs.affected-components).TFL_FE.test || 
-        fromJSON(inputs.affected-components).PyTorch_FE.test || 
-        fromJSON(inputs.affected-components).PDPD_FE.test || 
-        fromJSON(inputs.affected-components).ONNX_FE.test
     steps:
       # checkout action cleans up the workspace and have to be the first step
       - name: Fetch custom actions
