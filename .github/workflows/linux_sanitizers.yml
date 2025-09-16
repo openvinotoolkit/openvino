@@ -19,6 +19,11 @@ on:
         type: string
         required: false
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
     paths:
     - '.github/workflows/linux_sanitizers.yml'
 

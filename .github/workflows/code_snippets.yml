@@ -25,7 +25,7 @@ jobs:
       matrix:
         os: ['ubuntu-22.04', 'macos-latest', 'windows-latest']
     runs-on: ${{ matrix.os }}
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    if: ${{ github.repository_owner == 'openvinotoolkit' && (github.event.pull_request.draft == false || github.run_attempt > 1) }}
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
