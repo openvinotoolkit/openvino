@@ -82,6 +82,7 @@
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/remarks.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
@@ -281,7 +282,7 @@ bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node>&
            snippets::op::Subgraph::check_broadcast(node);
 }
 
-TokenizeSnippets::TokenizeSnippets(const SnippetsTokenization::Config& config) {
+TokenizeSnippets::TokenizeSnippets(const TokenizationConfig& config) {
     MATCHER_SCOPE(TokenizeSnippets);
 
     auto label = ov::pass::pattern::any_input([](const ov::Output<ov::Node>& out) {

@@ -17,7 +17,7 @@ namespace ov::snippets::pass {
 class TokenizeFCSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeFCSnippets");
-    explicit TokenizeFCSnippets(const SnippetsTokenization::Config& config);
+    explicit TokenizeFCSnippets(const TokenizationConfig& config);
 };
 
 }  // namespace ov::snippets::pass
