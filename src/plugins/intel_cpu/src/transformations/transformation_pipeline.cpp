@@ -38,7 +38,6 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -212,6 +211,7 @@
 #    include "snippets/utils/utils.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #else
+#    include "openvino/op/convolution.hpp"
 #    include "openvino/op/group_conv.hpp"
 #endif
 
@@ -264,6 +264,7 @@
 #    include "low_precision/reduce_mean.hpp"
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
+#    include "openvino/opsets/opset1_decl.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
