@@ -40,7 +40,6 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pass_config.hpp"
-#include "openvino/util/common_util.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
