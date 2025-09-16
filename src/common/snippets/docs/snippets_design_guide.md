@@ -417,7 +417,7 @@ This type of fusings is backend-specific, therefore can't be supported by `Snipp
 To avoid this kind of fusing conflicts, `Snippets` allow a plugin to mark a node as `SkippedByPlugin` so it will be ignored by the `Tokenizer`. 
 It is a plugin responsibility to mark all nodes that (can be tokenized, but) should be ignored by `Snippets` with a `SkippedByPlugin` tag (defined in [tokenization.hpp](../include/snippets/pass/tokenization.hpp)). 
 This is usually implemented as a separate markup transformation that is applied immediately before the tokenization. 
-Please, refer to the [snippets_mark_skipped.cpp](../../../plugins/intel_cpu/src/transformations/snippets/x64/pass/snippets_mark_skipped.cpp) pass for a detailed example.
+Please, refer to the [snippets_mark_skipped.cpp](../../../plugins/intel_cpu/src/transformations/snippets/common/pass/snippets_mark_skipped.cpp) pass for a detailed example.
 
 ### Optimizer
 
@@ -833,4 +833,3 @@ In this post, we discussed Snippets architecture regarding dynamic pipeline supp
  * [OpenVINO Core Components](../../../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)
  * [Dynamic shapes support in OpenVINO JIT compiler boosts inference performance by 40%](https://blog.openvino.ai/blog-posts/dynamic-shapes-support-in-openvino-jit-compiler-boosts-inference-performance-by-40)
-

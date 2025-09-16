@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 #include <subgraph_customizable.hpp>
 #include <snippets_helpers.hpp>
-#include <transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp>
+#include <transformations/snippets/common/pass/snippets_mark_skipped.hpp>
 #include "openvino/core/visibility.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/pass/tokenization.hpp"
@@ -19,7 +19,7 @@ public:
     void run() {
         ASSERT_TRUE(model);
         ov::snippets::pass::SnippetsTokenization::Config config = { 1, 23, true, true, true, { 3, 4 }};
-        manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
+        manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>(ov::intel_cpu::SnippetsMarkSkipped::Profile::ARM64);
         manager.register_pass<ov::snippets::pass::EnumerateNodes>();
         manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
         //
