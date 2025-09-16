@@ -824,7 +824,11 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64& reg_d
         switch (src_prc_) {
         case ov::element::f32:
             if (!dst_prc_.is_real()) {
-                h->uni_vcvtps2dq(Vmm(aux_src_idx), Vmm(data_idx));
+                if (is_saturation()) {
+                    h->uni_vcvtps2dq(Vmm(aux_src_idx), Vmm(data_idx));
+                } else {
+                    h->uni_vcvttps2dq(Vmm(aux_src_idx), Vmm(data_idx));
+                }
                 data_idx = aux_src_idx;
                 data_reg_updated = true;
             }
