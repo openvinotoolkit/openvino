@@ -36,6 +36,7 @@ CPU:
     - TF_FE
     - ONNX_FE
     - JAX_FE
+    - snippets
   build:
     - AUTO
     - HETERO
@@ -43,6 +44,12 @@ CPU:
     - TEMPLATE
     - IR_FE
     - TOKENIZERS # TF_FE tests depends on tokenizers build
+
+snippets:
+  revalidate:
+    - CPU
+  build:
+    - CPU
 
 GPU:
   build:
