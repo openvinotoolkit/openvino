@@ -46,12 +46,12 @@
 
 namespace ov::intel_cpu {
 template <>
-DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc, 0, 0>() const {
+DnnlMemoryDescPtr IMemory::getDescWithType<DnnlMemoryDesc>() const {
     return MemoryDescUtils::convertToDnnlMemoryDesc(getDescPtr());
 }
 
 template <>
-BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
+BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc>() const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(getDescPtr());
 }
 

@@ -16,7 +16,7 @@ ipython==8.18.1
 Jinja2==3.1.6
 jsonschema==4.24.0
 lxml>=4.9.2
-MarkupSafe==2.1.1
+MarkupSafe==3.0.2
 mistune==2.0.3
 myst-parser==3.0.1; python_version < "3.10"
 myst-parser==4.0.1; python_version >= "3.10"
@@ -32,7 +32,7 @@ pytest-html==4.1.1; python_version >= "3.10"
 pytest-metadata==3.1.1; python_version >= "3.10"
 py>=1.11.0
 pytz==2022.7
-pyyaml==6.0.1
+pyyaml==6.0.2
 requests==2.32.4
 six==1.17.0
 snowballstemmer==3.0.1

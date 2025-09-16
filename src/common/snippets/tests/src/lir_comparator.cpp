@@ -247,8 +247,8 @@ LIRComparator::Result LIRComparator::compare_handlers(const SpecificIterationHan
     constexpr auto MAIN_BODY = SpecificLoopIterType::MAIN_BODY;
     constexpr auto LAST_ITER = SpecificLoopIterType::LAST_ITER;
     PROPAGATE_ERROR("First iter passes", compare_pipelines(handlers.get_passes<FIRST_ITER>(), handlers_ref.get_passes<FIRST_ITER>()));
-    PROPAGATE_ERROR("First iter passes", compare_pipelines(handlers.get_passes<MAIN_BODY>(), handlers_ref.get_passes<MAIN_BODY>()));
-    PROPAGATE_ERROR("First iter passes", compare_pipelines(handlers.get_passes<LAST_ITER>(), handlers_ref.get_passes<LAST_ITER>()));
+    PROPAGATE_ERROR("Main body passes", compare_pipelines(handlers.get_passes<MAIN_BODY>(), handlers_ref.get_passes<MAIN_BODY>()));
+    PROPAGATE_ERROR("Last iter passes", compare_pipelines(handlers.get_passes<LAST_ITER>(), handlers_ref.get_passes<LAST_ITER>()));
     return Result::ok();
 }
 

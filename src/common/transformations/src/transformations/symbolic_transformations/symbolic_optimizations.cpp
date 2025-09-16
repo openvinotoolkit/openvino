@@ -174,7 +174,7 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
 ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run,
                                                        std::shared_ptr<ov::pass::PassConfig> pass_config) {
     if (pass_config)
-        m_manager = std::make_shared<pass::Manager>(pass_config, "Symbolic");
+        m_manager = std::make_shared<pass::Manager>(*pass_config, "Symbolic");
     else
         m_manager = std::make_shared<pass::Manager>("Symbolic");
 
@@ -211,20 +211,10 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     // So we decided to disable these passes in SymbolicOptimizations.
     const auto& pass_config = m_manager->get_pass_config();
 
-    const bool squeeze_was_disabled = pass_config->is_disabled<EliminateSqueeze>();
-    const bool unsqueeze_was_disabled = pass_config->is_disabled<EliminateUnsqueeze>();
-
     pass_config->disable<EliminateSqueeze>();
     pass_config->disable<EliminateUnsqueeze>();
 
     m_manager->run_passes(m);
-
-    if (!squeeze_was_disabled) {
-        pass_config->enable<EliminateSqueeze>();
-    }
-    if (!unsqueeze_was_disabled) {
-        pass_config->enable<EliminateUnsqueeze>();
-    }
 
     ov::remove_skip_invalidation_rti(m);
     return true;

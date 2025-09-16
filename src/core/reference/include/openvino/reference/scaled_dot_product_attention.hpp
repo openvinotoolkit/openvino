@@ -7,8 +7,10 @@
 
 #include "openvino/core/shape.hpp"
 #include "openvino/reference/add.hpp"
+#include "openvino/reference/concat.hpp"
 #include "openvino/reference/matmul.hpp"
 #include "openvino/reference/multiply.hpp"
+#include "openvino/reference/slice.hpp"
 #include "openvino/reference/softmax.hpp"
 namespace ov::reference {
 namespace helpers {
@@ -41,6 +43,17 @@ std::vector<T> create_attention_mask_from_ov_boolean(const char* mask_bool, cons
 
     return mask_data;
 }
+
+void slice_last_dimension(const char* input, char* output, const Shape& input_shape, size_t element_size) {
+    std::vector<int64_t> start_indices(input_shape.size(), 0);
+    std::vector<int64_t> steps(input_shape.size(), 1);
+    Shape output_shape = input_shape;
+    output_shape.back() -= 1;
+    std::vector<int64_t> axes(input_shape.size());
+    std::iota(axes.begin(), axes.end(), 0);
+    ov::reference::slice(input, input_shape, output, output_shape, element_size, start_indices, steps, axes);
+}
+
 }  // namespace helpers
 }  // namespace ov::reference
 
@@ -52,12 +65,14 @@ void scaled_dot_product_attention(const T* query,
                                   const T* value,
                                   const TMask* mask,
                                   const T* scale,
+                                  const T* sink,
                                   T* output,
                                   bool is_causal,
                                   const Shape& query_shape,
                                   const Shape& key_shape,
                                   const Shape& value_shape,
                                   const Shape& mask_shape,
+                                  const Shape& sink_shape,
                                   const Shape& output_shape) {
     static_assert(std::is_same_v<T, TMask> || std::is_same_v<TMask, char>,
                   "T and TMask must be either the same type, or the TMask must be char(ov::element::boolean)");
@@ -109,10 +124,52 @@ void scaled_dot_product_attention(const T* query,
                               ov::op::AutoBroadcastType::NUMPY);
     }
 
+    auto gk_softmax_shape = qk_shape;
+    if (sink) {
+        OPENVINO_ASSERT(qk_shape.size() == sink_shape.size());
+        auto* sink_data_ptr = sink;
+        const auto broadcast_axes_size = qk_shape.size() - 1;
+        auto target_sink_shape = Shape(qk_shape.begin(), qk_shape.begin() + broadcast_axes_size);
+        std::vector<T> broadcasted_sink_data;
+        if (shape_size(target_sink_shape) != shape_size(sink_shape) && broadcast_axes_size > 0) {
+            std::vector<size_t> broadcast_axes(broadcast_axes_size);
+            std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);
+            broadcasted_sink_data.resize(shape_size(target_sink_shape));
+            broadcast(reinterpret_cast<const char*>(sink_data_ptr),
+                      reinterpret_cast<char*>(broadcasted_sink_data.data()),
+                      Shape(sink_shape.begin(), sink_shape.begin() + broadcast_axes_size),
+                      target_sink_shape,
+                      broadcast_axes,
+                      sizeof(T));
+            sink_data_ptr = broadcasted_sink_data.data();
+        }
+        target_sink_shape.push_back(1);
+        gk_softmax_shape[gk_softmax_shape.size() - 1] += target_sink_shape.back();
+        std::vector<T> qk_data_with_sink(shape_size(gk_softmax_shape), 0);
+        ov::reference::concat(
+            {reinterpret_cast<const char*>(qk_data.data()), reinterpret_cast<const char*>(sink_data_ptr)},
+            reinterpret_cast<char*>(qk_data_with_sink.data()),
+            {qk_shape, target_sink_shape},
+            gk_softmax_shape,
+            qk_shape.size() - 1,
+            sizeof(T));
+        qk_data = qk_data_with_sink;
+    }
     std::vector<T> qk_data_softmax(qk_data.size(), 0);
-    ov::reference::softmax<T>(qk_data.data(), qk_data_softmax.data(), qk_shape, ov::AxisSet{qk_shape.size() - 1});
+    ov::reference::softmax<T>(qk_data.data(),
+                              qk_data_softmax.data(),
+                              gk_softmax_shape,
+                              ov::AxisSet{gk_softmax_shape.size() - 1});
+
+    if (sink) {
+        std::vector<T> qk_data_sliced(qk_data.size(), 0);
+        ov::reference::helpers::slice_last_dimension(reinterpret_cast<const char*>(qk_data_softmax.data()),
+                                                     reinterpret_cast<char*>(qk_data_sliced.data()),
+                                                     gk_softmax_shape,
+                                                     sizeof(T));
+        qk_data_softmax = qk_data_sliced;
+    }
     ov::reference::matmul<T>(qk_data_softmax.data(), value, output, qk_shape, value_shape, output_shape, false, false);
 }
-
 }  // namespace reference
 }  // namespace ov

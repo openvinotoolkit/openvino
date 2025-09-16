@@ -123,10 +123,6 @@ KERNEL(arg_max_min_modified)(
     ,__global INPUT0_TYPE* tmp_buffer0
     ,__global INPUT0_TYPE* tmp_buffer1
     ,__global INPUT0_TYPE* tmp_buffer2
-#elif USE_LOCAL_MEMORY
-    ,__local INPUT0_TYPE* tmp_buffer0
-    ,__local INPUT0_TYPE* tmp_buffer1
-    ,__local INPUT0_TYPE* tmp_buffer2
 #endif
 )
 {
@@ -138,14 +134,11 @@ KERNEL(arg_max_min_modified)(
     iav_type result[TOP_K];
 #else
 #ifdef USE_INTERNAL_BUFFERS
-    const uint iav_type_size = INPUT0_TYPE_SIZE + 4;
+    const uint iav_type_size = sizeof(iav_type);
     const uint buffer_size = iav_type_size * VALUES_NUM;
     const uint buffer_offset = buffer_size * OPERATION_NUM;
     __global iav_type *result = OFFSET_GLOBAL_PTR(iav_type, tmp_buffer0, output_idx * buffer_size);
     __global iav_type *temp_buf = OFFSET_GLOBAL_PTR(iav_type, tmp_buffer0, buffer_offset + output_idx * buffer_size);
-#elif USE_LOCAL_MEMORY
-    __local iav_type *result = tmp_buffer0;
-    __local iav_type *temp_buf = tmp_buffer1;
 #else
     iav_type result[VALUES_NUM], temp_buf[VALUES_NUM];
 #endif
@@ -391,10 +384,6 @@ KERNEL(arg_max_min_modified)(
         __global uint* merge_counter = OFFSET_GLOBAL_PTR(uint, tmp_buffer1, output_idx * counter_size);
         __global uint* max_merge_counter = OFFSET_GLOBAL_PTR(uint, tmp_buffer1, counter_offset + output_idx * counter_size);
         __global bool* subgroup_done = OFFSET_GLOBAL_PTR(bool, tmp_buffer2, output_idx);
-    #elif USE_LOCAL_MEMORY == 1
-        __local uint* merge_counter = tmp_buffer0;
-        __local uint* max_merge_counter = tmp_buffer1;
-        __local bool* subgroup_done = tmp_buffer2;
     #else
         uint merge_counter[group_num];
         uint max_merge_counter[group_num];
@@ -461,12 +450,14 @@ KERNEL(arg_max_min_modified)(
 #else // SORT_BY_VALUE
     for (uint top_k = 0; top_k < TOP_K; ++top_k) {
         uint out_position = 0;
+
         for (uint i = 0; i < TOP_K; ++i) {
             if (i == top_k)
                 continue;
             if (result[i].index < result[top_k].index)
                 out_position++;
         }
+
         indices[AXIS] = out_position;
 #ifdef TOP_K_ORDER
         output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].value);

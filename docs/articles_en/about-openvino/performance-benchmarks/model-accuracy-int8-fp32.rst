@@ -30,7 +30,7 @@ the table for more information.
      - 2.57%
      - 2.65%
      - 2.95%
-     - 2.89%
+     - 2.63%
    * - Detectron-V2
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
@@ -41,9 +41,9 @@ the table for more information.
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
-     - -0.91%
      - -0.93%
-     - -1.03%
+     - -0.93%
+     - -0.91%
      - -1.03%
    * - resnet-50
      - ImageNet2012
@@ -57,11 +57,11 @@ the table for more information.
      - map
      - 0.00%
      - 0.00%
-     - -0.03%
+     - 0.03%
      - 0.07%
    * - yolo_v11
      - COCO2017_detection_80cl
-     - map
+     - AP@0.5:0.05:0.95
      - 
      - 
      - 
@@ -82,7 +82,7 @@ the table for more information.
      - 0.00%
      - 0.00%
      - 0.00%
-     - 0.02%
+     - 0.00%
    * - Detectron-V2
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
@@ -103,20 +103,20 @@ the table for more information.
      - 0.00%
      - 0.00%
      - 0.00%
-     - 0.01%
+     - -0.04%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
      - 0.02%
      - 0.02%
-     - 0.01%
-     - -0.06%
+     - 0.02%
+     - 0.06%
    * - yolo_v11
      - COCO2017_detection_80cl
-     - map
-     - -0.03%
-     - -2.21%
-     - -2.21%
+     - AP@0.5:0.05:0.95
+     - 0.00%
+     - 0.00%
+     - 0.00%
      - 
 .. list-table:: Model Accuracy for AMX-FP16, AMX-INT4, Arc-FP16 and Arc-INT4 (Arc™ B-series)
    :header-rows: 1
@@ -131,80 +131,87 @@ the table for more information.
    * - DeepSeek-R1-Distill-Llama-8B
      - Data Default WWB
      - Similarity
-     - 23.8%
-     - 27.3%
-     - 
-     - 23.06%
+     - 98.1%
+     - 94.4%
+     - 99.5%
+     - 92.6%
    * - DeepSeek-R1-Distill-Qwen-1.5B
      - Data Default WWB
      - Similarity
-     - 33.42%
-     - 38.7%
-     - 33.3%
-     - 39.8%
-   * - Gemma-2-9B-it
+     - 96.5%
+     - 92.4%
+     - 99.7%
+     - 92.1%
+   * - Gemma-3-1B-it
      - Data Default WWB
      - Similarity
-     - 1.41%
-     - 3.5%
-     - %
-     - 3.38%
+     - 97.3%
+     - 92.0%
+     - 99.2%
+     - 91.5%
    * - GLM4-9B-Chat
      - Data Default WWB
      - Similarity
-     - 1.2%
-     - 6.68%
-     - 5.47%
-     - 
-   * - Qwen-2.5-1.5B-instruct
+     - 98.8%
+     - 93.3%
+     - %
+     - 95.0%
+   * - Llama-2-7B-chat
      - Data Default WWB
      - Similarity
-     - 5.07%
-     - 11.24%
-     - 0.3
-     - 12.77%
+     - 99.3%
+     - 93.4%
+     - 99.8%
+     - 91.9%
+   * - Llama-3-8B
+     - Data Default WWB
+     - Similarity
+     - 98.8%
+     - 94.3%
+     - %
+     - 94.5%
    * - Llama-3.2-3b-instruct
      - Data Default WWB
      - Similarity
-     - 2.35%
-     - 5.99%
-     - 1.3%
-     - 5.84%
+     - 98.2%
+     - 93.2%
+     - 98.4%
+     - 94.0%
    * - Mistral-7b-instruct-V0.3
      - Data Default WWB
      - Similarity
-     - 1.71%
-     - 7.24%
-     - 0.07%
-     - 6.49%
+     - 98.3%
+     - 92.8%
+     - 99.9%
+     - 93.6%
    * - Phi4-mini-instruct
      - Data Default WWB
      - Similarity
-     - 3.63%
-     - 7.46%
-     - 0.69%
-     - 8.15%
+     - 96.4%
+     - 92.0%
+     - 99.3%
+     - 91.7%
    * - Qwen2-VL-7B
      - Data Default WWB
      - Similarity
-     - 6.12%
-     - 7.89%
-     - 4.09%
-     - 8.52%
+     - 97.8%
+     - 92.4%
+     - 99.8%
+     - 93.0%
    * - Flux.1-schnell
      - Data Default WWB
      - Similarity
-     - 4.67%
-     - 3.85%
+     - 95.4%
+     - 96.1%
      - 
-     - 3.45%
+     - 92.1%
    * - Stable-Diffusion-V1-5
      - Data Default WWB
      - Similarity
-     - 3.29%
-     - 4.91%
-     - 0.50%
-     - 9.16%
+     - 97.3%
+     - 95.1%
+     - 99.5%
+     - 91.5%
 
 Notes: For all accuracy metrics a "-", (minus sign), indicates an accuracy drop.
 The Similarity metric is the distance from "perfect" and as such always positive. 

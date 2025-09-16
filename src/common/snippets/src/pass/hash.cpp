@@ -34,22 +34,12 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov::snippets::pass {
 
 // helper
 namespace {
-template <typename Container>
-std::string join(const Container& c, const char* glue = ", ") {
-    std::stringstream oss;
-    const char* s = "";
-    for (const auto& v : c) {
-        oss << s << v;
-        s = glue;
-    }
-    return oss.str();
-}
-
 struct Edge {
     int from_layer = 0;
     int from_port = 0;
@@ -131,7 +121,7 @@ public:
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         if (auto* a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
-            const auto& value = join(a->get());
+            const auto& value = ov::util::join(a->get());
             m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
         } else {
             OPENVINO_THROW("Unsupported attribute type for snippets hash generation: ", name);
@@ -155,27 +145,27 @@ public:
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int>>& adapter) override {
-        const auto& value = join(adapter.get());
+        const auto& value = ov::util::join(adapter.get());
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
-        const auto& value = join(adapter.get());
+        const auto& value = ov::util::join(adapter.get());
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint64_t>>& adapter) override {
-        const auto& value = join(adapter.get());
+        const auto& value = ov::util::join(adapter.get());
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
-        const auto& value = join(adapter.get());
+        const auto& value = ov::util::join(adapter.get());
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
-        const auto& value = join(adapter.get());
+        const auto& value = ov::util::join(adapter.get());
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
@@ -195,7 +185,7 @@ class SnippetsHasher : public ov::AttributeVisitor {
 
     template <typename T>
     std::string create_attribute_list(ov::ValueAccessor<std::vector<T>>& adapter) {
-        return join(adapter.get());
+        return ov::util::join(adapter.get());
     }
 
 public:
@@ -224,7 +214,7 @@ public:
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::element::TypeVector>>(&adapter)) {
             const auto& attrs = a->get();
-            m_hash = hash_combine(hash_combine(m_hash, name), join(attrs));
+            m_hash = hash_combine(hash_combine(m_hash, name), ov::util::join(attrs));
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             const auto& attrs = a->get();
             auto shape_str = attrs.to_string();
