@@ -292,8 +292,10 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
         auto port_name = port.get_any_name();
         std::string device = m_npuw_model->global_mem_device();
         if (ov::npuw::util::isPastKeyValuesKey(port_name) || ov::npuw::util::isPastKeyValuesValue(port_name)) {
-            device = "GPU";
-            std::cout << "alloc global input: " << port_name << " on device: " << device << std::endl;
+            if (m_npuw_model->get_is_prefill()) {
+                device = "GPU";
+                std::cout << "alloc global input: " << port_name << " on device: " << device << std::endl;
+            }
         }
         ov::SoPtr<ov::ITensor> allocated = allocOut(port, device);
         m_input_allocated.insert(allocated->data());

@@ -58,6 +58,14 @@ public:
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
+    void set_is_prefill(bool is_prefill) {
+        m_is_prefill = is_prefill;
+    }
+
+    bool get_is_prefill() const {
+        return m_is_prefill;
+    }
+
 private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
@@ -67,6 +75,8 @@ private:
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
     friend class LLMInferRequest;
+
+    bool m_is_prefill = false;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
