@@ -214,6 +214,18 @@ TEST_P(ClassPluginPropertiesTestSuite4NPU, CanNotSetGetInexistentProperty) {
                  ov::Exception);  // Expect to throw due to unsupported config
 }
 
+using ClassPluginPropertiesTestSuite5NPU = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(ClassPluginPropertiesTestSuite5NPU, ValidModelPtrWorks) {
+    ov::AnyMap props = {{configKey, configValue},
+                        {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SIZE},
+                        {ov::hint::model.name(), model}};
+    auto compiledModel = ie.compile_model(model, deviceName, props);
+    std::stringstream ss;
+    compiledModel.export_model(ss);
+    OV_ASSERT_NO_THROW(compiledModel = ie.import_model(ss, deviceName, props));
+}
+
 using ClassExecutableNetworkInvalidDeviceIDTestSuite = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {

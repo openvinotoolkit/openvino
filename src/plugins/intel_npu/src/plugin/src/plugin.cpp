@@ -538,7 +538,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // list of properties
     [[maybe_unused]] std::shared_ptr<const ov::Model> modelPtr = nullptr;
     if (auto modelPtrIt = localProperties.find(ov::hint::model.name()); modelPtrIt != localProperties.end()) {
-        modelPtr = modelPtrIt->second.as<std::shared_ptr<const ov::Model>>();
+        modelPtr =
+            modelPtrIt->second.is<decltype(modelPtr)>()
+                ? modelPtrIt->second.as<decltype(modelPtr)>()
+                : modelPtrIt->second
+                      .as<decltype(std::const_pointer_cast<std::remove_const<decltype(modelPtr)::element_type>::type>(
+                          modelPtr))>();
         localProperties.erase(modelPtrIt);
         /* if (*modelPtr != *model) {
             _logger.warning("Model received in config differs from model given to compile_model function.");
@@ -824,7 +829,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     std::shared_ptr<const ov::Model> originalModel = nullptr;
     if (auto modelPtrIt = npu_plugin_properties.find(ov::hint::model.name());
         modelPtrIt != npu_plugin_properties.end()) {
-        originalModel = modelPtrIt->second.as<std::shared_ptr<const ov::Model>>();
+        originalModel =
+            modelPtrIt->second.is<decltype(originalModel)>()
+                ? modelPtrIt->second.as<decltype(originalModel)>()
+                : modelPtrIt->second.as<
+                      decltype(std::const_pointer_cast<std::remove_const<decltype(originalModel)::element_type>::type>(
+                          originalModel))>();
         npu_plugin_properties.erase(modelPtrIt);
     }
 
