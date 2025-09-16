@@ -7,6 +7,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -65,10 +66,12 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     OPENVINO_ASSERT(_element_type.is_static());
 
     // Data pointer of the given user_tensor must be a valid address in the level zero context
-    // Check first if the given tensor is a ZeroRemoteTensor ( which has a different method to expose the internal
-    // storage)
-    auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(_imported_tensor._ptr);
-    if (remoteTensor == nullptr) {
+    // Check first if the given tensor is a ZeroRemoteTensor (which has a different method to expose the internal
+    // storage) or ZeroHostTensor (it is a wrapper over ZeroRemoteTensor)
+    auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(_imported_tensor._ptr);
+    auto host_tensor = std::dynamic_pointer_cast<ZeroHostTensor>(_imported_tensor._ptr);
+    if (remote_tensor == nullptr && host_tensor == nullptr) {
+        // case for regular user tensors and ZeroTensors
         if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(),
                                                                    _imported_tensor->data())) {
             _logger.debug("ZeroTensor::ZeroTensor - tensor was created in the same L0 context");
@@ -78,10 +81,15 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
             throw ZeroTensorException("Tensor was not created in the same zero context");
         }
     } else {
+        // case for ZeroRemoteTensors and ZeroHostTensors
+        if (host_tensor != nullptr) {
+            remote_tensor = host_tensor->get_impl();
+        }
+
         if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(),
-                                                                   remoteTensor->get_original_memory())) {
+                                                                   remote_tensor->get_original_memory())) {
             _logger.debug("ZeroTensor::ZeroTensor - remote tensor was created in the same L0 context");
-            _ptr = remoteTensor->get_original_memory();
+            _ptr = remote_tensor->get_original_memory();
         } else {
             _logger.debug("ZeroTensor::ZeroTensor - remote tensor was not created in the same L0 context");
             throw ZeroTensorException("Tensor was not created in the same zero context");
