@@ -9,6 +9,7 @@ on:
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
+  pull_request:
   merge_group:
   push:
     branches:
@@ -28,6 +29,7 @@ env:
 
 jobs:
   Smart_CI:
+    if: github.event.review.state == 'approved'
     runs-on: ubuntu-latest
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
