@@ -115,7 +115,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             }
         }
         if (!subtensor_common_value.has_value()) {
-            return;
+            return false;
         }
 
         for (const auto& port : ports) {
@@ -137,6 +137,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             new_shape[layout_idx] = subtensor_common_value.value();
             parent_desc->set_shape(new_shape);
         }
+        return true;
     };
 
     auto update_subtensors = [](const std::vector<PortDescriptorPtr>& descs, bool is_input) {
@@ -182,10 +183,10 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             const auto inner_end = linear_ir.find_after(inner_begin, linear_ir.get_expr_by_node(loop_end));
 
             // The corresponding shapes of inner loops input ports must be updated using existing subtensor values
-            if (!most_outer_loop) {
-                update_only_dim_idx_with_subtensor_value(loop_info->get_input_ports());
+            if (update_only_dim_idx_with_subtensor_value(inner_loop_info->get_input_ports())) {
+                // If no subtensors were updated, there is no meaning in subtensor propagation
+                propagate_updated_subtensor_through_loop(linear_ir, inner_loop_info, inner_begin, inner_end, false);
             }
-            propagate_updated_subtensor_through_loop(linear_ir, inner_loop_info, inner_begin, inner_end, false);
             expr_it = inner_end;
             continue;
         }
