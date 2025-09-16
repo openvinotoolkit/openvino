@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "common.hpp"
+#include "dynamic.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
@@ -17,7 +18,6 @@
 #include "partitioning/partitioning.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
-#include "dynamic.hpp"
 #include "weights_bank.hpp"
 
 namespace intel_npu {

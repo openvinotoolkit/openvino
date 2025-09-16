@@ -562,8 +562,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     const bool is_spatial = func_desc.spatial.has_value();
     const bool is_dynamic = func_desc.dynamic.has_value();
 
-    const auto non_dynamic_act_in = [](const ov::npuw::compiled::Dynamic &d, std::size_t in_idx) {
-        const bool not_param = std::none_of(d.params.begin(), d.params.end(), [&](auto &&p) {
+    const auto non_dynamic_act_in = [](const ov::npuw::compiled::Dynamic& d, std::size_t in_idx) {
+        const bool not_param = std::none_of(d.params.begin(), d.params.end(), [&](auto&& p) {
             return p.idx == in_idx;
         });
         const bool not_mask = in_idx != d.mask_idx;
@@ -617,8 +617,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     // Default case
                     m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                 }
-            } // if (prod.replaced_by)
-        } // if (link_iter)
+            }  // if (prod.replaced_by)
+        }  // if (link_iter)
     }  // for(param_base)
 
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
@@ -831,16 +831,12 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
         // Copy the sub-ranges to spatial inputs
         // NOTE: tails buffers are read from/written to at 0th offset!
         for (auto&& param : spatial.params) {
-            auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx),
-                                                param.dim,
-                                                offset,
-                                                spatial.tail_size);
+            auto in_view =
+                ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, spatial.tail_size);
 
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-            auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx),
-                                                 param.dim,
-                                                 0,
-                                                 spatial.tail_size);
+            auto out_view =
+                ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx), param.dim, 0, spatial.tail_size);
 
             in_view->copy_to(out_view._ptr);
             r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
@@ -886,8 +882,8 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
 
     auto pos_id = m_dynamic_selector->length();
     auto past_len = query_size == 1
-        ? pos_id // decode case, we have pos_id-1 past elements to take from kvcache
-        : (pos_id / query_size) * query_size; // chunked prefill case. how much chunks do we have?
+                        ? pos_id  // decode case, we have pos_id-1 past elements to take from kvcache
+                        : (pos_id / query_size) * query_size;  // chunked prefill case. how much chunks do we have?
     // FIXME: speculative decode is indistinguishable at this point!
 
     // Set the past k/v values first, it is easy!
@@ -937,18 +933,21 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
     // - We take all rows.
     // So it is just 1D slice!
     try {
+        if (pos_id > 0) {
+            auto dyn_ctx_size = past_len + query_size;
+            // std::cout << "dyn ctx size: " << dyn_ctx_size << std::endl;
+            const auto midnight_patch = query_size == 1 ? 0 : 1;
+            r->set_tensor(mask_iport,
+                          ov::npuw::util::view(ov::get_tensor_impl(dynamic.mask_data),
+                                               3,
+                                               ctx_size - dyn_ctx_size - midnight_patch,
+                                               dyn_ctx_size));
+        } else {
+            std::cout << "I was not prepared to that!" << std::endl;
+        }
 
-    if (pos_id > 0) {
-        auto dyn_ctx_size = past_len + query_size;
-        // std::cout << "dyn ctx size: " << dyn_ctx_size << std::endl;
-        const auto midnight_patch = query_size == 1 ? 0 : 1;
-        r->set_tensor(mask_iport, ov::npuw::util::view(ov::get_tensor_impl(dynamic.mask_data), 3, ctx_size - dyn_ctx_size - midnight_patch, dyn_ctx_size));
-    } else {
-        std::cout << "I was not prepared to that!" << std::endl;
-    }
-
-    r->infer();
-    } catch (std::exception &ex) {
+        r->infer();
+    } catch (std::exception& ex) {
         std::cout << ex.what() << std::endl;
         throw;
     }
@@ -962,7 +961,7 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t 
     } else if (comp_model_desc.dynamic) {
         unsafe_infer_dynamic(real_idx, idx);
     } else {
-        r->infer();    // Run normally
+        r->infer();  // Run normally
     }
 }
 

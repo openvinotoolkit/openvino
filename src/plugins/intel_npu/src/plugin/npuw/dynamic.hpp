@@ -7,12 +7,11 @@
 #include <memory>
 #include <vector>
 
+#include "logging.hpp"  // NPUW_ASSERT
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
-
-#include "logging.hpp" // NPUW_ASSERT
 
 namespace ov {
 namespace npuw {
@@ -61,7 +60,7 @@ void prepare_mask(ov::SoPtr<ov::ITensor> tensor) {
     const auto q_size = shape[2];
     const auto ctx_size = shape[3];
     for (std::size_t i = 0; i < q_size - 1; i++) {
-        T* pRow = tensor->data<T>() + i*ctx_size;
+        T* pRow = tensor->data<T>() + i * ctx_size;
         for (std::size_t j = ctx_size - q_size + i; j < ctx_size; j++) {
             pRow[j] = std::numeric_limits<T>::lowest();
         }
@@ -76,7 +75,7 @@ void prepare_mask(ov::SoPtr<ov::ITensor> tensor) {
     // 000000000 00000
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 // Compile-time dynamic information. Not much different from the above
 struct Dynamic {
@@ -132,7 +131,9 @@ public:
 // No dynamic dispatch - just run over the whole range
 class All final : public Selector {
     void prepare() override {}
-    int64_t length() override { return -1; }
+    int64_t length() override {
+        return -1;
+    }
 };
 
 // Define work scope based on position ids

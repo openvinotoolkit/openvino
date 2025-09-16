@@ -456,7 +456,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     // Check if the given subgraph's input is dynamic
     auto is_dynamic_param = [&](std::size_t sub_in_idx) -> bool {
         if (!is_dynamic) {
-            return false; // Early return
+            return false;  // Early return
         }
         auto& dynamic = proto_comp_model_desc.dynamic.value();
         return std::any_of(dynamic.params.begin(), dynamic.params.end(), [&](const auto& p) -> bool {
@@ -497,7 +497,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                 request->set_tensor(s_port, g_tnsr);
             }
         }
-    } // for(global_params)
+    }  // for(global_params)
 
     LOG_DEBUG("Running copy...");
     ov::parallel_for(copy_list.size(), [&](std::size_t idx) {

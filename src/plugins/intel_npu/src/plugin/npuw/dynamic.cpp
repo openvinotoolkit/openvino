@@ -43,7 +43,7 @@ void ov::npuw::runtime::dynamic::PositionIDs::prepare() {
     // Same works for b (there's no choise).
     // c may require traversing the tensor backwards as Generate with N>1 is right_padded (?)
 
-    auto *pos_data_ptr = in_tensor->data<int64_t>();
+    auto* pos_data_ptr = in_tensor->data<int64_t>();
     for (auto idx = in_dims.back() - 1; idx >= 0; idx--) {
         if (pos_data_ptr[idx] > 0) {
             m_current_length = pos_data_ptr[idx];

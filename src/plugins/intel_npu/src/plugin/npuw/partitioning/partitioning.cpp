@@ -13,8 +13,8 @@
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -1767,7 +1767,7 @@ void Partitioner::identifyDynamicParams(ov::npuw::Function& f) {
     NPUW_ASSERT(f_params.size() > 0);
 
     // Find the attention inputs with dynamic range
-    for (auto &&param : f_params) {
+    for (auto&& param : f_params) {
         // A bad test but it is what it is
         if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
             // FIXME: Take KV_DIM elsewhere!!!
@@ -1777,7 +1777,7 @@ void Partitioner::identifyDynamicParams(ov::npuw::Function& f) {
 
     // Find the mask input (also sizeable). FIXME: We know too much at this point
     auto ops = f._model->get_ordered_ops();
-    auto sdpa_iter = std::find_if(ops.begin(), ops.end(), [](auto &&node_ptr) {
+    auto sdpa_iter = std::find_if(ops.begin(), ops.end(), [](auto&& node_ptr) {
         return ov::is_type<ov::op::v13::ScaledDotProductAttention>(node_ptr);
     });
     if (sdpa_iter == ops.end()) {
@@ -1942,7 +1942,7 @@ void Partitioner::dynamic(const std::string& func_name) {
     // Support only attention at the time
     if (f._tag != "attn") {
         LOG_VERB("No dynamic handling be done to  " << func_name << " in model " << model->get_friendly_name()
-                 << "...");
+                                                    << "...");
         return;
     }
 
@@ -1956,15 +1956,15 @@ void Partitioner::dynamic(const std::string& func_name) {
     // Accumulate the reshape map
     std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
     for (auto&& p : f._dynamic->_inputs) {
-        ov::PartialShape dyn_shape = p.param->get_shape(); // Here it is yet static
-        dyn_shape[p.dim] = ov::Dimension(); // ..and now is dynamic
+        ov::PartialShape dyn_shape = p.param->get_shape();  // Here it is yet static
+        dyn_shape[p.dim] = ov::Dimension();                 // ..and now is dynamic
         new_shapes[p.param->output(0)] = std::move(dyn_shape);
     }
     // Mask
     {
         f._dynamic->_mask_shape = f._dynamic->_mask->get_shape();
         ov::PartialShape dyn_shape = f._dynamic->_mask_shape;
-        dyn_shape[dyn_shape.size()-1] = ov::Dimension();
+        dyn_shape[dyn_shape.size() - 1] = ov::Dimension();
         new_shapes[f._dynamic->_mask->output(0)] = std::move(dyn_shape);
     }
     f._model->reshape(new_shapes);

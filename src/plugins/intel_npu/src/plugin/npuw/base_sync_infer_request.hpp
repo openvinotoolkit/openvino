@@ -11,12 +11,12 @@
 #include <string>
 #include <vector>
 
+#include "dynamic.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf.hpp"
 #include "spatial.hpp"
-#include "dynamic.hpp"
 #include "util.hpp"
 
 namespace ov {
@@ -124,7 +124,7 @@ protected:
 
     // FIXME: All comments for SpatialIO above apply here as well.
     struct DynamicIO {
-        std::vector<ov::SoPtr<ov::ITensor>> inputs;   // # of elements - # of graph-side inputs
+        std::vector<ov::SoPtr<ov::ITensor>> inputs;  // # of elements - # of graph-side inputs
     };
     std::vector<DynamicIO> m_dynamic_io;
 
