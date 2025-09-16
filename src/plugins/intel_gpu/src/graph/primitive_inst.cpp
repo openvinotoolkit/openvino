@@ -2036,9 +2036,7 @@ void primitive_inst::prepare_primitive() {
     if (get_node().is_type<crop>() && get_node().can_share_buffer() && _impl_params->get_output_layout(0).format.is_blocked() &&
         get_node().get_users().size() == 1 && get_node().get_users().front()->is_type<concatenation>() &&
         get_node().get_users().front()->get_selected_impl() && get_node().get_users().front()->get_selected_impl()->is_onednn()) {
-        if (get_node().get_selected_impl()->get_kernel_name().find("eltwise_blocked_opt") != std::string::npos && !is_dynamic()) {
-            skip_reset = true;
-        } else {
+        if (get_node().get_selected_impl()->get_kernel_name().find("eltwise_blocked_opt") == std::string::npos || is_dynamic()) {
             skip_reset = false;
         }
     }
