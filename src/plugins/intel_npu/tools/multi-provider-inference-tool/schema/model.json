@@ -1,0 +1,25 @@
+{
+    "type" : "object",
+    "additionalProperties" : {
+        "type" : "object",
+        "anyOf": [
+            {"required" : ["shape"]},
+            {"required" : ["layout"]},
+            {"required" : ["element_type"]}
+        ],
+        "properties" : {
+            "shape": {
+                "$comment": "Is allowed only for 'type' of 'bin': specifies a shape of a binary blob",
+                "type": ["array", "string"]
+            },
+            "layout": {
+                "$comment": "Is allowed only for 'type' of 'bin': specifies a layout of a binary blob",
+                "type": ["array", "string"]
+            },
+            "element_type": {
+                "$comment": "Is allowed only for 'type' of 'bin': specifies an data type of a binary blob",
+                "type": "string"
+            }
+        }
+    }
+}

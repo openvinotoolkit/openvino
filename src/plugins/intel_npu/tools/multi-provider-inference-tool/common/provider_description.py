@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 from common.converters import layout_to_str, shape_to_list
+from common.model_description_schema import ModelInfoData
 
 class Config:
     config_description = '''Expects information in JSON format implementing the schema:
@@ -59,29 +60,22 @@ class ModelInfo:
     }
 }"
 '''
-    @staticmethod
-    def __validate__(preproc_per_io):
-        for i, d in preproc_per_io.items():
-            if "shape" in d.keys():
-                d["shape"] = shape_to_list(d["shape"])
-            if "layout" in d.keys():
-                d["layout"] = layout_to_str(d["layout"])
 
     def __init__(self, command_line_ppm=""):
-        self.preproc_per_io = {}
+        json_data = {}
         self.model_name = None
         if command_line_ppm and len(command_line_ppm) != 0:
             if os.path.isfile(command_line_ppm):
                 with open(command_line_ppm) as file:
-                    self.preproc_per_io = json.load(file)
+                    json_data = json.load(file)
             else:
                 try:
-                    self.preproc_per_io = json.loads(command_line_ppm)
+                    json_data = json.loads(command_line_ppm)
                 except Exception as ex:
                     raise RuntimeError(
                         ModelInfo.model_description + f"\nGot:\n{command_line_ppm}"
                     )
-        ModelInfo.__validate__(self.preproc_per_io)
+        self.preproc_per_io = ModelInfoData(json_data)
 
     def set_model_name(self, model_name : str):
         self.model_name = model_name
@@ -90,13 +84,16 @@ class ModelInfo:
         return self.model_name
 
     def insert_info(self, io_name: str, info: {}):
-        self.preproc_per_io[io_name] = info
-        ModelInfo.__validate__(self.preproc_per_io)
+        # as we're inserting new data for a model input,
+        # check this data on validity before inserting
+        new_data = ModelInfoData({io_name : info})
+        self.preproc_per_io[io_name] = new_data[io_name]
 
     def update_info(self, io_name: str, additional_info: {}):
-        for k,v in additional_info.items():
-            self.preproc_per_io[io_name][k] = v
-        ModelInfo.__validate__(self.preproc_per_io)
+        self.preproc_per_io[io_name] |= additional_info
+        # as we're updating existing data for a model input, which had to be valid before,
+        # check the modified data on integrity after insertion
+        self.preproc_per_io = ModelInfoData(self.preproc_per_io)
 
     def get_model_io_names(self):
         return self.preproc_per_io.keys()

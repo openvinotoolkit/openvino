@@ -12,7 +12,7 @@ import sys
 import unittest
 
 sys.path.append("../..")
-import common.json_schema
+import common.source_description_schema
 
 from common.enums import InputSourceFileType
 
@@ -29,7 +29,7 @@ class UtilsTests_source_description_schema_for_image(unittest.TestCase):
 
         obj = None
         try:
-            obj = common.json_schema.InputSource(valid_input)
+            obj = common.source_description_schema.InputSource(valid_input)
         except Exception:
             self.fail("test_valid_source_no_convert() raised Exception unexpectedly")
 
@@ -49,7 +49,7 @@ class UtilsTests_source_description_schema_for_image(unittest.TestCase):
 
         obj = None
         try:
-            obj = common.json_schema.InputSource(valid_input_with_convert)
+            obj = common.source_description_schema.InputSource(valid_input_with_convert)
         except Exception:
             self.fail("test_valid_source_with_convert() raised Exception unexpectedly")
 
@@ -68,7 +68,7 @@ class UtilsTests_source_description_schema_for_image(unittest.TestCase):
         }
 
         with self.assertRaises(RuntimeError):
-            common.json_schema.InputSource(valid_input_with_convert_fail)
+            common.source_description_schema.InputSource(valid_input_with_convert_fail)
 
     def test_fail_source_with_forbidden_fields(self):
         valid_input_with_forbidden_fail= {
@@ -84,7 +84,7 @@ class UtilsTests_source_description_schema_for_image(unittest.TestCase):
         }
 
         with self.assertRaises(RuntimeError):
-            common.json_schema.InputSource(valid_input_with_forbidden_fail)
+            common.source_description_schema.InputSource(valid_input_with_forbidden_fail)
 
 
 class UtilsTests_source_description_schema_for_bin(unittest.TestCase):
@@ -102,7 +102,7 @@ class UtilsTests_source_description_schema_for_bin(unittest.TestCase):
 
         obj = None
         try:
-            obj = common.json_schema.InputSource(valid_input)
+            obj = common.source_description_schema.InputSource(valid_input)
         except Exception:
             self.fail("test_valid_source_default_type() raised Exception unexpectedly")
 
@@ -120,7 +120,7 @@ class UtilsTests_source_description_schema_for_bin(unittest.TestCase):
         }
 
         with self.assertRaises(RuntimeError):
-            common.json_schema.InputSource(no_element_type_input)
+            common.source_description_schema.InputSource(no_element_type_input)
 
         shape_type_input= {
             "files": [
@@ -132,7 +132,7 @@ class UtilsTests_source_description_schema_for_bin(unittest.TestCase):
         }
 
         with self.assertRaises(RuntimeError):
-            common.json_schema.InputSource(shape_type_input)
+            common.source_description_schema.InputSource(shape_type_input)
 
     def test_fail_source_with_forbidden_fields(self):
         valid_input_with_forbidden_fail= {

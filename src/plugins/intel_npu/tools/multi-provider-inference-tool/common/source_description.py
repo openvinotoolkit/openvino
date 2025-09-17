@@ -17,7 +17,7 @@ from pathlib import Path
 
 from common.converters import layout_to_str, shape_to_list
 from common.enums import InputSourceFileType
-from common.json_schema import InputSource
+from common.source_description_schema import InputSource
 
 
 class FilesStorage:
