@@ -65,7 +65,7 @@ def get_usecase_files(input_files_cmd_line):
         usecase_num += 1
     return input_files
 
-def get_input_tensor_metadata(provider, model_info, input_tensors_per_case):
+def get_input_tensor_metadata(provider, model_info, input_tensors_per_case, input_files_per_case):
     tensor_info = {}
     for case_num in range(0, len(input_tensors_per_case)):
         tensor_info[case_num] = []
@@ -75,7 +75,7 @@ def get_input_tensor_metadata(provider, model_info, input_tensors_per_case):
             tensor_input_info = dict(model_info.get_model_io_info(input_name))
             tensor_input_info.update(tensor_info_from_provider.info)
             tensor_input_info["source"] = input_name
-            tensor_input_info["input_files"] = input_files[case_num][input_name]
+            tensor_input_info["input_files"] = input_files_per_case[case_num][input_name]
             tensor_info[case_num].append(tensor_input_info)
     return tensor_info
 
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     # Input tensor info being written in a file allows
     # us to load that file as `-i` in subsequent tool invocations to keep
     # persisten inferences history
-    tensor_info = get_input_tensor_metadata(provider, model_info, input_tensors_per_case)
+    tensor_info = get_input_tensor_metadata(provider, model_info, input_tensors_per_case, input_files)
 
     print (f"Input tensor info:")
     printer = TensorsInfoPrinter()

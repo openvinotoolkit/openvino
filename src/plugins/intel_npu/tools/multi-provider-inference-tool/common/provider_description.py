@@ -9,6 +9,7 @@ from pathlib import Path
 from common.converters import layout_to_str, shape_to_list
 from common.model_description_schema import ModelInfoData
 from common.tensor_description_schema import TensorInfoData
+from common.source_description_schema import InputSource
 
 class Config:
     config_description = '''Expects information in JSON format implementing the schema:
@@ -258,6 +259,17 @@ class TensorsInfoPrinter:
 
 
     def serialize_tensors_by_type(self, root_path : Path, input_tensors_dict : list, ttype):
+        for input_tensor_info in input_tensors_dict:
+            # input_tensor_info is a composition of the following schemas:
+            # - ModelInfoData schema
+            # - TensorInfoData schema
+            # - InputSource schema
+            # Ccheck that input_tensor_info met these schemas
+            ModelInfoData({"" : input_tensor_info})
+            TensorInfoData(input_tensor_info)
+            if "input_files" in input_tensor_info:
+                InputSource(input_tensor_info["input_files"])
+
         aggregated_input_meta = self.get_printable_tensor_info(input_tensors_dict, ttype)
         aggregated_tensor_meta = copy.deepcopy(aggregated_input_meta)
 
@@ -350,9 +362,7 @@ class TensorsInfoPrinter:
             raise RuntimeError(f"The file: {model_sources_info_file_path} contains no JSON data. Error: {ex}") from None
 
         for io, data in model_sources_info.items():
-            necessary_fields = {"files", "element_type", "shape"}
-            if not necessary_fields.issubset(data.keys()):
-                raise RuntimeError(f"Cannot deserialize tensor info from file: {model_sources_info_file_path}, as one from required fields are missing: {necessary_fields}")
-            if "layout" in data.keys():
-                data["layout"] = layout_to_str(data['layout'])
+            # deserialized models output/input blobs metadata must match
+            # InputSource schema
+            model_sources_info[io] = InputSource(data)
         return model_sources_info

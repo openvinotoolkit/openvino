@@ -195,8 +195,9 @@ class UtilsTests_TIF_n_FS_integration(unittest.TestCase):
         sandbox_model_sources_info_file_path = os.path.join(sandbox_model_dir, TensorsInfoPrinter.get_file_name_to_dump_model_source("output"))
         candidate_tensors_info = {"my_output": {
                                             "element_type": "value",
-                                            "shape": "[2,3,4,5]",
-                                            "files": ["file"]
+                                            "shape": [2,3,4,5],
+                                            "files": ["file"],
+                                            "type": "bin"
                                   }}
 
         # inject non-typical layout as well
@@ -392,8 +393,9 @@ class UtilsTests_TIF_n_FS_io_canonization_integration(unittest.TestCase):
         sandbox_model_sources_info_file_path = os.path.join(sandbox_model_dir, TensorsInfoPrinter.get_file_name_to_dump_model_source("output"))
         candidate_tensors_info = {"my_output": {
                                             "element_type": "value",
-                                            "shape": "[2,3,4,5]",
-                                            "files": ["file"]
+                                            "shape": [2,3,4,5],
+                                            "files": ["file"],
+                                            "type": "bin"
                                   }}
         # inject non-typical layout as well
         candidate_tensors_info["my_output"]["layout"] = ["N","C","H","W"]
