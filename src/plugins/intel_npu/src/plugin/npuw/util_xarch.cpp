@@ -391,7 +391,7 @@ void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
         __m256i vout0, vout1;
         avx2_i4toi8(inv, &vout0, &vout1);
 
-        __m128i mask = _mm_setr_epi64x(0xFFFFFFFFFFFFFFFF, 0x0);
+        __m128i mask = _mm_set_epi64x(0x0, 0xFFFFFFFFFFFFFFFF);
         __m128i i8vecs[8] = {
             _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
             _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
@@ -548,7 +548,7 @@ void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& fro
                 __m256i vout0, vout1;
                 avx2_i4toi8(inv, &vout0, &vout1);
 
-                __m128i mask = _mm_setr_epi64x(0xFFFFFFFFFFFFFFFF, 0x0);
+                __m128i mask = _mm_set_epi64x(0x0, 0xFFFFFFFFFFFFFFFF);
                 __m128i i8vecs[8] = {
                     _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
                     _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
@@ -669,7 +669,7 @@ void ov::npuw::util::XARCH::unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
                     __m256i vout0, vout1;
                     avx2_i4toi8(vinput, &vout0, &vout1);
 
-                    __m128i mask = _mm_setr_epi64x(0xFFFFFFFFFFFFFFFF, 0x0);
+                    __m128i mask = _mm_set_epi64x(0x0, 0xFFFFFFFFFFFFFFFF);
                     __m128i i8vecs[8] = {
                         _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
                         _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
@@ -766,7 +766,7 @@ void ov::npuw::util::XARCH::unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
         __m256i vout0, vout1;
         avx2_i4toi8(vinput, &vout0, &vout1);
 
-        __m128i mask = _mm_setr_epi64x(0xFFFFFFFFFFFFFFFF, 0x0);
+        __m128i mask = _mm_set_epi64x(0x0, 0xFFFFFFFFFFFFFFFF);
         __m128i i8vecs[8] = {
             _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
             _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
