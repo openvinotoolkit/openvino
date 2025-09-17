@@ -5,13 +5,12 @@
 #include "gemm.hpp"
 
 #include <algorithm>
+#include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <utility>
-
-#include <common/utils.hpp>
 
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
