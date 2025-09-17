@@ -56,6 +56,7 @@ private:
 
     mutable Dim depth = Shape::UNDEFINED_DIM;
     int32_t axis = -1;
+    bool is_mode_normalize = false;
 
     ov::element::Type output_precision;
 
