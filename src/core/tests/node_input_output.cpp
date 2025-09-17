@@ -201,8 +201,7 @@ TEST(node_input_output, replace_output_and_clean_up_basic) {
     size_t size_after = output.get_target_inputs().size();
 
     // The fix should prevent size increase
-    EXPECT_EQ(size_after, size_before)
-        << "With replace_output_and_clean_up, size should not increase";
+    EXPECT_EQ(size_after, size_before) << "With replace_output_and_clean_up, size should not increase";
     EXPECT_EQ(size_after, 1) << "Size should remain 1";
 
     // Verify graph structure
@@ -221,7 +220,7 @@ TEST(node_input_output, replace_output_and_clean_up_multiple_consumers) {
     auto relu2 = make_shared<op::v0::Relu>(convert);
     auto relu3 = make_shared<op::v0::Relu>(convert);
 
-    ASSERT_EQ(add->output(0).get_target_inputs().size(), 1);  // Only convert
+    ASSERT_EQ(add->output(0).get_target_inputs().size(), 1);      // Only convert
     ASSERT_EQ(convert->output(0).get_target_inputs().size(), 3);  // 3 relus
 
     // Replace convert's output with add's output
