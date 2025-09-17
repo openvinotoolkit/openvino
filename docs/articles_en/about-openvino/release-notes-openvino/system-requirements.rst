@@ -20,7 +20,7 @@ CPU
    .. tab-item:: Supported Hardware
 
       * Intel® Core™ Ultra Series 1 and Series 2
-      * Intel® Xeon® 6 processor (preview)
+      * Intel® Xeon® 6 processor
       * Intel Atom® Processor X Series
       * Intel Atom® processor with Intel® SSE4.2 support
       * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
