@@ -28,3 +28,25 @@ TEST(attributes, one_hot_op) {
 
     EXPECT_EQ(g_one_hot->get_axis(), one_hot->get_axis());
 }
+
+TEST(attributes, one_hot_op_v16) {
+    NodeBuilder::opset().insert<ov::op::v16::OneHot>();
+    auto indices = make_shared<ov::op::v0::Parameter>(element::i64, Shape{1, 3, 2, 3});
+    auto depth = ov::op::v0::Constant::create(element::i64, Shape{}, {4});
+    auto on_value = ov::op::v0::Constant::create(element::f32, Shape{}, {1.0f});
+    auto off_value = ov::op::v0::Constant::create(element::f32, Shape{}, {0.0f});
+
+    int64_t axis = 3;
+
+    auto one_hot = make_shared<ov::op::v16::OneHot>(indices,
+                                                    depth,
+                                                    on_value,
+                                                    off_value,
+                                                    axis,
+                                                    op::v16::OneHot::NegativeIndicesMode::NORMALIZE);
+    NodeBuilder builder(one_hot, {indices, depth, on_value, off_value});
+    auto g_one_hot = ov::as_type_ptr<ov::op::v16::OneHot>(builder.create());
+
+    EXPECT_EQ(g_one_hot->get_axis(), one_hot->get_axis());
+    EXPECT_EQ(g_one_hot->get_negative_indices_mode(), one_hot->get_negative_indices_mode());
+}

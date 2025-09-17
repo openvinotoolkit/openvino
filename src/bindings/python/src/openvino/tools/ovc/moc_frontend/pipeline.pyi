@@ -22,7 +22,7 @@ import openvino._pyopenvino
 import openvino.frontend.frontend
 import os as os
 import sys as sys
-__all__ = ['Error', 'FrontEnd', 'InputModel', 'NotImplementedFailure', 'PartialShape', 'Place', 'Type', 'argparse', 'convert_params_lists_to_dicts', 'fe_output_user_data_repack', 'fe_user_data_repack', 'get_element_type', 'get_enabled_and_disabled_transforms', 'get_numpy_ctype', 'json_model_analysis_dump', 'log', 'mo_array', 'moc_pipeline', 'np', 'np_map_cast', 'os', 'raise_exception_for_input_output_cut', 'sys']
+__all__: list[str] = ['Error', 'FrontEnd', 'InputModel', 'NotImplementedFailure', 'PartialShape', 'Place', 'Type', 'argparse', 'convert_params_lists_to_dicts', 'fe_output_user_data_repack', 'fe_user_data_repack', 'get_element_type', 'get_enabled_and_disabled_transforms', 'get_numpy_ctype', 'json_model_analysis_dump', 'log', 'mo_array', 'moc_pipeline', 'np', 'np_map_cast', 'os', 'raise_exception_for_input_output_cut', 'sys']
 def get_enabled_and_disabled_transforms():
     """
     

@@ -17,7 +17,6 @@ namespace snippets {
 
 void CollapseSubgraphTests::run() {
     ASSERT_TRUE(model);
-    ov::snippets::pass::SnippetsTokenization::Config config = get_default_tokenization_config();
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
     manager.register_pass<ov::snippets::pass::TokenizeSnippets>(config);
     // todo: This is a temporary work-around. remove when MatMul tokenization is supported through general pipeline

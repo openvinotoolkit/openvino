@@ -3,7 +3,7 @@ from __future__ import annotations
 import collections.abc
 import openvino._pyopenvino
 import typing
-__all__ = ['ConversionExtensionTensorflow', 'OpExtensionTensorflow']
+__all__: list[str] = ['ConversionExtensionTensorflow', 'OpExtensionTensorflow']
 class ConversionExtensionTensorflow(_ConversionExtensionTensorflow):
     def __init__(self, arg0: str, arg1: collections.abc.Callable[[openvino._pyopenvino.NodeContext], list[openvino._pyopenvino.Output]]) -> None:
         ...

@@ -7,7 +7,7 @@ import typing
 """
 openvino.utils
 """
-__all__ = ['deprecation_warning', 'numpy_to_c', 'replace_node', 'replace_output_update_name']
+__all__: list[str] = ['deprecation_warning', 'numpy_to_c', 'replace_node', 'replace_output_update_name']
 def deprecation_warning(function_name: str, version: str = '', message: str = '', stacklevel: typing.SupportsInt = 2) -> None:
     """
                 Prints deprecation warning "{function_name} is deprecated and will be removed in version {version}. {message}".
