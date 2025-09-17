@@ -12,9 +12,8 @@ namespace cldnn {
 struct DeviceOps {
     DeviceOps(std::vector<gfx_version> gfx_version_list,
               std::vector<float> ops,
-              std::vector<uint32_t> dev_id_list = {})
-              : gfx_version_list(gfx_version_list)
-              , dev_id_list(dev_id_list) {
+              std::vector<uint32_t> dev_id_list = {}): gfx_version_list(gfx_version_list)
+                                                     , dev_id_list(dev_id_list) {
         auto add_ops_to_map = [](std::map<data_types, float>& out_map, std::vector<float> ops, data_types dt, size_t index) -> void {
             if (!is_zero(ops[index])) {
                 out_map[dt] = ops[index];
@@ -36,7 +35,7 @@ struct DeviceOps {
     std::map<data_types, float> ops_dp4a;
 
     static bool is_zero(float value) {
-        return std::abs(value) <= std::numeric_limits<float>::epsilon();
+        return std::abs(value) <= 1e-6f;
     }
 
     bool match(device_info& info) const {
@@ -95,7 +94,7 @@ const std::vector<DeviceOps> device_ops_table = {
     { { {12, 74,  0}, {12, 74, MAX_REVISION} }, {     0.5,   16,     32,    128,    256,     0 }, {} },    // ARL-H
     { { {20,  1,  0}, {20,  2, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} },    // BMG
     { { {20,  4,  0}, {20,  4, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} },    // LNL
-    { { {30,  0,  0}, {30,  1, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} },    // PTL
+    { { {30,  0,  0}, {30,  1, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} }     // PTL
 };
 
 float device::get_gops(data_types dt) const {
@@ -109,19 +108,24 @@ float device::get_gops(data_types dt) const {
     }
 
     auto freqGHz = info.gpu_frequency / 1000.f;
-    auto numEUs = info.execution_units_count * (info.arch < gpu_arch::xe2 ? 1 : 2);
+    const uint32_t WIDE_EU = 2; // WIDE-EU number is half of EU.
+    auto numEUs = info.execution_units_count * (info.arch < gpu_arch::xe2 ? 1 : WIDE_EU);
     auto opsPerEU = 0.f;
 
-    auto it = std::find_if(device_ops_table.begin(), device_ops_table.end(),
-        [&info](auto& entry) {
-            return entry.match(info);
-        });
-    if (it != device_ops_table.end()) {
-        opsPerEU = it->get_ops(info, dt);
-        if (DeviceOps::is_zero(opsPerEU) && (dt == data_types::i8 || dt == data_types::u8)) {
-            // WA: ops of i8/u8 is twice of f16.
-            opsPerEU = it->get_ops_for_mad(data_types::f16) * 2;
+    try {
+        auto it = std::find_if(device_ops_table.begin(), device_ops_table.end(),
+            [&info](auto& entry) {
+                return entry.match(info);
+            });
+        if (it != device_ops_table.end()) {
+            opsPerEU = it->get_ops(info, dt);
+            if (DeviceOps::is_zero(opsPerEU) && (dt == data_types::i8 || dt == data_types::u8)) {
+                // WA: ops of i8/u8 is twice of f16.
+                opsPerEU = it->get_ops_for_mad(data_types::f16) * 2;
+            }
         }
+    } catch (std::exception& e) {
+        std::cerr << "exception: " << e.what() << std::endl;
     }
 
     return freqGHz * numEUs * opsPerEU;
