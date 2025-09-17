@@ -14,7 +14,7 @@ importlib-metadata>=4.8.0,<7.0.0
 iniconfig==2.1.0
 ipython==8.18.1
 Jinja2==3.1.6
-jsonschema==4.24.0
+jsonschema==4.25.1
 lxml>=4.9.2
 MarkupSafe==3.0.2
 mistune==2.0.3
