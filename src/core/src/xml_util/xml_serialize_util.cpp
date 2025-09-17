@@ -10,7 +10,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/core/model_util.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "openvino/op/constant.hpp"
@@ -1061,6 +1060,10 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
 bool XmlSerializer::append_node_attributes(ov::Node& node) {
     return node.visit_attributes(*this);
 }
+
+// util::ConstantWriter& XmlSerializer::get_constant_write_handler() {
+//     return m_constant_node_write_handler.get();
+// }
 
 std::string get_ir_precision_name(const element::Type& precision) {
     switch (precision) {

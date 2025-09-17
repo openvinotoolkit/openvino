@@ -57,4 +57,5 @@ void set_tensors_names(const AutoTag&,
     set_input_tensors_names(AUTO, model, inputs_names);
     set_output_tensor_names(AUTO, model, outputs_names);
 }
+
 }  // namespace ov::util
