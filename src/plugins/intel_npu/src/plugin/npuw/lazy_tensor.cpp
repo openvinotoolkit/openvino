@@ -26,18 +26,18 @@ namespace op {
 Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     m_cached_type = m_node->get_element_type();
     m_cached_shape = m_node->get_shape();
-    m_cached_ptr = m_node->get_data_ptr();
     m_byte_size = m_node->get_byte_size();
 
     auto rt_info = m_node->get_rt_info();
     auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-    if (weightless_cache_attr != rt_info.end()) {
-        m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-    }
+    NPUW_ASSERT(weightless_cache_attr != rt_info.end() &&
+                "Constant node doesn't have WeightlessCacheAttribute! Likely a new node introduced by some pass.");
+    m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
 }
 
 std::size_t Const::hash() const {
-    std::size_t seed = std::hash<const void*>()(m_cached_ptr) + 0x9e3779b9;
+    std::size_t seed = std::hash<std::size_t>()(m_byte_size) + 0x9e3779b9;
+    seed ^= std::hash<std::size_t>()(m_offset) + 0x9e3779b9;
     seed ^= m_cached_type.hash() + 0x9e3779b9;
     for (const auto& dim : m_cached_shape) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
@@ -47,7 +47,7 @@ std::size_t Const::hash() const {
 
 bool Const::operator==(const Const& other) const {
     return (m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
-            m_cached_ptr == other.m_cached_ptr);
+            m_byte_size == other.m_byte_size && m_offset == other.m_offset);
 }
 
 ov::Tensor Const::eval() const {
