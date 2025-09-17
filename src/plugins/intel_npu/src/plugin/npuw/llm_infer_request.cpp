@@ -250,10 +250,9 @@ std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_nam
 
 void copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
     OPENVINO_ASSERT(src->get_byte_size() <= dst->get_byte_size());
-    std::copy_n(
-        reinterpret_cast<uint8_t*>(src->data()),
-        src->get_byte_size(),
-        reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
+    std::copy_n(reinterpret_cast<uint8_t*>(src->data()),
+                src->get_byte_size(),
+                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
 }
 
 constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
