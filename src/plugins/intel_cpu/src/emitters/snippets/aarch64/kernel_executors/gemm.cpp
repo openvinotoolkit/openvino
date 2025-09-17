@@ -11,6 +11,8 @@
 #include <memory>
 #include <utility>
 
+#include <common/utils.hpp>
+
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -32,10 +34,11 @@ void GemmKernelKaiConfig::update(int64_t M,
     BrgemmGenericKernelConfig::update(M, N, K, LDA, LDB, LDC, beta);
     precision = prc;
     m_hash = BrgemmGenericKernelConfig::compute_hash();
+    m_hash = dnnl::impl::hash_combine(m_hash, precision.hash());
 }
 
 bool GemmKernelKaiConfig::operator==(const GemmKernelKaiConfig& rhs) const {
-    return BrgemmGenericKernelConfig::operator==(rhs) && m_hash == rhs.m_hash;
+    return BrgemmGenericKernelConfig::operator==(rhs) && precision == rhs.precision && m_hash == rhs.m_hash;
 }
 
 GemmKaiKernelExecutor::GemmKaiKernelExecutor(GemmKernelKaiConfig config)

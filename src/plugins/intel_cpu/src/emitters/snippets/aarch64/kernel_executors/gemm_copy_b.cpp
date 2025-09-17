@@ -13,11 +13,10 @@
 #include <string>
 #include <utility>
 
-#include "openvino/core/type/element_type.hpp"
-
 #include "emitters/utils.hpp"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -79,6 +78,7 @@ size_t GemmCopyBKernelKaiConfig::compute_hash() const {
     seed = dnnl::impl::hash_combine(seed, m_K);
     seed = dnnl::impl::hash_combine(seed, m_copy_b_wei_stride);
     seed = dnnl::impl::hash_combine(seed, m_copy_b_col_stride);
+    seed = dnnl::impl::hash_combine(seed, precision.hash());
     return seed;
 }
 
