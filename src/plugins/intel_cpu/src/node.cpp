@@ -811,7 +811,13 @@ void Node::updateDynamicParams() {
                           getName(),
                           " ",
                           getOriginalLayers());
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+                dnnl::impl::threadpool_utils::activate_threadpool(context->getThreadPool().get());
+#endif
                 prepareParams();
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+                dnnl::impl::threadpool_utils::deactivate_threadpool();
+#endif
             }
         }
     } catch (const std::exception& e) {
