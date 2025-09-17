@@ -18,7 +18,6 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
