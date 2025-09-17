@@ -36,7 +36,7 @@ pyyaml==6.0.2
 requests==2.32.4
 six==1.17.0
 snowballstemmer==3.0.1
-soupsieve==2.7
+soupsieve==2.8
 sphinx==7.4.7; python_version >= "3.10"
 sphinx==7.3.7; python_version < "3.10"
 sphinx-copybutton==0.5.2
