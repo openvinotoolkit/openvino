@@ -6,8 +6,8 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-static inline int SelectVecSizeFromSize(const DataTensor&);
-static inline int SelectGroupSize(size_t ele_size);
+static inline size_t SelectVecSizeFromSize(const DataTensor&);
+static inline size_t SelectGroupSize(size_t ele_size);
 
 ParamsKey ReorderKernelBlockedOpt::GetSupportedKey() const {
     ParamsKey k;
@@ -60,12 +60,12 @@ bool ReorderKernelBlockedOpt::Validate(const Params& p) const {
     if (!ReorderKernelBase::Validate(p))
         return false;
 
-    // std::cout << ">> " << p.layerID << std::endl;
-    // if (p.layerID == "result:Result_33640") {
-    //     std::cout << "  -- " << p.layerID << std::endl;
+    const reorder_params& params = static_cast<const reorder_params&>(p);
+    std::cout << ">>>>>> " << p.layerID << std::endl;
+    // if (p.layerID == "result:Result_33640" || params.outputs[0].PhysicalSize() > 10000) {
+    //     GPU_DEBUG_COUT << "  >>" << p.layerID << std::endl;
     // }
 
-    const reorder_params& params = static_cast<const reorder_params&>(p);
     if (SelectVecSizeFromSize(params.outputs[0]) == 1)
         return false;
 
@@ -129,12 +129,13 @@ JitConstants ReorderKernelBlockedOpt::GetJitConstants(const reorder_params& para
     //     jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     // }
 
-    jit.AddConstant(MakeJitConstant("VEC_SIZE", SelectVecSizeFromSize(params.outputs[0])));
+    size_t vec_size = SelectVecSizeFromSize(params.outputs[0]);
+    jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
 
-    size_t global_w_item = std::max(params.outputs[0].PhysicalSize() / SelectVecSizeFromSize(params.outputs[0]), (size_t)1);
+    size_t global_w_item = std::max(params.outputs[0].PhysicalSize() / vec_size, (size_t)1);
     size_t g_size = SelectGroupSize(global_w_item);
     jit.AddConstant(MakeJitConstant("ITEM_SIZE", g_size));
-    // std::cout << ">> " << params.layerID << " >> ITEM_SIZE : " << g_size << std::endl;
+    GPU_DEBUG_COUT << ">> " << params.layerID << " >> ITEM_SIZE : " << g_size << ", VEC : " << vec_size << std::endl;
 
     // if ( params.inputs[0].GetDType() == Datatype::BF16 ) {
     //      jit.AddConstant(MakeJitConstant("BF16_INPUT", true));
@@ -152,7 +153,7 @@ KernelsPriority ReorderKernelBlockedOpt::GetKernelsPriority(const Params& /*para
     return FORCE_PRIORITY_1;
 }
 
-static inline int SelectVecSizeFromSize(const DataTensor& tensor) {
+static inline size_t SelectVecSizeFromSize(const DataTensor& tensor) {
     size_t size = tensor.PhysicalSize();
     auto preferred_vec_sizes = { 16, 8, 4, 2 };
 
@@ -164,7 +165,7 @@ static inline int SelectVecSizeFromSize(const DataTensor& tensor) {
     return 1;
 }
 
-static inline int SelectGroupSize(size_t ele_size) {
+static inline size_t SelectGroupSize(size_t ele_size) {
     // auto preferred_group_size = { 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2 };
     // auto preferred_group_size = { 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2 };
     auto preferred_group_size = { 32, 16, 8, 4, 2 };
