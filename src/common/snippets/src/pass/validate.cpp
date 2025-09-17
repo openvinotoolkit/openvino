@@ -15,7 +15,6 @@
 #include "openvino/core/node_input.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -69,16 +68,12 @@ bool Validate::is_supported_matmul(const std::shared_ptr<const ov::Node>& op) {
 
 bool Validate::is_supported_softmax(const std::shared_ptr<const ov::Node>& op) {
     // Softmax is supported only with axis by last dim
-    const auto softmax_rank = op->get_input_partial_shape(0).rank();
-    int64_t axis = 0;
-    if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(op)) {
-        axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), softmax_rank, *softmax_v8);
-    } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(op)) {
-        axis = softmax_v1->get_axis();
-    } else {
+    const auto axis = utils::get_softmax_axis(op);
+    if (!axis) {
         return false;
     }
-    return axis == softmax_rank.get_length() - 1;
+    const auto softmax_rank = static_cast<int64_t>(op->get_input_partial_shape(0).rank().get_length());
+    return *axis == (softmax_rank - 1);
 }
 
 bool Validate::is_supported_fq([[maybe_unused]] const std::shared_ptr<const ov::Node>& node) {

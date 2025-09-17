@@ -14,11 +14,9 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/softmax.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -62,16 +60,12 @@ bool TokenizeMLPSeqSnippets::is_matmul_supported(const std::shared_ptr<ov::Node>
 }
 
 bool TokenizeMLPSeqSnippets::is_supported_softmax(const std::shared_ptr<ov::Node>& node) {
-    int64_t axis = 0;
-    const auto rank = node->get_input_partial_shape(0).rank();
-    if (const auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(node)) {
-        axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *node);
-    } else if (const auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(node)) {
-        axis = softmax_v1->get_axis();
-    } else {
+    const auto axis = ov::snippets::utils::get_softmax_axis(node);
+    if (!axis) {
         return false;
     }
-    return is_tensor_supported(node->get_input_tensor(0)) && axis == (rank.get_length() - 1);
+    const auto rank = static_cast<int64_t>(node->get_input_partial_shape(0).rank().get_length());
+    return is_tensor_supported(node->get_input_tensor(0)) && *axis == (rank - 1);
 }
 
 bool TokenizeMLPSeqSnippets::is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) {
