@@ -74,9 +74,7 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const
     const auto& K = config.get_K();
     const auto& lda = config.get_LDA();
     const auto& ldc = config.get_LDC();
-#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     const bool is_fp16 = config.precision == ov::element::f16;
-    fprintf(stderr, "is_fp16: %d\n", is_fp16);
     if (is_fp16) {
         const auto& ukernel = *kernel->gemm_ukernel_f16;
         const size_t elem_size = sizeof(uint16_t);
@@ -107,7 +105,6 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const
         }
         return;
     }
-#endif
     {
         const auto& ukernel = *kernel->gemm_ukernel_f32;
         const size_t elem_size = sizeof(float);

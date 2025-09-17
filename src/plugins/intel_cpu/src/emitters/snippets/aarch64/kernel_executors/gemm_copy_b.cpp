@@ -111,27 +111,19 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
     // rhs is input, rhs_packed is output
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
-#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     const bool is_fp16 = (config.precision == ov::element::f16);
-#else
-    const bool is_fp16 = false;
-#endif
-    fprintf(stderr, "gemm_copy_b is_fp16: %d\n", is_fp16);
     const auto K = config.get_K();                                   // K
     const auto N = config.get_N();                                   // N-rhs_stride
     const auto copy_b_wei_stride = config.get_copy_b_wei_stride();   // RHS row stride in bytes
     const auto copy_b_col_stride = config.get_copy_b_col_stride();   // RHS column stride in bytes
     const auto& n_blk_size = GemmCopyBKernelKaiConfig::get_N_blk();  // n_blk
     size_t nr = 0, kr = 0, sr = 0;
-#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     if (is_fp16) {
         const auto& uk = *kernel->copy_b_ukernel_f16;
         nr = uk.get_nr();
         kr = uk.get_kr();
         sr = uk.get_sr();
-    } else
-#endif
-    {
+    } else {
         const auto& uk = *kernel->copy_b_ukernel_f32;
         nr = uk.get_nr();
         kr = uk.get_kr();
@@ -148,13 +140,7 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
         size_t n_step = n_end - n_start;
         int8_t* src_ptr = static_cast<int8_t*>(in0) + static_cast<size_t>(n_start) * copy_b_col_stride;
         int8_t* dst_base = static_cast<int8_t*>(out0);
-        if (
-#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-            is_fp16
-#else
-            false
-#endif
-        ) {
+        if (is_fp16) {
             const auto& uk = *kernel->copy_b_ukernel_f16;
             const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
             int8_t* dst_ptr = dst_base + packed_off;

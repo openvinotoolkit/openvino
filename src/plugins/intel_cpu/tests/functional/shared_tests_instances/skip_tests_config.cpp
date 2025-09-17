@@ -588,6 +588,15 @@ std::vector<std::string> disabledTestPatterns() {
     }
     if (!ov::test::snippets::is_fp16_supported_by_brgemm()) {
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*FP16.*)");
+    } else {
+        // Skip failing FP16 MHA tests on ARM64
+        retVector.emplace_back(R"(smoke_Snippets_MHA_FP16_4D_Without_Multiply.*)");
+        retVector.emplace_back(R"(smoke_Snippets_MHA_FP16_4D_With_Multiply_Static.*)");
+        retVector.emplace_back(R"(smoke_Snippets_MHA_FP16_4D_With_Multiply_Dynamic.*)");
+        retVector.emplace_back(R"(smoke_Snippets_MHAEnforceFP16_Without_Multiply.*)");
+        retVector.emplace_back(R"(smoke_Snippets_MHAEnforceFP16_With_Multiply_Static.*)");
+        retVector.emplace_back(R"(smoke_Snippets_MHAEnforceFP16_With_Multiply_Dynamic.*)");
+        retVector.emplace_back(R"(smoke_Snippets_MHAWOTransposeEnforceFP16.*)");
     }
     if (!ov::with_cpu_x86_avx512_core_amx_int8())
         // TODO: Issue 92895
