@@ -177,10 +177,9 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
                         const size_t reg_groups = 2;
                         return std::make_pair(loop_depth, reg_groups);
                     }
-                    const bool postops_can_ba_applied = inference_precision == ov::element::bf16 || std::all_of(
-                        matmuls.begin(),
-                        matmuls.end(),
-                        [](const std::shared_ptr<ov::op::v0::MatMul>& mm) {
+                    const bool postops_can_ba_applied =
+                        inference_precision == ov::element::bf16 ||
+                        std::all_of(matmuls.begin(), matmuls.end(), [](const std::shared_ptr<ov::op::v0::MatMul>& mm) {
                             return mm->get_input_element_type(0) != element::f32 &&
                                    mm->get_input_element_type(1) != element::f32;
                         });
