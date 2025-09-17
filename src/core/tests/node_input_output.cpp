@@ -156,30 +156,6 @@ TEST(node_input_output, create_wrong_input_output) {
     EXPECT_THROW(ov::Input<const ov::Node>(nullptr, 0), ov::Exception);
 }
 
-TEST(node_input_output, ticket_107966_bug_still_exists_in_base_api) {
-    // This test demonstrates that the bug from ticket #107966 still exists
-    // in the base Output<Node>::replace() method (as per reviewer's request)
-
-    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
-    auto add = make_shared<op::v1::Add>(param, param);
-    auto existing_convert = make_shared<op::v0::Convert>(add, element::bf16);
-    auto relu = make_shared<op::v0::Relu>(existing_convert);
-
-    auto output = add->output(0);
-
-    ASSERT_EQ(output.get_target_inputs().size(), 1);
-    size_t size_before = output.get_target_inputs().size();
-
-    // The problematic line from ticket #107966
-    existing_convert->output(0).replace(output);
-
-    size_t size_after = output.get_target_inputs().size();
-
-    // The bug STILL EXISTS in the base API (intentionally not fixed)
-    EXPECT_EQ(size_after, 2) << "Bug #107966 still exists: size increases from 1 to 2";
-    EXPECT_NE(size_after, size_before) << "Base API still has the bug";
-}
-
 TEST(node_input_output, replace_output_and_clean_up_basic) {
     // Test basic functionality of replace_output_and_clean_up
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224, 224});
