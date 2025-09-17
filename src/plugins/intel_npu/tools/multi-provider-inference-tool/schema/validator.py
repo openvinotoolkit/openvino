@@ -21,9 +21,8 @@ class JSONSchemaValidator(dict):
         return loaded_content
 
     @staticmethod
-    def is_valid(schema_name, input_json):
+    def is_valid(json_schema, input_json):
         valid = True
-        json_schema = JSONSchemaValidator.load_from_file(schema_name)
         try:
             jsonschema.validate(instance=input_json, schema=json_schema)
         except jsonschema.exceptions.ValidationError as ex:

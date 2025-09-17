@@ -12,6 +12,34 @@ import sys
 
 from pathlib import Path
 import providers.interfaces
+from schema.validator import JSONSchemaValidator
+
+class ExecutionProvider:
+    model_info_schema = JSONSchemaValidator.load_from_file("model")
+    input_source_schema = JSONSchemaValidator.load_from_file("input_source")
+
+    def __init__(self, provider_impl):
+        self.provider_impl = provider_impl
+
+    def create_model(self, preprocessing_request_data, options=None):
+        if len(preprocessing_request_data.preproc_per_io) != 0:
+            assert JSONSchemaValidator.is_valid(ExecutionProvider.model_info_schema, preprocessing_request_data.preproc_per_io)
+        return self.provider_impl.create_model(preprocessing_request_data, options)
+
+    def get_model_info(self):
+        return self.provider_impl.get_model_info()
+
+    def get_tensor_info(self, tensor):
+        return self.provider_impl.get_tensor_info(tensor)
+
+    def prepare_input_tensors(self, input_files):
+        for data in input_files.values():
+            assert JSONSchemaValidator.is_valid(ExecutionProvider.input_source_schema, data)
+        return self.provider_impl.prepare_input_tensors(input_files)
+
+    def infer(self, tensors_collection):
+        return self.provider_impl.infer(tensors_collection)
+
 
 class ProviderFactory():
     def __init__(self):
@@ -83,5 +111,5 @@ class ProviderFactory():
         raise RuntimeError(f"No provider for {provider_name}")
 
 
-    def create_provider_for_model(self, ctx: providers.interfaces.Context, model_path: str) -> providers.interfaces.Provider:
-        return ctx.create_provider(model_path)
+    def create_provider_for_model(self, ctx: providers.interfaces.Context, model_path: str) -> ExecutionProvider:
+        return ExecutionProvider(ctx.create_provider(model_path))
