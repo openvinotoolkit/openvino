@@ -264,6 +264,8 @@ jobs:
               exit 1
             }
           }
+        env:
+          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
 
       - name: Pack Artifacts
         run: |
