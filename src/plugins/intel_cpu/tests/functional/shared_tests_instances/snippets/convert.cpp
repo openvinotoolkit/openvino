@@ -30,7 +30,6 @@ static std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::ele
         { { ov::element::u8 }, { ov::element::i8 } },
     };
 
-#if defined(OPENVINO_ARCH_X86_64)
     types.push_back({{ ov::element::f32 }, { ov::element::bf16 }});
     types.push_back({{ ov::element::f16 }, { ov::element::bf16 }});
     types.push_back({{ ov::element::bf16 }, { ov::element::f32 }});
@@ -39,7 +38,6 @@ static std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::ele
     types.push_back({{ ov::element::bf16 }, { ov::element::f16 }});
     types.push_back({{ ov::element::i8 }, { ov::element::bf16 }});
     types.push_back({{ ov::element::u8 }, { ov::element::bf16 }});
-#endif
 
     return types;
 }
@@ -81,12 +79,10 @@ static std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::ele
         { { ov::element::u8 }, { ov::element::f16 } },
     };
 
-#if defined(OPENVINO_ARCH_X86_64)
     types.push_back({{ ov::element::f32 }, { ov::element::bf16 }});
     types.push_back({{ ov::element::bf16 }, { ov::element::f32 }});
     types.push_back({{ ov::element::i8 }, { ov::element::bf16 }});
     types.push_back({{ ov::element::u8 }, { ov::element::bf16 }});
-#endif
 
     return types;
 }
@@ -133,10 +129,8 @@ static std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::ele
         { { ov::element::u8 }, { ov::element::f16 } },
     };
 
-#if defined(OPENVINO_ARCH_X86_64)
     types.push_back({{ ov::element::i8 }, { ov::element::bf16 }});
     types.push_back({{ ov::element::u8 }, { ov::element::bf16 }});
-#endif
 
     return types;
 }
