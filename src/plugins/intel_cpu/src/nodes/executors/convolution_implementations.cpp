@@ -251,7 +251,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
-                VERIFY(none_of(srcType(config), ov::element::i8, ov::element::u8), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 return true;
             },
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
@@ -278,7 +278,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
-                VERIFY(any_of(srcType(config), ov::element::i8, ov::element::u8), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 return true;
             },
             CreateOptimalConfigAclLowp{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},

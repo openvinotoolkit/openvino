@@ -47,7 +47,17 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     const int oc = dstShape.getDims()[1];
 
     weightsInfo = arm_compute::WeightsInfo(false, kw, kh, oc, false, arm_compute::WeightFormat::UNSPECIFIED);
-    padStrideInfo = arm_compute::PadStrideInfo(attrs.stride[0], attrs.stride[1], attrs.paddingL[0], attrs.paddingR[0]);
+    auto paddingLeft = (attrs.paddingL.size() >= 2U) ? attrs.paddingL[1] : attrs.paddingL[0];
+    auto paddingRight = (attrs.paddingR.size() >= 2U) ? attrs.paddingR[1] : attrs.paddingR[0];
+    auto paddingTop = (attrs.paddingL.size() >= 2U) ? attrs.paddingL[0] : 0;
+    auto paddingBottom = (attrs.paddingR.size() >= 2U) ? attrs.paddingR[0] : 0;
+    padStrideInfo = arm_compute::PadStrideInfo(attrs.stride[0],
+                                               attrs.stride[1],
+                                               paddingLeft,
+                                               paddingRight,
+                                               paddingTop,
+                                               paddingBottom,
+                                               arm_compute::DimensionRoundingType::FLOOR);
     dilation = arm_compute::Size2D(attrs.dilation[1] + 1, attrs.dilation[0] + 1);
 
     if (!attrs.postOps.empty() && attrs.postOps.size() == 1) {
