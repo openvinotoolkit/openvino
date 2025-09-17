@@ -277,6 +277,16 @@ public:
 // UntangleConst
 void untangleConst(std::shared_ptr<ov::Model> model);
 
+class PreserveConstScales : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstScales");
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    PreserveConstScales(Results to_keep);
+};
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw

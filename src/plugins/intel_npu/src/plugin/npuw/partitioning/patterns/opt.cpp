@@ -2271,6 +2271,33 @@ void untangleConst(std::shared_ptr<ov::Model> model) {
     }
 }
 
+PreserveConstScales::PreserveConstScales(PreserveConstScales::Results to_keep) {
+    auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), qcoeff});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), qmuls});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+
+        auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
+
+        if (qcoeff_shape.size() == 2 && matched_matmul->get_transpose_b()) {
+            to_keep.get().push_back(matched_qcoeff);
+            std::cout << "Keeping Scale " << matched_qcoeff->get_friendly_name() << " as constant" << std::endl;
+            return false;  // root hasn't changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qmm, "OptPreserveConstScales"), std::move(callback));
+}
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw
