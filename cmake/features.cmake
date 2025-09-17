@@ -79,13 +79,12 @@ ov_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 #
 
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ|TBB_ADAPTIVE"
-if(RISCV64)
-    set(THREADING_DEFAULT "OMP")
-elseif(AARCH64)
+if(AARCH64)
     set(THREADING_DEFAULT "TBB")
 else()
     set(THREADING_DEFAULT "TBB_ADAPTIVE")
 endif()
+
 
 set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ" "OMP" "TBB_ADAPTIVE")
 

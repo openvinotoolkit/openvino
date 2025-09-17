@@ -124,8 +124,8 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
 
 DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                                   [[maybe_unused]] const DnnlMemoryDescPtr& dstDesc,
-                                                                  bool weightsNonTransposed) {
-    if (!weightsNonTransposed) {
+                                                                  const FCAttrs& attrs) {
+    if (!attrs.weightsNonTransposed) {
         return srcDesc;
     }
 
@@ -450,7 +450,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
     auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
 
-    originalWeightsDesc = makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc, attrs.weightsNonTransposed);
+    originalWeightsDesc = makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc, attrs);
 
     // ignore the result since we just need to put the packed weights into the cache
     (void)utils::prepareWeightsMemory(originalWeightsDesc,

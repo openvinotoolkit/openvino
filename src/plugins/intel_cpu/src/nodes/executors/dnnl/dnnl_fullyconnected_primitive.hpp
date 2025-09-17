@@ -76,7 +76,7 @@ public:
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
-                                                            bool weightsNonTransposed);
+                                                            const FCAttrs& attrs);
 
     static std::shared_ptr<DnnlFCPrimitive> create(const MemoryArgs& memory,
                                                    const FCAttrs& attrs,
