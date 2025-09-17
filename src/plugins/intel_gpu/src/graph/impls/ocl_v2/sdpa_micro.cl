@@ -538,7 +538,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if IS_CAUSAL
-#define greater_than(offset_k, offset_q) (offset_k > offset_q)
+    #if SLIDING_WINDOW_SIZE
+        #define greater_than(offset_k, offset_q) (offset_k > offset_q || offset_k <= (offset_q - SLIDING_WINDOW_SIZE))
+    #else
+        #define greater_than(offset_k, offset_q) (offset_k > offset_q)
+    #endif
 
         int col_offset = wg_j0 + sg_j0_kq;
     #if IS_PAGED_ATTENTION && IS_PREFILL == 0
@@ -547,7 +551,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
         /* Apply causal mask */
         tile_predicated_assignment_t(S_tile, k0 + sg_i0_kq, col_offset,
-                greater_than, -INFINITY, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                greater_than, -FLT_MAX, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
                 ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0,
                 ugemm_kq_c_type_nblock1);
 #endif
