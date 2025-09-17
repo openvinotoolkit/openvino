@@ -15,6 +15,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -1969,6 +1970,34 @@ void Partitioner::dynamic(const std::string& func_name) {
     }
     f._model->reshape(new_shapes);
 
+    // Patch Broadcast constants if there's any. If there's broadcast in the attention
+    // block, its shape argument is normally a precomputed Const (which would be
+    // an expression/a subgraph in the original dynamic IR). Since we retrofit
+    // dynamism into a static shape environment here, we need to patch it back.
+    for (auto &&op : f._model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v3::Broadcast>(op)) {
+            continue;
+        }
+        // Inspect the constant
+        auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
+        if (!ov::is_type<ov::op::v0::Constant>(shape_source)) {
+            LOG_WARN("SDPA Broadcast's 2nd input is not Const: " << shape_source << ", skipping");
+            continue;
+        }
+
+        auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
+        auto shape_values = shape_const->cast_vector<int32_t>();
+        for (auto &&d : shape_values) {
+            if (d == f._dynamic->_mask_shape.back()) {
+                d = 1;
+            }
+        }
+        auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
+                                                                shape_const->get_shape(),
+                                                                shape_values);
+        op->input(1).replace_source_output(new_const);
+    }
+    f._model->validate_nodes_and_infer_types();
     LOG_VERB("Done");
 }
 

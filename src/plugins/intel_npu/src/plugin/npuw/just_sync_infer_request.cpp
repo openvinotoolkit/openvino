@@ -596,6 +596,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
                     if (non_dynamic_act_in(*func_desc.dynamic, i)) {
                         m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    } else {
+                        m_dynamic_io[idx].inputs.at(i) = i_tensor;
                     }
                 } else {
                     // Default case
@@ -612,6 +614,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
                     if (non_dynamic_act_in(*func_desc.dynamic, i)) {
                         m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                    } else {
+                        m_dynamic_io[idx].inputs.at(i) = i_tensor;
                     }
                 } else {
                     // Default case
@@ -880,22 +884,30 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
     auto query_size = mask_shape[2];
     auto ctx_size = mask_shape[3];
 
+    enum class Case { PREFILL, GENERATE};
+    Case this_case = query_size == 1 ? Case::GENERATE : Case::PREFILL;
+    // FIXME: speculative decode is indistinguishable at this point!
+
     auto pos_id = m_dynamic_selector->length();
-    auto past_len = query_size == 1
+    auto past_len = this_case == Case::GENERATE
                         ? pos_id  // decode case, we have pos_id-1 past elements to take from kvcache
                         : (pos_id / query_size) * query_size;  // chunked prefill case. how much chunks do we have?
-    // FIXME: speculative decode is indistinguishable at this point!
 
     // Set the past k/v values first, it is easy!
     for (auto&& param : dynamic.params) {
         const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
         const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
 
-        if (pos_id > 0) {
-            // std::cout << "past " << iport << " -- " << past_len << std::endl;
-            r->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, past_len));
-        } else {
-            std::cout << "Shite! " << pos_id << std::endl;
+        if (this_case == Case::GENERATE) {
+            if (pos_id > 0) {
+                // std::cout << "past " << iport << " -- " << past_len << std::endl;
+                r->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, past_len));
+            } else {
+                std::cout << "Shite! " << pos_id << std::endl;
+                r->set_tensor(iport, input);
+            }
+        } else if (this_case == Case::PREFILL) {
+            // Just set as-is
             r->set_tensor(iport, input);
         }
     }  // for(params)
@@ -933,19 +945,21 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
     // - We take all rows.
     // So it is just 1D slice!
     try {
-        if (pos_id > 0) {
-            auto dyn_ctx_size = past_len + query_size;
-            // std::cout << "dyn ctx size: " << dyn_ctx_size << std::endl;
-            const auto midnight_patch = query_size == 1 ? 0 : 1;
-            r->set_tensor(mask_iport,
-                          ov::npuw::util::view(ov::get_tensor_impl(dynamic.mask_data),
-                                               3,
-                                               ctx_size - dyn_ctx_size - midnight_patch,
-                                               dyn_ctx_size));
-        } else {
-            std::cout << "I was not prepared to that!" << std::endl;
+        if (this_case == Case::GENERATE) {
+            if (pos_id > 0) {
+                auto dyn_ctx_size = past_len + query_size;
+                r->set_tensor(mask_iport,
+                              ov::npuw::util::view(ov::get_tensor_impl(dynamic.mask_data),
+                                                   3,
+                                                   ctx_size - dyn_ctx_size,
+                                                   dyn_ctx_size));
+            } else {
+                std::cout << "I was not prepared to that!" << std::endl;
+            }
+        } else if (this_case == Case::PREFILL) {
+            // Just set as-is
+            r->set_tensor(mask_iport, m_dynamic_io[idx].inputs.at(dynamic.mask_idx));
         }
-
         r->infer();
     } catch (std::exception& ex) {
         std::cout << ex.what() << std::endl;
