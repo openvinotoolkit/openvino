@@ -13,7 +13,10 @@
 #include <string>
 #include <utility>
 
+#include "openvino/core/type/element_type.hpp"
+
 #include "emitters/utils.hpp"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -33,7 +36,7 @@ bool GemmCopyBKernelKaiConfig::is_completed() const {
 }
 
 bool GemmCopyBKernelKaiConfig::is_empty() const {
-    return all_of(0UL, m_N, m_K, m_copy_b_wei_stride);
+    return ov::snippets::utils::all_of(0UL, m_N, m_K, m_copy_b_wei_stride);
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -138,12 +141,12 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
         size_t n_start = n_block * n_blk_size;
         size_t n_end = std::min(n_start + n_blk_size, N);
         size_t n_step = n_end - n_start;
-        int8_t* src_ptr = static_cast<int8_t*>(in0) + static_cast<size_t>(n_start) * copy_b_col_stride;
-        int8_t* dst_base = static_cast<int8_t*>(out0);
+        auto* src_ptr = static_cast<int8_t*>(in0) + static_cast<size_t>(n_start) * copy_b_col_stride;
+        auto* dst_base = static_cast<int8_t*>(out0);
         if (is_fp16) {
             const auto& uk = *kernel->copy_b_ukernel_f16;
             const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
-            int8_t* dst_ptr = dst_base + packed_off;
+            auto* dst_ptr = dst_base + packed_off;
             kai_run_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon(1,
                                                               n_step,
                                                               K,
@@ -160,7 +163,7 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
         } else {
             const auto& uk = *kernel->copy_b_ukernel_f32;
             const size_t packed_off = uk.get_rhs_packed_offset(n_start, K);
-            int8_t* dst_ptr = dst_base + packed_off;
+            auto* dst_ptr = dst_base + packed_off;
             kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1,
                                                              n_step,
                                                              K,
