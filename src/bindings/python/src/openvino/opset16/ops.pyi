@@ -11,7 +11,7 @@ import typing
 """
 Factory functions for ops added to openvino opset16.
 """
-__all__ = ['Node', 'NodeInput', 'as_nodes', 'identity', 'istft', 'nameable_op', 'partial', 'segment_max', 'sparse_fill_empty_rows']
+__all__: list[str] = ['Node', 'NodeInput', 'as_nodes', 'identity', 'istft', 'nameable_op', 'partial', 'segment_max', 'sparse_fill_empty_rows']
 def identity(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Identity operation is used as a placeholder. It creates a copy of the input to forward to the output.
