@@ -175,27 +175,44 @@ bool containsSoftmaxV8WithNonUnitSecondDim(const ov::Model& model) {
     return false;
 }
 
-void reshape_to_dynamic(std::shared_ptr<ov::Model> model, const int64_t history_size) {
+void reshape_sdpa_to_dynamic(std::shared_ptr<ov::Model> model) {
     std::map<std::string, ov::PartialShape> new_shapes;
-    for (const auto& input : model->inputs()) {
+    for (size_t i = 0; i < model->inputs().size(); i++) {
+        const auto& input = model->input(i);
         const auto& input_name = input.get_any_name();
         ov::PartialShape new_shape;
         if (ov::npuw::util::isPastKeyValuesKey(input_name)) {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
-            new_shape[2] = history_size;
+            new_shape[2] = -1;
         } else if (ov::npuw::util::isPastKeyValuesValue(input_name)) {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
-            new_shape[3] = history_size;
-        } else {
+            new_shape[3] = -1;
+        } else if (i == 2) {
+            // Reshape query to dynamic
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
-            if (new_shape[new_shape.size() - 1] == 8192) {
-                // Reshape mask to dynamic
-                new_shape[new_shape.size() - 1] = -1;
-            }
+            new_shape[new_shape.size() - 2] = -1;
+        } else if (i == 3) {
+            // Reshape attention mask to dynamic
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            new_shape[new_shape.size() - 1] = -1;
+        } else if (i == 4) {
+            // Reshape present key to dynamic
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            new_shape[new_shape.size() - 2] = -1;
+        } else if (i == 5) {
+            // Reshape present value to dynamic
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            new_shape[new_shape.size() - 1] = -1;
+        } else {
+            OPENVINO_THROW("Unexpected input node");
         }
+
         new_shapes.emplace(input_name, new_shape);
 
         std::cout << "Reshape input_name: " << input_name << " to: " << new_shape << std::endl;
@@ -238,10 +255,9 @@ void reshape_to_dynamic(std::shared_ptr<ov::Model> model, const int64_t history_
                 }
                 target_shape_values[target_dim] = -1;
 
-                auto new_constant_node = std::make_shared<ov::op::v0::Constant>(
-                    constant_node->get_element_type(),
-                    constant_node->get_shape(),
-                    target_shape_values);
+                auto new_constant_node = std::make_shared<ov::op::v0::Constant>(constant_node->get_element_type(),
+                                                                                constant_node->get_shape(),
+                                                                                target_shape_values);
 
                 reshape_node->input(1).replace_source_output(new_constant_node->output(0));
             }
@@ -488,7 +504,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             fill_empty_tensor_names(m_compiled_submodels[real_id].model);
 
             if (m_compiled_submodels[real_id].is_sdpa) {
-                reshape_to_dynamic(m_compiled_submodels[real_id].model, -1);
+                reshape_sdpa_to_dynamic(m_compiled_submodels[real_id].model);
             }
         }
 
@@ -1572,7 +1588,8 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     if (npuw::util::starts_with(device_to_try, "NPU") && m_compiled_submodels[id].model->inputs().empty()) {
         LOG_INFO("Avoid compilation for " << device_to_try << " as the model should be constant-folded");
         dump_on_fail(id, device_to_try, "Avoided due to workaround");
-        std::cout << "Avoid compilation for " << device_to_try << " as the model should be constant-folded" << std::endl;
+        std::cout << "Avoid compilation for " << device_to_try << " as the model should be constant-folded"
+                  << std::endl;
         return false;
     }
 
