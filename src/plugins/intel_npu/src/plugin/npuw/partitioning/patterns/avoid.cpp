@@ -106,7 +106,6 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
     register_matcher(std::make_shared<opp::Matcher>(sin_cos, "TagSinCos"), std::move(callback));
 }
 GemmaRoPE::GemmaRoPE(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& avoid_device) {
-    //auto multiply = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
     auto power = opp::wrap_type<ov::op::v1::Power>({opp::any_input(), opp::any_input()});
     auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({power, opp::wrap_type<ov::op::v0::Constant>()});
     auto unsqueeze2 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze1, opp::wrap_type<ov::op::v0::Constant>()});
@@ -114,24 +113,23 @@ GemmaRoPE::GemmaRoPE(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot
     auto unsqueeze3 = opp::wrap_type<ov::op::v0::Unsqueeze>({divide, opp::wrap_type<ov::op::v0::Constant>()});
     auto sin_cos = opp::wrap_type<ov::op::v0::Sin, ov::op::v0::Cos>({unsqueeze3});
     auto node_to_gptr = snapshot->getNodeToGroupMap();
-    LOG_WARN("OPENVINO_NPUW_AVOID REGISTERING CALLBACK GemmaRoPE (power, unsqueeze, unsqueeze, divide, unsqueeze, sin, cos)");
+    
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        //auto matched_multiply = node_to_output.at(multiply).get_node_shared_ptr();
+
         auto matched_power = node_to_output.at(power).get_node_shared_ptr();
         auto matched_unsqueeze1 = node_to_output.at(unsqueeze1).get_node_shared_ptr();
         auto matched_unsqueeze2 = node_to_output.at(unsqueeze2).get_node_shared_ptr();
         auto matched_divide = node_to_output.at(divide).get_node_shared_ptr();
         auto matched_unsqueeze3 = node_to_output.at(unsqueeze3).get_node_shared_ptr();
         auto matched_sin_cos = node_to_output.at(sin_cos).get_node_shared_ptr();
-        //node_to_gptr->at(matched_multiply)->avoid(avoid_device);
+
         node_to_gptr->at(matched_power)->avoid(avoid_device);
         node_to_gptr->at(matched_unsqueeze1)->avoid(avoid_device);
         node_to_gptr->at(matched_unsqueeze2)->avoid(avoid_device);
         node_to_gptr->at(matched_divide)->avoid(avoid_device);
         node_to_gptr->at(matched_unsqueeze3)->avoid(avoid_device);
         node_to_gptr->at(matched_sin_cos)->avoid(avoid_device);
-        LOG_WARN("OPENVINO_NPUW_AVOI APPLYING GemmaRoPE  COMPLETE");
         return false;
     };
     register_matcher(std::make_shared<opp::Matcher>(sin_cos, "TagGemmaRoPE"), std::move(callback));

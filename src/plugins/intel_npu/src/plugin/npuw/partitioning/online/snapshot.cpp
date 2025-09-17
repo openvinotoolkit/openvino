@@ -452,7 +452,7 @@ void Snapshot::earlyAvoids() {
             // FIXME: refactor as more patterns are supported
             if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos" && avoid.pattern != "GemmaRoPE") {
                 LOG_WARN(
-                    "OPENVINO_NPUW_AVOID only supports RMSNorm and SinCos as patterns (don't confuse with operations)."
+                    "OPENVINO_NPUW_AVOID only supports RMSNorm, SinCos and GemmaRoPE as patterns (don't confuse with operations)."
                     << " Avoid pattern " << avoid.pattern << " is skipped!");
                 break;
             }
@@ -462,7 +462,6 @@ void Snapshot::earlyAvoids() {
             } else if (avoid.pattern == "SinCos") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::SinCos>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "GemmaRoPE") {
-                LOG_WARN("OPENVINO_NPUW_AVOID ------>  APPLYING GemmaRoPE ");
                 rewr.add_matcher<ov::npuw::patterns::avoid::GemmaRoPE>(shared_from_this(), avoid.device);
             }
 
