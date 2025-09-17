@@ -38,7 +38,7 @@ std::string EltwiseChainTest::getTestCaseName(const testing::TestParamInfo<Eltwi
         results << "Op" << std::to_string(i) << "=" << eltwiseOpTypes[i] << "_";
     }
     results << "secondaryInputType=" << secondaryInputType << "_";
-    results << "WithQuantization=" << (postNode == PostNode::QUANTIZE) << "_";
+    results << "PostNode=" << postNode << "_";
     if (conversion != ov::element::dynamic) {
         results << "Conversion=" << conversion << "_";
     }
@@ -117,9 +117,10 @@ void EltwiseChainTest::SetUp() {
         }
     }
 
+    std::vector<std::shared_ptr<ov::Node>> eltwiseOps;
+    eltwiseOps.push_back(make_eltwise(inputNodes1[0], inputNodes2[0], eltwiseOpTypes[0]));
+
     if (postNode == PostNode::QUANTIZE) {
-        std::vector<std::shared_ptr<ov::Node>> eltwiseOps;
-        eltwiseOps.push_back(make_eltwise(inputNodes1[0], inputNodes2[0], eltwiseOpTypes[0]));
         for (size_t i = 1; i < eltwiseOpTypes.size() - 1; i++) {
             eltwiseOps.push_back(make_eltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes2[i], eltwiseOpTypes[i]));
         }
@@ -136,8 +137,6 @@ void EltwiseChainTest::SetUp() {
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};
         function = std::make_shared<ov::Model>(results, paramVec, "eltwise_chain_fq");
     } else if (postNode == PostNode::SOFTSIGN) {
-        std::vector<std::shared_ptr<ov::Node>> eltwiseOps;
-        eltwiseOps.push_back(make_eltwise(inputNodes1[0], inputNodes2[0], eltwiseOpTypes[0]));
         for (size_t i = 1; i < eltwiseOpTypes.size(); i++) {
             eltwiseOps.push_back(make_eltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes2[i], eltwiseOpTypes[i]));
         }
@@ -148,9 +147,7 @@ void EltwiseChainTest::SetUp() {
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};
 
         function = std::make_shared<ov::Model>(results, paramVec, "eltwise_chain_softsign");
-    } else {
-        std::vector<std::shared_ptr<ov::Node>> eltwiseOps;
-        eltwiseOps.push_back(make_eltwise(inputNodes1[0], inputNodes2[0], eltwiseOpTypes[0]));
+    } else if (postNode == PostNode::EMPTY) {
         for (size_t i = 1; i < eltwiseOpTypes.size(); i++) {
             eltwiseOps.push_back(make_eltwise(eltwiseOps[eltwiseOps.size() - 1], inputNodes2[i], eltwiseOpTypes[i]));
         }

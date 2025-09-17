@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <iostream>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
@@ -24,6 +25,16 @@ enum class PostNode : uint8_t {
     QUANTIZE,
     SOFTSIGN
 };
+
+inline std::ostream& operator<<(std::ostream& os, PostNode node) {
+    switch (node) {
+        case PostNode::EMPTY:    os << "EMPTY"; break;
+        case PostNode::QUANTIZE: os << "QUANTIZE"; break;
+        case PostNode::SOFTSIGN: os << "SOFTSIGN"; break;
+        default:                 os << "UNKNOWN"; break;
+    }
+    return os;
+}
 
 typedef std::tuple<std::vector<InputShape>, // Input shapes
         ov::test::utils::InputLayerType,    // Secondary input type
