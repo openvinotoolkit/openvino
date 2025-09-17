@@ -154,6 +154,8 @@ void EltwiseChainTest::SetUp() {
 
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(eltwiseOps[eltwiseOps.size() - 1])};
         function = std::make_shared<ov::Model>(results, paramVec, "eltwise_chain");
+    } else {
+        OPENVINO_THROW("Post node of type '", postNode, "' is not supported");
     }
 }
 
