@@ -476,6 +476,9 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     if (m_spatial_selector) {
         m_spatial_selector->prepare();
     }
+
+    m_cached_attention_mask = std::nullopt;
+
     LOG_DEBUG("Done");
 }
 
@@ -573,6 +576,13 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     // Non-spatial case - again, set immediately
                     if (m_npuw_model->m_compiled_submodels[real_idx].is_sdpa) {
                         if (port_name == "npuw_in_tensor_3") {
+                            if (m_cached_attention_mask.has_value()) {
+                                // All sub models are sharing the same attention mask, we can use the cached attention
+                                // mask directly to avoid redundant tensor copy
+                                m_subrequests[real_idx]->set_tensor(iport, m_cached_attention_mask.value());
+                                continue;
+                            }
+
                             // Handle attention mask concatenation for SDPA
                             auto data = i_tensor->data();
                             auto orig_shape = i_tensor->get_shape();
@@ -610,6 +620,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                                 copy_tensor_by_dim(past_src_slice, past_slice, kv_dim);
                             }
                             m_subrequests[real_idx]->set_tensor(iport, new_tensor);
+                            m_cached_attention_mask = new_tensor;
                         } else {
                             m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                         }
