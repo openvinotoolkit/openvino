@@ -4,9 +4,12 @@
 
 #include "snippets/lowered/pass/split_loops.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <iterator>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
