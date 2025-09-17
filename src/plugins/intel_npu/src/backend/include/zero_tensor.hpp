@@ -66,8 +66,8 @@ public:
     bool memory_address_changed();
     void reset_memory_flag();
 
-    void set_recycled_tensor();
-    bool is_tensor_recycled();
+    void prevent_reuse();
+    bool can_be_reused();
 
     ~ZeroTensor();
 
@@ -92,7 +92,7 @@ private:
     void* _ptr = nullptr;
     bool _reset_tensor_memory = false;
     uint32_t _zero_memory_flag = 0;
-    bool _recycled = false;
+    bool _can_be_reused = false;
 
     ov::SoPtr<ov::ITensor> _imported_tensor;
 };

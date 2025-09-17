@@ -306,7 +306,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
     if (foundPort.is_input()) {
         if (get_user_input(foundPort.idx)._ptr == tensor._ptr) {
-            // Got set_tensor with the same object - do nothing
+            // set_tensor called with the same tensor object; no action needed
             _logger.debug("ZeroInferRequest::set_tensor - got the same tensor, do nothing");
             return;
         }
@@ -335,7 +335,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         }
 
         if (is_batched_input(foundPort.idx)) {
-            // resize vector size to 1 if set_tensor is called after set_tensors
+            // Reset vector size to 1 if set_tensor is called after set_tensors
             get_level_zero_inputs(foundPort.idx).resize(1);
             get_level_zero_inputs(foundPort.idx).shrink_to_fit();
             get_level_zero_input(foundPort.idx) = {};
@@ -347,7 +347,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         get_user_input(foundPort.idx) = tensor;
     } else {
         if (_userOutputTensors.at(foundPort.idx)._ptr == tensor._ptr) {
-            // Got set_tensor with the same object here too - do nothing
+            // set_tensor called with the same tensor object; no action needed
             _logger.debug("ZeroInferRequest::set_tensor - got the same tensor, do nothing");
             return;
         }
@@ -386,15 +386,14 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         try {
             _logger.debug("ZeroInferRequest::set_tensor - create zero tensor");
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "create zero tensor");
-            // Try to use the user directly - in case it has underlying data already allocated in the same level zero
+            // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
             // context.
             levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor, _config);
             updateCommandListArg = true;
         } catch (const ZeroTensorException&) {
-            // Check if the current level zero tensor was previously shared with the user. The tensor cannot be re-used
-            // in such case, a new tensor must be allocated to backup the user tensor ( that cannot be imported or used
-            // directly).
-            if (_dynamicBatchValueChanged || levelZeroTensor == nullptr || levelZeroTensor->is_tensor_recycled()) {
+            // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
+            // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
+            if (_dynamicBatchValueChanged || levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
                 _logger.debug("ZeroInferRequest::set_tensor - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
@@ -420,7 +419,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                                               levelZeroTensor->get_byte_size());
         }
     }
-    // Update command list is not supported, it will fall back on copies all the time.
+    // If command list updates are not supported, fallback to copying tensors every time.
 }
 
 void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
@@ -494,7 +493,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
             }
         }
     }
-    // Update command list is not supported, it will fall back on copies all the time.
+    // If command list updates are not supported, fallback to copying tensors every time.
 }
 
 ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
@@ -514,16 +513,12 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
     auto batchSize = _graph->get_batch_size();
 
-    // LIMITATION for the dynamic batch implementation:
-    // We need to allocate output tensors having the same batch size as input tensors.
-    // Which means that input tensor batch sizes must have been determined.
-    // In other words, it means that someone MUST HAVE called set_tensor() BEFORE
-    // asking get_tensor(). Otherwise we won't deduct the actual batch size
-    // which we must return here.
-    // If we may return wrong batch size here then we must have a mechanism notifying
-    // user that that returned tensor is now obsolete, when someone had changed batch using set_tensor()
-    // by holding already the old tensor from get_tensor() with the old batch size.
-    // OR we must reallocate that tensor by callback
+    // LIMITATION for dynamic batch implementation:
+    // Output tensors must have the same batch size as input tensors, so input batch sizes must be determined first.
+    // This means set_tensor() MUST be called before get_tensor().
+    // Otherwise, the batch size returned may be incorrect.
+    // If the batch size changes after get_tensor(), the user must be notified that the returned tensor is obsolete,
+    // or the tensor must be reallocated via a callback.
 
     if (userTensor) {
         if (!_dynamicBatchValueChanged) {
@@ -531,7 +526,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
             auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensor._ptr);
             if (zeroTensor != nullptr) {
-                zeroTensor->set_recycled_tensor();
+                zeroTensor->prevent_reuse();
             }
 
             return userTensor;
@@ -541,7 +536,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
                 auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensor._ptr);
                 if (zeroTensor != nullptr) {
-                    zeroTensor->set_recycled_tensor();
+                    zeroTensor->prevent_reuse();
                 }
 
                 return userTensor;
@@ -562,7 +557,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
         userTensor = levelZeroTensor;
     }
 
-    levelZeroTensor->set_recycled_tensor();
+    levelZeroTensor->prevent_reuse();
 
     return levelZeroTensor;
 }
@@ -715,7 +710,7 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                 zeroState->reset_zero_tensor_updated_flag();
             } else if (levelZeroInput) {
-                if (levelZeroInput->is_tensor_recycled()) {
+                if (!levelZeroInput->can_be_reused()) {
                     levelZeroInput = std::make_shared<ZeroTensor>(
                         _initStructs,
                         _config,
@@ -734,6 +729,9 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                         levelZeroOutput->get_byte_size());
 
                     zeroState->reset_zero_tensor_updated_flag();
+                } else {
+                    _logger.debug("ZeroInferRequest::update_states_if_memory_changed - reusing the zero memory since "
+                                  "it is not shared with the user");
                 }
             }
         }
@@ -766,7 +764,7 @@ void ZeroInferRequest::infer_async() {
                 update_pipeline_if_memory_changed();
                 update_states_if_memory_changed();
             }
-            // Update command list is not supported, it will fall back on copies all the time.
+            // If command list updates are not supported, fallback to copying tensors every time.
         }
     }
 
@@ -794,7 +792,7 @@ void ZeroInferRequest::infer_async() {
         // than 1.
         // There are two cases:
         // 1. Batch size is set and batching is handled by the plugin.
-        // 2. Batch size isn't set and batching is handled by the compiler.
+        // 2. Batch size is not set and batching is handled by the compiler.
         if (is_batched_input(inputIndex)) {
             if (batch_size.has_value()) {
                 for (size_t i = 0; i < userTensor.size(); i++) {

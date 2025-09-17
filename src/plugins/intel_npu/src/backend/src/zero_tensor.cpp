@@ -50,6 +50,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate zero memory");
     initialize_elements(data, element_type, _shape);
     _ptr = data;
+    _can_be_reused = true;
 }
 
 ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -95,8 +96,6 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
             throw ZeroTensorException("Tensor was not created in the same zero context");
         }
     }
-
-    _recycled = true;
 }
 
 // Note: Override data() members to not used OpenVINO library code to improve performance
@@ -234,12 +233,12 @@ void ZeroTensor::reset_memory_flag() {
     _reset_tensor_memory = false;
 }
 
-void ZeroTensor::set_recycled_tensor() {
-    _recycled = true;
+void ZeroTensor::prevent_reuse() {
+    _can_be_reused = false;
 }
 
-bool ZeroTensor::is_tensor_recycled() {
-    return _recycled;
+bool ZeroTensor::can_be_reused() {
+    return _can_be_reused;
 }
 
 void* ZeroTensor::allocate_zero_memory(const size_t bytes, const size_t alignment) noexcept {
