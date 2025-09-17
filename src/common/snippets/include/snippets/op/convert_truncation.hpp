@@ -37,9 +37,6 @@ public:
     bool has_evaluate() const override {
         return false;
     }
-
-private:
-    bool m_use_rounding;
 };
 
 }  // namespace ov::snippets::op
