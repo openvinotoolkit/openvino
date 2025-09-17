@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@
 #include "snippets/op/loop.hpp"
 
 namespace ov::snippets::lowered::pass {
-
 void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id) {
     const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto work_amount = loop_info->get_work_amount();
@@ -40,7 +39,7 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
     const auto finalization_offsets = loop_info->get_finalization_offsets();
     const auto io_data_sizes = loop_info->get_data_sizes();
 
-    const auto loop_begin = std::make_shared<op::LoopBegin>();
+    const auto loop_begin = std::make_shared<op::LoopBegin>(loop_info->is_parallel());
     const auto loop_end = std::make_shared<op::LoopEnd>(loop_begin,
                                                         work_amount,
                                                         work_amount_increment,
@@ -50,7 +49,8 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
                                                         io_data_sizes,
                                                         in_num,
                                                         out_num,
-                                                        loop_id);
+                                                        loop_id,
+                                                        loop_info->is_parallel());
 
     const auto [loop_begin_bound, loop_end_bound] = loop_manager->get_loop_bounds(linear_ir, loop_id);
     const auto outer_loop_ids = loop_manager->get_outer_expr_loops(*loop_begin_bound, loop_id);

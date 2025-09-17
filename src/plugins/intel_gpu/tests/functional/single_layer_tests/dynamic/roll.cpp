@@ -28,7 +28,7 @@ using RollGPUTestParams = typename std::tuple<
 class RollLayerGPUTest : public testing::WithParamInterface<RollGPUTestParams>,
                          virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RollGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<RollGPUTestParams>& obj) {
         const auto& [inputShape, inputPrecision, shift, axes, targetDevice] = obj.param;
 
         std::ostringstream result;
