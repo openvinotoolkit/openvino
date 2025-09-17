@@ -46,35 +46,6 @@ void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) 
     std::fill(tensor_data + offset, tensor_data + tensor->get_size(), fill_val);
 }
 
-template <typename T>
-void prepare_mask(ov::SoPtr<ov::ITensor> tensor) {
-    NPUW_ASSERT(tensor->is_continuous());
-    fill_tensor<T>(tensor, 0);
-
-    // Initialize the top-right triangle with -inf
-    const auto shape = tensor->get_shape();
-    NPUW_ASSERT(shape.size() == 4);
-    NPUW_ASSERT(shape[0] == 1);
-    NPUW_ASSERT(shape[1] == 1);
-
-    const auto q_size = shape[2];
-    const auto ctx_size = shape[3];
-    for (std::size_t i = 0; i < q_size - 1; i++) {
-        T* pRow = tensor->data<T>() + i * ctx_size;
-        for (std::size_t j = ctx_size - q_size + i; j < ctx_size; j++) {
-            pRow[j] = std::numeric_limits<T>::lowest();
-        }
-    }
-
-    // for a matrix like below where i = -inf (of type T)
-    // <-past -> < q >
-    // 000000000 0iiii
-    // 000000000 00iii
-    // 000000000 000ii
-    // 000000000 0000i
-    // 000000000 00000
-}
-
 }  // anonymous namespace
 
 // Compile-time dynamic information. Not much different from the above
@@ -86,27 +57,29 @@ struct Dynamic {
     std::vector<Param> params;
     std::size_t mask_idx = 0u;
 
-    ov::Tensor mask_data;
+    ov::Tensor attend_all;
+    std::size_t query_size = 0u;
 
     Dynamic() = default;
-    Dynamic(const function::Dynamic& s, const std::shared_ptr<ov::Model>& m) {
-        for (auto&& input : s._inputs) {
+    Dynamic(const function::Dynamic& d, const std::shared_ptr<ov::Model>& m) {
+        for (auto&& input : d._inputs) {
             std::size_t p_idx = m->get_parameter_index(input.param);
             params.push_back(Param{p_idx, input.dim});
         }
-        mask_idx = m->get_parameter_index(s._mask);
+        mask_idx = m->get_parameter_index(d._mask);
 
         // Create a mask data tensor here. Technically it is a runtime parameter,
         // but in fact it doesn't change in runtime (we ignore what user passes us!)
         // FIXME: Probably it is wrong
-        const auto mask_type = s._mask->get_element_type();
-        mask_data = ov::Tensor(mask_type, s._mask_shape);
+        const auto mask_type = d._mask->get_element_type();
+        attend_all = ov::Tensor(mask_type, d._mask_shape);
+
         switch (mask_type) {
         case ov::element::f16:
-            prepare_mask<ov::float16>(ov::get_tensor_impl(mask_data));
+            fill_tensor<ov::float16>(ov::get_tensor_impl(attend_all), 0);
             break;
         case ov::element::f32:
-            prepare_mask<float>(ov::get_tensor_impl(mask_data));
+            fill_tensor<float>(ov::get_tensor_impl(attend_all), 0);
             break;
         default:
             OPENVINO_THROW("Dynamic attenion mask type ", mask_type, " is not supported yet");

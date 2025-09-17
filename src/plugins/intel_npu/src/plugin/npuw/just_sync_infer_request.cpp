@@ -879,7 +879,9 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
 
     const auto& dynamic = comp_model_desc.dynamic.value();
     auto mask_iport = comp_model_desc.compiled_model->inputs()[dynamic.mask_idx];
-    auto mask_shape = dynamic.mask_data.get_shape();
+
+    const auto &graph_mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
+    auto mask_shape = graph_mask->get_shape();
     NPUW_ASSERT(mask_shape.size() == 4);
     auto query_size = mask_shape[2];
     auto ctx_size = mask_shape[3];
@@ -889,82 +891,53 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
     // FIXME: speculative decode is indistinguishable at this point!
 
     auto pos_id = m_dynamic_selector->length();
-    auto past_len = this_case == Case::GENERATE
-                        ? pos_id  // decode case, we have pos_id-1 past elements to take from kvcache
-                        : (pos_id / query_size) * query_size;  // chunked prefill case. how much chunks do we have?
 
-    // Set the past k/v values first, it is easy!
-    for (auto&& param : dynamic.params) {
-        const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-        const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
-
-        if (this_case == Case::GENERATE) {
-            if (pos_id > 0) {
-                // std::cout << "past " << iport << " -- " << past_len << std::endl;
-                r->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, past_len));
-            } else {
-                std::cout << "Shite! " << pos_id << std::endl;
-                r->set_tensor(iport, input);
-            }
-        } else if (this_case == Case::PREFILL) {
-            // Just set as-is
+    if (pos_id == -1) {
+        // Dynamic range couldn't be identified - fallback to the default
+        // (worst case) behavior
+        for (auto&& param : dynamic.params) {
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
             r->set_tensor(iport, input);
         }
-    }  // for(params)
-
-    // Now set the mask. Here comes very strong SDPA knowledge again
-
-    // Possible values for query_size:
-    // 1    - decode
-    // n    - n-way decode (speculative)
-    // N>>n - prefill chunk
-
-    // Here's how the _dense_ attention mask supposed to look like for each of these
-    // cases:
-    // - decode
-    //   [1111111111111 1]
-    // - speculative decode with n=4
-    //   [1111111111111 1000]
-    //   [1111111111111 1100]
-    //   [1111111111111 1110]
-    //   [1111111111111 1111]
-    // - prefill chunk
-    //   <past length>  <chunk>
-    //   [1111111111111 10...00] ^
-    //   [1111111111111 110..00] chunk
-    //   [...                  ] :
-    //   [1111111111111 1111111] v
-    // BTW since we add this mask, it is not 11/00 but 00/-inf.
-    // The mask itself is prepared for us by the compiled::Dynamic object.
-    // All we need to do here is to take a proper ROI from that tensor. Here's
-    // the rules:
-    // - "Proper ROI" calculation starts at the CTX-Q'th element
-    //   (separated by space in the diagrams above). Use this as a base point.
-    // - From that base point, we need to look to the left by position_ids-1 size.
-    // - We need to look to the right by Q size (query).
-    // - We take all rows.
-    // So it is just 1D slice!
-    try {
-        if (this_case == Case::GENERATE) {
-            if (pos_id > 0) {
-                auto dyn_ctx_size = past_len + query_size;
-                r->set_tensor(mask_iport,
-                              ov::npuw::util::view(ov::get_tensor_impl(dynamic.mask_data),
-                                                   3,
-                                                   ctx_size - dyn_ctx_size,
-                                                   dyn_ctx_size));
-            } else {
-                std::cout << "I was not prepared to that!" << std::endl;
+        const auto &mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
+        r->set_tensor(mask_iport, mask);
+    } else {
+        auto past_len = [&]() -> uint32_t {
+            switch (this_case) {
+            case Case::GENERATE:
+                // decode case, we have pos_id-1 past elements to take from kvcache
+                return pos_id;
+            case Case::PREFILL:
+                // chunked prefill case. calculate the past_length in full chunks
+                return (pos_id / query_size) * query_size;
+            default:
+                NPUW_ASSERT(false && "Reached the unreachable code");
             }
+        }();
+
+        // Set the past k/v values first, it is easy!
+        for (auto&& param : dynamic.params) {
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
+            r->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, past_len));
+        }  // for(params)
+
+        // Now set the mask. Here comes very strong chunking & SDPA knowledge again
+        if (this_case == Case::GENERATE) {
+            // Take a view from our "attend_all" mask
+            // FIXME: get the right dim
+            const auto &view = ov::npuw::util::view(ov::get_tensor_impl(dynamic.attend_all), 3, 0, past_len + 1);
+            r->set_tensor(mask_iport, view);
         } else if (this_case == Case::PREFILL) {
-            // Just set as-is
-            r->set_tensor(mask_iport, m_dynamic_io[idx].inputs.at(dynamic.mask_idx));
+            // Use our in-graph synthesized mask
+            // FIXME: get the right dim
+            const auto &input = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
+            const auto &view = ov::npuw::util::view(input, 3, ctx_size - query_size - past_len, query_size + past_len);
+            r->set_tensor(mask_iport, view);
         }
-        r->infer();
-    } catch (std::exception& ex) {
-        std::cout << ex.what() << std::endl;
-        throw;
     }
+    r->infer();
 }
 
 void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t idx) {

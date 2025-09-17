@@ -28,9 +28,6 @@ ov::npuw::runtime::dynamic::Selector::Ptr ov::npuw::runtime::dynamic::PositionID
 }
 
 void ov::npuw::runtime::dynamic::PositionIDs::prepare() {
-    // Find the current valid range for this attention mask
-    // Here we have the following (very strong) assumption:
-    // The attention mask is dense (that is, has zero or one continuous interest region)
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
@@ -39,7 +36,7 @@ void ov::npuw::runtime::dynamic::PositionIDs::prepare() {
     // a. Prefill input_ids, including chunk
     // b. Generate input_ids, 1
     // c. Generate input_ids, N (speculative)
-    // Prefill (even chunke) is left-padded, so for (a) it's enough to take the last element.
+    // Prefill (even chunked) is left-padded, so for (a) it's enough to take the last element.
     // Same works for b (there's no choise).
     // c may require traversing the tensor backwards as Generate with N>1 is right_padded (?)
 
@@ -51,7 +48,7 @@ void ov::npuw::runtime::dynamic::PositionIDs::prepare() {
         }
     }
     LOG_WARN("Dynamic selector - no data found in the feature?");
-    m_current_length = 0;
+    m_current_length = -1;
 }
 
 int64_t ov::npuw::runtime::dynamic::PositionIDs::length() {
