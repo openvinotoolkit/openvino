@@ -444,35 +444,12 @@ std::map<std::string, std::vector<std::string>> parse_input_parameters(
     // inputs)
     std::map<std::string, std::vector<std::string>> return_value;
     std::string search_string = parameter_string;
-    // When convert Stateless onnx LLM to statefull OV model, the input tensors in OV reduce since all {past_key, present_key} 
-    // and {past_value,present_value} are converted to Variables in OV model
     auto start_pos = search_string.find_first_of('[');
     auto input_name = search_string.substr(0, start_pos);
     while (start_pos != std::string::npos) {
         auto end_pos = search_string.find_first_of(']');
         if (end_pos == std::string::npos)
             break;
-        size_t found_past = input_name.find("past");
-        size_t found_key = input_name.find("key");
-        size_t found_value = input_name.find("value");
-        size_t found_present = input_name.find("present");
-
-        if (found_past != std::string::npos && found_key != std::string::npos){
-            search_string = "";
-            break;
-        }
-        if (found_past != std::string::npos && found_value != std::string::npos) {
-            search_string = "";
-            break;
-        }
-        if (found_present != std::string::npos && found_key != std::string::npos) {
-            search_string = "";
-            break;
-        }
-        if (found_present != std::string::npos && found_value != std::string::npos) {
-            search_string = "";
-            break;
-        }
         if (start_pos)
             input_name = search_string.substr(0, start_pos);
         auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
@@ -900,6 +877,27 @@ std::vector<std::string> filter_files_by_extensions(const std::vector<std::strin
 std::string parameter_name_to_tensor_name(const std::string& name,
                                           const std::vector<ov::Output<const ov::Node>>& inputs_info,
                                           const std::vector<ov::Output<const ov::Node>>& outputs_info) {
+    /*
+    auto found_past_key = name.find("past_keys");
+    auto found_past_value = name.find("past_values");
+    auto found_past_key_values = name.find("past_key_values");
+    auto found_key = name.find(".key");
+    auto found_value = name.find(".value");
+    auto found_present = name.find("present");
+
+    if (found_past_key != std::string::npos) {
+        return name;
+    }
+    if (found_past_value != std::string::npos) {
+        return name;
+    }
+    if (found_past_key_values != std::string::npos && found_key != std::string::npos) {
+        return name;
+    }
+    if (found_past_key_values != std::string::npos && found_value != std::string::npos) {
+        return name;
+    }
+    */
     // Looking for a tensor name match
     for (const auto& port : inputs_info) {
         if (port.get_names().count(name) > 0) {

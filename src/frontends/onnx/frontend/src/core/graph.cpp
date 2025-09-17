@@ -217,20 +217,36 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
    
     for(auto i = 0; i < params.size(); i++) {
         auto param_name = params.at(i)->output(0).get_any_name();
-        size_t found_past = param_name.find("past");
-        size_t found_key = param_name.find("key");
-        size_t found_value = param_name.find("value");
-        if (found_past != std::string::npos && found_key != std::string::npos)
+        size_t found_past_keys = param_name.find("past_keys");
+        size_t found_past_values = param_name.find("past_values");
+        size_t found_past = param_name.find("past_key_values");
+        size_t found_past_key_phi3 = param_name.find(".key");
+        size_t found_past_value_phi3 = param_name.find(".value");
+        if (found_past_keys != std::string::npos)
             past_keys.push_back(param_name);
-        if (found_past != std::string::npos && found_value != std::string::npos)
+        if (found_past_values != std::string::npos)
+            past_values.push_back(param_name);
+
+        if (found_past != std::string::npos && found_past_key_phi3 != std::string::npos)
+            past_keys.push_back(param_name);
+        if (found_past != std::string::npos && found_past_value_phi3 != std::string::npos)
             past_values.push_back(param_name);
     }
     
      for(auto i = 0; i < results.size(); i++){
         auto res_name = results.at(i)->output(0).get_any_name();
+        size_t found_present_keys = res_name.find("present_keys");
+        size_t found_present_values = res_name.find("present_values");
+
         size_t found_present = res_name.find("present");
-        size_t found_key = res_name.find("key");
-        size_t found_value = res_name.find("value");
+        size_t found_key = res_name.find(".key");
+        size_t found_value = res_name.find(".value");
+
+         if (found_present_keys != std::string::npos )
+            present_keys.push_back(res_name);
+         if (found_present_values != std::string::npos )
+             present_values.push_back(res_name);
+
         if (found_present != std::string::npos && found_key != std::string::npos)
             present_keys.push_back(res_name);
         if (found_present != std::string::npos && found_value != std::string::npos)
@@ -292,7 +308,7 @@ std::shared_ptr<ov::Model> Graph::convert() {
     convert_to_ov_nodes();
     remove_dangling_parameters();
     auto function = create_model();
-    convert_stateless_LLM_to_stateful_LLM(function);
+    //convert_stateless_LLM_to_stateful_LLM(function);
     set_metadata(function);
     return function;
 }
