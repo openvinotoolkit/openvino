@@ -11,6 +11,9 @@
 
 #include <memory>
 
+#define COPY_LOG(x) std::cout << __FUNCTION__ << ": " << __LINE__ << " Size(Byte): " << x << std::endl;
+
+
 namespace ov::intel_gpu {
 
 namespace {
@@ -41,15 +44,17 @@ struct MemWrapper {
         const bool is_blocking = true;
         if (m_data_ptr != nullptr) {
             OPENVINO_ASSERT(dst.m_mem_ptr, "[GPU] Unexpected host to host copy call for Remote Tensors");
-
+            COPY_LOG(size);
             // Device <== Host
             dst.m_mem_ptr->copy_from(m_stream, m_data_ptr, src_offset, dst_offset, size, is_blocking);
         } else {
             if (dst.m_data_ptr != nullptr) {
                 // Device ==> Host
+                COPY_LOG(size);
                 m_mem_ptr->copy_to(m_stream, dst.m_data_ptr, src_offset, dst_offset, size, is_blocking);
             } else {
                 // Device ==> Device
+                COPY_LOG(size);
                 m_mem_ptr->copy_to(m_stream, *dst.m_mem_ptr, src_offset, dst_offset, size, is_blocking);
             }
         }
@@ -73,6 +78,7 @@ static void copy_roi_recursively(const MemWrapper& src_mem,
     if (axis == roi_shape.size() - 1) {
         // Copy the innermost dimension
         const auto size = roi_strides[axis] * roi_shape[axis];
+        COPY_LOG(size);
         src_mem.copy_to(dst_mem, src_offset, dst_offset, size);
     } else {
         // Check if the current dimension and all inner dimensions can be copied as a single chunk
@@ -86,6 +92,7 @@ static void copy_roi_recursively(const MemWrapper& src_mem,
 
         if (can_copy_as_chunk) {
             const auto chunk_size = roi_strides[axis] * roi_shape[axis];
+            COPY_LOG(chunk_size);
             src_mem.copy_to(dst_mem, src_offset, dst_offset, chunk_size);
         } else {
             for (size_t i = 0; i < roi_shape[axis]; i++) {
