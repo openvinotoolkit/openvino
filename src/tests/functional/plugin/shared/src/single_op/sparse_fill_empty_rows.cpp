@@ -139,10 +139,12 @@ const SparseFillEmptyRowsLayerTest::TGenData SparseFillEmptyRowsLayerTest::GetSt
 
 const SparseFillEmptyRowsLayerTest::TGenData SparseFillEmptyRowsLayerTest::GetDynamicTestDataForDevice(const char* deviceName) {
     const std::vector<std::vector<InputShape>> input_shapes_dynamic = {{
-        // values: [M], dense_shape: [2], indices: [M, 2] - with dynamic M dimension
         {{{ov::Dimension(1, 20)}, {{4}, {8}, {6}}}, {{2}, {{2}}}, {{ov::Dimension(1, 20), 2}, {{4, 2}, {8, 2}, {6, 2}}}},
         {{{ov::Dimension(2, 16)}, {{10}, {12}, {14}}}, {{2}, {{2}}}, {{ov::Dimension(2, 16), 2}, {{10, 2}, {12, 2}, {14, 2}}}},
-        {{{ov::Dimension(1, 50)}, {{3}, {5}, {7}, {9}}}, {{2}, {{2}}}, {{ov::Dimension(1, 50), 2}, {{3, 2}, {5, 2}, {7, 2}, {9, 2}}}}
+        {{{ov::Dimension(1, 50)}, {{3}, {5}, {7}, {9}}}, {{2}, {{2}}}, {{ov::Dimension(1, 50), 2}, {{3, 2}, {5, 2}, {7, 2}, {9, 2}}}},
+        {{{ov::Dimension::dynamic()}, {{2}, {15}, {7}, {20}}}, {{2}, {{2}}}, {{ov::Dimension::dynamic(), 2}, {{2, 2}, {15, 2}, {7, 2}, {20, 2}}}},
+        {{{ov::Dimension::dynamic()}, {{1}, {9}, {13}, {25}}}, {{2}, {{2}}}, {{ov::Dimension::dynamic(), 2}, {{1, 2}, {9, 2}, {13, 2}, {25, 2}}}},
+        {{{ov::Dimension::dynamic()}, {{11}, {6}, {18}, {4}}}, {{2}, {{2}}}, {{ov::Dimension::dynamic(), 2}, {{11, 2}, {6, 2}, {18, 2}, {4, 2}}}}
     }};
 
     const std::vector<std::vector<float>> default_values = {{0.0f}, {42.0f}};
