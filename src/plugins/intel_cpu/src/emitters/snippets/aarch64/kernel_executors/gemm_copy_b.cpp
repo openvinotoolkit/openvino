@@ -21,7 +21,6 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/utils/utils.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -141,7 +140,7 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
         size_t n_start = n_block * n_blk_size;
         size_t n_end = std::min(n_start + n_blk_size, N);
         size_t n_step = n_end - n_start;
-        auto* src_ptr = static_cast<int8_t*>(in0) + static_cast<size_t>(n_start) * copy_b_col_stride;
+        auto* src_ptr = static_cast<int8_t*>(in0) + n_start * copy_b_col_stride;
         auto* dst_base = static_cast<int8_t*>(out0);
         if (is_fp16) {
             const auto& uk = *kernel->copy_b_ukernel_f16;
