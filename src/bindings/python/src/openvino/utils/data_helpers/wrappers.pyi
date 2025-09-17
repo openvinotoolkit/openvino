@@ -14,7 +14,7 @@ import numpy
 import numpy as np
 import openvino._pyopenvino
 import typing
-__all__ = ['ConstOutput', 'InferRequestBase', 'ItemsView', 'Iterator', 'KeysView', 'Mapping', 'OVDict', 'Tensor', 'ValuesView', 'np', 'singledispatchmethod', 'tensor_from_file']
+__all__: list[str] = ['ConstOutput', 'InferRequestBase', 'ItemsView', 'Iterator', 'KeysView', 'Mapping', 'OVDict', 'Tensor', 'ValuesView', 'np', 'singledispatchmethod', 'tensor_from_file']
 class OVDict(collections.abc.Mapping):
     """
     Custom OpenVINO dictionary with inference results.

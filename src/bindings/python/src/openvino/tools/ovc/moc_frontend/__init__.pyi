@@ -12,4 +12,4 @@ from . import pytorch_frontend_utils
 from . import shape_utils
 from . import type_utils
 from __future__ import annotations
-__all__ = ['analysis', 'check_config', 'extractor', 'jax_frontend_utils', 'layout_utils', 'moc_emit_ir', 'paddle_frontend_utils', 'pipeline', 'preprocessing', 'pytorch_frontend_utils', 'shape_utils', 'type_utils']
+__all__: list[str] = ['analysis', 'check_config', 'extractor', 'jax_frontend_utils', 'layout_utils', 'moc_emit_ir', 'paddle_frontend_utils', 'pipeline', 'preprocessing', 'pytorch_frontend_utils', 'shape_utils', 'type_utils']

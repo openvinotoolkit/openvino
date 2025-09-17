@@ -29,7 +29,7 @@ import warnings as warnings
 """
 Factory functions for all openvino ops.
 """
-__all__ = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'as_node', 'as_nodes', 'assert_list_of_ints', 'batch_to_space', 'binary_op', 'check_valid_attributes', 'gelu', 'get_dtype', 'get_element_type', 'get_element_type_str', 'is_non_negative_value', 'is_positive_value', 'make_constant_node', 'mvn', 'nameable_op', 'np', 'partial', 'reorg_yolo', 'roi_pooling', 'space_to_batch', 'unary_op', 'warnings']
+__all__: list[str] = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'as_node', 'as_nodes', 'assert_list_of_ints', 'batch_to_space', 'binary_op', 'check_valid_attributes', 'gelu', 'get_dtype', 'get_element_type', 'get_element_type_str', 'is_non_negative_value', 'is_positive_value', 'make_constant_node', 'mvn', 'nameable_op', 'np', 'partial', 'reorg_yolo', 'roi_pooling', 'space_to_batch', 'unary_op', 'warnings']
 def batch_to_space(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Perform BatchToSpace operation on the input tensor.

@@ -14,7 +14,7 @@ import typing
 """
 Factory functions for all openvino ops.
 """
-__all__ = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'eye', 'generate_proposals', 'grid_sample', 'irdft', 'make_constant_node', 'multiclass_nms', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rdft', 'roi_align', 'softsign']
+__all__: list[str] = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'eye', 'generate_proposals', 'grid_sample', 'irdft', 'make_constant_node', 'multiclass_nms', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rdft', 'roi_align', 'softsign']
 def eye(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return a node which performs eye operation.

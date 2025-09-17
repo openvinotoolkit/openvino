@@ -8,7 +8,7 @@ import typing
 """
 Package ngraph.impl.op that wraps ov::op
 """
-__all__ = ['Constant', 'Parameter', 'Result', 'assign', 'if_op', 'loop', 'read_value', 'tensor_iterator', 'util']
+__all__: list[str] = ['Constant', 'Parameter', 'Result', 'assign', 'if_op', 'loop', 'read_value', 'tensor_iterator', 'util']
 class Constant(openvino._pyopenvino.Node):
     """
     openvino.op.Constant wraps ov::op::v0::Constant

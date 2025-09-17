@@ -5,7 +5,7 @@ import typing
 """
 openvino.properties.device submodule that simulates ov::device
 """
-__all__ = ['Capability', 'PCIInfo', 'Priorities', 'Type', 'architecture', 'capabilities', 'full_name', 'gops', 'id', 'luid', 'pci_info', 'priorities', 'properties', 'thermal', 'type', 'uuid']
+__all__: list[str] = ['Capability', 'PCIInfo', 'Priorities', 'Type', 'architecture', 'capabilities', 'full_name', 'gops', 'id', 'luid', 'pci_info', 'priorities', 'properties', 'thermal', 'type', 'uuid']
 class Capability:
     """
     openvino.properties.device.Capability that simulates ov::device::capability

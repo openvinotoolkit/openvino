@@ -9,7 +9,7 @@ from openvino.exceptions import UserInputError
 from pathlib import Path
 import openvino._pyopenvino
 import typing
-__all__ = ['DEFAULT_OPSET', 'Extension', 'Node', 'NodeFactory', 'Output', 'Path', 'UserInputError', 'singledispatchmethod']
+__all__: list[str] = ['DEFAULT_OPSET', 'Extension', 'Node', 'NodeFactory', 'Output', 'Path', 'UserInputError', 'singledispatchmethod']
 class NodeFactory:
     """
     Factory front-end to create node objects.

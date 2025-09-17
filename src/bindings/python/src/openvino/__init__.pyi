@@ -59,21 +59,22 @@ from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Strides
 from openvino._pyopenvino import Symbol
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import TensorVector
 from openvino._pyopenvino import Type
 from openvino._pyopenvino import VAContext
 from openvino._pyopenvino import VASurfaceTensor
 from openvino._pyopenvino import Version
+from openvino._pyopenvino import get_batch
+from openvino._pyopenvino import get_version
 from openvino._pyopenvino import layout_helpers
-from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import get_batch
-from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import get_version
-from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import save_model
-from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import serialize
-from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import set_batch
-from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import shutdown
+from openvino._pyopenvino import save_model
+from openvino._pyopenvino import serialize
+from openvino._pyopenvino import set_batch
+from openvino._pyopenvino import shutdown
 from openvino.package_utils import LazyLoader
 from openvino.package_utils import _add_openvino_libs_to_search_path
 from openvino.tools.ovc.convert import convert_model
 from openvino.utils.data_helpers.wrappers import tensor_from_file
-__all__ = ['AsyncInferQueue', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'Coordinate', 'CoordinateDiff', 'Core', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'InferRequest', 'Input', 'Layout', 'LazyLoader', 'Model', 'Node', 'OVAny', 'Op', 'OpExtension', 'Output', 'PartialShape', 'ProfilingInfo', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'Tensor', 'Type', 'VAContext', 'VASurfaceTensor', 'Version', 'compile_model', 'convert_model', 'exceptions', 'experimental', 'frontend', 'get_batch', 'get_version', 'helpers', 'layout_helpers', 'op', 'opset1', 'opset10', 'opset11', 'opset12', 'opset13', 'opset14', 'opset15', 'opset16', 'opset2', 'opset3', 'opset4', 'opset5', 'opset6', 'opset7', 'opset8', 'opset9', 'package_utils', 'preprocess', 'properties', 'runtime', 'save_model', 'serialize', 'set_batch', 'shutdown', 'tensor_from_file', 'tools', 'utils']
+__all__: list[str] = ['AsyncInferQueue', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'Coordinate', 'CoordinateDiff', 'Core', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'InferRequest', 'Input', 'Layout', 'LazyLoader', 'Model', 'Node', 'OVAny', 'Op', 'OpExtension', 'Output', 'PartialShape', 'ProfilingInfo', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'Tensor', 'TensorVector', 'Type', 'VAContext', 'VASurfaceTensor', 'Version', 'compile_model', 'convert_model', 'exceptions', 'experimental', 'frontend', 'get_batch', 'get_version', 'helpers', 'layout_helpers', 'op', 'opset1', 'opset10', 'opset11', 'opset12', 'opset13', 'opset14', 'opset15', 'opset16', 'opset2', 'opset3', 'opset4', 'opset5', 'opset6', 'opset7', 'opset8', 'opset9', 'package_utils', 'preprocess', 'properties', 'runtime', 'save_model', 'serialize', 'set_batch', 'shutdown', 'tensor_from_file', 'tools', 'utils']
 __version__: str = 'version_string'
 runtime: package_utils.LazyLoader  # value = <LazyLoader for module 'openvino.runtime'>

@@ -5,7 +5,7 @@ import typing
 """
 openvino.properties.streams submodule that simulates ov::streams
 """
-__all__ = ['Num', 'num']
+__all__: list[str] = ['Num', 'num']
 class Num:
     AUTO: typing.ClassVar[Num]  # value = <openvino._pyopenvino.properties.streams.Num object>
     NUMA: typing.ClassVar[Num]  # value = <openvino._pyopenvino.properties.streams.Num object>

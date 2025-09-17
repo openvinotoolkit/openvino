@@ -6,7 +6,7 @@ import typing
 """
 openvino.properties.intel_gpu.hint submodule that simulates ov::intel_gpu::hint
 """
-__all__ = ['ThrottleLevel', 'available_device_mem', 'enable_lora_operation', 'host_task_priority', 'queue_priority', 'queue_throttle']
+__all__: list[str] = ['ThrottleLevel', 'available_device_mem', 'enable_lora_operation', 'host_task_priority', 'queue_priority', 'queue_throttle']
 class ThrottleLevel:
     """
     openvino.properties.intel_gpu.hint.ThrottleLevel that simulates ov::intel_gpu::hint::ThrottleLevel

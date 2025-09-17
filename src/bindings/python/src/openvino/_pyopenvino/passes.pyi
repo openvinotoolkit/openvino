@@ -7,7 +7,7 @@ import typing
 """
 Package openvino.passes wraps ov::passes
 """
-__all__ = ['AnyInput', 'BackwardGraphRewrite', 'ConstantFolding', 'ConvertFP32ToFP16', 'GraphRewrite', 'LowLatency2', 'MakeStateful', 'Manager', 'Matcher', 'MatcherPass', 'ModelPass', 'Optional', 'Or', 'PassBase', 'PatternSymbolValue', 'Predicate', 'Serialize', 'Version', 'VisualizeTree', 'WrapType', 'attrs_match', 'consumers_count', 'has_static_dim', 'has_static_dims', 'has_static_rank', 'has_static_shape', 'rank_equals', 'rank_more_than', 'shape_matches', 'type_matches', 'type_matches_any']
+__all__: list[str] = ['AnyInput', 'BackwardGraphRewrite', 'ConstantFolding', 'ConvertFP32ToFP16', 'GraphRewrite', 'LowLatency2', 'MakeStateful', 'Manager', 'Matcher', 'MatcherPass', 'ModelPass', 'Optional', 'Or', 'PassBase', 'PatternSymbolValue', 'Predicate', 'Serialize', 'Version', 'VisualizeTree', 'WrapType', 'attrs_match', 'consumers_count', 'has_static_dim', 'has_static_dims', 'has_static_rank', 'has_static_shape', 'rank_equals', 'rank_more_than', 'shape_matches', 'type_matches', 'type_matches_any']
 class AnyInput(openvino._pyopenvino.Node):
     """
     openvino.passes.AnyInput wraps ov::pass::pattern::op::Label

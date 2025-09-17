@@ -11,7 +11,7 @@ import numpy as np
 import openvino._pyopenvino
 import re as re
 import typing
-__all__ = ['Enum', 'Error', 'IOType', 'InputModel', 'PartialShape', 'Place', 'convert_params_lists_to_dicts', 'decode_name_with_port', 'fe_input_user_data_repack', 'fe_output_user_data_repack', 'fe_user_data_repack', 'find_first_unused_input', 'np', 'raise_no_node', 'raise_node_name_collision', 're']
+__all__: list[str] = ['Enum', 'Error', 'IOType', 'InputModel', 'PartialShape', 'Place', 'convert_params_lists_to_dicts', 'decode_name_with_port', 'fe_input_user_data_repack', 'fe_output_user_data_repack', 'fe_user_data_repack', 'find_first_unused_input', 'np', 'raise_no_node', 'raise_node_name_collision', 're']
 class IOType(enum.Enum):
     """
     An enumeration.

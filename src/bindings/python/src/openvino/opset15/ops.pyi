@@ -16,7 +16,7 @@ import typing
 """
 Factory functions for ops added to openvino opset15.
 """
-__all__ = ['Node', 'NodeInput', 'Type', 'as_nodes', 'binary_op', 'bitwise_left_shift', 'bitwise_right_shift', 'col2im', 'constant', 'convert_like', 'embedding_bag_offsets', 'embedding_bag_packed', 'nameable_op', 'np', 'partial', 'roi_align_rotated', 'scatter_nd_update', 'search_sorted', 'slice_scatter', 'squeeze', 'stft', 'string_tensor_pack', 'string_tensor_unpack']
+__all__: list[str] = ['Node', 'NodeInput', 'Type', 'as_nodes', 'binary_op', 'bitwise_left_shift', 'bitwise_right_shift', 'col2im', 'constant', 'convert_like', 'embedding_bag_offsets', 'embedding_bag_packed', 'nameable_op', 'np', 'partial', 'roi_align_rotated', 'scatter_nd_update', 'search_sorted', 'slice_scatter', 'squeeze', 'stft', 'string_tensor_pack', 'string_tensor_unpack']
 def bitwise_left_shift(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return node which performs BitwiseLeftShift operation on input nodes element-wise.
