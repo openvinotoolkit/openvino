@@ -2243,7 +2243,9 @@ TEST_P(CachingTest, LoadAUTO_OneDeviceNoImportExport) {
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 2 : 0);
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
         .Times(!m_remoteContext ? 2 : 0);
-    EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(m_type == TestLoadType::EModelName ? 2 : 0);
+    // AUTO will always read the model from the file before compilation on the target device if it does not support
+    // import/export. This is because the devices without import/export capabilities cannot generate cache blob.
+    EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(0);
     EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
     testLoad([&](ov::Core& core) {

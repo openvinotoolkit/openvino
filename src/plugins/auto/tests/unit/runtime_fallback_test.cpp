@@ -98,21 +98,21 @@ public:
             }));
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                              ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              ::testing::Matcher<const std::string&>(AnyOf(StrEq("OTHER"), StrEq("GPU.1"))),
                               _))
-            .WillByDefault(InvokeWithoutArgs([this]() {
+            .WillByDefault([this](const std::shared_ptr<const ov::Model>& model,
+                                  const std::string& device,
+                                  const ov::AnyMap& config) {
+                if (!model) {
+                    // If the model for runtime fallback is not set, throw an exception
+                    OPENVINO_THROW("Model is not set for OTHER device");
+                }
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                return mockExeNetworkGPU_1;
-            }));
-        ON_CALL(*core,
-                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
-                              ::testing::Matcher<const std::string&>(StrEq("OTHER")),
-                              _))
-            .WillByDefault(InvokeWithoutArgs([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                if (device == "GPU.1") {
+                    return mockExeNetworkGPU_1;
+                }
                 return mockExeNetworkOTHER;
-            }));
-
+            });
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
@@ -271,6 +271,8 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
     config.insert(ov::device::priorities(targetDev));
     if (!enableRumtimeFallback) {
         config.insert(ov::intel_auto::enable_runtime_fallback(false));
+    } else {
+        config.insert(ov::intel_auto::enable_runtime_fallback(true));
     }
 
     EXPECT_CALL(*core,
@@ -460,6 +462,8 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
     config.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     if (!enableRumtimeFallback) {
         config.insert(ov::intel_auto::enable_runtime_fallback(false));
+    } else {
+        config.insert(ov::intel_auto::enable_runtime_fallback(true));
     }
 
     EXPECT_CALL(*core,

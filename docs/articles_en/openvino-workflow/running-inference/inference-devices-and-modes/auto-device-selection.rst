@@ -179,8 +179,10 @@ the following setup options:
 |                                              | Enables/disables runtime fallback to other devices and performs    |
 |                                              | the failed inference request again, if inference request fails on  |
 |                                              | the currently selected device.                                     |
+|                                              | Should disable runtime fallback if the type of model loaded from   |
+|                                              | cached blob file is stateful model.                                |
 |                                              |                                                                    |
-|                                              | The default value is ``true``.                                     |
+|                                              | The default value is ``false``.                                    |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::intel_auto::schedule_policy``          | **Values**:                                                        |
 |                                              |                                                                    |
