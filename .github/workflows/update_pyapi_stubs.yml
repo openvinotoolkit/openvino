@@ -1,8 +1,6 @@
 name: Update Python API Stubs
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: read-all
 
 on:
   schedule:
@@ -43,7 +41,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
         with:
-            token: ${{ secrets.GITHUB_TOKEN }}
+            token: ${{ secrets.EXTERNAL_LABELLER_TOKEN }}
             commit-message: Update Python API stub files
             title: "[PyOV] Update Python API stub files"
             signoff: true

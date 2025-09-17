@@ -161,3 +161,29 @@ bool ov::npuw::patterns::pre_compute::RopeCache::run_on_model(const std::shared_
     ov::npuw::patterns::pre_compute::RopeCacheMatcher ropeCache(m_max_prompt_len, model);
     return true;
 }
+
+//     Const -------> Gather ---> Convert ---> Squeeze ---> Unsqeeze
+//     Parameter --->
+ov::npuw::patterns::pre_compute::PreserveConstsRope::PreserveConstsRope(
+    ov::npuw::patterns::pre_compute::PreserveConstsRope::Results to_keep) {
+    auto pids = opp::wrap_type<ov::op::v0::Parameter>();
+
+    auto cnst = opp::wrap_type<ov::op::v0::Constant>();
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({cnst, pids, opp::any_input()});
+
+    auto cvtg = opp::wrap_type<ov::op::v0::Convert>({gather});
+    auto squeeze = opp::wrap_type<ov::op::v0::Squeeze>({cvtg, opp::any_input()});
+    auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({squeeze, opp::any_input()});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_cnst = node_to_output.at(cnst).get_node_shared_ptr();
+        auto matched_cnst = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_cnst);
+
+        to_keep.get().push_back(matched_cnst);
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "PrecomputePreserveConstsRope"), std::move(callback));
+}

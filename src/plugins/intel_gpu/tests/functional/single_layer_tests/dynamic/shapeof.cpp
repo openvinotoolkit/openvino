@@ -21,7 +21,7 @@ typedef std::tuple<
 class ShapeOfLayerGPUTest : public testing::WithParamInterface<ShapeOfLayerGPUTestParamsSet>,
                             virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ShapeOfLayerGPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ShapeOfLayerGPUTestParamsSet>& obj) {
         const auto& [inputShape, model_type] = obj.param;
 
         std::ostringstream result;

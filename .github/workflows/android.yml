@@ -1,4 +1,4 @@
-name: Android x64
+name: Android
 on:
   workflow_dispatch:
     inputs:
@@ -15,13 +15,10 @@ on:
 
 concurrency:
   # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android-x64
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android
   cancel-in-progress: true
 
 permissions: read-all
-
-env:
-  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -81,6 +78,7 @@ jobs:
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
   Build:
+    name: Build ${{ matrix.arch }}
     needs: [Smart_CI, Docker]
     if: "!needs.smart_ci.outputs.skip_workflow"
     timeout-minutes: 150
@@ -88,13 +86,25 @@ jobs:
       run:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            android_abi: arm64-v8a
+          - arch: x64
+            android_abi: x86_64
+#          - arch: riscv64          # experimental
+#            android_abi: riscv64
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_android }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
     env:
+      TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      CMAKE_GENERATOR: 'Ninja'
+      BUILD_TYPE: Release
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -105,17 +115,22 @@ jobs:
       OPENVINO_GENAI_REPO: '/__w/openvino/openvino/openvino.genai'
       BUILD_DIR: '/__w/openvino/openvino/build'
       ANDROID_TOOLS: '/deps/android_tools'
-      ANDROID_NDK_HOME: '/deps/android_tools/ndk/26.1.10909125'
-      ANDROID_SDK_VERSION: 29
-      ANDROID_ABI_CONFIG: x86_64
-      SCCACHE_AZURE_KEY_PREFIX: android_x64
+      ANDROID_NDK_HOME: '/deps/android_tools/ndk/28.2.13676358'
+      ANDROID_SDK_VERSION: 35
+      ANDROID_ABI_CONFIG: ${{ matrix.android_abi }}
+      TBB_BRANCH: 'v2022.2.0'
+      TBB_SRC: "/__w/openvino/openvino/build/onetbb-src"
+      TBB_BUILD: "/__w/openvino/openvino/build/onetbb-build"
+      TBB_INSTALL: "/__w/openvino/openvino/build/onetbb-install"
+      TBB_CMAKE_DIR: "/__w/openvino/openvino/build/onetbb-install/lib/cmake/TBB"
+      SCCACHE_AZURE_KEY_PREFIX: android_${{ matrix.arch }}
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           path: 'openvino'
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: Clone OpenVINO GenAI
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -137,30 +152,68 @@ jobs:
       # Build
       #
 
-      - name: CMake - configure
+      - name: Clean ccache stats
+        run: ${SCCACHE_PATH} --zero-stats
+
+      - name: Clone OneTBB
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          repository: 'oneapi-src/oneTBB'
+          path: ${{ env.TBB_SRC }}
+          submodules: 'true'
+          ref: ${{ env.TBB_BRANCH }}
+          
+      - name: Configure OneTBB CMake project
         run: |
           cmake \
-            -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake \
+            -G '${{ env.CMAKE_GENERATOR }}' \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_INSTALL_PREFIX=${{ env.TBB_INSTALL }} \
+            -DCMAKE_TOOLCHAIN_FILE=${{ env.ANDROID_NDK_HOME }}/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
-            -DANDROID_STL=c++_shared \
             -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
+            -DANDROID_STL=c++_shared \
+            -DTBB_TEST=OFF \
+            -DTBB_STRICT=OFF \
+            -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--undefined-version" \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
+            -S ${TBB_SRC} \
+            -B ${TBB_BUILD}
+
+      - name: Build OneTBB project
+        run: cmake --build ${TBB_BUILD} --parallel $(nproc)
+
+      - name: Install OneTBB project
+        run: cmake --install ${TBB_BUILD}
+
+      - name: CMake - configure OpenVINO
+        run: |
+          cmake \
+            -G '${{ env.CMAKE_GENERATOR }}' \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_TOOLCHAIN_FILE=${{ env.ANDROID_NDK_HOME }}/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
+            -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
+            -DANDROID_STL=c++_shared \
+            -DENABLE_TESTS=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DENABLE_SYSTEM_TBB=OFF \
+            -DTHREADING=TBB \
+            -DTBB_DIR=${{ env.TBB_CMAKE_DIR }} \
+            -DTBBROOT=${{ env.TBB_INSTALL }} \
+            -DENABLE_FASTER_BUILD=ON \
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DENABLE_LTO=ON \
             -DENABLE_PYTHON=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_FASTER_BUILD=ON \
-            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
-      - name: Clean ccache stats
-        run: ${SCCACHE_PATH} --zero-stats
-
-      - name: Cmake - build
+      - name: CMake - build OpenVINO
         run: cmake --build ${BUILD_DIR} --parallel $(nproc)
 
       - name: Show ccache stats
@@ -173,7 +226,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: build_logs
+          name: build_logs_${{ matrix.arch }}
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
