@@ -32,7 +32,7 @@ CPU
 
       * Windows 11, 64-bit
       * Windows 10, 64-bit
-      * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+) (preview support)
+      * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+)
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * macOS 12.6 and above, 64-bit and ARM64
