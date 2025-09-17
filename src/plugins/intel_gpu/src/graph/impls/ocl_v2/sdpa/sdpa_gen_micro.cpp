@@ -956,6 +956,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         if (has_scores_output) {
             jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.output_layouts[1], out_offsets_map.at(1)));
         }
+        jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         jit.add(make_tensors_jit_constants(params));
