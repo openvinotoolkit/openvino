@@ -34,7 +34,7 @@ public:
     std::shared_ptr<ov::threading::ImmediateExecutor> mockExecutorOTHER;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [targetDevices,
                      loadNetworkNum,
                      enableRumtimeFallback,
