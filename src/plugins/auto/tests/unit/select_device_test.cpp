@@ -32,7 +32,7 @@ std::vector<ConfigParams> testConfigs;
 
 class SelectDeviceTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [netPrecision, devices, expect, throwExcept, enabledevice_priority, reverse] = obj.param;
         std::ostringstream result;
         result << "_netPrecision_" << netPrecision;
