@@ -68,7 +68,7 @@ bool Validate::is_supported_matmul(const std::shared_ptr<const ov::Node>& op) {
 
 bool Validate::is_supported_softmax(const std::shared_ptr<const ov::Node>& op) {
     // Softmax is supported only with axis by last dim
-    const auto axis = utils::get_softmax_axis_last_dim(op);
+    const auto axis = utils::get_softmax_axis(op);
     if (!axis) {
         return false;
     }

@@ -153,13 +153,13 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
     return 0;
 }
 
-std::optional<int64_t> get_softmax_axis_last_dim(const std::shared_ptr<const ov::Node>& node) {
+std::optional<int64_t> get_softmax_axis(const std::shared_ptr<const ov::Node>& node) {
     if (!node) {
-        return std::nullopt;
+        return {};
     }
     const auto rank = node->get_input_partial_shape(0).rank();
     if (rank.is_dynamic()) {
-        return std::nullopt;
+        return {};
     }
     if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(node)) {
         return static_cast<int64_t>(ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *softmax_v8));
@@ -167,11 +167,11 @@ std::optional<int64_t> get_softmax_axis_last_dim(const std::shared_ptr<const ov:
     if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(node)) {
         const auto axis = softmax_v1->get_axis();
         if (static_cast<int64_t>(axis) >= rank.get_length()) {
-            return std::nullopt;
+            return {};
         }
         return static_cast<int64_t>(axis);
     }
-    return std::nullopt;
+    return {};
 }
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {

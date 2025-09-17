@@ -60,7 +60,7 @@ bool TokenizeMLPSeqSnippets::is_matmul_supported(const std::shared_ptr<ov::Node>
 }
 
 bool TokenizeMLPSeqSnippets::is_supported_softmax(const std::shared_ptr<ov::Node>& node) {
-    const auto axis = ov::snippets::utils::get_softmax_axis_last_dim(node);
+    const auto axis = ov::snippets::utils::get_softmax_axis(node);
     if (!axis) {
         return false;
     }

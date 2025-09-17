@@ -193,7 +193,7 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
         if (n->get_input_size() != 1) {
             return false;
         }
-        const auto axis = ov::snippets::utils::get_softmax_axis_last_dim(n);
+        const auto axis = ov::snippets::utils::get_softmax_axis(n);
         if (!axis) {
             return false;
         }

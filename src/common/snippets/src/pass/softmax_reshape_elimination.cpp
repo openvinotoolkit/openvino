@@ -48,7 +48,7 @@ ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             }
 
             const auto softmax_rank = softmax_shape.rank();
-            const auto axis = ov::snippets::utils::get_softmax_axis_last_dim(softmax);
+            const auto axis = ov::snippets::utils::get_softmax_axis(softmax);
             // Supports only last axis
             if (!axis || *axis != static_cast<int64_t>(softmax_rank.get_length()) - 1) {
                 return false;

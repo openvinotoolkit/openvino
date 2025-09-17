@@ -43,7 +43,7 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
         OPENVINO_ASSERT(!pshape.rank().is_dynamic(), "SoftmaxDecomposition doesn't support dynamic ranks");
         const auto rank = pshape.size();
 
-        const auto axis = ov::snippets::utils::get_softmax_axis_last_dim(softmax);
+        const auto axis = ov::snippets::utils::get_softmax_axis(softmax);
         if (!axis) {
             OPENVINO_THROW("Unexpected node matched");
         }

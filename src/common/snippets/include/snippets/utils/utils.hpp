@@ -86,7 +86,9 @@ inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> 
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;
 }
 
-std::optional<int64_t> get_softmax_axis_last_dim(const std::shared_ptr<const ov::Node>& node);
+// Returns the normalized Softmax axis when the node is a Softmax with a static rank.
+// Returns nullopt if the node is null, has a dynamic rank, or is not a supported Softmax version.
+std::optional<int64_t> get_softmax_axis(const std::shared_ptr<const ov::Node>& node);
 
 template <typename T, typename... Args>
 constexpr bool any_of(T val, Args... items) {

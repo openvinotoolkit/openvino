@@ -307,7 +307,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
                 return false;
             }
 
-            const auto axis = ov::snippets::utils::get_softmax_axis_last_dim(interm_op);
+            const auto axis = ov::snippets::utils::get_softmax_axis(interm_op);
             const auto rank = static_cast<int64_t>(interm_op->get_input_partial_shape(0).rank().get_length());
             if (!axis || *axis != (rank - 1) || interm_op->get_output_target_inputs(0).size() != 1) {
                 return false;
