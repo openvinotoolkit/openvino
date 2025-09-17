@@ -31,8 +31,17 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
     auto past_v_cvt = opp::optional<ov::op::v0::Convert>({past_v_in->output(0)});
     auto past_v_cat = opp::wrap_type<ov::op::v0::Concat>({past_v_cvt, opp::any_input()});
 
+    // Optional part, probably one of many. Replace by graph traversal!
+    auto opt_unsq_k = opp::optional<ov::op::v0::Unsqueeze>({past_k_cat->output(0), opp::any_input()});
+    auto opt_bcast_k = opp::optional<ov::op::v3::Broadcast>({opt_unsq_k->output(0), opp::any_input()});
+    auto opt_rshp_k = opp::optional<ov::op::v1::Reshape>({opt_bcast_k->output(0), opp::any_input()});
+
+    auto opt_unsq_v = opp::optional<ov::op::v0::Unsqueeze>({past_v_cat->output(0), opp::any_input()});
+    auto opt_bcast_v = opp::optional<ov::op::v3::Broadcast>({opt_unsq_v->output(0), opp::any_input()});
+    auto opt_rshp_v = opp::optional<ov::op::v1::Reshape>({opt_bcast_v->output(0), opp::any_input()});
+
     auto sdpa = opp::wrap_type<ov::op::v13::ScaledDotProductAttention>(
-        {opp::any_input(), past_k_cat, past_v_cat, opp::any_input(), opp::any_input()});
+        {opp::any_input(), opt_rshp_k, opt_rshp_v, opp::any_input(), opp::any_input()});
     auto trans = opp::wrap_type<ov::op::v1::Transpose>({sdpa, opp::any_input()});
     auto reshape = opp::wrap_type<ov::op::v1::Reshape>({trans, opp::any_input()});
 
@@ -47,6 +56,12 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
                                                                     past_v_in,
                                                                     past_v_cvt,
                                                                     past_v_cat,
+                                                                    opt_unsq_k ,
+                                                                    opt_bcast_k,
+                                                                    opt_rshp_k ,
+                                                                    opt_unsq_v ,
+                                                                    opt_bcast_v,
+                                                                    opt_rshp_v ,
                                                                     sdpa,
                                                                     trans,
                                                                     reshape};
