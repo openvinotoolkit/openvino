@@ -368,15 +368,9 @@ inline bool less_or_equal(double a, double b) {
 
 template <typename T>
 inline constexpr bool is_ov_integral =
-    std::is_same_v<T, char> || 
-    std::is_same_v<T, int8_t> ||
-    std::is_same_v<T, int16_t> ||
-    std::is_same_v<T, int32_t> ||
-    std::is_same_v<T, int64_t> ||
-    std::is_same_v<T, uint8_t> ||
-    std::is_same_v<T, uint16_t>||
-    std::is_same_v<T, uint32_t>||
-    std::is_same_v<T, uint64_t>;
+    std::is_same_v<T, char> || std::is_same_v<T, int8_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, int32_t> ||
+    std::is_same_v<T, int64_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> ||
+    std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t>;
 
 template <typename T>
 inline bool value_is_out_of_limits(T value, bool upper_bound_check) {
@@ -420,7 +414,8 @@ protected:
     size_t tensor_size;
 
     void emplace_back(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
-        std::cout<<"incorrect_values_abs ++"<< in_actual_value<<", " << in_expected_value << ", " << in_threshold << std::endl;
+        std::cout << "incorrect_values_abs ++" << in_actual_value << ", " << in_expected_value << ", " << in_threshold
+                  << std::endl;
         incorrect_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
     }
 
