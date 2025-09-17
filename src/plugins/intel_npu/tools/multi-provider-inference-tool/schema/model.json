@@ -9,15 +9,15 @@
         ],
         "properties" : {
             "shape": {
-                "$comment": "Is allowed only for 'type' of 'bin': specifies a shape of a binary blob",
+                "$comment": "Specifies a shape of the model input",
                 "type": ["array", "string"]
             },
             "layout": {
-                "$comment": "Is allowed only for 'type' of 'bin': specifies a layout of a binary blob",
+                "$comment": "Specifies a layout of the model input",
                 "type": ["array", "string"]
             },
             "element_type": {
-                "$comment": "Is allowed only for 'type' of 'bin': specifies an data type of a binary blob",
+                "$comment": "Specifies a data type of the model input",
                 "type": "string"
             }
         }

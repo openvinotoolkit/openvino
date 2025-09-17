@@ -37,19 +37,12 @@ class UtilsTests_tensor_info_validation(unittest.TestCase):
             self.tensor_info.set_type("my_nonexisting_type")
 
     def test_missing_necessary_attrs(self):
-        for attr in TensorInfo.necessary_attrs:
+        for attr in ["data", "element_type", "model", "shape"]:
             tensor_info_copy = copy.deepcopy(self.tensor_info)
             del tensor_info_copy.info[attr]
 
             with self.assertRaises(RuntimeError):
                 tensor_info_copy.validate()
-
-    def test_missing_ext_attrs(self):
-        for attr in TensorInfo.ext_attrs:
-            tensor_info_copy = copy.deepcopy(self.tensor_info)
-            del tensor_info_copy.info[attr]
-
-            tensor_info_copy.validate()
 
     def test_shape_correction(self):
         self.tensor_info.info["shape"] = "[10,20,30,40,50]"

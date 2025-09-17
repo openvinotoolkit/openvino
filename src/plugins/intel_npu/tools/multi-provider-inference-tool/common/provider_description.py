@@ -8,6 +8,7 @@ from pathlib import Path
 
 from common.converters import layout_to_str, shape_to_list
 from common.model_description_schema import ModelInfoData
+from common.tensor_description_schema import TensorInfoData
 
 class Config:
     config_description = '''Expects information in JSON format implementing the schema:
@@ -154,13 +155,7 @@ class TensorInfo:
         return self.info["type"]
 
     def validate(self):
-        if not TensorInfo.necessary_attrs.issubset(self.info.keys()):
-            raise RuntimeError(f"Fields: {TensorInfo.necessary_attrs} are required in {self.info}")
-
-        if "shape" in self.info.keys():
-            self.info["shape"] = shape_to_list(self.info["shape"])
-        if "layout" in self.info.keys():
-            self.info["layout"] = layout_to_str(self.info["layout"])
+        self.info = TensorInfoData(self.info)
 
 class TensorsInfoPrinter:
     canonization_table = {
@@ -200,14 +195,15 @@ class TensorsInfoPrinter:
     @staticmethod
     def get_printable_tensor_name(info):
         file_name = ""
+        tensor_printable_attrs = ["element_type", "shape"]
         if info["type"] == "input":
             file_name = "idata_"
-            for attr in [attr for attr in info.keys() if attr in TensorInfo.ext_attrs]:
+            for attr in [attr for attr in info.keys() if attr in tensor_printable_attrs]:
                 file_name += TensorsInfoPrinter.canonize_file_name(info[attr])
                 file_name += "_"
         elif info["type"] == "output":
             file_name = "odata_"
-            for attr in [attr for attr in info.keys() if attr in TensorInfo.ext_attrs]:
+            for attr in [attr for attr in info.keys() if attr in tensor_printable_attrs]:
                 file_name += TensorsInfoPrinter.canonize_file_name(info[attr])
                 file_name += "_"
         if len(file_name) == 0:
