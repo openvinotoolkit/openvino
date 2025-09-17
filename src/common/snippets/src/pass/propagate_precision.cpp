@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
@@ -140,8 +141,8 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
                     const auto actual_after = existing_convert->get_output_element_type(0);
 
                     if (can_be_removed(actual_before, actual_after, required_after)) {
-                        // remove existing convert
-                        existing_convert->output(0).replace(parent_output);
+                        // remove existing convert (fix for issue #107966)
+                        replace_output_and_clean_up(existing_convert->output(0), parent_output);
                         continue;
                     }
 

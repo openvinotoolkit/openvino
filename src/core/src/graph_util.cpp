@@ -260,6 +260,27 @@ bool compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<No
     return true;
 }
 
+void replace_output_and_clean_up(Output<Node> output, const Output<Node>& replacement) {
+    // Fix for issue #107966: A new utility function that properly handles replacement
+    // without leaving stale connections
+
+    // Store the current node before replacement
+    auto current_node = output.get_node_shared_ptr();
+
+    // Perform the replacement
+    output.replace(replacement);
+
+    // Remove incorrect connection where current node might still be in replacement's targets
+    // This fixes the issue where output.get_target_inputs().size() incorrectly increases
+    auto replacement_targets = replacement.get_target_inputs();
+    for (auto& input : replacement_targets) {
+        if (input.get_node() == current_node.get()) {
+            replacement.remove_target_input(input);
+            break;  // Only one such connection should exist
+        }
+    }
+}
+
 bool replace_output_update_name(Output<Node> output, const Output<Node>& replacement) {
     // output port consumers can be reconnected to replacement port only when:
     // 1. output has no Result consumers (so we do not propagate node name)
