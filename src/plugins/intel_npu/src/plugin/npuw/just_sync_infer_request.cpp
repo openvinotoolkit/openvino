@@ -903,7 +903,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
         const auto &mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
         r->set_tensor(mask_iport, mask);
     } else {
-        auto past_len = [&]() -> uint32_t {
+        auto past_len = [&]() -> uint64_t {
             switch (this_case) {
             case Case::GENERATE:
                 // decode case, we have pos_id-1 past elements to take from kvcache
