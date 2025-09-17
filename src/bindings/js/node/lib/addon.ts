@@ -469,6 +469,11 @@ interface Tensor {
    * Reports whether the tensor is continuous or not.
    */
   isContinuous(): boolean;
+  /**
+   * Sets the shape of the tensor.
+   * @param shape - Array of dimensions for the new shape
+   */
+  setShape(shape: number[]): void;
 }
 
 /**
