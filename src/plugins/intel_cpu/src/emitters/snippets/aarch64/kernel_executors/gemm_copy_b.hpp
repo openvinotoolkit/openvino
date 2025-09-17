@@ -4,18 +4,23 @@
 
 #pragma once
 
+#ifndef __ARM_FEATURE_FP16_SCALAR_ARITHMETIC
+#    define __ARM_FEATURE_FP16_SCALAR_ARITHMETIC
+#endif
+#ifndef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#    define __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif
+
 #include "common/utils.hpp"
 #include "cpu_memory.h"
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
+#include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla.h"
+#include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
-#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-#    include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla.h"
-#    include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h"
-#endif
-#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.h"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -81,10 +86,8 @@ private:
 struct GemmCopyBCompiledKernel {
     std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel> copy_b_ukernel_f32 =
         std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel_f32);
-#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     std::shared_ptr<kai_matmul_clamp_f16_f16_f16p_ukernel> copy_b_ukernel_f16 =
         std::make_shared<kai_matmul_clamp_f16_f16_f16p_ukernel>(ukernel_f16);
-#endif
     std::shared_ptr<std::vector<uint8_t>> bias_buffer = std::make_shared<std::vector<uint8_t>>();
 
     static constexpr kai_matmul_clamp_f32_f32_f32p_ukernel ukernel_f32{
@@ -98,7 +101,6 @@ struct GemmCopyBCompiledKernel {
         kai_get_dst_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
         kai_get_dst_size_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
         kai_run_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla};
-#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     static constexpr kai_matmul_clamp_f16_f16_f16p_ukernel ukernel_f16{
         kai_get_m_step_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
         kai_get_n_step_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
@@ -110,7 +112,6 @@ struct GemmCopyBCompiledKernel {
         kai_get_dst_offset_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
         kai_get_dst_size_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla,
         kai_run_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla};
-#endif
 };
 
 class GemmCopyBKaiKernelExecutor : public snippets::KernelExecutor<GemmCopyBKernelKaiConfig, GemmCopyBCompiledKernel> {
