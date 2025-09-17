@@ -4,7 +4,11 @@
 
 #include "node.h"
 
+#include <oneapi/dnnl/dnnl_config.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+#    include <common/dnnl_thread.hpp>
+#endif
 
 #include <algorithm>
 #include <cassert>
