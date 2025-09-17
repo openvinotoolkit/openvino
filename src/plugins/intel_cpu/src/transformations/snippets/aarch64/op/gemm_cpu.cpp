@@ -60,10 +60,9 @@ void GemmCPU::validate_and_infer_types() {
 }
 
 void GemmCPU::validate_element_type(const ov::element::Type& type_0, const ov::element::Type& type_1) {
-    OPENVINO_ASSERT(any_of(type_0, element::f32, element::f16) && any_of(type_1, element::f32, element::f16) &&
-                        type_0 == type_1,
-                    "GemmCPU doesn't support element type in0:" + type_0.get_type_name() +
-                        " in1:" + type_1.get_type_name());
+    OPENVINO_ASSERT(
+        any_of(type_0, element::f32, element::f16) && any_of(type_1, element::f32, element::f16) && type_0 == type_1,
+        "GemmCPU doesn't support element type in0:" + type_0.get_type_name() + " in1:" + type_1.get_type_name());
 }
 
 std::shared_ptr<Node> GemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
