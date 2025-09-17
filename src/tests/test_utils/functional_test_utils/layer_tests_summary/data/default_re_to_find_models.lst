@@ -1,5 +1,5 @@
-[ww|WW]*_dynamic*
-[ww|WW]*_pytorch*
-[ww|WW]*_static*
-[ww|WW]*_tfhub*
+WW34_dynamic_2025.3.0-19800*
+WW32_pytorch*
+WW35_static_2025.3.0-19807-RC2
+WW34_tfhub*
 # ww*_tflite*
