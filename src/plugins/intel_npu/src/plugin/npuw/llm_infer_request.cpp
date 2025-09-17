@@ -658,14 +658,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
     auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
 
-    auto to_ty_ids_in_tensor = [&]() {
-        if (auto ttis_port = m_prefill_in_ports.find(layer_names::token_type_ids);
-            ttis_port != m_prefill_in_ports.end()) {
-            return m_prefill_request->get_tensor(ttis_port->second);
-        }
+    auto to_ty_ids_in_tensor = ov::npuw::util::TensorPtr();
 
-        return ov::npuw::util::TensorPtr();
-    }();
+    if (auto ttis_port = m_prefill_in_ports.find(layer_names::token_type_ids); ttis_port != m_prefill_in_ports.end()) {
+        to_ty_ids_in_tensor = m_prefill_request->get_tensor(ttis_port->second);
+    }
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
@@ -917,13 +914,11 @@ void ov::npuw::LLMInferRequest::infer() {
     // FIXME: position_ids might be optional for some models!
     auto position_ids = get_tensor(find_port_by_name(inputs, layer_names::position_ids).value());
 
-    auto token_types_ids = [&]() {
-        if (auto ttis_port = find_port_by_name(inputs, layer_names::token_type_ids); ttis_port.has_value()) {
-            return get_tensor(ttis_port.value());
-        }
+    auto token_types_ids = ov::npuw::util::TensorPtr();
 
-        return ov::npuw::util::TensorPtr();
-    }();
+    if (auto ttis_port = find_port_by_name(inputs, layer_names::token_type_ids); ttis_port.has_value()) {
+        token_types_ids = get_tensor(ttis_port.value());
+    }
 
     // NB: For VLM, the "inputs_embeds" contains float values (embeddings)
     OPENVINO_ASSERT(ov::element::f32 == input_ids->get_element_type() ||
