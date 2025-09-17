@@ -4,9 +4,12 @@
 
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/except.hpp"
