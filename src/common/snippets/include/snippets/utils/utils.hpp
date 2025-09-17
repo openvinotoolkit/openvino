@@ -16,6 +16,7 @@
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -84,6 +85,8 @@ inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_no
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;
 }
+
+std::optional<int64_t> get_softmax_axis_last_dim(const std::shared_ptr<const ov::Node>& node);
 
 template <typename T, typename... Args>
 constexpr bool any_of(T val, Args... items) {

@@ -21,11 +21,9 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/select.hpp"
-#include "openvino/op/softmax.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
@@ -309,17 +307,9 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
                 return false;
             }
 
-            int64_t axis = 0;
-            const auto rank = interm_op->get_input_partial_shape(0).rank();
-            if (const auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(interm_op)) {
-                axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *interm_op);
-            } else if (const auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(interm_op)) {
-                axis = softmax_v1->get_axis();
-            } else {
-                return false;
-            }
-
-            if (axis != rank.get_length() - 1 || interm_op->get_output_target_inputs(0).size() != 1) {
+            const auto axis = ov::snippets::utils::get_softmax_axis_last_dim(interm_op);
+            const auto rank = static_cast<int64_t>(interm_op->get_input_partial_shape(0).rank().get_length());
+            if (!axis || *axis != (rank - 1) || interm_op->get_output_target_inputs(0).size() != 1) {
                 return false;
             }
 

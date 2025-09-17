@@ -62,7 +62,6 @@
 #include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/sigmoid.hpp"
-#include "openvino/op/softmax.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
@@ -191,21 +190,15 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
     };
 
     auto is_supported_softmax = [](const std::shared_ptr<const Node>& n) -> bool {
-        if (n->get_input_size() != 1 || n->get_input_partial_shape(0).rank().is_dynamic()) {
+        if (n->get_input_size() != 1) {
             return false;
         }
-        int64_t axis = -1;
-        const auto rank = n->get_input_partial_shape(0).rank();
-        if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(n)) {
-            if (rank.is_static()) {
-                axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *n);
-            }
-        } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(n)) {
-            axis = softmax_v1->get_axis();
-        } else {
+        const auto axis = ov::snippets::utils::get_softmax_axis_last_dim(n);
+        if (!axis) {
             return false;
         }
-        return axis >= 0 && axis == (rank.get_length() - 1);
+        const auto rank = static_cast<int64_t>(n->get_input_partial_shape(0).rank().get_length());
+        return *axis == (rank - 1);
     };
 
     auto is_supported_broadcast_op = [](const std::shared_ptr<const Node>& n) -> bool {
