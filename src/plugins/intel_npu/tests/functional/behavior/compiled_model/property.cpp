@@ -135,7 +135,7 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_ClassPluginProperties
                                             ::testing::ValuesIn(plugin_public_mutable_properties)),
                          ClassPluginPropertiesTestNPU::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_ClassPluginPropertiesOptsTest5NPU,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassPluginPropertiesOptsTest5NPU,
                          ClassPluginPropertiesTestSuite5NPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
                                             ::testing::ValuesIn(plugin_public_mutable_properties +
