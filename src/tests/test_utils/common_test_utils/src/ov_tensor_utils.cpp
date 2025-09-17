@@ -372,9 +372,8 @@ inline bool value_is_out_of_limits(T value, bool upper_bound_check) {
         return false;  // Non-floating types can't be NaN or Inf
     } else {
         bool out_of_limits = std::isnan(value) || std::isinf(value);
-        out_of_limits |= upper_bound_check
-            ? value >= std::numeric_limits<T>::max()
-            : value <= std::numeric_limits<T>::lowest();
+        out_of_limits |=
+            upper_bound_check ? value >= std::numeric_limits<T>::max() : value <= std::numeric_limits<T>::lowest();
         return out_of_limits;
     }
 }
