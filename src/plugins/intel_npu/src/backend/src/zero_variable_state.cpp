@@ -8,7 +8,6 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "zero_memory.hpp"
 #include "zero_tensor.hpp"
 
 namespace intel_npu {
@@ -39,11 +38,6 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
             if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(),
                                                                        new_state->data())) {
                 _logger.debug("ZeroVariableState::set_state - tensor was created in the same L0 context");
-
-                auto zero_tensor = std::dynamic_pointer_cast<ZeroTensor>(m_state._ptr);
-                if (zero_tensor != nullptr) {
-                    zero_tensor->set_tensor_shared_with_user();
-                }
 
                 _zero_tensor_updated = true;
             } else if (_external_memory_standard_allocation_supported &&

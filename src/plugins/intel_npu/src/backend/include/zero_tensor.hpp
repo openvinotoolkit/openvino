@@ -16,18 +16,38 @@
 namespace intel_npu {
 
 /**
- * @brief Constructs Tensor using element type and shape. Allocate internal host storage using custom allocator.
- * @details The implementation is simillar to the AllocatedTensor class from OV namespace.
- * @note Set_shape method throws an error in case re-allocation is needed but this is not supported by the driver.
- * There are two extra methods to notify the consumer if memory changed or not and to reset the flag.
+ * @brief ZeroTensor API holding NPU device memory
+ * It keeps a data pointer allocated in the same Level Zero context.
  */
+
 class ZeroTensor final : public ov::ITensor {
 public:
+    /**
+     * @brief Constructs a ZeroTensor with the specified element type and shape. Allocates internal storage in the given
+     * level zero context.
+     * @param init_structs Shared pointer to the ZeroInitStructHolder instance that will provide the level zero context.
+     * @param config NPU plugin configuration
+     * @param type Data type of tensor elements
+     * @param shape Tensor shape
+     * @param isInput Indicates if the tensor is used as a network input ( true) or output (false)
+     */
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                const Config& config,
                const ov::element::Type element_type,
                const ov::Shape& shape,
-               const ov::Allocator& allocator);
+               const bool isInput);
+
+    /**
+     * @brief Creates a ZeroTensor from the given tensor. This constructor will throw if the memory of the given tensor
+     * is not allocated in the level zero context specified through init_structs or in case the memory cannot be
+     * imported in that context ( to be implemented). ZeroTensor will keep a reference to the source tensor.
+     * @param init_structs Shared pointer to ZeroInitStructsHolder
+     * @param user_tensor Tensor to create ZeroTensor from
+     * @param config NPU plugin configuration
+     */
+    ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+               const ov::SoPtr<ov::ITensor>& user_tensor,
+               const Config& config);
 
     void* data() override;
     void* data(const ov::element::Type& type) override;
@@ -46,8 +66,8 @@ public:
     bool memory_address_changed();
     void reset_memory_flag();
 
-    bool tensor_was_shared_with_user();
-    void set_tensor_shared_with_user();
+    void prevent_reuse();
+    bool can_be_reused();
 
     ~ZeroTensor();
 
@@ -58,6 +78,8 @@ private:
     size_t get_bytes_capacity() const;
     void destroy_elements(size_t begin_ind, size_t end_ind);
     void destroy_memory();
+    void* allocate_zero_memory(const size_t bytes, const size_t alignment) noexcept;
+    void deallocate_zero_memory(void* handle) noexcept;
 
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     Logger _logger;
@@ -67,10 +89,17 @@ private:
     ov::Shape _capacity;
     mutable ov::Strides _strides;
     mutable std::once_flag _strides_once;
-    ov::Allocator _allocator;
     void* _ptr = nullptr;
     bool _reset_tensor_memory = false;
-    bool _tensor_shared_with_user = false;
+    uint32_t _zero_memory_flag = 0;
+    bool _can_be_reused = false;
+
+    ov::SoPtr<ov::ITensor> _imported_tensor;
+};
+
+class ZeroTensorException : public std::runtime_error {
+public:
+    explicit ZeroTensorException(const std::string& msg) : std::runtime_error(msg) {}
 };
 
 }  // namespace intel_npu
