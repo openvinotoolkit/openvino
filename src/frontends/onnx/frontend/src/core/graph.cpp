@@ -308,7 +308,7 @@ std::shared_ptr<ov::Model> Graph::convert() {
     convert_to_ov_nodes();
     remove_dangling_parameters();
     auto function = create_model();
-    //convert_stateless_LLM_to_stateful_LLM(function);
+    convert_stateless_LLM_to_stateful_LLM(function);
     set_metadata(function);
     return function;
 }
