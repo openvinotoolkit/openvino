@@ -20,7 +20,6 @@
 #include "snippets/pass/softmax_reshape_elimination.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/subgraph_manager.hpp"
-#include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/validate.hpp"
 
@@ -30,7 +29,7 @@ namespace ov::snippets::pass {
     if (enabled)                                            \
         manager.register_pass<pass>(__VA_ARGS__);
 
-CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& config) {
+CommonOptimizations::CommonOptimizations(const CommonOptimizations::Config& config) {
     MATCHER_SCOPE(CommonOptimizations);
     ov::graph_rewrite_callback callback = [&](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CommonOptimizations");
