@@ -528,7 +528,7 @@ struct ConvertContext {
     ov::element::Type interimPrc;
     ov::element::Type dstPrc;
     bool converted;
-    bool bypass_clamp;
+    bool no_clamp;
     bool use_rounding;
 
     template <typename T>
@@ -563,14 +563,14 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
 
         if (std::is_integral_v<src_t>) {
             auto convert_func = [&](size_t i) {
-                src_t value = ctx.bypass_clamp ? src[i] : std::max(std::min(src[i], ubound), lbound);
+                src_t value = ctx.no_clamp ? src[i] : std::max(std::min(src[i], ubound), lbound);
                 dst[i] = static_cast<dst_t>(value);
             };
 
             parallel_for(ctx.size, convert_func);
         } else {
             auto apply_conversion = [&](src_t value) -> dst_t {
-                if (ctx.bypass_clamp) {
+                if (ctx.no_clamp) {
                     return static_cast<dst_t>(ctx.use_rounding ? std::round(value) : std::trunc(value));
                 } else {
                     return static_cast<dst_t>(ctx.use_rounding ? std::round(std::max(std::min(value, ubound), lbound))
@@ -1040,7 +1040,7 @@ void cpu_convert(const void* srcPtr,
                  ov::element::Type interimPrc,
                  ov::element::Type dstPrc,
                  const size_t size,
-                 bool bypass_clamp,
+                 bool no_clamp,
                  bool use_rounding) {
     if (size == 0) {
         return;
@@ -1109,7 +1109,7 @@ void cpu_convert(const void* srcPtr,
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
 #endif
     } else {
-        ConvertContext ctx{srcPtr, dstPtr, size, interimPrc, dstPrc, false, bypass_clamp, use_rounding};
+        ConvertContext ctx{srcPtr, dstPtr, size, interimPrc, dstPrc, false, no_clamp, use_rounding};
         OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     }

@@ -19,8 +19,7 @@ ov::snippets::op::ConvertTruncation::ConvertTruncation(const Output<Node>& x, co
 ov::snippets::op::ConvertTruncation::ConvertTruncation(const Output<Node>& x,
                                                        const ov::element::Type& destination_type,
                                                        bool use_rounding)
-    : ov::op::v0::Convert({x}, destination_type, false, use_rounding),
-      m_use_rounding(use_rounding) {}
+    : ov::op::v0::Convert({x}, destination_type, false, use_rounding) {}
 
 std::shared_ptr<ov::Node> ov::snippets::op::ConvertTruncation::clone_with_new_inputs(
     const OutputVector& new_args) const {

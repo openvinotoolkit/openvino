@@ -24,7 +24,7 @@ ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
     // for example, float to int4, input value 31.9
     //   onnx cast:                               31.9 -> 32 -> 0x20 -> 0 (round and no_clamp)
     //   ov convert - default:                    31.9 -> 31 -> 7         (trunc and clamp)
-    // so here we use ov::op::v0::Convert with bypass_clamp=true and use_rounding=true
+    // so here we use ov::op::v0::Convert with no_clamp=true and use_rounding=true
     // to align with onnx cast op behavior.
     return {std::make_shared<v0::Convert>(data, elem_type, true, true)};
 }
