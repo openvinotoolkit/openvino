@@ -368,14 +368,14 @@ inline bool less_or_equal(double a, double b) {
 
 template <typename T>
 inline bool value_is_out_of_limits(T value, bool upper_bound_check) {
-    if constexpr (!std::is_floating_point_v<T>) {
-        return false;  // Non-floating types can't be NaN or Inf
-    } else {
-        bool out_of_limits = std::isnan(value) || std::isinf(value);
-        out_of_limits |=
-            upper_bound_check ? value >= std::numeric_limits<T>::max() : value <= std::numeric_limits<T>::lowest();
-        return out_of_limits;
+    if constexpr (std::is_floating_point_v<T>) {
+        if  (std::isnan(value) || std::isinf(value)) {
+            return true;
+        }
     }
+    return upper_bound_check
+            ? value >= std::numeric_limits<T>::max()
+            : value <= std::numeric_limits<T>::lowest();
 }
 
 template <typename T1, typename T2>
