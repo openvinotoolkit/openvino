@@ -2881,6 +2881,53 @@ TEST_P(CachingTest, import_from_compiled_blob_weights_path_property_is_supported
         m_testFunctionWithCfg(core, config);
     });
 }
+
+TEST_P(CachingTest, import_from_cache_model_by_custom_model_rt_info) {
+    ON_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _))
+        .WillByDefault(Invoke([&](const ov::Tensor& itensor, const ov::AnyMap& config) {
+            if (m_checkConfigCb) {
+                m_checkConfigCb(config);
+            }
+            EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 0);
+            EXPECT_EQ(config.count(ov::hint::model.name()), 0);
+            EXPECT_EQ(config.count(ov::weights_path.name()), 0);
+
+            size_t pos = 0;
+            auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
+            std::lock_guard<std::mutex> lock(mock_creation_mutex);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
+        }));
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+    if (m_remoteContext) {
+        return;  // skip the remote Context test for Multi plugin
+    }
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    MkDirGuard guard(m_cacheDir);
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+    testLoad([&](ov::Core& core) {
+        const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}, ov::cache_model_path(modelName)};
+
+        // read and load model with path hint
+        performReadAndLoad(core, config);
+
+        // load from cache without path hint
+        performReadAndLoadWithContext(core, config);
+
+        // load from cache with path hint
+        performReadAndLoad(core, config);
+    });
+}
+
 #if defined(ENABLE_OV_IR_FRONTEND)
 
 static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestParam, std::string>>& obj) {
