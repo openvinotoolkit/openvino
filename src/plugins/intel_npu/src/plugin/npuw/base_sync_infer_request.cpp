@@ -496,6 +496,13 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                         auto data = g_tnsr->data();
                         auto shape = g_tnsr->get_shape();
                         uint32_t key_dim = 2;  // remove the hard coding
+                        if (history_size == shape[key_dim]) {
+                            // Set tensor directly when actual pask key tensor shape is the same with the pre-allocated
+                            // pask key tensor shape
+                            request->set_tensor(s_port, g_tnsr);
+                            continue;
+                        }
+
                         shape[key_dim] = history_size;
 
                         // allocate GPU memory
@@ -513,6 +520,13 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                         auto data = g_tnsr->data();
                         auto shape = g_tnsr->get_shape();
                         uint32_t value_dim = 3;  // remove the hard coding
+                        if (history_size == shape[value_dim]) {
+                            // Set tensor directly when actual pask value tensor shape is the same with the
+                            // pre-allocated pask value tensor shape
+                            request->set_tensor(s_port, g_tnsr);
+                            continue;
+                        }
+
                         shape[value_dim] = history_size;
 
                         // allocate GPU memory
