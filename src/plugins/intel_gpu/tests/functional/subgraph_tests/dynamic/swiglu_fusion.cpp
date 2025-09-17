@@ -21,7 +21,7 @@ using SwiGLUFusionParams = std::tuple<std::vector<InputShape>,   // input shapes
 class SwiGLUFusion : public testing::WithParamInterface<SwiGLUFusionParams>,
                             virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SwiGLUFusionParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<SwiGLUFusionParams>& obj) {
         const auto& [input_shapes, input_precision] = obj.param;
 
         std::ostringstream result;

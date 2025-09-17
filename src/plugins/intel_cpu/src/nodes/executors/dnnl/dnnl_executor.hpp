@@ -126,7 +126,7 @@ private:
                              const PrimitivePtr currentPrimitive,
                              const PrimitivePtr newPrimitive,
                              const MemoryPtr& memory) {
-        if (m_attrs.nonConstantWeights) {  // non constant weights are handled by the primitive
+        if (!m_attrs.constantWeights) {  // non constant weights are handled by the primitive
             m_primArgs[DNNL_ARG_WEIGHTS] = memory->getPrimitive();
             return;
         }
@@ -137,8 +137,7 @@ private:
             return;
         }
 
-        originalMemDesc =
-            Primitive::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc, m_attrs.weightsNonTransposed);
+        originalMemDesc = Primitive::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc, m_attrs);
 
         const auto weiMemory = utils::prepareWeightsMemory(originalMemDesc, newPrimMemDesc, memory, m_context, true);
         m_primArgs[DNNL_ARG_WEIGHTS] = weiMemory->getPrimitive();

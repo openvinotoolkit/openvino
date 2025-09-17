@@ -31,7 +31,7 @@ using EltwiseMergeParams = std::tuple<std::vector<InputShape>,  // input shapes
 
 class EltwiseMerge : public testing::WithParamInterface<EltwiseMergeParams>, virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EltwiseMergeParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<EltwiseMergeParams>& obj) {
         const auto& [input_shapes, input_precision] = obj.param;
 
         std::ostringstream result;
