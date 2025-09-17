@@ -319,12 +319,12 @@ TEST(ElementIteratorTest, read_u4_data_iterator_with_offset) {
     // MSB-first: 0x42→[4,2], 0x3A→[3,10], 0x61→[6,1], 0x79→[7,9], 0x5B→[5,11]
     // iter at data+1 starts at high nibble of 2nd byte
     EXPECT_EQ(*iter, 3);                 // 2nd byte high nibble = 3
-    EXPECT_EQ(*(iter - 2), 4);          // Go back 2: 1st byte high nibble = 4
-    EXPECT_EQ(*(iter + 7), 11);         // Go forward 7: 5th byte low nibble = 11
-    EXPECT_EQ(*(iter + 6), 5);          // Go forward 6: 5th byte high nibble = 5
-    EXPECT_EQ(*(iter - 1), 10);         // Go back 1: 2nd byte low nibble = 10
-    EXPECT_EQ(*std::prev(iter, 1), 10); // Same as above
-    EXPECT_EQ(*std::next(iter, 2), 6);  // Go forward 2: 3rd byte high nibble = 6
+    EXPECT_EQ(*(iter - 2), 4);           // Go back 2: 1st byte high nibble = 4
+    EXPECT_EQ(*(iter + 7), 11);          // Go forward 7: 5th byte low nibble = 11
+    EXPECT_EQ(*(iter + 6), 5);           // Go forward 6: 5th byte high nibble = 5
+    EXPECT_EQ(*(iter - 1), 10);          // Go back 1: 2nd byte low nibble = 10
+    EXPECT_EQ(*std::prev(iter, 1), 10);  // Same as above
+    EXPECT_EQ(*std::next(iter, 2), 6);   // Go forward 2: 3rd byte high nibble = 6
 }
 
 TEST(ElementIteratorTest, read_u4_from_tensor) {
@@ -413,12 +413,12 @@ TEST(ElementIteratorTest, read_i4_data_iterator_with_offset) {
     // MSB-first i4: 0x42→[4,2], 0x3A→[3,-6], 0x61→[6,1], 0x79→[7,-7], 0x5B→[5,-5]
     // iter at data+1 starts at high nibble of 2nd byte
     EXPECT_EQ(*iter, 3);                 // 2nd byte high nibble = 3
-    EXPECT_EQ(*(iter - 2), 4);          // Go back 2: 1st byte high nibble = 4
-    EXPECT_EQ(*(iter + 7), -5);         // Go forward 7: 5th byte low nibble = -5
-    EXPECT_EQ(*(iter + 6), 5);          // Go forward 6: 5th byte high nibble = 5
-    EXPECT_EQ(*(iter - 1), -6);         // Go back 1: 2nd byte low nibble = -6
-    EXPECT_EQ(*std::prev(iter, 1), -6); // Same as above
-    EXPECT_EQ(*std::next(iter, 2), 6);  // Go forward 2: 3rd byte high nibble = 6
+    EXPECT_EQ(*(iter - 2), 4);           // Go back 2: 1st byte high nibble = 4
+    EXPECT_EQ(*(iter + 7), -5);          // Go forward 7: 5th byte low nibble = -5
+    EXPECT_EQ(*(iter + 6), 5);           // Go forward 6: 5th byte high nibble = 5
+    EXPECT_EQ(*(iter - 1), -6);          // Go back 1: 2nd byte low nibble = -6
+    EXPECT_EQ(*std::prev(iter, 1), -6);  // Same as above
+    EXPECT_EQ(*std::next(iter, 2), 6);   // Go forward 2: 3rd byte high nibble = 6
 }
 
 TEST(ElementIteratorTest, i4_value_to_output_stream) {
