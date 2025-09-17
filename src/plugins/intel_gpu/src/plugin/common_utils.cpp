@@ -16,18 +16,23 @@
 #include <algorithm>
 #include <memory>
 
+#define COPY_LOG(x) std::cout << __FUNCTION__ << ": " << __LINE__ << " Size(Byte): " << x << std::endl;
+
 namespace {
 
 template <typename src_t, typename dst_t>
 void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
     OPENVINO_ASSERT(src && dst, "[GPU] Src or Dst ptr is null");
+    COPY_LOG(size);
     for (size_t i = 0; i < size; i++)
         dst[i] = static_cast<dst_t>(src[i]);
 }
 
 template <typename src_t, typename dst_t>
-void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout layout) {
+void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout layout) {    
     cldnn::tensor size = layout.get_tensor();
+    COPY_LOG(size.batch[0] * size.feature[0] * size.spatial[3] * size.spatial[2] * size.spatial[1] * size.spatial[0]);
+
     for (int64_t b = 0; b < size.batch[0]; b++) {
         for (int64_t f = 0; f < size.feature[0]; f++) {
             for (int64_t w = 0; w < size.spatial[3]; w++) {
@@ -50,6 +55,8 @@ void convert_and_copy_transposed(const src_t* src, dst_t* dst, ov::Shape shape) 
     size_t y = shape[shape.size() - 2];
     size_t x = shape[shape.size() - 1];
 
+    COPY_LOG(prefix_size * y * x);
+
     for (size_t prefix_idx = 0; prefix_idx < prefix_size; ++prefix_idx) {
         for (size_t i = 0; i < y; ++i) {
             for (size_t j = 0; j < x; ++j) {
@@ -67,6 +74,7 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
         return;
 
     if (src_et == dst_et && !layout.data_padding && !transpose) {
+        COPY_LOG(size * src_et.size());
         std::memcpy(dst_ptr, src_ptr, size * src_et.size());
         return;
     }
