@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,16 +30,16 @@ static std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::ele
         { { ov::element::u8 }, { ov::element::i8 } },
     };
 
-    if (is_bf16_supported_by_brgemm()) {
-        types.push_back({{ ov::element::f32 }, { ov::element::bf16 }});
-        types.push_back({{ ov::element::f16 }, { ov::element::bf16 }});
-        types.push_back({{ ov::element::bf16 }, { ov::element::f32 }});
-        types.push_back({{ ov::element::bf16 }, { ov::element::i8 }});
-        types.push_back({{ ov::element::bf16 }, { ov::element::u8 }});
-        types.push_back({{ ov::element::bf16 }, { ov::element::f16 }});
-        types.push_back({{ ov::element::i8 }, { ov::element::bf16 }});
-        types.push_back({{ ov::element::u8 }, { ov::element::bf16 }});
-    }
+#if defined(OPENVINO_ARCH_X86_64)
+    types.push_back({{ ov::element::f32 }, { ov::element::bf16 }});
+    types.push_back({{ ov::element::f16 }, { ov::element::bf16 }});
+    types.push_back({{ ov::element::bf16 }, { ov::element::f32 }});
+    types.push_back({{ ov::element::bf16 }, { ov::element::i8 }});
+    types.push_back({{ ov::element::bf16 }, { ov::element::u8 }});
+    types.push_back({{ ov::element::bf16 }, { ov::element::f16 }});
+    types.push_back({{ ov::element::i8 }, { ov::element::bf16 }});
+    types.push_back({{ ov::element::u8 }, { ov::element::bf16 }});
+#endif
 
     return types;
 }
@@ -52,13 +52,9 @@ static std::vector<std::vector<ov::test::InputShape>> getInputShapesConvert() {
         { {{{1, 6}, 6}, {{6, 6}, {1, 6}, {6, 6}}} },
     };
 
-    // Add dynamic shapes if platform supports them better (x86_64)
-    if (is_bf16_supported_by_brgemm()) {
-        shapes[1] = { {{}, {{5, 5}}} };
-        shapes.push_back({ {{-1, -1}, {{2, 16}, {2, 8}, {2, 16}}} });
-        shapes.push_back({ {{{1, 5}, 5}, {{5, 5}, {1, 5}, {5, 5}}} });
-        shapes.push_back({ {{{1, 10}, {4, 12}, {1, 2}}, {{2, 12, 1}, {4, 4, 2}, {2, 12, 1}}} });
-    }
+    shapes.push_back({ {{-1, -1}, {{2, 16}, {2, 8}, {2, 16}}} });
+    shapes.push_back({ {{{1, 5}, 5}, {{5, 5}, {1, 5}, {5, 5}}} });
+    shapes.push_back({ {{{1, 10}, {4, 12}, {1, 2}}, {{2, 12, 1}, {4, 4, 2}, {2, 12, 1}}} });
 
     return shapes;
 }
@@ -85,12 +81,12 @@ static std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::ele
         { { ov::element::u8 }, { ov::element::f16 } },
     };
 
-    if (is_bf16_supported_by_brgemm()) {
-        types.push_back({{ ov::element::f32 }, { ov::element::bf16 }});
-        types.push_back({{ ov::element::bf16 }, { ov::element::f32 }});
-        types.push_back({{ ov::element::i8 }, { ov::element::bf16 }});
-        types.push_back({{ ov::element::u8 }, { ov::element::bf16 }});
-    }
+#if defined(OPENVINO_ARCH_X86_64)
+    types.push_back({{ ov::element::f32 }, { ov::element::bf16 }});
+    types.push_back({{ ov::element::bf16 }, { ov::element::f32 }});
+    types.push_back({{ ov::element::i8 }, { ov::element::bf16 }});
+    types.push_back({{ ov::element::u8 }, { ov::element::bf16 }});
+#endif
 
     return types;
 }
@@ -103,12 +99,9 @@ static std::vector<std::vector<ov::test::InputShape>> getInputShapesConvertInput
         { {{{1, 6}, 6}, {{6, 6}, {1, 6}, {6, 6}}}, {{{1, 6}, 6}, {{1, 6}, {6, 6}, {1, 6}}} },
     };
 
-    // Add dynamic shapes if platform supports them better (x86_64)
-    if (is_bf16_supported_by_brgemm()) {
-        shapes.push_back({ {{-1, -1}, {{2, 16}, {1, 16}, {2, 16}}}, {{-1, -1}, {{1, 16}, {2, 16}, {1, 16}}} });
-        shapes.push_back({ {{5, -1}, {{5, 18}, {5, 1}, {5, 18}}}, {{-1, 1}, {{5, 1}, {1, 1}, {5, 1}}} });
-        shapes.push_back({ {{{1, 4}, {1, 8}}, {{3, 1}, {4, 8}, {3, 1}}}, {{{1, 4}, {8, 21}}, {{3, 21}, {1, 8}, {3, 21}}} });
-    }
+    shapes.push_back({ {{-1, -1}, {{2, 16}, {1, 16}, {2, 16}}}, {{-1, -1}, {{1, 16}, {2, 16}, {1, 16}}} });
+    shapes.push_back({ {{5, -1}, {{5, 18}, {5, 1}, {5, 18}}}, {{-1, 1}, {{5, 1}, {1, 1}, {5, 1}}} });
+    shapes.push_back({ {{{1, 4}, {1, 8}}, {{3, 1}, {4, 8}, {3, 1}}}, {{{1, 4}, {8, 21}}, {{3, 21}, {1, 8}, {3, 21}}} });
 
     return shapes;
 }
@@ -140,10 +133,10 @@ static std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::ele
         { { ov::element::u8 }, { ov::element::f16 } },
     };
 
-    if (is_bf16_supported_by_brgemm()) {
-        types.push_back({{ ov::element::i8 }, { ov::element::bf16 }});
-        types.push_back({{ ov::element::u8 }, { ov::element::bf16 }});
-    }
+#if defined(OPENVINO_ARCH_X86_64)
+    types.push_back({{ ov::element::i8 }, { ov::element::bf16 }});
+    types.push_back({{ ov::element::u8 }, { ov::element::bf16 }});
+#endif
 
     return types;
 }
@@ -169,10 +162,7 @@ static std::vector<std::vector<ov::test::InputShape>> getInputShapesConvertParti
         { {{{1, 3}, 4}, {{1, 4}, {2, 4}, {3, 4}}}, {{{1, 3}, 4}, {{3, 4}, {2, 4}, {3, 4}}}, {{{1, 3}, 4}, {{1, 4}, {1, 4}, {3, 4}}} },
     };
 
-    // Add dynamic shapes if platform supports them better (x86_64)
-    if (is_bf16_supported_by_brgemm()) {
-        shapes[3] = { {{-1, -1}, {{3, 1}, {2, 4}, {3, 1}}}, {{{1, 3}, -1}, {{3, 21}, {2, 1}, {3, 21}}}, {{{1, 3}, {1, 2}}, {{3, 1}, {1, 1}, {3, 1}}} };
-    }
+    shapes.push_back({ {{-1, -1}, {{3, 1}, {2, 4}, {3, 1}}}, {{{1, 3}, -1}, {{3, 21}, {2, 1}, {3, 21}}}, {{{1, 3}, {1, 2}}, {{3, 1}, {1, 1}, {3, 1}}} });
 
     return shapes;
 }
@@ -198,10 +188,8 @@ static std::vector<std::vector<ov::test::InputShape>> getInputShapesConvertManyO
         { {{{3, 5}, {3, 5}, {3, 5}, 5}, {{5, 5, 5, 5}, {3, 3, 3, 5}, {5, 5, 5, 5}}} }
     };
 
-    // Add dynamic shapes if platform supports them better (x86_64)
-    if (is_bf16_supported_by_brgemm()) {
-        shapes[1] = { {{-1, -1, -1, -1}, {{5, 5, 5, 5}, {3, 3, 3, 3}, {5, 5, 5, 5}}} };
-    }
+    // Add dynamic shapes for all platforms
+    shapes.push_back({ {{-1, -1, -1, -1}, {{5, 5, 5, 5}, {3, 3, 3, 3}, {5, 5, 5, 5}}} });
 
     return shapes;
 }
