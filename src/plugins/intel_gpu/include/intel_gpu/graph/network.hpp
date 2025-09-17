@@ -207,6 +207,8 @@ public:
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t get_current_iteration_num() { return iteration; }
+#else
+    int64_t get_current_iteration_num() { const int64_t NOT_AVAILABLE=-112233; return NOT_AVAILABLE; }
 #endif
 
 private:

@@ -80,7 +80,7 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_iterations, std::set<int64_t>{}, "Spa
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, host_time_profiling, 0, "Measure and print host time spent from the beginning of the infer until all host work is done and plugin is ready to block thread on the final clFinish() call")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_async_compilation, false, "Disable feature that allows to asynchronously prepare static-shaped implementations for the primitives with shape-agnostic kernels selected during compilation")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_buffer_fusing, false, "Disable runtime inplace optimizations for operations like concat and crop")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_post_ops_fusions, false, "Disable fusions of operations as post-ops/fused-ops")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_post_ops_fusions, 0, "Disable fusions of operations as post-ops/fused-ops. Detailed debugging is possible by entering specific numbers. 1 specifies to disable all fusions of post-ops. 2-8 specifies to enable only single fusion sub-module from fuse_reorder() to optimize_fused_opt(). 11-13 specifies to enable only single fusion sub-module in fuse_simple_primitives.")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_horizontal_fc_fusion, false, "Disable pass which merges QKV projections into single MatMul")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable pass which merges FC and SwiGLU ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
@@ -88,3 +88,4 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memo
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_skip_reorder, false, "Disable skip reorder optimization applied in runtime")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, load_dump_raw_binary, std::vector<std::string>{}, "List of layers to load raw binary")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dry_run_path, "", "Enables mode which partially compiles a model and stores runtime model into specified directory")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, validate_output_buffer, false, "Validate output buffers of all layers which have fp16 data-type to find 'inf' and 'nan' value.")
