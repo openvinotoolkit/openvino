@@ -10,14 +10,14 @@ Cython==3.1.2
 docutils==0.21.2
 idna==3.10
 imagesize==1.4.1
-importlib-metadata>=4.8.0,<7.0.0
+importlib-metadata>=4.8.0,<9.0.0
 iniconfig==2.1.0
 ipython==8.18.1
 Jinja2==3.1.6
-jsonschema==4.24.0
+jsonschema==4.25.1
 lxml>=4.9.2
 MarkupSafe==3.0.2
-mistune==2.0.3
+mistune==3.1.4
 myst-parser==3.0.1; python_version < "3.10"
 myst-parser==4.0.1; python_version >= "3.10"
 packaging==25.0
@@ -43,7 +43,7 @@ sphinx-copybutton==0.5.2
 sphinx-design==0.6.1
 sphinx-inline-tabs==2023.4.21
 sphinx-sitemap==2.6.0
-sphinxcontrib-applehelp==1.0.2
+sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==1.0.2
 sphinxcontrib-htmlhelp==2.1.0
 sphinxcontrib-jsmath==1.0.1
@@ -51,4 +51,4 @@ sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 toml==0.10.2
 urllib3==2.5.0
-zipp==3.19.1
+zipp==3.23.0
