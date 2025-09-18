@@ -27,9 +27,6 @@ constexpr size_t reduce_split_step = 16;
 }  // namespace
 
 #define DEBUG_ENABLED 0
-#ifndef STRIDE
-#define STRIDE 16  // Define STRIDE constant
-#endif
 // This function returns the kv_step and kv_split_len based on the architecture.
 // return {kv_step, kv_split_len}
 inline std::pair<size_t, size_t> get_kv_split_size(size_t arch) {
@@ -668,7 +665,10 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
 
     auto desc = params.typed_desc<paged_attention>();
-
+#if defined(_MSC_VER)
+#pragma warning( push )
+#pragma warning( disable : C2220 )
+#endif
     const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size)) / STRIDE;
     int scale_factor_i;
     std::memcpy(static_cast<void*>(&scale_factor_i), &scale_factor, sizeof(scale_factor));
@@ -691,7 +691,9 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     jit.make("USE_INT8", 0);
     jit.make("HEAD_SIZE_KEY", desc->k_head_size);
     jit.make("SOFTMAX_TYPE", "float");
-
+#if defined(_MSC_VER)
+#pragma warning( pop )
+#endif
     // for (auto& it : jit) {
     //     std::cout << "\tjit[" << it.name << "] = " << it.value << std::endl;
     // }
@@ -729,6 +731,10 @@ Arguments XAttentionEstimateGEMMQK::get_arguments_desc(const kernel_impl_params&
 
 DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
     return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+#if defined(_MSC_VER)
+#pragma warning( push )
+#pragma warning( disable : C2220 )
+#endif
         assert(!params.is_dynamic());
         const auto desc = params.typed_desc<paged_attention>();
 
@@ -785,7 +791,9 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
         };
         const uint32_t query_pitch = get_simple_pitch(querry_layout) * STRIDE;
         const uint32_t slice_no = 0, slice = 0;
-
+#if defined(_MSC_VER)
+#pragma warning( pop )
+#endif
         const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
         const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
 
@@ -856,6 +864,10 @@ Arguments XAttentionEstimateFindBlock::get_arguments_desc(const kernel_impl_para
 
 DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
     return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+#if defined(_MSC_VER)
+#pragma warning( push )
+#pragma warning( disable : C2220 )
+#endif
         assert(!params.is_dynamic());
         auto& wgs = kd.params.workGroups;
 
@@ -918,6 +930,9 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         }
         scalars[scaler_value.size()].t = ScalarDescriptor::Types::FLOAT32;  // the last is for thresh with f32 dtype
         scalars[scaler_value.size()].v.f32 = static_cast<float>(xattn_thresh);
+#if defined(_MSC_VER)
+#pragma warning( pop )
+#endif
     }};
 }
 

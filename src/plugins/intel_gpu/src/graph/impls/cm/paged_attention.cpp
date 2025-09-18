@@ -25,10 +25,6 @@
 #include "openvino/util/file_util.hpp"
 #endif
 
-#ifndef STRIDE
-#define STRIDE 16  // Define STRIDE constant
-#endif
-
 namespace ov::intel_gpu::cm {
 
 class PagedAttentionCmImpl : public PrimitiveImplCM {
@@ -59,7 +55,10 @@ public:
             add_stage(xattn_estimate_find_block, params);
         }
     }
-
+#if defined(_MSC_VER)
+#pragma warning( push )
+#pragma warning( disable : C2220 )
+#endif
     void update_xattn_rt_params(const primitive_inst& instance) {
         const auto& params = *instance.get_impl_params();
 
@@ -74,7 +73,9 @@ public:
         const uint32_t sum_per_token_in_block = block_size / STRIDE;
         const uint32_t k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
         const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
-
+#if defined(_MSC_VER)
+#pragma warning( pop )
+#endif
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         rt_params->xattn_q_block_pad = q_block_pad;
         rt_params->xattn_k_block_pad = k_block_pad;
@@ -206,6 +207,10 @@ public:
             internal_buffers.emplace_back(16, indexes_dt);  // 0: intermediate partition output
             internal_buffers.emplace_back(16, indexes_dt);  // 1: softmax exp_sums
 
+#if defined(_MSC_VER)
+#pragma warning( push )
+#pragma warning( disable : C2220 )
+#endif
             // internal buffer for XAttention
             auto out_shape = params.output_layouts[0].get_shape();
             const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
@@ -231,6 +236,9 @@ public:
                 auto count_elements_mask = static_cast<int64_t>(desc->heads_num * q_block_pad * k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);        // 4: sparse_block_mask
             }
+#if defined(_MSC_VER)
+#pragma warning( pop )
+#endif
         }
 
         return internal_buffers;
