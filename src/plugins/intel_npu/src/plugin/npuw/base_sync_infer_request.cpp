@@ -624,6 +624,9 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
         return;
     }
 
+    LOG_DEBUG("Binding Attention inputs...");
+    LOG_BLOCK();
+
     const auto& dynamic = comp_model_desc.dynamic.value();
     auto& r = request;
 
@@ -642,9 +645,30 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
         for (auto&& param : dynamic.params) {
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
             const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
-            r->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, past_len));
+            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+            const auto shape = view->get_shape();
+            const auto do_copy = needs_copy(idx);
+
+            LOG_DEBUG(iport);
+            LOG_BLOCK();
+            if (do_copy && ov::shape_size(shape) > 0) {
+                // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
+                auto &dst = r->get_tensor(iport);
+                dst->set_shape(shape);
+                LOG_DEBUG("Do copy: " << shape << "...");
+                view->copy_to(dst._ptr);
+            } else if (do_copy && ov::shape_size(shape) == 0) {
+                // Special case for 0ths chunk.
+                // Zero the tensor shape but not set to view
+                // (a view tensor can't be extended)
+                r->get_tensor(iport)->set_shape(shape);
+            } else {
+                r->set_tensor(iport, view);
+            }
         }  // for(params)
     }
+
+    LOG_DEBUG("Done");
 }
 
 void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr request) {

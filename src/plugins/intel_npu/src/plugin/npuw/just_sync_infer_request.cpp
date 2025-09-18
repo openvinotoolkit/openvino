@@ -687,19 +687,29 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
     } else {
         const auto past_len = m_dynamic_selector->past_length();
 
+        auto set_or_copy = [&](const auto &view) {
+            if (!needs_copy(idx)) {
+                r->set_tensor(mask_iport, view);
+            } else {
+                auto &dst = r->get_tensor(mask_iport);
+                dst->set_shape(view->get_shape());
+                view->copy_to(dst._ptr);
+            }
+        };
+
         // Now set the mask. Here comes very strong chunking & SDPA knowledge again
         using namespace ov::npuw::runtime;
         if (this_case == dynamic::Selector::Case::GENERATE) {
             // Take a view from our "attend_all" mask
             // FIXME: get the right dim
             const auto &view = ov::npuw::util::view(ov::get_tensor_impl(dynamic.attend_all), 3, 0, past_len + 1);
-            r->set_tensor(mask_iport, view);
+            set_or_copy(view);
         } else if (this_case == dynamic::Selector::Case::PREFILL) {
             // Use our in-graph synthesized mask
             // FIXME: get the right dim
             const auto &input = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
             const auto &view = ov::npuw::util::view(input, 3, dynamic.context_size - dynamic.query_size - past_len, dynamic.query_size + past_len);
-            r->set_tensor(mask_iport, view);
+            set_or_copy(view);
         } else {
             NPUW_ASSERT(false && "Reached the unreachable code");
         }
