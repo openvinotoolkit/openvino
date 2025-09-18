@@ -920,7 +920,7 @@ void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIn
 
     _variableStates.push_back(std::make_shared<ZeroVariableState>(_initStructs,
                                                                   descriptor.nameFromCompiler,
-                                                                  get_user_input(tensorIndex),
+                                                                  get_level_zero_input(tensorIndex),
                                                                   tensorIndex,
                                                                   descriptor.relatedDescriptorIndex.value(),
                                                                   _config));

@@ -14,7 +14,7 @@ namespace intel_npu {
 
 ZeroVariableState::ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                      const std::string& name,
-                                     const ov::SoPtr<ov::ITensor>& tensor,
+                                     const std::shared_ptr<ZeroTensor>& zero_tensor,
                                      size_t tensor_index,
                                      size_t related_tensor_index,
                                      const Config& config)
@@ -22,9 +22,10 @@ ZeroVariableState::ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder
       _init_structs(init_structs),
       _tensor_index(tensor_index),
       _related_tensor_index(related_tensor_index),
+      _zero_state(zero_tensor),
       _config(config),
       _logger("ZeroVariableState", _config.get<LOG_LEVEL>()) {
-    m_state = tensor;
+    m_state = _zero_state;
 }
 
 void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
@@ -56,9 +57,9 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
 }
 
 ov::SoPtr<ov::ITensor> ZeroVariableState::get_state() const {
-    auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(m_state._ptr);
-    if (zeroTensor != nullptr) {
-        zeroTensor->prevent_reuse();
+    auto zero_tensor = std::dynamic_pointer_cast<ZeroTensor>(m_state._ptr);
+    if (zero_tensor != nullptr) {
+        zero_tensor->prevent_reuse();
     }
 
     return m_state;
@@ -69,11 +70,10 @@ std::shared_ptr<ZeroTensor> ZeroVariableState::get_zero_state() const {
 }
 
 void ZeroVariableState::reset() {
-    auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(m_state._ptr);
+    auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(m_state._ptr);
 
-    void* userBuffer = !remoteTensor ? m_state->data() : remoteTensor->get_original_memory();
-
-    std::memset(userBuffer, 0, m_state->get_byte_size());
+    void* user_buffer = !remote_tensor ? m_state->data() : remote_tensor->get_original_memory();
+    std::memset(user_buffer, 0, m_state->get_byte_size());
 }
 
 size_t ZeroVariableState::get_tensor_index() const {

@@ -43,7 +43,7 @@ using ::testing::HasSubstr;
 namespace ov {
 namespace test {
 namespace behavior {
-class ZeroTensorRunTests : public ov::test::behavior::OVPluginTestBase,
+class ZeroTensorTests : public ov::test::behavior::OVPluginTestBase,
                            public testing::WithParamInterface<CompilationParams> {
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
@@ -91,7 +91,7 @@ public:
     }
 };
 
-TEST_P(ZeroTensorRunTests, AllocateDeleteAllocateZeroTensor) {
+TEST_P(ZeroTensorTests, AllocateDeleteAllocateZeroTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto shape = Shape{1, 2, 2, 2};
@@ -110,7 +110,7 @@ TEST_P(ZeroTensorRunTests, AllocateDeleteAllocateZeroTensor) {
         ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(), address));
 }
 
-TEST_P(ZeroTensorRunTests, CheckSetSmallerShape) {
+TEST_P(ZeroTensorTests, CheckSetSmallerShape) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto shape = Shape{1, 20, 20, 20};
@@ -134,7 +134,7 @@ TEST_P(ZeroTensorRunTests, CheckSetSmallerShape) {
                                                                                     zero_tensor->data()));
 }
 
-TEST_P(ZeroTensorRunTests, CheckSetBiggerShape) {
+TEST_P(ZeroTensorTests, CheckSetBiggerShape) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto shape = Shape{1, 20, 20, 20};
@@ -157,7 +157,7 @@ TEST_P(ZeroTensorRunTests, CheckSetBiggerShape) {
                                                                                     zero_tensor->data()));
 }
 
-TEST_P(ZeroTensorRunTests, CheckIsContinuousZeroTensorScalar) {
+TEST_P(ZeroTensorTests, CheckIsContinuousZeroTensorScalar) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_tensor =
@@ -171,7 +171,7 @@ TEST_P(ZeroTensorRunTests, CheckIsContinuousZeroTensorScalar) {
     EXPECT_EQ(view_tensor.is_continuous(), true);
 }
 
-TEST_P(ZeroTensorRunTests, CheckIsContinuousHostTensor1Dimension) {
+TEST_P(ZeroTensorTests, CheckIsContinuousHostTensor1Dimension) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_tensor =
@@ -189,7 +189,7 @@ TEST_P(ZeroTensorRunTests, CheckIsContinuousHostTensor1Dimension) {
     EXPECT_EQ(view_tensor.is_continuous(), true);
 }
 
-TEST_P(ZeroTensorRunTests, CheckIsContinuousZeroTensor2Dimensions) {
+TEST_P(ZeroTensorTests, CheckIsContinuousZeroTensor2Dimensions) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_tensor =
@@ -212,7 +212,7 @@ TEST_P(ZeroTensorRunTests, CheckIsContinuousZeroTensor2Dimensions) {
     EXPECT_EQ(view_tensor.is_continuous(), false);
 }
 
-TEST_P(ZeroTensorRunTests, CheckIsContinuousZeroTensor3Dimensions) {
+TEST_P(ZeroTensorTests, CheckIsContinuousZeroTensor3Dimensions) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_tensor =
@@ -238,7 +238,7 @@ TEST_P(ZeroTensorRunTests, CheckIsContinuousZeroTensor3Dimensions) {
     EXPECT_EQ(view_tensor.is_continuous(), true);
 }
 
-TEST_P(ZeroTensorRunTests, CheckIsContinuousZeroTensor4Dimensions) {
+TEST_P(ZeroTensorTests, CheckIsContinuousZeroTensor4Dimensions) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct,
@@ -279,7 +279,7 @@ TEST_P(ZeroTensorRunTests, CheckIsContinuousZeroTensor4Dimensions) {
     EXPECT_EQ(view_tensor.is_continuous(), true);
 }
 
-TEST_P(ZeroTensorRunTests, CopyDefaultTensorExpectedThrow) {
+TEST_P(ZeroTensorTests, CopyDefaultTensorExpectedThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto shape = Shape{1, 2, 2, 2};
@@ -293,7 +293,7 @@ TEST_P(ZeroTensorRunTests, CopyDefaultTensorExpectedThrow) {
     ::operator delete(data);
 }
 
-TEST_P(ZeroTensorRunTests, CopyZeroTensorAndKeepAlive) {
+TEST_P(ZeroTensorTests, CopyZeroTensorAndKeepAlive) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto shape = Shape{1, 2, 2, 2};
@@ -314,7 +314,7 @@ TEST_P(ZeroTensorRunTests, CopyZeroTensorAndKeepAlive) {
     ASSERT_THROW(copy_zero_tensor->set_shape({1, 20, 20, 20}), ov::Exception);
 }
 
-TEST_P(ZeroTensorRunTests, CopyHostTensorAndKeepAlive) {
+TEST_P(ZeroTensorTests, CopyHostTensorAndKeepAlive) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
@@ -337,7 +337,7 @@ TEST_P(ZeroTensorRunTests, CopyHostTensorAndKeepAlive) {
     ASSERT_THROW(copy_zero_tensor->set_shape({1, 20, 20, 20}), ov::Exception);
 }
 
-TEST_P(ZeroTensorRunTests, CopyRemoteTensorAndKeepAlive) {
+TEST_P(ZeroTensorTests, CopyRemoteTensorAndKeepAlive) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
@@ -360,7 +360,7 @@ TEST_P(ZeroTensorRunTests, CopyRemoteTensorAndKeepAlive) {
     ASSERT_THROW(copy_zero_tensor->set_shape({1, 20, 20, 20}), ov::Exception);
 }
 
-TEST_P(ZeroTensorRunTests, CopyRemoteTensorFromAnotherContextThrow) {
+TEST_P(ZeroTensorTests, CopyRemoteTensorFromAnotherContextThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();

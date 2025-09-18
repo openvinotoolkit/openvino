@@ -21,7 +21,7 @@ class ZeroVariableState final : public ov::IVariableState {
 public:
     explicit ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                const std::string& name,
-                               const ov::SoPtr<ov::ITensor>& tensor,
+                               const std::shared_ptr<ZeroTensor>& zero_tensor,
                                size_t tensor_index,
                                size_t related_tensor_index,
                                const Config& config);
