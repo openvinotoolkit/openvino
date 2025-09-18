@@ -632,6 +632,11 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         }  // if (link_iter)
     }  // for(param_base)
 
+    // 1.5: Do attention prologue if needed
+    if (is_dynamic) {
+        function_prologue_attn(real_idx, idx);
+    }
+
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
     // If it is enabled, the flow is a little bit different - see run_subrequest_for_success()
     // for details.
@@ -659,6 +664,46 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         }
     }
     LOG_DEBUG("Done");
+}
+
+void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, std::size_t idx) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+    NPUW_ASSERT(comp_model_desc.dynamic.has_value());
+
+    auto& r = m_subrequests[real_idx];
+
+    const auto& dynamic = comp_model_desc.dynamic.value();
+    auto mask_iport = comp_model_desc.compiled_model->inputs()[dynamic.mask_idx];
+
+    const auto &graph_mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
+    const auto this_case = m_dynamic_selector->this_case();
+    auto pos_id = m_dynamic_selector->length();
+
+    if (pos_id == -1) {
+        // Dynamic range couldn't be identified - fallback to the default
+        // (worst case) behavior
+        const auto &mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
+        r->set_tensor(mask_iport, mask);
+    } else {
+        const auto past_len = m_dynamic_selector->past_length();
+
+        // Now set the mask. Here comes very strong chunking & SDPA knowledge again
+        using namespace ov::npuw::runtime;
+        if (this_case == dynamic::Selector::Case::GENERATE) {
+            // Take a view from our "attend_all" mask
+            // FIXME: get the right dim
+            const auto &view = ov::npuw::util::view(ov::get_tensor_impl(dynamic.attend_all), 3, 0, past_len + 1);
+            r->set_tensor(mask_iport, view);
+        } else if (this_case == dynamic::Selector::Case::PREFILL) {
+            // Use our in-graph synthesized mask
+            // FIXME: get the right dim
+            const auto &input = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
+            const auto &view = ov::npuw::util::view(input, 3, dynamic.context_size - dynamic.query_size - past_len, dynamic.query_size + past_len);
+            r->set_tensor(mask_iport, view);
+        } else {
+            NPUW_ASSERT(false && "Reached the unreachable code");
+        }
+    }
 }
 
 void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
@@ -758,7 +803,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
 
 void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    if (!comp_model_desc.spatial && !comp_model_desc.dynamic) {
+    if (!comp_model_desc.spatial) {
         // Normal: trigger request asynchronously, run `f` in this context
         // FIXME: dynamic could hit here too, but it has special logic
         // around execution which makes it harder to run than a plain start_async()
@@ -767,7 +812,7 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
         f();  // expect noexcept
         r->wait();
     } else {
-        // Spatial OR dynamic execution... Do the opposite - run f
+        // Spatial... Do the opposite - run f
         // asynchronously, and meanwhile run the spatial inference
         auto future = std::async(std::launch::async, f);
         unsafe_infer(real_idx, idx);
@@ -878,54 +923,11 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std::size_t idx) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    NPUW_ASSERT(comp_model_desc.dynamic.has_value());
-
-    auto& r = m_subrequests[real_idx];
-
-    const auto& dynamic = comp_model_desc.dynamic.value();
-    auto mask_iport = comp_model_desc.compiled_model->inputs()[dynamic.mask_idx];
-
-    const auto &graph_mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
-    const auto this_case = m_dynamic_selector->this_case();
-    auto pos_id = m_dynamic_selector->length();
-
-    if (pos_id == -1) {
-        // Dynamic range couldn't be identified - fallback to the default
-        // (worst case) behavior
-        const auto &mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
-        r->set_tensor(mask_iport, mask);
-    } else {
-        const auto past_len = m_dynamic_selector->past_length();
-
-        // Now set the mask. Here comes very strong chunking & SDPA knowledge again
-        using namespace ov::npuw::runtime;
-        if (this_case == dynamic::Selector::Case::GENERATE) {
-            // Take a view from our "attend_all" mask
-            // FIXME: get the right dim
-            const auto &view = ov::npuw::util::view(ov::get_tensor_impl(dynamic.attend_all), 3, 0, past_len + 1);
-            r->set_tensor(mask_iport, view);
-        } else if (this_case == dynamic::Selector::Case::PREFILL) {
-            // Use our in-graph synthesized mask
-            // FIXME: get the right dim
-            const auto &input = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
-            const auto &view = ov::npuw::util::view(input, 3, dynamic.context_size - dynamic.query_size - past_len, dynamic.query_size + past_len);
-            r->set_tensor(mask_iport, view);
-        } else {
-            NPUW_ASSERT(false && "Reached the unreachable code");
-        }
-    }
-    r->infer();
-}
-
 void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx, std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
     if (comp_model_desc.spatial) {
         unsafe_infer_spatial(real_idx, idx);
-    } else if (comp_model_desc.dynamic) {
-        unsafe_infer_dynamic(real_idx, idx);
     } else {
         r->infer();  // Run normally
     }

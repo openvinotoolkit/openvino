@@ -98,11 +98,11 @@ protected:
     using IBaseInferRequest::bind_global_results;
 
     void function_prologue(std::size_t idx);
+    void function_prologue_attn(std::size_t real_idx, std::size_t idx);
 
     void unsafe_during(std::size_t real_idx, std::size_t idx, const std::function<void()>& f);
     void unsafe_infer(std::size_t real_idx, std::size_t idx);
     void unsafe_infer_spatial(std::size_t real_idx, std::size_t idx);
-    void unsafe_infer_dynamic(std::size_t real_idx, std::size_t idx);
     void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
 
     void connect_subrequests();
