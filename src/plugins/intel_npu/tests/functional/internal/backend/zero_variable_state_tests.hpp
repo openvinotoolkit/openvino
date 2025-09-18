@@ -132,8 +132,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithZeroTensor) {
     ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
                                                                                     zero_state->get_state()->data()));
 
-    ASSERT_TRUE(zero_state->tensor_was_updated());
-    ASSERT_TRUE(zero_state->zero_tensor_should_be_updated());
+    ASSERT_TRUE(zero_state->state_update_pending());
+    ASSERT_TRUE(zero_state->zero_state_update_pending());
 
     EXPECT_NE(zero_state->get_state()->data(), zero_tensor0->data());
 
@@ -159,6 +159,9 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensor) {
     auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element::f32, shape, true);
     auto zero_state =
         std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1, npu_config);
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+                                                                            zero_state->get_user_state()->data()));
 
     // shape size is unaligned to standard page size, expect to fail
     auto data = static_cast<float*>(::operator new(ov::shape_size(shape) * sizeof(ov::element::f32)));
@@ -170,8 +173,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensor) {
         ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
                                                                             zero_state->get_zero_state()->data()));
 
-    ASSERT_TRUE(zero_state->tensor_was_updated());
-    ASSERT_FALSE(zero_state->zero_tensor_should_be_updated());
+    ASSERT_TRUE(zero_state->state_update_pending());
+    ASSERT_FALSE(zero_state->zero_state_update_pending());
 
     EXPECT_NE(zero_state->get_state()->data(), zero_tensor->data());
     EXPECT_EQ(zero_state->get_zero_state()->data(), zero_tensor->data());
@@ -211,8 +214,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensorAfte
         ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
                                                                             zero_state->get_zero_state()->data()));
 
-    ASSERT_TRUE(zero_state->tensor_was_updated());
-    ASSERT_TRUE(zero_state->zero_tensor_should_be_updated());
+    ASSERT_TRUE(zero_state->state_update_pending());
+    ASSERT_TRUE(zero_state->zero_state_update_pending());
 
     EXPECT_NE(zero_state->get_state()->data(), zero_tensor->data());
     EXPECT_NE(zero_state->get_zero_state()->data(), zero_tensor->data());
@@ -253,8 +256,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithHostTensor) {
         ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
                                                                             zero_state->get_zero_state()->data()));
 
-    ASSERT_TRUE(zero_state->tensor_was_updated());
-    ASSERT_TRUE(zero_state->zero_tensor_should_be_updated());
+    ASSERT_TRUE(zero_state->state_update_pending());
+    ASSERT_TRUE(zero_state->zero_state_update_pending());
 
     EXPECT_NE(zero_state->get_state()->data(), zero_tensor->data());
     EXPECT_NE(zero_state->get_zero_state()->data(), zero_tensor->data());
@@ -298,8 +301,8 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithRemoteTensor) {
         ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
                                                                             zero_state->get_zero_state()->data()));
 
-    ASSERT_TRUE(zero_state->tensor_was_updated());
-    ASSERT_TRUE(zero_state->zero_tensor_should_be_updated());
+    ASSERT_TRUE(zero_state->state_update_pending());
+    ASSERT_TRUE(zero_state->zero_state_update_pending());
 
     EXPECT_NE(zero_remote_tensor->get_original_memory(), zero_tensor->data());
     EXPECT_NE(zero_state->get_zero_state()->data(), zero_tensor->data());

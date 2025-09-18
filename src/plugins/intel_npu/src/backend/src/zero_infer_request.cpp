@@ -241,19 +241,19 @@ void ZeroInferRequest::create_pipeline() {
         auto zeroState = std::dynamic_pointer_cast<ZeroVariableState>(variableState._ptr);
         OPENVINO_ASSERT(zeroState != nullptr, "State is not compatible with NPU plugin");
 
-        if (zeroState->tensor_was_updated()) {
+        if (zeroState->state_update_pending()) {
             _logger.debug("ZeroInferRequest::create_pipeline - user state tensor should be updated");
 
-            get_user_input(zeroState->get_tensor_index()) = zeroState->get_state();
-            _userOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state();
-            zeroState->reset_tensor_updated_flag();
+            get_user_input(zeroState->get_tensor_index()) = zeroState->get_user_state();
+            _userOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_user_state();
+            zeroState->clear_state_update_pending();
 
-            if (zeroState->zero_tensor_should_be_updated()) {
+            if (zeroState->zero_state_update_pending()) {
                 _logger.debug("ZeroInferRequest::create_pipeline - level zero state tensor should be updated");
 
                 get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_zero_state();
                 _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_zero_state();
-                zeroState->reset_zero_tensor_updated_flag();
+                zeroState->clear_zero_state_update_pending();
             }
         }
     }
@@ -639,15 +639,15 @@ void ZeroInferRequest::update_states_if_memory_changed() {
         auto zeroState = std::dynamic_pointer_cast<ZeroVariableState>(variableState._ptr);
         OPENVINO_ASSERT(zeroState != nullptr, "State is not compatible with NPU plugin");
 
-        if (zeroState->tensor_was_updated()) {
-            get_user_input(zeroState->get_tensor_index()) = zeroState->get_state();
-            _userOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state();
-            zeroState->reset_tensor_updated_flag();
+        if (zeroState->state_update_pending()) {
+            get_user_input(zeroState->get_tensor_index()) = zeroState->get_user_state();
+            _userOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_user_state();
+            zeroState->clear_state_update_pending();
 
-            if (zeroState->zero_tensor_should_be_updated()) {
+            if (zeroState->zero_state_update_pending()) {
                 get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_zero_state();
                 _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_zero_state();
-                zeroState->reset_zero_tensor_updated_flag();
+                zeroState->clear_zero_state_update_pending();
 
                 _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                                   get_level_zero_input(zeroState->get_tensor_index())->data(),

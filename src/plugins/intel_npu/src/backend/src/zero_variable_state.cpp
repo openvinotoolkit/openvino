@@ -29,8 +29,14 @@ ZeroVariableState::ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder
 }
 
 void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
+    if (m_state._ptr == new_state._ptr) {
+        // set_tensor called with the same tensor object; no action needed
+        _logger.debug("ZeroVariableState::set_state - got the same state, do nothing");
+        return;
+    }
+
     m_state = new_state;
-    _tensor_updated = true;
+    _is_state_updated = true;
 
     if (_init_structs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         try {
@@ -38,7 +44,7 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
             // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
             // context.
             _zero_state = std::make_shared<ZeroTensor>(_init_structs, m_state, _config);
-            _zero_tensor_updated = true;
+            _is_zero_state_update_needed = true;
         } catch (const ZeroTensorException&) {
             // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
             // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
@@ -49,7 +55,10 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
                                                            m_state->get_element_type(),
                                                            m_state->get_shape(),
                                                            false);
-                _zero_tensor_updated = true;
+                _is_zero_state_update_needed = true;
+            } else {
+                _logger.debug("ZeroVariableState::set_state - reusing the level zero tensor since it is not shared "
+                              "with the user");
             }
         }
         // If command list updates are not supported, fallback to copying tensors every time.
@@ -62,6 +71,10 @@ ov::SoPtr<ov::ITensor> ZeroVariableState::get_state() const {
         zero_tensor->prevent_reuse();
     }
 
+    return m_state;
+}
+
+ov::SoPtr<ov::ITensor> ZeroVariableState::get_user_state() const {
     return m_state;
 }
 
@@ -84,20 +97,20 @@ size_t ZeroVariableState::get_related_tensor_index() const {
     return _related_tensor_index;
 }
 
-bool ZeroVariableState::tensor_was_updated() const {
-    return _tensor_updated;
+bool ZeroVariableState::state_update_pending() const {
+    return _is_state_updated;
 }
 
-void ZeroVariableState::reset_tensor_updated_flag() {
-    _tensor_updated = false;
+void ZeroVariableState::clear_state_update_pending() {
+    _is_state_updated = false;
 }
 
-bool ZeroVariableState::zero_tensor_should_be_updated() const {
-    return _zero_tensor_updated;
+bool ZeroVariableState::zero_state_update_pending() const {
+    return _is_zero_state_update_needed;
 }
 
-void ZeroVariableState::reset_zero_tensor_updated_flag() {
-    _zero_tensor_updated = false;
+void ZeroVariableState::clear_zero_state_update_pending() {
+    _is_zero_state_update_needed = false;
 }
 
 }  // namespace intel_npu

@@ -32,6 +32,11 @@ public:
 
     ov::SoPtr<ov::ITensor> get_state() const override;
 
+    /**
+     * @brief Get user state to not change the state of the tensor through get_state()
+     */
+    ov::SoPtr<ov::ITensor> get_user_state() const;
+
     std::shared_ptr<ZeroTensor> get_zero_state() const;
 
     /**
@@ -46,25 +51,25 @@ public:
     size_t get_related_tensor_index() const;
 
     /**
-     * @brief Get acknowledgment if the tensor was updated
+     * @brief Get acknowledgment if state was updated
      */
-    bool tensor_was_updated() const;
+    bool state_update_pending() const;
 
     /**
-     * @brief Reset tensor updated flag
+     * @brief Reset state updated flag
      */
-    void reset_tensor_updated_flag();
+    void clear_state_update_pending();
 
     /**
-     * @brief Get acknowledgment if the zero tensor was updated
-     * @details In case the memory was allocated in the same level zero context update the zero tensor
+     * @brief Get acknowledgment if the zero state was updated
+     * @details In case the memory was allocated in the same level zero context update the zero state
      */
-    bool zero_tensor_should_be_updated() const;
+    bool zero_state_update_pending() const;
 
     /**
-     * @brief Reset zero tensor updated flag
+     * @brief Reset zero state updated flag
      */
-    void reset_zero_tensor_updated_flag();
+    void clear_zero_state_update_pending();
 
     ~ZeroVariableState() override = default;
 
@@ -75,8 +80,8 @@ private:
 
     std::shared_ptr<ZeroTensor> _zero_state;
 
-    bool _tensor_updated = false;
-    bool _zero_tensor_updated = false;
+    bool _is_state_updated = false;
+    bool _is_zero_state_update_needed = false;
 
     const Config _config;
     Logger _logger;
