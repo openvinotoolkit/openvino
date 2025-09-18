@@ -6,9 +6,6 @@
 
 #include <oneapi/dnnl/dnnl_config.h>
 #include <oneapi/dnnl/dnnl_types.h>
-#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-#    include <common/dnnl_thread.hpp>
-#endif
 
 #include <algorithm>
 #include <cassert>
@@ -45,6 +42,7 @@
 #include "openvino/cc/factory.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/util/pp.hpp"
@@ -60,6 +58,10 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+#    include <common/dnnl_thread.hpp>
+#endif
 
 using namespace dnnl;
 using namespace openvino;
