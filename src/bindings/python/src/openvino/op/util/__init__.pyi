@@ -18,4 +18,4 @@ from openvino._pyopenvino.op.util import VariableInfo
 Package: openvino.op.util
 Low level wrappers for the c++ api in ov::op::util.
 """
-__all__ = ['ArithmeticReduction', 'BinaryElementwiseArithmetic', 'BinaryElementwiseComparison', 'BinaryElementwiseLogical', 'BodyOutputDescription', 'ConcatOutputDescription', 'IndexReduction', 'InvariantInputDescription', 'MergedInputDescription', 'SliceInputDescription', 'UnaryElementwiseArithmetic', 'Variable', 'VariableInfo']
+__all__: list[str] = ['ArithmeticReduction', 'BinaryElementwiseArithmetic', 'BinaryElementwiseComparison', 'BinaryElementwiseLogical', 'BodyOutputDescription', 'ConcatOutputDescription', 'IndexReduction', 'InvariantInputDescription', 'MergedInputDescription', 'SliceInputDescription', 'UnaryElementwiseArithmetic', 'Variable', 'VariableInfo']
