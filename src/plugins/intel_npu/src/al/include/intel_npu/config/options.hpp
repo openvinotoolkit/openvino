@@ -1411,4 +1411,18 @@ struct WS_COMPILE_CALL_NUMBER final : OptionBase<WS_COMPILE_CALL_NUMBER, uint32_
     }
 };
 
+struct BETTER_MODEL_SERIALIZATION final : OptionBase<BETTER_MODEL_SERIALIZATION, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::better_model_serialization.name();
+    }
+
+    static bool defaultValue() {
+        return true;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
 }  // namespace intel_npu
