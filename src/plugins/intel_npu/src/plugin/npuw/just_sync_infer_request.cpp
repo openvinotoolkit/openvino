@@ -196,7 +196,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }
 
     m_spatial_io.resize(m_num_submodels);
-    m_dynamic_io.resize(m_num_submodels);
+    m_attention_io.resize(m_num_submodels);
 
     // Create infer requests
     // Preallocate funcall tensors & substitute function call requests
@@ -258,7 +258,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                 }
                 has_dynamic = true;
                 dynamic_sub_idx = real_idx;
-                m_dynamic_io[i].inputs.resize(proto_comp_model_desc.param_base);
+                m_attention_io[i].inputs.resize(proto_comp_model_desc.param_base);
             }  // if(dynamic)
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
@@ -591,44 +591,32 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             std::size_t prod_port;
             std::tie(prod_idx, prod_port) = link_iter->second;
 
-            // FIXME: This IF can be rewritten down to 2x
-            if (!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by) {
-                // Producer is a normal model -> take its tensor directly
-                const auto& oport = m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
-                auto i_tensor = m_subrequests[prod_idx]->get_tensor(oport);
-                if (is_spatial) {
-                    // Spatial case - defer
-                    m_spatial_io[real_idx].inputs.at(i) = i_tensor;
-                } else if (is_dynamic) {
-                    // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
-                    if (non_dynamic_act_in(*func_desc.attention, i)) {
-                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
-                    } else {
-                        m_dynamic_io[idx].inputs.at(i) = i_tensor;
-                    }
+            const auto& i_tensor = [&]() {
+                if (!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by) {
+                    // Producer is a normal model -> take its tensor directly
+                    const auto& oport = m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
+                    return m_subrequests[prod_idx]->get_tensor(oport);
                 } else {
-                    // Default case
+                    // Producer is a function - maybe the same as we're calling now.
+                    // Take its tensor from the storage
+                    return m_funcall_result.at({prod_idx, prod_port});
+                }
+            }();
+
+            if (is_spatial) {
+                // Spatial case - defer
+                m_spatial_io[real_idx].inputs.at(i) = i_tensor;
+            } else if (is_dynamic) {
+                // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
+                if (non_dynamic_act_in(*func_desc.attention, i)) {
                     m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+                } else {
+                    m_attention_io[idx].inputs.at(i) = i_tensor;
                 }
             } else {
-                // Producer is a function - maybe the same as we're calling now.
-                // Take its tensor from the storage
-                const auto& i_tensor = m_funcall_result.at({prod_idx, prod_port});
-                if (is_spatial) {
-                    // Spatial case - defer
-                    m_spatial_io[real_idx].inputs.at(i) = i_tensor;
-                } else if (is_dynamic) {
-                    // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
-                    if (non_dynamic_act_in(*func_desc.attention, i)) {
-                        m_subrequests[real_idx]->set_tensor(iport, i_tensor);
-                    } else {
-                        m_dynamic_io[idx].inputs.at(i) = i_tensor;
-                    }
-                } else {
-                    // Default case
-                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
-                }
-            }  // if (prod.replaced_by)
+                // Default case
+                m_subrequests[real_idx]->set_tensor(iport, i_tensor);
+            }
         }  // if (link_iter)
     }  // for(param_base)
 
@@ -675,15 +663,14 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
     const auto& dynamic = comp_model_desc.attention.value();
     auto mask_iport = comp_model_desc.compiled_model->inputs()[dynamic.mask_idx];
 
-    const auto &graph_mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
+    const auto &graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
     const auto this_case = m_attention_selector->this_case();
     auto pos_id = m_attention_selector->length();
 
     if (pos_id == -1) {
         // Dynamic range couldn't be identified - fallback to the default
         // (worst case) behavior
-        const auto &mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
-        r->set_tensor(mask_iport, mask);
+        r->set_tensor(mask_iport, graph_mask);
     } else {
         const auto past_len = m_attention_selector->past_length();
 
@@ -707,8 +694,7 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
         } else if (this_case == attention::Selector::Case::PREFILL) {
             // Use our in-graph synthesized mask
             // FIXME: get the right dim
-            const auto &input = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
-            const auto &view = ov::npuw::util::view(input, 3, dynamic.context_size - dynamic.query_size - past_len, dynamic.query_size + past_len);
+            const auto &view = ov::npuw::util::view(graph_mask, 3, dynamic.context_size - dynamic.query_size - past_len, dynamic.query_size + past_len);
             set_or_copy(view);
         } else {
             NPUW_ASSERT(false && "Reached the unreachable code");

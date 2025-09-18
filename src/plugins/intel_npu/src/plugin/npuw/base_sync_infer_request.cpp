@@ -498,7 +498,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
         } else if (is_dynamic_param(sub_in_idx)) {
             // Register for future use
-            m_dynamic_io[idx].inputs.at(sub_in_idx) = g_tnsr;
+            m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {
             // Input parameter is non-spatial, do normal handling
             if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
@@ -648,7 +648,7 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
         // (worst case) behavior
         for (auto&& param : dynamic.params) {
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-            const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
             r->set_tensor(iport, input);
         }
     } else {
@@ -656,7 +656,7 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
         // Set the past k/v values first
         for (auto&& param : dynamic.params) {
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-            const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
             const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
             const auto shape = view->get_shape();
             const auto do_copy = needs_copy(idx);

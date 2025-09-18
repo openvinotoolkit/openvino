@@ -123,10 +123,10 @@ protected:
     std::vector<SpatialIO> m_spatial_io;
 
     // FIXME: All comments for SpatialIO above apply here as well.
-    struct DynamicIO {
+    struct AttentionIO {
         std::vector<ov::SoPtr<ov::ITensor>> inputs;  // # of elements - # of graph-side inputs
     };
-    std::vector<DynamicIO> m_dynamic_io;
+    std::vector<AttentionIO> m_attention_io;
 
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
