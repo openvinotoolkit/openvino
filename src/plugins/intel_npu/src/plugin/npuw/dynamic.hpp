@@ -50,6 +50,9 @@ void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) 
 
 // Compile-time dynamic information. Not much different from the above
 struct Dynamic {
+    std::size_t query_size = 0u;
+    std::size_t context_size = 0u;
+
     struct Param {
         std::size_t idx;  // function input index for this spatial parameter
         std::size_t dim;
@@ -58,10 +61,11 @@ struct Dynamic {
     std::size_t mask_idx = 0u;
 
     ov::Tensor attend_all;
-    std::size_t query_size = 0u;
 
     Dynamic() = default;
-    Dynamic(const function::Dynamic& d, const std::shared_ptr<ov::Model>& m) {
+    Dynamic(const function::Dynamic& d, const std::shared_ptr<ov::Model>& m)
+        : query_size(d._mask_shape.at(2))
+        , context_size(d._mask_shape.at(3)) {
         for (auto&& input : d._inputs) {
             std::size_t p_idx = m->get_parameter_index(input.param);
             params.push_back(Param{p_idx, input.dim});

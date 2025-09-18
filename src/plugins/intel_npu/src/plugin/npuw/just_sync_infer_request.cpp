@@ -881,13 +881,9 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
     auto mask_iport = comp_model_desc.compiled_model->inputs()[dynamic.mask_idx];
 
     const auto &graph_mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
-    auto mask_shape = graph_mask->get_shape();
-    NPUW_ASSERT(mask_shape.size() == 4);
-    auto query_size = mask_shape[2];
-    auto ctx_size = mask_shape[3];
 
     enum class Case { PREFILL, GENERATE};
-    Case this_case = query_size == 1 ? Case::GENERATE : Case::PREFILL;
+    Case this_case = dynamic.query_size == 1 ? Case::GENERATE : Case::PREFILL;
     // FIXME: speculative decode is indistinguishable at this point!
 
     auto pos_id = m_dynamic_selector->length();
@@ -895,13 +891,14 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
     if (pos_id == -1) {
         // Dynamic range couldn't be identified - fallback to the default
         // (worst case) behavior
+        #if 0
         for (auto&& param : dynamic.params) {
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
             const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
             r->set_tensor(iport, input);
         }
-        const auto &mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
-        r->set_tensor(mask_iport, mask);
+        #endif
+        r->set_tensor(mask_iport, graph_mask);
     } else {
         auto past_len = [&]() -> uint64_t {
             switch (this_case) {
@@ -910,19 +907,19 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
                 return pos_id;
             case Case::PREFILL:
                 // chunked prefill case. calculate the past_length in full chunks
-                return (pos_id / query_size) * query_size;
+                return (pos_id / dynamic.query_size) * dynamic.query_size;
             default:
                 NPUW_ASSERT(false && "Reached the unreachable code");
             }
         }();
-
+        #if 0
         // Set the past k/v values first, it is easy!
         for (auto&& param : dynamic.params) {
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
             const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
             r->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, past_len));
         }  // for(params)
-
+        #endif
         // Now set the mask. Here comes very strong chunking & SDPA knowledge again
         if (this_case == Case::GENERATE) {
             // Take a view from our "attend_all" mask
@@ -933,7 +930,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
             // Use our in-graph synthesized mask
             // FIXME: get the right dim
             const auto &input = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
-            const auto &view = ov::npuw::util::view(input, 3, ctx_size - query_size - past_len, query_size + past_len);
+            const auto &view = ov::npuw::util::view(input, 3, dynamic.context_size - dynamic.query_size - past_len, dynamic.query_size + past_len);
             r->set_tensor(mask_iport, view);
         }
     }

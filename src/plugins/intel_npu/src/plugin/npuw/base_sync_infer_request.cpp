@@ -521,6 +521,9 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     // Run host-side quantized gather, if required
     handle_quant_host_gather(idx, request);
 
+    // Handle attention inputs, if required
+    bind_attention_inputs(idx, request);
+
     LOG_DEBUG("Done");
 }
 
@@ -612,6 +615,50 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
         } else {
             NPUW_ASSERT(false && "Not supported");
         }
+    }
+}
+
+void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    if (!comp_model_desc.dynamic) {
+        return;
+    }
+
+    const auto& dynamic = comp_model_desc.dynamic.value();
+    enum class Case { PREFILL, GENERATE};
+    Case this_case = dynamic.query_size == 1 ? Case::GENERATE : Case::PREFILL;
+
+    auto& r = request;
+
+    const auto pos_id = m_dynamic_selector->length();
+    if (pos_id == -1) {
+        // Dynamic range couldn't be identified - fallback to the default
+        // (worst case) behavior
+        for (auto&& param : dynamic.params) {
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
+            r->set_tensor(iport, input);
+        }
+    } else {
+        auto past_len = [&]() -> uint64_t {
+            switch (this_case) {
+            case Case::GENERATE:
+                // decode case, we have pos_id-1 past elements to take from kvcache
+                return pos_id;
+            case Case::PREFILL:
+                // chunked prefill case. calculate the past_length in full chunks
+                return (pos_id / dynamic.query_size) * dynamic.query_size;
+            default:
+                NPUW_ASSERT(false && "Reached the unreachable code");
+            }
+        }();
+
+        // Set the past k/v values first
+        for (auto&& param : dynamic.params) {
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
+            r->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, past_len));
+        }  // for(params)
     }
 }
 
