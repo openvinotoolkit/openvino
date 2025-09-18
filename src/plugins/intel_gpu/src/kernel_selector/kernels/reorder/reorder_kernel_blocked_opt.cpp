@@ -45,10 +45,7 @@ ReorderKernelBase::DispatchData ReorderKernelBlockedOpt::SetDefault(const reorde
     size_t global_w_item = std::max(params.inputs[0].PhysicalSize() / SelectVecSizeFromSize(params.inputs[0]), (size_t)1);
     size_t g_size = SelectGroupSize(global_w_item);
 
-    //  dispatchData.gws = {global_w_item, 1, 1};
-    std::cout << " >> ReorderKernelBlockedOpt::SetDefault >> params.inputs[0].PhysicalSize() : " << params.inputs[0].PhysicalSize() << std::endl;
     dispatchData.gws = {global_w_item/g_size, 1, 1};
-    // dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
@@ -60,20 +57,8 @@ bool ReorderKernelBlockedOpt::Validate(const Params& p) const {
         return false;
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
-    std::cout << ">>>>>> " << p.layerID << std::endl;
-    if (params.truncate) {
-        std::cout << "  -- enabled truncated " << std::endl;
-        // return false;
-    } else {
-        // return false;
-    }
-
-    if (SelectVecSizeFromSize(params.inputs[0]) == 1) {
-        std::cout << "  -- bad for vector : " << (params.inputs[0].is_dynamic() ? "dynamic" : "no dyn") << std::endl;
+    if (SelectVecSizeFromSize(params.inputs[0]) == 1)
         return false;
-    } else {
-        std::cout << "  -- physical outputs for vector : " << params.inputs[0].PhysicalSize() << std::endl;
-    }
 
     if (!params.fused_ops.empty())
         return false;
@@ -81,10 +66,8 @@ bool ReorderKernelBlockedOpt::Validate(const Params& p) const {
     if (params.surface_input || params.inputs[0].GetDType() == Datatype::BF16 )
         return false;
 
-    if (params.mode != MeanSubtractMode::NONE) {
-        std::cout << "  -- MeanSubtractMode is not NONE " << std::endl;
+    if (params.mode != MeanSubtractMode::NONE)
         return false;
-    }
 
     auto compare_tensors = [](const DataTensor& input, const DataTensor& output) -> bool {
         // Check all parameters except DataType
@@ -117,12 +100,6 @@ bool ReorderKernelBlockedOpt::Validate(const Params& p) const {
             return false;
     }
 
-    // std::cout << "  -- info : " << (int)params.mode << " " << (int)params.mean_op << " " << params.meanValues.size() << " "
-    //             << " " << params.mean.Dimentions() << " : "
-    //             << params.winograd_input_offset_x << " "  << params.winograd_input_offset_y
-    //             << " " << params.winograd_nr_tiles_x << " " << params.winograd << " " << params.has_padded_output
-    //             << " " << params.surface_input << " " << params.truncate << std::endl;
-    // std::cout << "  -- Done : " << p.layerID << std::endl;
     return true;
 }
 
@@ -141,8 +118,6 @@ JitConstants ReorderKernelBlockedOpt::GetJitConstants(const reorder_params& para
     size_t g_size = SelectGroupSize(global_w_item);
     jit.AddConstant(MakeJitConstant("ITEM_SIZE", g_size));
 
-    std::cout << "  -- " << params.layerID << " >> ITEM_SIZE : " << g_size << ", VEC : " << vec_size << std::endl;
-
     return jit;
 }
 
@@ -160,9 +135,6 @@ void ReorderKernelBlockedOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-
-        std::cout << ">> ReorderKernelBlockedOpt::GetUpdateDispatchDataFunc : " <<kd.kernels[0].params.workGroups.global[0] << ", "
-                    << kd.kernels[0].params.workGroups.global[1] << ", " << kd.kernels[0].params.workGroups.global[2] << std::endl;
     };
 }
 
@@ -183,8 +155,6 @@ static inline size_t SelectVecSizeFromSize(const DataTensor& tensor) {
 }
 
 static inline size_t SelectGroupSize(size_t ele_size) {
-    // auto preferred_group_size = { 4096, 2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2 };
-    // auto preferred_group_size = { 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2 };
     auto preferred_group_size = { 32, 16, 8, 4, 2 };
     for (auto g_size : preferred_group_size) {
         if (ele_size % g_size == 0)
