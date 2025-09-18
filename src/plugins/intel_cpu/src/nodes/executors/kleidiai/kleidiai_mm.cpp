@@ -266,7 +266,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
                 //  matmul exec
                 const size_t rhs_packed_offset = ukernel_i8->get_rhs_packed_offset(n_blk * n_step, K);
                 const size_t dst_offset = ukernel_i8->get_dst_offset(m_blk * m_step, n_blk * n_step, dst_stride_row);
-                const void* rhs_ptr = static_cast<const void*>(rhs_packed_qs8cx + rhs_packed_offset);
+                const auto* rhs_ptr = static_cast<const void*>(rhs_packed_qs8cx + rhs_packed_offset);
                 const auto* lhs_ptr = static_cast<const void*>(lhs_packed_qa8dx_B + lhs_packed_offset);
                 float* dst_ptr = (dst + dst_offset / sizeof(float));
                 const size_t N_iter = std::min(N - n_blk * n_step, n_step);
