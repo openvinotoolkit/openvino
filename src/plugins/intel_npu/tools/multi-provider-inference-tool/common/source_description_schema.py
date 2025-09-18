@@ -2,7 +2,7 @@
 
 #
 # Copyright (C) 2025 Intel Corporation
-# SPDX-License-Identifier: Apache 2.0
+# SPDX-License-Identifier: Apache-2.0
 #
 
 from common.converters import shape_to_list, layout_to_str
