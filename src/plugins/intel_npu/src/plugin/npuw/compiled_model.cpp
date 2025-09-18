@@ -366,9 +366,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 }
                 // Does the same for dynamic. FIXME: This selection should be hidden here
                 // in the object semantics
-                if (fcn_template._dynamic) {
-                    m_compiled_submodels[id].dynamic =
-                        compiled::Dynamic(fcn_template._dynamic.value(), fcn_template._model);
+                if (fcn_template._attention) {
+                    m_compiled_submodels[id].attention =
+                        compiled::Attention(fcn_template._attention.value(), fcn_template._model);
                 }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {

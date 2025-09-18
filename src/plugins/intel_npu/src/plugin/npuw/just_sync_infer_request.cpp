@@ -251,7 +251,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             }  // if(spatial)
 
             // Initialize the dynamic IO placeholders, if required
-            if (proto_comp_model_desc.dynamic) {
+            if (proto_comp_model_desc.attention) {
                 // Sanity check first
                 if (has_dynamic && dynamic_sub_idx != real_idx) {
                     OPENVINO_THROW("Only single attention type is permitted for model");
@@ -368,11 +368,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     // Handle dynamic submission
     if (has_dynamic) {
-        const auto &dyn = m_npuw_model->m_compiled_submodels.at(dynamic_sub_idx).dynamic.value();
-        m_dynamic_selector = runtime::dynamic::PositionIDs::find(dyn, *this);
-        if (!m_dynamic_selector) {
+        const auto &dyn = m_npuw_model->m_compiled_submodels.at(dynamic_sub_idx).attention.value();
+        m_attention_selector = runtime::attention::PositionIDs::find(dyn, *this);
+        if (!m_attention_selector) {
             LOG_WARN("Dynamic capability is enabled, but no run-time features were found.");
-            m_dynamic_selector.reset(new runtime::dynamic::All());
+            m_attention_selector.reset(new runtime::attention::All());
         }
         LOG_VERB("Done");
     }
@@ -501,8 +501,8 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     }
 
     // So do the dynamic range
-    if (m_dynamic_selector) {
-        m_dynamic_selector->prepare();
+    if (m_attention_selector) {
+        m_attention_selector->prepare();
     }
 
     LOG_DEBUG("Done");
@@ -567,9 +567,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
     const bool is_spatial = func_desc.spatial.has_value();
-    const bool is_dynamic = func_desc.dynamic.has_value();
+    const bool is_dynamic = func_desc.attention.has_value();
 
-    const auto non_dynamic_act_in = [](const ov::npuw::compiled::Dynamic& d, std::size_t in_idx) {
+    const auto non_dynamic_act_in = [](const ov::npuw::compiled::Attention& d, std::size_t in_idx) {
         const bool not_param = std::none_of(d.params.begin(), d.params.end(), [&](auto&& p) {
             return p.idx == in_idx;
         });
@@ -601,7 +601,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     m_spatial_io[real_idx].inputs.at(i) = i_tensor;
                 } else if (is_dynamic) {
                     // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
-                    if (non_dynamic_act_in(*func_desc.dynamic, i)) {
+                    if (non_dynamic_act_in(*func_desc.attention, i)) {
                         m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                     } else {
                         m_dynamic_io[idx].inputs.at(i) = i_tensor;
@@ -619,7 +619,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
                     m_spatial_io[real_idx].inputs.at(i) = i_tensor;
                 } else if (is_dynamic) {
                     // Set tensor only if it is non-dynamic (dynamic are managed by the infer_dynamic)
-                    if (non_dynamic_act_in(*func_desc.dynamic, i)) {
+                    if (non_dynamic_act_in(*func_desc.attention, i)) {
                         m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                     } else {
                         m_dynamic_io[idx].inputs.at(i) = i_tensor;
@@ -668,16 +668,16 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
 
 void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
-    NPUW_ASSERT(comp_model_desc.dynamic.has_value());
+    NPUW_ASSERT(comp_model_desc.attention.has_value());
 
     auto& r = m_subrequests[real_idx];
 
-    const auto& dynamic = comp_model_desc.dynamic.value();
+    const auto& dynamic = comp_model_desc.attention.value();
     auto mask_iport = comp_model_desc.compiled_model->inputs()[dynamic.mask_idx];
 
     const auto &graph_mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
-    const auto this_case = m_dynamic_selector->this_case();
-    auto pos_id = m_dynamic_selector->length();
+    const auto this_case = m_attention_selector->this_case();
+    auto pos_id = m_attention_selector->length();
 
     if (pos_id == -1) {
         // Dynamic range couldn't be identified - fallback to the default
@@ -685,13 +685,13 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
         const auto &mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
         r->set_tensor(mask_iport, mask);
     } else {
-        const auto past_len = m_dynamic_selector->past_length();
+        const auto past_len = m_attention_selector->past_length();
 
         auto set_or_copy = [&](const auto &view) {
             if (!needs_copy(idx)) {
                 r->set_tensor(mask_iport, view);
             } else {
-                auto &dst = r->get_tensor(mask_iport);
+                const auto &dst = r->get_tensor(mask_iport);
                 dst->set_shape(view->get_shape());
                 view->copy_to(dst._ptr);
             }
@@ -699,12 +699,12 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
 
         // Now set the mask. Here comes very strong chunking & SDPA knowledge again
         using namespace ov::npuw::runtime;
-        if (this_case == dynamic::Selector::Case::GENERATE) {
+        if (this_case == attention::Selector::Case::GENERATE) {
             // Take a view from our "attend_all" mask
             // FIXME: get the right dim
             const auto &view = ov::npuw::util::view(ov::get_tensor_impl(dynamic.attend_all), 3, 0, past_len + 1);
             set_or_copy(view);
-        } else if (this_case == dynamic::Selector::Case::PREFILL) {
+        } else if (this_case == attention::Selector::Case::PREFILL) {
             // Use our in-graph synthesized mask
             // FIXME: get the right dim
             const auto &input = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);

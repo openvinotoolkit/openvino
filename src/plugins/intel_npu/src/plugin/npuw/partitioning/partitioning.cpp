@@ -244,7 +244,7 @@ private:
     void identifySpatialRange(ov::npuw::Function& f);
 
     // NB(dm): Same note here
-    void identifyDynamicParams(ov::npuw::Function& f);
+    void identifyAttentionParams(ov::npuw::Function& f);
 
     template <typename T, typename M>
     void rearrange_to_function_protocol(ov::npuw::Subgraph::Ref func_ref,
@@ -337,7 +337,7 @@ public:
     void createFunction(const std::string& func_name);
     void matchRepeatedSubgraphs(const std::string& func_name);
     void spatial(const std::string& func_name);
-    void dynamic(const std::string& func_name);
+    void attention(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -1794,10 +1794,10 @@ void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
     f._spatial = std::move(spatial);
 }
 
-void Partitioner::identifyDynamicParams(ov::npuw::Function& f) {
+void Partitioner::identifyAttentionParams(ov::npuw::Function& f) {
     NPUW_ASSERT(f._tag == "attn");
 
-    ov::npuw::function::Dynamic dyn;
+    ov::npuw::function::Attention dyn;
 
     const auto& f_params = f._model->get_parameters();
     NPUW_ASSERT(f_params.size() > 0);
@@ -1807,7 +1807,7 @@ void Partitioner::identifyDynamicParams(ov::npuw::Function& f) {
         // A bad test but it is what it is
         if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
             // FIXME: Take KV_DIM elsewhere!!!
-            dyn._inputs.push_back(ov::npuw::function::Dynamic::Param{param, 2});
+            dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, 2});
         }
     }
 
@@ -1842,7 +1842,7 @@ void Partitioner::identifyDynamicParams(ov::npuw::Function& f) {
     }
 
     // Accept the change
-    f._dynamic = std::move(dyn);
+    f._attention = std::move(dyn);
 }
 
 void Partitioner::createFunction(const std::string& func_name) {
@@ -1972,7 +1972,7 @@ void Partitioner::spatial(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
-void Partitioner::dynamic(const std::string& func_name) {
+void Partitioner::attention(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
 
     // Support only attention at the time
@@ -1982,8 +1982,8 @@ void Partitioner::dynamic(const std::string& func_name) {
         return;
     }
 
-    identifyDynamicParams(f);
-    if (!f._dynamic) {
+    identifyAttentionParams(f);
+    if (!f._attention) {
         LOG_WARN("Do dynamic ranges found in the ATTN block");
         return;
     }
@@ -1991,17 +1991,17 @@ void Partitioner::dynamic(const std::string& func_name) {
     // Apply transformation to the model. Note: only function body is modified
     // Accumulate the reshape map
     std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
-    for (auto&& p : f._dynamic->_inputs) {
+    for (auto&& p : f._attention->_inputs) {
         ov::PartialShape dyn_shape = p.param->get_shape();  // Here it is yet static
         dyn_shape[p.dim] = ov::Dimension();                 // ..and now is dynamic
         new_shapes[p.param->output(0)] = std::move(dyn_shape);
     }
     // Mask
     {
-        f._dynamic->_mask_shape = f._dynamic->_mask->get_shape();
-        ov::PartialShape dyn_shape = f._dynamic->_mask_shape;
+        f._attention->_mask_shape = f._attention->_mask->get_shape();
+        ov::PartialShape dyn_shape = f._attention->_mask_shape;
         dyn_shape[dyn_shape.size() - 1] = ov::Dimension();
-        new_shapes[f._dynamic->_mask->output(0)] = std::move(dyn_shape);
+        new_shapes[f._attention->_mask->output(0)] = std::move(dyn_shape);
     }
     f._model->reshape(new_shapes);
 
@@ -2023,7 +2023,7 @@ void Partitioner::dynamic(const std::string& func_name) {
         auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
         auto shape_values = shape_const->cast_vector<int32_t>();
         for (auto &&d : shape_values) {
-            if (d == f._dynamic->_mask_shape.back()) {
+            if (d == f._attention->_mask_shape.back()) {
                 d = 1;
             }
         }
@@ -2632,7 +2632,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
-                p.dynamic(func_group);
+                p.attention(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }

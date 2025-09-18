@@ -18,9 +18,9 @@ namespace npuw {
 
 namespace function {
 
-// Partition-time dynamic information. So far assume dynamic execution in 1 dimension only
+// Partition-time attention information. So far assume dynamic execution in 1 dimension only
 // Defined at this level to be aligned with other partitioning entities (but needs to be moved?)
-struct Dynamic {
+struct Attention {
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     struct Param {
         PPtr param;
@@ -48,8 +48,8 @@ void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) 
 
 }  // anonymous namespace
 
-// Compile-time dynamic information. Not much different from the above
-struct Dynamic {
+// Compile-time attention information. Not much different from the above
+struct Attention {
     std::size_t query_size = 0u;
     std::size_t context_size = 0u;
 
@@ -62,8 +62,8 @@ struct Dynamic {
 
     ov::Tensor attend_all;
 
-    Dynamic() = default;
-    Dynamic(const function::Dynamic& d, const std::shared_ptr<ov::Model>& m)
+    Attention() = default;
+    Attention(const function::Attention& d, const std::shared_ptr<ov::Model>& m)
         : query_size(d._mask_shape.at(2))
         , context_size(d._mask_shape.at(3)) {
         for (auto&& input : d._inputs) {
@@ -94,7 +94,7 @@ struct Dynamic {
 }  // namespace compiled
 
 namespace runtime {
-namespace dynamic {
+namespace attention {
 
 // A base class to decide the work-scope from some feature
 class Selector {
@@ -132,19 +132,19 @@ class PositionIDs final : public Selector {
     int64_t m_current_length = 0;
     int64_t m_past_length = 0;
 
-    const compiled::Dynamic& m_d;
+    const compiled::Attention& m_d;
     const ov::ISyncInferRequest& m_rq;
 
-    PositionIDs(std::size_t param_idx, const compiled::Dynamic& d, const ov::ISyncInferRequest& rq);
+    PositionIDs(std::size_t param_idx, const compiled::Attention& d, const ov::ISyncInferRequest& rq);
     void prepare() override;
     int64_t length() const override;
     int64_t past_length() const override;
 
 public:
-    static Selector::Ptr find(const compiled::Dynamic& d, const ov::ISyncInferRequest& rq);
+    static Selector::Ptr find(const compiled::Attention& d, const ov::ISyncInferRequest& rq);
 };
 
-}  // namespace dynamic
+}  // namespace attention
 }  // namespace runtime
 
 }  // namespace npuw

@@ -449,7 +449,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
 
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
-    const bool is_dynamic = proto_comp_model_desc.dynamic.has_value();
+    const bool is_dynamic = proto_comp_model_desc.attention.has_value();
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
@@ -470,7 +470,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         if (!is_dynamic) {
             return false;  // Early return
         }
-        auto& dynamic = proto_comp_model_desc.dynamic.value();
+        auto& dynamic = proto_comp_model_desc.attention.value();
         return std::any_of(dynamic.params.begin(), dynamic.params.end(), [&](const auto& p) -> bool {
             return p.idx == sub_in_idx;
         });
@@ -632,17 +632,17 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
 
 void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr request) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
-    if (!comp_model_desc.dynamic) {
+    if (!comp_model_desc.attention) {
         return;
     }
 
     LOG_DEBUG("Binding Attention inputs...");
     LOG_BLOCK();
 
-    const auto& dynamic = comp_model_desc.dynamic.value();
+    const auto& dynamic = comp_model_desc.attention.value();
     auto& r = request;
 
-    const auto pos_id = m_dynamic_selector->length();
+    const auto pos_id = m_attention_selector->length();
     if (pos_id == -1) {
         // Dynamic range couldn't be identified - fallback to the default
         // (worst case) behavior
@@ -652,7 +652,7 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
             r->set_tensor(iport, input);
         }
     } else {
-        const auto past_len = m_dynamic_selector->past_length();
+        const auto past_len = m_attention_selector->past_length();
         // Set the past k/v values first
         for (auto&& param : dynamic.params) {
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
@@ -665,7 +665,7 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
             LOG_BLOCK();
             if (do_copy && ov::shape_size(shape) > 0) {
                 // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
-                auto &dst = r->get_tensor(iport);
+                const auto &dst = r->get_tensor(iport);
                 dst->set_shape(shape);
                 LOG_DEBUG("Do copy: " << shape << "...");
                 view->copy_to(dst._ptr);

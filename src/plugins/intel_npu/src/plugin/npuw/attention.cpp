@@ -1,11 +1,11 @@
 // Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "dynamic.hpp"
+#include "attention.hpp"
 
 #include "util.hpp"
 
-ov::npuw::runtime::dynamic::PositionIDs::PositionIDs(std::size_t param_idx, const ov::npuw::compiled::Dynamic &d, const ov::ISyncInferRequest& rq)
+ov::npuw::runtime::attention::PositionIDs::PositionIDs(std::size_t param_idx, const ov::npuw::compiled::Attention &d, const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
       m_d(d),
       m_rq(rq) {
@@ -13,8 +13,8 @@ ov::npuw::runtime::dynamic::PositionIDs::PositionIDs(std::size_t param_idx, cons
     m_case = m_d.query_size == 1 ? Case::GENERATE : Case::PREFILL;
 }
 
-ov::npuw::runtime::dynamic::Selector::Ptr ov::npuw::runtime::dynamic::PositionIDs::find(
-    const ov::npuw::compiled::Dynamic &d,
+ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::PositionIDs::find(
+    const ov::npuw::compiled::Attention &d,
     const ov::ISyncInferRequest& rq) {
     auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
         const auto& shape = p.get_shape();
@@ -32,7 +32,7 @@ ov::npuw::runtime::dynamic::Selector::Ptr ov::npuw::runtime::dynamic::PositionID
     return Selector::Ptr{};
 }
 
-void ov::npuw::runtime::dynamic::PositionIDs::prepare() {
+void ov::npuw::runtime::attention::PositionIDs::prepare() {
     const auto& iport = m_rq.get_compiled_model()->inputs()[m_position_ids_idx];
     const auto in_tensor = m_rq.get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
@@ -55,7 +55,7 @@ void ov::npuw::runtime::dynamic::PositionIDs::prepare() {
                 // decode case, we have pos_id-1 past elements to take from kvcache
                 m_past_length = m_current_length;
                 break;
-            case dynamic::Selector::Case::PREFILL:
+            case Case::PREFILL:
                 // chunked prefill case. calculate the past_length in full chunks
                 // FIXME: We know too much about chunking here
                 m_past_length = (m_current_length / m_d.query_size) * m_d.query_size;
@@ -70,10 +70,10 @@ void ov::npuw::runtime::dynamic::PositionIDs::prepare() {
     m_current_length = -1;
 }
 
-int64_t ov::npuw::runtime::dynamic::PositionIDs::length() const {
+int64_t ov::npuw::runtime::attention::PositionIDs::length() const {
     return m_current_length;
 }
 
-int64_t ov::npuw::runtime::dynamic::PositionIDs::past_length() const {
+int64_t ov::npuw::runtime::attention::PositionIDs::past_length() const {
     return m_past_length;
 }

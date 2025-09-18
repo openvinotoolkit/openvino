@@ -9,7 +9,7 @@
 #include <variant>
 #include <vector>
 
-#include "../dynamic.hpp"
+#include "../attention.hpp"
 #include "../lazy_tensor.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"
@@ -86,7 +86,7 @@ struct Function {
     std::map<std::pair<std::string, std::size_t>, std::size_t> _param_mapping;
 
     std::optional<ov::npuw::function::Spatial> _spatial;
-    std::optional<ov::npuw::function::Dynamic> _dynamic;
+    std::optional<ov::npuw::function::Attention> _attention;
     // FIXME: They should exclude each other (introduce a hierarchy, finally?)
 
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
