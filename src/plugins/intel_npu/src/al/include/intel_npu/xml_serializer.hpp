@@ -27,7 +27,8 @@ public:
 
 class StreamSerialize : public ov::pass::StreamSerialize {
 public:
-    StreamSerialize(std::ostream& stream, ov::pass::Serialize::Version version)
+    StreamSerialize(std::ostream& stream,
+                    ov::pass::Serialize::Version version = ov::pass::Serialize::Version::UNSPECIFIED)
         : ov::pass::StreamSerialize(stream, {}, {}, version) {}
 
 private:
