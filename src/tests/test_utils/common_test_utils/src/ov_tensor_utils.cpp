@@ -414,8 +414,6 @@ protected:
     size_t tensor_size;
 
     void emplace_back(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
-        std::cout << "incorrect_values_abs ++" << in_actual_value << ", " << in_expected_value << ", " << in_threshold
-                  << std::endl;
         incorrect_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
     }
 
