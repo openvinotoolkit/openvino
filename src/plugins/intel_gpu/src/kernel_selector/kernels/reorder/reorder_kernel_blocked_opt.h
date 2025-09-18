@@ -19,5 +19,6 @@ public:
 protected:
     bool Validate(const Params& p) const override;
     DispatchData SetDefault(const reorder_params& arg) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector
