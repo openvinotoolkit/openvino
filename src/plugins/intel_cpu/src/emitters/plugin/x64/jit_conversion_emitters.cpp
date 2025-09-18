@@ -18,7 +18,9 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/convert.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl::utils;
