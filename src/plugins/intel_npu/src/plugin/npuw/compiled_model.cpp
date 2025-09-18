@@ -1209,8 +1209,6 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
 
-        // At this point closure size should have already been deserialized
-        NPUW_ASSERT(!comp_model_desc.closure.empty() && "Closure shouldn't be empty at this point!");
         for (std::size_t cidx = 0; cidx < comp_model_desc.closure.size(); ++cidx) {
             if (comp_model_desc.closure[cidx]) {
                 // host-side closure - already set, do nothing

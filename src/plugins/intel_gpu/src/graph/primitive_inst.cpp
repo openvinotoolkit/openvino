@@ -17,6 +17,7 @@
 #include "pooling_inst.h"
 #include "permute_inst.h"
 #include "resample_inst.h"
+#include "non_max_suppression_inst.h"
 #include "reshape_inst.h"
 #include "reorder_inst.h"
 #include "eltwise_inst.h"
@@ -528,6 +529,16 @@ void primitive_inst::update_shape() {
             set_can_be_optimized(true);
         else
             set_can_be_optimized(false);
+    }
+
+    // required to zero out the number of valid boxes (third output) when NMS is not executed
+    if (get_node().is_type<non_max_suppression>()) {
+        if (!_impl_params->output_layouts[0].count() && _outputs.size() == 3 && _outputs[2]) {
+            const bool out_of_order_queue = queue_type == QueueTypes::out_of_order;
+            auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                 : std::vector<event::ptr>{};
+            add_dep_event(_outputs[2]->fill(get_network().get_stream(), dep_events));
+        }
     }
 }
 
@@ -1958,6 +1969,7 @@ void primitive_inst::prepare_primitive() {
         // even if the input shapes haven't been changed
         if (get_node().is_type<paged_attention>() && !get_flag(ExecutionFlags::IMPL_CHANGED) && _impl->requires_update(*this, *_impl_params)) {
             _impl->update(*this, *_impl_params);
+            set_flag(ExecutionFlags::SHAPE_CHANGED);
 
             realloc_if_needed(prev_execution_skipped);
         }
@@ -2035,8 +2047,10 @@ void primitive_inst::prepare_primitive() {
     // Need to reset crop's output to zeros, if followed by onednn concatenation that requires zero-padding for blocked format memory
     if (get_node().is_type<crop>() && get_node().can_share_buffer() && _impl_params->get_output_layout(0).format.is_blocked() &&
         get_node().get_users().size() == 1 && get_node().get_users().front()->is_type<concatenation>() &&
-        get_node().get_users().front()->get_selected_impl()->is_onednn()) {
-        skip_reset = false;
+        get_node().get_users().front()->get_selected_impl() && get_node().get_users().front()->get_selected_impl()->is_onednn()) {
+        if (get_node().get_selected_impl()->get_kernel_name().find("eltwise_blocked_opt") == std::string::npos || is_dynamic()) {
+            skip_reset = false;
+        }
     }
 
     if (!skip_reset) {
@@ -2103,6 +2117,22 @@ void primitive_inst::execute() {
     }
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
+
+    GPU_DEBUG_IF(get_config().get_validate_output_buffer()) {
+        get_network().get_stream().finish();
+        auto &layout = _impl_params->get_output_layout(0);
+        auto output_mem = output_memory_ptr(0);
+        if (output_mem && layout.data_type == data_types::f16) {
+            mem_lock<ov::float16, mem_lock_type::read> lock(output_mem, get_network().get_stream());
+            for (size_t k = 0; k < lock.size(); k++) {
+                if (std::isinf(lock[k]) || std::isnan(lock[k])) {
+                    std::string iter = "at iteration " + std::to_string(get_network().get_current_iteration_num());
+                    std::string err_str = std::isinf(lock[k]) ? "inf " : "nan ";
+                    OPENVINO_THROW(id() + " has " + err_str + iter);
+                }
+            }
+        }
+    }
 
     GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
         auto ev = _impl_params->out_event;
