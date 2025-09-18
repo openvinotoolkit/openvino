@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "util.hpp" // fill_tensor
 #include "logging.hpp"  // NPUW_ASSERT
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -37,16 +38,6 @@ struct Attention {
 }  // namespace function
 
 namespace compiled {
-
-// FIXME: Stolen from LLMInferRequest, should be shared across utils
-namespace {
-template <typename T>
-void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
-    T* tensor_data = tensor->data<T>();
-    std::fill(tensor_data + offset, tensor_data + tensor->get_size(), fill_val);
-}
-
-}  // anonymous namespace
 
 // Compile-time attention information. Not much different from the above
 struct Attention {
@@ -80,10 +71,10 @@ struct Attention {
 
         switch (mask_type) {
         case ov::element::f16:
-            fill_tensor<ov::float16>(ov::get_tensor_impl(attend_all), 0);
+            ov::npuw::util::fill_tensor<ov::float16>(ov::get_tensor_impl(attend_all), 0);
             break;
         case ov::element::f32:
-            fill_tensor<float>(ov::get_tensor_impl(attend_all), 0);
+            ov::npuw::util::fill_tensor<float>(ov::get_tensor_impl(attend_all), 0);
             break;
         default:
             OPENVINO_THROW("Dynamic attenion mask type ", mask_type, " is not supported yet");
