@@ -35,14 +35,6 @@ public:
 
     void get_result() override;
 
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
-
-    /**
-     * @brief Initializes the tensor values corresponding to the state variables.
-     * @details The inital values are usually all 0s.
-     */
-    void initialize_states() override;
-
 private:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
@@ -64,7 +56,9 @@ private:
                                                 const bool isInput,
                                                 const std::optional<std::size_t> batchSize = std::nullopt) const;
 
-    void add_state(const IODescriptor& descriptor, size_t tensorIndex) const;
+    void add_state(const IODescriptor& descriptor,
+                   size_t tensorIndex,
+                   const std::shared_ptr<ZeroTensor>& zeroTensor) const;
 
     void update_pipeline_if_memory_changed();
     void update_states_if_memory_changed();
@@ -81,8 +75,6 @@ private:
     // memory area for the tensor.
     mutable std::vector<std::vector<std::shared_ptr<ZeroTensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ZeroTensor>> _levelZeroOutputTensors;
-
-    mutable std::vector<ov::SoPtr<ZeroVariableState>> _variableStates;
 
     std::unique_ptr<Pipeline> _pipeline;
 

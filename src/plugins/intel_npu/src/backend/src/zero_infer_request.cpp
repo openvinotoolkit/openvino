@@ -238,19 +238,22 @@ void ZeroInferRequest::create_pipeline() {
     _logger.debug("ZeroInferRequest::create_pipeline - set new tensors and reset variable state flag if memory updated "
                   "before creating the pipeline");
     for (const auto& variableState : _variableStates) {
-        if (variableState->tensor_was_updated()) {
+        auto zeroState = std::dynamic_pointer_cast<ZeroVariableState>(variableState._ptr);
+        OPENVINO_ASSERT(zeroState != nullptr, "State is not compatible with NPU plugin");
+
+        if (zeroState->tensor_was_updated()) {
             _logger.debug("ZeroInferRequest::create_pipeline - user state tensor should be updated");
 
-            get_user_input(variableState->get_tensor_index()) = variableState->get_state();
-            _userOutputTensors.at(variableState->get_related_tensor_index()) = variableState->get_state();
-            variableState->reset_tensor_updated_flag();
+            get_user_input(zeroState->get_tensor_index()) = zeroState->get_state();
+            _userOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state();
+            zeroState->reset_tensor_updated_flag();
 
-            if (variableState->zero_tensor_should_be_updated()) {
+            if (zeroState->zero_tensor_should_be_updated()) {
                 _logger.debug("ZeroInferRequest::create_pipeline - level zero state tensor should be updated");
 
-                get_level_zero_input(variableState->get_tensor_index()) = variableState->get_zero_state();
-                _levelZeroOutputTensors.at(variableState->get_related_tensor_index()) = variableState->get_zero_state();
-                variableState->reset_zero_tensor_updated_flag();
+                get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_zero_state();
+                _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_zero_state();
+                zeroState->reset_zero_tensor_updated_flag();
             }
         }
     }
@@ -569,7 +572,7 @@ std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index
         }
 
         if (descriptor.isStateInput) {
-            add_state(descriptor, index);
+            add_state(descriptor, index, tensor);
         }
     } else if (_userOutputTensors.at(index) == nullptr) {
         _userOutputTensors.at(index) = tensor;
@@ -633,25 +636,27 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
 
 void ZeroInferRequest::update_states_if_memory_changed() {
     for (const auto& variableState : _variableStates) {
-        if (variableState->tensor_was_updated()) {
-            get_user_input(variableState->get_tensor_index()) = variableState->get_state();
-            _userOutputTensors.at(variableState->get_related_tensor_index()) = variableState->get_state();
-            variableState->reset_tensor_updated_flag();
+        auto zeroState = std::dynamic_pointer_cast<ZeroVariableState>(variableState._ptr);
+        OPENVINO_ASSERT(zeroState != nullptr, "State is not compatible with NPU plugin");
 
-            if (variableState->zero_tensor_should_be_updated()) {
-                get_level_zero_input(variableState->get_tensor_index()) = variableState->get_zero_state();
-                _levelZeroOutputTensors.at(variableState->get_related_tensor_index()) = variableState->get_zero_state();
-                variableState->reset_zero_tensor_updated_flag();
+        if (zeroState->tensor_was_updated()) {
+            get_user_input(zeroState->get_tensor_index()) = zeroState->get_state();
+            _userOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state();
+            zeroState->reset_tensor_updated_flag();
+
+            if (zeroState->zero_tensor_should_be_updated()) {
+                get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_zero_state();
+                _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_zero_state();
+                zeroState->reset_zero_tensor_updated_flag();
+
+                _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
+                                                  get_level_zero_input(zeroState->get_tensor_index())->data(),
+                                                  get_level_zero_input(zeroState->get_tensor_index())->get_byte_size());
 
                 _pipeline->update_graph_arguments(
-                    _graphInputDescriptors.at(variableState->get_tensor_index()).idx,
-                    get_level_zero_input(variableState->get_tensor_index())->data(),
-                    get_level_zero_input(variableState->get_tensor_index())->get_byte_size());
-
-                _pipeline->update_graph_arguments(
-                    _graphOutputDescriptors.at(variableState->get_related_tensor_index()).idx,
-                    _levelZeroOutputTensors.at(variableState->get_related_tensor_index())->data(),
-                    _levelZeroOutputTensors.at(variableState->get_related_tensor_index())->get_byte_size());
+                    _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
+                    _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->data(),
+                    _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->get_byte_size());
             }
         }
     }
@@ -842,21 +847,6 @@ void ZeroInferRequest::get_result() {
     _logger.debug("InferRequest::get_result finished");
 }
 
-void ZeroInferRequest::initialize_states() {
-    for (const auto& variableState : _variableStates) {
-        variableState->reset();
-    }
-}
-
-std::vector<ov::SoPtr<ov::IVariableState>> ZeroInferRequest::query_state() const {
-    std::vector<ov::SoPtr<ov::IVariableState>> result;
-    result.reserve(_variableStates.size());
-    for (const auto& state : _variableStates) {
-        result.push_back(state);  // Implicit upcast from SoPtr<ZeroVariableState> to SoPtr<IVariableState>
-    }
-    return result;
-}
-
 void ZeroInferRequest::check_network_precision(const ov::element::Type_t precision) const {
     switch (precision) {
     case ov::element::Type_t::f32:
@@ -913,14 +903,16 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     return _pipeline->get_profiling_info();
 }
 
-void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIndex) const {
+void ZeroInferRequest::add_state(const IODescriptor& descriptor,
+                                 size_t tensorIndex,
+                                 const std::shared_ptr<ZeroTensor>& zeroTensor) const {
     OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
                     "The link between state descriptors is missing, state name: ",
                     descriptor.nameFromCompiler);
 
     _variableStates.push_back(std::make_shared<ZeroVariableState>(_initStructs,
                                                                   descriptor.nameFromCompiler,
-                                                                  get_level_zero_input(tensorIndex),
+                                                                  zeroTensor,
                                                                   tensorIndex,
                                                                   descriptor.relatedDescriptorIndex.value(),
                                                                   _config));

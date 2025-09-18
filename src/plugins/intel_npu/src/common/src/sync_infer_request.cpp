@@ -102,6 +102,16 @@ const std::shared_ptr<const ov::ICompiledModel>& SyncInferRequest::get_compiled_
     return _compiledModel;
 }
 
+void SyncInferRequest::initialize_states() {
+    for (const ov::SoPtr<ov::IVariableState>& variableState : _variableStates) {
+        variableState->reset();
+    }
+}
+
+std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
+    return _variableStates;
+}
+
 ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);

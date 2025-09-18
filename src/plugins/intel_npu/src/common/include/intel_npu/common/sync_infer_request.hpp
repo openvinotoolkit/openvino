@@ -84,11 +84,13 @@ public:
      */
     virtual void get_result() = 0;
 
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
+
     /**
      * @brief Initializes the tensor values corresponding to the state variables.
      * @details The inital values are usually all 0s.
      */
-    virtual void initialize_states() = 0;
+    void initialize_states();
 
 protected:
     /**
@@ -161,6 +163,8 @@ protected:
     // In case set_tensors is called, we receive a vector with N tensors otherwise only 1 tensor is needed
     mutable std::vector<std::vector<ov::SoPtr<ov::ITensor>>> _userInputTensors;
     mutable std::vector<ov::SoPtr<ov::ITensor>> _userOutputTensors;
+
+    mutable std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
 
     /**
      * @see ov::ISyncInferRequest
