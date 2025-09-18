@@ -1196,6 +1196,9 @@ void Transformations::MainSnippets() {
     // - abi_param1: used for runtime parameters
     // - RSP: stack related register
     size_t available_gprs_count = 14;
+#elif defined(OPENVINO_ARCH_RISCV64)
+    // RISC-V has 32 gprs. Similar to ARM, conservatively use 23 available registers.
+    size_t available_gprs_count = 23;
 #else
     size_t available_gprs_count = 0;
 #endif
