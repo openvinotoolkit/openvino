@@ -194,6 +194,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(MlasGemmExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                VERIFY(weiRank(config) <= 2U, UNSUPPORTED_WEI_RANK);
 
                 return true;
             },
