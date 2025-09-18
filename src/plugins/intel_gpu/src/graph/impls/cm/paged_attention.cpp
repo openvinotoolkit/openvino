@@ -57,7 +57,7 @@ public:
     }
 #if defined(_MSC_VER)
 #pragma warning( push )
-#pragma warning( disable : C2220 )
+#pragma warning( disable : 2220 )
 #endif
     void update_xattn_rt_params(const primitive_inst& instance) {
         const auto& params = *instance.get_impl_params();
@@ -209,7 +209,7 @@ public:
 
 #if defined(_MSC_VER)
 #pragma warning( push )
-#pragma warning( disable : C2220 )
+#pragma warning( disable : 2220 )
 #endif
             // internal buffer for XAttention
             auto out_shape = params.output_layouts[0].get_shape();

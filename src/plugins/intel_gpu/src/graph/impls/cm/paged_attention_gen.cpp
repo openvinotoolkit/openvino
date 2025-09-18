@@ -667,7 +667,7 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     auto desc = params.typed_desc<paged_attention>();
 #if defined(_MSC_VER)
 #pragma warning( push )
-#pragma warning( disable : C2220 )
+#pragma warning( disable : 2220 )
 #endif
     const float scale_factor = 1.0f / std::sqrt(static_cast<float>(desc->k_head_size)) / STRIDE;
     int scale_factor_i;
@@ -733,7 +733,7 @@ DispatchDataFunc XAttentionEstimateGEMMQK::get_dispatch_data_func() const {
     return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
 #if defined(_MSC_VER)
 #pragma warning( push )
-#pragma warning( disable : C2220 )
+#pragma warning( disable : 2220 )
 #endif
         assert(!params.is_dynamic());
         const auto desc = params.typed_desc<paged_attention>();
@@ -866,7 +866,7 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
     return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
 #if defined(_MSC_VER)
 #pragma warning( push )
-#pragma warning( disable : C2220 )
+#pragma warning( disable : 2220 )
 #endif
         assert(!params.is_dynamic());
         auto& wgs = kd.params.workGroups;
