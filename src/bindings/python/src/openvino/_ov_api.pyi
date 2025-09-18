@@ -7,7 +7,9 @@ from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Node
+from openvino._pyopenvino import RTMap
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import TensorVector
 from openvino._pyopenvino import Type
 from openvino.package_utils import deprecatedclassproperty
 from openvino.utils.data_helpers.data_dispatcher import _data_dispatch
@@ -24,7 +26,7 @@ import openvino.utils.data_helpers.wrappers
 import pathlib
 import traceback as traceback
 import typing
-__all__ = ['AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Iterator', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'Tensor', 'TracebackType', 'Type', 'compile_model', 'deprecatedclassproperty', 'io', 'tensor_from_file', 'traceback']
+__all__: list[str] = ['AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Iterator', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'RTMap', 'Tensor', 'TensorVector', 'TracebackType', 'Type', 'compile_model', 'deprecatedclassproperty', 'io', 'tensor_from_file', 'traceback']
 class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
     """
     AsyncInferQueue with a pool of asynchronous requests.
@@ -505,7 +507,7 @@ class Model:
     def __init__(self: openvino._pyopenvino.Model, other: openvino._pyopenvino.Model) -> None:
         ...
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], sinks: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], sinks: collections.abc.Sequence[openvino._pyopenvino.Node], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                             Create user-defined Model which is a representation of a model.
         
@@ -519,7 +521,7 @@ class Model:
                             :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                             Create user-defined Model which is a representation of a model.
         
@@ -531,7 +533,7 @@ class Model:
                             :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Node], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model.
         
@@ -543,7 +545,7 @@ class Model:
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, result: openvino._pyopenvino.Node, parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, result: openvino._pyopenvino.Node, parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                             Create user-defined Model which is a representation of a model.
         
@@ -555,7 +557,7 @@ class Model:
                             :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
@@ -567,7 +569,7 @@ class Model:
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], sinks: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], sinks: collections.abc.Sequence[openvino._pyopenvino.Node], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
@@ -581,7 +583,7 @@ class Model:
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], sinks: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], sinks: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
@@ -595,7 +597,7 @@ class Model:
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], sinks: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], sinks: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
@@ -611,7 +613,7 @@ class Model:
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], sinks: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], sinks: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                 Create user-defined Model which is a representation of a model
         
@@ -625,7 +627,7 @@ class Model:
                 :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], sinks: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], sinks: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                 Create user-defined Model which is a representation of a model
         
@@ -641,7 +643,7 @@ class Model:
                 :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], sinks: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], sinks: collections.abc.Sequence[openvino._pyopenvino.Node], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
@@ -657,7 +659,7 @@ class Model:
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], sinks: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], sinks: collections.abc.Sequence[openvino._pyopenvino.Node], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
@@ -671,7 +673,7 @@ class Model:
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
@@ -685,7 +687,7 @@ class Model:
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
@@ -699,6 +701,8 @@ class Model:
     def __repr__(self) -> str:
         ...
     def clone(self) -> Model:
+        ...
+    def evaluate(self, output_tensors: typing.Union[list[openvino._pyopenvino.Tensor], openvino._pyopenvino.TensorVector], input_tensors: typing.Union[list[openvino._pyopenvino.Tensor], openvino._pyopenvino.TensorVector], evaluation_context: typing.Optional[openvino._pyopenvino.RTMap] = None) -> bool:
         ...
 class ModelMeta(type):
     @classmethod

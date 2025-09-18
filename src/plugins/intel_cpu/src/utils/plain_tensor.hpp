@@ -89,6 +89,11 @@ struct precision_of<uint8_t> {
 };
 
 template <>
+struct precision_of<int8_t> {
+    static constexpr ov::element::Type_t value = ov::element::Type_t::i8;
+};
+
+template <>
 struct precision_of<float16> {
     static constexpr ov::element::Type_t value = ov::element::Type_t::f16;
 };
@@ -107,7 +112,7 @@ struct PlainTensor {
     ov::element::Type_t m_dt = ov::element::Type_t::dynamic;
     MemoryPtr m_mem;  // hold memory ptr reference
 
-    operator bool() const {
+    explicit operator bool() const {
         return m_ptr != nullptr;
     }
 
@@ -140,7 +145,7 @@ struct PlainTensor {
         return strides;
     }
 
-    PlainTensor(const MemoryPtr& mem) {
+    explicit PlainTensor(const MemoryPtr& mem) {
         reset(mem);
     }
 
@@ -196,7 +201,7 @@ struct PlainTensor {
         }
         // tensor_index(start)            : select 1 element (with squeeze)
         // tensor_index(start, end, step) : select a range w/o squeeze
-        tensor_index(int start, int end = INT_MIN, int step = 1) : start(start), end(end), step(step) {}
+        explicit tensor_index(int start, int end = INT_MIN, int step = 1) : start(start), end(end), step(step) {}
 
         void regularize(int size) {
             if (start < 0) {
@@ -415,25 +420,12 @@ struct PlainTensor {
     [[nodiscard]] int64_t offset(I i, Is... indices) const {
         return i * m_strides[dim] + offset<dim + 1>(indices...);
     }
-    template <typename DT, typename... Is>
+
+    template <typename DT, ov::element::Type_t SRC_PREC = ov::element::u8, typename... Is>
     [[nodiscard]] DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
-    }
-
-    template <typename DT,
-              ov::element::Type_t SRC_PREC,
-              std::enable_if_t<SRC_PREC != ov::element::u4, bool> = true,
-              typename... Is>
-    DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
-    }
-
-    template <typename DT,
-              ov::element::Type_t SRC_PREC,
-              std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true,
-              typename... Is>
-    DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...) / 2;
+        constexpr size_t stride_div = SRC_PREC == ov::element::u4 ? 2 : 1;
+        const size_t off = offset<0>(indices...) / stride_div;
+        return reinterpret_cast<DT*>(m_ptr.get()) + off;
     }
 
     template <typename... Is>

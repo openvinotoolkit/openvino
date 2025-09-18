@@ -60,14 +60,11 @@ typedef std::tuple<
 class DetectionOutputLayerGPUTest : public testing::WithParamInterface<DetectionOutputGPUTestParams>,
                                     virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DetectionOutputGPUTestParams> obj) {
-        DetectionOutputAttributes commonAttrs;
-        ParamsWhichSizeDependsDynamic specificAttrs;
+    static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputGPUTestParams>& obj) {
         ov::op::v0::DetectionOutput::Attributes attrs;
-        size_t batch;
-        bool replaceDynamicShapesToIntervals;
-        std::string targetDevice;
-        std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, replaceDynamicShapesToIntervals, targetDevice) = obj.param;
+
+        const auto& [commonAttrs, specificAttrs, batch, _objectness_score, replaceDynamicShapesToIntervals, targetDevice] = obj.param;
+        attrs.objectness_score = _objectness_score;
 
         std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
                  attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
@@ -182,11 +179,9 @@ public:
 
 protected:
     void SetUp() override {
-        DetectionOutputAttributes commonAttrs;
-        ParamsWhichSizeDependsDynamic specificAttrs;
-        size_t batch;
-        bool replaceDynamicShapesToIntervals;
-        std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, replaceDynamicShapesToIntervals, targetDevice) = this->GetParam();
+        const auto& [commonAttrs, specificAttrs, batch, _objectness_score, replaceDynamicShapesToIntervals, _targetDevice] = this->GetParam();
+        attrs.objectness_score = _objectness_score;
+        targetDevice = _targetDevice;
 
         std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
                  attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;

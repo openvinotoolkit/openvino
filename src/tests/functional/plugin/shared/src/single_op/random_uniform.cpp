@@ -11,13 +11,7 @@
 namespace ov {
 namespace test {
 std::string RandomUniformLayerTest::getTestCaseName(const testing::TestParamInfo<RandomUniformParamsTuple> &obj) {
-    RandomUniformTypeSpecificParams random_uniform_params;
-    ov::Shape input_shape;
-    int64_t global_seed;
-    int64_t op_seed;
-    ov::op::PhiloxAlignment alignment;
-    std::string target_device;
-    std::tie(input_shape, random_uniform_params, global_seed, op_seed, alignment, target_device) = obj.param;
+    const auto& [input_shape, random_uniform_params, global_seed, op_seed, alignment, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
@@ -32,12 +26,8 @@ std::string RandomUniformLayerTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void RandomUniformLayerTest::SetUp() {
-    RandomUniformTypeSpecificParams random_uniform_params;
-    ov::Shape input_shape;
-    int64_t global_seed;
-    int64_t op_seed;
-    ov::op::PhiloxAlignment alignment;
-    std::tie(input_shape, random_uniform_params, global_seed, op_seed, alignment, targetDevice) = this->GetParam();
+    const auto& [input_shape, random_uniform_params, global_seed, op_seed, alignment, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     auto model_type = random_uniform_params.model_type;
 
     // Use Parameter as input with desired model_type to properly configure execution configuration

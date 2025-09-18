@@ -102,6 +102,11 @@ struct MHAKernel {
     MHAKernel() = delete;
     explicit MHAKernel(GraphContext::CPtr ctx) : context(std::move(ctx)) {}
 
+    static constexpr impl_desc_type getImplType() {
+        static_assert(KType == ScaledDotProductAttention::KT_REF, "Unexpected KType in scaled_attn");
+        return impl_desc_type::ref_any;
+    }
+
     template <typename D>
     float dot_product(const D* a, const D* b, int len, int stride_b = 1) {
         float result = 0;
@@ -287,6 +292,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     MHAKernel() = delete;
     explicit MHAKernel(GraphContext::CPtr ctx) : context(std::move(ctx)) {}
 
+    static constexpr impl_desc_type getImplType() {
+        return impl_desc_type::avx512;
+    }
+
     dnnl::memory::dims make_dnnl_dims(const std::vector<size_t>& dims) {
         dnnl::memory::dims dnnl_dims(dims.size());
         for (size_t i = 0; i < dims.size(); i++) {
@@ -416,6 +425,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                      q_ptr,
                                      k_ptr,
                                      c_ptr,
+                                     nullptr,
+                                     nullptr,
                                      wsp.data() + tid * wsp_size_per_thread,
                                      qk_scratch_a ? &qk_scratch_a.at<T>({tid, 0}) : nullptr);
             float* alibi_ptr = nullptr;
@@ -476,6 +487,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                      w_ptr,
                                      v_ptr,
                                      fp32_out_ptr,
+                                     nullptr,
+                                     nullptr,
                                      wsp.data() + tid * wsp_size_per_thread,
                                      wv_gemm_ptr->get_scratch_a_size() > 0 ? &wv_scratch_a.at<T>({tid, 0}) : nullptr);
             if (is_xf16) {
@@ -561,6 +574,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
           m_block_size(512),
           precision(ov::element::from<T>()) {}
 
+    static constexpr impl_desc_type getImplType() {
+        return impl_desc_type::acl;
+    }
+
     PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(const PlainTensor& mask, bool _select_nfltmax_at_0) {
@@ -584,7 +601,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
-                    float d_scale = 0.0f) {
+                    float d_scale = 0.0F) {
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
@@ -594,8 +611,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
         auto h_group_num = present_key.size(1);
         size_t h_each_group_len = H / h_group_num;
 
-        if (d_scale == 0.0f) {
-            d_scale = 1.0f / sqrt(head_size);
+        if (d_scale == 0.0F) {
+            d_scale = 1.0F / static_cast<float>(sqrt(head_size));
         }
         auto k_stride_s = present_key.stride(3);
 
@@ -712,6 +729,10 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
           m_block_size(4),
           m_threads_num(parallel_get_max_threads()) {
         qk_buffers.resize(m_threads_num);
+    }
+
+    static constexpr impl_desc_type getImplType() {
+        return impl_desc_type::mlas;
     }
 
     PlainTensor causal_mask;
@@ -946,6 +967,10 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         : context(std::move(ctx)),
           kernel(context),
           kernel_single_token(k_group_size, v_group_size, quant_key_by_channel) {}
+
+    [[nodiscard]] impl_desc_type implType() const override {
+        return kernel.getImplType();
+    }
 
     void prepare_attn_mask(const MemoryPtr& attn_input) {
         attn_buf.resize<float>(attn_input->getStaticDims());
@@ -1227,7 +1252,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(rtPrecision, getOutputShapeAtPort(0)));
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
 }
 
 void ScaledDotProductAttention::createPrimitive() {
@@ -1324,6 +1349,7 @@ void ScaledDotProductAttention::createPrimitive() {
                                                                       m_value_quant_param.groupSize,
                                                                       m_key_quant_param.isByChannel);
 #endif
+        getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
         return executor;
     };
 

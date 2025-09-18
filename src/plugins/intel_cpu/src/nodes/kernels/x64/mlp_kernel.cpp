@@ -23,6 +23,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -316,9 +317,8 @@ public:
     }
 };
 
-template <typename Tdst>
-static std::enable_if_t<std::is_same_v<ov::bfloat16, Tdst> || std::is_same_v<ov::float16, Tdst>>
-repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
+template <typename Tdst, typename = std::enable_if_t<any_of_v<Tdst, ov::bfloat16, ov::float16>>>
+static void repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     static FP16ToBF16Kernel fp16_to_bf16;
     if (N == 16 && K == 32) {
         // SIMD optimized version
@@ -366,10 +366,10 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
         auto* psrc = src + k;
         int n = 0;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
-            *dst++ = is_k0_valid ? psrc[0] : int8_t(0);
-            *dst++ = is_k1_valid ? psrc[1] : int8_t(0);
-            *dst++ = is_k2_valid ? psrc[2] : int8_t(0);
-            *dst++ = is_k3_valid ? psrc[3] : int8_t(0);
+            *dst++ = is_k0_valid ? psrc[0] : static_cast<int8_t>(0);
+            *dst++ = is_k1_valid ? psrc[1] : static_cast<int8_t>(0);
+            *dst++ = is_k2_valid ? psrc[2] : static_cast<int8_t>(0);
+            *dst++ = is_k3_valid ? psrc[3] : static_cast<int8_t>(0);
         }
         for (; n < 16; n++) {
             *dst++ = 0;

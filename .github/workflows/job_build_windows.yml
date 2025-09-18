@@ -264,6 +264,8 @@ jobs:
               exit 1
             }
           }
+        env:
+          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
 
       - name: Pack Artifacts
         run: |
@@ -409,7 +411,7 @@ jobs:
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: always()
+        if: ${{ inputs.event-name != 'schedule' }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |

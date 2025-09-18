@@ -7,7 +7,7 @@
 #include "primitive_inst.h"
 
 #if OV_GPU_WITH_OCL
-    #include "impls/ocl_v2/paged_attention_opt.hpp"
+    #include "impls/ocl_v2/sdpa/paged_attention_opt.hpp"
 #endif
 
 namespace ov {

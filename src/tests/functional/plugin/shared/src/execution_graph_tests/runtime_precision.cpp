@@ -75,11 +75,8 @@ std::shared_ptr<ov::Model> makeFakeQuantizeBinaryConvolutionFunction(const std::
     return function;
 }
 
-std::string ExecGraphRuntimePrecision::getTestCaseName(testing::TestParamInfo<ExecGraphRuntimePrecisionParams> obj) {
-    RuntimePrecisionSpecificParams specificParams;
-    std::string targetDevice;
-    std::tie(specificParams, targetDevice) = obj.param;
-
+std::string ExecGraphRuntimePrecision::getTestCaseName(const testing::TestParamInfo<ExecGraphRuntimePrecisionParams>& obj) {
+    const auto& [specificParams, targetDevice] = obj.param;
     std::ostringstream result;
     result << "Function=" << specificParams.makeFunction(specificParams.inputPrecisions)->get_friendly_name() << "_";
     result << "InPrcs=" << ov::test::utils::vec2str(specificParams.inputPrecisions) << "_";
@@ -89,8 +86,8 @@ std::string ExecGraphRuntimePrecision::getTestCaseName(testing::TestParamInfo<Ex
 }
 
 void ExecGraphRuntimePrecision::SetUp() {
-    RuntimePrecisionSpecificParams specificParams;
-    std::tie(specificParams, targetDevice) = this->GetParam();
+    const auto& [specificParams, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     expectedPrecisions = specificParams.expectedPrecisions;
     fnPtr = specificParams.makeFunction(specificParams.inputPrecisions);
 }

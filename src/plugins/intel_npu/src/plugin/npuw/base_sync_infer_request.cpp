@@ -6,6 +6,9 @@
 
 #include "compiled_model.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
@@ -156,6 +159,11 @@ void ov::npuw::IBaseInferRequest::set_tensor(const ov::Output<const ov::Node>& p
     // Assigning via .at() to ensure it is a known port
     // assert(persistent)
     m_port_to_tensor.at(port).tensor = tensor;
+
+    // Check if setting input tensor
+    if (m_port_to_tensor.at(port).persistent) {
+        handle_set_remote_input(port, tensor);
+    }
 }
 
 std::vector<ov::SoPtr<ov::ITensor>> ov::npuw::IBaseInferRequest::get_tensors(
@@ -172,6 +180,36 @@ void ov::npuw::IBaseInferRequest::check_tensors() const {
     // Ignore `check_tensor` of inputs and outputs of Hetero Compiled Model because
     // `m_tensors` are not allocated
     return;
+}
+
+void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const ov::Node>& port,
+                                                          const ov::SoPtr<ov::ITensor>& tensor) {
+    for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
+        if (m_npuw_model->inputs()[i] == port) {
+            // This is a tricky case:
+            // 1) We already stored an input tensor ptr in m_input_allocated via FMM
+            // 2) We got an input tensor from outside
+            // Later in runtime we rely on m_input_allocated to check if the memory is
+            // allocated internally to prevent the copy. Here we need to check if the memory
+            // is properly allocated externally, to prevent runtime copy as well.
+            // Also we can get a strided remote tensor. In this case the copy cannot be avoided for now.
+            if (m_npuw_model->global_mem_device() == "NPU") {
+                auto remote_ctx =
+                    m_npuw_model->get_plugin()->get_core()->get_default_context(m_npuw_model->global_mem_device())._ptr;
+                auto zrh = remote_ctx->get_property().at(ov::intel_npu::l0_context.name());
+                if (::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(
+                        static_cast<ze_context_handle_t>(zrh.as<void*>()),
+                        tensor->data())) {
+                    if (tensor->is_continuous()) {
+                        m_input_allocated.insert(tensor->data());
+                    } else {
+                        LOG_WARN("Strided remote tensor is not supported on the device! Expect worse performance due "
+                                 "to CPU runtime copy.");
+                    }
+                }
+            }
+        }
+    }
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::IBaseInferRequest::query_state() const {
@@ -239,13 +277,7 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
                                                           const std::string& device) {
-    if (device == "CPU" || ov::shape_size(shape) == 0) {
-        return ov::get_tensor_impl(ov::Tensor(type, shape));
-    }
-
-    auto remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
-    auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
-    return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
+    return ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
 }
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const ov::Node>& node,
@@ -276,6 +308,15 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
 
         auto tensor = alloc_global_out(i);
         m_port_to_tensor[port] = TensorStorage{tensor, true};
+    }
+
+    // Try to allocate intermediate tensors to gather into, when host quant gather is enabled
+    for (size_t i = 0; i < m_num_submodels; i++) {
+        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            continue;  // Optimized out
+        }
+        alloc_quant_gather_tensors(i, m_subrequests[i]);
     }
 }
 
@@ -473,20 +514,17 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     LOG_DEBUG("Done");
 }
 
-void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPtr request) {
+void ov::npuw::IBaseInferRequest::alloc_quant_gather_tensors(std::size_t idx, RqPtr request) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    auto& quant_unpack_gather = comp_model_desc.quant_unpack_gather;
 
-    if (comp_model_desc.quant_unpack_gather.dst_idx != -1) {
-        NPUW_ASSERT(comp_model_desc.quant_unpack_gather.idx_idx != -1 &&
-                    comp_model_desc.quant_unpack_gather.src_w_idx != -1);
+    if (quant_unpack_gather.dst_idx != -1) {
+        NPUW_ASSERT(quant_unpack_gather.idx_idx != -1 && quant_unpack_gather.src_w_idx != -1);
 
-        const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.idx_idx];
+        const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
         const auto& lookup = request->get_tensor(lport);
 
-        const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_idx];
-        const auto& gather = request->get_tensor(gport);
-
-        const auto& wport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_w_idx];
+        const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
         const auto& vocabw = request->get_tensor(wport);
 
         auto ids_shape = lookup->get_shape();
@@ -495,42 +533,74 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
             return ov::Shape{1, ids_shape[1], shape.size() == 3 ? shape[1] * shape[2] : shape[1]};
         };
 
-        ov::Tensor gatherw(vocabw->get_element_type(), get_gathered_shape(vocabw->get_shape()));
-        // Gather weight
-        ov::npuw::util::gather(vocabw, lookup, ov::get_tensor_impl(gatherw));
+        m_quant_gather_tensors.w = ov::Tensor(vocabw->get_element_type(), get_gathered_shape(vocabw->get_shape()));
 
-        if (comp_model_desc.quant_unpack_gather.src_z_idx != -1 &&
-            comp_model_desc.quant_unpack_gather.src_s_idx != -1) {
-            const auto& zport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_z_idx];
+        if (quant_unpack_gather.src_z_idx != -1 && quant_unpack_gather.src_s_idx != -1) {
+            const auto& zport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_z_idx];
             const auto& vocabz = request->get_tensor(zport);
 
-            const auto& sport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_s_idx];
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
             const auto& vocabs = request->get_tensor(sport);
 
-            ov::Tensor gatherz(vocabz->get_element_type(), get_gathered_shape(vocabz->get_shape()));
-            ov::Tensor gathers(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
+            m_quant_gather_tensors.z = ov::Tensor(vocabz->get_element_type(), get_gathered_shape(vocabz->get_shape()));
+            m_quant_gather_tensors.s = ov::Tensor(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
+        } else if (quant_unpack_gather.src_s_idx != -1) {
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            m_quant_gather_tensors.s = ov::Tensor(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
+        }
+    }
+}
+
+void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    auto& quant_unpack_gather = comp_model_desc.quant_unpack_gather;
+
+    if (quant_unpack_gather.dst_idx != -1) {
+        NPUW_ASSERT(quant_unpack_gather.idx_idx != -1 && quant_unpack_gather.src_w_idx != -1);
+
+        const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
+        const auto& lookup = request->get_tensor(lport);
+
+        const auto& gport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.dst_idx];
+        const auto& gather = request->get_tensor(gport);
+
+        const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
+        const auto& vocabw = request->get_tensor(wport);
+
+        // Gather weight
+        ov::npuw::util::gather(vocabw, lookup, ov::get_tensor_impl(m_quant_gather_tensors.w));
+
+        if (quant_unpack_gather.src_z_idx != -1 && quant_unpack_gather.src_s_idx != -1) {
+            const auto& zport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_z_idx];
+            const auto& vocabz = request->get_tensor(zport);
+
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
             // Gather first
-            ov::npuw::util::gather(vocabz, lookup, ov::get_tensor_impl(gatherz));
-            ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(gathers));
+            ov::npuw::util::gather(vocabz, lookup, ov::get_tensor_impl(m_quant_gather_tensors.z));
+            ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(m_quant_gather_tensors.s));
 
             // Then unpack
-            ov::npuw::util::unpack(ov::get_tensor_impl(gatherw),
-                                   ov::get_tensor_impl(gatherz),
-                                   ov::get_tensor_impl(gathers),
+            ov::npuw::util::unpack(ov::get_tensor_impl(m_quant_gather_tensors.w),
+                                   ov::get_tensor_impl(m_quant_gather_tensors.z),
+                                   ov::get_tensor_impl(m_quant_gather_tensors.s),
                                    gather);
-        } else if (comp_model_desc.quant_unpack_gather.src_s_idx != -1) {
-            const auto& sport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_s_idx];
+        } else if (quant_unpack_gather.src_s_idx != -1) {
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
             const auto& vocabs = request->get_tensor(sport);
 
-            ov::Tensor gathers(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
             // Gather first
-            ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(gathers));
+            ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(m_quant_gather_tensors.s));
 
             // Then unpack
-            ov::npuw::util::unpack(ov::get_tensor_impl(gatherw), ov::get_tensor_impl(gathers), gather);
+            ov::npuw::util::unpack(ov::get_tensor_impl(m_quant_gather_tensors.w),
+                                   ov::get_tensor_impl(m_quant_gather_tensors.s),
+                                   gather);
         } else {
-            // Already gathered above - just unpack
-            ov::npuw::util::unpack(ov::get_tensor_impl(gatherw), gather);
+            NPUW_ASSERT(false && "Not supported");
         }
     }
 }

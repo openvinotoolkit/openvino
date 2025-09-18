@@ -22,8 +22,8 @@ public:
                                     arm_compute::Strides aStrides,
                                     arm_compute::Strides bStrides,
                                     void* c = nullptr,
-                                    float alpha = 1.0f,
-                                    float beta = 0.0f,
+                                    float alpha = 1.0F,
+                                    float beta = 0.0F,
                                     arm_compute::Strides* outStrides = nullptr,
                                     void* out = nullptr);
 

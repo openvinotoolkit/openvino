@@ -17,6 +17,7 @@
 #include "openvino/core/parallel.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
+#    include "utils/cpu_utils.hpp"
 #    include "utils/general_utils.h"
 #endif
 
@@ -52,7 +53,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -230,15 +231,24 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
 
     switch (jcp.n) {
     case 0:
-    // This is a degenerate case that is only possible if the tensor has 0 or 1st rank
-    // Such a situation is possible in the following graph:
-    //  Parameter
-    //     |
-    //  Transpose
-    //     |
-    //  Result
-    // The elimination of the Transpose node will not be performed
-    // So copy from input buffer to output buffer without any permutation
+        // This is a degenerate case that is only possible if the tensor has 0 or 1st rank
+        // Such a situation is possible in the following graph:
+        //  Parameter
+        //     |
+        //  Transpose
+        //     |
+        //  Result
+        // The elimination of the Transpose node will not be performed
+        // So copy from input buffer to output buffer without any permutation
+        {
+            auto arg = jit_args_permute();
+
+            arg.src = src_data;
+            arg.dst = dst_data;
+
+            (*permute_kernel)(&arg);
+        }
+        break;
     case 1:
         parallel_for(dst_dims[0], [&](int i0) {
             auto arg = jit_args_permute();

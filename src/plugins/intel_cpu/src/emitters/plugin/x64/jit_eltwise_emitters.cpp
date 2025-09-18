@@ -31,7 +31,7 @@ using namespace dnnl::impl::cpu;
 using namespace Xbyak;
 
 enum {
-    CONST_1_F = 0x3f800000,  // 1.f
+    CONST_1_F = 0x3f800000,  // 1.F
     INF_MASK = 0x7F800000,
     INF_NEG_MASK = 0xFF800000
 };
@@ -2850,6 +2850,77 @@ void jit_bitwise_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_dst = Vmm(out_vec_idxs[0]);
 
     h->uni_vxorps(vmm_dst, vmm_src0, vmm_src1);
+}
+
+/// ABS ///
+jit_abs_emitter::jit_abs_emitter(x64::jit_generator_t* host,
+                                 x64::cpu_isa_t host_isa,
+                                 const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
+
+jit_abs_emitter::jit_abs_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_abs_emitter::get_inputs_num() const {
+    return 1;
+}
+
+void jit_abs_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == x64::sse41) {
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx2) {
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx512_core) {
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
+    }
+}
+
+template <x64::cpu_isa_t isa>
+void jit_abs_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
+    auto vmm_src = Vmm(in_vec_idxs[0]);
+    auto vmm_dst = Vmm(out_vec_idxs[0]);
+
+    auto uni_vpabsd = [this](Vmm vmm_dst, Vmm vmm_src) {
+        switch (exec_prc_) {
+        case ov::element::f32:
+            h->uni_vandps(vmm_dst, vmm_src, table_val("positive_mask"));
+            break;
+        case ov::element::i32:
+            if (isa == x64::sse41) {
+                h->pabsd(vmm_dst, vmm_src);
+            } else if (any_of(host_isa_, x64::avx2, x64::avx512_core)) {
+                h->vpabsd(vmm_dst, vmm_src);
+            } else {
+                OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
+            }
+            break;
+        default:
+            OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+        }
+    };
+
+    if (isa == x64::sse41) {
+        h->uni_vmovups(vmm_dst, vmm_src);
+        uni_vpabsd(vmm_dst, vmm_dst);
+    } else {
+        uni_vpabsd(vmm_dst, vmm_src);
+    }
+}
+
+std::set<std::vector<element::Type>> jit_abs_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}, {element::i32}};
+}
+
+void jit_abs_emitter::register_table_entries() {
+    push_arg_entry_of("positive_mask", 0x7fffffff, true);
 }
 
 }  // namespace ov::intel_cpu

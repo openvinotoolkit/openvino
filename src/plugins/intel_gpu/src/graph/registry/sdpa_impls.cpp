@@ -7,8 +7,8 @@
 #include "primitive_inst.h"
 
 #if OV_GPU_WITH_OCL
-    #include "impls/ocl_v2/sdpa_ref.hpp"
-    #include "impls/ocl_v2/sdpa_opt.hpp"
+    #include "impls/ocl_v2/sdpa/sdpa_ref.hpp"
+    #include "impls/ocl_v2/sdpa/sdpa_opt.hpp"
 #endif
 
 namespace ov {

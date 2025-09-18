@@ -9,4 +9,4 @@ from openvino._pyopenvino.experimental import set_tensor_type
 Package: openvino
 This module provides access to experimental functionality that is subject to change without prior notice.
 """
-__all__ = ['evaluate_as_partial_shape', 'evaluate_both_bounds', 'set_element_type', 'set_tensor_type']
+__all__: list[str] = ['evaluate_as_partial_shape', 'evaluate_both_bounds', 'set_element_type', 'set_tensor_type']

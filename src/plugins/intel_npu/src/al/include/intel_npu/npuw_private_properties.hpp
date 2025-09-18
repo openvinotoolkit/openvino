@@ -252,14 +252,6 @@ static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 
 /**
  * @brief
- * Type: boolean
- * When applicable, do embedding gather on host but leave it quantized.
- * Default value: false.
- */
-static constexpr ov::Property<bool> gather_quant{"NPUW_HOST_GATHER_QUANT"};
-
-/**
- * @brief
  * Type: std::string.
  * Promotional data type for weights decompression. Works only with function "NPUW_FOLD"ing.
  * Possible values: "i8", "f16"
@@ -432,12 +424,28 @@ static constexpr ov::Property<uint32_t> seq_len_dim{"NPUW_LLM_SEQ_LEN_DIM"};
 static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"};
 
 /**
++ * @brief
++ * Type: uint32_t.
++ * Desirable max input token length for generation.
++ * Default value: 1.
++ */
+static constexpr ov::Property<uint32_t> max_generation_token_len{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN"};
+
+/**
  * @brief
  * Type: uint32_t.
  * Desirable min response length.
  * Default value: 128.
  */
 static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_LEN"};
+
+/**
+ * @brief
+ * Type: uint32_t.
+ * Desirable max LoRA rank.
+ * Default value: 32.
+ */
+static constexpr ov::Property<uint32_t> max_lora_rank{"NPUW_LLM_MAX_LORA_RANK"};
 
 /**
  * @brief
@@ -450,11 +458,19 @@ static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENS
 
 /**
  * @brief
+ * Type: boolean
+ * Substitute part of the RoPE with compile-time precalculation in higher precision
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
+
+/**
+ * @brief
  * Type: uint64_t.
  * Prompt chunk size for chunk prefill.
  * The chunk size should be a power of two.
  * Chunk prefill feature is disabled in case the value is 0.
- * Default value: 0.
+ * Default value: 1024.
  */
 static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
 
@@ -464,7 +480,7 @@ static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHU
  * Hint for prefill stage. NPUW will use optimal configuration based on the passed preference via hint.
  * Passing this hint with "NPUW_LLM_PREFILL_CONFIG" will generate a error.
  * Possible values: "DYNAMIC", "STATIC".
- * Default value: "STATIC".
+ * Default value: "DYNAMIC".
  */
 static constexpr ov::Property<std::string> prefill_hint{"NPUW_LLM_PREFILL_HINT"};
 
@@ -525,7 +541,7 @@ static constexpr ov::Property<ov::AnyMap> additional_generate_config{"++NPUW_LLM
  * Type: bool.
  * Tell NPUW to separate LM head into the 3rd model, that will be shared between
  * prefill and generate.
- * Default value: false.
+ * Default value: true.
  */
 static constexpr ov::Property<bool> shared_lm_head{"NPUW_LLM_SHARED_HEAD"};
 

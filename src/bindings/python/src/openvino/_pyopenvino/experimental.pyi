@@ -4,7 +4,7 @@ import openvino._pyopenvino
 """
 openvino.experimental submodule
 """
-__all__ = ['evaluate_as_partial_shape', 'evaluate_both_bounds', 'set_element_type', 'set_tensor_type']
+__all__: list[str] = ['evaluate_as_partial_shape', 'evaluate_both_bounds', 'set_element_type', 'set_tensor_type']
 def evaluate_as_partial_shape(output: openvino._pyopenvino.Output, partial_shape: openvino._pyopenvino.PartialShape) -> bool:
     """
                         Evaluates lower and upper value estimations for the output tensor. 

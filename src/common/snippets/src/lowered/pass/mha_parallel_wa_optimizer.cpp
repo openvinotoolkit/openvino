@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -122,6 +122,13 @@ std::unordered_set<lowered::ExpressionPtr> MHAParallelWAOptimizer::find_applicab
         if (loop_idces.empty()) {
             return false;
         }
+        for (const auto& loop_id : loop_idces) {
+            // Note: parallel loops mean that parallelization logic is realized in the kernel.
+            // In such cases, external parallelization optimizations are not applicable.
+            if (loop_manager->get_loop_info(loop_id)->is_parallel()) {
+                return false;
+            }
+        }
         const auto& outermost_loop = loop_manager->get_loop_info(loop_idces[0]);
         if (check_dynamic_wa && !snippets::utils::is_dynamic_value(outermost_loop->get_work_amount())) {
             return false;
@@ -183,7 +190,7 @@ std::vector<lowered::ExpandedLoopInfoPtr> MHAParallelWAOptimizer::find_loops_to_
     size_t i = 0;
     std::unordered_set<lowered::ExpressionPtr> visited;
     for (const auto& param : linear_ir->get_parameters()) {
-        if (unsqueezed_params.count(i++) != 0u) {
+        if (unsqueezed_params.count(i++) != 0U) {
             continue;
         }
         utils::visit_path(param, visited, add_loop_idx_to_split, false);

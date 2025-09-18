@@ -15,7 +15,6 @@
 
 #include "emitters/utils.hpp"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
-#include "openvino/core/except.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -24,94 +23,62 @@
 
 namespace ov::intel_cpu::aarch64 {
 
-GemmCopyBKernelKaiConfig::GemmCopyBKernelKaiConfig(const size_t n_blk_size)
-    : m_static_params(std::make_shared<StaticParams>(n_blk_size)) {
-    OPENVINO_ASSERT(n_blk_size != 0, "n_blk_size can not be zero in GemmCopyBKernelKaiConfig.");
-    m_hash = compute_hash();
-}
-
 bool GemmCopyBKernelKaiConfig::operator==(const GemmCopyBKernelKaiConfig& rhs) const {
-    return m_N == rhs.m_N && m_K == rhs.m_K && m_hash == rhs.m_hash &&
-           (m_static_params == rhs.m_static_params || *m_static_params == *(rhs.m_static_params));
+    return m_N == rhs.m_N && m_K == rhs.m_K && m_copy_b_wei_stride == rhs.m_copy_b_wei_stride && m_hash == rhs.m_hash;
 }
 
 bool GemmCopyBKernelKaiConfig::is_completed() const {
-    return !ov::snippets::utils::any_of(0ul, m_N, m_K) || is_empty();
+    return !ov::snippets::utils::any_of(0UL, m_N, m_K, m_copy_b_wei_stride) || is_empty();
 }
 
 bool GemmCopyBKernelKaiConfig::is_empty() const {
-    return all_of(0ul, m_N, m_K);
+    return all_of(0UL, m_N, m_K, m_copy_b_wei_stride);
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
 #    define PRINT(X) ss << #X << " = " << (X) << "\n"
 std::string GemmCopyBKernelKaiConfig::to_string() const {
     std::stringstream ss;
-    ss << m_static_params->to_string() << "\n";
     PRINT(m_N);
     PRINT(m_K);
+    PRINT(m_copy_b_wei_stride);
     return ss.str();
 }
 #    undef PRINT
 #endif
 
-void GemmCopyBKernelKaiConfig::update(size_t N, size_t K) {
+void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t stride) {
     // If one of the dims is zero, it means that GemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (ov::snippets::utils::any_of(0ul, N, K)) {
+    if (ov::snippets::utils::any_of(0UL, N, K)) {
         m_N = 0;
         m_K = 0;
+        m_copy_b_wei_stride = 0;
     } else {
         m_N = N;
         m_K = K;
+        m_copy_b_wei_stride = stride;
     }
     m_hash = compute_hash();
 }
 
 size_t GemmCopyBKernelKaiConfig::compute_hash() const {
-    size_t seed = m_static_params->hash;
+    size_t seed = 0;
     seed = dnnl::impl::hash_combine(seed, m_N);
     seed = dnnl::impl::hash_combine(seed, m_K);
+    seed = dnnl::impl::hash_combine(seed, m_copy_b_wei_stride);
     return seed;
 }
-
-GemmCopyBKernelKaiConfig::StaticParams::StaticParams(size_t wei_n_blk)
-    : wei_N_blk(wei_n_blk),
-      hash(init_hash(wei_N_blk)) {}
-
-bool GemmCopyBKernelKaiConfig::StaticParams::operator==(const StaticParams& rhs) const {
-    return wei_N_blk == rhs.wei_N_blk && hash == rhs.hash;
-}
-
-size_t GemmCopyBKernelKaiConfig::StaticParams::init_hash(size_t wei_n_blk) {
-    size_t seed = 0;
-    seed = dnnl::impl::hash_combine(seed, wei_n_blk);
-    return seed;
-}
-
-#ifdef SNIPPETS_DEBUG_CAPS
-#    define PRINT(X) ss << #X << " = " << (X) << "\n"
-std::string GemmCopyBKernelKaiConfig::StaticParams::to_string() const {
-    std::stringstream ss;
-    PRINT(wei_N_blk);
-    return ss.str();
-}
-#    undef PRINT
-#endif
 
 GemmCopyBKaiKernelExecutor::GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config)
     : snippets::KernelExecutor<GemmCopyBKernelKaiConfig, GemmCopyBCompiledKernel>(std::move(config)) {}
 
-void GemmCopyBKaiKernelExecutor::update_kernel(const GemmCopyBKernelKaiConfig& config,
+void GemmCopyBKaiKernelExecutor::update_kernel([[maybe_unused]] const GemmCopyBKernelKaiConfig& config,
                                                std::shared_ptr<GemmCopyBCompiledKernel>& kernel) const {
     if (kernel == nullptr) {
         // GemmCopyBCompiledKernel is an universal kernel, which could be used in any config and shape.
-        // 1. It's executed block by block with binary call and config passed as parameters.
-        // 2. In each block, at most n_blk_size bias is needed. n_blk_size is a fixed value in gemm blocking pass.
-        // if N block size changed in gemm blocking in future and based on shape, bias_buffer should be updated
         kernel = std::make_shared<GemmCopyBCompiledKernel>();
-        const auto& n_blk_size = config.get_n_blk_size();
-        kernel->bias_buffer->resize(n_blk_size * sizeof(float), 0);
+        kernel->bias_buffer->resize(GemmCopyBKernelKaiConfig::get_N_blk() * sizeof(float), 0);
     }
 }
 
@@ -119,9 +86,10 @@ void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::Expr
                                                [[maybe_unused]] const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                                GemmCopyBKernelKaiConfig& config) const {
     const auto& in0_shape = snippets::utils::get_planar_vdims(expr->get_input_port(0));
-    int64_t N = *in0_shape.rbegin();
-    int64_t K = *++in0_shape.rbegin();
-    config.update(N, K);
+    const auto N = *in0_shape.rbegin();
+    const auto K = *++in0_shape.rbegin();
+    const auto copy_b_wei_stride = snippets::utils::get_dim_stride(expr->get_input_port(0)) * sizeof(float);
+    config.update(N, K, copy_b_wei_stride);
 }
 
 // regarding K*N(32*516),
@@ -133,9 +101,10 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
     const auto& ukernel = kernel->copy_b_ukernel;
-    const auto K = config.get_K();                     // K
-    const auto N = config.get_N();                     // N-rhs_stride
-    const auto& n_blk_size = config.get_n_blk_size();  // n_blk
+    const auto K = config.get_K();                                   // K
+    const auto N = config.get_N();                                   // N-rhs_stride
+    const auto copy_b_wei_stride = config.get_copy_b_wei_stride();   // RHS stride in bytes
+    const auto& n_blk_size = GemmCopyBKernelKaiConfig::get_N_blk();  // n_blk
     const size_t nr = ukernel->get_nr();
     const size_t kr = ukernel->get_kr();
     const size_t sr = ukernel->get_sr();
@@ -155,7 +124,7 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
                                                          nr,
                                                          kr,
                                                          sr,                           // Packing arguments
-                                                         N * sizeof(float),            // RHS stride
+                                                         copy_b_wei_stride,            // RHS stride in bytes
                                                          src_ptr,                      // RHS
                                                          kernel->bias_buffer->data(),  // bias
                                                          nullptr,                      // Scale

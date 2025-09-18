@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -25,7 +26,9 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/softmax.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
@@ -94,15 +97,15 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
                                                  std::all_of(osc.cbegin(),
                                                              osc.cend(),
                                                              [](float val) {
-                                                                 return val == 1.f;
+                                                                 return val == 1.F;
                                                              }) &&
                                                  std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-                                                     return val == 0.f;
+                                                     return val == 0.F;
                                                  }));
-    const bool il = ov::shape_size(fq->input(1).get_shape()) != 1lu;
-    const bool ih = ov::shape_size(fq->input(2).get_shape()) != 1lu;
-    const bool ol = !only_quantized && ov::shape_size(fq->input(3).get_shape()) != 1lu;
-    const bool oh = !only_quantized && ov::shape_size(fq->input(4).get_shape()) != 1lu;
+    const bool il = ov::shape_size(fq->input(1).get_shape()) != 1LU;
+    const bool ih = ov::shape_size(fq->input(2).get_shape()) != 1LU;
+    const bool ol = !only_quantized && ov::shape_size(fq->input(3).get_shape()) != 1LU;
+    const bool oh = !only_quantized && ov::shape_size(fq->input(4).get_shape()) != 1LU;
 
     // FakeQuantize decompoisition has the folowwing formula:
     //      round(x * (levels-1) / (ih - il) - il * (levels-1) / (ih - il)) * (oh - ol) / (levels-1) + ol
@@ -148,6 +151,27 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
         return 1;
     }
     return 0;
+}
+
+std::optional<int64_t> get_softmax_axis(const std::shared_ptr<const ov::Node>& node) {
+    if (!node) {
+        return {};
+    }
+    const auto rank = node->get_input_partial_shape(0).rank();
+    if (rank.is_dynamic()) {
+        return {};
+    }
+    if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(node)) {
+        return static_cast<int64_t>(ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *softmax_v8));
+    }
+    if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(node)) {
+        const auto axis = softmax_v1->get_axis();
+        if (static_cast<int64_t>(axis) >= rank.get_length()) {
+            return {};
+        }
+        return static_cast<int64_t>(axis);
+    }
+    return {};
 }
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {

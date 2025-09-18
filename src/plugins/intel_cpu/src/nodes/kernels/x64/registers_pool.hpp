@@ -52,7 +52,7 @@ public:
 
     public:
         Reg() = default;
-        Reg(const RegistersPool::Ptr& regPool) {
+        explicit Reg(const RegistersPool::Ptr& regPool) {
             initialize(regPool);
         }
         Reg(const RegistersPool::Ptr& regPool, int requestedIdx) {
@@ -68,15 +68,16 @@ public:
             return *this;
         }
         Reg(Reg&& other) noexcept : reg(other.reg), regPool(std::move(other.regPool)) {}
-        operator TReg&() {
+        // XByak relies on implicit conversions
+        operator TReg&() {  // NOLINT(google-explicit-constructor)
             ensureValid();
             return reg;
         }
-        operator const TReg&() const {
+        operator const TReg&() const {  // NOLINT(google-explicit-constructor)
             ensureValid();
             return reg;
         }
-        operator Xbyak::RegExp() const {
+        operator Xbyak::RegExp() const {  // NOLINT(google-explicit-constructor)
             ensureValid();
             return reg;
         }
@@ -146,14 +147,14 @@ public:
                                 Xbyak::Opmask>::value,
                       "Unsupported TReg by RegistersPool::Reg. Please, use the following Xbyak registers either "
                       "Reg8, Reg16, Reg32, Reg64, Xmm, Ymm, Zmm or Opmask");
-        if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
+        if (std::is_base_of_v<Xbyak::Mmx, TReg>) {
             return simdSet.countUnused();
         }
-        if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
-            std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
+        if (std::is_same_v<TReg, Xbyak::Reg8> || std::is_same_v<TReg, Xbyak::Reg16> ||
+            std::is_same_v<TReg, Xbyak::Reg32> || std::is_same_v<TReg, Xbyak::Reg64>) {
             return generalSet.countUnused();
         }
-        if (std::is_same<TReg, Xbyak::Opmask>::value) {
+        if (std::is_same_v<TReg, Xbyak::Opmask>) {
             return countUnusedOpmask();
         }
     }
@@ -161,7 +162,7 @@ public:
 protected:
     class PhysicalSet {
     public:
-        PhysicalSet(int size) : isFreeIndexVector(size, true) {}
+        explicit PhysicalSet(int size) : isFreeIndexVector(size, true) {}
 
         void setAsUsed(size_t regIdx) {
             OPENVINO_ASSERT(regIdx < isFreeIndexVector.size(),
@@ -227,7 +228,7 @@ protected:
         OPENVINO_THROW("countUnusedOpmask: The Opmask is not supported in current instruction set");
     }
 
-    RegistersPool(int simdRegistersNumber) : simdSet(simdRegistersNumber) {
+    explicit RegistersPool(int simdRegistersNumber) : simdSet(simdRegistersNumber) {
         checkUniqueAndUpdate();
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RAX));
@@ -252,30 +253,30 @@ protected:
 private:
     template <typename TReg>
     int getFree(int requestedIdx) {
-        if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
+        if (std::is_base_of_v<Xbyak::Mmx, TReg>) {
             auto idx = simdSet.getUnused(requestedIdx);
             simdSet.setAsUsed(idx);
             return idx;
         }
-        if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
-            std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
+        if (std::is_same_v<TReg, Xbyak::Reg8> || std::is_same_v<TReg, Xbyak::Reg16> ||
+            std::is_same_v<TReg, Xbyak::Reg32> || std::is_same_v<TReg, Xbyak::Reg64>) {
             auto idx = generalSet.getUnused(requestedIdx);
             generalSet.setAsUsed(idx);
             return idx;
         }
-        if (std::is_same<TReg, Xbyak::Opmask>::value) {
+        if (std::is_same_v<TReg, Xbyak::Opmask>) {
             return getFreeOpmask(requestedIdx);
         }
     }
 
     template <typename TReg>
     void returnToPool(const TReg& reg) {
-        if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
+        if (std::is_base_of_v<Xbyak::Mmx, TReg>) {
             simdSet.setAsUnused(reg.getIdx());
-        } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
-                   std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
+        } else if (std::is_same_v<TReg, Xbyak::Reg8> || std::is_same_v<TReg, Xbyak::Reg16> ||
+                   std::is_same_v<TReg, Xbyak::Reg32> || std::is_same_v<TReg, Xbyak::Reg64>) {
             generalSet.setAsUnused(reg.getIdx());
-        } else if (std::is_same<TReg, Xbyak::Opmask>::value) {
+        } else if (std::is_same_v<TReg, Xbyak::Opmask>) {
             returnOpmaskToPool(reg.getIdx());
         }
     }

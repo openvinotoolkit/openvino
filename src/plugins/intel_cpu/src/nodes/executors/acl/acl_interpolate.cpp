@@ -9,6 +9,7 @@
 #include <arm_compute/runtime/NEON/functions/NEScale.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -153,7 +154,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     }
 
     if (is_upsample) {
-        bool int_factor = scale_h == static_cast<int>(scale_h) && scale_w == static_cast<int>(scale_w);
+        bool int_factor = (scale_h == std::floor(scale_h)) && (scale_w == std::floor(scale_w));
         if (int_factor && coord_mode != InterpolateCoordTransMode::asymmetric &&
             (nearest_mode == InterpolateNearestMode::round_prefer_ceil ||
              nearest_mode == InterpolateNearestMode::round_prefer_floor)) {
@@ -164,8 +165,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     } else if (scale_h < 1 && scale_w < 1) {
         float down_scale_h = static_cast<float>(inp_shape[index_h]) / out_shape[index_h];
         float down_scale_w = static_cast<float>(inp_shape[index_w]) / out_shape[index_w];
-        bool int_factor =
-            down_scale_h == static_cast<int>(down_scale_h) && down_scale_w == static_cast<int>(down_scale_w);
+        bool int_factor = (down_scale_h == std::floor(down_scale_h)) && (down_scale_w == std::floor(down_scale_w));
 
         if (int_factor && coord_mode != InterpolateCoordTransMode::align_corners &&
             nearest_mode == InterpolateNearestMode::simple) {
@@ -197,7 +197,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
 bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_cpu::InterpolateAttrs& interpolateAttrs,
                                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                                const std::vector<MemoryDescPtr>& dstDescs) const {
-    if (srcDescs[0]->getShape().getDims().size() != 4u) {
+    if (srcDescs[0]->getShape().getDims().size() != 4U) {
         DEBUG_LOG("ACL Interpolate does not support src shape rank: ", srcDescs[0]->getShape().getDims().size());
         return false;
     }

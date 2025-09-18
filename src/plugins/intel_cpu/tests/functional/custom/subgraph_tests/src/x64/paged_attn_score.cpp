@@ -43,7 +43,6 @@
 using namespace ov::test;
 using namespace CPUTestUtils;
 using namespace ov::op;
-using namespace std;
 
 namespace ov {
 namespace test {
@@ -55,10 +54,7 @@ class PagedAttnScoreTest : public testing::WithParamInterface<PagedAttnTestParam
                            public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
-        ElementType inType;
-        InputShapes inputShapes;
-        uint32_t score_aggregation_window;
-        std::tie(inType, inputShapes, score_aggregation_window) = obj.param;
+        const auto& [inType, inputShapes, score_aggregation_window] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -120,6 +116,18 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<float>{128});
         auto score_aggregation_window_node =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<uint32_t>{score_aggregation_window});
+        auto rotated_block_indices =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<uint32_t>{});
+        auto rotation_deltas =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<uint32_t>{});
+        auto rotation_trig_lut =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
+        auto xattention_threshold =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
+        auto xattention_block_size =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<uint32_t>{0});
+        auto xattention_stride =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<uint32_t>{0});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
@@ -135,7 +143,13 @@ public:
                                                                                      silding_windows,
                                                                                      alibi_slopes,
                                                                                      max_context_len,
-                                                                                     score_aggregation_window_node});
+                                                                                     score_aggregation_window_node,
+                                                                                     rotated_block_indices,
+                                                                                     rotation_deltas,
+                                                                                     rotation_trig_lut,
+                                                                                     xattention_threshold,
+                                                                                     xattention_block_size,
+                                                                                     xattention_stride});
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;
@@ -148,10 +162,7 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        InputShapes inputShapes;
-        uint32_t score_aggregation_window;
-        std::tie(inType, inputShapes, score_aggregation_window) = this->GetParam();
+        const auto& [inType, inputShapes, score_aggregation_window] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 0.01f;
         abs_threshold = 0.01f;
@@ -493,10 +504,7 @@ public:
 
 TEST_P(PagedAttnScoreTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ElementType inType;
-    InputShapes inputShapes;
-    uint32_t score_aggregation_window;
-    std::tie(inType, inputShapes, score_aggregation_window) = this->GetParam();
+    const auto& [inType, inputShapes, score_aggregation_window] = this->GetParam();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     auto actualOutputs = run_test(function, score_aggregation_window);

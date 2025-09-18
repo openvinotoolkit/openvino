@@ -131,6 +131,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                                   pred_params[0].get_output_layout().data_padding._lower_size[concat_axis]);
 
     size_t idx = 0;
+    size_t onednn_byte_offset = 0;
     for (const auto& pred : pred_nodes) {
         if (!available_pred(*pred.first))
             return false;
@@ -191,7 +192,18 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             if (pred_l.format == format::b_fs_yx_fsv4 && (pred_l.feature() != 4 || concat_axis != 1))
                 return false;
         }
+
         if (pred.first->get_preferred_impl_type() == impl_types::onednn) {
+            // No implicit concat for spatial axes
+            if (concat_axis > 1)
+                return false;
+
+            // Onednn requires memory pointers to be aligned at least at 64-bytes to avoid potential correctness issues.
+            if (!concat_node.is_dynamic() || is_runtime) {
+                if (onednn_byte_offset % 64 != 0)
+                    return false;
+            }
+
             for (const auto& fused_op : pred_params[idx].fused_desc) {
                 auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(*pred.first, fused_op);
                 if (add_type == add_fusing_type::sum)
@@ -206,8 +218,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         }
         // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
         // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
-        if ((!concat_node.is_dynamic() || is_runtime) && ((concat_params.get_output_layout().batch() > 1) ||
-            (!concat_node.is_dynamic() && concat_params.get_output_layout().batch() > 1))) {
+        if ((!concat_node.is_dynamic() || is_runtime) && (concat_params.get_output_layout().batch() > 1)) {
             for (auto& sib : pred.first->get_users()) {
                 if (sib->get_preferred_impl_type() == impl_types::onednn) {
                     return false;
@@ -224,8 +235,12 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             if (idx != 0 && input_padd._lower_size[concat_axis] != 0)
                 return false;
         }
-        if (!concat_node.is_dynamic() || is_runtime)
+        if (!concat_node.is_dynamic() || is_runtime) {
             lower_padd_in_axis += pred_params[idx].get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
+            // Accumulates byte offset for onednn 64-byte alignment. The assumption here is that onednn will support batch 1 case.
+            onednn_byte_offset += pred_l.bytes_count();
+        }
+
         idx++;
     }
 
@@ -241,19 +256,11 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         } else {
             if (concat_out_l.batch() > 1)
                 return false;
-            // TODO: cldnn cases should be updated. This logic is working for onednn only.
-            //       white list for support fusing formats.
-            const std::vector<format> white_list = {
-                format::bfyx,
-                format::bfzyx,
-                format::b_fs_yx_fsv16,
-                format::b_fs_zyx_fsv16,
-                format::b_fs_yx_fsv32,
-                format::b_fs_zyx_fsv32,
-                format::b_fs_yx_fsv4,
-            };
-            if (std::find_if(white_list.begin(), white_list.end(), [&concat_out_l](format fmt){ return (fmt == concat_out_l.format); }) == std::end(white_list))
-                return false;
+            const auto& dims_order = concat_out_l.format.dims_order();
+            for (auto dim : dims_order) {
+                if (dim == 0) continue;
+                return dim == 1;
+            }
         }
     }
     return true;
@@ -304,7 +311,7 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
         padd = padding::max(padd, inputPadding);
     }
 
-    std::vector<tensor::value_type> lower_padd, upper_padd;
+    std::vector<ov::Dimension::value_type> lower_padd, upper_padd;
     for (size_t i = 0; i < concat_out_layout.get_rank(); i++) {
         lower_padd.push_back(padd._lower_size[i]);
         upper_padd.push_back(padd._upper_size[i]);
@@ -637,12 +644,12 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
         opt_lower_pad += dep_pad._lower_size[1];
         opt_upper_pad += dep_pad._upper_size[1];
     }
-    std::vector<int32_t> lower_sizes;
+    std::vector<ov::Dimension::value_type> lower_sizes;
     lower_sizes.push_back(out_pad._lower_size[0]);
     lower_sizes.push_back(opt_lower_pad);
     lower_sizes.push_back(out_pad._lower_size[2]);
     lower_sizes.push_back(out_pad._lower_size[3]);
-    std::vector<int32_t> upper_sizes;
+    std::vector<ov::Dimension::value_type> upper_sizes;
     upper_sizes.push_back(out_pad._upper_size[0]);
     upper_sizes.push_back(opt_upper_pad);
     upper_sizes.push_back(out_pad._upper_size[2]);
@@ -707,13 +714,13 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
     const auto& crop_size = crop_layout.get_tensor();
 
-    std::vector<int32_t> lower_sizes;
+    std::vector<ov::Dimension::value_type> lower_sizes;
     lower_sizes.push_back(offsets.batch[0]);
     lower_sizes.push_back(offsets.feature[0]);
     for (int32_t i = static_cast<int32_t>(input_layout.get_spatial_rank() - 1); i >= 0; i--) {
         lower_sizes.push_back(offsets.spatial[i]);
     }
-    std::vector<int32_t> upper_sizes;
+    std::vector<ov::Dimension::value_type> upper_sizes;
     upper_sizes.push_back(input_layout.batch() - offsets.batch[0] - crop_size.batch[0]);
     upper_sizes.push_back(input_layout.feature() - offsets.feature[0] - crop_size.feature[0]);
     for (int32_t i = static_cast<int32_t>(input_layout.get_spatial_rank() - 1); i >= 0; i--) {
@@ -744,8 +751,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 reshape_axis -= 1;
 
                 const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
-                std::vector<int32_t> reshape_lower_sizes(output_rank, 0);
-                std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
                 padding::DynamicDimsMask reshape_dyn_pad_mask;
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
@@ -770,8 +777,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 }
 
                 const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
-                std::vector<int32_t> reshape_lower_sizes(output_rank, 0);
-                std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
                 padding::DynamicDimsMask reshape_dyn_pad_mask;
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
@@ -869,8 +876,8 @@ void prepare_buffer_fusing::run(program& p) {
                 if (!allow_new_shape_infer && user->is_type<gemm>() && user->get_dependency(1).id().compare(node.id()) == 0) {
                     auto input_rank = user->get_kernel_impl_params()->typed_desc<gemm>()->weight_rank;
                     if (input_rank < TDIM) {
-                        std::vector<int32_t> l_pad = {0, 0, 0, 0};
-                        std::vector<int32_t> u_pad = {0, 0, 0, 0};
+                        std::vector<ov::Dimension::value_type> l_pad = {0, 0, 0, 0};
+                        std::vector<ov::Dimension::value_type> u_pad = {0, 0, 0, 0};
 
                         //shift right
                         size_t shift_right = TDIM - input_rank;

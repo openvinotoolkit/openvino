@@ -476,7 +476,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
     m_attrs.isGraphQuantized = context->isGraphQuantized();
     m_attrs.fcSemantic = false;
-    m_attrs.nonConstantWeights = !getParentEdgeAt(WEIGHTS)->getParent()->isConstant();
+    m_attrs.constantWeights = getParentEdgeAt(WEIGHTS)->getParent()->isConstant();
     m_attrs.weightsNonTransposed = false;
     m_attrs.dqScales = getDQScales();
 
@@ -511,12 +511,12 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         for (const auto& desc : nodeDescriptors) {
             if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
                 const auto& inputDesc = desc.second;
-                nodeConfig.inConfs[it->second] = {inputDesc, getBlockedMask(inputDesc, m_attrs.isGrouped)};
+                nodeConfig.inConfs[it->second] = PortConfig(inputDesc, getBlockedMask(inputDesc, m_attrs.isGrouped));
             }
         }
 
         for (size_t i = 3; i < srcDescs.size(); i++) {
-            nodeConfig.inConfs[i] = srcDescs[i];
+            nodeConfig.inConfs[i] = PortConfig(srcDescs[i]);
         }
 
         const int inPlaceOutPort = withSum ? static_cast<int>(getParentEdges().size()) - 1 : -1;

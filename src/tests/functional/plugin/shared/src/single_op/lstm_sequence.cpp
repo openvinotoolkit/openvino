@@ -22,21 +22,20 @@ using ov::test::utils::SequenceTestsMode;
 using ov::test::utils::InputLayerType;
 
 std::string LSTMSequenceTest::getTestCaseName(const testing::TestParamInfo<LSTMSequenceParams> &obj) {
-    SequenceTestsMode mode;
-    size_t seq_lengths;
-    size_t batch;
-    size_t hidden_size;
-    size_t input_size;
-    std::vector<std::string> activations;
     std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
-    float clip;
-    ov::op::RecurrentSequenceDirection direction;
-    InputLayerType WRBType;
-    ov::element::Type model_type;
-    std::string targetDevice;
-    std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction,
-                WRBType, model_type, targetDevice) = obj.param;
+
+    const auto& [mode,
+                 seq_lengths,
+                 batch,
+                 hidden_size,
+                 input_size,
+                 activations,
+                 clip,
+                 direction,
+                 WRBType,
+                 model_type,
+                 targetDevice] = obj.param;
     std::vector<std::vector<size_t>> input_shapes = {
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {4 * hidden_size, input_size},
                     {4 * hidden_size, hidden_size}, {4 * hidden_size}},
@@ -58,20 +57,21 @@ std::string LSTMSequenceTest::getTestCaseName(const testing::TestParamInfo<LSTMS
 }
 
 void LSTMSequenceTest::SetUp() {
-    SequenceTestsMode mode;
-    size_t seq_lengths;
-    size_t batch;
-    size_t hidden_size;
-    size_t input_size;
-    std::vector<std::string> activations;
     std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
-    float clip;
-    ov::op::RecurrentSequenceDirection direction;
-    InputLayerType WRBType;
-    ov::element::Type model_type;
-    std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction,
-                WRBType, model_type, targetDevice) = this->GetParam();
+
+    const auto& [mode,
+                 seq_lengths,
+                 batch,
+                 hidden_size,
+                 input_size,
+                 activations,
+                 clip,
+                 direction,
+                 WRBType,
+                 model_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     max_seq_lengths = seq_lengths;
     size_t num_directions = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;

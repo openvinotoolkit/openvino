@@ -37,33 +37,23 @@ public:
 private:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    /**
-     * @brief Check the received tensor and set the Level Zero tensor accordingly
-     * @param tensor Reference to a tensor.
-     * @param index The index corresponding to the position of the tensor inside the I/O structures.
-     * @param isInput Used for identifying the structures to which the tensor belongs.
-     */
-    void set_tensor_data(const std::shared_ptr<ov::ITensor>& tensor, const size_t index, const bool isInput);
-
-    /**
-     * @brief Check the received remote tensor and copy it to the Level Zero tensor
-     * @param tensor Reference to a tensor.
-     * @param index The index corresponding to the position of the tensor inside the I/O structures.
-     * @param isInput Used for identifying the structures to which the tensor belongs.
-     */
-    void set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTensor>& tensor,
-                                const size_t index,
-                                const bool isInput);
-
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
 
-    std::shared_ptr<ov::ITensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
-    std::vector<std::shared_ptr<ov::ITensor>>& get_level_zero_inputs(size_t index) const;
+    std::shared_ptr<ZeroTensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
+    std::vector<std::shared_ptr<ZeroTensor>>& get_level_zero_inputs(size_t index) const;
 
-    std::shared_ptr<ov::ITensor> create_tensor(ov::element::Type type,
-                                               const ov::Shape& shape,
-                                               const ov::Allocator& allocator = {}) const override;
+    /**
+     * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
+     * @param index The index which the allocated tensor shall use.
+     * @param isInput Determines the containers in which the newly allocated tensors will be stored.
+     * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
+     * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
+     * @return Pointer towards the allocated tensor
+     */
+    std::shared_ptr<ZeroTensor> allocate_tensor(const size_t index,
+                                                const bool isInput,
+                                                const std::optional<std::size_t> batchSize = std::nullopt) const;
 
     void add_state(const IODescriptor& descriptor, size_t tensorIndex) const override;
 
@@ -80,16 +70,14 @@ private:
 
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
-    mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
-    mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
-
-    std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
-    std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;
+    mutable std::vector<std::vector<std::shared_ptr<ZeroTensor>>> _levelZeroInputTensors;
+    mutable std::vector<std::shared_ptr<ZeroTensor>> _levelZeroOutputTensors;
 
     std::unique_ptr<Pipeline> _pipeline;
 
     bool _pipelineIsCreated = false;
-    bool _pipelineNeedsReallocation = false;
+    bool _dynamicBatchValueChanged = false;
+    bool _externalMemoryStandardAllocationSupported = false;
 };
 
 }  //  namespace intel_npu

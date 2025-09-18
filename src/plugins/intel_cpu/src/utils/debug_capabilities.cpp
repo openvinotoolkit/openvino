@@ -390,7 +390,6 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
 
     // last line(s): fused layers
     os << " " << node.getOriginalLayers();
-    os << " " << node.getParallelDomain();
 
     if (node.PerfCounter().count()) {
         os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();
@@ -436,7 +435,7 @@ class OstreamAttributeVisitor : public ov::AttributeVisitor {
     std::ostream& os;
 
 public:
-    OstreamAttributeVisitor(std::ostream& os) : os(os) {}
+    explicit OstreamAttributeVisitor(std::ostream& os) : os(os) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         if (auto* a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
