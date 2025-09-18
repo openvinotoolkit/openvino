@@ -31,6 +31,8 @@ public:
                                                   testing::internal::ValueArray<const char*>>;
 
     static const TGenData GetTestDataForDevice(const char* deviceName);
+    static const TGenData GetStaticTestDataForDevice(const char* deviceName);
+    static const TGenData GetDynamicTestDataForDevice(const char* deviceName);
 
 protected:
     void SetUp() override;

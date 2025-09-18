@@ -38,7 +38,7 @@ void SparseFillEmptyRowsLayerTest::SetUp() {
     auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[2]);
     std::shared_ptr<ov::Node> default_value_node;
     if (in_type == utils::InputLayerType::PARAMETER) {
-        default_value_node = std::make_shared<ov::op::v0::Parameter>(values_type, ov::Shape{});
+        default_value_node = std::make_shared<ov::op::v0::Parameter>(values_type, ov::PartialShape{});
     } else {
         default_value_node = std::make_shared<ov::op::v0::Constant>(values_type, ov::Shape{}, default_value);
     }
@@ -62,14 +62,14 @@ void SparseFillEmptyRowsLayerTest::generate_inputs(const std::vector<ov::Shape>&
     const auto valuesType = funcInputs[0].get_element_type();
     const auto idxType = funcInputs[2].get_element_type();
 
-    std::vector<int64_t> dense_shape_values;
-    for (auto v : indicesShape) {
-        dense_shape_values.push_back(static_cast<int64_t>(v));
-    }
-    ov::Tensor dense_shape_tensor(idxType, {2});
+    size_t M = indicesShape[0];
+    size_t num_rows = std::max(static_cast<size_t>(8), M + 2);
+    size_t num_cols = std::max(static_cast<size_t>(5), static_cast<size_t>(3));
+
+    ov::Tensor dense_shape_tensor(idxType, denseShapeShape);
     auto* ptr = dense_shape_tensor.data<int64_t>();
-    ptr[0] = dense_shape_values[0];
-    ptr[1] = dense_shape_values[1];
+    ptr[0] = static_cast<int64_t>(num_rows);
+    ptr[1] = static_cast<int64_t>(num_cols);
     inputs[funcInputs[1].get_node_shared_ptr()] = dense_shape_tensor;
 
     ov::test::utils::InputGenerateData valuesData;
@@ -79,10 +79,7 @@ void SparseFillEmptyRowsLayerTest::generate_inputs(const std::vector<ov::Shape>&
     inputs[funcInputs[0].get_node_shared_ptr()] = values_tensor;
 
     // Generate indices: [M, 2], each row in [0, num_rows-1], col in [0, num_cols-1]
-    size_t num_rows = dense_shape_values[0];
-    size_t num_cols = dense_shape_values[1];
     ov::Tensor indices_tensor(idxType, indicesShape);
-    size_t M = indicesShape[0];
     auto* iptr = indices_tensor.data<int64_t>();
     for (size_t i = 0; i < M; ++i) {
         iptr[i * 2 + 0] = static_cast<int64_t>(i % num_rows);
@@ -111,6 +108,51 @@ const SparseFillEmptyRowsLayerTest::TGenData SparseFillEmptyRowsLayerTest::GetTe
 
     auto data = ::testing::Combine(
         ::testing::ValuesIn(input_shapes),
+        ::testing::ValuesIn(default_values),
+        ::testing::ValuesIn(values_types),
+        ::testing::ValuesIn(in_types),
+        ::testing::Values(deviceName));
+    return data;
+}
+
+const SparseFillEmptyRowsLayerTest::TGenData SparseFillEmptyRowsLayerTest::GetStaticTestDataForDevice(const char* deviceName) {
+    const std::vector<std::vector<InputShape>> input_shapes_static = {{
+        // values: [M], dense_shape: [2], indices: [M, 2]
+        {{{4}, {{4}}}, {{2}, {{2}}}, {{4, 2}, {{4, 2}}}},
+        {{{8}, {{8}}}, {{2}, {{2}}}, {{8, 2}, {{8, 2}}}},
+        {{{6}, {{6}}}, {{2}, {{2}}}, {{6, 2}, {{6, 2}}}},
+        {{{12}, {{12}}}, {{2}, {{2}}}, {{12, 2}, {{12, 2}}}}
+    }};
+
+    const std::vector<std::vector<float>> default_values = {{0.0f}, {42.0f}};
+    const std::vector<ov::element::Type> values_types = {ov::element::f32, ov::element::f16};
+    std::vector<utils::InputLayerType> in_types = {utils::InputLayerType::CONSTANT, utils::InputLayerType::PARAMETER};
+
+    auto data = ::testing::Combine(
+        ::testing::ValuesIn(input_shapes_static),
+        ::testing::ValuesIn(default_values),
+        ::testing::ValuesIn(values_types),
+        ::testing::ValuesIn(in_types),
+        ::testing::Values(deviceName));
+    return data;
+}
+
+const SparseFillEmptyRowsLayerTest::TGenData SparseFillEmptyRowsLayerTest::GetDynamicTestDataForDevice(const char* deviceName) {
+    const std::vector<std::vector<InputShape>> input_shapes_dynamic = {{
+        {{{ov::Dimension(1, 20)}, {{4}, {8}, {6}}}, {{2}, {{2}}}, {{ov::Dimension(1, 20), 2}, {{4, 2}, {8, 2}, {6, 2}}}},
+        {{{ov::Dimension(2, 16)}, {{10}, {12}, {14}}}, {{2}, {{2}}}, {{ov::Dimension(2, 16), 2}, {{10, 2}, {12, 2}, {14, 2}}}},
+        {{{ov::Dimension(1, 50)}, {{3}, {5}, {7}, {9}}}, {{2}, {{2}}}, {{ov::Dimension(1, 50), 2}, {{3, 2}, {5, 2}, {7, 2}, {9, 2}}}},
+        {{{ov::Dimension::dynamic()}, {{2}, {15}, {7}, {20}}}, {{2}, {{2}}}, {{ov::Dimension::dynamic(), 2}, {{2, 2}, {15, 2}, {7, 2}, {20, 2}}}},
+        {{{ov::Dimension::dynamic()}, {{1}, {9}, {13}, {25}}}, {{2}, {{2}}}, {{ov::Dimension::dynamic(), 2}, {{1, 2}, {9, 2}, {13, 2}, {25, 2}}}},
+        {{{ov::Dimension::dynamic()}, {{11}, {6}, {18}, {4}}}, {{2}, {{2}}}, {{ov::Dimension::dynamic(), 2}, {{11, 2}, {6, 2}, {18, 2}, {4, 2}}}}
+    }};
+
+    const std::vector<std::vector<float>> default_values = {{0.0f}, {42.0f}};
+    const std::vector<ov::element::Type> values_types = {ov::element::f32, ov::element::f16};
+    std::vector<utils::InputLayerType> in_types = {utils::InputLayerType::CONSTANT, utils::InputLayerType::PARAMETER};
+
+    auto data = ::testing::Combine(
+        ::testing::ValuesIn(input_shapes_dynamic),
         ::testing::ValuesIn(default_values),
         ::testing::ValuesIn(values_types),
         ::testing::ValuesIn(in_types),

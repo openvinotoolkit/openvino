@@ -9,6 +9,11 @@
 namespace ov::test {
 INSTANTIATE_TEST_SUITE_P(smoke_SparseFillEmptyRows_static,
                          SparseFillEmptyRowsLayerTest,
-                         SparseFillEmptyRowsLayerTest::GetTestDataForDevice(ov::test::utils::DEVICE_GPU),
+                         SparseFillEmptyRowsLayerTest::GetStaticTestDataForDevice(ov::test::utils::DEVICE_GPU),
+                         SparseFillEmptyRowsLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparseFillEmptyRows_dynamic,
+                         SparseFillEmptyRowsLayerTest,
+                         SparseFillEmptyRowsLayerTest::GetDynamicTestDataForDevice(ov::test::utils::DEVICE_GPU),
                          SparseFillEmptyRowsLayerTest::getTestCaseName);
 }  // namespace ov::test
