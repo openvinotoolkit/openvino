@@ -34,14 +34,15 @@ jobs:
       - name: Create code style diff
         run: cmake --build build --target clang_format_fix_all -j8
 
-      - name: suggester / clang-format
-        if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          level: warning
-          fail_level: error
-          filter_mode: nofilter
+      - name: Run clang-format in-place
+        run: |
+          git checkout -- .
+          clang-format -i $(git ls-files '*.c' '*.cc' '*.cpp' '*.h' '*.hpp')
+          git --no-pager diff --color=always || true
+          if ! git diff --quiet; then
+            echo "::error::clang-format found issues. Apply the patch above locally."
+            exit 1
+          fi
 
   clang-format-aarch64:
     runs-on: ubuntu-24.04
