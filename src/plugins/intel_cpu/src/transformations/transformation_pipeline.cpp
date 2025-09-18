@@ -1247,7 +1247,7 @@ void Transformations::MainSnippets() {
 #else
     TokenizeMLPSeqSnippets::Config mlp_seq_config(tokenization_config);
 #endif
-
+    ov::pass::Manager snippetsManager("CPU:Snippets");
     snippetsManager.set_per_pass_validation(false);
     // if callback needed for better perf, enable SnippetsMarkSkipped, and disable TokenizeFCSnippets.
     if (!ignoreCallback) {
