@@ -99,6 +99,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/fuse_moe.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
@@ -193,6 +194,7 @@
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
+#include "ov_ops/moe.hpp"
 
 namespace {
 template<typename T>
@@ -466,6 +468,23 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // moe expert requires onednn enabled which needs in order queue.
+        if (device_info.supports_immad) {
+            manager.register_pass<ov::pass::FuseMOE>();
+            pass_config->set_callback<ov::pass::FuseMOERouter>([](const_node_ptr& node) -> bool {
+                auto moe = as_type_ptr<const ov::op::internal::MOE>(node);
+                const auto& config = moe->get_config();
+                // TODO(MOE): support more cases
+                if (config.weight_type == ov::element::u4 && config.scale_type == ov::element::f16 && config.zp_type == ov::element::u4 &&
+                    config.group_size == 128) {
+                    return false;
+                }
+                return true;
+            });
+        }
+#endif
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
