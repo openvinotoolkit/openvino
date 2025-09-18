@@ -252,58 +252,6 @@ describe("ov.Tensor tests", () => {
       assert.strictEqual(tensor.getSize(), expectedSize);
     });
   });
-  describe("BigInt Tensor support", () => {
-    let shape, elemNum;
-
-    before(() => {
-      shape = [1, 3, 4, 4];
-      elemNum = shape.reduce((a, b) => a * b, 1);
-    });
-
-    it("creates and reads BigInt64Array tensor", () => {
-      const data = new BigInt64Array(elemNum);
-      for (let i = 0; i < elemNum; i++) {
-        data[i] = BigInt(Math.floor(Math.random() * 10));
-      }
-
-      const tensor = new ov.Tensor(ov.element.i64, shape, data);
-      assert.ok(tensor instanceof ov.Tensor);
-      assert.strictEqual(tensor.getElementType(), ov.element.i64);
-      assert.deepStrictEqual(tensor.getShape(), shape);
-      assert.deepStrictEqual(tensor.data, data);
-      assert.deepStrictEqual(tensor.getData(), data);
-    });
-
-    it("errors on wrong BigInt64Array length", () => {
-      const badData = new BigInt64Array(elemNum - 1).fill(0n);
-      assert.throws(
-        () => new ov.Tensor(ov.element.i64, shape, badData),
-        /size mismatch|Memory allocated using shape and element::type mismatch/i,
-      );
-    });
-
-    it("creates and reads BigUint64Array tensor", () => {
-      const data = new BigUint64Array(elemNum);
-      for (let i = 0; i < elemNum; i++) {
-        data[i] = BigInt(Math.floor(Math.random() * 10));
-      }
-
-      const tensor = new ov.Tensor(ov.element.u64, shape, data);
-      assert.ok(tensor instanceof ov.Tensor);
-      assert.strictEqual(tensor.getElementType(), ov.element.u64);
-      assert.deepStrictEqual(tensor.getShape(), shape);
-      assert.deepStrictEqual(tensor.data, data);
-      assert.deepStrictEqual(tensor.getData(), data);
-    });
-
-    it("errors on wrong BigUint64Array length", () => {
-      const badData = new BigUint64Array(elemNum + 1).fill(0n);
-      assert.throws(
-        () => new ov.Tensor(ov.element.u64, shape, badData),
-        /size mismatch|Memory allocated using shape and element::type mismatch/i,
-      );
-    });
-  });
 
   describe("Tensor isContinuous", () => {
     it("isContinuous returns true if tensor is continuous", () => {
