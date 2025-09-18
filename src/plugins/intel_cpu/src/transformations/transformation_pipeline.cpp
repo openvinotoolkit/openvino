@@ -113,6 +113,7 @@
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
+#include "transformations/op_conversions/einsum_decomposition.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/fake_convert_decomposition.hpp"
 #include "transformations/op_conversions/fq_decomposition.hpp"
@@ -460,6 +461,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     const bool useLpt = !defaultPrecisions.empty();
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::CompressedGatherTransformation);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
+
+    // Decompose Einsum before marking dequantization to ensure the pattern can be recognized
+    // This fixes CVS-165827: prevents ConstantFolding from converting i8/fp16 weights to fp32
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::EinsumDecomposition);
+
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
@@ -827,7 +833,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // List of enabled/disabled transformations
 
     // Allow FP16 Converts to be folded and FP16 constants to be upgraded to FP32 data type
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::DisableDecompressionConvertConstantFolding);
+    // Commented out to fix CVS-165827: prevent folding of i8/fp16 constants to fp32
+    // CPU_DISABLE_PASS_COMMON(manager, ov::pass::DisableDecompressionConvertConstantFolding);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertCompressedOnlyToLegacy);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::EyeDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGELU);
