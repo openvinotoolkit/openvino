@@ -210,6 +210,7 @@ class Compiler {
         m_snapshot->repeatedBlocks([&]() {
             // This callback is called when repeatingBlocks algorithm thinks it is done
             m_snapshot->stripTag("compute");
+            m_snapshot->stripTag("attn");
         });
         m_snapshot->repeat([&] {
             m_snapshot->fuseRemnantsExtended();
