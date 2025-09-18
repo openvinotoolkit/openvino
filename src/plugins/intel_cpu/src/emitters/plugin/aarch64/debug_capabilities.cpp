@@ -236,7 +236,9 @@ template void RegPrinter::print<int, XReg>(jit_generator_t& h, XReg reg, const c
 template void RegPrinter::print<float, WReg>(jit_generator_t& h, WReg reg, const char* name);
 template void RegPrinter::print<int, WReg>(jit_generator_t& h, WReg reg, const char* name);
 
-template void RegPrinter::print_vmm_prc<float, RegPrinter::vec_len>(const char* name, const char* orig_name, float* ptr);
+template void RegPrinter::print_vmm_prc<float, RegPrinter::vec_len>(const char* name,
+                                                                    const char* orig_name,
+                                                                    float* ptr);
 template void RegPrinter::print_vmm_prc<int, RegPrinter::vec_len>(const char* name, const char* orig_name, int* ptr);
 
 template void RegPrinter::print_reg_prc<float>(const char* name, const char* orig_name, float* ptr);
