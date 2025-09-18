@@ -31,23 +31,22 @@ ParamsKey ReorderKernelBlockedOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT16);
     k.EnableOutputDataType(Datatype::UINT32);
     k.EnableOutputDataType(Datatype::BF16);
-    // k.EnableSurfaceInputSupport();
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableDynamicShapesSupport();
     return k;
 }
 
 ReorderKernelBase::DispatchData ReorderKernelBlockedOpt::SetDefault(const reorder_params& params) const {
     DispatchData dispatchData;
-    size_t global_w_item = std::max(params.outputs[0].PhysicalSize() / SelectVecSizeFromSize(params.outputs[0]), (size_t)1);
+    size_t global_w_item = std::max(params.inputs[0].PhysicalSize() / SelectVecSizeFromSize(params.inputs[0]), (size_t)1);
     size_t g_size = SelectGroupSize(global_w_item);
 
     //  dispatchData.gws = {global_w_item, 1, 1};
+    std::cout << " >> ReorderKernelBlockedOpt::SetDefault >> params.inputs[0].PhysicalSize() : " << params.inputs[0].PhysicalSize() << std::endl;
     dispatchData.gws = {global_w_item/g_size, 1, 1};
     // dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     dispatchData.lws = {1, 1, 1};
@@ -62,18 +61,30 @@ bool ReorderKernelBlockedOpt::Validate(const Params& p) const {
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
     std::cout << ">>>>>> " << p.layerID << std::endl;
-    // if (p.layerID == "result:Result_33640" || params.outputs[0].PhysicalSize() > 10000) {
-    //     GPU_DEBUG_COUT << "  >>" << p.layerID << std::endl;
-    // }
+    if (params.truncate) {
+        std::cout << "  -- enabled truncated " << std::endl;
+        // return false;
+    } else {
+        // return false;
+    }
 
-    if (SelectVecSizeFromSize(params.outputs[0]) == 1)
+    if (SelectVecSizeFromSize(params.inputs[0]) == 1) {
+        std::cout << "  -- bad for vector : " << (params.inputs[0].is_dynamic() ? "dynamic" : "no dyn") << std::endl;
         return false;
+    } else {
+        std::cout << "  -- physical outputs for vector : " << params.inputs[0].PhysicalSize() << std::endl;
+    }
 
     if (!params.fused_ops.empty())
         return false;
 
-    if (params.mode != MeanSubtractMode::NONE)
+    if (params.surface_input || params.inputs[0].GetDType() == Datatype::BF16 )
         return false;
+
+    if (params.mode != MeanSubtractMode::NONE) {
+        std::cout << "  -- MeanSubtractMode is not NONE " << std::endl;
+        return false;
+    }
 
     auto compare_tensors = [](const DataTensor& input, const DataTensor& output) -> bool {
         // Check all parameters except DataType
@@ -95,8 +106,15 @@ bool ReorderKernelBlockedOpt::Validate(const Params& p) const {
 
     auto& input = params.inputs[0];
     auto& output = params.outputs[0];
-    if (input.GetDims().size() != output.GetDims().size() || !compare_tensors(input, output)) {
+    auto& input_dims = input.GetDims();
+    auto& output_dims = output.GetDims();
+    if (input_dims.size() != output_dims.size() || !compare_tensors(input, output)) {
         return false;
+    }
+
+    for (size_t i = 0 ; i < input_dims.size(); i++) {
+        if (input_dims[i].pad.is_dynamic || output_dims[i].pad.is_dynamic)
+            return false;
     }
 
     // std::cout << "  -- info : " << (int)params.mode << " " << (int)params.mean_op << " " << params.meanValues.size() << " "
@@ -113,33 +131,17 @@ JitConstants ReorderKernelBlockedOpt::GetJitConstants(const reorder_params& para
     if (params.truncate) {
         jit.AddConstant(MakeJitConstant("CONVERT_TRUNCATE", true));
     }
+
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
 
-    if (params.surface_input)
-        jit.AddConstant(MakeJitConstant("SURFACE_INPUT", true));
-
-    // if (!params.fused_ops.empty()) {
-    //     std::vector<std::string> idx_order;
-    //     if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
-    //         idx_order = {"b", "f", "y", "x"};
-    //     } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
-    //         idx_order = {"b", "f", "z", "y", "x"};
-    //     }
-    //     FusedOpsConfiguration conf = {"", idx_order, "res", GetUnitType(params), 1};
-    //     jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
-    // }
-
-    size_t vec_size = SelectVecSizeFromSize(params.outputs[0]);
+    size_t vec_size = SelectVecSizeFromSize(params.inputs[0]);
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
 
-    size_t global_w_item = std::max(params.outputs[0].PhysicalSize() / vec_size, (size_t)1);
+    size_t global_w_item = std::max(params.inputs[0].PhysicalSize() / vec_size, (size_t)1);
     size_t g_size = SelectGroupSize(global_w_item);
     jit.AddConstant(MakeJitConstant("ITEM_SIZE", g_size));
-    GPU_DEBUG_COUT << ">> " << params.layerID << " >> ITEM_SIZE : " << g_size << ", VEC : " << vec_size << std::endl;
 
-    // if ( params.inputs[0].GetDType() == Datatype::BF16 ) {
-    //      jit.AddConstant(MakeJitConstant("BF16_INPUT", true));
-    // }
+    std::cout << "  -- " << params.layerID << " >> ITEM_SIZE : " << g_size << ", VEC : " << vec_size << std::endl;
 
     return jit;
 }
@@ -147,6 +149,21 @@ JitConstants ReorderKernelBlockedOpt::GetJitConstants(const reorder_params& para
 KernelsData ReorderKernelBlockedOpt::GetKernelsData(const Params& params) const {
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
     return GetCommonKernelsData(orgParams);
+}
+
+void ReorderKernelBlockedOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const reorder_params&>(params);
+        auto dispatchData = ReorderKernelBlockedOpt::SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+        std::cout << ">> ReorderKernelBlockedOpt::GetUpdateDispatchDataFunc : " <<kd.kernels[0].params.workGroups.global[0] << ", "
+                    << kd.kernels[0].params.workGroups.global[1] << ", " << kd.kernels[0].params.workGroups.global[2] << std::endl;
+    };
 }
 
 KernelsPriority ReorderKernelBlockedOpt::GetKernelsPriority(const Params& /*params*/) const {
