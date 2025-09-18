@@ -50,7 +50,7 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
         return false;
     }
 
-    if (!hasIntDotProductSupport()) {
+    if (!hasIntDotProductSupport() && !hasInt8MMSupport()) {
         return false;
     }
 
@@ -124,6 +124,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                                                          0,
                                                          nullptr);
     } else {
+        ukernel_i8 = hasInt8MMSupport() ? &ukernel_i8_imm : &ukernel_i8_dotprod;
         MemoryPtr weightsMemory = memory.at(ARG_WEI);
         if (!attrs.weightsNonTransposed) {
             auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);
@@ -131,10 +132,10 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
             weightsMemory = acl_fc_executor::reorderData(dnnlSrcDesc, dnnlDstDesc, memory.at(ARG_WEI), context);
         }
 
-        mr = ukernel_i8.get_mr();
-        nr = ukernel_i8.get_nr();
-        kr = ukernel_i8.get_kr();
-        sr = ukernel_i8.get_sr();
+        mr = ukernel_i8->get_mr();
+        nr = ukernel_i8->get_nr();
+        kr = ukernel_i8->get_kr();
+        sr = ukernel_i8->get_sr();
 
         auto* bias = biasMem->getDataAs<float>();
         auto* rhs_native_qs8cx = weightsMemory->getDataAs<int8_t>();
@@ -184,7 +185,10 @@ bool MatMulKleidiAIExecutor::update(const MemoryArgs& memory) {
     }
     // Assign LHS memory
     if (useDynamicQuant) {
-        const size_t lhsPackedSize = kai_get_lhs_packed_size_lhs_quant_pack_qai8dxp_f32(M, K, mr, kr, sr);
+        const size_t _m_blocks = (M + BLOCK_SIZE_M_INT8 - 1) / BLOCK_SIZE_M_INT8;
+        packed_lhs_block_in_bytes_int8 =
+            kai_get_lhs_packed_size_lhs_quant_pack_qai8dxp_f32(BLOCK_SIZE_M_INT8, K, mr, kr, sr);
+        const size_t lhsPackedSize = packed_lhs_block_in_bytes_int8 * _m_blocks;
         auto lhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(i8, Shape({lhsPackedSize}));
         lhsPackedMem = scratchPad->createScratchPadMem(lhsPackedDesc);
     }
@@ -237,38 +241,46 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
         auto* lhs_packed_qa8dx = lhsPackedMem->getDataAs<int8_t>();
         auto* rhs_packed_qs8cx = rhsPackedMem->getDataAs<int8_t>();
 
-        kai_run_lhs_quant_pack_qai8dxp_f32(M,
-                                           K,  // Dimensions
-                                           mr,
-                                           kr,
-                                           sr,
-                                           0,                // Packing dimensions
-                                           lhs,              // LHS (F32)
-                                           lhs_stride,       // LHS stride
-                                           lhs_packed_qa8dx  // LHS packed
-        );
+        constexpr size_t m_step = BLOCK_SIZE_M_INT8;
+        constexpr size_t n_step = 4;
+        const size_t M_BLOCKS = (M + m_step - 1) / m_step;
+        const size_t N_BLOCKS = (N + n_step - 1) / n_step;
+        const size_t lhs_packed_offset = ukernel_i8->get_lhs_packed_offset(0, K);
 
-        const size_t lhs_packed_offset = ukernel_i8.get_lhs_packed_offset(0, K);
-        const auto* lhs_ptr = static_cast<const void*>(lhs_packed_qa8dx + lhs_packed_offset);
+        ParallelNestingContext nested_context;
+        parallel_for(M_BLOCKS, [&](size_t m_blk) {
+            const size_t M_iter = std::min(M - m_blk * m_step, m_step);
+            auto* lhs_packed_qa8dx_B = lhs_packed_qa8dx + m_blk * packed_lhs_block_in_bytes_int8;
 
-        parallel_for(n_blocks, [&](size_t n_block) {
-            size_t n_start = (n_block * BLOCK_SIZE);
-            size_t n_end = std::min(n_start + BLOCK_SIZE, N);
-            size_t n_block_size = n_end - n_start;
-            const size_t rhs_packed_offset = ukernel_i8.get_rhs_packed_offset(n_start, K);
-            const size_t dst_offset = ukernel_i8.get_dst_offset(0, n_start, dst_stride_row);
-            const auto* rhs_ptr = static_cast<const void*>(rhs_packed_qs8cx + rhs_packed_offset);
-            float* dst_ptr = (dst + dst_offset / sizeof(float));
-            ukernel_i8.run_matmul(M,
-                                  n_block_size,
-                                  K,
-                                  lhs_ptr,
-                                  rhs_ptr,
-                                  dst_ptr,
-                                  dst_stride_row,
-                                  dst_stride_col,
-                                  FLOAT_MIN,
-                                  FLOAT_MAX);
+            kai_run_lhs_quant_pack_qai8dxp_f32(M_iter,
+                                               K,
+                                               mr,
+                                               kr,
+                                               sr,
+                                               0,
+                                               lhs + m_blk * m_step * K,  // LHS (F32)
+                                               lhs_stride,
+                                               lhs_packed_qa8dx_B  // lhs packed output
+            );
+            parallel_for(N_BLOCKS, [&](size_t n_blk) {
+                //  matmul exec
+                const size_t rhs_packed_offset = ukernel_i8->get_rhs_packed_offset(n_blk * n_step, K);
+                const size_t dst_offset = ukernel_i8->get_dst_offset(m_blk * m_step, n_blk * n_step, dst_stride_row);
+                const auto* rhs_ptr = static_cast<const void*>(rhs_packed_qs8cx + rhs_packed_offset);
+                const auto* lhs_ptr = static_cast<const void*>(lhs_packed_qa8dx_B + lhs_packed_offset);
+                float* dst_ptr = (dst + dst_offset / sizeof(float));
+                const size_t N_iter = std::min(N - n_blk * n_step, n_step);
+                ukernel_i8->run_matmul(M_iter,
+                                       N_iter,
+                                       K,
+                                       lhs_ptr,
+                                       rhs_ptr,
+                                       dst_ptr,
+                                       dst_stride_row,
+                                       dst_stride_col,
+                                       FLOAT_MIN,
+                                       FLOAT_MAX);
+            });
         });
     }
 }
