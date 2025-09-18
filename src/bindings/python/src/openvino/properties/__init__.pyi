@@ -12,4 +12,4 @@ from openvino._pyopenvino import properties as __properties
 from openvino._pyopenvino.properties import CacheMode
 from openvino._pyopenvino.properties import WorkloadType
 from openvino.properties._properties import __make_properties
-__all__ = ['CacheMode', 'WorkloadType', 'device', 'hint', 'intel_auto', 'intel_cpu', 'intel_gpu', 'log', 'streams']
+__all__: list[str] = ['CacheMode', 'WorkloadType', 'device', 'hint', 'intel_auto', 'intel_cpu', 'intel_gpu', 'log', 'streams']

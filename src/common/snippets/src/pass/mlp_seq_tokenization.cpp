@@ -12,14 +12,11 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/softmax.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -29,7 +26,6 @@
 #include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/brgemm.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
@@ -37,31 +33,12 @@
 
 namespace ov::snippets::pass {
 
-namespace {
+using namespace ov::snippets::utils;
 
+namespace {
 inline bool has_one_consumer(const std::shared_ptr<ov::Node>& node) {
     return node->get_output_target_inputs(0).size() == 1;
 }
-
-size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
-    if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(op)) {
-        return ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
-    }
-    size_t count = 0;
-    for (size_t i = 1; i < op->get_input_size(); ++i) {
-        const auto input = op->input_value(i);
-        const auto parent = input.get_node_shared_ptr();
-        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
-        const auto is_scalar = constant && (ov::shape_size(input.get_shape()) == 1);
-        const auto should_be_inside_body =
-            constant && ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op);
-        if (!is_scalar && !should_be_inside_body) {
-            count++;
-        }
-    }
-    return count;
-}
-
 }  // namespace
 
 const size_t TokenizeMLPSeqSnippets::m_rank = 2;
@@ -83,16 +60,12 @@ bool TokenizeMLPSeqSnippets::is_matmul_supported(const std::shared_ptr<ov::Node>
 }
 
 bool TokenizeMLPSeqSnippets::is_supported_softmax(const std::shared_ptr<ov::Node>& node) {
-    int64_t axis = 0;
-    const auto rank = node->get_input_partial_shape(0).rank();
-    if (const auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(node)) {
-        axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *node);
-    } else if (const auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(node)) {
-        axis = softmax_v1->get_axis();
-    } else {
+    const auto axis = ov::snippets::utils::get_softmax_axis(node);
+    if (!axis) {
         return false;
     }
-    return is_tensor_supported(node->get_input_tensor(0)) && axis == (rank.get_length() - 1);
+    const auto rank = static_cast<int64_t>(node->get_input_partial_shape(0).rank().get_length());
+    return is_tensor_supported(node->get_input_tensor(0)) && *axis == (rank - 1);
 }
 
 bool TokenizeMLPSeqSnippets::is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) {
@@ -104,7 +77,7 @@ bool TokenizeMLPSeqSnippets::is_supported_intermediate_op(const std::shared_ptr<
                                                             ov::op::v0::FakeQuantize>(node);
 }
 
-TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Config& config) {
+TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const Config& config) {
     MATCHER_SCOPE(TokenizeMLPSeqSnippets);
 
     auto constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
@@ -116,14 +89,8 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
             OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeMLPSeqSnippets")
             auto& pattern_to_output = m.get_pattern_value_map();
 
-            // Two inputs of first MatMul
-            size_t potential_body_params_count = 2;
-            // After some transformations, a different number of Constants for some operations may be created
-            // than the actual number of Constants during tokenization.
-            // To avoid unsupported number of non-scalar Constants in the future (plugin specific limitation)
-            // we should calculate potential number of non-scalar Constants that will be moved up from body.
-            // Heuiristic count of possible buffers - upper-bound value
-            const size_t unique_buffer_reg_group_count = 2;
+            // Two inputs of first MatMul + Result
+            size_t io_count = 3;
             ov::NodeVector ordered_ops;
 
             /* ======== Matcher Pass ========== */
@@ -152,12 +119,17 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
             if (transformation_callback(matmul0)) {
                 return false;
             }
+            const auto& out_shape = matmul0->get_output_partial_shape(0);
+            OPENVINO_ASSERT(out_shape.rank().is_static() && out_shape.size() >= 2,
+                            "MatMul out shape must be 2D at least");
+            const auto& m_dim = *(out_shape.rbegin() + 1);
 
+            bool is_dynamic = matmul0->is_dynamic();
             // Add possible FQ before matmul0
-            if (const auto fq =
-                    ov::as_type_ptr<ov::op::v0::FakeQuantize>(matmul0->input_value(0).get_node_shared_ptr())) {
+            if (auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(matmul0->get_input_node_shared_ptr(0))) {
                 if (has_one_consumer(fq)) {
-                    potential_body_params_count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
+                    is_dynamic = is_dynamic || fq->is_dynamic();
+                    io_count += get_non_scalar_constant_count_for_fq(fq);
                     ordered_ops.push_back(fq);
                 }
             }
@@ -166,16 +138,14 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
             // Tokenize Sequence while we can do it
             std::shared_ptr<ov::Node> prev_op = matmul0;
             auto interm_op = prev_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-            auto available_regs = config.get_data_ptr_gpr_count();
-
             bool postops_fusion_possible = true;
             std::shared_ptr<ov::op::v0::MatMul> cur_matmul = matmul0;
             while (has_one_consumer(prev_op)) {
-                auto current_potential_body_params_count = potential_body_params_count;
+                auto current_io_count = io_count;
 
                 if (is_matmul_supported(interm_op) && !transformation_callback(interm_op)) {
                     // +1 for weights
-                    current_potential_body_params_count++;
+                    current_io_count++;
                     // If MatMul is the first in the sequence, postops fusion status is reset
                     postops_fusion_possible = true;
                     cur_matmul = ov::as_type_ptr<ov::op::v0::MatMul>(interm_op);
@@ -183,10 +153,9 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
                 } else if (is_supported_intermediate_op(interm_op)) {
                     // Intermediate op contributes to the body params count only if can't be fused as post-op
                     // or if a previous node between MatMul and this op is not supported by post-op fusion
-                    if (!postops_fusion_possible || config.get_can_be_fused_as_postop() == nullptr ||
-                        !config.get_can_be_fused_as_postop()(cur_matmul, interm_op)) {
+                    if (!postops_fusion_possible || !config.get_can_be_fused_as_postop()(cur_matmul, interm_op)) {
                         postops_fusion_possible = false;
-                        current_potential_body_params_count += get_potential_body_params(interm_op);
+                        current_io_count += get_potential_body_params(interm_op);
                     }
                 } else {
                     // Unsupported op
@@ -194,8 +163,14 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
                 }
 
                 // TODO [75567]: move this plugin-specific constraint to the plugin callback
-                // +1 - for result
-                if (current_potential_body_params_count + unique_buffer_reg_group_count + 1 > available_regs) {
+                // Heuiristic count of possible buffers - upper-bound value
+                static constexpr size_t n_buffer_reg_groups = 2;
+                const bool small_m = m_dim.is_static() && (m_dim.get_length() <= 32);
+                // Loop depth could reach 3 because of SplitLoops optimization.
+                // If M is small enough, SplitLoops is not needed
+                const size_t loops_depth = small_m ? 2 : 3;
+                is_dynamic = is_dynamic || interm_op->is_dynamic();
+                if (!config.is_gprs_count_sufficient(current_io_count, n_buffer_reg_groups, loops_depth, is_dynamic)) {
                     break;
                 }
 
@@ -204,7 +179,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
                 interm_op = prev_op->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
 
                 // Move counts
-                potential_body_params_count = current_potential_body_params_count;
+                io_count = current_io_count;
             }
 
             // Currently, sequence of MLP should contain 2 MatMuls at least
@@ -216,10 +191,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
                 return false;
             }
 
-            /* ====== Subgraph creation ======= */
-
-            const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops);
-
+            const auto subgraph = tokenize_ordered_nodes(ordered_ops);
             // mark the Subgraph as Completed to not allow Snippets to include any nodes into this Subgraph in common
             // Tokenization
             SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);

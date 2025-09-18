@@ -95,16 +95,16 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // The following passes mustn't be registered in GraphRewrite with other tokenization passes because of 2 reasons:
     // 1. They have higher priority than other tokenization passes
     // 2. They change the nodes after the matched root node
-    manager.register_pass<TokenizeMHASnippets>(m_config);
-    manager.register_pass<TokenizeGatedMLPSnippets>(m_config);
-    manager.register_pass<TokenizeMLPSeqSnippets>(m_config);
+    manager.register_pass<TokenizeMHASnippets>(m_mha_config);
+    manager.register_pass<TokenizeGatedMLPSnippets>(m_tokenization_config);
+    manager.register_pass<TokenizeMLPSeqSnippets>(m_mlp_seq_config);
 
     auto tokenization_passes = manager.register_pass<ov::pass::GraphRewrite>();
     tokenization_passes->add_matcher<TokenizeGNSnippets>();
-    tokenization_passes->add_matcher<TokenizeFCSnippets>(m_config);
-    tokenization_passes->add_matcher<TokenizeSnippets>(m_config);
+    tokenization_passes->add_matcher<TokenizeFCSnippets>(m_tokenization_config);
+    tokenization_passes->add_matcher<TokenizeSnippets>(m_tokenization_config);
 
-    manager.register_pass<CommonOptimizations>(m_config);
+    manager.register_pass<CommonOptimizations>(m_common_optimizations_config);
     manager.run_passes(m);
 
     // Returning value is false because pass::Manager always apply Validation pass if function was changed.

@@ -26,7 +26,7 @@ template <
     std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16> || std::is_same_v<T, float>),
                      bool> = true>
 void attn_acc_value_block(float* out,
-                          float* weight,
+                          const float* weight,
                           T* v,
                           const size_t S,
                           const size_t block_size,
@@ -160,7 +160,7 @@ void attn_acc_value_block(float* out,
 }
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
 void attn_acc_value_block_by_dim(float* out,
-                                 float* weight,
+                                 const float* weight,
                                  uint8_t* v,
                                  const size_t S,
                                  const size_t block_size,
@@ -327,7 +327,7 @@ void attn_acc_value_block_by_dim(float* out,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v + src_offset);
+            auto* v0 = reinterpret_cast<float*>(v + src_offset);
             for (size_t i = 0; i < group_size; i++) {
                 out[dst_offset + i] += weight[j] * (v[i + src_offset + params_offset] - v0[1]) * v0[0];
             }
@@ -341,7 +341,7 @@ void attn_acc_value_block_by_dim(float* out,
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true>
 void attn_acc_value_block_by_dim(float* out,
-                                 float* weight,
+                                 const float* weight,
                                  uint8_t* v_ptr,
                                  const size_t S,
                                  const size_t block_size,
@@ -355,7 +355,7 @@ void attn_acc_value_block_by_dim(float* out,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v_ptr + src_offset);
+            auto* v0 = reinterpret_cast<float*>(v_ptr + src_offset);
             size_t i = 0;
 #if defined(HAVE_AVX512F)
             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
@@ -433,10 +433,14 @@ void attn_acc_value_block_by_dim(float* out,
 }
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
-void attn_acc_value_block_by_channel(float* out, float* weight, void* v, const size_t S, const size_t block_size) {
-    auto p_scales = reinterpret_cast<float*>(v);
-    auto p_zps = p_scales + S;
-    auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
+void attn_acc_value_block_by_channel(float* out,
+                                     const float* weight,
+                                     void* v,
+                                     const size_t S,
+                                     const size_t block_size) {
+    auto* p_scales = reinterpret_cast<float*>(v);
+    auto* p_zps = p_scales + S;
+    auto* v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
     size_t src_stride = S;
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -521,10 +525,14 @@ void attn_acc_value_block_by_channel(float* out, float* weight, void* v, const s
 }
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true>
-void attn_acc_value_block_by_channel(float* out, float* weight, void* v, const size_t S, const size_t block_size) {
-    auto p_scales = reinterpret_cast<float*>(v);
-    auto p_zps = p_scales + S;
-    auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
+void attn_acc_value_block_by_channel(float* out,
+                                     const float* weight,
+                                     void* v,
+                                     const size_t S,
+                                     const size_t block_size) {
+    auto* p_scales = reinterpret_cast<float*>(v);
+    auto* p_zps = p_scales + S;
+    auto* v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
     size_t src_stride = S / get_sub_byte_multiplier(SRC_PREC);
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -685,7 +693,7 @@ void attn_acc_value_block_by_channel(float* out, float* weight, void* v, const s
 
 template <typename TA,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(SRC_PREC == ov::element::u8 || SRC_PREC == ov::element::u4), bool> = true>
+          std::enable_if_t<(ov::intel_cpu::any_of(SRC_PREC, ov::element::u8, ov::element::u4)), bool> = true>
 void attn_acc_value_block_quantized(float* out,
                                     float* weight,
                                     uint8_t* v,
@@ -826,10 +834,10 @@ template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC 
 void dot_product_block_quantized_by_channel(TA* a, uint8_t* b, float* c, const size_t n, const size_t block_size) {
     const size_t params_offset = sizeof(float) * 2 * n;
     const size_t src_stride = n;
-    auto p_scales = reinterpret_cast<float*>(b);
-    auto p_zps = p_scales + n;
+    auto* p_scales = reinterpret_cast<float*>(b);
+    auto* p_zps = p_scales + n;
     for (size_t j = 0; j < block_size; j++) {
-        float sum = 0.0f;
+        float sum = 0.0F;
         size_t i = 0;
 #if defined(HAVE_AVX512F)
         auto v512_sum0 = _mm512_set1_ps(0.0f);
@@ -1040,10 +1048,10 @@ void dot_product_block_quantized_by_channel(TA* a, uint8_t* b, float* c, const s
     const size_t params_offset = sizeof(float) * 2 * n;
     // src_stride must / 2 because of u4
     const size_t src_stride = n / sub_byte_multiplier;
-    auto p_scales = reinterpret_cast<float*>(b);
-    auto p_zps = p_scales + n;
+    auto* p_scales = reinterpret_cast<float*>(b);
+    auto* p_zps = p_scales + n;
     for (size_t j = 0; j < block_size; j++) {
-        float sum = 0.0f;
+        float sum = 0.0F;
         size_t i = 0;
 #if defined(HAVE_AVX512F)
         auto v512_sum0 = _mm512_set1_ps(0.0f);
@@ -1312,8 +1320,8 @@ void dot_product_block_quantized_by_dims(TA* a,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < n) {
-            auto b0 = reinterpret_cast<float*>(b_src + src_offset);
-            float group_sum = 0.0f;
+            auto* b0 = reinterpret_cast<float*>(b_src + src_offset);
+            float group_sum = 0.0F;
             for (size_t i = 0; i < group_size; i++) {
                 group_sum += a[dst_offset + i] * (b_src[src_offset + params_offset + i]);
             }
@@ -1586,8 +1594,8 @@ void dot_product_block_quantized_by_dims(TA* a,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < n) {
-            auto b0 = reinterpret_cast<float*>(b + src_offset);
-            float group_sum = 0.0f;
+            auto* b0 = reinterpret_cast<float*>(b + src_offset);
+            float group_sum = 0.0F;
             for (size_t i = 0; i < group_size; i++) {
                 group_sum += a[dst_offset + i] * (b[src_offset + params_offset + i] - b0[1]);
             }
@@ -1829,8 +1837,8 @@ void dot_product_block_quantized_by_dims(TA* a,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < n) {
-            auto b0 = reinterpret_cast<float*>(b + src_offset);
-            float group_sum = 0.0f;
+            auto* b0 = reinterpret_cast<float*>(b + src_offset);
+            float group_sum = 0.0F;
             for (size_t i = 0; i < group_size; i += 2) {
                 uint8_t data = b[i / 2 + src_offset + params_offset];
                 float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
@@ -1896,7 +1904,7 @@ void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
 #endif
     for (; i < S; i++) {
         auto* src = temp + i;
-        float sum = 0.0f;
+        float sum = 0.0F;
         // sum result from all threads partition
         for (size_t m = 0; m < M; m++) {
             sum += src[0];

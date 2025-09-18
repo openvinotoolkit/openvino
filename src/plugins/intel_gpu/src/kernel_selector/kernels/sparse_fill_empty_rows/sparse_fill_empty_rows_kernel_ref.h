@@ -25,7 +25,7 @@ public:
 protected:
     JitConstants GetJitConstants(const sparse_fill_empty_rows_params& params) const;
     bool SkipKernelExecution(const sparse_fill_empty_rows_params& params, size_t kernel_id = 0) const;
-//    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 
 } // namespace kernel_selector

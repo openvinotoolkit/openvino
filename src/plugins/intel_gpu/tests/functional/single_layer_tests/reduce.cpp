@@ -25,7 +25,7 @@ using ReduceInputParams = std::tuple<
 class ReduceSumSqueezeTest : public testing::WithParamInterface<ReduceInputParams>,
           virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReduceInputParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ReduceInputParams>& obj) {
         const auto& [input_shape, input_precisions, reduce_axes, keep_dims] = obj.param;
 
         std::ostringstream result;

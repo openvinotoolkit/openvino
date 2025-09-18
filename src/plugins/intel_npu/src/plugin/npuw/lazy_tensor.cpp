@@ -140,6 +140,7 @@ Const Const::deserialize(std::istream& stream) {
     read(stream, c.m_cached_shape);
     read(stream, c.m_offset);
     read(stream, c.m_byte_size);
+
     return c;
 }
 
