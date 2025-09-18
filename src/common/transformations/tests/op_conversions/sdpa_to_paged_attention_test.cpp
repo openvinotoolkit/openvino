@@ -760,14 +760,22 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto Concat12 = makeOP<v0::Concat>({Gather8, {40ll}, {0ll}, {128ll}}, {{"axis", 0}});
         auto Broadcast13 = makeOP<v3::Broadcast>({0.0f, Concat12}, {{"mode", "numpy"}});
         auto Constant18 = makeConst(element::u8, ov::Shape({125696, 5120}), MOCK_VALUE);
-        auto Convert19 = makeOP<opset1::Convert>({Constant18}, {{"destination_type", "f16"}});
+        auto Convert19 =
+            makeOP<opset1::Convert>({Constant18},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant20 = makeConst(element::u8, ov::Shape({125696, 1}), MOCK_VALUE);
-        auto Convert21 = makeOP<opset1::Convert>({Constant20}, {{"destination_type", "f16"}});
+        auto Convert21 =
+            makeOP<opset1::Convert>({Constant20},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Subtract22 = makeOP<opset1::Subtract>({Convert19, Convert21}, {{"auto_broadcast", "numpy"}});
         auto Constant23 = makeConst(element::f16, ov::Shape({125696, 1}), MOCK_VALUE);
         auto Multiply24 = makeOP<opset1::Multiply>({Subtract22, Constant23}, {{"auto_broadcast", "numpy"}});
-        auto Convert25 = makeOP<opset1::Convert>({Multiply24}, {{"destination_type", "f32"}});
-        auto Convert26 = makeOP<opset1::Convert>({input_ids}, {{"destination_type", "i32"}});
+        auto Convert25 =
+            makeOP<opset1::Convert>({Multiply24},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
+        auto Convert26 =
+            makeOP<opset1::Convert>({input_ids},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Gather28 = makeOP<opset8::Gather>({Convert25, Convert26, 0}, {{"batch_dims", 0}});
         //}
 
@@ -786,13 +794,19 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
 
         // gen_attention_weights() {
         auto Constant41 = makeConst(element::u8, ov::Shape({15360, 5120}), MOCK_VALUE);
-        auto Convert42 = makeOP<opset1::Convert>({Constant41}, {{"destination_type", "f16"}});
+        auto Convert42 =
+            makeOP<opset1::Convert>({Constant41},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant43 = makeConst(element::u8, ov::Shape({15360, 1}), MOCK_VALUE);
-        auto Convert44 = makeOP<opset1::Convert>({Constant43}, {{"destination_type", "f16"}});
+        auto Convert44 =
+            makeOP<opset1::Convert>({Constant43},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Subtract45 = makeOP<opset1::Subtract>({Convert42, Convert44}, {{"auto_broadcast", "numpy"}});
         auto Constant46 = makeConst(element::f16, ov::Shape({15360, 1}), MOCK_VALUE);
         auto Multiply47 = makeOP<opset1::Multiply>({Subtract45, Constant46}, {{"auto_broadcast", "numpy"}});
-        auto Convert48 = makeOP<opset1::Convert>({Multiply47}, {{"destination_type", "f32"}});
+        auto Convert48 =
+            makeOP<opset1::Convert>({Multiply47},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         //}
 
         auto MatMul49 =
@@ -832,7 +846,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto Concat82 = makeOP<opset1::Concat>({Gather75, Transpose81}, {{"axis", 2}});
 
         auto Constant83 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
-        auto Convert85 = makeOP<opset1::Convert>({attention_mask}, {{"destination_type", "f32"}});
+        auto Convert85 =
+            makeOP<opset1::Convert>({attention_mask},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Unsqueeze86 = makeOP<opset1::Unsqueeze>({Convert85, 2});
         auto Unsqueeze87 = makeOP<opset1::Unsqueeze>({Convert85, 1});
         auto Multiply88 = makeOP<opset1::Multiply>({Unsqueeze86, Unsqueeze87}, {{"auto_broadcast", "numpy"}});
@@ -867,11 +883,15 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto Gather130 = makeOP<opset8::Gather>({ShapeOf127, {1, 2}, 0}, {{"batch_dims", 0}});
         auto Concat131 = makeOP<opset1::Concat>({Gather110, {1L}, Gather130}, {{"axis", 0}});
         auto Broadcast132 = makeOP<opset3::Broadcast>({Unsqueeze106, Concat131}, {{"mode", "bidirectional"}});
-        auto Convert133 = makeOP<opset1::Convert>({Broadcast132}, {{"destination_type", "f32"}});
+        auto Convert133 =
+            makeOP<opset1::Convert>({Broadcast132},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant134 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
         auto Multiply135 = makeOP<opset1::Multiply>({Convert133, Constant134}, {{"auto_broadcast", "numpy"}});
         auto Subtract136 = makeOP<opset1::Subtract>({Constant83, Multiply135}, {{"auto_broadcast", "numpy"}});
-        auto Convert137 = makeOP<opset1::Convert>({Subtract136}, {{"destination_type", "boolean"}});
+        auto Convert137 =
+            makeOP<opset1::Convert>({Subtract136},
+                                    {{"destination_type", "boolean"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Select139 = makeOP<opset1::Select>({Convert137, -FLT_MAX, Subtract136}, {{"auto_broadcast", "numpy"}});
         auto Unsqueeze140 = makeOP<opset1::Unsqueeze>({Slice126, 0});
         auto Add141 = makeOP<opset1::Add>({Select139, Unsqueeze140}, {{"auto_broadcast", "numpy"}});
@@ -915,15 +935,23 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
                                                   input_ids});
 
         auto Constant88 = makeConst(element::u8, ov::Shape({125696, 5120}), MOCK_VALUE);
-        auto Convert89 = makeOP<opset1::Convert>({Constant88}, {{"destination_type", "f16"}});
+        auto Convert89 =
+            makeOP<opset1::Convert>({Constant88},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant90 = makeConst(element::u8, ov::Shape({125696, 1}), MOCK_VALUE);
-        auto Convert91 = makeOP<opset1::Convert>({Constant90}, {{"destination_type", "f16"}});
+        auto Convert91 =
+            makeOP<opset1::Convert>({Constant90},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Subtract92 = makeOP<opset1::Subtract>({Convert89, Convert91}, {{"auto_broadcast", "numpy"}});
         auto Constant93 = makeConst(element::f16, ov::Shape({125696, 1}), MOCK_VALUE);
         auto Multiply94 = makeOP<opset1::Multiply>({Subtract92, Constant93}, {{"auto_broadcast", "numpy"}});
-        auto Convert95 = makeOP<opset1::Convert>({Multiply94}, {{"destination_type", "f32"}});
+        auto Convert95 =
+            makeOP<opset1::Convert>({Multiply94},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Unsqueeze97 = makeOP<opset1::Unsqueeze>({input_ids, 1});
-        auto Convert98 = makeOP<opset1::Convert>({Unsqueeze97}, {{"destination_type", "i32"}});
+        auto Convert98 =
+            makeOP<opset1::Convert>({Unsqueeze97},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Gather100 = makeOP<opset8::Gather>({Convert95, Convert98, 0}, {{"batch_dims", 0}});
         auto Constant101 = makeConst(element::f32, ov::Shape({1, 1, 5120}), MOCK_VALUE);
         auto Constant102 = makeConst(element::f32, ov::Shape({1, 1, 1}), {1.0f});
@@ -938,13 +966,19 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto Multiply111 = makeOP<opset1::Multiply>({Gather100, Divide110}, {{"auto_broadcast", "numpy"}});
         auto Multiply112 = makeOP<opset1::Multiply>({Constant101, Multiply111}, {{"auto_broadcast", "numpy"}});
         auto Constant113 = makeConst(element::u8, ov::Shape({15360, 5120}), MOCK_VALUE);
-        auto Convert114 = makeOP<opset1::Convert>({Constant113}, {{"destination_type", "f16"}});
+        auto Convert114 =
+            makeOP<opset1::Convert>({Constant113},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant115 = makeConst(element::u8, ov::Shape({15360, 1}), MOCK_VALUE);
-        auto Convert116 = makeOP<opset1::Convert>({Constant115}, {{"destination_type", "f16"}});
+        auto Convert116 =
+            makeOP<opset1::Convert>({Constant115},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Subtract117 = makeOP<opset1::Subtract>({Convert114, Convert116}, {{"auto_broadcast", "numpy"}});
         auto Constant118 = makeConst(element::f16, ov::Shape({15360, 1}), MOCK_VALUE);
         auto Multiply119 = makeOP<opset1::Multiply>({Subtract117, Constant118}, {{"auto_broadcast", "numpy"}});
-        auto Convert120 = makeOP<opset1::Convert>({Multiply119}, {{"destination_type", "f32"}});
+        auto Convert120 =
+            makeOP<opset1::Convert>({Multiply119},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto MatMul121 =
             makeOP<opset1::MatMul>({Multiply112, Convert120}, {{"transpose_a", false}, {"transpose_b", true}});
         auto Reshape123 = makeOP<opset1::Reshape>({MatMul121, {0, 0, 3, 5120}}, {{"special_zero", true}});
@@ -1070,7 +1104,9 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_2_slice_Slice = makeOP<opset8::Slice>(
             {self_model_model_layers_0_self_attn_rotary_emb_cos_cached, {0}, pref_1_add__Add, {1}, {0}});
         auto pref_6_view_Reshape = makeOP<opset1::Reshape>({position_ids, {0, 0}}, {{"special_zero", true}});
-        auto pref_1_index_Convert = makeOP<opset1::Convert>({pref_6_view_Reshape}, {{"destination_type", "i32"}});
+        auto pref_1_index_Convert =
+            makeOP<opset1::Convert>({pref_6_view_Reshape},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto pref_1_index_Gather =
             makeOP<opset8::Gather>({pref_2_slice_Slice, pref_1_index_Convert, 0}, {{"batch_dims", 0}});
         auto pref_1_unsqueeze_Unsqueeze = makeOP<opset1::Unsqueeze>({pref_1_index_Gather, 1});
@@ -1149,17 +1185,22 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
             makeOP<opset1::Concat>({Gather_16778, {1l}, Reshape_16764, Gather_16782}, {{"axis", 0}});
         auto pref_6_expand_Broadcast = makeOP<opset3::Broadcast>({pref_6_unsqueeze_Unsqueeze_1, pref_5_ListConstruct_1},
                                                                  {{"mode", "bidirectional"}});
-        auto pref_6_to_Convert_1 = makeOP<opset1::Convert>({pref_6_expand_Broadcast}, {{"destination_type", "f32"}});
+        auto pref_6_to_Convert_1 =
+            makeOP<opset1::Convert>({pref_6_expand_Broadcast},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant_16159 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
         auto pref_6_rsub_Multiply =
             makeOP<opset1::Multiply>({pref_6_to_Convert_1, Constant_16159}, {{"auto_broadcast", "numpy"}});
         auto pref_6_rsub_Subtract =
             makeOP<opset1::Subtract>({Constant_16160, pref_6_rsub_Multiply}, {{"auto_broadcast", "numpy"}});
-        auto pref_6_to_Convert_2 = makeOP<opset1::Convert>({pref_6_rsub_Subtract}, {{"destination_type", "boolean"}});
+        auto pref_6_to_Convert_2 =
+            makeOP<opset1::Convert>({pref_6_rsub_Subtract},
+                                    {{"destination_type", "boolean"}, {"no_clamp", false}, {"use_rounding", false}});
         auto pref_6_masked_fill_Select = makeOP<opset1::Select>({pref_6_to_Convert_2, -FLT_MAX, pref_6_rsub_Subtract},
                                                                 {{"auto_broadcast", "numpy"}});
         auto pref_6_to_Convert_4 =
-            makeOP<opset1::Convert>({pref_6_masked_fill_Select}, {{"destination_type", "boolean"}});
+            makeOP<opset1::Convert>({pref_6_masked_fill_Select},
+                                    {{"destination_type", "boolean"}, {"no_clamp", false}, {"use_rounding", false}});
         auto pref_6_add_Add = makeOP<opset1::Add>({Gather_16756, Gather_16770}, {{"auto_broadcast", "numpy"}});
         auto pref_6_sub_Subtract =
             makeOP<opset1::Subtract>({pref_6_add_Add, Gather_16756}, {{"auto_broadcast", "numpy"}});
@@ -1168,7 +1209,9 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_6_zeros_Broadcast =
             makeOP<opset3::Broadcast>({0.000000f, pref_5_ListConstruct_2}, {{"mode", "numpy"}});
         auto pref_6_arange_Range = makeOP<opset4::Range>({0, Gather_16756, 1}, {{"output_type", "f32"}});
-        auto pref_6_arange_ConvertLike = makeOP<opset1::Convert>({pref_6_arange_Range}, {{"destination_type", "i64"}});
+        auto pref_6_arange_ConvertLike =
+            makeOP<opset1::Convert>({pref_6_arange_Range},
+                                    {{"destination_type", "i64"}, {"no_clamp", false}, {"use_rounding", false}});
         auto pref_6_add_Add_1 = makeOP<opset1::Add>({pref_6_arange_ConvertLike, {1l}}, {{"auto_broadcast", "numpy"}});
         auto pref_6_view_Reshape_1 = makeOP<opset1::Reshape>({pref_6_add_Add_1, {0, 1}}, {{"special_zero", true}});
         auto pref_6_lt_Less =
@@ -1265,16 +1308,22 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto Reshape_16764 = makeOP<opset1::Reshape>({Gather_16756, {-1}}, {{"special_zero", false}});
         auto ShapeOf_52004 = makeOP<opset3::ShapeOf>({unsqueezed_inputs_embeds}, {{"output_type", "i64"}});
         auto Gather_52005 = makeOP<opset8::Gather>({ShapeOf_52004, 1, 0}, {{"batch_dims", 0}});
-        auto Convert_52006 = makeOP<opset1::Convert>({Gather_52005}, {{"destination_type", "i32"}});
+        auto Convert_52006 =
+            makeOP<opset1::Convert>({Gather_52005},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Subtract_52007 = makeOP<opset1::Subtract>({max_context_len, Convert_52006}, {{"auto_broadcast", "numpy"}});
-        auto Convert_52008 = makeOP<opset1::Convert>({Subtract_52007}, {{"destination_type", "i64"}});
+        auto Convert_52008 =
+            makeOP<opset1::Convert>({Subtract_52007},
+                                    {{"destination_type", "i64"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Reshape_16772 = makeOP<opset1::Reshape>({Convert_52008, {-1}}, {{"special_zero", false}});
         auto pref_1_add__Add = makeOP<opset1::Add>({Reshape_16764, Reshape_16772}, {{"auto_broadcast", "numpy"}});
         auto pref_2_slice_Slice = makeOP<opset8::Slice>(
             {self_model_model_layers_0_self_attn_rotary_emb_cos_cached, {0}, pref_1_add__Add, {1}, {0}});
         auto Unsqueeze_51575 = makeOP<opset1::Unsqueeze>({position_ids, 1});
         auto pref_6_view_Reshape = makeOP<opset1::Reshape>({Unsqueeze_51575, {0, 0}}, {{"special_zero", true}});
-        auto pref_1_index_Convert = makeOP<opset1::Convert>({pref_6_view_Reshape}, {{"destination_type", "i32"}});
+        auto pref_1_index_Convert =
+            makeOP<opset1::Convert>({pref_6_view_Reshape},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto pref_1_index_Gather =
             makeOP<opset8::Gather>({pref_2_slice_Slice, pref_1_index_Convert, 0}, {{"batch_dims", 0}});
         auto pref_1_unsqueeze_Unsqueeze = makeOP<opset1::Unsqueeze>({pref_1_index_Gather, 1});
@@ -1389,14 +1438,22 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
 
         auto Constant7 = makeConst(element::f32, ov::Shape({1, 1, 3072}), MOCK_VALUE);
         auto Constant8 = makeConst(element::u8, ov::Shape({WEIGHTS, 3072}), MOCK_VALUE);
-        auto Convert = makeOP<opset1::Convert>({Constant8}, {{"destination_type", "f16"}});
+        auto Convert =
+            makeOP<opset1::Convert>({Constant8},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant9 = makeConst(element::u8, ov::Shape({WEIGHTS, 1}), MOCK_VALUE);
-        auto Convert1 = makeOP<opset1::Convert>({Constant9}, {{"destination_type", "f16"}});
+        auto Convert1 =
+            makeOP<opset1::Convert>({Constant9},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Subtract = makeOP<opset1::Subtract>({Convert, Convert1}, {{"auto_broadcast", "numpy"}});
         auto Constant10 = makeConst(element::f16, ov::Shape({WEIGHTS, 1}), MOCK_VALUE);
         auto Multiply = makeOP<opset1::Multiply>({Subtract, Constant10}, {{"auto_broadcast", "numpy"}});
-        auto Convert2 = makeOP<opset1::Convert>({Multiply}, {{"destination_type", "f32"}});
-        auto Convert3 = makeOP<opset1::Convert>({input_ids}, {{"destination_type", "i32"}});
+        auto Convert2 =
+            makeOP<opset1::Convert>({Multiply},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
+        auto Convert3 =
+            makeOP<opset1::Convert>({input_ids},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Gather2 = makeOP<opset8::Gather>({Convert2, Convert3, 0}, {{"batch_dims", 0}});
         auto Constant12 = makeConst(element::f32, ov::Shape({1, 1, 3072}), MOCK_VALUE);
         auto Constant13 = makeConst(element::f32, ov::Shape({1, 1, 1}), {1.000000f});
@@ -1410,13 +1467,19 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Multiply1 = makeOP<opset1::Multiply>({Gather2, Divide}, {{"auto_broadcast", "numpy"}});
         auto Multiply2 = makeOP<opset1::Multiply>({Constant12, Multiply1}, {{"auto_broadcast", "numpy"}});
         auto Constant17 = makeConst(element::u8, ov::Shape({9216, 3072}), MOCK_VALUE);
-        auto Convert4 = makeOP<opset1::Convert>({Constant17}, {{"destination_type", "f16"}});
+        auto Convert4 =
+            makeOP<opset1::Convert>({Constant17},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant18 = makeConst(element::u8, ov::Shape({9216, 1}), MOCK_VALUE);
-        auto Convert5 = makeOP<opset1::Convert>({Constant18}, {{"destination_type", "f16"}});
+        auto Convert5 =
+            makeOP<opset1::Convert>({Constant18},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Subtract1 = makeOP<opset1::Subtract>({Convert4, Convert5}, {{"auto_broadcast", "numpy"}});
         auto Constant19 = makeConst(element::f16, ov::Shape({9216, 1}), MOCK_VALUE);
         auto Multiply3 = makeOP<opset1::Multiply>({Subtract1, Constant19}, {{"auto_broadcast", "numpy"}});
-        auto Convert6 = makeOP<opset1::Convert>({Multiply3}, {{"destination_type", "f32"}});
+        auto Convert6 =
+            makeOP<opset1::Convert>({Multiply3},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto MatMul = makeOP<opset1::MatMul>({Multiply2, Convert6}, {{"transpose_a", false}, {"transpose_b", true}});
         auto Slice = makeOP<opset8::Slice>({MatMul, {0}, {3072}, {1}, {2}});
         auto Reshape = makeOP<opset1::Reshape>({Slice, {0, 0, 32, 96}}, {{"special_zero", true}});
@@ -1426,7 +1489,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Broadcast1 = makeOP<opset3::Broadcast>({Constant26, Concat1}, {{"mode", "bidirectional"}});
         auto Reshape1 = makeOP<opset1::Reshape>({position_ids, {0, 0}}, {{"special_zero", true}});
         auto Unsqueeze = makeOP<opset1::Unsqueeze>({Reshape1, 1});
-        auto Convert7 = makeOP<opset1::Convert>({Unsqueeze}, {{"destination_type", "f32"}});
+        auto Convert7 =
+            makeOP<opset1::Convert>({Unsqueeze},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto MatMul1 = makeOP<opset1::MatMul>({Broadcast1, Convert7}, {{"transpose_a", false}, {"transpose_b", false}});
         auto Transpose1 = makeOP<opset1::Transpose>({MatMul1, {0, 2, 1}});
         auto Concat2 = makeOP<opset1::Concat>({Transpose1, Transpose1}, {{"axis", -1}});
@@ -1479,13 +1544,19 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Gather6 = makeOP<opset8::Gather>({ShapeOf1, {1}, 0}, {{"batch_dims", 0}});
         auto Concat7 = makeOP<opset1::Concat>({Gather, {1ll}, Reshape4, Gather6}, {{"axis", 0}});
         auto Broadcast2 = makeOP<opset3::Broadcast>({Unsqueeze4, Concat7}, {{"mode", "bidirectional"}});
-        auto Convert8 = makeOP<opset1::Convert>({Broadcast2}, {{"destination_type", "f32"}});
+        auto Convert8 =
+            makeOP<opset1::Convert>({Broadcast2},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant67 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {1.000000f});
         auto Multiply10 = makeOP<opset1::Multiply>({Convert8, Constant67}, {{"auto_broadcast", "numpy"}});
         auto Subtract2 = makeOP<opset1::Subtract>({Constant59, Multiply10}, {{"auto_broadcast", "numpy"}});
-        auto Convert9 = makeOP<opset1::Convert>({Subtract2}, {{"destination_type", "boolean"}});
+        auto Convert9 =
+            makeOP<opset1::Convert>({Subtract2},
+                                    {{"destination_type", "boolean"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Select = makeOP<opset1::Select>({Convert9, -FLT_MAX, Subtract2}, {{"auto_broadcast", "numpy"}});
-        auto Convert10 = makeOP<opset1::Convert>({Select}, {{"destination_type", "boolean"}});
+        auto Convert10 =
+            makeOP<opset1::Convert>({Select},
+                                    {{"destination_type", "boolean"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant69 = makeConst(element::i64, ov::Shape({1, 1}), {1});
         auto ShapeOf2 = makeOP<opset3::ShapeOf>({Gather3}, {{"output_type", "i64"}});
         auto Gather7 = makeOP<opset8::Gather>({ShapeOf2, 2, 0}, {{"batch_dims", 0}});
@@ -1496,18 +1567,24 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Broadcast3 = makeOP<opset3::Broadcast>({0.000000f, Concat8}, {{"mode", "numpy"}});
         auto ShapeOf3 = makeOP<opset3::ShapeOf>({Broadcast3}, {{"output_type", "i32"}});
         auto Gather8 = makeOP<opset8::Gather>({ShapeOf3, 1, 0}, {{"batch_dims", 0}});
-        auto Convert11 = makeOP<opset1::Convert>({Gather5}, {{"destination_type", "i32"}});
+        auto Convert11 =
+            makeOP<opset1::Convert>({Gather5},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Add4 = makeOP<opset1::Add>({Gather8, Convert11}, {{"auto_broadcast", "numpy"}});
         auto Range = makeOP<opset4::Range>({0, Add4, 1}, {{"output_type", "i32"}});
         auto Unsqueeze6 = makeOP<opset1::Unsqueeze>({Range, 0});
         auto Add5 = makeOP<opset1::Add>({Subtract3, -2046ll}, {{"auto_broadcast", "numpy"}});
-        auto Convert12 = makeOP<opset1::Convert>({Add5}, {{"destination_type", "i32"}});
+        auto Convert12 =
+            makeOP<opset1::Convert>({Add5},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Add6 = makeOP<opset1::Add>({Convert11, Convert12}, {{"auto_broadcast", "numpy"}});
         auto Range1 = makeOP<opset4::Range>({Convert12, Add6, 1}, {{"output_type", "i32"}});
         auto Unsqueeze7 = makeOP<opset1::Unsqueeze>({Range1, 1});
         auto GreaterEqual = makeOP<opset1::GreaterEqual>({Unsqueeze6, Unsqueeze7}, {{"auto_broadcast", "numpy"}});
         auto Range2 = makeOP<opset4::Range>({0, Gather5, 1}, {{"output_type", "f32"}});
-        auto Convert13 = makeOP<opset1::Convert>({Range2}, {{"destination_type", "i64"}});
+        auto Convert13 =
+            makeOP<opset1::Convert>({Range2},
+                                    {{"destination_type", "i64"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Add7 = makeOP<opset1::Add>({Convert13, {1ll}}, {{"auto_broadcast", "numpy"}});
         auto Reshape5 = makeOP<opset1::Reshape>({Add7, {0, 1}}, {{"special_zero", true}});
         auto Less = makeOP<opset1::Less>({Convert13, Reshape5}, {{"auto_broadcast", "numpy"}});
@@ -1519,7 +1596,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Broadcast6 = makeOP<opset3::Broadcast>({1ll, ShapeOf4}, {{"mode", "numpy"}});
         auto Select2 = makeOP<opset1::Select>({GreaterEqual, Broadcast6, 0ll}, {{"auto_broadcast", "numpy"}});
         auto Subtract4 = makeOP<opset1::Subtract>({Constant69, Select2}, {{"auto_broadcast", "numpy"}});
-        auto Convert14 = makeOP<opset1::Convert>({Subtract4}, {{"destination_type", "boolean"}});
+        auto Convert14 =
+            makeOP<opset1::Convert>({Subtract4},
+                                    {{"destination_type", "boolean"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Select3 = makeOP<opset1::Select>({Convert14, -FLT_MAX, Concat9}, {{"auto_broadcast", "numpy"}});
         auto Unsqueeze8 = makeOP<opset1::Unsqueeze>({Select3, 0});
         auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Unsqueeze8, 1});
@@ -1567,15 +1646,23 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
 
         auto Constant = makeConst(element::f32, ov::Shape({1, 1, 3072}), MOCK_VALUE);
         auto Constant1 = makeConst(element::u8, ov::Shape({WEIGHTS, 3072}), MOCK_VALUE);
-        auto Convert = makeOP<opset1::Convert>({Constant1}, {{"destination_type", "f16"}});
+        auto Convert =
+            makeOP<opset1::Convert>({Constant1},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant2 = makeConst(element::u8, ov::Shape({WEIGHTS, 1}), MOCK_VALUE);
-        auto Convert1 = makeOP<opset1::Convert>({Constant2}, {{"destination_type", "f16"}});
+        auto Convert1 =
+            makeOP<opset1::Convert>({Constant2},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Subtract = makeOP<opset1::Subtract>({Convert, Convert1}, {{"auto_broadcast", "numpy"}});
         auto Constant3 = makeConst(element::f16, ov::Shape({WEIGHTS, 1}), MOCK_VALUE);
         auto Multiply = makeOP<opset1::Multiply>({Subtract, Constant3}, {{"auto_broadcast", "numpy"}});
-        auto Convert2 = makeOP<opset1::Convert>({Multiply}, {{"destination_type", "f32"}});
+        auto Convert2 =
+            makeOP<opset1::Convert>({Multiply},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Unsqueeze = makeOP<opset1::Unsqueeze>({inputs_ids, 1});
-        auto Convert3 = makeOP<opset1::Convert>({Unsqueeze}, {{"destination_type", "i32"}});
+        auto Convert3 =
+            makeOP<opset1::Convert>({Unsqueeze},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Gather = makeOP<opset8::Gather>({Convert2, Convert3, 0}, {{"batch_dims", 0}});
         auto Constant6 = makeConst(element::f32, ov::Shape({1, 1, 1}), {1.000000f});
         auto Constant7 = makeConst(element::f32, ov::Shape({1, 1, 1}), {2.000000f});
@@ -1588,13 +1675,19 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Multiply1 = makeOP<opset1::Multiply>({Gather, Divide}, {{"auto_broadcast", "numpy"}});
         auto Multiply2 = makeOP<opset1::Multiply>({Constant, Multiply1}, {{"auto_broadcast", "numpy"}});
         auto Constant10 = makeConst(element::u8, ov::Shape({9216, 3072}), MOCK_VALUE);
-        auto Convert4 = makeOP<opset1::Convert>({Constant10}, {{"destination_type", "f16"}});
+        auto Convert4 =
+            makeOP<opset1::Convert>({Constant10},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant11 = makeConst(element::u8, ov::Shape({9216, 1}), MOCK_VALUE);
-        auto Convert5 = makeOP<opset1::Convert>({Constant11}, {{"destination_type", "f16"}});
+        auto Convert5 =
+            makeOP<opset1::Convert>({Constant11},
+                                    {{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Subtract1 = makeOP<opset1::Subtract>({Convert4, Convert5}, {{"auto_broadcast", "numpy"}});
         auto Constant12 = makeConst(element::f16, ov::Shape({9216, 1}), MOCK_VALUE);
         auto Multiply3 = makeOP<opset1::Multiply>({Subtract1, Constant12}, {{"auto_broadcast", "numpy"}});
-        auto Convert6 = makeOP<opset1::Convert>({Multiply3}, {{"destination_type", "f32"}});
+        auto Convert6 =
+            makeOP<opset1::Convert>({Multiply3},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto MatMul = makeOP<opset1::MatMul>({Multiply2, Convert6}, {{"transpose_a", false}, {"transpose_b", true}});
         auto Slice = makeOP<opset8::Slice>({MatMul, {0}, {3072}, {1}, {2}});
         auto Reshape = makeOP<opset1::Reshape>({Slice, {0, 0, 32, 96}}, {{"special_zero", true}});
@@ -1607,7 +1700,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Unsqueeze1 = makeOP<opset1::Unsqueeze>({position_ids, 1});
         auto Reshape1 = makeOP<opset1::Reshape>({Unsqueeze1, {0, 0}}, {{"special_zero", true}});
         auto Unsqueeze2 = makeOP<opset1::Unsqueeze>({Reshape1, 1});
-        auto Convert7 = makeOP<opset1::Convert>({Unsqueeze2}, {{"destination_type", "f32"}});
+        auto Convert7 =
+            makeOP<opset1::Convert>({Unsqueeze2},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto MatMul1 = makeOP<opset1::MatMul>({Broadcast, Convert7}, {{"transpose_a", false}, {"transpose_b", false}});
         auto Transpose1 = makeOP<opset1::Transpose>({MatMul1, {0, 2, 1}});
         auto Concat1 = makeOP<opset1::Concat>({Transpose1, Transpose1}, {{"axis", -1}});
@@ -1646,7 +1741,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Transpose6 = makeOP<opset1::Transpose>({Transpose5, {0, 2, 1, 3}});
         auto V = makeOP<opset1::Reshape>({Transpose6, {0, -1}}, {{"special_zero", true}});
 
-        auto offset = makeOP<opset1::Convert>({-2046}, {{"destination_type", "i32"}});
+        auto offset =
+            makeOP<opset1::Convert>({-2046},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto sliding_window = makeOP<opset1::Subtract>({2, offset}, {{"auto_broadcast", "numpy"}});
 
         auto scale = v0::Constant::create(element::f32, {}, {0.102062f});
@@ -1697,7 +1794,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto params = nodes_to_params({beam_idx, position_ids, attention_mask, input_ids});
 
         auto Constant0 = makeConst(element::f16, ov::Shape({}), {0});
-        auto Convert0 = makeOP<opset1::Convert>({Constant0}, {{"destination_type", "f32"}});
+        auto Convert0 =
+            makeOP<opset1::Convert>({Constant0},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto ShapeOf0 = makeOP<opset3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
         auto Gather0 = makeOP<opset8::Gather>({ShapeOf0, {0}, 0}, {{"batch_dims", 0}});
         auto Concat0 = makeOP<opset1::Concat>({Gather0, {16l}, {0l}, {256l}}, {{"axis", 0}});
@@ -1707,20 +1806,30 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
             {{"variable_id", "var1"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 16, DYN, 256}}});
         auto Gather1 = makeOP<opset8::Gather>({ReadValue0, beam_idx, 0}, {{"batch_dims", 0}});
         auto Constant1 = makeConst(element::f16, ov::Shape({51200, 4096}), MOCK_VALUE);
-        auto Convert1 = makeOP<opset1::Convert>({Constant1}, {{"destination_type", "f32"}});
+        auto Convert1 =
+            makeOP<opset1::Convert>({Constant1},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Reshape0 = makeOP<opset1::Reshape>({input_ids, {-1, 0}}, {{"special_zero", true}});
-        auto Convert2 = makeOP<opset1::Convert>({Reshape0}, {{"destination_type", "i32"}});
+        auto Convert2 =
+            makeOP<opset1::Convert>({Reshape0},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Gather2 = makeOP<opset8::Gather>({Convert1, Convert2, 0}, {{"batch_dims", 0}});
         auto MVN0 = makeOP<opset6::MVN>({Gather2, {-1}},
                                         {{"eps", 0.000010}, {"normalize_variance", true}, {"eps_mode", "INSIDE_SQRT"}});
         auto Constant2 = makeConst(element::f16, ov::Shape({1, 1, 4096}), MOCK_VALUE);
-        auto Convert3 = makeOP<opset1::Convert>({Constant2}, {{"destination_type", "f32"}});
+        auto Convert3 =
+            makeOP<opset1::Convert>({Constant2},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Multiply0 = makeOP<opset1::Multiply>({MVN0, Convert3}, {{"auto_broadcast", "numpy"}});
         auto Constant3 = makeConst(element::f16, ov::Shape({1, 1, 4096}), MOCK_VALUE);
-        auto Convert4 = makeOP<opset1::Convert>({Constant3}, {{"destination_type", "f32"}});
+        auto Convert4 =
+            makeOP<opset1::Convert>({Constant3},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Add0 = makeOP<opset1::Add>({Multiply0, Convert4}, {{"auto_broadcast", "numpy"}});
         auto Constant4 = makeConst(element::f16, ov::Shape({12288, 4096}), MOCK_VALUE);
-        auto Convert5 = makeOP<opset1::Convert>({Constant4}, {{"destination_type", "f32"}});
+        auto Convert5 =
+            makeOP<opset1::Convert>({Constant4},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto MatMul0 = makeOP<opset1::MatMul>({Add0, Convert5}, {{"transpose_a", false}, {"transpose_b", true}});
         auto Reshape1 = makeOP<opset1::Reshape>({MatMul0, {0, 0, 4, -1}}, {{"special_zero", true}});
         auto VariadicSplit0 = makeOP<opset1::VariadicSplit>({Reshape1, -1, {1024, 1024, -1}});
@@ -1731,7 +1840,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({VariadicSplit0->output(0)}, {{"output_type", "i64"}});
         auto Gather3 = makeOP<opset8::Gather>({ShapeOf1, 1, 0}, {{"batch_dims", 0}});
         auto Constant5 = makeConst(element::f16, ov::Shape({}), {0});
-        auto Convert6 = makeOP<opset1::Convert>({Constant5}, {{"destination_type", "f32"}});
+        auto Convert6 =
+            makeOP<opset1::Convert>({Constant5},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Concat1 = makeOP<opset1::Concat>({Gather0, {16l}, {0l}, {256l}}, {{"axis", 0}});
         auto Broadcast1 = makeOP<opset3::Broadcast>({Convert6, Concat1}, {{"mode", "numpy"}});
         auto ReadValue1 = makeOP<opset6::ReadValue>(
@@ -1743,7 +1854,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Add1 = makeOP<opset1::Add>({Gather3, Gather5}, {{"auto_broadcast", "numpy"}});
         auto Range0 = makeOP<opset4::Range>({0, Add1, 1}, {{"output_type", "f32"}});
         auto Constant6 = makeConst(element::f16, ov::Shape({1}), {10000});
-        auto Convert7 = makeOP<opset1::Convert>({Constant6}, {{"destination_type", "f32"}});
+        auto Convert7 =
+            makeOP<opset1::Convert>({Constant6},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Reshape4 =
             makeOP<opset1::Reshape>({VariadicSplit0->output(2), {0, 0, 0, 4, 256}}, {{"special_zero", true}});
         auto Reshape5 = makeOP<opset1::Reshape>({Reshape4, {0, 0, 16, 256}}, {{"special_zero", true}});
@@ -1751,11 +1864,15 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto ShapeOf3 = makeOP<opset3::ShapeOf>({Slice1}, {{"output_type", "i64"}});
         auto Gather6 = makeOP<opset8::Gather>({ShapeOf3, 3, 0}, {{"batch_dims", 0}});
         auto Range1 = makeOP<opset4::Range>({0, Gather6, 2}, {{"output_type", "f32"}});
-        auto Convert8 = makeOP<opset1::Convert>({Gather6}, {{"destination_type", "f32"}});
+        auto Convert8 =
+            makeOP<opset1::Convert>({Gather6},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Divide0 = makeOP<opset1::Divide>({Range1, Convert8}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
         auto Power0 = makeOP<opset1::Power>({Convert7, Divide0}, {{"auto_broadcast", "numpy"}});
         auto Constant7 = makeConst(element::f16, ov::Shape({1}), {-1});
-        auto Convert9 = makeOP<opset1::Convert>({Constant7}, {{"destination_type", "f32"}});
+        auto Convert9 =
+            makeOP<opset1::Convert>({Constant7},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Power1 = makeOP<opset1::Power>({Power0, Convert9}, {{"auto_broadcast", "numpy"}});
         auto Einsum0 = makeOP<opset7::Einsum>({Range0, Power1}, {{"equation", "i,j->ij"}});
         auto Cos0 = makeOP<opset1::Cos>({Einsum0});
@@ -1773,7 +1890,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Unsqueeze1 = makeOP<opset1::Unsqueeze>({Slice2, 2});
         auto Multiply1 = makeOP<opset1::Multiply>({Slice0, Unsqueeze1}, {{"auto_broadcast", "numpy"}});
         auto Slice3 = makeOP<opset8::Slice>({Slice0, {1}, {LLONG_MAX}, {2}, {3}});
-        auto Convert10 = makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}});
+        auto Convert10 =
+            makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Multiply2 = makeOP<opset1::Multiply>({Slice3, Convert10}, {{"auto_broadcast", "numpy"}});
         auto Unsqueeze2 = makeOP<opset1::Unsqueeze>({Multiply2, -1});
         auto Slice4 = makeOP<opset8::Slice>({Slice0, {0}, {LLONG_MAX}, {2}, {3}});
@@ -1794,7 +1912,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Transpose0 = makeOP<opset1::Transpose>({Concat4, {0, 2, 1, 3}});
         auto Multiply4 = makeOP<opset1::Multiply>({Slice1, Unsqueeze1}, {{"auto_broadcast", "numpy"}});
         auto Slice7 = makeOP<opset8::Slice>({Slice1, {1}, {LLONG_MAX}, {2}, {3}});
-        auto Convert11 = makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}});
+        auto Convert11 =
+            makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Multiply5 = makeOP<opset1::Multiply>({Slice7, Convert11}, {{"auto_broadcast", "numpy"}});
         auto Unsqueeze6 = makeOP<opset1::Unsqueeze>({Multiply5, -1});
         auto Slice8 = makeOP<opset8::Slice>({Slice1, {0}, {LLONG_MAX}, {2}, {3}});
@@ -1808,7 +1927,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Transpose1 = makeOP<opset1::Transpose>({Concat6, {0, 2, 1, 3}});
         auto Concat7 = makeOP<opset1::Concat>({Gather4, Transpose1}, {{"axis", -2}});
         auto Constant8_compressed = makeConst(element::f16, ov::Shape({}), {0});
-        auto Convert12 = makeOP<opset1::Convert>({Constant8_compressed}, {{"destination_type", "f32"}});
+        auto Convert12 =
+            makeOP<opset1::Convert>({Constant8_compressed},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Concat8 = makeOP<opset1::Concat>({Gather0, {16l}, {0l}, {256l}}, {{"axis", 0}});
         auto Broadcast2 = makeOP<opset3::Broadcast>({Convert12, Concat8}, {{"mode", "numpy"}});
         auto ReadValue2 = makeOP<opset6::ReadValue>(
@@ -1826,18 +1947,28 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Concat10 = makeOP<opset1::Concat>({Subtract0, {0l}}, {{"axis", 0}});
         auto Broadcast3 = makeOP<opset3::Broadcast>({Add5, {2}}, {{"mode", "numpy"}});
         auto Slice10 = makeOP<opset8::Slice>({Constant9, Concat10, Broadcast3, {1, 1}, {2, 3}});
-        auto Convert13 = makeOP<opset1::Convert>({Slice10}, {{"destination_type", "boolean"}});
+        auto Convert13 =
+            makeOP<opset1::Convert>({Slice10},
+                                    {{"destination_type", "boolean"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant10 = makeConst(element::f16, ov::Shape({}), {0});
-        auto Convert14 = makeOP<opset1::Convert>({Constant10}, {{"destination_type", "f32"}});
+        auto Convert14 =
+            makeOP<opset1::Convert>({Constant10},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Select0 = makeOP<opset1::Select>({Convert13, Convert14, -FLT_MAX}, {{"auto_broadcast", "numpy"}});
         auto Constant11 = makeConst(element::f16, ov::Shape({1, 1, 1, 1}), {1});
-        auto Convert15 = makeOP<opset1::Convert>({Constant11}, {{"destination_type", "f32"}});
+        auto Convert15 =
+            makeOP<opset1::Convert>({Constant11},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Reshape16 = makeOP<opset1::Reshape>({attention_mask, {0, 0}}, {{"special_zero", true}});
         auto Unsqueeze8 = makeOP<opset1::Unsqueeze>({Reshape16, 1});
         auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Unsqueeze8, 2});
-        auto Convert16 = makeOP<opset1::Convert>({Unsqueeze9}, {{"destination_type", "f32"}});
+        auto Convert16 =
+            makeOP<opset1::Convert>({Unsqueeze9},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Constant12 = makeConst(element::f16, ov::Shape({1, 1, 1, 1}), {1});
-        auto Convert17 = makeOP<opset1::Convert>({Constant12}, {{"destination_type", "f32"}});
+        auto Convert17 =
+            makeOP<opset1::Convert>({Constant12},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Multiply7 = makeOP<opset1::Multiply>({Convert16, Convert17}, {{"auto_broadcast", "numpy"}});
         auto Subtract1 = makeOP<opset1::Subtract>({Convert15, Multiply7}, {{"auto_broadcast", "numpy"}});
         auto Constant13 = makeConst(element::f32, ov::Shape({1, 1, 1, 1}), {-FLT_MAX});
@@ -1886,21 +2017,31 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
                                        position_ids});
 
         auto Constant1 = makeConst(element::f16, ov::Shape({51200, 4096}), MOCK_VALUE);
-        auto Convert0 = makeOP<opset1::Convert>({Constant1}, {{"destination_type", "f32"}});
+        auto Convert0 =
+            makeOP<opset1::Convert>({Constant1},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Unsqueeze0 = makeOP<opset1::Unsqueeze>({input_ids, 1});
         auto Reshape0 = makeOP<opset1::Reshape>({Unsqueeze0, {-1, 0}}, {{"special_zero", true}});
-        auto Convert1 = makeOP<opset1::Convert>({Reshape0}, {{"destination_type", "i32"}});
+        auto Convert1 =
+            makeOP<opset1::Convert>({Reshape0},
+                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Gather0 = makeOP<opset8::Gather>({Convert0, Convert1, 0}, {{"batch_dims", 0}});
         auto MVN0 = makeOP<opset6::MVN>({Gather0, {-1}},
                                         {{"eps", 0.000010}, {"normalize_variance", true}, {"eps_mode", "INSIDE_SQRT"}});
         auto Constant2 = makeConst(element::f16, ov::Shape({1, 1, 4096}), MOCK_VALUE);
-        auto Convert2 = makeOP<opset1::Convert>({Constant2}, {{"destination_type", "f32"}});
+        auto Convert2 =
+            makeOP<opset1::Convert>({Constant2},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Multiply0 = makeOP<opset1::Multiply>({MVN0, Convert2}, {{"auto_broadcast", "numpy"}});
         auto Constant3 = makeConst(element::f16, ov::Shape({1, 1, 4096}), MOCK_VALUE);
-        auto Convert3 = makeOP<opset1::Convert>({Constant3}, {{"destination_type", "f32"}});
+        auto Convert3 =
+            makeOP<opset1::Convert>({Constant3},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Add0 = makeOP<opset1::Add>({Multiply0, Convert3}, {{"auto_broadcast", "numpy"}});
         auto Constant4 = makeConst(element::f16, ov::Shape({12288, 4096}), MOCK_VALUE);
-        auto Convert4 = makeOP<opset1::Convert>({Constant4}, {{"destination_type", "f32"}});
+        auto Convert4 =
+            makeOP<opset1::Convert>({Constant4},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto MatMul0 = makeOP<opset1::MatMul>({Add0, Convert4}, {{"transpose_a", false}, {"transpose_b", true}});
         auto Reshape1 = makeOP<opset1::Reshape>({MatMul0, {0, 0, 4, -1}}, {{"special_zero", true}});
         auto VariadicSplit0 = makeOP<opset1::VariadicSplit>({Reshape1, -1, {1024, 1024, -1}});
@@ -1908,10 +2049,14 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
             makeOP<opset1::Reshape>({VariadicSplit0->output(0), {0, 0, 0, 4, 256}}, {{"special_zero", true}});
         auto Reshape3 = makeOP<opset1::Reshape>({Reshape2, {0, 0, 16, 256}}, {{"special_zero", true}});
         auto Slice0 = makeOP<opset8::Slice>({Reshape3, {0}, {64}, {1}, {3}});
-        auto Convert5 = makeOP<opset1::Convert>({max_context_len}, {{"destination_type", "i64"}});
+        auto Convert5 =
+            makeOP<opset1::Convert>({max_context_len},
+                                    {{"destination_type", "i64"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Range0 = makeOP<opset4::Range>({0, Convert5, 1}, {{"output_type", "f32"}});
         auto Constant5 = makeConst(element::f16, ov::Shape({1}), {10000});
-        auto Convert6 = makeOP<opset1::Convert>({Constant5}, {{"destination_type", "f32"}});
+        auto Convert6 =
+            makeOP<opset1::Convert>({Constant5},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Reshape4 =
             makeOP<opset1::Reshape>({VariadicSplit0->output(2), {0, 0, 0, 4, 256}}, {{"special_zero", true}});
         auto Reshape5 = makeOP<opset1::Reshape>({Reshape4, {0, 0, 16, 256}}, {{"special_zero", true}});
@@ -1919,11 +2064,15 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto ShapeOf0 = makeOP<opset3::ShapeOf>({Slice1}, {{"output_type", "i64"}});
         auto Gather1 = makeOP<opset8::Gather>({ShapeOf0, 3, 0}, {{"batch_dims", 0}});
         auto Range1 = makeOP<opset4::Range>({0, Gather1, 2}, {{"output_type", "f32"}});
-        auto Convert7 = makeOP<opset1::Convert>({Gather1}, {{"destination_type", "f32"}});
+        auto Convert7 =
+            makeOP<opset1::Convert>({Gather1},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Divide0 = makeOP<opset1::Divide>({Range1, Convert7}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
         auto Power0 = makeOP<opset1::Power>({Convert6, Divide0}, {{"auto_broadcast", "numpy"}});
         auto Constant6 = makeConst(element::f16, ov::Shape({1}), {-1});
-        auto Convert8 = makeOP<opset1::Convert>({Constant6}, {{"destination_type", "f32"}});
+        auto Convert8 =
+            makeOP<opset1::Convert>({Constant6},
+                                    {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Power1 = makeOP<opset1::Power>({Power0, Convert8}, {{"auto_broadcast", "numpy"}});
         auto Einsum0 = makeOP<opset7::Einsum>({Range0, Power1}, {{"equation", "i,j->ij"}});
         auto Cos0 = makeOP<opset1::Cos>({Einsum0});
@@ -1939,7 +2088,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Unsqueeze2 = makeOP<opset1::Unsqueeze>({Transpose0, 2});
         auto Multiply1 = makeOP<opset1::Multiply>({Slice0, Unsqueeze2}, {{"auto_broadcast", "numpy"}});
         auto Slice2 = makeOP<opset8::Slice>({Slice0, {1}, {LLONG_MAX}, {2}, {3}});
-        auto Convert9 = makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}});
+        auto Convert9 =
+            makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Multiply2 = makeOP<opset1::Multiply>({Slice2, Convert9}, {{"auto_broadcast", "numpy"}});
         auto Unsqueeze3 = makeOP<opset1::Unsqueeze>({Multiply2, -1});
         auto Slice3 = makeOP<opset8::Slice>({Slice0, {0}, {LLONG_MAX}, {2}, {3}});
@@ -1963,7 +2113,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Reshape11 = makeOP<opset1::Reshape>({Transpose3, {0, -1}}, {{"special_zero", true}});
         auto Multiply4 = makeOP<opset1::Multiply>({Slice1, Unsqueeze2}, {{"auto_broadcast", "numpy"}});
         auto Slice5 = makeOP<opset8::Slice>({Slice1, {1}, {LLONG_MAX}, {2}, {3}});
-        auto Convert10 = makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}});
+        auto Convert10 =
+            makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}});
         auto Multiply5 = makeOP<opset1::Multiply>({Slice5, Convert10}, {{"auto_broadcast", "numpy"}});
         auto Unsqueeze7 = makeOP<opset1::Unsqueeze>({Multiply5, -1});
         auto Slice6 = makeOP<opset8::Slice>({Slice1, {0}, {LLONG_MAX}, {2}, {3}});
