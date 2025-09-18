@@ -7,6 +7,7 @@ const { addon: ov } = require("../..");
 const assert = require("assert");
 const { describe, it, before, beforeEach } = require("node:test");
 const { testModels, isModelAvailable, lengthFromShape, generateImage } = require("../utils.js");
+const path = require("path");
 
 describe("ov.InferRequest tests", () => {
   const { testModelFP32 } = testModels;
@@ -131,6 +132,116 @@ describe("ov.InferRequest tests", () => {
     });
   });
 
+  describe("BigInt InferRequest support", () => {
+    let core, originalModel, compiledModel, inferRequest;
+
+    before(async () => {
+      const { addModel } = testModels;
+      await isModelAvailable(addModel);
+      core = new ov.Core();
+      originalModel = core.readModelSync(addModel.xml);
+    });
+
+    beforeEach(() => {
+      const model = originalModel.clone();
+
+      const ppp = new ov.preprocess.PrePostProcessor(model);
+      ppp.input(0).tensor().setElementType(ov.element.i64);
+      ppp.input(1).tensor().setElementType(ov.element.i64);
+      ppp.build();
+
+      compiledModel = core.compileModelSync(model, "CPU");
+      inferRequest = compiledModel.createInferRequest();
+    });
+
+    it("infers with BigInt64Array input using Tensor objects", () => {
+      const shape0 = originalModel.input(0).getShape();
+      const shape1 = originalModel.input(1).getShape();
+      const size0 = shape0.reduce((a, b) => a * b, 1);
+      const size1 = shape1.reduce((a, b) => a * b, 1);
+      const inputData0 = new BigInt64Array(size0).fill(1n);
+      const inputData1 = new BigInt64Array(size1).fill(2n);
+
+      const tensor0 = new ov.Tensor(ov.element.i64, shape0, inputData0);
+      const tensor1 = new ov.Tensor(ov.element.i64, shape1, inputData1);
+
+      assert.doesNotThrow(() => {
+        const result = inferRequest.infer([tensor0, tensor1]);
+        assert.ok(result);
+        const outputTensor = Object.values(result)[0];
+        assert.ok(outputTensor instanceof ov.Tensor);
+      });
+    });
+
+    it("infers with BigInt64Array input using setInputTensor", () => {
+      const shape0 = originalModel.input(0).getShape();
+      const shape1 = originalModel.input(1).getShape();
+      const size0 = shape0.reduce((a, b) => a * b, 1);
+      const size1 = shape1.reduce((a, b) => a * b, 1);
+      const inputData0 = new BigInt64Array(size0).fill(1n);
+      const inputData1 = new BigInt64Array(size1).fill(2n);
+
+      const tensor0 = new ov.Tensor(ov.element.i64, shape0, inputData0);
+      const tensor1 = new ov.Tensor(ov.element.i64, shape1, inputData1);
+
+      assert.doesNotThrow(() => {
+        inferRequest.setInputTensor(0, tensor0);
+        inferRequest.setInputTensor(1, tensor1);
+        inferRequest.infer();
+        const result = inferRequest.getOutputTensor();
+        assert.ok(result instanceof ov.Tensor);
+      });
+    });
+
+    it("errors on wrong BigInt64Array size", () => {
+      const shape0 = originalModel.input(0).getShape();
+      const size0 = shape0.reduce((a, b) => a * b, 1);
+      const wrongSizeData = new BigInt64Array(Math.max(1, size0 - 1)).fill(0n);
+
+      assert.throws(
+        () => new ov.Tensor(ov.element.i64, shape0, wrongSizeData),
+        /Memory allocated using shape and element::type mismatch/,
+      );
+    });
+
+    it("infers with BigUint64Array input", () => {
+      const model = originalModel.clone();
+      const ppp = new ov.preprocess.PrePostProcessor(model);
+      ppp.input(0).tensor().setElementType(ov.element.u64);
+      ppp.input(1).tensor().setElementType(ov.element.u64);
+      ppp.build();
+      const compiledModelU64 = core.compileModelSync(model, "CPU");
+      const inferRequestU64 = compiledModelU64.createInferRequest();
+
+      const shape0 = originalModel.input(0).getShape();
+      const shape1 = originalModel.input(1).getShape();
+      const size0 = shape0.reduce((a, b) => a * b, 1);
+      const size1 = shape1.reduce((a, b) => a * b, 1);
+      const inputData0 = new BigUint64Array(size0).fill(1n);
+      const inputData1 = new BigUint64Array(size1).fill(2n);
+
+      const tensor0 = new ov.Tensor(ov.element.u64, shape0, inputData0);
+      const tensor1 = new ov.Tensor(ov.element.u64, shape1, inputData1);
+
+      assert.doesNotThrow(() => {
+        const result = inferRequestU64.infer([tensor0, tensor1]);
+        assert.ok(result);
+        const outputTensor = Object.values(result)[0];
+        assert.ok(outputTensor instanceof ov.Tensor);
+      });
+    });
+
+    it("errors on wrong BigUint64Array size", () => {
+      const shape0 = originalModel.input(0).getShape();
+      const size0 = shape0.reduce((a, b) => a * b, 1);
+      const wrongSizeData = new BigUint64Array(size0 + 1).fill(0n);
+
+      assert.throws(
+        () => new ov.Tensor(ov.element.u64, shape0, wrongSizeData),
+        /Memory allocated using shape and element::type mismatch/,
+      );
+    });
+  });
   describe("setters", () => {
     let inferRequest = null;
     beforeEach(() => {
