@@ -4,8 +4,11 @@
 
 #include "snippets/pass/gated_mlp_tokenization.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <memory>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/type.hpp"
@@ -29,6 +32,7 @@
 #include "snippets/op/brgemm.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
 #include "snippets/utils/utils.hpp"
 
@@ -69,7 +73,7 @@ Predicate fc_predicate(bool is_down) {
 
 }  // namespace
 
-TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const SnippetsTokenization::Config& config) {
+TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const TokenizationConfig& config) {
     MATCHER_SCOPE(TokenizeGatedMLPSnippets);
     using namespace ov::pass;
     using namespace ov::op::util;
@@ -106,17 +110,28 @@ TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const SnippetsTokenization::C
             return false;
         }
 
-        static const auto body_params_count = 5;  // 2xinput + 3x fc
-        static const auto body_result_count = 1;  // one output
-        static const auto reg_group_count = 5;    // upper-bound of possible buffer count
+        const bool allow_shared_params = [&]() {
+            const auto mm_gate = ov::as_type_ptr<ov::op::v0::MatMul>(fc_gate);
+            const auto mm_up = ov::as_type_ptr<ov::op::v0::MatMul>(fc_up);
+            OPENVINO_ASSERT(mm_gate && mm_up, "fc_gate and fc_up must have MatMul type");
+            return mm_gate->get_transpose_a() == mm_up->get_transpose_a();
+        }();
+        // 1x data input (can be shared or not) + 3x matmul weights + 1x result
+        const size_t io_count = (allow_shared_params ? 4 : 5) + 1;
+        static constexpr size_t n_reg_group = 3;
+        // Loop depth could reach 3 because of SplitLoops optimization
+        static constexpr size_t n_loops_depth = 3;
+        const auto ordered_ops = ov::NodeVector{fc_gate, fc_up, act, mul, fc_down};
+        const bool is_dynamic = std::any_of(ordered_ops.begin(), ordered_ops.end(), [](const std::shared_ptr<Node>& n) {
+            return n->is_dynamic();
+        });
 
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
-        if (body_params_count + body_result_count + reg_group_count > config.get_data_ptr_gpr_count()) {
+        if (!config.is_gprs_count_sufficient(io_count, n_reg_group, n_loops_depth, is_dynamic)) {
             return false;
         }
 
-        const auto ordered_ops = ov::NodeVector{fc_gate, fc_up, act, mul, fc_down};
-        const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops);
+        const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops, allow_shared_params);
 
         // mark the Subgraph as Completed to not allow Snippets to include any nodes into this Subgraph in common
         // Tokenization
