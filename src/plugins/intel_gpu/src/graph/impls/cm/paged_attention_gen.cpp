@@ -9,6 +9,8 @@
 #include <memory>
 #include <utility>
 
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
+#include "../ocl_v2/sdpa_base.hpp"
 #include "../ocl_v2/paged_attention_common.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -118,17 +120,42 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
     jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
     // std::cout << "PagedAttentionGeneratorBase::get_jit_constants: " << get_entry_point(params) << std::endl;
 
-    auto desc = params.typed_desc<paged_attention>();
-    jit.make("HEAD_SIZE", desc->k_head_size);
-    jit.make("HEADS_NUM", desc->heads_num);
-    jit.make("KV_HEADS_NUM", desc->kv_heads_num);
+    if (params.is_type<paged_attention>()) {
+        auto desc = params.typed_desc<paged_attention>();
+        jit.make("HEAD_SIZE", desc->k_head_size);
+        jit.make("HEADS_NUM", desc->heads_num);
+        jit.make("KV_HEADS_NUM", desc->kv_heads_num);
 
-    const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
-    jit.make("SCALE_FACTOR", scale_factor);
-    jit.make("CMFLA_SCALE_FACTOR", scale_factor);
-    jit.make("CMFLA_NUM_HEADS", desc->heads_num);
-    jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
-    jit.make("CMFLA_NUM_KV_HEADS", desc->kv_heads_num);
+        const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
+        jit.make("SCALE_FACTOR", scale_factor);
+        jit.make("CMFLA_SCALE_FACTOR", scale_factor);
+        jit.make("CMFLA_NUM_HEADS", desc->heads_num);
+        jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
+        jit.make("CMFLA_NUM_KV_HEADS", desc->kv_heads_num);
+    } else {
+        auto desc = params.typed_desc<scaled_dot_product_attention>();
+        auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+        auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+        auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+        auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
+        // const auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
+        const auto q_num_head = get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order);
+        const auto k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
+        const auto k_num_head = get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order);
+        // const auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+        jit.make("HEAD_SIZE", k_head_size);
+        jit.make("HEADS_NUM", q_num_head);
+        jit.make("KV_HEADS_NUM", k_num_head);
+
+        const float scale_factor = 1.0 / std::sqrt(static_cast<double>(k_head_size));
+        jit.make("SCALE_FACTOR", scale_factor);
+        jit.make("CMFLA_SCALE_FACTOR", scale_factor);
+        jit.make("CMFLA_NUM_HEADS", q_num_head);
+        jit.make("CMFLA_HEAD_SIZE", k_head_size);
+        jit.make("CMFLA_NUM_KV_HEADS", k_num_head);
+
+        std::cout << "k_head_size: " << k_head_size << ", q_num_head: " << q_num_head << ", k_num_head: " << k_num_head << std::endl;
+    }
     jit.make("WG_SIZE_HINT", WG_SIZE);
 
     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
@@ -141,7 +168,7 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
 }
 
 Arguments PagedAttentionSDPAGeneratorMultiToken::get_arguments_desc(const kernel_impl_params& params) const {
-    const auto desc = params.typed_desc<paged_attention>();
+    // const auto desc = params.typed_desc<paged_attention>();
 
     Arguments args;
     args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // query
@@ -159,7 +186,7 @@ Arguments PagedAttentionSDPAGeneratorMultiToken::get_arguments_desc(const kernel
 
 JitConstants PagedAttentionSDPAGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
-    const auto desc = params.typed_desc<paged_attention>();
+    // const auto desc = params.typed_desc<paged_attention>();
 
     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
     jit.make("Q_STEP", get_q_step(xe_arch, false));

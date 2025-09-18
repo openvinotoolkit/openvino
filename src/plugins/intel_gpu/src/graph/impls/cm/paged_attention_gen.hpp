@@ -49,7 +49,6 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 };
-
 class PagedAttentionGeneratorSingleToken : public PagedAttentionGeneratorBase {
 public:
     PagedAttentionGeneratorSingleToken() : PagedAttentionGeneratorBase("pa_sdpa_single_token") {}

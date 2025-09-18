@@ -14,39 +14,26 @@
 #include <memory>
 #include <utility>
 
-#include "../primitive_ocl_base.hpp"
-#include "../utils/kernel_generator.hpp"
+#include "../cm/paged_attention_gen.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "kv_cache_inst.h"
 #include "openvino/core/partial_shape.hpp"
+#include "paged_attention_common.hpp"
 #include "paged_attention_inst.h"
 #include "primitive_inst.h"
+#include "primitive_ocl_base.hpp"
 #include "sdpa_base.hpp"
 #include "sdpa_gen_opt.hpp"
+#include "utils/kernel_generator.hpp"
 namespace ov::intel_gpu::ocl {
 namespace {
-enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
 constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
 constexpr size_t paged_attention_block_size = 16;
 constexpr size_t seq_len_partition_size = 256;
 constexpr size_t subgroup_size = 16;
-
-struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
-    PagedAttentionStage stage;
-    size_t num_of_partitions;
-    size_t partition_size;
-    size_t max_context_len;
-    size_t paged_attention_aligned_seq_len;
-    size_t sdpa_opt_seq_len_partition_size;
-
-    size_t paged_attention_snap_kv_tokens;
-    bool use_micro_sdpa = false;
-    bool use_gqa_kernel = false;
-    size_t query_block_size = 16;
-};
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
@@ -58,7 +45,22 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
 }
 
 inline size_t get_element_size(ov::element::Type_t type) {
-    return ov::element::Type(type).size();
+    switch (type) {
+    case ov::element::Type_t::i64:
+        return 8;
+    case ov::element::Type_t::f32:
+    case ov::element::Type_t::i32:
+    case ov::element::Type_t::u32:
+        return 4;
+    case ov::element::Type_t::f16:
+        return 2;
+    case ov::element::Type_t::i8:
+    case ov::element::Type_t::u8:
+        return 1;
+    default:
+        OPENVINO_ASSERT(false, "Unsupported element type for get_element_size");
+        return 0;  // Fallback case, should not be reached
+    }
 }
 
 static size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type, bool is_kv_compressed = false) {
@@ -84,17 +86,6 @@ static size_t get_heads_per_wi(const size_t kv_group_size) {
         }
     }
     return 1;
-}
-
-static size_t get_num_k_head_size_partitions(bool is_key_by_channel, int64_t k_head_size) {
-    size_t head_size_partition = 1;
-    if (is_key_by_channel) {
-        if (k_head_size % subgroup_size == 0) {
-            head_size_partition = std::max(static_cast<size_t>(1), static_cast<size_t>(k_head_size / subgroup_size));
-            head_size_partition = std::min(static_cast<size_t>(16), head_size_partition);
-        }
-    }
-    return head_size_partition;
 }
 
 inline size_t get_generate_stage_block_size(size_t head_size) {
@@ -268,6 +259,7 @@ public:
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
         jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
+        jit.make("HEADS_PER_WI", 1);
 
         bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed);
@@ -393,7 +385,7 @@ public:
         Arguments args;
 
         const auto desc = params.typed_desc<paged_attention>();
-        const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
+        const auto has_alibi = params.get_input_layout(11).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = params.output_layouts.size() > 1;
 
@@ -451,9 +443,7 @@ public:
         auto heads_per_wi = get_heads_per_wi(kv_group_size);
 
         // GQA
-        jit.remove("HEADS_PER_WI");
         jit.make("HEADS_PER_WI", heads_per_wi);
-
         jit.make("ITERATIONS_PER_KV_HEADS_GROUP", ceil_div(kv_group_size, heads_per_wi));
         jit.make("HEADS_LEFTOVERS_NUM", kv_group_size % heads_per_wi);
 
@@ -487,7 +477,6 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
         jit.make("SDPA_STAGE_1", 1);
-        jit.make("HEADS_PER_WI", 1);
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -544,7 +533,6 @@ public:
         auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
         jit.make("SDPA_STAGE_0", 1);
         jit.make("MULTI_TOKENS_PROCESSING", 1);
-        jit.make("HEADS_PER_WI", 1);
 
         const auto desc = params.typed_desc<paged_attention>();
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
@@ -635,7 +623,6 @@ public:
         auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
         jit.make("SDPA_STAGE_1", 1);
         jit.make("MULTI_TOKENS_PROCESSING", 1);
-        jit.make("HEADS_PER_WI", 1);
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -692,7 +679,6 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
         jit.make("SDPA_STAGE_2", 1);
-        jit.make("HEADS_PER_WI", 1);
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -800,7 +786,6 @@ protected:
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
-                jit.make("NUM_K_HEAD_SIZE_PARTITIONS", get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size));
             } else {
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
@@ -863,8 +848,8 @@ protected:
             } else {
                 const auto& key_input = params.input_layouts[0];
                 const auto sequences_number = key_input.get_partial_shape()[0].get_length();
-                size_t head_size_partition = get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size);
-                wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size * head_size_partition};
+
+                wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size};
                 wgs.local = {1, 1, subgroup_size};
             }
 
@@ -957,7 +942,7 @@ public:
     PagedAttentionSDPAOptGeneratorMultiToken() : SDPAOptGeneratorBase("sdpa_opt", "_multi_tokens", false) {}
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
         const auto desc = params.typed_desc<paged_attention>();
-        const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
+        const auto has_alibi = params.get_input_layout(11).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = desc->has_scores_output();
         const auto has_score_aggregation = desc->has_score_aggregation;
@@ -1006,7 +991,7 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::MULTI_TOKENS, false);
         const auto desc = params.typed_desc<paged_attention>();
-        const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
+        const auto has_alibi = params.get_input_layout(11).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -1088,19 +1073,13 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
 #endif
+    Stage::Ptr pa_sdpa_cm = make_stage<cm::PagedAttentionSDPAGeneratorMultiToken>();
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
     explicit PagedAttentionOptImpl(const kernel_impl_params& params) : PagedAttentionOptImpl() {
         const auto desc = params.typed_desc<paged_attention>();
         const bool has_scores_output = params.output_layouts.size() > 1;
         const bool has_rotated_blocks = desc->has_rotated_blocks;
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        const bool use_micro_sdpa = supports_micro_sdpa(params);
-        if (use_micro_sdpa) {
-            add_stage(pa_sdpa_micro, params);
-        }
-#endif
 
         add_stage(kv_cache_update, params);
         add_stage(pa_multi_token, params);
@@ -1110,6 +1089,19 @@ public:
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_sdpa_opt, params);
 
+        const bool use_cm_sdpa = supports_cm_sdpa(params);
+        if (use_cm_sdpa) {
+            add_stage(pa_sdpa_cm, params);
+        }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        const bool use_micro_sdpa = supports_micro_sdpa(params);
+        // cm sdpa achives better performance than micro sdpa for prefill stage
+        if (use_micro_sdpa && !use_cm_sdpa) {
+            add_stage(pa_sdpa_micro, params);
+        }
+#endif
+
         if (has_rotated_blocks) {
             add_stage(kv_cache_rotate, params);
         }
@@ -1117,6 +1109,22 @@ public:
         if (has_scores_output) {
             add_stage(pa_scores_calc, params);
         }
+    }
+
+    bool supports_cm_sdpa(const kernel_impl_params& params) const {
+        auto& engine = params.get_program().get_engine();
+        // 0 - unknown, 1 - supported, 2 - not supported
+        static char supports_cm = 0;
+
+        if (supports_cm == 0) {
+            auto query_result = cldnn::check_cm_jit_support(engine, params.get_program().get_config());
+            if (params.get_device_info().arch < gpu_arch::xe_hpg || !query_result) {
+                supports_cm = 2;
+            } else {
+                supports_cm = 1;
+            }
+        }
+        return supports_cm == 1;
     }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1153,7 +1161,7 @@ public:
             return false;
         }
 
-        if (desc->has_alibi) {
+        if (desc->sliding_window || desc->has_alibi) {
             return false;
         }
         return true;
@@ -1174,6 +1182,9 @@ public:
         return default_block_size;
     }
 #else
+    bool supports_micro_sdpa(const kernel_impl_params& params) const {
+        return false;
+    }
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         return default_block_size;
@@ -1214,17 +1225,18 @@ public:
         }
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
+            rt_params->use_cm_kernel = supports_cm_sdpa(params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
             // Determine if sdpa_micro can be used based on sliding_window and aliged_seq_len
-            bool support_sliding_window =
-                desc->sliding_window == 0 || (desc->sliding_window > 0 && rt_params->paged_attention_aligned_seq_len < desc->sliding_window);
-            rt_params->use_micro_sdpa = supports_micro_sdpa(params) && support_sliding_window;
+            rt_params->use_micro_sdpa = supports_micro_sdpa(params) && !rt_params->use_cm_kernel;
 #else
             rt_params->use_micro_sdpa = false;
 #endif
+            // desc->sliding_window == 0 || (desc->sliding_window > 0 && rt_params->paged_attention_aligned_seq_len < desc->sliding_window);
             rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
         } else {
             rt_params->use_micro_sdpa = false;
+            rt_params->use_cm_kernel = false;
         }
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
@@ -1233,7 +1245,7 @@ public:
         return;
     }
 
-    // update impl_parameter and rt_parameter
+    // update rt parameter once shape is changed
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
         SDPAImplBase::update(inst, impl_params);
         update_rt_params(inst);
@@ -1259,15 +1271,16 @@ public:
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
+            if (rt_params->use_cm_kernel) {
+                res_event = {execute_stage(res_event, instance, pa_sdpa_cm)};
+                std::cout << "[GPU] Using CM PA/SDPA kernel for paged attention prefill stage." << std::endl;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            if (rt_params->use_micro_sdpa) {
+            } else if (rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
+#endif
             } else {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
             }
-#else
-            res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
-#endif
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
@@ -1364,17 +1377,11 @@ public:
             const auto max_context_len = get_max_context_len(params);
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
-        bool can_use_micro_sdpa = stage == PagedAttentionStage::PREFILL;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa &= has_stage(pa_sdpa_micro);
-#else
-        can_use_micro_sdpa = false;
-#endif
+
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
         if ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::MIXED) && !params.is_dynamic()) {
-            auto block_size = get_query_block_size(stage, can_use_micro_sdpa);
-            paged_attention_aligned_seq_len = get_aligned_seq_len(params, stage, block_size);
+            paged_attention_aligned_seq_len = get_aligned_seq_len(params, stage);
         }
         const auto target_seq_len = std::max<int64_t>(paged_attention_aligned_seq_len, 1);
         const auto indexes_buf_size = static_cast<int64_t>(ceil_div(target_seq_len, target_seq_len_block_size)) * element_size;
@@ -1438,12 +1445,23 @@ public:
             }
         }
 
-        // PREFILL stage without scores_output doesn't require additional buffers for softmax, exp_sums and max_logits.
-        // GENERATE/MIXED stages require additional buffers for softmax, exp_sums and max_logits.
-        if (!can_use_micro_sdpa && (stage != PagedAttentionStage::PREFILL || has_scores_output)) {
+        const auto use_cm_kernel = supports_cm_sdpa(params) && stage == PagedAttentionStage::PREFILL;
+        bool use_micro_sdpa = !use_cm_kernel && stage == PagedAttentionStage::PREFILL;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        use_micro_sdpa &= has_stage(pa_sdpa_micro);
+#endif
+        bool need_softmax_intermediate_buffer = !use_cm_kernel && !use_micro_sdpa;
+        if (need_softmax_intermediate_buffer) {
+            // 1. GENERATE/MIXED stages
+            // 2. PREFILL stage for pa_opt kernel
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
             internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
+            // std::cout << "internal memory: "
+            //           << "softmax exp_sums: " << buf_elements_count * element_size
+            //           << ", softmax max_logits: " << buf_elements_count * element_size
+            //           << ", intermediate output: " << tmp_out_elements_count * element_size
+            //           << std::endl;
         }
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
@@ -1452,7 +1470,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (can_use_micro_sdpa) {
+        if (has_stage(pa_sdpa_micro)) {
             const auto wg_tile_q = get_micro_tile_qsize(pa_sdpa_micro->kd);
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
@@ -1614,6 +1632,7 @@ public:
                 const auto block_size = static_cast<int>(query_block_size);
                 for (int32_t j = 0; j < seq_length; j += block_size) {
                     auto block_start_pos = subsequence_begins_mem_lock[i] + j;
+
                     micro_sdpa_block_starts_and_gws_mapping_lock->operator[](micro_sdpa_index++) = block_start_pos;
                     micro_sdpa_block_starts_and_gws_mapping_lock->operator[](micro_sdpa_index++) = static_cast<int32_t>(i);
                 }
@@ -1639,11 +1658,7 @@ public:
 
 std::unique_ptr<primitive_impl> PagedAttentionOpt::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<paged_attention>());
-    try {
-        return std::make_unique<PagedAttentionOptImpl>(params);
-    } catch (const std::exception& e) {
-        OPENVINO_THROW("Failed to create PagedAttentionOpt: ", e.what());
-    }
+    return std::make_unique<PagedAttentionOptImpl>(params);
 }
 
 }  // namespace ov::intel_gpu::ocl
