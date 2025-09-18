@@ -235,7 +235,7 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets* - *_Snippets_CPU/*' }}
+      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*:smoke_Snippets*' }}
 
     steps:
       - name: Download OpenVINO artifacts (package)
