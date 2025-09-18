@@ -99,17 +99,30 @@ namespace dynamic {
 // A base class to decide the work-scope from some feature
 class Selector {
 public:
+    enum class Case { PREFILL, GENERATE, UNKNOWN };
+
     using Ptr = std::shared_ptr<Selector>;
     virtual ~Selector() = default;
     virtual void prepare() = 0;
-    virtual int64_t length() = 0;
+    virtual int64_t length() const = 0;
+    virtual int64_t past_length() const = 0;
+
+    Case this_case() const {
+        return m_case;
+    }
+
+protected:
+    Case m_case = Case::UNKNOWN;
 };
 
 // No dynamic dispatch - just run over the whole range
 class All final : public Selector {
     void prepare() override {}
-    int64_t length() override {
+    int64_t length() const override {
         return -1;
+    }
+    int64_t past_length() const override {
+        OPENVINO_NOT_IMPLEMENTED; // And shouldn't be here
     }
 };
 
@@ -117,15 +130,18 @@ class All final : public Selector {
 class PositionIDs final : public Selector {
     std::size_t m_position_ids_idx = 0u;
     int64_t m_current_length = 0;
+    int64_t m_past_length = 0;
 
+    const compiled::Dynamic& m_d;
     const ov::ISyncInferRequest& m_rq;
 
-    PositionIDs(std::size_t param_idx, const ov::ISyncInferRequest& rq);
+    PositionIDs(std::size_t param_idx, const compiled::Dynamic& d, const ov::ISyncInferRequest& rq);
     void prepare() override;
-    int64_t length() override;
+    int64_t length() const override;
+    int64_t past_length() const override;
 
 public:
-    static Selector::Ptr find(const ov::ISyncInferRequest& rq);
+    static Selector::Ptr find(const compiled::Dynamic& d, const ov::ISyncInferRequest& rq);
 };
 
 }  // namespace dynamic

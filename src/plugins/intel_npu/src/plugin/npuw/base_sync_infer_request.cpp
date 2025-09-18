@@ -625,9 +625,6 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
     }
 
     const auto& dynamic = comp_model_desc.dynamic.value();
-    enum class Case { PREFILL, GENERATE};
-    Case this_case = dynamic.query_size == 1 ? Case::GENERATE : Case::PREFILL;
-
     auto& r = request;
 
     const auto pos_id = m_dynamic_selector->length();
@@ -640,19 +637,7 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
             r->set_tensor(iport, input);
         }
     } else {
-        auto past_len = [&]() -> uint64_t {
-            switch (this_case) {
-            case Case::GENERATE:
-                // decode case, we have pos_id-1 past elements to take from kvcache
-                return pos_id;
-            case Case::PREFILL:
-                // chunked prefill case. calculate the past_length in full chunks
-                return (pos_id / dynamic.query_size) * dynamic.query_size;
-            default:
-                NPUW_ASSERT(false && "Reached the unreachable code");
-            }
-        }();
-
+        const auto past_len = m_dynamic_selector->past_length();
         // Set the past k/v values first
         for (auto&& param : dynamic.params) {
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];

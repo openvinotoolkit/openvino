@@ -5,11 +5,16 @@
 
 #include "util.hpp"
 
-ov::npuw::runtime::dynamic::PositionIDs::PositionIDs(std::size_t param_idx, const ov::ISyncInferRequest& rq)
+ov::npuw::runtime::dynamic::PositionIDs::PositionIDs(std::size_t param_idx, const ov::npuw::compiled::Dynamic &d, const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
-      m_rq(rq) {}
+      m_d(d),
+      m_rq(rq) {
+    // FIXME: speculative decode is indistinguishable at this point!
+    m_case = m_d.query_size == 1 ? Case::GENERATE : Case::PREFILL;
+}
 
 ov::npuw::runtime::dynamic::Selector::Ptr ov::npuw::runtime::dynamic::PositionIDs::find(
+    const ov::npuw::compiled::Dynamic &d,
     const ov::ISyncInferRequest& rq) {
     auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
         const auto& shape = p.get_shape();
@@ -22,7 +27,7 @@ ov::npuw::runtime::dynamic::Selector::Ptr ov::npuw::runtime::dynamic::PositionID
     auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
     if (pos_ids_iter != inputs.end()) {
         const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
-        return Selector::Ptr{new PositionIDs(param_idx, rq)};
+        return Selector::Ptr{new PositionIDs(param_idx, d, rq)};
     }
     return Selector::Ptr{};
 }
@@ -43,7 +48,21 @@ void ov::npuw::runtime::dynamic::PositionIDs::prepare() {
     auto* pos_data_ptr = in_tensor->data<int64_t>();
     for (auto idx = in_dims.back() - 1; idx >= 0; idx--) {
         if (pos_data_ptr[idx] > 0) {
+            // Initialize fields
             m_current_length = pos_data_ptr[idx];
+            switch (m_case) {
+            case Case::GENERATE:
+                // decode case, we have pos_id-1 past elements to take from kvcache
+                m_past_length = m_current_length;
+                break;
+            case dynamic::Selector::Case::PREFILL:
+                // chunked prefill case. calculate the past_length in full chunks
+                // FIXME: We know too much about chunking here
+                m_past_length = (m_current_length / m_d.query_size) * m_d.query_size;
+                break;
+            default:
+                NPUW_ASSERT(false && "Reached the unreachable code");
+            }
             return;
         }
     }
@@ -51,6 +70,10 @@ void ov::npuw::runtime::dynamic::PositionIDs::prepare() {
     m_current_length = -1;
 }
 
-int64_t ov::npuw::runtime::dynamic::PositionIDs::length() {
+int64_t ov::npuw::runtime::dynamic::PositionIDs::length() const {
     return m_current_length;
+}
+
+int64_t ov::npuw::runtime::dynamic::PositionIDs::past_length() const {
+    return m_past_length;
 }

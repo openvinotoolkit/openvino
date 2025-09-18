@@ -203,6 +203,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     bool failover_happened = false;
     bool has_spatial = false;
     bool has_dynamic = false;
+    std::size_t dynamic_sub_idx = -1;
     for (size_t i = 0; i < m_num_submodels; i++) {
         LOG_INFO("Creating infer request for Subgraph[" << i << "]...");
         LOG_BLOCK();
@@ -251,7 +252,12 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             // Initialize the dynamic IO placeholders, if required
             if (proto_comp_model_desc.dynamic) {
+                // Sanity check first
+                if (has_dynamic && dynamic_sub_idx != real_idx) {
+                    OPENVINO_THROW("Only single attention type is permitted for model");
+                }
                 has_dynamic = true;
+                dynamic_sub_idx = real_idx;
                 m_dynamic_io[i].inputs.resize(proto_comp_model_desc.param_base);
             }  // if(dynamic)
 
@@ -362,7 +368,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     // Handle dynamic submission
     if (has_dynamic) {
-        m_dynamic_selector = runtime::dynamic::PositionIDs::find(*this);
+        const auto &dyn = m_npuw_model->m_compiled_submodels.at(dynamic_sub_idx).dynamic.value();
+        m_dynamic_selector = runtime::dynamic::PositionIDs::find(dyn, *this);
         if (!m_dynamic_selector) {
             LOG_WARN("Dynamic capability is enabled, but no run-time features were found.");
             m_dynamic_selector.reset(new runtime::dynamic::All());
@@ -881,57 +888,32 @@ void ov::npuw::JustInferRequest::unsafe_infer_dynamic(std::size_t real_idx, std:
     auto mask_iport = comp_model_desc.compiled_model->inputs()[dynamic.mask_idx];
 
     const auto &graph_mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
-
-    enum class Case { PREFILL, GENERATE};
-    Case this_case = dynamic.query_size == 1 ? Case::GENERATE : Case::PREFILL;
-    // FIXME: speculative decode is indistinguishable at this point!
-
+    const auto this_case = m_dynamic_selector->this_case();
     auto pos_id = m_dynamic_selector->length();
 
     if (pos_id == -1) {
         // Dynamic range couldn't be identified - fallback to the default
         // (worst case) behavior
-        #if 0
-        for (auto&& param : dynamic.params) {
-            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-            const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
-            r->set_tensor(iport, input);
-        }
-        #endif
-        r->set_tensor(mask_iport, graph_mask);
+        const auto &mask = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
+        r->set_tensor(mask_iport, mask);
     } else {
-        auto past_len = [&]() -> uint64_t {
-            switch (this_case) {
-            case Case::GENERATE:
-                // decode case, we have pos_id-1 past elements to take from kvcache
-                return pos_id;
-            case Case::PREFILL:
-                // chunked prefill case. calculate the past_length in full chunks
-                return (pos_id / dynamic.query_size) * dynamic.query_size;
-            default:
-                NPUW_ASSERT(false && "Reached the unreachable code");
-            }
-        }();
-        #if 0
-        // Set the past k/v values first, it is easy!
-        for (auto&& param : dynamic.params) {
-            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-            const auto& input = m_dynamic_io[idx].inputs.at(param.idx);
-            r->set_tensor(iport, ov::npuw::util::view(input, param.dim, 0, past_len));
-        }  // for(params)
-        #endif
+        const auto past_len = m_dynamic_selector->past_length();
+
         // Now set the mask. Here comes very strong chunking & SDPA knowledge again
-        if (this_case == Case::GENERATE) {
+        using namespace ov::npuw::runtime;
+        if (this_case == dynamic::Selector::Case::GENERATE) {
             // Take a view from our "attend_all" mask
             // FIXME: get the right dim
             const auto &view = ov::npuw::util::view(ov::get_tensor_impl(dynamic.attend_all), 3, 0, past_len + 1);
             r->set_tensor(mask_iport, view);
-        } else if (this_case == Case::PREFILL) {
+        } else if (this_case == dynamic::Selector::Case::PREFILL) {
             // Use our in-graph synthesized mask
             // FIXME: get the right dim
             const auto &input = m_dynamic_io[idx].inputs.at(dynamic.mask_idx);
             const auto &view = ov::npuw::util::view(input, 3, dynamic.context_size - dynamic.query_size - past_len, dynamic.query_size + past_len);
             r->set_tensor(mask_iport, view);
+        } else {
+            NPUW_ASSERT(false && "Reached the unreachable code");
         }
     }
     r->infer();
