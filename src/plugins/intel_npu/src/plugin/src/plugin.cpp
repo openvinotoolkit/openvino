@@ -536,18 +536,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
-    [[maybe_unused]] std::shared_ptr<const ov::Model> modelPtr = nullptr;
-    if (auto modelPtrIt = localProperties.find(ov::hint::model.name()); modelPtrIt != localProperties.end()) {
-        modelPtr =
-            modelPtrIt->second.is<decltype(modelPtr)>()
-                ? modelPtrIt->second.as<decltype(modelPtr)>()
-                : modelPtrIt->second
-                      .as<decltype(std::const_pointer_cast<std::remove_const<decltype(modelPtr)::element_type>::type>(
-                          modelPtr))>();
-        localProperties.erase(modelPtrIt);
-        /* if (*modelPtr != *model) {
-            _logger.warning("Model received in config differs from model given to compile_model function.");
-        } */
+    auto modelPtr = utils::exclude_model_ptr_from_map(localProperties);
+    if (modelPtr) {
+        _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
     }
 
     const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
@@ -826,17 +817,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
-    std::shared_ptr<const ov::Model> originalModel = nullptr;
-    if (auto modelPtrIt = npu_plugin_properties.find(ov::hint::model.name());
-        modelPtrIt != npu_plugin_properties.end()) {
-        originalModel =
-            modelPtrIt->second.is<decltype(originalModel)>()
-                ? modelPtrIt->second.as<decltype(originalModel)>()
-                : modelPtrIt->second.as<
-                      decltype(std::const_pointer_cast<std::remove_const<decltype(originalModel)::element_type>::type>(
-                          originalModel))>();
-        npu_plugin_properties.erase(modelPtrIt);
-    }
+    auto originalModel = utils::exclude_model_ptr_from_map(npu_plugin_properties);
 
     CompilerAdapterFactory compilerAdapterFactory;
     const auto propertiesMap = any_copy(npu_plugin_properties);

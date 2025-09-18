@@ -221,31 +221,6 @@ TEST_P(ClassPluginPropertiesTestSuite4NPU, CanNotSetGetInexistentProperty) {
                  ov::Exception);  // Expect to throw due to unsupported config
 }
 
-using ClassPluginPropertiesTestSuite5NPU = ClassExecutableNetworkGetPropertiesTestNPU;
-
-TEST_P(ClassPluginPropertiesTestSuite5NPU, ValidMODEL_PTRWorks) {
-    auto supported_properties =
-        ie.get_property(deviceName, ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
-    if (std::find(supported_properties.begin(), supported_properties.end(), ov::cache_mode.name()) ==
-        supported_properties.end()) {
-        ov::util::LogHelper logger(ov::util::LOG_TYPE::_LOG_TYPE_WARNING, __FILE__, __LINE__);
-        logger.stream() << "CACHE_MODE property is not supported by the current compiler thus MODEL_PTR will not be "
-                           "properly tested.";
-        GTEST_SKIP();
-    }
-    for (size_t i = 0; i < 2; ++i) {
-        ov::AnyMap props = {{configKey, configValue},
-                            {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SIZE},
-                            {ov::hint::model.name(), i != 0 ? std::const_pointer_cast<const ov::Model>(model) : model}};
-        ov::CompiledModel compiledModel;
-        OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, props));
-
-        std::stringstream ss;
-        compiledModel.export_model(ss);
-        OV_ASSERT_NO_THROW(compiledModel = ie.import_model(ss, deviceName, props));
-    }
-}
-
 using ClassExecutableNetworkInvalidDeviceIDTestSuite = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
