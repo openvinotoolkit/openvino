@@ -7,9 +7,10 @@
 #include <iostream>
 
 #include "openvino/openvino.hpp"
-#include "compiled_model.hpp"
-#include "just_sync_infer_request.hpp"
+#include "npuw/compiled_model.hpp"
+#include "npuw/just_sync_infer_request.hpp"
 #include "model_generator/model_generator.hpp"
+#include "plugin.hpp"
 
 // FIXME: parametrize all the tests below
 
@@ -43,8 +44,11 @@ TEST(SetTensor, RemoteTensorOutputJust) {
     ov::Tensor values(element_type, output_tensor_shape, data.data());
     values.copy_to(output);
 
+    // Create plugin object
+    auto plugin = std::make_shared<intel_npu::Plugin>();
+
     // Compile NPUW
-    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, nullptr, ov::AnyMap{});
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, ov::AnyMap{});
 
     // Create infer request
     std::shared_ptr<ov::ISyncInferRequest> request;
