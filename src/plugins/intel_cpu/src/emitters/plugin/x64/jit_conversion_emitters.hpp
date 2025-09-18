@@ -14,7 +14,6 @@
 #include "jit_emitter.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/convert.hpp"
 
 namespace ov::intel_cpu {
 

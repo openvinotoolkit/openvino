@@ -685,7 +685,7 @@ def test_op_extension_via_onnx_extension_set_attrs_values():
     core.add_extension(OpExtension("Elu", {}, {"alpha": 1.0}))
     core.add_extension(OpExtension("Floor"))
     core.add_extension(OpExtension("Concat", {}, {"axis": 0}))
-    core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
+    core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}, {"no_clamp", False}, {"use_rounding", False}))
     core.add_extension(
         OpExtension(
             "AvgPool",
@@ -724,7 +724,7 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
     core.add_extension(OpExtension("Elu", "Elu", {}, {"alpha": 1.0}))
     core.add_extension(OpExtension("Floor"))
     core.add_extension(OpExtension("Concat", {}, {"axis": 0}))
-    core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}))
+    core.add_extension(OpExtension("Convert", "Cast", {}, {"destination_type": "i64"}, {"no_clamp", False}, {"use_rounding", False}))
     core.add_extension(
         OpExtension(
             "AvgPool",

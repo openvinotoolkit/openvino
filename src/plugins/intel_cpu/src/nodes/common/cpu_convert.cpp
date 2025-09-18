@@ -563,21 +563,19 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
 
         if (ctx.no_clamp || ctx.use_rounding) {
             if (std::is_integral_v<src_t>) {
-                auto convert_func = [&](size_t i) {
+                auto convert_func = [&, lbound = lbound, ubound = ubound](size_t i) {
                     src_t value = ctx.no_clamp ? src[i] : std::max(std::min(src[i], ubound), lbound);
                     dst[i] = static_cast<dst_t>(value);
                 };
 
                 parallel_for(ctx.size, convert_func);
             } else {
-                auto apply_conversion = [&](src_t value) -> dst_t {
+                auto apply_conversion = [&, lbound = lbound, ubound = ubound](src_t value) -> dst_t {
                     if (ctx.no_clamp) {
                         return static_cast<dst_t>(ctx.use_rounding ? std::round(value) : std::trunc(value));
-                    } else {
-                        return static_cast<dst_t>(ctx.use_rounding
-                                                      ? std::round(std::max(std::min(value, ubound), lbound))
-                                                      : std::trunc(std::max(std::min(value, ubound), lbound)));
                     }
+                    return static_cast<dst_t>(ctx.use_rounding ? std::round(std::max(std::min(value, ubound), lbound))
+                                                               : std::trunc(std::max(std::min(value, ubound), lbound)));
                 };
                 parallel_for(ctx.size, [&](size_t i) {
                     dst[i] = apply_conversion(src[i]);
