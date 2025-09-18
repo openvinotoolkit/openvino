@@ -102,16 +102,6 @@ const std::shared_ptr<const ov::ICompiledModel>& SyncInferRequest::get_compiled_
     return _compiledModel;
 }
 
-void SyncInferRequest::initialize_states() {
-    for (const ov::SoPtr<ov::IVariableState>& variableState : _variableStates) {
-        variableState->reset();
-    }
-}
-
-std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
-    return _variableStates;
-}
-
 ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
@@ -321,11 +311,6 @@ void SyncInferRequest::check_tensors() const {
             check_tensor(outputs[i], _userOutputTensors.at(i));
         }
     }
-}
-
-void SyncInferRequest::add_state(const IODescriptor& descriptor, const size_t tensorIndex) const {
-    _variableStates.push_back(
-        std::make_shared<VariableState>(descriptor.nameFromCompiler, get_user_input(tensorIndex)));
 }
 
 bool SyncInferRequest::is_batched_input(size_t idx) const {

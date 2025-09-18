@@ -6,7 +6,6 @@
 
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/common/variable_state.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -85,13 +84,11 @@ public:
      */
     virtual void get_result() = 0;
 
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
-
     /**
      * @brief Initializes the tensor values corresponding to the state variables.
      * @details The inital values are usually all 0s.
      */
-    void initialize_states();
+    virtual void initialize_states() = 0;
 
 protected:
     /**
@@ -148,8 +145,6 @@ protected:
      */
     virtual void check_network_precision(const ov::element::Type_t precision) const = 0;
 
-    virtual void add_state(const IODescriptor& descriptor, const size_t tensorIndex) const;
-
     bool is_batched_input(size_t idx) const;
 
     ov::SoPtr<ov::ITensor>& get_user_input(size_t index) const;
@@ -166,8 +161,6 @@ protected:
     // In case set_tensors is called, we receive a vector with N tensors otherwise only 1 tensor is needed
     mutable std::vector<std::vector<ov::SoPtr<ov::ITensor>>> _userInputTensors;
     mutable std::vector<ov::SoPtr<ov::ITensor>> _userOutputTensors;
-
-    mutable std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
 
     /**
      * @see ov::ISyncInferRequest

@@ -8,6 +8,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "zero_tensor.hpp"
 
 namespace intel_npu {
 
@@ -23,12 +24,15 @@ public:
                                const ov::SoPtr<ov::ITensor>& tensor,
                                size_t tensor_index,
                                size_t related_tensor_index,
-                               const Config& config,
-                               bool external_memory_standard_allocation_supported);
+                               const Config& config);
 
     void set_state(const ov::SoPtr<ov::ITensor>& new_state) override;
 
     void reset() override;
+
+    ov::SoPtr<ov::ITensor> get_state() const override;
+
+    std::shared_ptr<ZeroTensor> get_zero_state() const;
 
     /**
      * @brief Get input tensor index used internally for the state
@@ -62,16 +66,6 @@ public:
      */
     void reset_zero_tensor_updated_flag();
 
-    /**
-     * @brief Get acknowledgment if the zero tensor can be imported
-     */
-    bool zero_tensor_should_be_imported() const;
-
-    /**
-     * @brief Reset zero tensor imported flag
-     */
-    void reset_tensor_imported_flag();
-
     ~ZeroVariableState() override = default;
 
 private:
@@ -79,11 +73,10 @@ private:
     size_t _tensor_index;
     size_t _related_tensor_index;
 
+    std::shared_ptr<ZeroTensor> _zero_state;
+
     bool _tensor_updated = false;
     bool _zero_tensor_updated = false;
-    bool _tensor_should_be_imported = false;
-
-    bool _external_memory_standard_allocation_supported = false;
 
     const Config _config;
     Logger _logger;

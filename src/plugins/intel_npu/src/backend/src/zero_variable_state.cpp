@@ -6,9 +6,9 @@
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "zero_tensor.hpp"
 
 namespace intel_npu {
 
@@ -17,13 +17,11 @@ ZeroVariableState::ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder
                                      const ov::SoPtr<ov::ITensor>& tensor,
                                      size_t tensor_index,
                                      size_t related_tensor_index,
-                                     const Config& config,
-                                     bool external_memory_standard_allocation_supported)
+                                     const Config& config)
     : ov::IVariableState(name),
       _init_structs(init_structs),
       _tensor_index(tensor_index),
       _related_tensor_index(related_tensor_index),
-      _external_memory_standard_allocation_supported(external_memory_standard_allocation_supported),
       _config(config),
       _logger("ZeroVariableState", _config.get<LOG_LEVEL>()) {
     m_state = tensor;
@@ -34,26 +32,40 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
     _tensor_updated = true;
 
     if (_init_structs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-        if (!is_remote_tensor(new_state._ptr)) {
-            if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_init_structs->getContext(),
-                                                                       new_state->data())) {
-                _logger.debug("ZeroVariableState::set_state - tensor was created in the same L0 context");
-
-                _zero_tensor_updated = true;
-            } else if (_external_memory_standard_allocation_supported &&
-                       utils::memory_and_size_aligned_to_standard_page_size(new_state->data(),
-                                                                            new_state->get_byte_size())) {
-                _logger.debug("ZeroVariableState::set_state - tensor will be imported");
-
-                _tensor_should_be_imported = true;
+        try {
+            _logger.debug("ZeroVariableState::set_state - create zero tensor");
+            // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
+            // context.
+            _zero_state = std::make_shared<ZeroTensor>(_init_structs, m_state, _config);
+            _zero_tensor_updated = true;
+        } catch (const ZeroTensorException&) {
+            // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
+            // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
+            if (_zero_state == nullptr || !_zero_state->can_be_reused()) {
+                _logger.debug("ZeroVariableState::set_state - allocate locally L0 tensor");
+                _zero_state = std::make_shared<ZeroTensor>(_init_structs,
+                                                           _config,
+                                                           m_state->get_element_type(),
+                                                           m_state->get_shape(),
+                                                           false);
                 _zero_tensor_updated = true;
             }
-
-            return;
         }
-
-        _zero_tensor_updated = true;
+        // If command list updates are not supported, fallback to copying tensors every time.
     }
+}
+
+ov::SoPtr<ov::ITensor> ZeroVariableState::get_state() const {
+    auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(m_state._ptr);
+    if (zeroTensor != nullptr) {
+        zeroTensor->prevent_reuse();
+    }
+
+    return m_state;
+}
+
+std::shared_ptr<ZeroTensor> ZeroVariableState::get_zero_state() const {
+    return _zero_state;
 }
 
 void ZeroVariableState::reset() {
@@ -86,14 +98,6 @@ bool ZeroVariableState::zero_tensor_should_be_updated() const {
 
 void ZeroVariableState::reset_zero_tensor_updated_flag() {
     _zero_tensor_updated = false;
-}
-
-bool ZeroVariableState::zero_tensor_should_be_imported() const {
-    return _tensor_should_be_imported;
-}
-
-void ZeroVariableState::reset_tensor_imported_flag() {
-    _tensor_should_be_imported = false;
 }
 
 }  // namespace intel_npu
