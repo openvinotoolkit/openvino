@@ -15,8 +15,8 @@
 namespace ov::intel_cpu::aarch64 {
 
 // Usage
-// 1. Include this header in AArch64 JIT kernels when register printing is required.
-// 2. Invoke RegPrinter::print method with a supported register/precision combination.
+// 1. Include this header in AArch64 JIT kernels if register printing is required.
+// 2. Invoke the RegPrinter::print method with a supported register/precision combination.
 //    Examples:
 //      RegPrinter::print<float>(*this, vmm_val, "vmm_val");
 //      RegPrinter::print<int>(*this, vmm_idx);
@@ -56,10 +56,10 @@ private:
     static void print_reg(jit_generator_t& h, const REG_T& reg, const char* name);
 
     template <typename PRC_T, size_t vlen>
-    static void print_vmm_prc(const char* name, const char* ori_name, PRC_T* ptr);
+    static void print_vmm_prc(const char* name, const char* orig_name, PRC_T* ptr);
 
     template <typename T>
-    static void print_reg_prc(const char* name, const char* ori_name, T* ptr);
+    static void print_reg_prc(const char* name, const char* orig_name, T* ptr);
 
     static void preamble(jit_generator_t& h);
     static void postamble(jit_generator_t& h);

@@ -60,12 +60,12 @@ constexpr uintptr_t to_uintptr(std::nullptr_t) {
 }  // namespace
 
 template <typename T>
-void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
+void RegPrinter::print_reg_prc(const char* name, const char* orig_name, T* ptr) {
     std::stringstream ss;
     if (name) {
         ss << name << " | ";
     }
-    ss << ori_name << ": ";
+    ss << orig_name << ": ";
     if (std::is_floating_point_v<T>) {
         ss << *ptr;
     } else {
@@ -80,12 +80,12 @@ void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
 }
 
 template <typename PRC_T, size_t vlen>
-void RegPrinter::print_vmm_prc(const char* name, const char* ori_name, PRC_T* ptr) {
+void RegPrinter::print_vmm_prc(const char* name, const char* orig_name, PRC_T* ptr) {
     std::stringstream ss;
     if (name) {
         ss << name << " | ";
     }
-    ss << ori_name << ": {";
+    ss << orig_name << ": {";
 
     constexpr size_t elems = vlen / sizeof(PRC_T);
     for (size_t idx = 0; idx < elems; ++idx) {
@@ -236,11 +236,11 @@ template void RegPrinter::print<int, XReg>(jit_generator_t& h, XReg reg, const c
 template void RegPrinter::print<float, WReg>(jit_generator_t& h, WReg reg, const char* name);
 template void RegPrinter::print<int, WReg>(jit_generator_t& h, WReg reg, const char* name);
 
-template void RegPrinter::print_vmm_prc<float, RegPrinter::vec_len>(const char* name, const char* ori_name, float* ptr);
-template void RegPrinter::print_vmm_prc<int, RegPrinter::vec_len>(const char* name, const char* ori_name, int* ptr);
+template void RegPrinter::print_vmm_prc<float, RegPrinter::vec_len>(const char* name, const char* orig_name, float* ptr);
+template void RegPrinter::print_vmm_prc<int, RegPrinter::vec_len>(const char* name, const char* orig_name, int* ptr);
 
-template void RegPrinter::print_reg_prc<float>(const char* name, const char* ori_name, float* ptr);
-template void RegPrinter::print_reg_prc<int>(const char* name, const char* ori_name, int* ptr);
+template void RegPrinter::print_reg_prc<float>(const char* name, const char* orig_name, float* ptr);
+template void RegPrinter::print_reg_prc<int>(const char* name, const char* orig_name, int* ptr);
 }  // namespace ov::intel_cpu::aarch64
 
 #endif  // CPU_DEBUG_CAPS
