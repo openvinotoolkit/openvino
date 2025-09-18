@@ -145,12 +145,8 @@ void copy_data_from_input(complex_type* result,
 
 // This function checks whether data of given complex blob are only zeros.
 bool blob_is_zero(const complex_type* data, int64_t blob_size) {
-    for (int64_t i = 0; i < blob_size; ++i) {
-        if (data[i] != complex_type{0.0f, 0.0f}) {
-            return false;
-        }
-    }
-    return true;
+    return std::all_of(data, data + blob_size, [](const complex_type& v) {
+        return v == complex_type{0.0f, 0.0f}; });
 }
 
 // Copying calculated data to the given memory domain.
