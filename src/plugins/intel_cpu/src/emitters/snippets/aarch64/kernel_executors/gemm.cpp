@@ -22,6 +22,10 @@
 
 namespace ov::intel_cpu::aarch64 {
 
+void GemmKernelKaiConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) {
+    update(M, N, K, LDA, LDB, LDC, beta, precision);
+}
+
 void GemmKernelKaiConfig::update(int64_t M,
                                  int64_t N,
                                  int64_t K,
