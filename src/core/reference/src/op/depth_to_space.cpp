@@ -89,6 +89,8 @@ void depth_to_space(const char* const in,
         }
         break;
     }
+    default:
+        OPENVINO_ASSERT(false, "DepthToSpace: Unknown mode value: ", static_cast<int>(mode));
     }
 
     Shape post_transpose_shape(axes_order.size());
