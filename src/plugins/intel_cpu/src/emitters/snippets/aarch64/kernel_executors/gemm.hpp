@@ -32,6 +32,7 @@ public:
         return !(*this == rhs);
     }
 
+    void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) override;
     void
     update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta, ov::element::Type prc);
 
