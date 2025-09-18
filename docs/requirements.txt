@@ -38,7 +38,7 @@ six==1.17.0
 snowballstemmer==3.0.1
 soupsieve==2.8
 sphinx==7.4.7; python_version >= "3.10"
-sphinx==7.3.7; python_version < "3.10"
+sphinx==7.4.7; python_version < "3.10"
 sphinx-copybutton==0.5.2
 sphinx-design==0.6.1
 sphinx-inline-tabs==2023.4.21
