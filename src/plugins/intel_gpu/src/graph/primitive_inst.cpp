@@ -2117,6 +2117,22 @@ void primitive_inst::execute() {
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
 
+    GPU_DEBUG_IF(get_config().get_validate_output_buffer()) {
+        get_network().get_stream().finish();
+        auto &layout = _impl_params->get_output_layout(0);
+        auto output_mem = output_memory_ptr(0);
+        if (output_mem && layout.data_type == data_types::f16) {
+            mem_lock<ov::float16, mem_lock_type::read> lock(output_mem, get_network().get_stream());
+            for (size_t k = 0; k < lock.size(); k++) {
+                if (std::isinf(lock[k]) || std::isnan(lock[k])) {
+                    std::string iter = "at iteration " + std::to_string(get_network().get_current_iteration_num());
+                    std::string err_str = std::isinf(lock[k]) ? "inf " : "nan ";
+                    OPENVINO_THROW(id() + " has " + err_str + iter);
+                }
+            }
+        }
+    }
+
     GPU_DEBUG_IF(!get_config().get_dump_profiling_data_path().empty()) {
         auto ev = _impl_params->out_event;
         get_network().get_stream().wait_for_events({ev});
