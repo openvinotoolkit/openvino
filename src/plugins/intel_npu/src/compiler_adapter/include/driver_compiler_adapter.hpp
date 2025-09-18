@@ -58,7 +58,8 @@ private:
 
     SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                              ze_graph_compiler_version_info_t compilerVersion,
-                             const uint32_t supportedOpsetVersion) const;
+                             const uint32_t supportedOpsetVersion,
+                             const bool useBetterModelSerialization) const;
 
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t compilerVersion) const;
 

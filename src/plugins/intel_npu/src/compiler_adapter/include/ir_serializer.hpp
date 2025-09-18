@@ -17,24 +17,39 @@
  */
 namespace intel_npu::driver_compiler_utils {
 
-class IRSerializer {
+// TODO interface and inheritance
+class IRSerializerBase {
 public:
-    IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset = 11);
+    IRSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
+                     const uint16_t compilerMajorVersion,
+                     const uint16_t compilerMinorVersion,
+                     const uint32_t supportedOpset = 11);
 
-    size_t getXmlSize() const {
-        return _xmlSize;
-    }
+    virtual SerializedIR serialize() = 0;
 
-    size_t getWeightsSize() const {
-        return _weightsSize;
-    }
+protected:
+    Logger _logger;
+    std::shared_ptr<ov::Model> _model = nullptr;
+    ze_graph_compiler_version_info_t _compilerVersion;
+    uint32_t _supportedOpset = 11;
+};
 
+class IRSerializerWithWeightsCopy : public IRSerializerBase {
+public:
+    IRSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                const uint16_t compilerMajorVersion,
+                                const uint16_t compilerMinorVersion,
+                                const uint32_t supportedOpset = 11)
+        : IRSerializerBase(origModel, compilerMajorVersion, compilerMinorVersion, supportedOpset){};
+
+    SerializedIR serialize() override;
+
+private:
     /**
      * @brief Serialize OpenVINO model to target buffer
      */
     void serializeModelToBuffer(uint8_t* xml, uint8_t* weights);
 
-private:
     /**
      * @brief Serialize OpenVINO model to target stream
      */
@@ -45,11 +60,31 @@ private:
      */
     void countModelSize();
 
-    Logger _logger;
-    std::shared_ptr<ov::Model> _model = nullptr;
-    uint32_t _supportedOpset = 11;
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
+};
+
+class IRSerializerWithoutWeightsCopy : public IRSerializerBase {
+public:
+    IRSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                   const uint16_t compilerMajorVersion,
+                                   const uint16_t compilerMinorVersion,
+                                   const uint32_t supportedOpset = 11)
+        : IRSerializerBase(origModel, compilerMajorVersion, compilerMinorVersion, supportedOpset){};
+
+    SerializedIR serialize() override;
+
+private:
+    void serializeModelToBuffer(uint8_t* buffer);
+
+    void serializeModelToStream(std::ostream& stream);
+
+    /**
+     * @brief Get size of xml and weights from model
+     */
+    void countModelSize();
+
+    size_t _serializedModelSize = 0;
 };
 
 }  // namespace intel_npu::driver_compiler_utils
