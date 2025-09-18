@@ -38,30 +38,27 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
     m_state = new_state;
     _is_state_updated = true;
 
-    if (_init_structs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-        try {
-            _logger.debug("ZeroVariableState::set_state - create zero tensor");
-            // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
-            // context.
-            _zero_state = std::make_shared<ZeroTensor>(_init_structs, m_state, _config);
+    try {
+        _logger.debug("ZeroVariableState::set_state - create zero tensor");
+        // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
+        // context.
+        _zero_state = std::make_shared<ZeroTensor>(_init_structs, m_state, _config);
+        _is_zero_state_update_needed = true;
+    } catch (const ZeroTensorException&) {
+        // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
+        // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
+        if (_zero_state == nullptr || !_zero_state->can_be_reused()) {
+            _logger.debug("ZeroVariableState::set_state - allocate locally L0 tensor");
+            _zero_state = std::make_shared<ZeroTensor>(_init_structs,
+                                                       _config,
+                                                       m_state->get_element_type(),
+                                                       m_state->get_shape(),
+                                                       false);
             _is_zero_state_update_needed = true;
-        } catch (const ZeroTensorException&) {
-            // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
-            // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
-            if (_zero_state == nullptr || !_zero_state->can_be_reused()) {
-                _logger.debug("ZeroVariableState::set_state - allocate locally L0 tensor");
-                _zero_state = std::make_shared<ZeroTensor>(_init_structs,
-                                                           _config,
-                                                           m_state->get_element_type(),
-                                                           m_state->get_shape(),
-                                                           false);
-                _is_zero_state_update_needed = true;
-            } else {
-                _logger.debug("ZeroVariableState::set_state - reusing the level zero tensor since it is not shared "
-                              "with the user");
-            }
+        } else {
+            _logger.debug("ZeroVariableState::set_state - reusing the level zero tensor since it is not shared "
+                          "with the user");
         }
-        // If command list updates are not supported, fallback to copying tensors every time.
     }
 }
 

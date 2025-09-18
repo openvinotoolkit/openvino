@@ -594,6 +594,10 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         }
 
         if (levelZeroTensor.at(SINGLE_TENSOR)->memory_address_changed()) {
+            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+                OPENVINO_THROW("Reallocation of zero memory is not supported with this driver.");
+            }
+
             _logger.debug("Update input graph descriptor with the new tensor");
             OPENVINO_ASSERT(levelZeroTensor.at(SINGLE_TENSOR)->data(), "Empty buffer");
 
@@ -620,6 +624,10 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         }
 
         if (levelZeroTensor->memory_address_changed()) {
+            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+                OPENVINO_THROW("Reallocation of zero memory is not supported with this driver.");
+            }
+
             _logger.debug("Update output graph descriptor with the new tensor");
             OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
 
@@ -644,7 +652,9 @@ void ZeroInferRequest::update_states_if_memory_changed() {
             _userOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_user_state();
             zeroState->clear_state_update_pending();
 
-            if (zeroState->zero_state_update_pending()) {
+            // If command list updates are not supported, fallback to copying tensors every time.
+            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) &&
+                zeroState->zero_state_update_pending()) {
                 get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_zero_state();
                 _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_zero_state();
                 zeroState->clear_zero_state_update_pending();
@@ -684,11 +694,8 @@ void ZeroInferRequest::infer_async() {
             _pipelineIsCreated = true;
             _dynamicBatchValueChanged = false;  // Reset reallocation flag
         } else {
-            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-                update_pipeline_if_memory_changed();
-                update_states_if_memory_changed();
-            }
-            // If command list updates are not supported, fallback to copying tensors every time.
+            update_pipeline_if_memory_changed();
+            update_states_if_memory_changed();
         }
     }
 

@@ -44,7 +44,7 @@ namespace ov {
 namespace test {
 namespace behavior {
 class ZeroTensorTests : public ov::test::behavior::OVPluginTestBase,
-                           public testing::WithParamInterface<CompilationParams> {
+                        public testing::WithParamInterface<CompilationParams> {
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
@@ -125,17 +125,13 @@ TEST_P(ZeroTensorTests, CheckSetSmallerShape) {
     auto new_shape = Shape{1, 10, 10, 10};
     auto new_shape_size = ov::shape_size(new_shape);
     // Reallocation is not required.
-    if (init_struct->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-        zero_tensor->set_shape(new_shape);
-        EXPECT_EQ(new_shape, zero_tensor->get_shape());
-        EXPECT_EQ(new_shape_size, zero_tensor->get_size());
-        EXPECT_EQ(new_shape_size * sizeof(ov::element::f32), zero_tensor->get_byte_size());
-        EXPECT_EQ(data, zero_tensor->data());
-        ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                        zero_tensor->data()));
-    } else {
-        ASSERT_THROW(zero_tensor->set_shape(new_shape), ov::Exception);
-    }
+    zero_tensor->set_shape(new_shape);
+    EXPECT_EQ(new_shape, zero_tensor->get_shape());
+    EXPECT_EQ(new_shape_size, zero_tensor->get_size());
+    EXPECT_EQ(new_shape_size * sizeof(ov::element::f32), zero_tensor->get_byte_size());
+    EXPECT_EQ(data, zero_tensor->data());
+    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+                                                                                    zero_tensor->data()));
 }
 
 TEST_P(ZeroTensorTests, CheckSetBiggerShape) {
@@ -152,13 +148,17 @@ TEST_P(ZeroTensorTests, CheckSetBiggerShape) {
     auto new_shape_size = ov::shape_size(new_shape);
     // set_shape() will force tensor reallocation for a larger shape. The new data pointer must also be a valid level
     // zero address.
-    zero_tensor->set_shape(new_shape);
-    EXPECT_EQ(new_shape, zero_tensor->get_shape());
-    EXPECT_EQ(new_shape_size, zero_tensor->get_size());
-    EXPECT_EQ(new_shape_size * sizeof(ov::element::f32), zero_tensor->get_byte_size());
-    ASSERT_TRUE(zero_tensor->memory_address_changed());
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    zero_tensor->data()));
+    if (init_struct->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+        zero_tensor->set_shape(new_shape);
+        EXPECT_EQ(new_shape, zero_tensor->get_shape());
+        EXPECT_EQ(new_shape_size, zero_tensor->get_size());
+        EXPECT_EQ(new_shape_size * sizeof(ov::element::f32), zero_tensor->get_byte_size());
+        ASSERT_TRUE(zero_tensor->memory_address_changed());
+        ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
+                                                                                        zero_tensor->data()));
+    } else {
+        ASSERT_THROW(zero_tensor->set_shape(new_shape), ov::Exception);
+    }
 }
 
 TEST_P(ZeroTensorTests, CheckIsContinuousZeroTensorScalar) {
