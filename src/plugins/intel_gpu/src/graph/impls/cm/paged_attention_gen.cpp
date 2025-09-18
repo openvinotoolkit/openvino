@@ -27,7 +27,9 @@ constexpr size_t reduce_split_step = 16;
 }  // namespace
 
 #define DEBUG_ENABLED 0
-
+#ifndef STRIDE
+#define STRIDE 16  // Define STRIDE constant
+#endif
 // This function returns the kv_step and kv_split_len based on the architecture.
 // return {kv_step, kv_split_len}
 inline std::pair<size_t, size_t> get_kv_split_size(size_t arch) {

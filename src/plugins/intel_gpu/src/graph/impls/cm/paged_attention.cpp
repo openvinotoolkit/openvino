@@ -25,6 +25,10 @@
 #include "openvino/util/file_util.hpp"
 #endif
 
+#ifndef STRIDE
+#define STRIDE 16  // Define STRIDE constant
+#endif
+
 namespace ov::intel_gpu::cm {
 
 class PagedAttentionCmImpl : public PrimitiveImplCM {
