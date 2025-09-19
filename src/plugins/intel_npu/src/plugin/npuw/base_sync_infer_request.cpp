@@ -23,6 +23,9 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
+    // (un) comment if (not) needed
+    m_profile.report_on_die = true;
+    m_profile.area = m_npuw_model->m_name;
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
@@ -239,6 +242,12 @@ std::vector<ov::ProfilingInfo> ov::npuw::IBaseInferRequest::get_profiling_info()
     return info;
 }
 
+std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
+    // So far accumulate over devices involved
+    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    return *proto_comp_model_desc.device_it;
+}
+
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
     prepare_for_infer();
@@ -250,7 +259,9 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
-        run_subrequest_for_success(idx, failover);
+        m_profile[profile_tag(idx)] += ov::npuw::perf::ms_to_run([&](){
+            run_subrequest_for_success(idx, failover);
+        });
         failover_happened |= failover;
         complete_subrequest(idx);
         if (m_npuw_model->m_acc_check) {
