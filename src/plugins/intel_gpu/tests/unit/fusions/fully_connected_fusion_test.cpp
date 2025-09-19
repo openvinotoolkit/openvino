@@ -422,6 +422,32 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise, ::testing::ValuesIn(std::
     fully_connected_test_params{ CASE_FC_U8S8_3, 2, 3 },
 }));
 
+
+class fc_int8_quantize_u8_input_range : public FullyConnectedFusingTest {};
+TEST_P(fc_int8_quantize_u8_input_range, input_range_quantization) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("in_lo", get_mem(get_single_element_layout(p), 0.0f)),
+        data("in_hi", get_mem(get_single_element_layout(p), 2400.0f)),
+        data("out_lo", get_mem(get_per_channel_layout(p), -100.f, 0)),
+        data("out_hi", get_mem(get_per_channel_layout(p), 1, 100.f)),
+        fully_connected("fc_prim", input_info("input"), "weights", "", data_types::f32, get_output_dim_size(p), get_input_weights_rank(p)),
+        quantize("quantize", input_info("fc_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_quantize_u8_input_range, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_U8S8_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_U8S8_3D_1, 2, 3 },
+}));
+
 class fc_int8_quantize_u8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_quantize_u8, basic) {
     // TODO: Fix me, refer PR(#15873)
