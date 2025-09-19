@@ -33,6 +33,18 @@ struct Attention {
     // as it reflects the attention input here.
     PPtr _mask;
     ov::Shape _mask_shape;
+
+    std::size_t query_len() const {
+        // Put the mask's innermost dimension dynamic
+        NPUW_ASSERT(_mask_shape.size() == 4);
+        return _mask_shape.at(2);
+    }
+
+    std::size_t context_len() const {
+        // Put the mask's innermost dimension dynamic
+        NPUW_ASSERT(_mask_shape.size() == 4);
+        return _mask_shape.at(3);
+    }
 };
 
 }  // namespace function
@@ -55,8 +67,8 @@ struct Attention {
 
     Attention() = default;
     Attention(const function::Attention& d, const std::shared_ptr<ov::Model>& m)
-        : query_size(d._mask_shape.at(2))
-        , context_size(d._mask_shape.at(3)) {
+        : query_size(d.query_len())
+        , context_size(d.context_len()) {
         for (auto&& input : d._inputs) {
             std::size_t p_idx = m->get_parameter_index(input.param);
             params.push_back(Param{p_idx, input.dim});

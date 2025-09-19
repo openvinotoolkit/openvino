@@ -1799,18 +1799,6 @@ void Partitioner::identifyAttentionParams(ov::npuw::Function& f) {
 
     ov::npuw::function::Attention dyn;
 
-    const auto& f_params = f._model->get_parameters();
-    NPUW_ASSERT(f_params.size() > 0);
-
-    // Find the attention inputs with dynamic range
-    for (auto&& param : f_params) {
-        // A bad test but it is what it is
-        if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
-            // FIXME: Take KV_DIM elsewhere!!!
-            dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, 2});
-        }
-    }
-
     // Find the mask input (also sizeable). FIXME: We know too much at this point
     auto ops = f._model->get_ordered_ops();
     auto sdpa_iter = std::find_if(ops.begin(), ops.end(), [](auto&& node_ptr) {
@@ -1836,6 +1824,40 @@ void Partitioner::identifyAttentionParams(ov::npuw::Function& f) {
     }
     NPUW_ASSERT(ov::op::util::is_parameter(mask_in_node));
     dyn._mask = std::static_pointer_cast<ov::op::v0::Parameter>(mask_in_node);
+    dyn._mask_shape = dyn._mask->get_shape();
+
+    // Find the attention inputs with dynamic range
+    const auto& f_params = f._model->get_parameters();
+    NPUW_ASSERT(f_params.size() > 0);
+
+    auto find_context_dim = [&](const auto& param, auto &&f) {
+        const auto &param_shape = param->get_shape();
+        // Look for the dynamic parameter size - past size in this case
+        // With our approach it is context_size - query_size
+        auto past_len = dyn.context_len() - dyn.query_len();
+        auto dim_iter = std::find(param_shape.begin(), param_shape.end(), past_len);
+        if (dim_iter == param_shape.end()) {
+            // No such dim found
+            return false;
+        }
+        if (std::find(dim_iter + 1, param_shape.end(), past_len) != param_shape.end()) {
+            // There must be no other such dim
+            return false;
+        }
+        f(*dim_iter);
+        return true;
+    };
+
+    for (auto&& param : f_params) {
+        // A bad test but it is what it is
+        if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
+            if (!find_context_dim(param, [&](std::size_t dim) {
+                dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, 2});
+            })) {
+                return;             // Couldn't identify parameter's dynamic dimension
+            }
+        }
+    }
 
     if (dyn._inputs.empty() || !dyn._mask) {
         return;  // do nothing
@@ -1998,9 +2020,9 @@ void Partitioner::attention(const std::string& func_name) {
     }
     // Mask
     {
-        f._attention->_mask_shape = f._attention->_mask->get_shape();
         ov::PartialShape dyn_shape = f._attention->_mask_shape;
-        dyn_shape[dyn_shape.size() - 1] = ov::Dimension();
+        // Put the mask's innermost dimension dynamic
+        *dyn_shape.rbegin() = ov::Dimension();
         new_shapes[f._attention->_mask->output(0)] = std::move(dyn_shape);
     }
     f._model->reshape(new_shapes);
@@ -2023,7 +2045,8 @@ void Partitioner::attention(const std::string& func_name) {
         auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
         auto shape_values = shape_const->cast_vector<int32_t>();
         for (auto &&d : shape_values) {
-            if (d == f._attention->_mask_shape.back()) {
+            //  Assume the context length is the mask's innermost dimension
+            if (static_cast<std::size_t>(d) == f._attention->context_len()) {
                 d = 1;
             }
         }
