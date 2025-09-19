@@ -71,6 +71,8 @@ public:
         return m_output_port_descriptors;
     }
 
+    ExpressionPtr get_input_expr_ptr(size_t i) const;
+
     size_t get_input_count() const {
         return m_input_port_connectors.size();
     }

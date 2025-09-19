@@ -27,7 +27,6 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
         return false;
     }
 
-    const auto& loop_connectors = loop_end_expr->get_input_port_connectors();
     const auto input_count = loop_end->get_input_num();
     const auto output_count = loop_end->get_output_num();
 
@@ -40,7 +39,7 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
     //    Load_0  Load_1
     std::set<ExpressionPtr> read_data_exprs;
     for (size_t i = 0; i < input_count; ++i) {
-        const auto& parent_output = loop_connectors[i]->get_source().get_expr();
+        const auto& parent_output = loop_end_expr->get_input_expr_ptr(i);
         if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(parent_output)) {
             // If Buffer is missed in set, Just save - it's first meeting
             if (buffers_groups.count(buffer_expr->get_reg_group()) == 0) {
@@ -60,6 +59,8 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
             }
         }
     }
+
+    const auto& loop_connectors = loop_end_expr->get_input_port_connectors();
     for (size_t i = 0; i < output_count; ++i) {
         const auto consumer_inputs = loop_connectors[input_count + i]->get_consumers();
         size_t buffer_count = 0;

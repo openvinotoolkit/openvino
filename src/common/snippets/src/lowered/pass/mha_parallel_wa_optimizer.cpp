@@ -161,7 +161,7 @@ std::unordered_set<size_t> MHAParallelWAOptimizer::find_unsqueezed_params(
 
     std::unordered_set<lowered::ExpressionPtr> visited;
     for (const auto& brgemm : brgemms) {
-        const auto& brgemm_b_input = brgemm->get_input_port_connector(1)->get_source().get_expr();
+        const auto& brgemm_b_input = brgemm->get_input_expr_ptr(1);
         utils::visit_path(brgemm_b_input, visited, add_param, true);
     }
     return unsqueezed_params;
