@@ -91,6 +91,13 @@ static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUER
 static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};
 
 /**
+ * @brief Read-only property to get maximum batch size which does not cause performance degradation due to memory swap
+ * impact.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint32_t, PropertyMutability::RO> cache_header_align{"CACHE_HEADER_ALIGN"};
+
+/**
  * @brief Enum to define possible cache quant schema hints.
  */
 enum class CacheQuantMode { AUTO = 0, BY_CHANNEL = 1, BY_TOKEN = 2 };
@@ -146,13 +153,13 @@ inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
     ├───────────────────────────────┤ token[0]
     ├───────────────────────────────┤ token[1]
     │                               │ ...
-    │                               │ 
-    │                               │ 
+    │                               │
+    │                               │
     │                               │ token[seq_len - 1]
     └───────────────────────────────┘
     c[0] c[1] ...    c[head_size - 1]
  */
-                                                      
+
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quant_mode{"KEY_CACHE_QUANT_MODE"};
 
 /**
