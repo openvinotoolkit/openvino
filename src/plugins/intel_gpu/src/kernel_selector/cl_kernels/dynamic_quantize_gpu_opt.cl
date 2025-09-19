@@ -17,7 +17,7 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
-#ifdef GENERATE_PARTIAL_SUM
+#ifdef GENERATE_PRECOMPUTED_REDUCTION
     #define FOR_PRECOMPUTED_REDUCTION(x)  x
 #else
     #define FOR_PRECOMPUTED_REDUCTION(x)
@@ -40,8 +40,8 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     __global OUTPUT1_TYPE* output_scale
-#if GENERATE_PARTIAL_SUM
-    , __global OUTPUT2_TYPE* output_partial_sum
+#if GENERATE_PRECOMPUTED_REDUCTION
+    , __global OUTPUT2_TYPE* output_precomputed_reduction
 #endif
     ) {
 
@@ -75,11 +75,11 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
     half quan_scale = 127.0h / max_value;
-    FOR_PRECOMPUTED_REDUCTION(int partial_sum = 0);
+    FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
         quantized_value[i] = convert_char4_rte(input_0[i] * (half4)quan_scale);
-        FOR_PRECOMPUTED_REDUCTION(partial_sum += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3]);
+        FOR_PRECOMPUTED_REDUCTION(precomputed_reduction += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3]);
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
     }
 
@@ -91,16 +91,16 @@ KERNEL(dynamic_quantize_gpu_opt)(
     output_scale[output_idx] = 1.0h / quan_scale;
 
     // FIXME: f_grp may not be aligned with dyn_quan gs
-    // XXX: can partial_sum be f16? this may go out of range for large group size
-    FOR_PRECOMPUTED_REDUCTION(output_partial_sum[output_idx] = partial_sum);
+    // XXX: can precomputed_reduction be f16? this may go out of range for large group size
+    FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
 }
 
 // ***********************************************
 #elif DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_LARGE_GS
 // ***********************************************
 
-#if ASYMMETRIC_QUANTIZATION != 0 && GENERATE_PARTIAL_SUM != 0
-#error "UNIMPLMENTED: asymmetric quantization with partial_sum generation"
+#if ASYMMETRIC_QUANTIZATION != 0 && GENERATE_PRECOMPUTED_REDUCTION != 0
+#error "UNIMPLMENTED: asymmetric quantization with precomputed_reduction generation"
 #endif
 
 REQD_SUB_GROUP_SIZE(SIMD)
@@ -112,8 +112,8 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if ASYMMETRIC_QUANTIZATION
     , __global OUTPUT2_TYPE* output_zp
 #endif
-#if GENERATE_PARTIAL_SUM
-    , __global OUTPUT2_TYPE* output_partial_sum
+#if GENERATE_PRECOMPUTED_REDUCTION
+    , __global OUTPUT2_TYPE* output_precomputed_reduction
 #endif
     )
 {
@@ -201,14 +201,14 @@ KERNEL(dynamic_quantize_gpu_opt)(
     VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
 #endif
 
-#if GENERATE_PARTIAL_SUM
+#if GENERATE_PRECOMPUTED_REDUCTION
     // TODO: Optimize this part
-    int partial_sum = 0;
+    int precomputed_reduction = 0;
     MAKE_VECTOR_TYPE(OUTPUT2_TYPE, VEC_SIZE) val_int = CAT(CONVERT_INT_N, _rte)(val);
     unroll_for (int j = 0; j < VEC_SIZE; j++) {
-        partial_sum += val_int[j];
+        precomputed_reduction += val_int[j];
     }
-    partial_sum = sub_group_reduce_add(partial_sum);
+    precomputed_reduction = sub_group_reduce_add(precomputed_reduction);
 #endif
 
     if (sglid == 0 && local_id == 0) {
@@ -223,8 +223,8 @@ KERNEL(dynamic_quantize_gpu_opt)(
         output_zp[output_idx] = convert_uchar_rte(zp);
 #endif
         // FIXME: f_grp may not be aligned with dyn_quan gs
-        // XXX: can partial_sum be f16? this may go out of range for large group size
-        FOR_PRECOMPUTED_REDUCTION(output_partial_sum[output_idx] = partial_sum);
+        // XXX: can precomputed_reduction be f16? this may go out of range for large group size
+        FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
     }
 }
 
@@ -232,8 +232,8 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #elif DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_PER_TOKEN
 // ***********************************************
 
-#if GENERATE_PARTIAL_SUM != 0
-#error "UNIMPLMENTED: partial_sum generation"
+#if GENERATE_PRECOMPUTED_REDUCTION != 0
+#error "UNIMPLMENTED: precomputed_reduction generation"
 #endif
 
 REQD_SUB_GROUP_SIZE(SIMD)

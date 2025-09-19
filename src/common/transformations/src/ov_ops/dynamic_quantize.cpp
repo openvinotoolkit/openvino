@@ -49,14 +49,19 @@ void DynamicQuantize::validate_and_infer_types() {
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
 
     auto out_shapes = shape_infer(this, input_shapes);
-    set_output_type(0, m_attrs.quantization_dt, out_shapes[0]);
-    set_output_type(1, m_attrs.scale_dt, out_shapes[1]);
+    int output_idx = 0;
+    set_output_type(output_idx, m_attrs.quantization_dt, out_shapes[output_idx]);
+    output_idx++;
+    set_output_type(output_idx, m_attrs.scale_dt, out_shapes[output_idx]);
 
     if (m_attrs.quantization_type == QuantizationType::Asymmetric &&
         m_attrs.output_storage_type == OutputStorageType::Planar)
-        set_output_type(2, m_attrs.zp_dt, out_shapes[2]);
+        output_idx++;
+        set_output_type(output_idx, m_attrs.zp_dt, out_shapes[output_idx]);
+
     if (m_attrs.precomputed_reduction) {
-        set_output_type(2, m_attrs.precomputed_reduction_dt, out_shapes[2]);
+        output_idx++;
+        set_output_type(output_idx, m_attrs.precomputed_reduction_dt, out_shapes[output_idx]);
     }
 }
 
@@ -72,13 +77,11 @@ std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize
 
     auto scale_shape = input_shapes[0];
     const auto& group_sizes = op->m_attrs.group_sizes;
-
     OPENVINO_ASSERT(scale_shape.size() == group_sizes.size(),
                     "Scale_shape and group_size are supposed to have same rank: ",
                     scale_shape.size(),
                     " / ",
                     group_sizes.size());
-
     for (size_t i = 0; i < scale_shape.size(); i++) {
         if (scale_shape[i].is_dynamic() || scale_shape[i] == 0)
             continue;

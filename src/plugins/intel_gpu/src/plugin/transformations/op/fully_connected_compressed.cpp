@@ -13,14 +13,14 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
                                                    const ov::Output<Node>& w_decompression_zero_point,
                                                    const ov::Output<Node>& a_decompression_scale,
                                                    const ov::Output<Node>& a_decompression_zero_point,
-                                                   const ov::Output<Node>& a_partial_sum,
+                                                   const ov::Output<Node>& a_precomputed_reduction,
                                                    const ov::element::Type output_type)
     : FullyConnected(A, B, bias, output_type) {
     set_argument(3, w_decompression_scale);
     set_argument(4, w_decompression_zero_point);
     set_argument(5, a_decompression_scale);
     set_argument(6, a_decompression_zero_point);
-    set_argument(7, a_partial_sum);
+    set_argument(7, a_precomputed_reduction);
     validate_and_infer_types();
 }
 
