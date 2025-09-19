@@ -126,6 +126,10 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
         get_level_zero_input(ioIndex) = allocate_tensor(ioIndex, INPUT);
 
+        if (inputDescriptor.isStateInput) {
+            add_state(inputDescriptor, ioIndex);
+        }
+
         ++ioIndex;
     }
 
@@ -134,6 +138,20 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         check_level_zero_attributes_match(outputDescriptor, _graphOutputDescriptors.at(ioIndex));
 
         if (!(outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor)) {
+            ++ioIndex;
+            continue;
+        }
+
+        if (outputDescriptor.isStateOutput) {
+            // Only one buffer is required for each (state input, state output) pair, acting as an input before running
+            // the inference and as an output after performing it. Thus both the "state input" and "state output"
+            // entries shall point to the same buffer.
+            OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
+                            "The link between state descriptors is missing, state name: ",
+                            outputDescriptor.nameFromCompiler);
+            _levelZeroOutputTensors.at(ioIndex) = get_level_zero_input(*outputDescriptor.relatedDescriptorIndex);
+            _userOutputTensors.at(ioIndex) = _levelZeroOutputTensors.at(ioIndex);
+
             ++ioIndex;
             continue;
         }
@@ -546,33 +564,18 @@ std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index
     const auto& descriptor = isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index);
     check_network_precision(descriptor.precision);
 
-    std::shared_ptr<ZeroTensor> tensor;
     ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
 
     if (batchSize.has_value()) {
         allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
     }
 
-    if (descriptor.isStateOutput) {
-        // Only one buffer is required for each (state input, state output) pair, acting as an input before running the
-        // inference and as an output after performing it. Thus both the "state input" and "state output" entries shall
-        // point to the same buffer.
-        OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
-                        "The link between state descriptors is missing, state name: ",
-                        descriptor.nameFromCompiler);
-        tensor = get_level_zero_input(*descriptor.relatedDescriptorIndex);
-    } else {
-        tensor =
-            std::make_shared<ZeroTensor>(_initStructs, _config, descriptor.precision, allocatedTensorShape, isInput);
-    }
+    auto tensor =
+        std::make_shared<ZeroTensor>(_initStructs, _config, descriptor.precision, allocatedTensorShape, isInput);
 
     if (isInput) {
         if (get_user_input(index) == nullptr) {
             get_user_input(index) = tensor;
-        }
-
-        if (descriptor.isStateInput) {
-            add_state(descriptor, index, tensor);
         }
     } else if (_userOutputTensors.at(index) == nullptr) {
         _userOutputTensors.at(index) = tensor;
@@ -594,7 +597,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         }
 
         if (levelZeroTensor.at(SINGLE_TENSOR)->memory_address_changed()) {
-            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+            if (_initStructs->getMutableCommandListExtVersion() < ZE_MAKE_VERSION(1, 0)) {
                 OPENVINO_THROW("Reallocation of zero memory is not supported with this driver.");
             }
 
@@ -624,7 +627,7 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         }
 
         if (levelZeroTensor->memory_address_changed()) {
-            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+            if (_initStructs->getMutableCommandListExtVersion() < ZE_MAKE_VERSION(1, 0)) {
                 OPENVINO_THROW("Reallocation of zero memory is not supported with this driver.");
             }
 
@@ -910,16 +913,14 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
     return _pipeline->get_profiling_info();
 }
 
-void ZeroInferRequest::add_state(const IODescriptor& descriptor,
-                                 size_t tensorIndex,
-                                 const std::shared_ptr<ZeroTensor>& zeroTensor) const {
+void ZeroInferRequest::add_state(const IODescriptor& descriptor, size_t tensorIndex) const {
     OPENVINO_ASSERT(descriptor.relatedDescriptorIndex.has_value(),
                     "The link between state descriptors is missing, state name: ",
                     descriptor.nameFromCompiler);
 
     _variableStates.push_back(std::make_shared<ZeroVariableState>(_initStructs,
                                                                   descriptor.nameFromCompiler,
-                                                                  zeroTensor,
+                                                                  get_level_zero_input(tensorIndex),
                                                                   tensorIndex,
                                                                   descriptor.relatedDescriptorIndex.value(),
                                                                   _config));

@@ -56,9 +56,7 @@ private:
                                                 const bool isInput,
                                                 const std::optional<std::size_t> batchSize = std::nullopt) const;
 
-    void add_state(const IODescriptor& descriptor,
-                   size_t tensorIndex,
-                   const std::shared_ptr<ZeroTensor>& zeroTensor) const;
+    void add_state(const IODescriptor& descriptor, size_t tensorIndex) const;
 
     void update_pipeline_if_memory_changed();
     void update_states_if_memory_changed();
