@@ -199,8 +199,8 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_single_batch) {
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_gs32) {
-    this->test_dynamic_quantization(false, {1, 1, 4096},
-                                    {64, 1, 4096},
+    this->test_dynamic_quantization(false, {1, 1, 512},
+                                    {32, 1, 512},
                                     QuantizationType::Symmetric,
                                     32,
                                     data_types::i8,

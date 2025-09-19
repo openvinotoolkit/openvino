@@ -17,6 +17,13 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
+#ifdef GENERATE_PARTIAL_SUM
+    #define FOR_PRECOMPUTED_REDUCTION(x)  x
+#else
+    #define FOR_PRECOMPUTED_REDUCTION(x)
+#endif
+
+
 // ***********************************************
 #if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
 // ***********************************************
@@ -68,15 +75,11 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
     half quan_scale = 127.0h / max_value;
-#if GENERATE_PARTIAL_SUM
-    int partial_sum = 0;
-#endif
+    FOR_PRECOMPUTED_REDUCTION(int partial_sum = 0);
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
         quantized_value[i] = convert_char4_rte(input_0[i] * (half4)quan_scale);
-#if GENERATE_PARTIAL_SUM
-        partial_sum += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3];
-#endif
+        FOR_PRECOMPUTED_REDUCTION(partial_sum += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3]);
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
     }
 
@@ -86,11 +89,10 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint output_idx = OUTPUT1_GET_INDEX(b, f, y_grp, 0);
 #endif
     output_scale[output_idx] = 1.0h / quan_scale;
-#if GENERATE_PARTIAL_SUM
+
     // FIXME: f_grp may not be aligned with dyn_quan gs
     // XXX: can partial_sum be f16? this may go out of range for large group size
-    output_partial_sum[output_idx] = partial_sum;
-#endif
+    FOR_PRECOMPUTED_REDUCTION(output_partial_sum[output_idx] = partial_sum);
 }
 
 // ***********************************************
@@ -220,11 +222,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if ASYMMETRIC_QUANTIZATION
         output_zp[output_idx] = convert_uchar_rte(zp);
 #endif
-#if GENERATE_PARTIAL_SUM
         // FIXME: f_grp may not be aligned with dyn_quan gs
         // XXX: can partial_sum be f16? this may go out of range for large group size
-        output_partial_sum[output_idx] = partial_sum;
-#endif
+        FOR_PRECOMPUTED_REDUCTION(output_partial_sum[output_idx] = partial_sum);
     }
 }
 
