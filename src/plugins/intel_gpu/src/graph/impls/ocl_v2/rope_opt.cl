@@ -387,6 +387,18 @@ uint cos_sin_p = p;
     uint cos_idx = INPUT1_GET_INDEX(cos_sin_p, 0, 0, 0);
     uint sin_idx = INPUT2_GET_INDEX(cos_sin_p, 0, 0, 0);
 #endif
+#elif INPUT1_DIMS == 3 && INPUT2_DIMS == 3
+    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+    uint cos_sin_h = h < INPUT1_FEATURE_NUM ? h : 0;
+ #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, 0, 0);
+
+    uint cos_idx = cos_sin_idx;
+    uint sin_idx = cos_sin_idx;
+#else
+    uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, 0, 0);
+    uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_h, 0, 0);
+#endif
 #else
 #   error "rope_opt.cl - 4 or 2 of INPUT1_DIMS/INPUT2_DIMS is supported only"
 #endif
