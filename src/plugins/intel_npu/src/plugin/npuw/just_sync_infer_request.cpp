@@ -368,11 +368,18 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     // Handle dynamic submission
     if (has_dynamic) {
-        const auto &dyn = m_npuw_model->m_compiled_submodels.at(dynamic_sub_idx).attention.value();
-        m_attention_selector = runtime::attention::PositionIDs::find(dyn, *this);
-        if (!m_attention_selector) {
-            LOG_WARN("Dynamic capability is enabled, but no run-time features were found.");
+        if (!m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_DYN>()) {
+            // Even if the attention is detected and ready to go dynamic,
+            // force it on the full range
+            LOG_WARN("Dynamic capability is enabled, but won't be used due to user preference");
             m_attention_selector.reset(new runtime::attention::All());
+        } else {
+            const auto &dyn = m_npuw_model->m_compiled_submodels.at(dynamic_sub_idx).attention.value();
+            m_attention_selector = runtime::attention::PositionIDs::find(dyn, *this);
+            if (!m_attention_selector) {
+                LOG_WARN("Dynamic capability is enabled, but no run-time features were found.");
+                m_attention_selector.reset(new runtime::attention::All());
+            }
         }
         LOG_VERB("Done");
     }

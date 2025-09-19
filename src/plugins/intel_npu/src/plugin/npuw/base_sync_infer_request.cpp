@@ -653,13 +653,14 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
         }
     } else {
         const auto past_len = m_attention_selector->past_length();
+        const auto do_copy = needs_copy(idx) && !m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
+
         // Set the past k/v values first
         for (auto&& param : dynamic.params) {
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
             const auto& input = m_attention_io[idx].inputs.at(param.idx);
             const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
             const auto shape = view->get_shape();
-            const auto do_copy = needs_copy(idx);
 
             LOG_DEBUG(iport);
             LOG_BLOCK();
