@@ -35,7 +35,7 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
         if (attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
             attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
             num_outputs++;
-        if (attrs.group_sizes_partial_sum.size() > 0) {
+        if (attrs.precomputed_reduction) {
             num_outputs++;
         }
     }

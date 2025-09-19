@@ -1276,7 +1276,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
-            bool precompute_sum = config.get_dynamic_quantization_precompute_sum();
+            bool precomputed_reduction = config.get_dynamic_quantization_precomputed_reduction();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
                     if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
@@ -1323,7 +1323,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
                                << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
             } else {
-                manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size, asymmetric_dyn_quant, precompute_sum);
+                manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size, asymmetric_dyn_quant, precomputed_reduction);
             }
         }
 

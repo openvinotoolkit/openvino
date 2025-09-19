@@ -70,8 +70,8 @@ public:
         dq_config.scales_zp_output_order = { 0, 1, 2};
 
         if (has_precompute_sum == PrecomputeSum::Enabled) {
-            dq_config.group_sizes_partial_sum = group_sizes;
-            dq_config.partial_sum_dt = data_types::i32;
+            dq_config.precomputed_reduction = true;
+            dq_config.precomputed_reduction_dt = data_types::i32;
         }
 
         if (data_shape.size() == 4)

@@ -17,9 +17,9 @@
 
 namespace ov::intel_gpu {
 
-// precompute_sum is providing partial sum of activation from dynamic quantization into onednn for faster computation
+// precomputed_reduction is providing partial reduction of activation from dynamic quantization into onednn for faster computation
 // It is used for asymmetric weight.
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric, bool precompute_sum)
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric, bool precomputed_reduction)
     : ov::pass::MatcherPass() {
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
@@ -36,7 +36,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         }
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
-        uint64_t adj_group_size = group_size; // If group_size is not supported, it can be reduced to proper group size
+        uint64_t adj_group_size = group_size; // If group_size is not supported, it can be adjusted to proper group size
 
         auto m_fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
 
@@ -49,8 +49,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         ov::op::internal::DynamicQuantize::Attributes config;
         const bool has_static_wzp = m_fc->get_input_size() > 4 && optional_w_zp->get_output_partial_shape(0).rank().is_static();
 
-        // Add precompute_sum connection, if possible
-        if (precompute_sum && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
+        // Add precomputed_reduction connection, if possible
+        if (precomputed_reduction && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
             auto weight_zp_shape = m_fc->get_input_partial_shape(4);
             auto weight_scale_shape = m_fc->get_input_partial_shape(3);
             const size_t wei_zp_group_size = innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
@@ -62,10 +62,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                 adj_group_size = required_group_size;
             }
             if (required_group_size % adj_group_size == 0) {
-                std::vector<uint64_t> group_sizes_partial_sum(rank, 1);
-                group_sizes_partial_sum.back() = adj_group_size;
-                config.group_sizes_partial_sum = group_sizes_partial_sum;
-                config.partial_sum_dt = element::i32; // it supports i32 only now
+                config.precomputed_reduction_dt = element::i32; // it supports i32 only now
+                config.precomputed_reduction = true;
             } else {
                 GPU_DEBUG_LOG << "Dynamic quantization: precompute is turned off because group_size " << adj_group_size
                                << " is not aligned with required_group_size " << required_group_size << std::endl;
@@ -93,11 +91,11 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         }
 
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);
+        int dyn_quan_output_idx = 2;
         auto optional_a_zp = config.quantization_type == QuantizationType::Symmetric ?
-                                std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
-        // FIXME: it should be next of a_zp, not output(2)
-        auto optional_partial_sum = config.group_sizes_partial_sum.size() == 0 ?
-                                std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
+                                std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(dyn_quan_output_idx++);
+        auto optional_precomputed_reduction = config.precomputed_reduction ?
+                                 dyn_quan->output(dyn_quan_output_idx++) : std::make_shared<ov::intel_gpu::op::Placeholder>();
 
         auto output_type = m_fc->get_output_type();
         if (output_type.is_dynamic())
@@ -110,7 +108,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                                      optional_w_zp->output(0),
                                                                      dyn_quan->output(1),
                                                                      optional_a_zp,
-                                                                     optional_partial_sum,
+                                                                     optional_precomputed_reduction,
                                                                      output_type);
 
         ov::replace_node(m_fc, new_fc);
