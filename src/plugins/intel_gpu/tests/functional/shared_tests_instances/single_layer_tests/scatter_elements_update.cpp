@@ -86,4 +86,25 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(idxPrecisions[0]),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     ScatterElementsUpdate12LayerTest::getTestCaseName);
+
+const std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> batch1100Shapes {
+    {{1100, 4, 1, 1}, {{{1100, 1, 1, 1}, {1}}}},
+};
+
+const std::vector<std::vector<int64_t>> batch1100Indices = {
+    std::vector<int64_t>(1100, 0),
+    std::vector<int64_t>(1100, 1),
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_lws_constraint_batch1100_ScatterEltsUpdate12,
+    ScatterElementsUpdate12LayerTest,
+    ::testing::Combine(::testing::ValuesIn(combine_shapes(batch1100Shapes)),
+                       ::testing::ValuesIn(batch1100Indices),
+                       ::testing::ValuesIn(reduceModes),
+                       ::testing::Values(true),
+                       ::testing::Values(inputPrecisions[0]),
+                       ::testing::Values(idxPrecisions[0]),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
+    ScatterElementsUpdate12LayerTest::getTestCaseName);
 }  // namespace
