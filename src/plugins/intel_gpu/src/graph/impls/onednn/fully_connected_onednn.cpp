@@ -258,6 +258,7 @@ public:
         ob << is_compressed;
         ob << prim->dynamic_quantized_activation;
         ob << prim->dynamic_quantized_activation_zp;
+        ob << prim->dynamic_quantized_precomputed_reduction;
 
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
@@ -286,12 +287,14 @@ public:
         bool is_compressed = false;
         bool dynamic_quantized_activation;
         bool dynamic_quantized_activation_zp;
+        bool dynamic_quantized_precomputed_reduction;
         ib >> input_size;
         ib >> weights_rank;
         ib >> has_bias;
         ib >> is_compressed;
         ib >> dynamic_quantized_activation;
         ib >> dynamic_quantized_activation_zp;
+        ib >> dynamic_quantized_precomputed_reduction;
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
@@ -348,10 +351,18 @@ public:
 
             auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(src_scale_idx).data_type);
             _attrs->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
-            if (dynamic_quantized_activation_zp)
+            if (dynamic_quantized_activation_zp) {
+                idx++;
                 _attrs->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+            }
+
+            if (prim->dynamic_quantized_precomputed_reduction) {
+                auto activation_precomputed_reduction_idx = ++idx;
+                auto act_precomputed_reduction_data_type = convert_data_type(impl_params->get_input_layout(activation_precomputed_reduction_idx).data_type);
+                _attrs->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
+                // FIXME: implementation for serialization
+            }
         }
-        // FIXME: implementation for serialization
 
         auto prim_desc = get_matmul_primitive_descriptor(*impl_params, ib.get_engine(), input_size, weights_rank, has_bias, *_attrs);
         _pd = *prim_desc;
@@ -450,13 +461,10 @@ public:
                 }
 
                 if (prim->dynamic_quantized_precomputed_reduction) {
-                    // ASSERT: activation_zp is not there
+                    OPENVINO_ASSERT(!prim->activation_zero_point.is_valid(), "Activation zero-point is not supported for precomputed_reduction case");
                     auto activation_precomputed_reduction_idx = ++idx;
-                    auto& src_precomputed_reduction_shape = impl_params.input_layouts[activation_precomputed_reduction_idx].get_partial_shape();
-                    int src_ngroups_precomputed_reduction = src_precomputed_reduction_shape[src_precomputed_reduction_shape.size() - 1].get_length();
-                    int src_group_size_precomputed_reduction = innermost_len / src_ngroups_precomputed_reduction;
                     auto act_precomputed_reduction_data_type = convert_data_type(impl_params.input_layouts[activation_precomputed_reduction_idx].data_type);
-                    attr->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size_precomputed_reduction}, act_precomputed_reduction_data_type);
+                    attr->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_precomputed_reduction_data_type);
                 }
             }
 
