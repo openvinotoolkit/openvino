@@ -21,6 +21,58 @@ class Snapshot;  // Forward declaration
 namespace patterns {
 namespace attn {
 
+struct AttentionParams {
+    size_t batch_size = 0;
+    size_t num_heads = 0;
+    size_t sequence_length = 0;
+    size_t head_dim = 0;
+    ov::element::Type data_type = ov::element::dynamic;
+    bool has_bias = false;
+
+    // Original tensor shapes
+    ov::Shape q_shape;
+    ov::Shape k_shape;
+    ov::Shape v_shape;
+    ov::Shape output_shape;
+
+    // Dimension indices for dynamic reshaping
+    struct DimensionInfo {
+        size_t batch_dim = 0;
+        size_t heads_dim = 1;
+        size_t sequence_dim = 2;
+        size_t head_dim_idx = 3;
+    };
+
+    DimensionInfo q_dims;
+    DimensionInfo k_dims;
+    DimensionInfo v_dims;
+
+    // Parameters that contain sequence length dimension
+    struct ParameterDimInfo {
+        std::shared_ptr<ov::op::v0::Parameter> param;
+        size_t sequence_dim_idx;
+        std::string param_name;
+    };
+
+    std::vector<ParameterDimInfo> sequence_length_params;  // Parameters with sequence length dimension
+    std::shared_ptr<ov::op::v0::Parameter> mask_param = nullptr;
+    size_t mask_sequence_dim = 0;  // Which dimension in mask corresponds to sequence length
+
+    // Validation helper
+    bool isValid() const {
+        return batch_size > 0 && num_heads > 0 && sequence_length > 0 && head_dim > 0;
+    }
+};
+
+// Function to extract attention parameters from SDPA pattern nodes
+AttentionParams extractAttentionParamsFromSDPAPattern(const std::shared_ptr<ov::Node>& matmul1,
+                                                      const std::shared_ptr<ov::Node>& matmul2,
+                                                      const std::shared_ptr<ov::Node>& softmax_node,
+                                                      const std::shared_ptr<ov::Node>& add_node);
+
+// Function to analyze ov::Model and extract attention parameters with dimension mapping
+AttentionParams identifyAttentionParamsFromModel(const std::shared_ptr<ov::Model>& model);
+
 class SDPA : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::SDPA");

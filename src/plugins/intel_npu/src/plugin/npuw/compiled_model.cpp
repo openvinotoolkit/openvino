@@ -369,6 +369,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 if (fcn_template._attention) {
                     m_compiled_submodels[id].attention =
                         compiled::Attention(fcn_template._attention.value(), fcn_template._model);
+                    std::cout << "Subgraph " << id << " is marked as SDPA" << std::endl;
                 }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
@@ -1441,6 +1442,7 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     auto plugin = get_npuw_plugin();
 
     LOG_INFO("Trying to compile for " << device_to_try << "...");
+    std::cout << "Trying to compile " << id << " on " << device_to_try << "..." << std::endl;
 
     // Only function bodies can reach this point.
     // compile_for_device() behavior is not specified for funcalls.
@@ -1501,6 +1503,7 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
             device_config.insert(ov::internal::exclusive_async_requests(true));
         }
     }  // if(subgraphs > 1)
+
     return core->compile_model(submodel, device, device_config);
 }
 

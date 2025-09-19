@@ -191,6 +191,10 @@ void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) 
 
 void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val);
 
+bool isPastKeyValuesKey(const std::string& str);
+
+bool isPastKeyValuesValue(const std::string& str);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov

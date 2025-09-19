@@ -896,8 +896,17 @@ bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
     return ov::npuw::util::matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
 }
 
-
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
     std::fill_n(tensor_data, tensor->get_byte_size(), fill_val);
+}
+
+bool ov::npuw::util::isPastKeyValuesKey(const std::string& str) {
+    std::regex pattern(R"(past_key_values\.\d+\.key)");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isPastKeyValuesValue(const std::string& str) {
+    std::regex pattern(R"(past_key_values\.\d+\.value)");
+    return std::regex_match(str, pattern);
 }
