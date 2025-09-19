@@ -50,6 +50,14 @@ ze_result_t set_kernel_arg_scalar(ze_kernel_handle_t& kernel, uint32_t idx, cons
     return zeKernelSetArgumentValue(kernel, idx, sizeof(T), &val);
 }
 
+ze_result_t set_kernel_arg_local_memory(ze_kernel_handle_t& kernel, uint32_t idx, size_t size) {
+    if (size == 0)
+        return ZE_RESULT_ERROR_INVALID_ARGUMENT;
+
+    GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel << " set arg " << idx << " local memory size: " << size << std::endl;
+    return zeKernelSetArgumentValue(kernel, idx, size, NULL);
+}
+
 ze_result_t set_kernel_arg(ze_kernel_handle_t& kernel, uint32_t idx, cldnn::memory::cptr mem) {
     if (!mem)
         return ZE_RESULT_ERROR_INVALID_ARGUMENT;
@@ -158,6 +166,11 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                 break;
             case args_t::SHAPE_INFO:
                 status = set_kernel_arg(kernel, i, data.shape_info);
+                break;
+            case args_t::LOCAL_MEMORY_SIZE:
+                OPENVINO_ASSERT(args[i].index < data.local_memory_args->size() && data.local_memory_args->at(args[i].index),
+                                "The allocated local memory is necessary to set kernel arguments.");
+                status = set_kernel_arg_local_memory(kernel, i,  data.local_memory_args->at(args[i].index));
                 break;
             default:
                 break;
