@@ -26,6 +26,9 @@ public:
     static std::string compute_hash(const std::string& modeStr,
                                     const ov::Tensor& data,
                                     const ov::AnyMap& compileOptions);
+    static std::string compute_hash(const std::shared_ptr<const ov::Model>& model,
+                                    const std::filesystem::path& model_path,
+                                    const ov::AnyMap& compileOptions);
 };
 
 class CompiledBlobHeader final {
