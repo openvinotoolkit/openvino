@@ -186,6 +186,25 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
     return nullptr;
 }
 
+std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properties) {
+    std::shared_ptr<const ov::Model> modelPtr = nullptr;
+    if (properties.count(ov::hint::model.name())) {
+        try {
+            modelPtr = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+        } catch (const ov::Exception&) {
+            try {
+                modelPtr = std::const_pointer_cast<const ov::Model>(
+                    properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
+                               "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
+            }
+        }
+        properties.erase(ov::hint::model.name());
+    }
+    return modelPtr;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -512,7 +531,9 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    return _properties->get_property(name, arguments);
+    auto npu_plugin_properties = arguments;
+    exclude_model_ptr_from_map(npu_plugin_properties);
+    return _properties->get_property(name, npu_plugin_properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -536,8 +557,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
-    auto modelPtr = utils::exclude_model_ptr_from_map(localProperties);
-    if (modelPtr) {
+    if (exclude_model_ptr_from_map(localProperties)) {
         _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
     }
 
@@ -670,10 +690,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
-    return std::make_shared<RemoteContextImpl>(_backend, remoteProperties);
+    auto npu_plugin_properties = remoteProperties;
+    exclude_model_ptr_from_map(npu_plugin_properties);
+    return std::make_shared<RemoteContextImpl>(_backend, npu_plugin_properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remoteProperties) const {
+    auto npu_plugin_properties = remoteProperties;
+    exclude_model_ptr_from_map(npu_plugin_properties);
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
@@ -785,9 +809,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
     CompilerAdapterFactory compilerAdapterFactory;
-    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    auto npu_plugin_properties = properties;
+    exclude_model_ptr_from_map(npu_plugin_properties);
+    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
+    auto compiler =
+        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -817,7 +844,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
-    auto originalModel = utils::exclude_model_ptr_from_map(npu_plugin_properties);
+    auto originalModel = exclude_model_ptr_from_map(npu_plugin_properties);
 
     CompilerAdapterFactory compilerAdapterFactory;
     const auto propertiesMap = any_copy(npu_plugin_properties);
