@@ -157,6 +157,9 @@ protected:
     virtual void alloc_io();
     virtual TensorPtr alloc_global_out(std::size_t out_idx);
 
+    std::string global_input_mem_device(std::size_t idx) const;
+    std::string global_output_mem_device(std::size_t idx) const;
+
     virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
     virtual void bind_global_params(std::size_t idx, RqPtr request);
