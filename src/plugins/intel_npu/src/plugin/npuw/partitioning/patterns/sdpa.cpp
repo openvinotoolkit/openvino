@@ -160,11 +160,11 @@ AttentionParams extractAttentionParamsFromSDPAPattern(const std::shared_ptr<ov::
         // Get data type from the first input
         params.data_type = matmul1->get_input_element_type(0);
 
-        // Check if bias is present (add node should have bias as second input)
-        params.has_bias = (add_node && add_node->get_input_size() > 1);
-        if (params.has_bias && add_node) {
-            auto bias_shape = add_node->get_input_shape(1);
-            LOG_DEBUG("  Bias shape: " << ov::util::vector_to_string(bias_shape));
+        // Check if mask is present (add node should have mask as second input)
+        params.has_mask = (add_node && add_node->get_input_size() > 1);
+        if (params.has_mask && add_node) {
+            auto mask_shape = add_node->get_input_shape(1);
+            LOG_DEBUG("  Mask shape: " << ov::util::vector_to_string(mask_shape));
         }
 
         LOG_INFO("Extracted Attention Parameters:");
@@ -173,7 +173,7 @@ AttentionParams extractAttentionParamsFromSDPAPattern(const std::shared_ptr<ov::
         LOG_INFO("  Sequence length: " << params.sequence_length);
         LOG_INFO("  Head dimension: " << params.head_dim);
         LOG_INFO("  Data type: " << params.data_type);
-        LOG_INFO("  Has bias: " << (params.has_bias ? "Yes" : "No"));
+        LOG_INFO("  Has mask: " << (params.has_mask ? "Yes" : "No"));
         LOG_INFO("  MatMul1 transpose_a: " << matmul1_transpose_a << ", transpose_b: " << matmul1_transpose_b);
         LOG_INFO("  MatMul2 transpose_a: " << matmul2_transpose_a << ", transpose_b: " << matmul2_transpose_b);
         LOG_INFO("  Total parameters: " << (params.batch_size * params.num_heads * params.sequence_length *

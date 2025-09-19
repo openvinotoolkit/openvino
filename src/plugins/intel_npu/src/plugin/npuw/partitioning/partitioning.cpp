@@ -1868,8 +1868,6 @@ void Partitioner::identifyAttentionParams(ov::npuw::Function& f) {
     // Alternative approach: look for SDPA pattern (MatMul -> Add -> Softmax -> MatMul)
     LOG_INFO("ScaledDotProductAttention operator not found, searching for SDPA pattern");
 
-    std::cout << "Searching for SDPA pattern: MatMul -> Add -> Softmax -> MatMul" << std::endl;
-
     // Find SDPA pattern components
     std::shared_ptr<ov::Node> matmul1_node = nullptr;
     std::shared_ptr<ov::Node> matmul2_node = nullptr;
@@ -1917,7 +1915,6 @@ void Partitioner::identifyAttentionParams(ov::npuw::Function& f) {
     }
 
     LOG_INFO("Found SDPA pattern: MatMul -> Add -> Softmax -> MatMul");
-    std::cout << "Found SDPA pattern: MatMul -> Add -> Softmax -> MatMul" << std::endl;
 
     // Use our new attention parameter extraction function
     auto attention_params = ov::npuw::patterns::attn::extractAttentionParamsFromSDPAPattern(matmul1_node,
@@ -1925,63 +1922,60 @@ void Partitioner::identifyAttentionParams(ov::npuw::Function& f) {
                                                                                             softmax_node,
                                                                                             add_node);
 
-    if (attention_params.batch_size > 0 && attention_params.num_heads > 0) {
-        std::cout << "Successfully extracted attention parameters from SDPA pattern:" << std::endl;
-        std::cout << "  Batch size: " << attention_params.batch_size << std::endl;
-        std::cout << "  Number of heads: " << attention_params.num_heads << std::endl;
-        std::cout << "  Sequence length: " << attention_params.sequence_length << std::endl;
-        std::cout << "  Head dimension: " << attention_params.head_dim << std::endl;
+    if (attention_params.batch_size <= 0 || attention_params.num_heads <= 0) {
+        LOG_WARN("Failed to extract valid attention parameters from SDPA pattern");
+        return;
+    }
 
-        // Try to map the extracted parameters to the original dynamic context structure
-        // This is a bridge between the new pattern analysis and existing dynamic context logic
+    LOG_DEBUG("Successfully extracted attention parameters from SDPA pattern:");
+    LOG_DEBUG("  Batch size: " << attention_params.batch_size);
+    LOG_DEBUG("  Number of heads: " << attention_params.num_heads);
+    LOG_DEBUG("  Sequence length: " << attention_params.sequence_length);
+    LOG_DEBUG("  Head dimension: " << attention_params.head_dim);
 
-        // Find mask parameter from the add node (bias input)
-        if (add_node->get_input_size() > 1) {
-            auto bias_input = add_node->input(1).get_source_output().get_node_shared_ptr();
-            // Traverse upwards to find parameter
-            while (bias_input && !ov::op::util::is_parameter(bias_input)) {
-                if (bias_input->inputs().size() != 1) {
-                    LOG_WARN("Non-unary or disconnected op on the way from SDPA to input mask");
-                    return;
-                }
-                bias_input = bias_input->inputs()[0].get_source_output().get_node_shared_ptr();
+    // Find mask parameter from the add node
+    if (add_node->get_input_size() > 1) {
+        auto mask_in_node = add_node->input(1).get_source_output().get_node_shared_ptr();
+        // Traverse upwards to find parameter
+        while (mask_in_node && !ov::op::util::is_parameter(mask_in_node)) {
+            if (mask_in_node->inputs().size() != 1) {
+                LOG_WARN("Non-unary or disconnected op on the way from SDPA to input mask");
+                return;
             }
-
-            NPUW_ASSERT(bias_input);
-            NPUW_ASSERT(ov::op::util::is_parameter(bias_input));
-
-            if (bias_input && ov::op::util::is_parameter(bias_input)) {
-                dyn._mask = std::static_pointer_cast<ov::op::v0::Parameter>(bias_input);
-                dyn._mask_shape = dyn._mask->get_shape();
-            }
+            mask_in_node = mask_in_node->inputs()[0].get_source_output().get_node_shared_ptr();
         }
 
-        // Find input parameters that could be past key/value
-        const auto& f_params = f._model->get_parameters();
-        for (auto&& param : f_params) {
-            if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
-                const std::string param_name = param->get_friendly_name();
-                size_t sequence_dim_idx = 0;
-                if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
-                    // This is likely a key parameter, use K dimension info
-                    sequence_dim_idx = attention_params.k_dims.sequence_dim;
-                } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
-                    // This is likely a value parameter, use V dimension info
-                    sequence_dim_idx = attention_params.v_dims.sequence_dim;
-                } else {
-                    continue;
-                }
-                dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, sequence_dim_idx});
-                std::cout << "Found sequence dimension " << sequence_dim_idx << " for parameter " << param_name
-                          << std::endl;
-            }
+        NPUW_ASSERT(ov::op::util::is_parameter(mask_in_node));
+
+        if (mask_in_node && ov::op::util::is_parameter(mask_in_node)) {
+            dyn._mask = std::static_pointer_cast<ov::op::v0::Parameter>(mask_in_node);
+            dyn._mask_shape = dyn._mask->get_shape();
+        }
+    }
+
+    // Find input parameters that could be past key/value
+    const auto& f_params = f._model->get_parameters();
+    for (auto&& param : f_params) {
+        const std::string param_name = param->get_friendly_name();
+        size_t sequence_dim_idx = 0;
+
+        if (ov::npuw::util::isPastKeyValuesKey(param_name)) {
+            // This is likely a key parameter, use K dimension info
+            sequence_dim_idx = attention_params.k_dims.sequence_dim;
+        } else if (ov::npuw::util::isPastKeyValuesValue(param_name)) {
+            // This is likely a value parameter, use V dimension info
+            sequence_dim_idx = attention_params.v_dims.sequence_dim;
+        } else {
+            continue;
         }
 
-        if (!dyn._inputs.empty() || dyn._mask) {
-            f._attention = std::move(dyn);
-            LOG_INFO("Successfully configured dynamic attention context from SDPA pattern");
-            return;
-        }
+        dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, sequence_dim_idx});
+    }
+
+    if (!dyn._inputs.empty() || dyn._mask) {
+        f._attention = std::move(dyn);
+        LOG_INFO("Successfully configured dynamic attention context from SDPA pattern");
+        return;
     }
 
     LOG_WARN("Neither ScaledDotProductAttention operator nor SDPA pattern found in the attn subgraph!");
@@ -2137,20 +2131,15 @@ void Partitioner::attention(const std::string& func_name) {
         ov::PartialShape dyn_shape = p.param->get_shape();  // Here it is yet static
         dyn_shape[p.dim] = ov::Dimension();                 // ..and now is dynamic
         new_shapes[p.param->output(0)] = std::move(dyn_shape);
-        std::cout << "parm: " << p.param->get_friendly_name() << " dyn dim: " << p.dim << " dyn_shape: " << dyn_shape
-                  << std::endl;
     }
     // Mask
     {
         ov::PartialShape dyn_shape = f._attention->_mask_shape;
-        std::cout << "mask shape: " << f._attention->_mask_shape << std::endl;
         // Put the mask's innermost dimension dynamic
         *dyn_shape.rbegin() = ov::Dimension();
         new_shapes[f._attention->_mask->output(0)] = std::move(dyn_shape);
     }
     f._model->reshape(new_shapes);
-
-    std::cout << "reshape done" << std::endl;
 
     // Patch Broadcast constants if there's any. If there's broadcast in the attention
     // block, its shape argument is normally a precomputed Const (which would be
@@ -2234,7 +2223,6 @@ void Partitioner::attention(const std::string& func_name) {
 
     f._model->validate_nodes_and_infer_types();
     LOG_VERB("Done");
-    std::cout << "patition attention done" << std::endl;
 }
 
 void Partitioner::optimize(const std::string& func_name) {

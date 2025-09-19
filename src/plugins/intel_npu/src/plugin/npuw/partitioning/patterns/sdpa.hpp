@@ -27,7 +27,7 @@ struct AttentionParams {
     size_t sequence_length = 0;
     size_t head_dim = 0;
     ov::element::Type data_type = ov::element::dynamic;
-    bool has_bias = false;
+    bool has_mask = false;
 
     // Original tensor shapes
     ov::Shape q_shape;
@@ -46,22 +46,6 @@ struct AttentionParams {
     DimensionInfo q_dims;
     DimensionInfo k_dims;
     DimensionInfo v_dims;
-
-    // Parameters that contain sequence length dimension
-    struct ParameterDimInfo {
-        std::shared_ptr<ov::op::v0::Parameter> param;
-        size_t sequence_dim_idx;
-        std::string param_name;
-    };
-
-    std::vector<ParameterDimInfo> sequence_length_params;  // Parameters with sequence length dimension
-    std::shared_ptr<ov::op::v0::Parameter> mask_param = nullptr;
-    size_t mask_sequence_dim = 0;  // Which dimension in mask corresponds to sequence length
-
-    // Validation helper
-    bool isValid() const {
-        return batch_size > 0 && num_heads > 0 && sequence_length > 0 && head_dim > 0;
-    }
 };
 
 // Function to extract attention parameters from SDPA pattern nodes
