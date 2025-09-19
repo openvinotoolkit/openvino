@@ -6,7 +6,9 @@ type SupportedTypedArray =
   | Int32Array
   | Uint32Array
   | Float32Array
-  | Float64Array;
+  | Float64Array
+  | BigInt64Array
+  | BigUint64Array;
 
 type elementTypeString =
   | "u8"
