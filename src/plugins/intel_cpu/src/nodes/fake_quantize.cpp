@@ -1515,7 +1515,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         }
         return impl_desc_type::ref;
     }();
-#if defined(OPENVINO_ARCH_X86_64)
+
     if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
 
@@ -1524,7 +1524,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
             outputPrecision = ov::element::f32;
         }
     }
-#endif
+
     std::vector<LayoutType> dataFormats;
     // reference implementation supports only planar format
     if (impl_type == impl_desc_type::ref) {
@@ -1777,7 +1777,7 @@ void FakeQuantize::executeReference() {
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto* dst = dstMemory->getDataAs<int8_t>();
+        auto* dst = dstMemory->getDataAs<float>();
 
         parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = n * s_str[0];
@@ -1821,7 +1821,7 @@ void FakeQuantize::executeReference() {
                 dst_off += c * d_str[1];
             }
 
-            dst[dst_off] = static_cast<int8_t>(dst_val);
+            dst[dst_off] = dst_val;
         });
     }
 }

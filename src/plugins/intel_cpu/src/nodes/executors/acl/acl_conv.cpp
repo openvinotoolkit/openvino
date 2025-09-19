@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/convolution_config.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "post_ops.hpp"
@@ -60,23 +61,23 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                arm_compute::DimensionRoundingType::FLOOR);
     dilation = arm_compute::Size2D(attrs.dilation[1] + 1, attrs.dilation[0] + 1);
 
-    if (!attrs.postOps.empty() && attrs.postOps.size() == 1) {
+    if (attrs.postOps.size() == 1) {
         if (const auto* const activation = std::any_cast<ActivationPostOp>(attrs.postOps.data())) {
             activationLayerInfo = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
                                                          activation->alpha(),
                                                          activation->beta(),
                                                          activation->gamma());
         } else if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(attrs.postOps.data())) {
-            inputScale = fq->inputScale();
-            inputShift = fq->inputShift();
-            outputScale = fq->outputScale();
-            outputShift = fq->outputShift();
-            if (outputScale.size() == 1 && outputScale[0] == 1.0F && outputShift.size() == 1 &&
-                outputShift[0] == std::trunc(outputShift[0])) {
-                for (auto& v : inputShift) {
-                    v += outputShift[0];
+            fqInputScale = fq->inputScale();
+            fqInputShift = fq->inputShift();
+            fqOutputScale = fq->outputScale();
+            fqOutputShift = fq->outputShift();
+            if (fqOutputScale.size() == 1 && fqOutputScale[0] == 1.0F && fqOutputShift.size() == 1 &&
+                fqOutputShift[0] == std::trunc(fqOutputShift[0])) {
+                for (auto& v : fqInputShift) {
+                    v += fqOutputShift[0];
                 }
-                outputShift.clear();
+                fqOutputShift.clear();
             }
         }
     } else {
@@ -85,13 +86,19 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 }
 
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
+    // quantization configuration:
+    // src scale: 1.0
+    // src shift: 0
+    // weights scale: dequantization scale fused into the conv node, or 1.0 if the scale is not defined
+    // weights shift: 0
+    // destination scale: 1.0 / FakeQuantize input scale, or 1.0 if the scale is not defined
+    // destination shift: FakeQuantize input shift, or 0 if the shift is not defined
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         arm_compute::QuantizationInfo(weightScale.empty() ? 1.0F : weightScale[0]));
     aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
-        arm_compute::QuantizationInfo(inputScale.empty() ? 1.0F : 1.0F / inputScale[0],
-                                      inputShift.empty() ? 0 : inputShift[0],
-                                      false));
+        arm_compute::QuantizationInfo(fqInputScale.empty() ? 1.0F : 1.0F / fqInputScale[0],
+                                      fqInputShift.empty() ? 0 : fqInputShift[0]));
 
     return arm_compute::NEConvolutionLayer::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                                      aclMemoryInfos[ACLArgs::ACL_WEI].get(),
@@ -100,8 +107,7 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
                                                      padStrideInfo,
                                                      weightsInfo,
                                                      dilation,
-                                                     activationLayerInfo,
-                                                     enableFastMath);
+                                                     activationLayerInfo);
 }
 
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
@@ -114,8 +120,7 @@ ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemor
                       padStrideInfo,
                       weightsInfo,
                       dilation,
-                      activationLayerInfo,
-                      enableFastMath);
+                      activationLayerInfo);
     return neConv;
 }
 

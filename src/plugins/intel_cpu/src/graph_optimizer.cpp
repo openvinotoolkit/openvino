@@ -373,9 +373,9 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
         if (biasNode->getType() != Type::Input || !biasNode->isConstant() || biasNode->getChildEdges().size() != 1) {
             return false;
         }
-// ACL supports u32 bias only for int inputs
+// ACL supports i32 bias only for int inputs
 #if defined(OV_CPU_WITH_ACL)
-        if (biasNode->getOriginalOutputPrecisionAtPort(0) != ov::element::u32 &&
+        if (biasNode->getOriginalOutputPrecisionAtPort(0) != ov::element::i32 &&
             any_of(parentNode->getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8)) {
             return false;
         }

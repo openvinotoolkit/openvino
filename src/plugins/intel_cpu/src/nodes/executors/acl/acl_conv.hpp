@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,12 +28,11 @@ private:
     arm_compute::WeightsInfo weightsInfo;
     arm_compute::Size2D dilation;
     arm_compute::ActivationLayerInfo activationLayerInfo;
-    bool enableFastMath = false;
 
-    std::vector<float> inputScale;
-    std::vector<float> outputScale;
-    std::vector<float> inputShift;
-    std::vector<float> outputShift;
+    std::vector<float> fqInputScale;
+    std::vector<float> fqOutputScale;
+    std::vector<float> fqInputShift;
+    std::vector<float> fqOutputShift;
     std::vector<float> weightScale;
 };
 

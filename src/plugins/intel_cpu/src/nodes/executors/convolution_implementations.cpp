@@ -279,6 +279,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             // supports
             [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
                 return true;
             },
             CreateOptimalConfigAclLowp{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},

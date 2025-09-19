@@ -903,11 +903,9 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
-        {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
-         QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
+        {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0})});
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ov::opset1::Convolution>({{{0, 1}, {ov::element::u8, ov::element::i8}}}),
-        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>({{{0, 1}, {ov::element::i8}}}),
         PrecisionsRestriction::create<ov::op::v0::MatMul>(
             {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
     });
@@ -961,7 +959,6 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         AddTransformation);
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
-    CPU_DISABLE_PASS_ARM(lptManager, FakeQuantizeTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
@@ -985,6 +982,19 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                    !any_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3);
         },
         MatMulTransformation);
+
+    // Disable FakeQuantizeTransformation to preserve Convolution dequantization scale as a separate op
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            auto eltwise = node->get_input_node_shared_ptr(0);
+            if (ov::is_type<ov::op::v1::Multiply>(eltwise) &&
+                FakeQuantizeTransformation::checkElementwise(eltwise)) {
+                return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
+            }
+            return false;
+        },
+        FakeQuantizeTransformation);
 
     CPU_SET_CALLBACK_X64(
         lptManager,
@@ -1590,6 +1600,8 @@ void Transformations::PostSnippets() {
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
         },
         ov::pass::FakeQuantizeDecomposition);
+    // FQ node is not decomposed on ARM only if it is fused into Convolution node
+    // Otherwise FQ node is decomposed because there is no native support of FQ on ARM
     CPU_SET_CALLBACK_ARM(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
