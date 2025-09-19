@@ -37,6 +37,10 @@ public:
      */
     ov::SoPtr<ov::ITensor> get_user_state() const;
 
+    /**
+     * @brief Get internal level zero tensor. It can be different than the user tensor in case the user set a tensor
+     * that cannot be imported. Used by the InferenceRequest to update the arguments of the pipeline.
+     */
     std::shared_ptr<ZeroTensor> get_zero_state() const;
 
     /**
@@ -52,22 +56,29 @@ public:
 
     /**
      * @brief Get acknowledgment if state was updated
+     * @details Used to check if the state's internal user tensor was updated. Actions might need to be taken by the
+     * InferenceRequest in that case. This flag can be cleared using clear_state_update_pending(). An update to the user
+     * tensor might not trigger an update of the level zero tensor as well. zero_state_update_pending() should be used
+     * to check if the level zero tensor was also updated.
      */
     bool state_update_pending() const;
 
     /**
      * @brief Reset state updated flag
+     * @details Must be used to reset the flag exposed through state_update_pending()
      */
     void clear_state_update_pending();
 
     /**
      * @brief Get acknowledgment if the zero state was updated
-     * @details In case the memory was allocated in the same level zero context update the zero state
+     * @details Used to signal that the state's internal zero tensor was also updated. Actions might need to be taken by
+     * the InferenceRequest in that case. This flag can be cleared using clear_zero_state_update_pending().
      */
     bool zero_state_update_pending() const;
 
     /**
      * @brief Reset zero state updated flag
+     * @details Must be used to reset the flag exposed through zero_state_update_pending()
      */
     void clear_zero_state_update_pending();
 

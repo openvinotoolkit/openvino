@@ -13,6 +13,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
+#include "zero_variable_state.hpp"
 
 using namespace intel_npu;
 
@@ -119,6 +120,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     for (const IODescriptor& inputDescriptor : _metadata.inputs) {
         check_level_zero_attributes_match(inputDescriptor, _graphInputDescriptors.at(ioIndex));
 
+        // Tensors for regular inputs will be allocated later, only for ports that were not set by the user.
+        // Allocating only tensors for shapes and states.
         if (!(inputDescriptor.isStateInput || inputDescriptor.isShapeTensor)) {
             ++ioIndex;
             continue;
@@ -137,6 +140,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     for (const IODescriptor& outputDescriptor : _metadata.outputs) {
         check_level_zero_attributes_match(outputDescriptor, _graphOutputDescriptors.at(ioIndex));
 
+        // Tensors for regular outputs will be allocated later, only for ports that were not set by the user.
+        // Allocating only tensors for shapes and states.
         if (!(outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor)) {
             ++ioIndex;
             continue;
@@ -597,6 +602,8 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         }
 
         if (levelZeroTensor.at(SINGLE_TENSOR)->memory_address_changed()) {
+            // Memory address can change only a through tensor reshape. Tensor reallocation for a larger shape is
+            // allowed only when mutable command list version >= 1.0. This point should not be reached otherwise.
             if (_initStructs->getMutableCommandListExtVersion() < ZE_MAKE_VERSION(1, 0)) {
                 OPENVINO_THROW("Reallocation of zero memory is not supported with this driver.");
             }
@@ -627,6 +634,8 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         }
 
         if (levelZeroTensor->memory_address_changed()) {
+            // Memory address can change only a through tensor reshape. Tensor reallocation for a larger shape is
+            // allowed only when mutable command list version >= 1.0. This point should not be reached otherwise.
             if (_initStructs->getMutableCommandListExtVersion() < ZE_MAKE_VERSION(1, 0)) {
                 OPENVINO_THROW("Reallocation of zero memory is not supported with this driver.");
             }
@@ -655,7 +664,10 @@ void ZeroInferRequest::update_states_if_memory_changed() {
             _userOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_user_state();
             zeroState->clear_state_update_pending();
 
-            // If command list updates are not supported, fallback to copying tensors every time.
+            // State's tensor was previously updated. This change needs to be reflected in the inference request since
+            // states tensors are not visible inside the pipeline.
+            // Update input and output arguments that correspond to the state only if command lists are supported.
+            // Push/pull methods would later perform memory copies otherwise.
             if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) &&
                 zeroState->zero_state_update_pending()) {
                 get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_zero_state();

@@ -15,7 +15,6 @@
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_pipeline.hpp"
 #include "zero_tensor.hpp"
-#include "zero_variable_state.hpp"
 
 namespace intel_npu {
 
