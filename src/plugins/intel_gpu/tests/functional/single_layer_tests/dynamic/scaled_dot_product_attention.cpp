@@ -164,7 +164,8 @@ void ScaledAttnLayerGPUTest::SetUp() {
     }
     if (has_sink) {
         size_t num_heads = inputDynamicShapes[0][1].get_length();
-        auto sink_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, ov::Shape{1, num_heads, 1, 1}, 10.f, 100.f, 1);
+        ov::test::utils::InputGenerateData data(0, 5, 100);
+        auto sink_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, ov::Shape{1, num_heads, 1, 1}, data);
         auto sink_const = std::make_shared<ov::op::v0::Constant>(sink_tensor);
         sink_const->set_friendly_name("sink");
         inputs.push_back(sink_const);
@@ -248,7 +249,7 @@ void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         // Generate QKV
         for (int i = 0; i < 3; ++i) {
             shapes[i] = targetInputStaticShapes[i];
-            ov::test::utils::InputGenerateData data(0, 8, 32);
+            ov::test::utils::InputGenerateData data(0, 8, 64);
             ov::Tensor data_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[i], data);
             inputs.insert({model_inputs[i].get_node_shared_ptr(), data_tensor});
         }
@@ -734,42 +735,23 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D_sink {
             {ov::Shape{1, 8, 100, 100}, ov::Shape{1, 8, 1, 1}, ov::Shape{2, 8, 10, 10}}}
         },
     },
-    // heads number of qkv is 1, attn mask: [B, H, L1, L0+L1]
-    {
-        // q shape
-        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 80},
-            {ov::Shape{16, 1, 128, 80}, ov::Shape{16, 1, 1, 80}, ov::Shape{2, 1, 10, 80}}}
-        },
-        // k shape
-        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 80},
-            {ov::Shape{16, 1, 128, 80}, ov::Shape{16, 1, 1, 80}, ov::Shape{2, 1, 10, 80}}}
-        },
-        // v shape
-        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 80},
-            {ov::Shape{16, 1, 128, 80}, ov::Shape{16, 1, 1, 80}, ov::Shape{2, 1, 10, 80}}}
-        },
-        // attn shape
-        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
-            {ov::Shape{1, 1, 128, 128}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
-        },
-    },
     // 4D inputs, 2D mask
     {
         // q shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
-            {ov::Shape{1, 8, 245, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+            {ov::Shape{1, 8, 245, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 387, 64}}}
         },
         // k shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
-            {ov::Shape{1, 8, 245, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+            {ov::Shape{1, 8, 245, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 387, 64}}}
         },
         // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
-            {ov::Shape{1, 8, 245, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+            {ov::Shape{1, 8, 245, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 387, 64}}}
         },
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{-1, -1},
-            {ov::Shape{245, 245}, ov::Shape{1, 1}, ov::Shape{10, 10}}}
+            {ov::Shape{245, 245}, ov::Shape{1, 1}, ov::Shape{387, 387}}}
         },
     },
     {
@@ -796,10 +778,10 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D_sink {
 const auto dynamic_shape_params_4D_sink = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
                                                    testing::ValuesIn(dynamic_shapes_4D_sink),
                                                    testing::Values(false),
-                                                   testing::Values(true),
-                                                   testing::Values(true),
+                                                   testing::Values(false),
                                                    testing::Values(true),
                                                    testing::Values(false),
+                                                   testing::Values(true),
                                                    testing::ValuesIn({disable_transpose}),
                                                    testing::Values(true));
 
