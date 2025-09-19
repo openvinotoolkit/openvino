@@ -11,6 +11,8 @@
 namespace ov {
 namespace op {
 namespace internal {
+// An attention module used in Deformable-Detr. 
+// Used in vision transformers for object detection and segmentation tasks.
 class TRANSFORMATIONS_API MSDA : public ov::op::Op {
 public:
     OPENVINO_OP("MSDA", "ie_internal_opset", ov::op::Op);
