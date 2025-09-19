@@ -549,20 +549,4 @@ JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, o
     return {make_jit_constant(macro_name, type_string + std::to_string(pack_size) + "_t")};
 }
 
-// Longest notation for value represented by double type has 24 chars
-static thread_local char buf[24 + 24 + 18] = "";
-inline std::string float_to_string(float val) {
-    if (std::isinf(val))
-        return std::signbit(val) ? "-INFINITY" : "INFINITY";
-    // Workaround GCC compiler/STL bug
-    snprintf(buf, sizeof(buf), "as_float(0x%" PRIx32 ")/*%.6e*/", *reinterpret_cast<uint32_t*>(&val), val);
-    return buf;
-}
-
-JitConstants make_float_jit_constant(const std::string& name, float value) {
-    std::string value_string = float_to_string(value);
-
-    return {make_jit_constant(name, value_string)};
-}
-
 }  // namespace ov::intel_gpu::ocl

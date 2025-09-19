@@ -184,7 +184,6 @@ JitConstants make_layout_jit_constants(const std::string& name, const cldnn::lay
 JitConstants make_type_jit_constants(const std::string& name, const ov::element::Type& value);
 JitConstants make_indexing_jit_functions(const std::string& name, const layout& l);
 JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, ov::element::Type type, size_t pack_size);
-JitConstants make_float_jit_constant(const std::string& name, float value);
 }  // namespace ov::intel_gpu::ocl
 
 namespace ov::intel_gpu {

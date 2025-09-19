@@ -9,6 +9,8 @@ static_assert(__cplusplus >= 201703L);
 
 #define causal_mask CAUSAL_MASK
 
+#define full_attention_mask FULL_ATTENTION_MASK
+
 #define SystolicDepth 8
 #define RepeatCount 8
 #define VNNI_WIDTH 2
@@ -498,6 +500,7 @@ void sdpa_kernel_lsc(
             matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
 
             if constexpr (use_causal_mask) {
+                #if !full_attention_mask
                 // since kv_step == q_step == 16, causal_left is n*kv_step
                 if (causal_left == 0) {
                     apply_causal_mask<1>(St);
@@ -523,6 +526,7 @@ void sdpa_kernel_lsc(
                     //if (wg_local_id == 0) show(St);return;
                 }*/
                 causal_left -= kv_step;
+                #endif
             } else {
                 int kv_tokens = kv_stop - kv_pos;
                 // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
@@ -659,6 +663,7 @@ void sdpa_kernel_lsc_prefetch(
             }
         }
         if constexpr (use_causal_mask) {
+            #if !full_attention_mask
             // since kv_step == q_step == 16, causal_left is n*kv_step
             if (causal_left == 0) {
                 apply_causal_mask<1>(St);
@@ -666,6 +671,7 @@ void sdpa_kernel_lsc_prefetch(
                 St = -3.4e38f;
             }
             causal_left -= kv_step;
+            #endif
         } else {
             int kv_tokens = kv_stop - kv_pos;
             // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
@@ -903,6 +909,7 @@ void sdpa_kernel(
         matrix<float, kv_step, q_step> St = ugemm_KQ(slm_K, rQ, slm_offset);
 
         if constexpr (use_causal_mask) {
+            #if !full_attention_mask
             if (causal_left < kv_step) {
                 vector<float, q_step> cmask = 0.0f;
                 int p = causal_left + 1;
@@ -919,6 +926,7 @@ void sdpa_kernel(
                 //if (wg_local_id == 0) show(St);return;
             }
             causal_left -= kv_step;
+            #endif
         }
 
         // mask off k-tails
@@ -1098,7 +1106,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         if (kv_stop > kv_len) kv_stop = kv_len;
     }
 
-    sdpa_kernel<false, num_heads, num_kv_heads, head_size, 0>(
+    sdpa_kernel<causal_mask, num_heads, num_kv_heads, head_size, 0>(
                                 slm_K,
                                 slm_V,
                                 wg_local_id,

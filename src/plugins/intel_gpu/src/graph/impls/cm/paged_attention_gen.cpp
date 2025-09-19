@@ -10,8 +10,8 @@
 #include <utility>
 
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
-#include "../ocl_v2/sdpa_base.hpp"
-#include "../ocl_v2/paged_attention_common.hpp"
+#include "../ocl_v2/sdpa/sdpa_base.hpp"
+#include "../ocl_v2/sdpa/paged_attention_common.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -127,8 +127,8 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
         jit.make("KV_HEADS_NUM", desc->kv_heads_num);
 
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
-        jit.make("SCALE_FACTOR", scale_factor);
-        jit.make("CMFLA_SCALE_FACTOR", scale_factor);
+        jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
+        jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
         jit.make("CMFLA_NUM_HEADS", desc->heads_num);
         jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
         jit.make("CMFLA_NUM_KV_HEADS", desc->kv_heads_num);
@@ -148,13 +148,13 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
         jit.make("KV_HEADS_NUM", k_num_head);
 
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(k_head_size));
-        jit.make("SCALE_FACTOR", scale_factor);
-        jit.make("CMFLA_SCALE_FACTOR", scale_factor);
+        jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
+        jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
         jit.make("CMFLA_NUM_HEADS", q_num_head);
         jit.make("CMFLA_HEAD_SIZE", k_head_size);
         jit.make("CMFLA_NUM_KV_HEADS", k_num_head);
 
-        std::cout << "k_head_size: " << k_head_size << ", q_num_head: " << q_num_head << ", k_num_head: " << k_num_head << std::endl;
+        // std::cout << "k_head_size: " << k_head_size << ", q_num_head: " << q_num_head << ", k_num_head: " << k_num_head << std::endl;
     }
     jit.make("WG_SIZE_HINT", WG_SIZE);
 
@@ -195,6 +195,13 @@ JitConstants PagedAttentionSDPAGeneratorMultiToken::get_jit_constants(const kern
     auto causal_mask = 1;
     jit.make("CAUSAL_MASK", causal_mask);
 
+    if (params.is_type<paged_attention>()) {
+        jit.make("FULL_ATTENTION_MASK", 0);
+    } else {
+        // Test for qwen3_vl
+        jit.make("FULL_ATTENTION_MASK", 1);
+    }
+
     // for (auto& it : jit) {
     //     std::cout << "\tjit[" << it.name << "] = " << it.value << std::endl;
     // }
@@ -206,14 +213,32 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
     return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
-        auto desc = params.typed_desc<paged_attention>();
-        // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-        const size_t heads_num = desc->heads_num;
-        // const size_t head_size = desc->k_head_size;
 
-        auto out_shape = params.output_layouts[0].get_shape();
-        const size_t batch = out_shape.size() < 4 ? 1 : out_shape[0];
-        const size_t q_len = out_shape[0];
+        size_t heads_num = 1, batch = 1, q_len = 1;
+        size_t v_before_padding = 0;
+        // size_t kv_heads_num = 1, k_head_size = 1;
+        if (params.is_type<paged_attention>()) {
+            auto desc = params.typed_desc<paged_attention>();
+            // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+            heads_num = desc->heads_num;
+            size_t k_head_size = desc->k_head_size;
+            auto out_shape = params.output_layouts[0].get_shape();
+            batch = out_shape.size() < 4 ? 1 : out_shape[0];
+            q_len = out_shape[0];
+            size_t kv_heads_num = desc->kv_heads_num;
+            v_before_padding = (kv_heads_num + heads_num) * k_head_size;
+        } else {
+            auto desc = params.typed_desc<scaled_dot_product_attention>();
+            auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+            auto out_shape = params.output_layouts[0].get_shape();
+            batch = out_shape.size() < 4 ? 1 : get_batch_size(params.get_input_layout(0), extended_input_q_transpose_order);
+            q_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
+            heads_num = get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order);
+
+            // auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+            // k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
+            // kv_heads_num = get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order);
+        }
 
         auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
         const size_t q_step = get_q_step(xe_arch, false);
@@ -224,13 +249,13 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
         wgs.local = {1, 1, WG_SIZE};
 
         // std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: "
-        //           << "out_shape: " << out_shape.to_string() << ", batch: " << batch << ", heads_num: " << heads_num << ", q_threads: " << q_threads
+        //           << "out_shape: " << params.output_layouts[0].get_shape().to_string() << ", batch: " << batch << ", heads_num: " << heads_num << ", q_threads: " << q_threads
         //           << ", q_len: " << q_len << ", q_step: " << q_step << std::endl;
 
         // auto& value_layout = params.input_layouts[2];
-        auto v_before_padding = (desc->kv_heads_num + desc->heads_num) * desc->k_head_size;
         // std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: "
         //           << "value_layout: " << value_layout.to_string() << ", v_before_padding: " << v_before_padding << std::endl;
+
         // Prefill stage: kv_len == q_len
         auto kv_len = q_len;
         std::vector<size_t> scaler_value = {q_len, kv_len, v_before_padding};
