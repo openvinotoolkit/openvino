@@ -202,6 +202,8 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
+    if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::PER_TOKEN && dq_params.generate_precomputed_reduction)
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     auto bf = get_input_bf_size(dq_params);
     if (((bf.second) % (simd * 2)) != 0)

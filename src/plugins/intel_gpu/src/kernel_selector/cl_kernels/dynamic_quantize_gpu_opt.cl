@@ -32,8 +32,6 @@
 #error "UNIMPLMENTED: asymmetric quantization when group size is small"
 #endif
 
-// todo: support for precompute_sum or assertion not to support it
-
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(dynamic_quantize_gpu_opt)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -222,8 +220,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if ASYMMETRIC_QUANTIZATION
         output_zp[output_idx] = convert_uchar_rte(zp);
 #endif
-        // FIXME: f_grp may not be aligned with dyn_quan gs
-        // XXX: can precomputed_reduction be f16? this may go out of range for large group size
         FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
     }
 }
