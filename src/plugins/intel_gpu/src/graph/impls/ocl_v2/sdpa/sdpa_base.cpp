@@ -205,15 +205,8 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
     if (params.is_type<scaled_dot_product_attention>()) {
         const auto& desc = params.typed_desc<scaled_dot_product_attention>();
         auto data_inputs_num = get_data_inputs_num(*desc);
-        const size_t attn_mask_id = 3;
 
         jit.make("IS_CAUSAL", desc->is_causal);
-        if (desc->attn_mask_val.has_value()) {
-            jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", desc->attn_mask_val.value());
-            jit.make("HAS_ATTN_MASK_INPUT", 0);
-        } else {
-            jit.make("HAS_ATTN_MASK_INPUT", data_inputs_num > attn_mask_id);
-        }
         if (desc->has_sink_input) {
             jit.make("SINK_DATA_T", to_ocl_type(params.input_layouts[5].data_type));
             jit.make("HAS_SINK_INPUT", 1);

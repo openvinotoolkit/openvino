@@ -137,9 +137,9 @@ KERNEL(sdpa_ref)(
 #if HAS_ATTN_MASK_INPUT
     const __global INPUT3_TYPE* attn_mask,
 #endif
-//#if HAS_SCALE_INPUT
+#if HAS_SCALE_INPUT
     const __global half* scale,
-//#endif
+#endif
 #ifdef HAS_SINK_INPUT
     global SINK_DATA_T *sink_ptr,
 #endif
