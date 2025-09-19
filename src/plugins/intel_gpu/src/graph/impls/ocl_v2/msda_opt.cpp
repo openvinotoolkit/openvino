@@ -45,6 +45,8 @@ protected:
             const auto num_queries = params.get_input_layout(3).get_shape()[1];
             const auto num_heads = params.get_input_layout(0).get_shape()[2];
             const auto embed_dims = params.get_input_layout(0).get_shape()[3];
+            const auto num_levels = params.get_input_layout(1).get_shape()[0];
+            const auto num_points = params.get_input_layout(3).get_shape()[2];
             wgs.global = {1, 1, batch_size * num_queries * num_heads * embed_dims};
             wgs.local = {1, 1, 64};
         }};
