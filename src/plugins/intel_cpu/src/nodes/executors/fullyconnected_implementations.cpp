@@ -194,9 +194,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(MlasGemmExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
-                VERIFY(weiRank(config) <= 2U, UNSUPPORTED_WEI_RANK);
-
-                return true;
+                VERIFY(weiRank(config) <= 3U, UNSUPPORTED_WEI_RANK);
+                auto wei_rank = weiRank(config);
+                return !(wei_rank == 3U && weiDims(config)[0] > 1);
             },
             HasNoOptimalConfig<FCAttrs>{},
             AcceptsAnyShape<FCAttrs>,
