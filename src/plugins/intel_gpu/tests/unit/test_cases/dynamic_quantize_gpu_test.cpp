@@ -175,7 +175,7 @@ public:
             cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr_ref(ref_output_buffers[i], get_test_stream());
 
             for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
-                const int abs_error_threshold = has_precompute_sum == PrecomputeSum::Enabled ? 15 : 2;  // precompute_sum may have larger error
+                const int abs_error_threshold = has_precompute_sum == PrecomputeSum::Enabled ? 2 : 2;
                 ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], abs_error_threshold);
             }
         }

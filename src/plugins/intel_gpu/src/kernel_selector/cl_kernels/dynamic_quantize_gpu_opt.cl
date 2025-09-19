@@ -88,8 +88,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
     output_scale[output_idx] = 1.0h / quan_scale;
 
-    // FIXME: f_grp may not be aligned with dyn_quan gs
-    // XXX: can precomputed_reduction be f16? this may go out of range for large group size
     FOR_PRECOMPUTED_REDUCTION(output_precomputed_reduction[output_idx] = precomputed_reduction);
 }
 
@@ -116,9 +114,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
     )
 {
     const uint b = (uint)get_global_id(2);
-    const uint f_grp = get_group_id(1);
+    const uint f_grp = get_global_id(1) * VEC_SIZE * SIMD / QUANTIZE_GROUP_SIZE;
     const uint sglid = get_sub_group_local_id();
-    const uint local_id = (uint)get_local_id(1);
+    const uint local_id = (uint)get_global_id(1) % (QUANTIZE_GROUP_SIZE / VEC_SIZE / SIMD);
 #if OUTPUT_DIMS == 2
     const uint input_offset = INPUT0_GET_INDEX (b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
     const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
@@ -135,8 +133,8 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
     const uint offset = b_offset + VEC_SIZE * sglid;
 
-    __local half local_mem_max[QUANTIZE_GROUP_SIZE / block_size];
-    __local half local_mem_min[QUANTIZE_GROUP_SIZE / block_size];
+    __local half local_mem_max[TOTAL_BLOCK_NUM];
+    __local half local_mem_min[TOTAL_BLOCK_NUM];
 
     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) val;
     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) abs_val;
@@ -168,19 +166,20 @@ KERNEL(dynamic_quantize_gpu_opt)(
     min_value = sub_group_reduce_min(grp_min);
 #endif
 
+    const uint block_offset_idx = f_grp * QUANTIZE_GROUP_SIZE / block_size;
     if (sglid == 0) {
-        local_mem_max[local_id] = max_value;
+        local_mem_max[block_offset_idx + local_id] = max_value;
 #if ASYMMETRIC_QUANTIZATION
-        local_mem_min[local_id] = min_value;
+        local_mem_min[block_offset_idx + local_id] = min_value;
 #endif
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
     for (int j = 0; j < QUANTIZE_GROUP_SIZE / block_size; j++) {
-        max_value = fmax(max_value, local_mem_max[j]);
+        max_value = fmax(max_value, local_mem_max[block_offset_idx + j]);
 #if ASYMMETRIC_QUANTIZATION
-        min_value = fmin(min_value, local_mem_min[j]);
+        min_value = fmin(min_value, local_mem_min[block_offset_idx + j]);
 #endif
     }
 
