@@ -49,6 +49,9 @@ public:
 private:
     RegPrinter() = default;
 
+    template <typename PRC_T, typename REG_T, typename PrinterFunc>
+    static void print_reg_common(jit_generator_t& h, const REG_T& reg, const char* name, PrinterFunc printer);
+
     template <typename PRC_T, typename REG_T>
     static void print_vmm(jit_generator_t& h, const REG_T& vmm, const char* name);
 

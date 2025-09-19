@@ -10,6 +10,7 @@
 #    include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #    include <array>
+#    include <climits>
 #    include <cstddef>
 #    include <cstdint>
 #    include <iostream>
@@ -104,29 +105,32 @@ void RegPrinter::print_vmm_prc(const char* name, const char* orig_name, PRC_T* p
     std::cout << ss.str();
 }
 
-template <typename PRC_T, typename REG_T>
-void RegPrinter::print_vmm(jit_generator_t& h, const REG_T& vmm, const char* name) {
+template <typename PRC_T, typename REG_T, typename PrinterFunc>
+void RegPrinter::print_reg_common(jit_generator_t& h, const REG_T& reg, const char* name, PrinterFunc printer) {
     preamble(h);
 
-    const size_t vmm_bytes = vmm.getBit() / 8;
-    const size_t stack_bytes = ov::intel_cpu::rnd_up(vmm_bytes, sp_alignment);
+    const size_t reg_bytes = reg.getBit() / CHAR_BIT;
+    const size_t stack_bytes = ov::intel_cpu::rnd_up(reg_bytes, sp_alignment);
 
     h.sub(h.sp, h.sp, stack_bytes);
+
     if constexpr (std::is_same_v<REG_T, VReg>) {
-        h.str(QReg(vmm.getIdx()), ptr(h.sp));
+        h.str(QReg(reg.getIdx()), ptr(h.sp));
+    } else if constexpr (std::is_same_v<REG_T, XReg>) {
+        h.str(XReg(reg.getIdx()), ptr(h.sp));
+    } else if constexpr (std::is_same_v<REG_T, WReg>) {
+        h.str(WReg(reg.getIdx()), ptr(h.sp));
     } else {
-        static_assert(std::is_same_v<REG_T, VReg>, "Unsupported vector register type");
+        static_assert(std::is_same_v<REG_T, VReg> || std::is_same_v<REG_T, XReg> || std::is_same_v<REG_T, WReg>,
+                      "Unsupported register type");
     }
 
     h.mov(abi_param3, h.sp);
-    h.mov(abi_param2, to_uintptr(get_original_name(vmm)));
+    h.mov(abi_param2, to_uintptr(get_original_name(reg)));
     h.mov(abi_param1, name ? to_uintptr(name) : to_uintptr(nullptr));
 
-    if constexpr (std::is_same_v<REG_T, VReg>) {
-        auto printer = &print_vmm_prc<PRC_T, RegPrinter::vec_len>;
-        h.mov(h.X_TMP_0, reinterpret_cast<uintptr_t>(printer));
-        h.blr(h.X_TMP_0);
-    }
+    h.mov(h.X_TMP_0, reinterpret_cast<uintptr_t>(printer));
+    h.blr(h.X_TMP_0);
 
     h.add(h.sp, h.sp, stack_bytes);
 
@@ -134,33 +138,15 @@ void RegPrinter::print_vmm(jit_generator_t& h, const REG_T& vmm, const char* nam
 }
 
 template <typename PRC_T, typename REG_T>
+void RegPrinter::print_vmm(jit_generator_t& h, const REG_T& vmm, const char* name) {
+    auto printer = &print_vmm_prc<PRC_T, RegPrinter::vec_len>;
+    print_reg_common<PRC_T>(h, vmm, name, printer);
+}
+
+template <typename PRC_T, typename REG_T>
 void RegPrinter::print_reg(jit_generator_t& h, const REG_T& reg, const char* name) {
-    preamble(h);
-
-    const size_t reg_bytes = reg.getBit() / 8;
-    const size_t stack_bytes = ov::intel_cpu::rnd_up(reg_bytes, sp_alignment);
-
-    h.sub(h.sp, h.sp, stack_bytes);
-    if constexpr (std::is_same_v<REG_T, XReg>) {
-        h.str(XReg(reg.getIdx()), ptr(h.sp));
-    } else if constexpr (std::is_same_v<REG_T, WReg>) {
-        h.str(WReg(reg.getIdx()), ptr(h.sp));
-    } else {
-        static_assert(std::is_same_v<REG_T, XReg> || std::is_same_v<REG_T, WReg>,
-                      "Unsupported general-purpose register type");
-    }
-
-    h.mov(abi_param3, h.sp);
-    h.mov(abi_param2, to_uintptr(get_original_name(reg)));
-    h.mov(abi_param1, name ? to_uintptr(name) : to_uintptr(nullptr));
-
     auto printer = &print_reg_prc<PRC_T>;
-    h.mov(h.X_TMP_0, reinterpret_cast<uintptr_t>(printer));
-    h.blr(h.X_TMP_0);
-
-    h.add(h.sp, h.sp, stack_bytes);
-
-    postamble(h);
+    print_reg_common<PRC_T>(h, reg, name, printer);
 }
 
 void RegPrinter::preamble(jit_generator_t& h) {
