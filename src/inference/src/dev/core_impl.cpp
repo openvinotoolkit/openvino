@@ -1488,6 +1488,16 @@ bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
     }
 }
 
+void ov::CoreImpl::insert_padding(std::ostream& networkStream, size_t pad) const {
+    constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
+    static const char zeros[STANDARD_PAGE_SIZE] = {0};
+    while (pad > 0) {
+        size_t chunk = std::min(pad, sizeof(zeros));
+        networkStream.write(zeros, chunk);
+        pad -= chunk;
+    }
+}
+
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& plugin,
                                                                     const std::shared_ptr<const ov::Model>& model,
                                                                     const ov::AnyMap& parsedConfig,
@@ -1506,9 +1516,25 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                     plugin.get_property(ov::internal::compiled_model_runtime_properties.name(), {}).as<std::string>();
             }
             cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
+                auto start = networkStream.tellp();
                 networkStream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
                                                         ov::ModelCache::calculate_file_info(cacheContent.modelPath),
                                                         compiled_model_runtime_properties);
+                auto end = networkStream.tellp();
+
+                // add padding
+                uint32_t header_size_alignment{};
+                if (device_supports_internal_property(plugin, ov::internal::cache_header_align.name())) {
+                    header_size_alignment =
+                        plugin.get_property(ov::internal::cache_header_align.name(), {}).as<uint32_t>();
+                }
+                if (header_size_alignment) {
+                    size_t bytes_written = static_cast<size_t>(end - start);
+                    size_t pad = (header_size_alignment - (bytes_written % header_size_alignment)) %
+                                 header_size_alignment;  // 0 if already aligned
+                    insert_padding(networkStream, pad);
+                }
+
                 compiled_model->export_model(networkStream);
             });
         } catch (...) {
