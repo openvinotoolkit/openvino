@@ -1197,16 +1197,16 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 
     auto data_inputs_num = micro_get_input_num(params, config);
 
-    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});   // K
-    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});   // Q
-    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::VALUE});   // V
-    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
+    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
+    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});  // Q
+    args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::VALUE});  // V
+    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                        // A
 
     if (config.is_paged_attention) {
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
         if (!config.has_const_scale_val)
-            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});   // scale
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});                        // blocked_indexes_start_and_gws_mapping
     } else {
         const uint32_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
         if (config.input_num > attn_mask_idx && !config.has_const_attn_mask_val)
