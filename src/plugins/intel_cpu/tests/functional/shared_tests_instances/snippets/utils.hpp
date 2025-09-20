@@ -19,7 +19,8 @@ static inline bool is_bf16_supported_by_brgemm() {
 
 // Snippets BRGEMM supports fp16 only on platforms with AMX-FP16 instructions
 static inline bool is_fp16_supported_by_brgemm() {
-    return ov::with_cpu_x86_avx512_core_amx_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2();
+    return ov::with_cpu_x86_avx512_core_amx_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2() ||
+           ov::with_cpu_neon_fp16();
 }
 
 // Snippets BRGEMM supports i8 only on platforms with VNNI or AMX instructions
