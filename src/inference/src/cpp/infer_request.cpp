@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -220,6 +221,7 @@ Tensor InferRequest::get_output_tensor() {
 }
 
 void InferRequest::infer() {
+    OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "SyncInferRequest");
     OV_INFER_REQ_CALL_STATEMENT(_impl->infer());
 }
 
