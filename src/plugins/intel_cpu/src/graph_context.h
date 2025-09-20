@@ -15,6 +15,7 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "sub_memory_manager.hpp"
+#include "thread_pool_imp.hpp"
 #include "weights_cache.hpp"
 
 namespace ov::intel_cpu {
@@ -35,6 +36,7 @@ public:
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
+                 std::shared_ptr<CpuParallel> cpuParallel = nullptr,
                  std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
     [[nodiscard]] const Config& getConfig() const {
@@ -69,6 +71,14 @@ public:
 
     [[nodiscard]] ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
         return m_cpuStreamExecutor;
+    }
+
+    [[nodiscard]] std::shared_ptr<CpuParallel> getCpuParallel() const {
+        return m_cpuParallel;
+    }
+
+    [[nodiscard]] std::shared_ptr<ThreadPool> getThreadPool() const {
+        return m_threadPool;
     }
 
     [[nodiscard]] std::shared_ptr<SubMemoryManager> getSubMemory() const {
@@ -121,6 +131,8 @@ private:
     ov::threading::IStreamsExecutor::Ptr m_streamExecutor;
     // cpu stream executor for current graph
     ov::threading::CPUStreamsExecutor::Ptr m_cpuStreamExecutor;
+    std::shared_ptr<CpuParallel> m_cpuParallel = nullptr;
+    std::shared_ptr<ThreadPool> m_threadPool = nullptr;
     // numa submemory manager
     std::shared_ptr<SubMemoryManager> m_subMemoryManager;
 

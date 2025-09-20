@@ -139,7 +139,7 @@ public:
             n->initSupportedPrimitiveDescriptors();
             n->selectPrimitiveDescriptorByIndex(0);
         }
-        stream = dnnl::stream{cpuEngine};
+        stream = ov::intel_cpu::make_stream(cpuEngine);
     }
 
 protected:

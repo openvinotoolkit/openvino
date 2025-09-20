@@ -4,6 +4,7 @@
 
 #include "node.h"
 
+#include <oneapi/dnnl/dnnl_config.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
@@ -41,6 +42,7 @@
 #include "openvino/cc/factory.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/util/pp.hpp"
@@ -56,6 +58,10 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+#    include <common/dnnl_thread.hpp>
+#endif
 
 using namespace dnnl;
 using namespace openvino;
@@ -811,7 +817,13 @@ void Node::updateDynamicParams() {
                           getName(),
                           " ",
                           getOriginalLayers());
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+                dnnl::impl::threadpool_utils::activate_threadpool(context->getThreadPool().get());
+#endif
                 prepareParams();
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+                dnnl::impl::threadpool_utils::deactivate_threadpool();
+#endif
             }
         }
     } catch (const std::exception& e) {
@@ -1116,7 +1128,7 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
         Memory memory{engine, newDesc, internalBlob->getData()};
 
         MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
-        node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
+        node::Reorder::reorderData(memory, *_ptr, context->getParamsCache(), context->getThreadPool());
         return _ptr;
     };
 
@@ -1150,7 +1162,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     auto create = [&]() {
         Memory srcMemory{getEngine(), srcWeightDesc, edgeMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache(), context->getThreadPool());
 
         return _ptr;
     };
