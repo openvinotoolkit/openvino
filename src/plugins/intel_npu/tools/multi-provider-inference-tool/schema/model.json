@@ -1,0 +1,25 @@
+{
+    "type" : "object",
+    "additionalProperties" : {
+        "type" : "object",
+        "anyOf": [
+            {"required" : ["shape"]},
+            {"required" : ["layout"]},
+            {"required" : ["element_type"]}
+        ],
+        "properties" : {
+            "shape": {
+                "$comment": "Specifies a shape of the model input",
+                "type": ["array", "string"]
+            },
+            "layout": {
+                "$comment": "Specifies a layout of the model input",
+                "type": ["array", "string"]
+            },
+            "element_type": {
+                "$comment": "Specifies a data type of the model input",
+                "type": "string"
+            }
+        }
+    }
+}
