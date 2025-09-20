@@ -23,6 +23,13 @@ public:
     /// \param arg          Node that produces the input tensor.
     /// \param destination_type  Element type for the output tensor.
     Convert(const Output<Node>& arg, const ov::element::Type& destination_type);
+    /// \brief Constructs a conversion operation
+    ///
+    /// \param arg          Node that produces the input tensor.
+    /// \param destination_type  Element type for the output tensor.
+    /// \param no_clamp  If true, clamp will be disabled.
+    /// \param use_rounding  If true, use std::round() instead of std::trunc() for floating point values.
+    Convert(const Output<Node>& arg, const ov::element::Type& destination_type, bool no_clamp, bool use_rounding);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -39,6 +46,18 @@ public:
     void set_convert_element_type(const element::Type& destination_type) {
         m_destination_type = destination_type;
     }
+    bool get_no_clamp() const {
+        return m_no_clamp;
+    }
+    void set_no_clamp(bool no_clamp) {
+        m_no_clamp = no_clamp;
+    }
+    bool get_use_rounding() const {
+        return m_use_rounding;
+    }
+    void set_use_rounding(bool use_rounding) {
+        m_use_rounding = use_rounding;
+    }
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
@@ -48,6 +67,8 @@ public:
 
 protected:
     ov::element::Type m_destination_type;
+    bool m_no_clamp;
+    bool m_use_rounding;
 };
 }  // namespace v0
 }  // namespace op

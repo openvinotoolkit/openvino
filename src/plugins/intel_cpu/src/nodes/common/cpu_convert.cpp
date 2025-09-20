@@ -528,6 +528,8 @@ struct ConvertContext {
     ov::element::Type interimPrc;
     ov::element::Type dstPrc;
     bool converted;
+    bool no_clamp;
+    bool use_rounding;
 
     template <typename T>
     [[nodiscard]] std::tuple<T, T> range() const {
@@ -555,6 +557,30 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(src[i]);
             });
+            ctx.converted = true;
+            return;
+        }
+
+        if (ctx.no_clamp || ctx.use_rounding) {
+            if (std::is_integral_v<src_t>) {
+                auto convert_func = [&, lbound = lbound, ubound = ubound](size_t i) {
+                    src_t value = ctx.no_clamp ? src[i] : std::max(std::min(src[i], ubound), lbound);
+                    dst[i] = static_cast<dst_t>(value);
+                };
+
+                parallel_for(ctx.size, convert_func);
+            } else {
+                auto apply_conversion = [&, lbound = lbound, ubound = ubound](src_t value) -> dst_t {
+                    if (ctx.no_clamp) {
+                        return static_cast<dst_t>(ctx.use_rounding ? std::round(value) : std::trunc(value));
+                    }
+                    return static_cast<dst_t>(ctx.use_rounding ? std::round(std::max(std::min(value, ubound), lbound))
+                                                               : std::trunc(std::max(std::min(value, ubound), lbound)));
+                };
+                parallel_for(ctx.size, [&](size_t i) {
+                    dst[i] = apply_conversion(src[i]);
+                });
+            }
             ctx.converted = true;
             return;
         }
@@ -1026,7 +1052,9 @@ void cpu_convert(const void* srcPtr,
                  ov::element::Type srcPrc,
                  ov::element::Type interimPrc,
                  ov::element::Type dstPrc,
-                 const size_t size) {
+                 const size_t size,
+                 bool no_clamp,
+                 bool use_rounding) {
     if (size == 0) {
         return;
     }
@@ -1094,7 +1122,7 @@ void cpu_convert(const void* srcPtr,
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
 #endif
     } else {
-        ConvertContext ctx{srcPtr, dstPtr, size, interimPrc, dstPrc, false};
+        ConvertContext ctx{srcPtr, dstPtr, size, interimPrc, dstPrc, false, no_clamp, use_rounding};
         OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     }
