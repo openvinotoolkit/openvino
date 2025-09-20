@@ -828,7 +828,7 @@ void jit_kernel::foreach (const B& begin,
     cmp(idx, end);
     jge(exit, T_NEAR);
 
-    fn(idx);
+    std::move(fn)(idx);
 
     add(idx, step);
     jmp(loop, T_NEAR);
