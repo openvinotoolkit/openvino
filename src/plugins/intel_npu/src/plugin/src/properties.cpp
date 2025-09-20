@@ -214,7 +214,7 @@ namespace intel_npu {
     } while (0)
 
 /**
- * @brief Macro for defining properties which have simmple single value returning metrics
+ * @brief Macro for defining properties which have simple single value returning metrics
  *
  * The key differentiator for Metrics (from configs) is that they don't have an entry in the config map, nor an
  * OptionBase descriptor. Metrics are static, Read-Only properties returning fixed characteristics of the device, plugin
@@ -348,7 +348,6 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::execution_mode, EXECUTION_MODE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::model, MODEL_PTR);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
@@ -410,6 +409,14 @@ void Properties::registerPluginProperties() {
         return false;
     }());
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+
+    FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model,
+                                   MODEL_PTR,
+                                   true,
+                                   ov::PropertyMutability::RO,
+                                   [](const Config& /* unusedConfig */) {
+                                       return std::shared_ptr<const ov::Model>(nullptr);
+                                   });
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query.
@@ -576,7 +583,6 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
 
     // Properties we shall only enable if they were set prior-to-compilation
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::hint::model, MODEL_PTR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_profiling, PERF_COUNT);
@@ -612,6 +618,14 @@ void Properties::registerCompiledModelProperties() {
                                  [](const Config& config) {
                                      return config.get<WORKLOAD_TYPE>();
                                  });
+
+    FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model,
+                                   MODEL_PTR,
+                                   true,
+                                   ov::PropertyMutability::RO,
+                                   [](const Config& /* unusedConfig */) {
+                                       return std::shared_ptr<const ov::Model>(nullptr);
+                                   });
 
     // 2. Metrics (static device and enviroment properties)
     // ========

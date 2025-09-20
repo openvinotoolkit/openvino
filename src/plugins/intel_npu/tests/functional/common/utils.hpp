@@ -89,9 +89,13 @@ namespace test {
 
 namespace utils {
 
-template <typename T>
+template <typename T, bool COUNTER = false>
 std::string appendPlatformTypeTestName(testing::TestParamInfo<typename T::ParamType> obj) {
-    const std::string& test_name = GenericTestCaseNameClass::getTestCaseName<T>(obj);
+    std::string test_name = GenericTestCaseNameClass::getTestCaseName<T>(obj);
+    if constexpr (COUNTER == true) {  // used only when test name duplication has justification
+        static size_t testCounter = 0;
+        test_name += "_testCounter=" + std::to_string(testCounter++);
+    }
     return test_name + "_targetPlatform=" + getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
 }
 
