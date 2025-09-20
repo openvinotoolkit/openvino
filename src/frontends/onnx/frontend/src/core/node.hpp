@@ -38,6 +38,8 @@ class Subgraph;
 class Tensor;
 class SparseTensor;
 class Attribute;
+class DecoderBaseOperation;
+class TranslateSession;
 
 using ::ONNX_NAMESPACE::NodeProto;
 
@@ -46,6 +48,7 @@ public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
     Node(const NodeProto& node_proto, Graph* graph);
+    Node(const DecoderBaseOperation& decoder, TranslateSession* translate_session);
 
     Node(Node&&) noexcept;
     Node(const Node&);
@@ -59,6 +62,7 @@ public:
     const std::string& get_name() const;
     std::vector<std::string> get_attribute_names() const;
     const Attribute& get_attribute(const std::string& name) const;
+    ov::Any get_attribute_any(const std::string& name) const;
 
     /// \brief Describe the ONNX Node to make debugging graphs easier
     /// Function will return the Node's name if it has one, or the names of its outputs.
@@ -68,7 +72,7 @@ public:
     const std::string& input(int index) const;
     std::size_t get_inputs_size() const;
 
-    const std::vector<std::reference_wrapper<const std::string>>& get_output_names() const;
+    const std::vector<std::reference_wrapper<const std::string>> get_output_names() const;
     const std::string& output(int index) const;
     std::size_t get_outputs_size() const;
 
@@ -98,13 +102,29 @@ public:
                                                                     T default_value,
                                                                     ov::element::Type type) const;
 
+    inline bool has_decoder() const {
+        return m_decoder != nullptr;
+    }
+
+    TranslateSession* get_translate_session() const {
+        return m_translate_session;
+    }
+
 private:
+    template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_decoder_attribute_as_constant(const std::string& name) const;
+
+    template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_decoder_attribute_as_constant(const std::string& name,
+                                                                            T default_value) const;
     class Impl;
     // In this case we need custom deleter, because Impl is an incomplete
     // type. Node's are elements of std::vector. Without custom deleter
     // compilation fails; the compiler is unable to parameterize an allocator's
     // default deleter due to incomple type.
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
+    const DecoderBaseOperation* m_decoder;
+    TranslateSession* m_translate_session;
 };
 
 template <>
@@ -157,6 +177,10 @@ template <>
 std::vector<Graph> Node::get_attribute_value(const std::string& name, std::vector<Graph> default_value) const;
 
 template <>
+std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name,
+                                                     std::shared_ptr<ov::Model> default_value) const;
+
+template <>
 float Node::get_attribute_value(const std::string& name) const;
 
 template <>
@@ -203,6 +227,9 @@ std::vector<SparseTensor> Node::get_attribute_value(const std::string& name) con
 
 template <>
 std::vector<Graph> Node::get_attribute_value(const std::string& name) const;
+
+template <>
+std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) const;
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
