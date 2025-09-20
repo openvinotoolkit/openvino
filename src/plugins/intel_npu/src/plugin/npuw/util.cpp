@@ -671,8 +671,8 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
             const uint8_t* src = static_cast<const uint8_t*>(t.data());
             uint8_t* dst = static_cast<uint8_t*>(tnew.data());
             ov::parallel_for(shape[0], [&](size_t p) {
-                const uint8_t* src_ptr = src + p * shape[1] * shape[2];
-                uint8_t* dst_ptr = dst + p * shape[1] * shape[2];
+                const uint8_t* src_ptr = src + p * shape[1] * shape[2] / 2;
+                uint8_t* dst_ptr = dst + p * shape[1] * shape[2] / 2;
                 ov::npuw::util::XARCH::transpose_i4(src_ptr, dst_ptr, shape[1], shape[2]);
             });
             break;
