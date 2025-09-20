@@ -46,27 +46,6 @@ const std::vector<size_t> NCHW_TO_NHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 1};
 const std::vector<size_t> NCDHW_TO_NDHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 4, 1};
 
 /**
- * @brief A standard copy function concerning memory segments. Additional checks on the given arguments are performed
- * before copying.
- * @details This is meant as a replacement for the legacy "ie_memcpy" function coming from the OpenVINO API.
- */
-void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes) {
-    if (numberOfBytes == 0) {
-        return;
-    }
-
-    OPENVINO_ASSERT(destination != nullptr, "Memcpy: received a null destination address");
-    OPENVINO_ASSERT(source != nullptr, "Memcpy: received a null source address");
-    OPENVINO_ASSERT(numberOfBytes <= destinationSize,
-                    "Memcpy: the source buffer does not fit inside the destination one");
-    OPENVINO_ASSERT(numberOfBytes <= (destination > source ? ((uintptr_t)destination - (uintptr_t)source)
-                                                           : ((uintptr_t)source - (uintptr_t)destination)),
-                    "Memcpy: the offset between the two buffers does not allow a safe execution of the operation");
-
-    memcpy(destination, source, numberOfBytes);
-}
-
-/**
  * @brief For driver backward compatibility reasons, the given value shall be converted to a string corresponding to the
  * adequate legacy precision.
  */
@@ -216,7 +195,16 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+    const FilteredConfig* filteredConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (filteredConfig == nullptr) {
+        OPENVINO_THROW("config is not FilteredConfig");
+    }
+    auto serializedIR = serializeIR(model,
+                                    compilerVersion,
+                                    maxOpsetVersion,
+                                    filteredConfig->isAvailable(ov::intel_npu::better_model_serialization.name())
+                                        ? filteredConfig->get<BETTER_MODEL_SERIALIZATION>()
+                                        : false);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -454,58 +442,19 @@ uint32_t DriverCompilerAdapter::get_version() const {
  */
 SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::Model>& model,
                                                 ze_graph_compiler_version_info_t compilerVersion,
-                                                const uint32_t supportedOpsetVersion) const {
-    driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion);
-
-    // Contract between adapter and compiler in driver
-    const uint32_t maxNumberOfElements = 10;
-    const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
-    const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
-
-    const uint32_t numberOfInputData = 2;
-    const uint64_t xmlSize = static_cast<uint64_t>(irSerializer.getXmlSize());
-    const uint64_t weightsSize = static_cast<uint64_t>(irSerializer.getWeightsSize());
-
-    OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
-    if (xmlSize >= maxSizeOfXML) {
-        OPENVINO_THROW("Xml file is too big to process. xmlSize: ", xmlSize, " >= maxSizeOfXML: ", maxSizeOfXML);
-    }
-    if (weightsSize >= maxSizeOfWeights) {
-        OPENVINO_THROW("Bin file is too big to process. xmlSize: ",
-                       weightsSize,
-                       " >= maxSizeOfWeights: ",
-                       maxSizeOfWeights);
-    }
-
-    const uint64_t sizeOfSerializedIR = sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) +
-                                        xmlSize + sizeof(weightsSize) + weightsSize;
-
-    // use array to avoid vector's memory zeroing overhead
-    std::shared_ptr<uint8_t> buffer(new uint8_t[sizeOfSerializedIR], std::default_delete<uint8_t[]>());
-    uint8_t* serializedIR = buffer.get();
-
-    uint64_t offset = 0;
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &compilerVersion, sizeof(compilerVersion));
-    offset += sizeof(compilerVersion);
-
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
-    offset += sizeof(numberOfInputData);
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
-    offset += sizeof(xmlSize);
-    // xml data is filled in serializeModel()
-    uint64_t xmlOffset = offset;
-    offset += xmlSize;
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
-    offset += sizeof(weightsSize);
-    // weights data is filled in serializeModel()
-    uint64_t weightsOffset = offset;
-    offset += weightsSize;
-
-    irSerializer.serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset);
-
-    OPENVINO_ASSERT(offset == sizeOfSerializedIR);
-
-    return std::make_pair(sizeOfSerializedIR, buffer);
+                                                const uint32_t supportedOpsetVersion,
+                                                const bool useBetterModelSerialization) const {
+    std::shared_ptr<driver_compiler_utils::IRSerializerBase> irSerializer =
+        useBetterModelSerialization
+            ? std::make_shared<driver_compiler_utils::IRSerializerWithoutWeightsCopy>(model,
+                                                                                      compilerVersion.major,
+                                                                                      compilerVersion.minor,
+                                                                                      supportedOpsetVersion)
+            : std::make_shared<driver_compiler_utils::IRSerializerWithWeightsCopy>(model,
+                                                                                   compilerVersion.major,
+                                                                                   compilerVersion.minor,
+                                                                                   supportedOpsetVersion);
+    return irSerializer->serialize();
 }
 
 std::string DriverCompilerAdapter::serializeIOInfo(const std::shared_ptr<const ov::Model>& model,
