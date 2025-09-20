@@ -249,7 +249,7 @@ void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         // Generate QKV
         for (int i = 0; i < 3; ++i) {
             shapes[i] = targetInputStaticShapes[i];
-            ov::test::utils::InputGenerateData data(0, 8, 64);
+            ov::test::utils::InputGenerateData data(0, 8, 32);
             ov::Tensor data_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[i], data);
             inputs.insert({model_inputs[i].get_node_shared_ptr(), data_tensor});
         }
