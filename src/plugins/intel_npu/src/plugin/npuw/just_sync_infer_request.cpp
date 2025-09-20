@@ -512,6 +512,7 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
         m_attention_selector->prepare();
     }
 
+    // FIXME: attention-specific, needs to be moved out after refactoring
     m_cached_attention_mask = std::nullopt;
 
     LOG_DEBUG("Done");
