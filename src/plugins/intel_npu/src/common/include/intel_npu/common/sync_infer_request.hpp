@@ -6,7 +6,6 @@
 
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/common/variable_state.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -147,8 +146,6 @@ protected:
      * @param precision The precision value to be checked.
      */
     virtual void check_network_precision(const ov::element::Type_t precision) const = 0;
-
-    virtual void add_state(const IODescriptor& descriptor, const size_t tensorIndex) const;
 
     bool is_batched_input(size_t idx) const;
 
