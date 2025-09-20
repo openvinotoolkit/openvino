@@ -183,6 +183,14 @@ bool matchLoRAMatMulBString(const std::string& input);
 
 bool matchLoRAMatMulAlphaString(const std::string& input);
 
+template <typename T>
+void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
+    T* tensor_data = tensor->data<T>();
+    std::fill(tensor_data + offset, tensor_data + tensor->get_size(), fill_val);
+}
+
+void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov
