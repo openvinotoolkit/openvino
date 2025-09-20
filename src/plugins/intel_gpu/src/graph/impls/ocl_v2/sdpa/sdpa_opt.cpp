@@ -53,6 +53,10 @@ public:
         // 0 - unknown, 1 - supported, 2 - not supported
         static char supports_cm = 0;
 
+        auto enable_cm = std::getenv("OV_ENABLE_CM_SDPA");
+        if (enable_cm && std::string(enable_cm) == "0")
+            return false;
+
         if (supports_cm == 0) {
             auto query_result = cldnn::check_cm_jit_support(engine, params.get_program().get_config());
             if (params.get_device_info().arch < gpu_arch::xe_hpg || !query_result) {
@@ -68,7 +72,7 @@ public:
     explicit SDPAOptImpl(const RuntimeParams& impl_param) : SDPAOptImpl() {
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << "\n";
-        const bool use_cm_sdpa = true; //supports_cm_sdpa(params);
+        const bool use_cm_sdpa = supports_cm_sdpa(params);
         if (params.is_dynamic()) {
             GPU_DEBUG_TRACE_DETAIL << "add stages for dynamic ...\n";
             add_stage(regular_single_token, params);

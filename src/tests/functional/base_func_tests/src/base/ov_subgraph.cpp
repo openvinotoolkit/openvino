@@ -258,6 +258,10 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
             std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
             auto it = compareMap.find(inputNode->get_type_info());
             ASSERT_NE(it, compareMap.end());
+            // for (size_t k = 0; i < result->get_input_size(); ++i) {
+            //     std::cout << "actual[" << k << "] = " << ((float16 *)actual[j].data())[k] << std::endl;
+            //     std::cout << "expected[" << k << "] = " << ((float16 *)expected[j].data())[k] << std::endl;
+            // }
             it->second(inputNode, i, inference_precision,
                        expected[j], actual[j],
                        abs_threshold, rel_threshold, topk_threshold, mvn_threshold);

@@ -530,7 +530,7 @@ void sdpa_kernel_lsc(
             } else {
                 int kv_tokens = kv_stop - kv_pos;
                 // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
-                for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+                // for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
             }
 
             //show(St);
@@ -675,10 +675,9 @@ void sdpa_kernel_lsc_prefetch(
         } else {
             int kv_tokens = kv_stop - kv_pos;
             // LSC ensures no overflow-access, but mask off k-tails attn-score is still required
-            for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+            // for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
         }
 
-        //show(St);
         auto max_comp = online_softmax_update(St, cur_max, cur_sum);
 
         matrix<half, REG_N, REG_K> P;
@@ -739,6 +738,11 @@ void sdpa_kernel_lsc_prefetch(
     matrix<half, num_P_tiles*REG_M, REG_N> cur_O_f16;
     cur_sum = cm_inv(cur_sum);
 
+    // printf("gws=[%d,%d,%d]: q_tokens_left = %d , head_size = %d, output = %p \n", cm_global_id(0), cm_global_id(1), cm_global_id(2), q_tokens_left, head_size, (half *)o_base);
+    // if((cm_global_id(0) == 0) && (cm_global_id(1) == 0) && (cm_global_id(2) == 6)){
+    //    printf("q_tokens_left = %d, q_len = %d, o_pitch = %d \n", q_tokens_left, q_len, o_pitch);
+    //    show(rO);
+    //}
     lsc::block_2d_desc<half, 1, REG_M, REG_N> b2dO(o_base, q_tokens_left - 1, head_size*sizeof(half) - 1, o_pitch - 1, 0, 0);
 
     #pragma unroll
@@ -931,7 +935,7 @@ void sdpa_kernel(
 
         // mask off k-tails
         int kv_tokens = kv_stop - kv_pos;
-        for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
+        // for(int p = kv_tokens; p < kv_step; p++) St[p] = -3.4e38f;
 
         //show(St);
         auto max_comp = online_softmax_update(St, cur_max, cur_sum);
@@ -1019,10 +1023,20 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         q_len = seqlen - q_start;
     }
 
-    auto q_base = reinterpret_cast<svmptr_t>(query + ((batch*q_len + q_start)*num_heads + h)*head_size);
-    auto k_base = reinterpret_cast<svmptr_t>(key + (batch*num_kv_heads*kv_len + hkv)*head_size);
-    auto o_base = reinterpret_cast<svmptr_t>(output + ((batch * q_len + q_start)*num_heads + h)*head_size);
+    auto q_base = reinterpret_cast<svmptr_t>(query  + ((batch * seqlen + q_start) * num_heads + h) * head_size);
+    auto o_base = reinterpret_cast<svmptr_t>(output + ((batch * seqlen + q_start) * num_heads + h) * head_size);
+    auto k_base = reinterpret_cast<svmptr_t>(key   + (batch*num_kv_heads*kv_len + hkv)*head_size);
     auto v_base = reinterpret_cast<svmptr_t>(value + (batch*num_kv_heads*kv_len + hkv)*head_size + v_before_padding);
+
+    #if 0
+    {
+        auto o_offset = ((batch * q_len + q_start) * num_heads + h) * head_size;
+        auto offset_ = (half *)o_base - (half *)output;
+        printf("gws=[%d,%d,%d]: q_start=%d, seqlen = %d, q_len=%d, kv_start=%d, kv_seq_len=%d, o_offset = %d, o_base = %p, output = %p, offset_ = %d\n",
+            cm_global_id(0), cm_global_id(1), cm_global_id(2),
+            q_start, seqlen, q_len, kv_start, kv_seq_len, o_offset, reinterpret_cast<half *>(o_base), reinterpret_cast<half *>(output), offset_);
+    }
+    #endif
 
     int kv_stop = kv_len;
     if constexpr (causal_mask) {

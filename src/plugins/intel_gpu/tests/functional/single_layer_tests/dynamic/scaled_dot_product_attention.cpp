@@ -243,7 +243,7 @@ void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targe
             inputs.insert({model_inputs[i].get_node_shared_ptr(), data_tensor});
         }
     }
-    ov::test::utils::InputGenerateData attn_data(-1.0f, 2, 1);
+    ov::test::utils::InputGenerateData attn_data(0.0f, 0, 0);
     ov::test::utils::InputGenerateData scale_data(0.1f, 1, 10);
     if (!has_attn && has_scale) {
         shapes.push_back(ov::Shape{});
