@@ -374,7 +374,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             LOG_WARN("Dynamic capability is enabled, but won't be used due to user preference");
             m_attention_selector.reset(new runtime::attention::All());
         } else {
-            const auto &dyn = m_npuw_model->m_compiled_submodels.at(dynamic_sub_idx).attention.value();
+            const auto& dyn = m_npuw_model->m_compiled_submodels.at(dynamic_sub_idx).attention.value();
             m_attention_selector = runtime::attention::PositionIDs::find(dyn, *this);
             if (!m_attention_selector) {
                 LOG_WARN("Dynamic capability is enabled, but no run-time features were found.");
@@ -512,6 +512,9 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
         m_attention_selector->prepare();
     }
 
+    // FIXME: attention-specific, needs to be moved out after refactoring
+    m_cached_attention_mask = std::nullopt;
+
     LOG_DEBUG("Done");
 }
 
@@ -601,7 +604,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             const auto& i_tensor = [&]() {
                 if (!m_npuw_model->m_compiled_submodels[prod_idx].replaced_by) {
                     // Producer is a normal model -> take its tensor directly
-                    const auto& oport = m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
+                    const auto& oport =
+                        m_npuw_model->m_compiled_submodels[prod_idx].compiled_model->outputs()[prod_port];
                     return m_subrequests[prod_idx]->get_tensor(oport);
                 } else {
                     // Producer is a function - maybe the same as we're calling now.
@@ -670,7 +674,7 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
     const auto& dynamic = comp_model_desc.attention.value();
     auto mask_iport = comp_model_desc.compiled_model->inputs()[dynamic.mask_idx];
 
-    const auto &graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
+    const auto& graph_mask = m_attention_io[idx].inputs.at(dynamic.mask_idx);
     const auto this_case = m_attention_selector->this_case();
     auto pos_id = m_attention_selector->length();
 
@@ -680,12 +684,15 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
         r->set_tensor(mask_iport, graph_mask);
     } else {
         const auto past_len = m_attention_selector->past_length();
+        const auto present_len = dynamic.query_size;
+        // FIXME: get the right dim
+        const uint32_t kv_dim = 3;
 
-        auto set_or_copy = [&](const auto &view) {
+        auto set_or_copy = [&](const auto& view) {
             if (!needs_copy(idx)) {
                 r->set_tensor(mask_iport, view);
             } else {
-                const auto &dst = r->get_tensor(mask_iport);
+                const auto& dst = r->get_tensor(mask_iport);
                 dst->set_shape(view->get_shape());
                 view->copy_to(dst._ptr);
             }
@@ -695,14 +702,46 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
         using namespace ov::npuw::runtime;
         if (this_case == attention::Selector::Case::GENERATE) {
             // Take a view from our "attend_all" mask
-            // FIXME: get the right dim
-            const auto &view = ov::npuw::util::view(ov::get_tensor_impl(dynamic.attend_all), 3, 0, past_len + 1);
+            const auto& view = ov::npuw::util::view(ov::get_tensor_impl(dynamic.attend_all), kv_dim, 0, past_len + 1);
             set_or_copy(view);
         } else if (this_case == attention::Selector::Case::PREFILL) {
             // Use our in-graph synthesized mask
             // FIXME: get the right dim
-            const auto &view = ov::npuw::util::view(graph_mask, 3, dynamic.context_size - dynamic.query_size - past_len, dynamic.query_size + past_len);
-            set_or_copy(view);
+            if (m_cached_attention_mask.has_value()) {
+                // All sub models are sharing the same attention mask, we can use the cached attention
+                // mask directly to avoid redundant tensor copy
+                m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask.value());
+                return;
+            }
+
+            // Handle attention mask concatenation for SDPA:
+            // The attention mask is composed with 2 parts:
+            // The 1st part is for the "present", which is at the tail: starting from past_len to context_len
+            // The 2nd part is for the "past", whichi is at the beginning: starting from 0 to past_len
+            auto full_mask_shape = graph_mask->get_shape();
+            auto actual_mask_shape = full_mask_shape;
+            actual_mask_shape[kv_dim] = present_len + past_len;
+            // allocate device memory for actual attention mask
+            auto device = *comp_model_desc.device_it;
+            auto new_attn_mask_tensor = ov::npuw::util::allocMem(graph_mask->get_element_type(),
+                                                                 actual_mask_shape,
+                                                                 device,
+                                                                 m_npuw_model->get_plugin());
+
+            // Copy "present" attention mask
+            const auto& present_dst_view = ov::npuw::util::view(new_attn_mask_tensor, kv_dim, past_len, present_len);
+            const auto& present_src_view =
+                ov::npuw::util::view(graph_mask, kv_dim, full_mask_shape[kv_dim] - present_len, present_len);
+            present_src_view->copy_to(present_dst_view._ptr);
+
+            // Copy "past" attention mask
+            if (past_len > 0) {
+                const auto& past_dst_view = ov::npuw::util::view(new_attn_mask_tensor, kv_dim, 0, past_len);
+                const auto& past_src_view = ov::npuw::util::view(graph_mask, kv_dim, 0, past_len);
+                past_src_view->copy_to(past_dst_view._ptr);
+            }
+            m_subrequests[real_idx]->set_tensor(mask_iport, new_attn_mask_tensor);
+            m_cached_attention_mask = new_attn_mask_tensor;
         } else {
             NPUW_ASSERT(false && "Reached the unreachable code");
         }
