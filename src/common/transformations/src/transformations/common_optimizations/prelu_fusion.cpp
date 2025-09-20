@@ -241,3 +241,33 @@ ov::pass::PReluFusionNegReluMulAdd::PReluFusionNegReluMulAdd() {
     auto matcher = make_shared<pattern::Matcher>(add, matcher_name);
     register_matcher(matcher, callback);
 }
+
+ov::pass::PReluFusionGreaterMultiplySelect::PReluFusionGreaterMultiplySelect() {
+    MATCHER_SCOPE(PReluFusionGreaterMultiplySelect);
+
+    using namespace std;
+    using namespace ov;
+
+    const auto input = pass::pattern::any_input();
+    const auto greater = pattern::wrap_type<ov::op::v1::Greater>({input});
+    const auto mul_constant = pattern::wrap_type<ov::op::v0::Constant>();
+    const auto mul = pattern::wrap_type<ov::op::v1::Multiply>({input, mul_constant});
+    const auto select = pattern::wrap_type<ov::op::v1::Select>({greater, input, mul});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+        const auto input_output = pattern_to_output.at(input);
+        const auto select_node = pattern_to_output.at(select).get_node_shared_ptr();
+        const auto slope = pattern_to_output.at(mul_constant);
+        const auto prelu = make_shared<ov::op::v0::PRelu>(input_output, slope);
+        prelu->set_friendly_name(m.get_match_root()->get_friendly_name());
+        NodeVector copy_from = {pattern_to_output.at(greater).get_node_shared_ptr(),
+                                pattern_to_output.at(mul).get_node_shared_ptr(),
+                                pattern_to_output.at(select).get_node_shared_ptr()};
+        copy_runtime_info(copy_from, prelu);
+        replace_node(select_node, prelu);
+        return true;
+    };
+    auto matcher = make_shared<pattern::Matcher>(select, matcher_name);
+    register_matcher(matcher, callback);
+}
