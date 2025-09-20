@@ -14,11 +14,6 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
 };
 
-const std::vector<std::string> elementwiseTypes = {
-    "add",
-    "multiply"
-};
-
 const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> params = {
     {
         {
@@ -84,12 +79,41 @@ const std::vector<LayerTestsDefinitions::ElementwiseBranchSelectionTestValues> p
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, ElementwiseBranchSelectionTransformation,
+std::vector<ElementwiseBranchSelectionTestValues> getParamsAdd() {
+    return params;
+}
+
+std::vector<ElementwiseBranchSelectionTestValues> getParamsMultiply() {
+    auto params_multiply = params;
+    for (auto &p : params_multiply) {
+        auto &conversions = p.expectedPrecisions;
+        conversions.back().second = "f32";
+    }
+    return params_multiply;
+}
+
+std::vector<std::pair <ElementwiseBranchSelectionTestValues, std::string>> getParamPairs() {
+    std::vector<std::pair<ElementwiseBranchSelectionTestValues, std::string>> result;
+    auto addParams = getParamsAdd();
+    for (const auto& param : addParams) {
+        result.push_back(std::make_pair(param, "add"));
+    }
+    auto multiplyParams = getParamsMultiply();
+    for (const auto& param : multiplyParams) {
+        result.push_back(std::make_pair(param, "multiply"));
+    }
+    return result;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    ElementwiseBranchSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::PartialShape({ 1, 3, 16, 16 })),
+        ::testing::Values(ov::PartialShape({1, 3, 16, 16})),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(params),
-        ::testing::ValuesIn(elementwiseTypes)),
-    ElementwiseBranchSelectionTransformation::getTestCaseName);
+        ::testing::ValuesIn(getParamPairs())),
+    ElementwiseBranchSelectionTransformation::getTestCaseName
+);
+
 }  // namespace
