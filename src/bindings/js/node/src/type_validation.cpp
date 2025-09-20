@@ -23,6 +23,7 @@ namespace BindingTypename {
 static const char INT[] = "Integer";
 static const char MODEL[] = "Model";
 static const char COMPILED_MODEL[] = "CompiledModel";
+static const char NODE[] = "Node";
 static const char TENSOR[] = "Tensor";
 static const char OUTPUT[] = "Output<ov::Node>";
 static const char PARTIALSHAPE[] = "PartialShape";
@@ -124,6 +125,11 @@ const char* get_attr_type<CompiledModelWrap>() {
 }
 
 template <>
+const char* get_attr_type<NodeWrap>() {
+    return BindingTypename::NODE;
+}
+
+template <>
 const char* get_attr_type<TensorWrap>() {
     return BindingTypename::TENSOR;
 }
@@ -190,34 +196,31 @@ bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value) {
 template <>
 bool validate_value<CompiledModelWrap>(const Napi::Env& env, const Napi::Value& value) {
     const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
+    return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
+}
 
+template <>
+bool validate_value<NodeWrap>(const Napi::Env& env, const Napi::Value& value) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->node;
     return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }
 
 template <>
 bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value) {
     const auto& prototype = env.GetInstanceData<AddonData>()->tensor;
-
     return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }
 
 template <>
 bool validate_value<Output<ov::Node>>(const Napi::Env& env, const Napi::Value& value) {
     const auto& prototype = env.GetInstanceData<AddonData>()->output;
-
     return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }
 
 template <>
 bool validate_value<PartialShapeWrap>(const Napi::Env& env, const Napi::Value& value) {
     const auto& prototype = env.GetInstanceData<AddonData>()->partial_shape;
-
     return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
-}
-
-std::string get_parameters_error_msg(const Napi::CallbackInfo& info, std::vector<std::string>& allowed_signatures) {
-    return " method called with incorrect parameters.\nProvided signature: " + js::get_current_signature(info) +
-           " \nAllowed signatures:\n- " + ov::util::join(allowed_signatures, "\n- ");
 }
 }  // namespace js
 }  // namespace ov
