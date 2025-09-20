@@ -27,7 +27,7 @@ requires = [
     "setuptools>=70,<=80.9.0", 
     "wheel<=0.45.1",
     "cmake<=4.1.0", 
-    "patchelf<=0.17.2.2; sys_platform == 'linux' and platform_machine == 'x86_64'"
+    "patchelf<=0.17.2.4; sys_platform == 'linux' and platform_machine == 'x86_64'"
 ]
 build-backend = "setuptools.build_meta"
 
