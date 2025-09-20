@@ -343,19 +343,17 @@ std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const 
     if (current_exp->get_input_count() == 0) {
         return shape_infer_exprs;
     }
-    auto input = current_exp->get_input_port_connector(0);
-    auto first_parent = input->get_source().get_expr();
+    auto first_parent = current_exp->get_input_expr_ptr(0);
     while (op::Subgraph::is_shape_infer_op(first_parent->get_node())) {
         shape_infer_exprs.push_back(first_parent);
         current_exp = first_parent;
         if (current_exp->get_input_count() == 0) {
             break;
         }
-        input = current_exp->get_input_port_connector(0);
-        first_parent = input->get_source().get_expr();
+        first_parent = current_exp->get_input_expr_ptr(0);
         if (!ov::is_type<snippets::op::Store>(first_parent->get_node())) {
             // there are maybe some loopEnd consumers of store as well for loop code gen purpose
-            OPENVINO_ASSERT(input->get_consumers().size() == 1,
+            OPENVINO_ASSERT(current_exp->get_input_port_connector(0)->get_consumers().size() == 1,
                             "Shape infer ops are supposed to be the only consumer if it doesn't consume a store ops.");
         }
     }
