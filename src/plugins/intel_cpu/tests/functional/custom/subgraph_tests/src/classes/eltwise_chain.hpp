@@ -6,9 +6,11 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <iostream>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
@@ -18,11 +20,27 @@
 namespace ov {
 namespace test {
 
+enum class PostNode : uint8_t {
+    EMPTY,
+    QUANTIZE,
+    SOFTSIGN
+};
+
+inline std::ostream& operator<<(std::ostream& os, PostNode node) {
+    switch (node) {
+        case PostNode::EMPTY:    os << "EMPTY"; break;
+        case PostNode::QUANTIZE: os << "QUANTIZE"; break;
+        case PostNode::SOFTSIGN: os << "SOFTSIGN"; break;
+        default:                 os << "UNKNOWN"; break;
+    }
+    return os;
+}
+
 typedef std::tuple<std::vector<InputShape>, // Input shapes
         ov::test::utils::InputLayerType,    // Secondary input type
         std::vector<ElementType>,           // Input precisions
         std::vector<ov::test::utils::EltwiseTypes>,  // Eltwise operations
-        bool,                               // With quantization
+        PostNode,                           // { QA | SoftSign | Nothing }
         ov::element::Type,                  // Conversion type
         std::string                         // Device name
         >
