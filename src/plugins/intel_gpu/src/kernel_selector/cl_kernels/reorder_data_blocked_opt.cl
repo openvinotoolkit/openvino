@@ -30,31 +30,27 @@ KERNEL(reorder_blocked_opt)(
 {
     const uint global_id = get_global_id(0);
 
-#if ITEM_SIZE < 4
-    unroll_for (uint i = 0; i < ITEM_SIZE ; ++i) {
-        OUTPUT_VEC_TYPE res = TO_OUTPUT_TYPED_VECTOR(VLOAD_N(global_id * ITEM_SIZE + i, input));
-
-        res = ACTIVATION_TYPED(OUTPUT_REORDER, res, ACTIVATION_PARAMS_TYPED);
-
-        VSTORE_N(res, global_id * ITEM_SIZE + i, output);
+    if (global_id == get_global_size(0) - 1) {
+        size_t opt_size = global_id * (size_t)ELEMENTS_NUM;
+        size_t total_size = (size_t)OUTPUT_BATCH_NUM * (size_t)OUTPUT_BATCH_PITCH;
+        if ((opt_size + ELEMENTS_NUM) != total_size) {
+            unroll_for (uint i = 0; i < (total_size - opt_size) ; ++i) {
+                output[opt_size + i] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER,
+                                                                            input[opt_size + i],
+                                                                            ACTIVATION_PARAMS_TYPED));
+            }
+            return;
+        }
     }
-#else
-    OUTPUT_VEC_TYPE res[ITEM_SIZE/4][4];
-    unroll_for (uint i = 0; i < (ITEM_SIZE/4) ; ++i) {
-        res[i][0] = TO_OUTPUT_TYPED_VECTOR(VLOAD_N(global_id*ITEM_SIZE + i*4, input));
-        res[i][1] = TO_OUTPUT_TYPED_VECTOR(VLOAD_N(global_id*ITEM_SIZE + i*4 + 1, input));
-        res[i][2] = TO_OUTPUT_TYPED_VECTOR(VLOAD_N(global_id*ITEM_SIZE + i*4 + 2, input));
-        res[i][3] = TO_OUTPUT_TYPED_VECTOR(VLOAD_N(global_id*ITEM_SIZE + i*4 + 3, input));
 
-        res[i][0] = ACTIVATION_TYPED(OUTPUT_REORDER, (res[i][0]), ACTIVATION_PARAMS_TYPED);
-        res[i][1] = ACTIVATION_TYPED(OUTPUT_REORDER, (res[i][1]), ACTIVATION_PARAMS_TYPED);
-        res[i][2] = ACTIVATION_TYPED(OUTPUT_REORDER, (res[i][2]), ACTIVATION_PARAMS_TYPED);
-        res[i][3] = ACTIVATION_TYPED(OUTPUT_REORDER, (res[i][3]), ACTIVATION_PARAMS_TYPED);
-
-        VSTORE_N(res[i][0], global_id*ITEM_SIZE + i*4, output);
-        VSTORE_N(res[i][1], global_id*ITEM_SIZE + i*4 + 1, output);
-        VSTORE_N(res[i][2], global_id*ITEM_SIZE + i*4 + 2, output);
-        VSTORE_N(res[i][3], global_id*ITEM_SIZE + i*4 + 3, output);
+    OUTPUT_VEC_TYPE res[ARRAY_SIZE];
+    unroll_for (uint i = 0; i < ARRAY_SIZE ; ++i) {
+        res[i] = TO_OUTPUT_TYPED_VECTOR(ACTIVATION_TYPED(OUTPUT_REORDER,
+                                                     VLOAD_N(global_id * ARRAY_SIZE + i, input),
+                                                     ACTIVATION_PARAMS_TYPED));
     }
-#endif
+
+    unroll_for (uint i = 0; i < ARRAY_SIZE ; ++i) {
+        VSTORE_N(res[i], global_id * ARRAY_SIZE + i, output);
+    }
 }

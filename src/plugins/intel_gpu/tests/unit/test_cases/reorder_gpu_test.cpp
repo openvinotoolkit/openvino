@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/layout.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -3884,3 +3885,219 @@ TEST(reorder_gpu_i4, basic_int4)
 {
     run_reorder_int4({32, 1, 1, 1});
 }
+
+struct reorder_random_test_params {
+    data_types  input_type;
+    data_types  output_type;
+    ov::PartialShape input_size;
+    ov::PartialShape output_size;
+
+    format::type in_format;
+    format::type out_format;
+    impl_types   impl_type;
+    std::string  k_name;
+    bool         is_dynamic_shape;
+};
+
+struct reorder_random_test : testing::TestWithParam<reorder_random_test_params>
+{
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
+    static std::string PrintToString(const reorder_random_test_params& params) {
+        std::string res = " data (" + ov::element::Type(params.input_type).get_type_name() + "), ";
+        res += " format (" + format::traits(params.in_format).str + ") input : ";
+        res += params.input_size.to_string() + " / output : ";
+        res += params.output_size.to_string() + "\n";
+
+        return res;
+    }
+
+    template <typename T>
+    void fill_random_typed(memory::ptr mem, int min, int max, int k) {
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
+
+        auto data = rg.generate_random_4d<T>(b, f, y, x, min, max, k);
+        mem_lock<T> ptr{mem, get_test_stream()};
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
+                        ptr[offset] = data[bi][fi][yi][xi];
+                    }
+                }
+            }
+        }
+    }
+
+    void fill_random(memory::ptr mem) {
+        auto dt = mem->get_layout().data_type;
+        switch (dt) {
+        case data_types::f32:
+            fill_random_typed<float>(mem, -127, 127, 2);
+            break;
+        case data_types::f16:
+            fill_random_typed<ov::float16>(mem, -127, 127, 2);
+            break;
+        case data_types::i8:
+            fill_random_typed<int8_t>(mem, -127, 127, 1);
+            break;
+        case data_types::u8:
+            fill_random_typed<uint8_t>(mem, 0, 255, 1);
+            break;
+        default:
+            break;
+        }
+    }
+
+    template <typename T>
+    void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
+        auto output_lay = out_ref->get_layout();
+        auto opt_output_lay = out_opt->get_layout();
+
+        size_t b = output_lay.batch();
+        size_t f = output_lay.feature();
+        size_t x = output_lay.spatial(0);
+        size_t y = output_lay.spatial(1);
+        mem_lock<T> ref_ptr{out_ref, get_test_stream()};
+        mem_lock<T> opt_ptr{out_opt, get_test_stream()};
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
+                        auto ref_out_val = ref_ptr[ref_out_offset];
+
+                        auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
+                        auto opt_out_val = opt_ptr[opt_out_offset];
+
+                        ASSERT_EQ(opt_out_val, ref_out_val);
+                    }
+                }
+            }
+        }
+    }
+
+    void execute_compare(const reorder_random_test_params& params, bool check_result) {
+        auto& engine = get_test_engine();
+
+        layout in_layout;
+        layout in_mem_layout;
+        if (params.is_dynamic_shape) {
+            in_layout = layout{ov::PartialShape::dynamic(params.input_size.rank()), params.input_type, params.in_format};
+            in_mem_layout = layout{params.input_size, params.input_type, params.in_format};
+        } else {
+            in_layout = layout(params.input_size, params.input_type, params.in_format);
+            in_mem_layout = in_layout;
+        }
+
+        auto input = engine.allocate_memory(in_mem_layout);
+        fill_random(input);
+
+        cldnn::topology topo;
+        topo.add(input_layout("input", in_layout));
+        auto prim = cldnn::reorder("reorder", input_info("input"), params.out_format, params.output_type);
+        topo.add(prim);
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"reorder"}));
+        if (params.impl_type != impl_types::any)
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", {params.out_format, "", params.impl_type}} }));
+        else
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", {params.out_format, "reorder_data"}} }));
+
+        if (params.is_dynamic_shape) {
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        }
+
+        cldnn::network net(engine, topo, config);
+        net.set_input_data("input", input);
+
+        auto result = net.execute();
+        auto output = result.at("reorder").get_memory();
+
+        cldnn::topology topo_opt;
+        topo_opt.add(input_layout("input", in_layout));
+        auto prim_opt = cldnn::reorder("reorder_opt", input_info("input"), params.out_format, params.output_type);
+        topo_opt.add(prim_opt);
+
+        ExecutionConfig config_opt = get_test_default_config(engine);
+        config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"reorder_opt"}));
+        if (!params.k_name.empty())
+            config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder_opt", {params.out_format, params.k_name}} }));
+        if (params.is_dynamic_shape) {
+            config_opt.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        }
+
+
+        cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), false);
+
+        net_opt->set_input_data("input", input);
+
+        auto result_opt = net_opt->execute();
+        auto output_opt = result_opt.at("reorder_opt").get_memory();
+
+        if (params.is_dynamic_shape) {
+            auto inst = net_opt->get_primitive("reorder_opt");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
+
+        if (check_result == true) {
+            // Check data_types
+            if (params.output_type == data_types::f32) {
+                compare_outputs<float>(output, output_opt);
+            } else if (params.output_type == data_types::f16) {
+                compare_outputs<ov::float16>(output, output_opt);
+            } else if (params.output_type == data_types::i8) {
+                compare_outputs<int8_t>(output, output_opt);
+            } else if (params.output_type == data_types::u8) {
+                compare_outputs<uint8_t>(output, output_opt);
+            } else {
+                FAIL() << "Not supported data type: " << static_cast<size_t>(params.input_type);
+            }
+        }
+    }
+};
+
+struct reorder_random_test_param_generator : std::vector<reorder_random_test_params> {
+    reorder_random_test_param_generator& add(reorder_random_test_params params) {
+        push_back(params);
+        return *this;
+    }
+};
+
+TEST_P(reorder_random_test, random) {
+    auto param = GetParam();
+    execute_compare(param, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(simple_reorder_data_blocked_opt,
+                         reorder_random_test,
+                         testing::ValuesIn(
+                            reorder_random_test_param_generator()
+                            .add(reorder_random_test_params{ data_types::f16, data_types::f32, {2, 10, 48, 64}, {2, 10, 48, 64}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", false })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {2, 10, 48, 64}, {2, 10, 48, 64}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", false })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::u8, {1, 10, 48, 64}, {1, 10, 48, 64}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", false })
+                            .add(reorder_random_test_params{ data_types::u8, data_types::f32, {1, 10, 48, 64}, {1, 10, 48, 64}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", false })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::u8, {1, 5, 45, 65}, {1, 5, 45, 65}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", false })
+                            .add(reorder_random_test_params{ data_types::u8, data_types::f32, {1, 5, 45, 65}, {1, 5, 45, 65}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", false })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {2, 10, 48, 64}, {2, 10, 48, 64}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", true })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::u8, {1, 5, 45, 65}, {1, 5, 45, 65}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", true })
+                            .add(reorder_random_test_params{ data_types::u8, data_types::f32, {1, 5, 45, 65}, {1, 5, 45, 65}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", true })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {1, 1, 1, 16}, {1, 1, 1, 16}, format::bfyx, format::bfyx, impl_types::any, "", false })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {1, 1, 1, 16}, {1, 1, 1, 16}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", true })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {2, 16, 10, 32}, {2, 16, 10, 32}, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, impl_types::any, "reorder_data_blocked_opt", false })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {2, 16, 10, 32}, {2, 16, 10, 32}, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, impl_types::any, "reorder_data_blocked_opt", true })
+ ));

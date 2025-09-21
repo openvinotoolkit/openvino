@@ -6,12 +6,12 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-static inline size_t SelectVecSizeFromSize(const DataTensor&);
-static inline size_t SelectGroupSize(size_t ele_size);
+static constexpr size_t preferred_vec_size = 8;
+static constexpr size_t preferred_array_size = 32;
+static inline size_t GetGroupSize(const DataTensor& tensor);
 
 ParamsKey ReorderKernelBlockedOpt::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::UINT16);
     k.EnableInputDataType(Datatype::UINT32);
@@ -30,22 +30,19 @@ ParamsKey ReorderKernelBlockedOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::UINT16);
     k.EnableOutputDataType(Datatype::UINT32);
-    k.EnableOutputDataType(Datatype::BF16);
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
 ReorderKernelBase::DispatchData ReorderKernelBlockedOpt::SetDefault(const reorder_params& params) const {
     DispatchData dispatchData;
-    size_t global_w_item = std::max(params.inputs[0].PhysicalSize() / SelectVecSizeFromSize(params.inputs[0]), (size_t)1);
-    size_t g_size = SelectGroupSize(global_w_item);
-
-    dispatchData.gws = {global_w_item/g_size, 1, 1};
+    dispatchData.gws = {GetGroupSize(params.inputs[0]), 1, 1};
     dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
@@ -57,7 +54,7 @@ bool ReorderKernelBlockedOpt::Validate(const Params& p) const {
         return false;
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
-    if (SelectVecSizeFromSize(params.inputs[0]) == 1)
+    if (GetGroupSize(params.inputs[0]) == 1)
         return false;
 
     if (!params.fused_ops.empty())
@@ -111,12 +108,9 @@ JitConstants ReorderKernelBlockedOpt::GetJitConstants(const reorder_params& para
 
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
 
-    size_t vec_size = SelectVecSizeFromSize(params.inputs[0]);
-    jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
-
-    size_t global_w_item = std::max(params.inputs[0].PhysicalSize() / vec_size, (size_t)1);
-    size_t g_size = SelectGroupSize(global_w_item);
-    jit.AddConstant(MakeJitConstant("ITEM_SIZE", g_size));
+    jit.AddConstant(MakeJitConstant("VEC_SIZE", preferred_vec_size));
+    jit.AddConstant(MakeJitConstant("ARRAY_SIZE", preferred_array_size));
+    jit.AddConstant(MakeJitConstant("ELEMENTS_NUM", preferred_vec_size * preferred_array_size));
 
     return jit;
 }
@@ -142,25 +136,9 @@ KernelsPriority ReorderKernelBlockedOpt::GetKernelsPriority(const Params& /*para
     return FORCE_PRIORITY_1;
 }
 
-static inline size_t SelectVecSizeFromSize(const DataTensor& tensor) {
+static inline size_t GetGroupSize(const DataTensor& tensor) {
     size_t size = tensor.PhysicalSize();
-    auto preferred_vec_sizes = { 16, 8, 4, 2 };
-
-    for (auto vec_size : preferred_vec_sizes) {
-        if (size % vec_size == 0)
-            return vec_size;
-    }
-
-    return 1;
-}
-
-static inline size_t SelectGroupSize(size_t ele_size) {
-    auto preferred_group_size = { 32, 16, 8, 4, 2 };
-    for (auto g_size : preferred_group_size) {
-        if (ele_size % g_size == 0)
-            return g_size;
-    }
-
-    return 1;
+    size_t each_item = (preferred_vec_size * preferred_array_size);
+    return (Align(size, each_item) / each_item);
 }
 }  // namespace kernel_selector
