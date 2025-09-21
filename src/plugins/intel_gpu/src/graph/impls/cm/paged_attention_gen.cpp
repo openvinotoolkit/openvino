@@ -115,6 +115,23 @@ inline size_t get_kv_len(const RuntimeParams& params, const PagedAttentionStage&
 //     return split_num;
 // }
 
+inline bool is_qwen3_vl_dynamic_layout(const cldnn::layout& layout) {
+    // sdap 3D shape: [batch_size(?), seqlen(?), head_size] --> [batch_size(?), 1, seqlen(?), head_size]
+    // sdpa 4D shape: [batch_size(?), head_num, seqlen(?), head_size]
+    // Qwen3 vl dynamic 3D layout:
+    //                [seq_len(?), head_num, head_size]  --> [seq_len(?), 1, head_num, head_size]
+    // Qwen3 vl dynamic 4D layout:
+    //                Is it? [batch_size(?), head_num, seqlen(?), head_size]
+    auto shape = layout.get_partial_shape();
+    if (shape.size() == 3) {
+        return true;
+    }
+    if (shape[0].is_dynamic() && shape[1].is_static() && shape[2].is_static()) {
+        return true;
+    }
+    return false;
+}
+
 JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = KernelGenerator::get_jit_constants(params);
     jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
@@ -122,12 +139,8 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
 
     if (params.is_type<paged_attention>()) {
         auto desc = params.typed_desc<paged_attention>();
-        // jit.make("HEAD_SIZE", desc->k_head_size);
-        // jit.make("HEADS_NUM", desc->heads_num);
-        // jit.make("KV_HEADS_NUM", desc->kv_heads_num);
 
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
-        // jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
         jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
         jit.make("CMFLA_NUM_HEADS", desc->heads_num);
         jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
@@ -139,18 +152,21 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
         auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
         auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
         auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
-        // // const auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-        // const auto q_num_head = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
-        // const auto k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
-        // const auto k_num_head = get_num_heads(new_params.get_input_layout(1), extended_input_k_transpose_order);
-        // // const auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
-        // // const auto batch = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
 
-        const auto q_num_head = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
-        const auto k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
-        const auto k_num_head = get_batch_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
+        size_t q_num_head = 1, k_head_size = 1, k_num_head = 1;
+        auto is_qwen3_vl = is_qwen3_vl_dynamic_layout(params.get_input_layout(0));
+        if (is_qwen3_vl) {
+            q_num_head = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
+            k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
+            k_num_head = get_batch_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
+        } else {
+            q_num_head = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
+            k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
+            k_num_head = get_num_heads(new_params.get_input_layout(1), extended_input_k_transpose_order);
+        }
 
-        if (desc->output_transpose_order == desc->input_q_transpose_order) {
+        auto not_need_output_transpose = desc->output_transpose_order == desc->input_q_transpose_order;
+        if (not_need_output_transpose) {
             jit.make("CMFLA_OUTPUT_BHLS", 0);
         } else {
             jit.make("CMFLA_OUTPUT_BHLS", 1);
@@ -172,7 +188,8 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
         jit.make("CMFLA_HEAD_SIZE", k_head_size);
         jit.make("CMFLA_NUM_KV_HEADS", k_num_head);
 
-        // std::cout << "k_head_size: " << k_head_size << ", q_num_head: " << q_num_head << ", k_num_head: " << k_num_head << std::endl;
+        std::cout << "q_num_head: " << q_num_head << ", k_head_size: " << k_head_size << ", k_num_head: " << k_num_head
+                  << ", not_need_output_transpose = " << not_need_output_transpose << ", is_qwen3_vl = " << is_qwen3_vl << std::endl;
     }
     // jit.make("WG_SIZE_HINT", WG_SIZE);
 
@@ -196,30 +213,54 @@ Arguments PagedAttentionSDPAGeneratorMultiToken::get_arguments_desc(const kernel
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
-    // args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_len
-    // args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // v_before_padding
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_len
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // v_before_padding
 
     return args;
 }
 
 JitConstants PagedAttentionSDPAGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
-    // const auto desc = params.typed_desc<paged_attention>();
-
-    // auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    // jit.make("Q_STEP", get_q_step(xe_arch, false));
-
-    // TODO: set causal mask only if needed
-    // auto causal_mask = 0;
-    // jit.make("CAUSAL_MASK", causal_mask);
 
     if (params.is_type<paged_attention>()) {
         jit.make("FULL_ATTENTION_MASK", 0);
     } else {
-        // Test for qwen3_vl
-        jit.make("FULL_ATTENTION_MASK", 1);
-        jit.make("CMFLA_V_FUSED", 0);
-        jit.make("CMFLA_IS_CAUSAL", 0);
+        auto is_dynamic_padding = [](const layout& layout) {
+            const auto& data_padding = layout.data_padding;
+
+            auto dynamic_str = data_padding._dynamic_dims_mask.to_string();
+            if (dynamic_str.find('1') != std::string::npos) {
+                return true;  // return true if dynamic padding exists
+            }
+            return false;
+        };
+        std::cout << "params.get_input_layout(0) = " << params.get_input_layout(0).to_string() << std::endl;
+        std::cout << "params.get_input_layout(1) = " << params.get_input_layout(1).to_string() << std::endl;
+        std::cout << "params.get_input_layout(2) = " << params.get_input_layout(2).to_string() << std::endl;
+
+        size_t query_dynamic_padding = is_dynamic_padding(params.get_input_layout(0));
+        size_t key_dynamic_padding = is_dynamic_padding(params.get_input_layout(1));
+        size_t value_dynamic_padding = is_dynamic_padding(params.get_input_layout(2));
+        std::cout << "query_dynamic_padding = " << query_dynamic_padding << " , value_dynamic_padding = " << value_dynamic_padding
+                  << " , key_dynamic_padding = " << key_dynamic_padding << std::endl;
+
+        if (key_dynamic_padding && value_dynamic_padding) {
+            jit.make("CMFLA_KV_PADDING", 1);
+            jit.make("CMFLA_V_FUSED", 0);
+        } else if (value_dynamic_padding) {
+            jit.make("CMFLA_V_FUSED", 1);
+            jit.make("CMFLA_KV_PADDING", 0);
+        } else {
+            jit.make("CMFLA_KV_PADDING", 0);
+            jit.make("CMFLA_V_FUSED", 0);
+        }
+
+        auto is_qwen3_vl = is_qwen3_vl_dynamic_layout(params.get_input_layout(0));
+        if (is_qwen3_vl) {
+            jit.make("CMFLA_IS_CAUSAL", 0);
+        } else {
+            jit.make("CMFLA_IS_CAUSAL", 1);
+        }
     }
 
     // for (auto& it : jit) {
@@ -235,67 +276,95 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
         auto& scalars = kd.params.scalars;
 
         size_t heads_num = 1, batch = 1, q_len = 1;
-        // size_t v_before_padding = 0;
-        // size_t kv_heads_num = 1, k_head_size = 1;
+        size_t k_after_padding = 0, v_after_padding = 0;
         if (params.is_type<paged_attention>()) {
             auto desc = params.typed_desc<paged_attention>();
             // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
             heads_num = desc->heads_num;
-            // size_t k_head_size = desc->k_head_size;
             auto out_shape = params.output_layouts[0].get_shape();
             batch = out_shape.size() < 4 ? 1 : out_shape[0];
             q_len = out_shape[0];
-            // size_t kv_heads_num = desc->kv_heads_num;
-            // v_before_padding = (kv_heads_num + heads_num) * k_head_size;
         } else {
             auto& new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
             auto desc = new_params.typed_desc<scaled_dot_product_attention>();
             auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
-            auto out_shape = new_params.output_layouts[0].get_shape();
-            batch = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
-            q_len = get_seq_length(new_params.get_input_layout(0), extended_input_q_transpose_order);
-            heads_num = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
+            auto out_shape = new_params.output_layouts[0].get_partial_shape();
 
-            // batch = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
-            // heads_num = get_seq_length(new_params.get_input_layout(0), extended_input_q_transpose_order);
-            // q_len = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
+            auto is_qwen3_vl = is_qwen3_vl_dynamic_layout(params.get_input_layout(0));
+            if (is_qwen3_vl) {
+                batch = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
+                q_len = get_seq_length(new_params.get_input_layout(0), extended_input_q_transpose_order);
+                heads_num = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
 
-            // std::cout << "batch = " << batch << ", q_len = " << q_len << ", heads_num = " << heads_num << std::endl;
+            } else {
+                batch = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
+                q_len = get_seq_length(new_params.get_input_layout(0), extended_input_q_transpose_order);
+                heads_num = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
+            }
 
-            // auto print_order = [](const std::vector<int64_t>& order) {
-            //     std::cout << "[";
-            //     for (size_t i = 0; i < order.size(); ++i) {
-            //         std::cout << order[i];
-            //         if (i != order.size() - 1) {
-            //             std::cout << ", ";
+            // auto get_simple_pitch = [](const layout& layout) {
+            //     size_t pitch = 1;
+            //     auto dims_padding = layout.get_padded_dims();
+            //     std::cout << "dims_padding: " << ov::Shape(dims_padding.begin(), dims_padding.end()).to_string() << std::endl;
+            //     for (size_t i = dims_padding.size() - 1; i > 0; --i) {
+            //         pitch = dims_padding[i];
+            //         if (pitch > 1) {
+            //             break;
             //         }
             //     }
-            //     std::cout << "]" << std::endl;
+            //     return pitch;
             // };
 
-            // std::cout << "desc->input_q_transpose_order = ";
-            // print_order(desc->input_q_transpose_order);
-            // std::cout << "extended_input_q_transpose_order = ";
-            // print_order(extended_input_q_transpose_order);
-            // std::cout << "params.get_input_layout(0) = " << new_params.get_input_layout(0).to_string() << std::endl;
+            // auto get_simple_padding = [](const layout& layout) {
+            //     size_t offset = 0;
+            //     const auto& data_padding = layout.data_padding;
+            //     const auto& upper_pads = data_padding._upper_size;
+            //     for (auto& it : upper_pads) {
+            //         if (it > 0) {
+            //             offset = it;
+            //             break;
+            //         }
+            //     }
+            //     return offset;
+            // };
 
-            // std::cout << "desc->input_k_transpose_order = ";
-            // print_order(desc->input_k_transpose_order);
-            // std::cout << "params.get_input_layout(1) = " << new_params.get_input_layout(1).to_string() << std::endl;
+            // // [1, 8, 2778, 128] --> [1, 8, 2907, 128], k_after_padding = 129
+            // k_after_padding = get_simple_padding(params.get_input_layout(1));
+            // v_after_padding = get_simple_padding(params.get_input_layout(2));
 
-            // std::cout << "desc->input_v_transpose_order = ";
-            // print_order(desc->input_v_transpose_order);
-            // std::cout << "params.get_input_layout(2) = " << new_params.get_input_layout(2).to_string() << std::endl;
+            // size_t k_pitch = get_simple_pitch(params.get_input_layout(1));
+            // size_t v_pitch = get_simple_pitch(params.get_input_layout(2));
+            // std::cout << "k_after_padding = " << k_after_padding << " , v_after_padding = " << v_after_padding << std::endl;
+            // std::cout << "k_pitch = " << k_pitch << " , v_pitch = " << v_pitch << std::endl;
 
-            // std::cout << "desc->output_transpose_order = ";
-            // print_order(desc->output_transpose_order);
-            // std::cout << "params.get_output_layout(0) = " << new_params.get_output_layout(0).to_string() << std::endl;
+            auto print_order = [](const std::vector<int64_t>& order) {
+                std::cout << "[";
+                for (size_t i = 0; i < order.size(); ++i) {
+                    std::cout << order[i];
+                    if (i != order.size() - 1) {
+                        std::cout << ", ";
+                    }
+                }
+                std::cout << "]" << std::endl;
+            };
 
-            // auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
-            // auto k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
-            // auto kv_heads_num = get_batch_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
-            // v_before_padding = (kv_heads_num + heads_num) * k_head_size;
-            // std::cout << "k_head_size = " << k_head_size << ", kv_heads_num = " << kv_heads_num << ", v_before_padding = "<< v_before_padding << std::endl;
+            std::cout << "desc->input_q_transpose_order = ";
+            print_order(desc->input_q_transpose_order);
+            std::cout << "extended_input_q_transpose_order = ";
+            print_order(extended_input_q_transpose_order);
+            std::cout << "params.get_input_layout(0) = " << new_params.get_input_layout(0).to_string() << std::endl;
+
+            std::cout << "desc->input_k_transpose_order = ";
+            print_order(desc->input_k_transpose_order);
+            std::cout << "params.get_input_layout(1) = " << new_params.get_input_layout(1).to_string() << std::endl;
+
+            std::cout << "desc->input_v_transpose_order = ";
+            print_order(desc->input_v_transpose_order);
+            std::cout << "params.get_input_layout(2) = " << new_params.get_input_layout(2).to_string() << std::endl;
+
+            std::cout << "desc->output_transpose_order = ";
+            print_order(desc->output_transpose_order);
+            std::cout << "params.get_output_layout(0) = " << new_params.get_output_layout(0).to_string() << std::endl;
         }
 
         auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
@@ -303,8 +372,10 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
         const size_t q_group_size = WG_SIZE * q_step;
         const size_t q_threads = align_to(q_len, q_group_size) / q_step;
 
-        // std::cout << "GWS = [" << batch << ", " << heads_num << ", " << q_threads << "], LWS = [1, 1, " << WG_SIZE
-        //           << "], q_len = " << q_len << ", q_step = " << q_step << ", q_group_size = " << q_group_size << std::endl;
+        std::cout << "GWS = [" << batch << ", " << heads_num << ", " << q_threads << "], LWS = [1, 1, " << WG_SIZE << "], q_len = " << q_len
+                  << ", q_step = " << q_step << ", q_group_size = " << q_group_size
+                  << ", is_qwen3_vl = " << is_qwen3_vl_dynamic_layout(params.get_input_layout(0)) << ", k_after_padding = " << k_after_padding
+                  << ", v_after_padding = " << v_after_padding << std::endl;
 
         wgs.global = {batch, heads_num, q_threads};
         wgs.local = {1, 1, WG_SIZE};
@@ -321,7 +392,7 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
         // Prefill stage: kv_len == q_len
         // auto kv_len = q_len;
         // std::vector<size_t> scaler_value = {q_len, q_len, v_before_padding};
-        std::vector<size_t> scaler_value = {q_len};
+        std::vector<size_t> scaler_value = {q_len, k_after_padding, v_after_padding};
         scalars.resize(scaler_value.size());
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;

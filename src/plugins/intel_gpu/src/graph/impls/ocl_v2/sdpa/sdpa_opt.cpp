@@ -51,20 +51,24 @@ public:
     bool supports_cm_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
         // 0 - unknown, 1 - supported, 2 - not supported
-        static char supports_cm = 0;
+        static size_t supports_cm = 0;
 
         auto enable_cm = std::getenv("OV_ENABLE_CM_SDPA");
-        if (enable_cm && std::string(enable_cm) == "0")
+        if (enable_cm && std::string(enable_cm) == "0") {
+            std::cout << "OV_ENABLE_CM_SDPA is set to 0, disable CM SDPA\n";
             return false;
+        }
 
         if (supports_cm == 0) {
             auto query_result = cldnn::check_cm_jit_support(engine, params.get_program().get_config());
             if (params.get_device_info().arch < gpu_arch::xe_hpg || !query_result) {
                 supports_cm = 2;
+                std::cout << "CM SDPA is not supported on this device or driver version\n";
             } else {
                 supports_cm = 1;
             }
         }
+        // std::cout << "supports_cm_sdpa = " << supports_cm << "\n";
         return supports_cm == 1;
     }
 
@@ -85,7 +89,7 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "supports_cm_sdpa = " << use_cm_sdpa << "\n";
             if (use_cm_sdpa) {
                 GPU_DEBUG_TRACE_DETAIL << "add stage for cm_sdpa dynamic with prefill_stage \n";
-                add_stage(sdpa_prefill_cm, params);
+                add_stage(sdpa_prefill_cm, impl_param);
             }
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (SDPAOpt::supports_micro_sdpa(params) && !use_cm_sdpa) {
@@ -101,7 +105,7 @@ public:
             if (is_prefill_stage(params) || unaligned_head_size(params)) {
                 GPU_DEBUG_TRACE_DETAIL << "add stage for cm_sdpa non-dynamic with prefill_stage \n";
                 if (use_cm_sdpa)
-                    add_stage(sdpa_prefill_cm, params);
+                    add_stage(sdpa_prefill_cm, impl_param);
                 if (is_indirect) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for indirect non-dynamic with prefill_stage \n";
                     add_stage(indirect_multi_tokens, params);
@@ -147,7 +151,7 @@ public:
         update_rt_params(instance);
 
         if (has_stage(sdpa_prefill_cm) && is_prefill) {
-            GPU_DEBUG_TRACE_DETAIL << "execute sdpa_prefill_cm \n";
+            // std::cout << "execute sdpa_prefill_cm \n";
             return execute_stage(events, instance, sdpa_prefill_cm);
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
