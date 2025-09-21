@@ -188,8 +188,8 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
         jit.make("CMFLA_HEAD_SIZE", k_head_size);
         jit.make("CMFLA_NUM_KV_HEADS", k_num_head);
 
-        std::cout << "q_num_head: " << q_num_head << ", k_head_size: " << k_head_size << ", k_num_head: " << k_num_head
-                  << ", not_need_output_transpose = " << not_need_output_transpose << ", is_qwen3_vl = " << is_qwen3_vl << std::endl;
+        // std::cout << "q_num_head: " << q_num_head << ", k_head_size: " << k_head_size << ", k_num_head: " << k_num_head
+        //           << ", not_need_output_transpose = " << not_need_output_transpose << ", is_qwen3_vl = " << is_qwen3_vl << std::endl;
     }
     // jit.make("WG_SIZE_HINT", WG_SIZE);
 
@@ -234,15 +234,15 @@ JitConstants PagedAttentionSDPAGeneratorMultiToken::get_jit_constants(const kern
             }
             return false;
         };
-        std::cout << "params.get_input_layout(0) = " << params.get_input_layout(0).to_string() << std::endl;
-        std::cout << "params.get_input_layout(1) = " << params.get_input_layout(1).to_string() << std::endl;
-        std::cout << "params.get_input_layout(2) = " << params.get_input_layout(2).to_string() << std::endl;
+        // std::cout << "params.get_input_layout(0) = " << params.get_input_layout(0).to_string() << std::endl;
+        // std::cout << "params.get_input_layout(1) = " << params.get_input_layout(1).to_string() << std::endl;
+        // std::cout << "params.get_input_layout(2) = " << params.get_input_layout(2).to_string() << std::endl;
 
-        size_t query_dynamic_padding = is_dynamic_padding(params.get_input_layout(0));
+        // size_t query_dynamic_padding = is_dynamic_padding(params.get_input_layout(0));
         size_t key_dynamic_padding = is_dynamic_padding(params.get_input_layout(1));
         size_t value_dynamic_padding = is_dynamic_padding(params.get_input_layout(2));
-        std::cout << "query_dynamic_padding = " << query_dynamic_padding << " , value_dynamic_padding = " << value_dynamic_padding
-                  << " , key_dynamic_padding = " << key_dynamic_padding << std::endl;
+        // std::cout << "query_dynamic_padding = " << query_dynamic_padding << " , value_dynamic_padding = " << value_dynamic_padding
+        //           << " , key_dynamic_padding = " << key_dynamic_padding << std::endl;
 
         if (key_dynamic_padding && value_dynamic_padding) {
             jit.make("CMFLA_KV_PADDING", 1);
@@ -337,34 +337,34 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
             // std::cout << "k_after_padding = " << k_after_padding << " , v_after_padding = " << v_after_padding << std::endl;
             // std::cout << "k_pitch = " << k_pitch << " , v_pitch = " << v_pitch << std::endl;
 
-            auto print_order = [](const std::vector<int64_t>& order) {
-                std::cout << "[";
-                for (size_t i = 0; i < order.size(); ++i) {
-                    std::cout << order[i];
-                    if (i != order.size() - 1) {
-                        std::cout << ", ";
-                    }
-                }
-                std::cout << "]" << std::endl;
-            };
+            // auto print_order = [](const std::vector<int64_t>& order) {
+            //     std::cout << "[";
+            //     for (size_t i = 0; i < order.size(); ++i) {
+            //         std::cout << order[i];
+            //         if (i != order.size() - 1) {
+            //             std::cout << ", ";
+            //         }
+            //     }
+            //     std::cout << "]" << std::endl;
+            // };
 
-            std::cout << "desc->input_q_transpose_order = ";
-            print_order(desc->input_q_transpose_order);
-            std::cout << "extended_input_q_transpose_order = ";
-            print_order(extended_input_q_transpose_order);
-            std::cout << "params.get_input_layout(0) = " << new_params.get_input_layout(0).to_string() << std::endl;
+            // std::cout << "desc->input_q_transpose_order = ";
+            // print_order(desc->input_q_transpose_order);
+            // std::cout << "extended_input_q_transpose_order = ";
+            // print_order(extended_input_q_transpose_order);
+            // std::cout << "params.get_input_layout(0) = " << new_params.get_input_layout(0).to_string() << std::endl;
 
-            std::cout << "desc->input_k_transpose_order = ";
-            print_order(desc->input_k_transpose_order);
-            std::cout << "params.get_input_layout(1) = " << new_params.get_input_layout(1).to_string() << std::endl;
+            // std::cout << "desc->input_k_transpose_order = ";
+            // print_order(desc->input_k_transpose_order);
+            // std::cout << "params.get_input_layout(1) = " << new_params.get_input_layout(1).to_string() << std::endl;
 
-            std::cout << "desc->input_v_transpose_order = ";
-            print_order(desc->input_v_transpose_order);
-            std::cout << "params.get_input_layout(2) = " << new_params.get_input_layout(2).to_string() << std::endl;
+            // std::cout << "desc->input_v_transpose_order = ";
+            // print_order(desc->input_v_transpose_order);
+            // std::cout << "params.get_input_layout(2) = " << new_params.get_input_layout(2).to_string() << std::endl;
 
-            std::cout << "desc->output_transpose_order = ";
-            print_order(desc->output_transpose_order);
-            std::cout << "params.get_output_layout(0) = " << new_params.get_output_layout(0).to_string() << std::endl;
+            // std::cout << "desc->output_transpose_order = ";
+            // print_order(desc->output_transpose_order);
+            // std::cout << "params.get_output_layout(0) = " << new_params.get_output_layout(0).to_string() << std::endl;
         }
 
         auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
@@ -372,10 +372,10 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
         const size_t q_group_size = WG_SIZE * q_step;
         const size_t q_threads = align_to(q_len, q_group_size) / q_step;
 
-        std::cout << "GWS = [" << batch << ", " << heads_num << ", " << q_threads << "], LWS = [1, 1, " << WG_SIZE << "], q_len = " << q_len
-                  << ", q_step = " << q_step << ", q_group_size = " << q_group_size
-                  << ", is_qwen3_vl = " << is_qwen3_vl_dynamic_layout(params.get_input_layout(0)) << ", k_after_padding = " << k_after_padding
-                  << ", v_after_padding = " << v_after_padding << std::endl;
+        // std::cout << "GWS = [" << batch << ", " << heads_num << ", " << q_threads << "], LWS = [1, 1, " << WG_SIZE << "], q_len = " << q_len
+        //           << ", q_step = " << q_step << ", q_group_size = " << q_group_size
+        //           << ", is_qwen3_vl = " << is_qwen3_vl_dynamic_layout(params.get_input_layout(0)) << ", k_after_padding = " << k_after_padding
+        //           << ", v_after_padding = " << v_after_padding << std::endl;
 
         wgs.global = {batch, heads_num, q_threads};
         wgs.local = {1, 1, WG_SIZE};
