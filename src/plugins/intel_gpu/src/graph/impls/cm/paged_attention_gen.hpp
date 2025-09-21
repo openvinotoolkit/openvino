@@ -44,26 +44,26 @@ public:
 
 class PagedAttentionSDPAGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
-    PagedAttentionSDPAGeneratorMultiToken() : PagedAttentionGeneratorBase("pa_sdpa_prefill_prefetch") {}
+    PagedAttentionSDPAGeneratorMultiToken() : PagedAttentionGeneratorBase("sdpa_prefill_prefetch") {}
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 };
-class PagedAttentionGeneratorSingleToken : public PagedAttentionGeneratorBase {
-public:
-    PagedAttentionGeneratorSingleToken() : PagedAttentionGeneratorBase("pa_sdpa_single_token") {}
-    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
-    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
-};
+// class PagedAttentionGeneratorSingleToken : public PagedAttentionGeneratorBase {
+// public:
+//     PagedAttentionGeneratorSingleToken() : PagedAttentionGeneratorBase("pa_sdpa_single_token") {}
+//     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+//     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+//     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+// };
 
-class PagedAttentionGeneratorSingleTokenFinalization : public PagedAttentionGeneratorBase {
-public:
-    PagedAttentionGeneratorSingleTokenFinalization() : PagedAttentionGeneratorBase("pa_sdpa_single_token_finalization") {}
-    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
-    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
-};
+// class PagedAttentionGeneratorSingleTokenFinalization : public PagedAttentionGeneratorBase {
+// public:
+//     PagedAttentionGeneratorSingleTokenFinalization() : PagedAttentionGeneratorBase("pa_sdpa_single_token_finalization") {}
+//     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+//     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+//     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+// };
 
 }  // namespace ov::intel_gpu::cm
 #endif  // CM_PA_ENABLE

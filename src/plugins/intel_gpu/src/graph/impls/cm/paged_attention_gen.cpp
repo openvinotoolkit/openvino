@@ -107,13 +107,13 @@ inline size_t get_kv_len(const RuntimeParams& params, const PagedAttentionStage&
     return 0;  // Fallback case, should not be reached
 }
 
-inline size_t get_split_num(const RuntimeParams& params, const PagedAttentionStage& stage) {
-    const size_t kv_len = get_kv_len(params, stage);
-    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    const size_t split_num = kv_len / get_kv_split_size(xe_arch).second;
+// inline size_t get_split_num(const RuntimeParams& params, const PagedAttentionStage& stage) {
+//     const size_t kv_len = get_kv_len(params, stage);
+//     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+//     const size_t split_num = kv_len / get_kv_split_size(xe_arch).second;
 
-    return split_num;
-}
+//     return split_num;
+// }
 
 JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = KernelGenerator::get_jit_constants(params);
@@ -122,12 +122,12 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
 
     if (params.is_type<paged_attention>()) {
         auto desc = params.typed_desc<paged_attention>();
-        jit.make("HEAD_SIZE", desc->k_head_size);
-        jit.make("HEADS_NUM", desc->heads_num);
-        jit.make("KV_HEADS_NUM", desc->kv_heads_num);
+        // jit.make("HEAD_SIZE", desc->k_head_size);
+        // jit.make("HEADS_NUM", desc->heads_num);
+        // jit.make("KV_HEADS_NUM", desc->kv_heads_num);
 
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
-        jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
+        // jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
         jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
         jit.make("CMFLA_NUM_HEADS", desc->heads_num);
         jit.make("CMFLA_HEAD_SIZE", desc->k_head_size);
@@ -139,22 +139,34 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
         auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
         auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
         auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
-        // const auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-        const auto q_num_head = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
+        // // const auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
+        // const auto q_num_head = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
+        // const auto k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
+        // const auto k_num_head = get_num_heads(new_params.get_input_layout(1), extended_input_k_transpose_order);
+        // // const auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+        // // const auto batch = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
+
+        const auto q_num_head = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
         const auto k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
-        const auto k_num_head = get_num_heads(new_params.get_input_layout(1), extended_input_k_transpose_order);
-        // const auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
-        // const auto batch = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
+        const auto k_num_head = get_batch_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
 
-        jit.make("HEAD_SIZE", k_head_size);
-        jit.make("HEADS_NUM", q_num_head);
-        jit.make("KV_HEADS_NUM", k_num_head);
+        if(desc->output_transpose_order == desc->input_q_transpose_order) {
+            jit.make("CMFLA_OUTPUT_BHLS", 0);
+        } else {
+            jit.make("CMFLA_OUTPUT_BHLS", 1);
+        }
 
-        std::cout << "PagedAttentionGeneratorBase::get_jit_constants: q_num_head = " << q_num_head
-                  << ", k_head_size = " << k_head_size << ", k_num_head = " << k_num_head << std::endl;
+        // jit.make("HEAD_SIZE", k_head_size);
+        // jit.make("HEADS_NUM", q_num_head);
+        // jit.make("KV_HEADS_NUM", k_num_head);
+
+        // std::cout << "PagedAttentionGeneratorBase::get_jit_constants: q_num_head = " << q_num_head
+        //           << ", k_head_size = " << k_head_size << ", k_num_head = " << k_num_head << std::endl;
+        // std::cout << "new_params.get_input_layout(0) = " << new_params.get_input_layout(0).to_string() << std::endl;
+        // std::cout << "new_params.get_input_layout(1) = " << new_params.get_input_layout(1).to_string() << std::endl;
 
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(k_head_size));
-        jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
+        // jit.add(make_jit_constant("SCALE_FACTOR", scale_factor));
         jit.add(make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor));
         jit.make("CMFLA_NUM_HEADS", q_num_head);
         jit.make("CMFLA_HEAD_SIZE", k_head_size);
@@ -162,14 +174,14 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
 
         // std::cout << "k_head_size: " << k_head_size << ", q_num_head: " << q_num_head << ", k_num_head: " << k_num_head << std::endl;
     }
-    jit.make("WG_SIZE_HINT", WG_SIZE);
+    // jit.make("WG_SIZE_HINT", WG_SIZE);
 
-    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    jit.make("XE_ARCH", xe_arch);
+    // auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+    // jit.make("XE_ARCH", xe_arch);
 
-    auto split_size = get_kv_split_size(xe_arch);
-    jit.make("KV_STEP", split_size.first);
-    jit.make("WG_SIZE", WG_SIZE);
+    // auto split_size = get_kv_split_size(xe_arch);
+    // jit.make("KV_STEP", split_size.first);
+    // jit.make("WG_SIZE", WG_SIZE);
     return jit;
 }
 
@@ -184,8 +196,8 @@ Arguments PagedAttentionSDPAGeneratorMultiToken::get_arguments_desc(const kernel
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_len
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // v_before_padding
+    //args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_len
+    //args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // v_before_padding
 
     return args;
 }
@@ -194,18 +206,20 @@ JitConstants PagedAttentionSDPAGeneratorMultiToken::get_jit_constants(const kern
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     // const auto desc = params.typed_desc<paged_attention>();
 
-    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    jit.make("Q_STEP", get_q_step(xe_arch, false));
+    // auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+    // jit.make("Q_STEP", get_q_step(xe_arch, false));
 
     // TODO: set causal mask only if needed
-    auto causal_mask = 0;
-    jit.make("CAUSAL_MASK", causal_mask);
+    // auto causal_mask = 0;
+    // jit.make("CAUSAL_MASK", causal_mask);
 
     if (params.is_type<paged_attention>()) {
         jit.make("FULL_ATTENTION_MASK", 0);
     } else {
         // Test for qwen3_vl
         jit.make("FULL_ATTENTION_MASK", 1);
+        jit.make("CMFLA_V_FUSED", 0);
+        jit.make("CMFLA_IS_CAUSAL", 0);
     }
 
     // for (auto& it : jit) {
@@ -221,63 +235,68 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
         auto& scalars = kd.params.scalars;
 
         size_t heads_num = 1, batch = 1, q_len = 1;
-        size_t v_before_padding = 0;
+        // size_t v_before_padding = 0;
         // size_t kv_heads_num = 1, k_head_size = 1;
         if (params.is_type<paged_attention>()) {
             auto desc = params.typed_desc<paged_attention>();
             // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
             heads_num = desc->heads_num;
-            size_t k_head_size = desc->k_head_size;
+            // size_t k_head_size = desc->k_head_size;
             auto out_shape = params.output_layouts[0].get_shape();
             batch = out_shape.size() < 4 ? 1 : out_shape[0];
             q_len = out_shape[0];
-            size_t kv_heads_num = desc->kv_heads_num;
-            v_before_padding = (kv_heads_num + heads_num) * k_head_size;
+            // size_t kv_heads_num = desc->kv_heads_num;
+            // v_before_padding = (kv_heads_num + heads_num) * k_head_size;
         } else {
             auto& new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
             auto desc = new_params.typed_desc<scaled_dot_product_attention>();
             auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
             auto out_shape = new_params.output_layouts[0].get_shape();
-            batch = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
+            batch = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
             q_len = get_seq_length(new_params.get_input_layout(0), extended_input_q_transpose_order);
-            heads_num = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
+            heads_num = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
 
-            std::cout << "batch = " << batch << ", q_len = " << q_len << ", heads_num = " << heads_num << std::endl;
+            // batch = get_batch_size(new_params.get_input_layout(0), extended_input_q_transpose_order);
+            // heads_num = get_seq_length(new_params.get_input_layout(0), extended_input_q_transpose_order);
+            // q_len = get_num_heads(new_params.get_input_layout(0), extended_input_q_transpose_order);
 
-            auto print_order = [](const std::vector<int64_t>& order) {
-                std::cout << "[";
-                for (size_t i = 0; i < order.size(); ++i) {
-                    std::cout << order[i];
-                    if (i != order.size() - 1) {
-                        std::cout << ", ";
-                    }
-                }
-                std::cout << "]" << std::endl;
-            };
+            // std::cout << "batch = " << batch << ", q_len = " << q_len << ", heads_num = " << heads_num << std::endl;
 
-            std::cout << "desc->input_q_transpose_order = ";
-            print_order(desc->input_q_transpose_order);
-            std::cout << "extended_input_q_transpose_order = ";
-            print_order(extended_input_q_transpose_order);
-            std::cout << "params.get_input_layout(0) = " << params.get_input_layout(0).to_string() << std::endl;
+            // auto print_order = [](const std::vector<int64_t>& order) {
+            //     std::cout << "[";
+            //     for (size_t i = 0; i < order.size(); ++i) {
+            //         std::cout << order[i];
+            //         if (i != order.size() - 1) {
+            //             std::cout << ", ";
+            //         }
+            //     }
+            //     std::cout << "]" << std::endl;
+            // };
 
-            std::cout << "desc->input_k_transpose_order = ";
-            print_order(desc->input_k_transpose_order);
-            std::cout << "params.get_input_layout(1) = " << params.get_input_layout(1).to_string() << std::endl;
+            // std::cout << "desc->input_q_transpose_order = ";
+            // print_order(desc->input_q_transpose_order);
+            // std::cout << "extended_input_q_transpose_order = ";
+            // print_order(extended_input_q_transpose_order);
+            // std::cout << "params.get_input_layout(0) = " << new_params.get_input_layout(0).to_string() << std::endl;
 
-            std::cout << "desc->input_v_transpose_order = ";
-            print_order(desc->input_v_transpose_order);
-            std::cout << "params.get_input_layout(2) = " << params.get_input_layout(2).to_string() << std::endl;
+            // std::cout << "desc->input_k_transpose_order = ";
+            // print_order(desc->input_k_transpose_order);
+            // std::cout << "params.get_input_layout(1) = " << new_params.get_input_layout(1).to_string() << std::endl;
 
-            std::cout << "desc->output_transpose_order = ";
-            print_order(desc->output_transpose_order);
-            std::cout << "params.get_output_layout(0) = " << params.get_output_layout(0).to_string() << std::endl;
+            // std::cout << "desc->input_v_transpose_order = ";
+            // print_order(desc->input_v_transpose_order);
+            // std::cout << "params.get_input_layout(2) = " << new_params.get_input_layout(2).to_string() << std::endl;
+
+            // std::cout << "desc->output_transpose_order = ";
+            // print_order(desc->output_transpose_order);
+            // std::cout << "params.get_output_layout(0) = " << new_params.get_output_layout(0).to_string() << std::endl;
 
 
-            auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
-            auto k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
-            auto kv_heads_num = get_num_heads(new_params.get_input_layout(1), extended_input_k_transpose_order);
-            std::cout << "k_head_size = " << k_head_size << ", kv_heads_num = " << kv_heads_num << std::endl;
+            // auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+            // auto k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
+            // auto kv_heads_num = get_batch_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
+            // v_before_padding = (kv_heads_num + heads_num) * k_head_size;
+            // std::cout << "k_head_size = " << k_head_size << ", kv_heads_num = " << kv_heads_num << ", v_before_padding = "<< v_before_padding << std::endl;
         }
 
         auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
@@ -285,8 +304,8 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
         const size_t q_group_size = WG_SIZE * q_step;
         const size_t q_threads = align_to(q_len, q_group_size) / q_step;
 
-        std::cout << "GWS = [" << batch << ", " << heads_num << ", " << q_threads << "]"
-                  << ", q_len = " << q_len << ", q_step = " << q_step << ", q_group_size = " << q_group_size << std::endl;
+        // std::cout << "GWS = [" << batch << ", " << heads_num << ", " << q_threads << "], LWS = [1, 1, " << WG_SIZE
+        //           << "], q_len = " << q_len << ", q_step = " << q_step << ", q_group_size = " << q_group_size << std::endl;
 
         wgs.global = {batch, heads_num, q_threads};
         wgs.local = {1, 1, WG_SIZE};
@@ -300,8 +319,9 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
         //           << "value_layout: " << value_layout.to_string() << ", v_before_padding: " << v_before_padding << std::endl;
 
         // Prefill stage: kv_len == q_len
-        auto kv_len = q_len;
-        std::vector<size_t> scaler_value = {q_len, kv_len, v_before_padding};
+        // auto kv_len = q_len;
+        // std::vector<size_t> scaler_value = {q_len, q_len, v_before_padding};
+        std::vector<size_t> scaler_value = {q_len};
         scalars.resize(scaler_value.size());
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
@@ -310,126 +330,126 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
     }};
 }
 
-JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_impl_params& params) const {
-    auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
-    jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
+// JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_impl_params& params) const {
+//     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+//     jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
 
-    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    jit.make("Q_STEP", get_q_step(xe_arch, true));
-    auto kv_split_size = get_kv_split_size(xe_arch);
-    jit.make("KV_STEP", kv_split_size.first);
-    jit.make("KV_SPLIT_LEN", kv_split_size.second);
+//     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+//     jit.make("Q_STEP", get_q_step(xe_arch, true));
+//     auto kv_split_size = get_kv_split_size(xe_arch);
+//     jit.make("KV_STEP", kv_split_size.first);
+//     jit.make("KV_SPLIT_LEN", kv_split_size.second);
 
-    const size_t kv_len = get_kv_len(params, PagedAttentionStage::GENERATE);
-    jit.make("KV_LEN", kv_len);
+//     const size_t kv_len = get_kv_len(params, PagedAttentionStage::GENERATE);
+//     jit.make("KV_LEN", kv_len);
 
-    return jit;
-}
+//     return jit;
+// }
 
-Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_impl_params& params) const {
-    Arguments args;
+// Arguments PagedAttentionGeneratorSingleToken::get_arguments_desc(const kernel_impl_params& params) const {
+//     Arguments args;
 
-    const auto desc = params.typed_desc<paged_attention>();
-    // const auto has_scale_input = !desc->scale_val.has_value();
-    const auto has_scores_output = params.output_layouts.size() > 1;
+//     const auto desc = params.typed_desc<paged_attention>();
+//     // const auto has_scale_input = !desc->scale_val.has_value();
+//     const auto has_scores_output = params.output_layouts.size() > 1;
 
-    OPENVINO_ASSERT(!has_scores_output, "[GPU][CM] PagedAttentionGeneratorSingleToken with scores output is not supported yet");
+//     OPENVINO_ASSERT(!has_scores_output, "[GPU][CM] PagedAttentionGeneratorSingleToken with scores output is not supported yet");
 
-    args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // queries
-    args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // keys cache
-    args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // values cache
+//     args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // queries
+//     args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // keys cache
+//     args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // values cache
 
-    // TODO: HAS_ATTN_MASK_INPUT
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, split_output_idx});      // split output
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, split_output_idx + 1});  // lse output
+//     // TODO: HAS_ATTN_MASK_INPUT
+//     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, split_output_idx});      // split output
+//     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, split_output_idx + 1});  // lse output
 
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len==1
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_len
+//     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len==1
+//     args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_len
 
-    return args;
-}
+//     return args;
+// }
 
-DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-        assert(!params.is_dynamic());
-        auto& wgs = kd.params.workGroups;
-        const auto desc = params.typed_desc<paged_attention>();
+// DispatchDataFunc PagedAttentionGeneratorSingleToken::get_dispatch_data_func() const {
+//     return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+//         assert(!params.is_dynamic());
+//         auto& wgs = kd.params.workGroups;
+//         const auto desc = params.typed_desc<paged_attention>();
 
-        auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+//         auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
-        const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
-        const size_t heads_num = desc->heads_num;
-        const size_t split_num = get_split_num(params, rtp->stage);
-        wgs.global = {batch, heads_num, split_num};
-        wgs.local = {1, 1, WG_SIZE};
+//         const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
+//         const size_t heads_num = desc->heads_num;
+//         const size_t split_num = get_split_num(params, rtp->stage);
+//         wgs.global = {batch, heads_num, split_num};
+//         wgs.local = {1, 1, WG_SIZE};
 
-        // generate stage: q_len=1, kv_len=past_len + 1
-        auto& scalars = kd.params.scalars;
-        auto kv_len = rtp->paged_attention_aligned_seq_len;
-        std::vector<size_t> scaler_value = {1, kv_len};
-        scalars.resize(scaler_value.size());
+//         // generate stage: q_len=1, kv_len=past_len + 1
+//         auto& scalars = kd.params.scalars;
+//         auto kv_len = rtp->paged_attention_aligned_seq_len;
+//         std::vector<size_t> scaler_value = {1, kv_len};
+//         scalars.resize(scaler_value.size());
 
-        // std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: "
-        //           << "batch: " << batch << ", heads_num: " << heads_num << ", split_num: " << split_num << ", kv_len: " << kv_len << std::endl;
+//         // std::cout << "PagedAttentionGeneratorSingleToken::get_dispatch_data_func: "
+//         //           << "batch: " << batch << ", heads_num: " << heads_num << ", split_num: " << split_num << ", kv_len: " << kv_len << std::endl;
 
-        for (size_t i = 0; i < scaler_value.size(); ++i) {
-            scalars[i].t = ScalarDescriptor::Types::INT32;
-            scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
-        }
-    }};
-}
+//         for (size_t i = 0; i < scaler_value.size(); ++i) {
+//             scalars[i].t = ScalarDescriptor::Types::INT32;
+//             scalars[i].v.s32 = static_cast<int32_t>(scaler_value[i]);
+//         }
+//     }};
+// }
 
-JitConstants PagedAttentionGeneratorSingleTokenFinalization::get_jit_constants(const kernel_impl_params& params) const {
-    auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+// JitConstants PagedAttentionGeneratorSingleTokenFinalization::get_jit_constants(const kernel_impl_params& params) const {
+//     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
 
-    const auto desc = params.typed_desc<paged_attention>();
-    jit.make("KV_SPLIT_DATA_SIZE", kv_split_data_size);
-    auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
-    jit.make("KV_SPLIT_LEN", get_kv_split_size(xe_arch).second);
+//     const auto desc = params.typed_desc<paged_attention>();
+//     jit.make("KV_SPLIT_DATA_SIZE", kv_split_data_size);
+//     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+//     jit.make("KV_SPLIT_LEN", get_kv_split_size(xe_arch).second);
 
-    // auto key_cache_shape = params.input_layouts[3].get_shape();
-    // const size_t kv_len = key_cache_shape[0] * key_cache_shape[key_cache_shape.size() - 2];
-    const size_t kv_len = get_kv_len(params, PagedAttentionStage::GENERATE);
-    jit.make("KV_LEN", kv_len);
+//     // auto key_cache_shape = params.input_layouts[3].get_shape();
+//     // const size_t kv_len = key_cache_shape[0] * key_cache_shape[key_cache_shape.size() - 2];
+//     const size_t kv_len = get_kv_len(params, PagedAttentionStage::GENERATE);
+//     jit.make("KV_LEN", kv_len);
 
-    return jit;
-}
+//     return jit;
+// }
 
-Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(const kernel_impl_params& params) const {
-    Arguments args;
+// Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(const kernel_impl_params& params) const {
+//     Arguments args;
 
-    args.push_back({ArgumentDescriptor::Types::INPUT, 5});  // past_lens
-    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+//     args.push_back({ArgumentDescriptor::Types::INPUT, 5});  // past_lens
+//     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
-    const auto has_scores_output = params.output_layouts.size() > 1;
+//     const auto has_scores_output = params.output_layouts.size() > 1;
 
-    OPENVINO_ASSERT(!has_scores_output, "[GPU][CM] PagedAttentionGeneratorSingleTokenFinalization with scores output is not supported yet");
+//     OPENVINO_ASSERT(!has_scores_output, "[GPU][CM] PagedAttentionGeneratorSingleTokenFinalization with scores output is not supported yet");
 
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, split_output_idx});      // split data
-    args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                              // output
-    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, split_output_idx + 1});  // values cache
+//     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, split_output_idx});      // split data
+//     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                              // output
+//     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, split_output_idx + 1});  // values cache
 
-    return args;
-}
+//     return args;
+// }
 
-DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-        assert(!params.is_dynamic());
-        auto& wgs = kd.params.workGroups;
-        auto& scalars = kd.params.scalars;
-        scalars.resize(1);
+// DispatchDataFunc PagedAttentionGeneratorSingleTokenFinalization::get_dispatch_data_func() const {
+//     return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+//         assert(!params.is_dynamic());
+//         auto& wgs = kd.params.workGroups;
+//         auto& scalars = kd.params.scalars;
+//         scalars.resize(1);
 
-        const auto desc = params.typed_desc<paged_attention>();
-        // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+//         const auto desc = params.typed_desc<paged_attention>();
+//         // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
-        const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
-        const size_t heads_num = desc->heads_num;
-        const size_t head_size = desc->k_head_size;
+//         const size_t batch = params.input_layouts[0].get_partial_shape()[0].get_length();
+//         const size_t heads_num = desc->heads_num;
+//         const size_t head_size = desc->k_head_size;
 
-        wgs.global = {batch, heads_num, head_size / kv_split_data_size};
-        wgs.local = {1, 1, 1};
-    }};
-}
+//         wgs.global = {batch, heads_num, head_size / kv_split_data_size};
+//         wgs.local = {1, 1, 1};
+//     }};
+// }
 
 }  // namespace ov::intel_gpu::cm
 #endif
