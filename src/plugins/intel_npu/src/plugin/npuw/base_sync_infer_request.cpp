@@ -700,6 +700,19 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
         const auto do_copy = needs_copy(idx) && !m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
 
         // Set the past k/v values first
+
+        struct copy_info {
+            ov::SoPtr<ov::ITensor> _src;
+            ov::SoPtr<ov::ITensor> _dst;
+            uint32_t _dim;
+
+            copy_info(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor> dst, uint32_t dim) {
+                _src = src;
+                _dst = dst;
+                _dim = dim;
+            }
+        };
+        std::vector<copy_info> copy_list;
         for (auto&& param : dynamic.params) {
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
             const auto& input = m_attention_io[idx].inputs.at(param.idx);
@@ -726,13 +739,21 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
                 if (ov::shape_size(shape) > 0) {
                     // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
                     LOG_DEBUG("Do copy: " << shape << "...");
-                    ov::npuw::util::copy_tensor_by_dim(view, new_tensor, static_cast<uint32_t>(param.dim));
+                    copy_list.push_back(copy_info(view, new_tensor, static_cast<uint32_t>(param.dim)));
                 }
                 r->set_tensor(iport, new_tensor);
             } else {
                 r->set_tensor(iport, view);
             }
         }  // for(params)
+
+        ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
+            auto& it = copy_list[idx];
+            ov::SoPtr<ov::ITensor> src = it._src;
+            ov::SoPtr<ov::ITensor> dst = it._dst;
+            uint32_t dim = it._dim;
+            ov::npuw::util::copy_tensor_by_dim(src, dst, dim);
+        });
     }
 
     LOG_DEBUG("Done");
