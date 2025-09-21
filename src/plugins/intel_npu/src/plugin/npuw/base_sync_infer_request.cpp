@@ -703,27 +703,32 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
         for (auto&& param : dynamic.params) {
             const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
             const auto& input = m_attention_io[idx].inputs.at(param.idx);
+            auto input_shape = input->get_shape();
+            if (input_shape[param.dim] == past_len) {
+                // Special case for the last chunk
+                // Set tensor directly when actual pask key tensor shape is the same with the pre-allocated
+                // pask key tensor shape
+                r->set_tensor(iport, input);
+                continue;
+            }
+
             const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
             const auto shape = view->get_shape();
 
             LOG_DEBUG(iport);
             LOG_BLOCK();
-            if (do_copy && ov::shape_size(shape) > 0) {
-                // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
-                const auto &dst = r->get_tensor(iport);
-                const auto old_ptr = dst->data();
-                dst->set_shape(shape);
-                const auto new_ptr = dst->data();
-                if (old_ptr != new_ptr) {
-                    m_footprint[*comp_model_desc.device_it] += dst->get_byte_size();
+            if (do_copy) {
+                auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
+                auto proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+                auto device = *proto_comp_model_desc.device_it;
+                auto new_tensor =
+                    ov::npuw::util::allocMem(view->get_element_type(), shape, device, m_npuw_model->get_plugin());
+                if (ov::shape_size(shape) > 0) {
+                    // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
+                    LOG_DEBUG("Do copy: " << shape << "...");
+                    ov::npuw::util::copy_tensor_by_dim(view, new_tensor, static_cast<uint32_t>(param.dim));
                 }
-                LOG_DEBUG("Do copy: " << shape << "...");
-                view->copy_to(dst._ptr);
-            } else if (do_copy && ov::shape_size(shape) == 0) {
-                // Special case for 0ths chunk.
-                // Zero the tensor shape but not set to view
-                // (a view tensor can't be extended)
-                r->get_tensor(iport)->set_shape(shape);
+                r->set_tensor(iport, new_tensor);
             } else {
                 r->set_tensor(iport, view);
             }

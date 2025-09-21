@@ -195,6 +195,12 @@ bool isPastKeyValuesKey(const std::string& str);
 
 bool isPastKeyValuesValue(const std::string& str);
 
+void copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor);
+
+void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst);
+
+void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov
