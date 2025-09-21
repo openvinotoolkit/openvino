@@ -571,7 +571,9 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     handle_quant_host_gather(idx, request);
 
     // Handle attention inputs, if required
-    bind_attention_inputs(idx, request);
+    m_profile["attn(io)"] += ov::npuw::perf::ms_to_run([&](){
+        bind_attention_inputs(idx, request);
+    });
 
     LOG_DEBUG("Done");
 }

@@ -28,6 +28,7 @@ class metric {
     std::vector<T> records;
     T vmin = std::numeric_limits<T>::max();
     T vmax = std::numeric_limits<T>::min();
+    T total = 0;
     std::string name;
     bool enabled = false;
 
@@ -52,6 +53,7 @@ public:
         vmin = std::min(vmin, t);
         vmax = std::max(vmax, t);
         records.push_back(std::move(t));
+        total += t;
     }
 
     float avg() const {
@@ -74,12 +76,11 @@ public:
         const char* units = U::name;
         os << std::left << std::setw(20) << (m.name.empty() ? std::string("<unnamed timer>") : m.name);
         if (m.enabled) {
-            os << "[ min = " << m.vmin  << units
-               << ", avg = " << m.avg() << units
+            os << "[ avg = " << m.avg() << units
                << ", med = " << m.med() << units
-               << ", max = " << m.vmax  << units
-               << " in "   << m.records.size()
-               << " records ]";
+               << " in " << m.vmin << ".." << m.vmax << units
+               << " range over " << m.records.size() << " records"
+               << ", total = " << m.total << units << " ]";
         } else {
             os << "[ disabled ]";
         }
@@ -108,7 +109,7 @@ struct Profile {
             std::cout << std::hex << this << ":" << std::endl;
         }
         for (auto &&m : metrics) {
-            std::cout << m.second << std::endl;
+            std::cout << "  " << m.second << std::endl;
         }
     }
 
