@@ -6,43 +6,31 @@
 
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {
+
+// default multiplier for the number of virtual threads when tbb partitioner is AUTO. This is an experience value.
+constexpr int default_multiplier = 32;
 
 class CpuParallel {
 public:
     CpuParallel() = default;
-    CpuParallel(ov::intel_cpu::TbbPartitioner partitioner, size_t multiplier)
-        : m_default_partitioner(partitioner),
-          m_default_multiplier(multiplier) {}
+    CpuParallel(ov::intel_cpu::TbbPartitioner partitioner = ov::intel_cpu::TbbPartitioner::STATIC,
+                size_t multiplier = default_multiplier)
+        : m_partitioner(partitioner),
+          m_multiplier(multiplier) {
+        m_threadPool = std::make_shared<ThreadPool>(m_partitioner, m_multiplier);
+    }
 
     [[nodiscard]] ov::intel_cpu::TbbPartitioner get_partitioner() const {
-        return m_default_partitioner;
+        return m_partitioner;
     }
     [[nodiscard]] size_t get_multiplier() const {
-        return m_default_multiplier;
+        return m_multiplier;
     }
-
-    template <typename T0, typename F>
-    void parallel_simple(const T0& D0, const F& func) const {
-#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-        const auto nthr = static_cast<int>(D0);
-        if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            tbb::parallel_for(0, nthr, [&](int ithr) {
-                func(ithr, nthr);
-            });
-        } else {
-            tbb::parallel_for(
-                0,
-                nthr,
-                [&](int ithr) {
-                    func(ithr, nthr);
-                },
-                tbb::static_partitioner());
-        }
-#else
-        ov::parallel_for(D0, func);  // from core
-#endif
+    [[nodiscard]] std::shared_ptr<ThreadPool> getThreadPool() const {
+        return m_threadPool;
     }
 
     template <typename T0, typename F>
@@ -51,8 +39,8 @@ public:
         auto work_amount = static_cast<int>(D0);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
-        if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
+        if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -60,7 +48,7 @@ public:
         if (virtual_threads == 1) {
             for_1d(0, 1, D0, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
                 tbb::parallel_for(0, virtual_threads, [&](int ithr) {
                     for_1d(ithr, virtual_threads, D0, func);
                 });
@@ -85,8 +73,8 @@ public:
         auto work_amount = static_cast<int>(D0 * D1);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
-        if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
+        if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -94,7 +82,7 @@ public:
         if (virtual_threads == 1) {
             for_2d(0, 1, D0, D1, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
                 tbb::parallel_for(0, virtual_threads, [&](int ithr) {
                     for_2d(ithr, virtual_threads, D0, D1, func);
                 });
@@ -119,8 +107,8 @@ public:
         auto work_amount = static_cast<int>(D0 * D1 * D2);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
-        if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
+        if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -128,7 +116,7 @@ public:
         if (virtual_threads == 1) {
             for_3d(0, 1, D0, D1, D2, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
                 tbb::parallel_for(0, virtual_threads, [&](int ithr) {
                     for_3d(ithr, virtual_threads, D0, D1, D2, func);
                 });
@@ -153,8 +141,8 @@ public:
         auto work_amount = static_cast<int>(D0 * D1 * D2 * D3);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
-        if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
+        if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -162,7 +150,7 @@ public:
         if (virtual_threads == 1) {
             for_4d(0, 1, D0, D1, D2, D3, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
                 tbb::parallel_for(0, virtual_threads, [&](int ithr) {
                     for_4d(ithr, virtual_threads, D0, D1, D2, D3, func);
                 });
@@ -187,8 +175,8 @@ public:
         auto work_amount = static_cast<int>(D0 * D1 * D2 * D3 * D4);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
-        if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
+        if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -196,7 +184,7 @@ public:
         if (virtual_threads == 1) {
             for_5d(0, 1, D0, D1, D2, D3, D4, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
                 tbb::parallel_for(0, virtual_threads, [&](int ithr) {
                     for_5d(ithr, virtual_threads, D0, D1, D2, D3, D4, func);
                 });
@@ -227,8 +215,8 @@ public:
         auto work_amount = static_cast<int>(D0 * D1 * D2 * D3 * D4 * D5);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
-        if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
-            virtual_threads = 1 == nthr ? 1 : nthr * m_default_multiplier;
+        if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            virtual_threads = 1 == nthr ? 1 : nthr * m_multiplier;
         }
         if (virtual_threads > work_amount) {
             virtual_threads = work_amount;
@@ -236,7 +224,7 @@ public:
         if (virtual_threads == 1) {
             for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
                 tbb::parallel_for(0, virtual_threads, [&](int ithr) {
                     for_6d(ithr, virtual_threads, D0, D1, D2, D3, D4, D5, func);
                 });
@@ -282,8 +270,9 @@ public:
     }
 
 private:
-    ov::intel_cpu::TbbPartitioner m_default_partitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-    size_t m_default_multiplier = 32;
+    ov::intel_cpu::TbbPartitioner m_partitioner = ov::intel_cpu::TbbPartitioner::STATIC;
+    size_t m_multiplier = default_multiplier;
+    std::shared_ptr<ThreadPool> m_threadPool = nullptr;
 };
 
 }  // namespace ov::intel_cpu

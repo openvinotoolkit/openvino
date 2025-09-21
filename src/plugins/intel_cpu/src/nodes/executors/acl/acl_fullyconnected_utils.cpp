@@ -152,7 +152,7 @@ std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& i
         auto convertOutput = *convertOutputOpt;
 
         if (reorderWithoutConvert) {
-            dnnl::stream loc_stream = make_stream(output->getPrimitive().get_engine(), context->getThreadPool());
+            dnnl::stream loc_stream = make_stream(output->getPrimitive().get_engine(), context->getCpuParallel()->getThreadPool());
             reorderWithoutConvert.execute(
                 loc_stream,
                 {{DNNL_ARG_FROM, convertOutput->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
@@ -199,7 +199,7 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
     }
     // if precision conversion does not work then do direct reference reorder
     if (directReorder) {
-        dnnl::stream loc_stream = make_stream(engine, context->getThreadPool());
+        dnnl::stream loc_stream = make_stream(engine, context->getCpuParallel()->getThreadPool());
         directReorder.execute(loc_stream,
                               {{DNNL_ARG_FROM, input->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
     } else {

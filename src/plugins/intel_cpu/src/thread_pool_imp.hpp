@@ -9,23 +9,21 @@
 #include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <oneapi/dnnl/dnnl_threadpool_iface.hpp>
 
-#include "cpu_parallel.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 namespace ov::intel_cpu {
 
 class ThreadPool : public dnnl::threadpool_interop::threadpool_iface {
 private:
-    std::shared_ptr<CpuParallel> m_cpu_parallel = nullptr;
     ov::intel_cpu::TbbPartitioner m_partitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-    size_t m_multiplier = 32;
+    size_t m_multiplier = 0;
 
 public:
     ThreadPool() = default;
-    ThreadPool(const std::shared_ptr<CpuParallel>& cpu_parallel)
-        : m_cpu_parallel(cpu_parallel),
-          m_partitioner(m_cpu_parallel->get_partitioner()),
-          m_multiplier(m_cpu_parallel->get_multiplier()) {}
+    ThreadPool(const ov::intel_cpu::TbbPartitioner partitioner, const size_t multiplier)
+        : m_partitioner(partitioner),
+          m_multiplier(multiplier) {}
     [[nodiscard]] int get_num_threads() const override {
         int num = m_partitioner == ov::intel_cpu::TbbPartitioner::STATIC ? parallel_get_max_threads()
                                                                          : parallel_get_max_threads() * m_multiplier;
@@ -38,7 +36,19 @@ public:
         return 0;
     }
     void parallel_for(int n, const std::function<void(int, int)>& fn) override {
-        m_cpu_parallel->parallel_simple(n, fn);
+        if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            tbb::parallel_for(0, n, [&](int ithr) {
+                fn(ithr, n);
+            });
+        } else {
+            tbb::parallel_for(
+                0,
+                n,
+                [&](int ithr) {
+                    fn(ithr, n);
+                },
+                tbb::static_partitioner());
+        }
     }
 };
 

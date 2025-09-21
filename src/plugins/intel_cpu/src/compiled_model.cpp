@@ -199,7 +199,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                     std::lock_guard<std::mutex> lock{*m_mutex};
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
-                    auto cpuParallel = std::make_shared<CpuParallel>(m_cfg.tbbPartitioner, 32);
+                    auto cpuParallel = std::make_shared<CpuParallel>(m_cfg.tbbPartitioner);
                     ctx = std::make_shared<GraphContext>(m_cfg,
                                                          m_socketWeights[socketId],
                                                          isQuantizedFlag,

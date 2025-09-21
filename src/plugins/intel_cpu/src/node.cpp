@@ -818,7 +818,7 @@ void Node::updateDynamicParams() {
                           " ",
                           getOriginalLayers());
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-                dnnl::impl::threadpool_utils::activate_threadpool(context->getThreadPool().get());
+                dnnl::impl::threadpool_utils::activate_threadpool(context->getCpuParallel()->getThreadPool().get());
 #endif
                 prepareParams();
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
@@ -1128,7 +1128,7 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
         Memory memory{engine, newDesc, internalBlob->getData()};
 
         MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
-        node::Reorder::reorderData(memory, *_ptr, context->getParamsCache(), context->getThreadPool());
+        node::Reorder::reorderData(memory, *_ptr, context->getParamsCache(), context->getCpuParallel()->getThreadPool());
         return _ptr;
     };
 
@@ -1162,7 +1162,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     auto create = [&]() {
         Memory srcMemory{getEngine(), srcWeightDesc, edgeMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache(), context->getThreadPool());
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache(), context->getCpuParallel()->getThreadPool());
 
         return _ptr;
     };

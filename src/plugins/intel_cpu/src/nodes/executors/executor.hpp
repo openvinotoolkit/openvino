@@ -62,7 +62,7 @@ public:
           implPriorities(std::move(implPriorities)),
           privateWeighCache(std::move(privateWeighCache)),
           numNumaNodes(graphContext->getNumNumaNodes()),
-          threadPool(graphContext->getThreadPool()) {
+          threadPool(graphContext->getCpuParallel()->getThreadPool()) {
         auto cpuStreamsExecutor = graphContext->getCPUStreamExecutor();
         curNumaNodeId = std::max(0, cpuStreamsExecutor ? cpuStreamsExecutor->get_numa_node_id() : curNumaNodeId);
     }

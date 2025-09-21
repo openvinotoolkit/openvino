@@ -1088,7 +1088,7 @@ void RNN::prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) {
     auto create = [&]() {
         Memory memory{getEngine(), m_initial_weights[idx]->getDescPtr(), m_initial_weights[idx]->getData()};
         MemoryPtr res_ptr = std::make_shared<Memory>(getEngine(), new_desc);
-        node::Reorder::reorderData(memory, *res_ptr, context->getParamsCache(), context->getThreadPool());
+        node::Reorder::reorderData(memory, *res_ptr, context->getParamsCache(), context->getCpuParallel()->getThreadPool());
         return res_ptr;
     };
 

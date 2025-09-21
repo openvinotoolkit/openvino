@@ -21,17 +21,18 @@
 namespace ov::intel_cpu {
 
 dnnl::stream make_stream(const dnnl::engine& engine, const std::shared_ptr<ThreadPool>& thread_pool) {  // NOLINT
-    dnnl::stream stream;
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-    static auto g_cpu_parallel = std::make_shared<CpuParallel>(ov::intel_cpu::TbbPartitioner::STATIC, 32);
-    static auto g_thread_pool = std::make_shared<ThreadPool>(g_cpu_parallel);
-    stream = dnnl::threadpool_interop::make_stream(engine, thread_pool ? thread_pool.get() : g_thread_pool.get());
+    static auto g_cpu_parallel = std::make_shared<CpuParallel>(ov::intel_cpu::TbbPartitioner::STATIC);
+    auto stream =
+        dnnl::threadpool_interop::make_stream(engine,
+                                              thread_pool ? thread_pool.get() : g_cpu_parallel->getThreadPool().get());
 #    if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
     dnnl::impl::threadpool_utils::deactivate_threadpool();
-    dnnl::impl::threadpool_utils::activate_threadpool(thread_pool ? thread_pool.get() : g_thread_pool.get());
+    dnnl::impl::threadpool_utils::activate_threadpool(thread_pool ? thread_pool.get()
+                                                                  : g_cpu_parallel->getThreadPool().get());
 #    endif
 #else
-    stream = dnnl::stream(engine);
+    auto stream = dnnl::stream(engine);
 #endif
     return stream;
 }
