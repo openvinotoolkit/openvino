@@ -10,9 +10,9 @@
 
 #include "sdpa_opt.hpp"
 
+#include "../../cm/paged_attention_gen.hpp"
 #include "../primitive_ocl_base.hpp"
 #include "../utils/kernel_generator.hpp"
-#include "../../cm/paged_attention_gen.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
@@ -146,7 +146,7 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
         update_rt_params(instance);
 
-        if(has_stage(sdpa_prefill_cm) && is_prefill) {
+        if (has_stage(sdpa_prefill_cm) && is_prefill) {
             GPU_DEBUG_TRACE_DETAIL << "execute sdpa_prefill_cm \n";
             return execute_stage(events, instance, sdpa_prefill_cm);
         }

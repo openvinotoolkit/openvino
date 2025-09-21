@@ -9,10 +9,10 @@
 #include <memory>
 #include <utility>
 
-#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
-#include "../ocl_v2/sdpa/sdpa_base.hpp"
 #include "../ocl_v2/sdpa/paged_attention_common.hpp"
+#include "../ocl_v2/sdpa/sdpa_base.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "paged_attention_inst.h"
@@ -150,7 +150,7 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
         const auto k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
         const auto k_num_head = get_batch_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
 
-        if(desc->output_transpose_order == desc->input_q_transpose_order) {
+        if (desc->output_transpose_order == desc->input_q_transpose_order) {
             jit.make("CMFLA_OUTPUT_BHLS", 0);
         } else {
             jit.make("CMFLA_OUTPUT_BHLS", 1);
@@ -196,8 +196,8 @@ Arguments PagedAttentionSDPAGeneratorMultiToken::get_arguments_desc(const kernel
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
-    //args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_len
-    //args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // v_before_padding
+    // args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_len
+    // args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // v_before_padding
 
     return args;
 }
@@ -291,7 +291,6 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
             // print_order(desc->output_transpose_order);
             // std::cout << "params.get_output_layout(0) = " << new_params.get_output_layout(0).to_string() << std::endl;
 
-
             // auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
             // auto k_head_size = get_head_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
             // auto kv_heads_num = get_batch_size(new_params.get_input_layout(1), extended_input_k_transpose_order);
@@ -311,7 +310,8 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
         wgs.local = {1, 1, WG_SIZE};
 
         // std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: "
-        //           << "out_shape: " << params.output_layouts[0].get_shape().to_string() << ", batch: " << batch << ", heads_num: " << heads_num << ", q_threads: " << q_threads
+        //           << "out_shape: " << params.output_layouts[0].get_shape().to_string() << ", batch: " << batch << ", heads_num: " << heads_num << ",
+        //           q_threads: " << q_threads
         //           << ", q_len: " << q_len << ", q_step: " << q_step << std::endl;
 
         // auto& value_layout = params.input_layouts[2];
