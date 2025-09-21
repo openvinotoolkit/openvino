@@ -154,7 +154,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@63069e3931dedbf3b63792097479563182fe70d1 # v1.2.18
+        uses: hendrikmuhs/ccache-action@bfa03e1de4d7f7c3e80ad9109feedd05c4f5a716 # v1.2.19
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
@@ -187,7 +187,6 @@ jobs:
             -DENABLE_WHEEL=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_CONFORMANCE_PGQL=ON \
-            -DENABLE_FASTER_BUILD=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -S ${{ env.OPENVINO_REPO }} \

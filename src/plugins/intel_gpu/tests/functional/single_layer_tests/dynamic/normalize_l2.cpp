@@ -23,7 +23,7 @@ using NormalizeL2LayerGPUTestParams = std::tuple<
 class NormalizeL2LayerGPUTest : public testing::WithParamInterface<NormalizeL2LayerGPUTestParams>,
                                 virtual public ov::test::SubgraphBaseTest {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerGPUTestParams> obj) {
+   static std::string getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerGPUTestParams>& obj) {
        const auto& [inputShapes, netPrecision, axes, epsMode, eps] = obj.param;
 
        std::ostringstream result;

@@ -52,7 +52,7 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initReference() const {
     auto ineltwise_unary_2 = custom_ops[2]->clone_with_new_inputs({ineltwise_unary_1->output(0)});
 
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
-        NodeVector{conv, eltwise_sinh},
+        OutputVector{conv, eltwise_sinh},
         std::make_shared<ov::Model>(OutputVector{ineltwise_unary_2}, ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{conv_param, eltwise_param});
 }
@@ -120,7 +120,7 @@ std::shared_ptr<ov::Model> ConvBiasTwoActivationFunction::initReference() const 
     auto unary_2 = custom_ops[2]->clone_with_new_inputs({indata->output(0)});
 
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
-        NodeVector{unary_1},
+        OutputVector{unary_1},
         std::make_shared<ov::Model>(OutputVector{unary_2}, ParameterVector{indata}));
     return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{conv_param});
 }
@@ -183,7 +183,7 @@ std::shared_ptr<ov::Model> MatMulBiasActivationBinaryFunction::initReference() c
     auto binary = custom_ops[2]->clone_with_new_inputs({indata0->output(0), indata1->output(0)});
 
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
-        NodeVector{unary, binary_param},
+        OutputVector{unary, binary_param},
         std::make_shared<ov::Model>(OutputVector{binary}, ParameterVector{indata0, indata1}));
 
     return std::make_shared<ov::Model>(OutputVector{subgraph},

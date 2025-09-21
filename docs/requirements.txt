@@ -2,29 +2,29 @@ alabaster==0.7.16
 atomicwrites==1.4.1
 attrs==25.3.0
 Babel==2.17.0
-beautifulsoup4==4.9.3
+beautifulsoup4==4.13.5
 breathe==4.36.0
-certifi==2024.7.4
+certifi==2025.8.3
 colorama==0.4.6
-Cython==3.1.2
+Cython==3.1.4
 docutils==0.21.2
 idna==3.10
 imagesize==1.4.1
-importlib-metadata>=4.8.0,<7.0.0
+importlib-metadata>=4.8.0,<9.0.0
 iniconfig==2.1.0
 ipython==8.18.1
 Jinja2==3.1.6
-jsonschema==4.24.0
+jsonschema==4.25.1
 lxml>=4.9.2
-MarkupSafe==2.1.1
-mistune==2.0.3
+MarkupSafe==3.0.2
+mistune==3.1.4
 myst-parser==3.0.1; python_version < "3.10"
 myst-parser==4.0.1; python_version >= "3.10"
 packaging==25.0
 pluggy==1.6.0
 pydata-sphinx-theme==0.14.4
-Pygments==2.19.1
-pyparsing==3.0.9
+Pygments==2.19.2
+pyparsing==3.2.4
 pytest==8.4.1
 pytest-html==3.1.1; python_version < "3.10"
 pytest-metadata==1.11.0; python_version < "3.10"
@@ -32,23 +32,23 @@ pytest-html==4.1.1; python_version >= "3.10"
 pytest-metadata==3.1.1; python_version >= "3.10"
 py>=1.11.0
 pytz==2022.7
-pyyaml==6.0.1
-requests==2.32.4
+pyyaml==6.0.2
+requests==2.32.5
 six==1.17.0
 snowballstemmer==3.0.1
-soupsieve==2.7
+soupsieve==2.8
 sphinx==7.4.7; python_version >= "3.10"
 sphinx==7.3.7; python_version < "3.10"
 sphinx-copybutton==0.5.2
-sphinx-design==0.5.0
+sphinx-design==0.6.1
 sphinx-inline-tabs==2023.4.21
 sphinx-sitemap==2.6.0
-sphinxcontrib-applehelp==1.0.2
+sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==1.0.2
 sphinxcontrib-htmlhelp==2.1.0
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==2.0.0
-sphinxcontrib-serializinghtml==1.1.9
+sphinxcontrib-serializinghtml==2.0.0
 toml==0.10.2
 urllib3==2.5.0
-zipp==3.19.1
+zipp==3.23.0
