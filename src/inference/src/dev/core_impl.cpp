@@ -1488,12 +1488,12 @@ bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
     }
 }
 
-void ov::CoreImpl::insert_padding(std::ostream& networkStream, size_t pad) const {
+void insert_padding(std::ostream& os, size_t pad) {
     constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
     static const char zeros[STANDARD_PAGE_SIZE] = {0};
     while (pad > 0) {
         size_t chunk = std::min(pad, sizeof(zeros));
-        networkStream.write(zeros, chunk);
+        os.write(zeros, chunk);
         pad -= chunk;
     }
 }
