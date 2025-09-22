@@ -31,15 +31,7 @@ std::shared_ptr<ov::Node> MOE::clone_with_new_inputs(const ov::OutputVector& new
 
 void MOE::validate_and_infer_types() {
     OV_OP_SCOPE(v16_MOE_validate_and_infer_types);
-    // At minimum we need 2 inputs: hidden_states and router_logits
-    OPENVINO_ASSERT(get_input_size() >= 2, "MOE must have at least 2 inputs whereas it has ", get_input_size());
-
-    // For now, just do basic validation. The input layout validation can be more flexible
-    // to allow incremental building during pattern matching
-    // Expected inputs:
-    // 0: hidden_states
-    // 1: router_logits
-    // 2+: expert constants (flexible layout during construction)
+    // TODO: Add inputs validation
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }

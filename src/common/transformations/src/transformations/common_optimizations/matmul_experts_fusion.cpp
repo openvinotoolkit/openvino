@@ -78,8 +78,8 @@ ov::pass::FuseVectorizedMOE::FuseVectorizedMOE() {
         auto topk_indices_node = pm.at(router_topk_indices).get_node_shared_ptr();
 
         ov::OutputVector moe_inputs = {experts_input_node,
-                                       topk_indices_node,
                                        routing_weights_node,
+                                       topk_indices_node,
                                        gate_up_weight,
                                        gate_up_bias_node,
                                        down_proj_weight,
