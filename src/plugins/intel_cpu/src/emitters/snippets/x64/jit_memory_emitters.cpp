@@ -81,7 +81,7 @@ size_t jit_memory_emitter::aux_gprs_count() const {
 
 size_t jit_memory_emitter::get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
     OV_CPU_JIT_EMITTER_ASSERT(expr->get_input_port_connectors().size() == 1, "MemoryAccess must have one parent");
-    const auto& parent_expr = expr->get_input_port_connector(0)->get_source().get_expr();
+    const auto& parent_expr = expr->get_input_expr_ptr(0);
     if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(parent_expr)) {
         return buffer->get_cluster_id();
     }

@@ -45,7 +45,7 @@ void RepackedWeightsBufferExpression::validate() const {
 void RepackedWeightsBufferExpression::init_allocation_size(
     [[maybe_unused]] const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
     [[maybe_unused]] size_t allocation_rank) {
-    const auto& parent_expr = get_input_port_connector(0)->get_source().get_expr();
+    const auto& parent_expr = get_input_expr_ptr(0);
     const auto& brgemm_copy_b = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(parent_expr->get_node());
     OPENVINO_ASSERT(brgemm_copy_b, "RepackedWeightsBufferExpression expects BrgemmCopyB as parent expression");
     const auto& brgemm_config = brgemm_copy_b->get_config();
@@ -88,7 +88,7 @@ void CompensationsBufferExpression::validate() const {
 void CompensationsBufferExpression::init_allocation_size(
     [[maybe_unused]] const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
     [[maybe_unused]] size_t allocation_rank) {
-    const auto& parent_expr = get_input_port_connector(0)->get_source().get_expr();
+    const auto& parent_expr = get_input_expr_ptr(0);
     const auto& brgemm_copy_b = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(parent_expr->get_node());
     OPENVINO_ASSERT(brgemm_copy_b, "RepackedWeightsBufferExpression expects BrgemmCopyB as parent expression");
     const auto& brgemm_config = brgemm_copy_b->get_config();

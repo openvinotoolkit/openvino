@@ -108,8 +108,8 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
             }
 
             if (brgemm_config.is_amx()) {
-                const auto& scratch_expr = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(
-                    brgemm_expr->get_input_port_connector(2)->get_source().get_expr());
+                const auto& scratch_expr =
+                    ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(brgemm_expr->get_input_expr_ptr(2));
                 update_scratchpad(brgemm_expr, scratch_expr);
                 modified = true;
             }
