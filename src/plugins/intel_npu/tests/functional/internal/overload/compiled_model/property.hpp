@@ -10,6 +10,7 @@
 #include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/config/options.hpp"
+#include "openvino/util/log.hpp"
 
 using namespace ov::test::behavior;
 
@@ -41,6 +42,9 @@ public:
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
         std::ostringstream result;
+        static uint8_t testCounter = 0;
+        result << "_testCounter=" << std::to_string(testCounter++)
+               << "_";  // used to avoid same names for different tests
         result << "targetDevice=" << ov::test::utils::getDeviceNameTestCase(targetDevice) << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
         result << "_targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
@@ -73,6 +77,9 @@ public:
         std::tie(targetDevice, configuration) = obj.param;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
         std::ostringstream result;
+        static uint8_t testCounter = 0;
+        result << "_testCounter="
+               << std::to_string(testCounter++) + "_";  // used to avoid same names for different tests
         result << "targetDevice=" << ov::test::utils::getDeviceNameTestCase(targetDevice) << "_";
         result << "config=(" << configuration.first << "=" << configuration.second.as<std::string>() << ")";
         result << "_targetPlatform=" + ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);

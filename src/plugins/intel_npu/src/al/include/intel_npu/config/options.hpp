@@ -1334,41 +1334,6 @@ struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTI
     }
 };
 
-struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<const ov::Model>> {
-    static std::string_view key() {
-        return ov::hint::model.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "std::shared_ptr<const ov::Model>";
-    }
-
-    static std::shared_ptr<const ov::Model> defaultValue() {
-        return nullptr;
-    }
-
-    static std::shared_ptr<const ov::Model> parse(std::string_view) {
-        // Cannot/shouldn't parse this due to conversion and ownership reasons. The config option is added only to
-        // comply with the OV API without inserting multiple workarounds.
-        return defaultValue();
-    }
-    static std::string toString(const std::shared_ptr<const ov::Model>& /* unused m*/) {
-        return "";
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-
-    static bool isPublic() {
-        return true;
-    }
-
-    static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RW;
-    }
-};
-
 struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
     static std::string_view key() {
         return ov::intel_npu::weightless_blob.name();
