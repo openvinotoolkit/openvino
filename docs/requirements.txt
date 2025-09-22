@@ -24,7 +24,7 @@ packaging==25.0
 pluggy==1.6.0
 pydata-sphinx-theme==0.14.4
 Pygments==2.19.2
-pyparsing==3.2.4
+pyparsing==3.2.5
 pytest==8.4.1
 pytest-html==3.1.1; python_version < "3.10"
 pytest-metadata==1.11.0; python_version < "3.10"
