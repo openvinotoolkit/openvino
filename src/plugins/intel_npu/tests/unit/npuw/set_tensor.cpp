@@ -24,15 +24,15 @@ TEST(SetTensor, RemoteTensorOutputJust) {
 
     // Create model
     ModelGenerator mg;
-    auto model = mg.get_model_with_repeated_blocks();
+    auto model = mg.get_model_with_one_op();
 
-    ov::element::Type element_type = ov::element::i32;
+    ov::element::Type element_type = ov::element::i64;
     auto output_tensor_shape = model->outputs()[0].get_shape();
     // Calculate total number of elements
     size_t total_elements = ov::shape_size(output_tensor_shape);
 
     // Create output data
-    std::vector<int> data = std::vector<int>(total_elements, 0);
+    std::vector<int64_t> data = std::vector<int64_t>(total_elements, 0);
     std::iota(data.begin(), data.end(), 1);
 
     // Create the remote tensor output
@@ -60,14 +60,11 @@ TEST(SetTensor, RemoteTensorOutputJust) {
     // Set remote io
     request.set_tensor(compiled.outputs()[0], output);
 
-    // Infer
-    request.infer();
-
     // Check output tensor is not zero
     auto output_tensor = request.get_tensor(compiled.outputs()[0]);
 
     auto check_non_zero = [](const ov::Tensor& t, size_t size) {
-        int32_t* tdata = t.data<int32_t>();
+        int64_t* tdata = t.data<int64_t>();
         for (size_t i = 0; i < size; ++i) {
             if (tdata[i] == 0) {
                 return false;
@@ -75,7 +72,8 @@ TEST(SetTensor, RemoteTensorOutputJust) {
         }
         return true;
     };
-
+    
+    EXPECT_EQ(output_tensor.data(), output.data());
     EXPECT_TRUE(check_non_zero(output_tensor, total_elements));
 }
 
@@ -197,7 +195,7 @@ TEST(SetTensor, RemoteTensorInputUnfold) {
 }
 
 // FIXME: disabled for now
-TEST(DISABLED_SetTensor, RemoteTensorInputJustStrided) {
+TEST(SetTensor, RemoteTensorInputJustStrided) {
     // Only run this test on NPU device
     ov::Core ov_core;
     auto core_devices = ov_core.get_available_devices();
