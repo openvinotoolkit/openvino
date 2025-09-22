@@ -39,9 +39,7 @@ void MOE::validate_and_infer_types() {
 bool MOE::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(v16_MOE_visit_attributes);
 
-    // visitor.on_attribute("expert_type", m_config.expert_type);
-    // TODO: Add adapter
-
+    visitor.on_attribute("expert_type", m_config.expert_type);
     visitor.on_attribute("expert_alpha", m_config.expert_alpha);
     visitor.on_attribute("expert_beta", m_config.expert_beta);
 
@@ -50,4 +48,19 @@ bool MOE::visit_attributes(ov::AttributeVisitor& visitor) {
 
 }  // namespace v16
 }  // namespace op
+
+std::ostream& operator<<(std::ostream& s, const ov::op::v16::MOE::Expert_type& type) {
+    return s << as_string(type);
+}
+
+template <>
+OPENVINO_API EnumNames<ov::op::v16::MOE::Expert_type>& EnumNames<ov::op::v16::MOE::Expert_type>::get() {
+    static auto enum_names = EnumNames<ov::op::v16::MOE::Expert_type>(
+        "ov::op::v16::MOE::Expert_type",
+        {
+            {"gemm2_bias_swiglu_clamp", ov::op::v16::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP},
+            {"gemm2_bias_gelu", ov::op::v16::MOE::Expert_type::GEMM3_SWIGLU},
+        });
+    return enum_names;
+}
 }  // namespace ov
