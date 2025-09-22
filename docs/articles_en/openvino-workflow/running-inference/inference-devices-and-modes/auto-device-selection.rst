@@ -66,10 +66,10 @@ For example, if you use a CPU and a GPU, the first-inference latency of AUTO wil
 
 Note that if you choose to exclude CPU from the priority list or disable the initial
 CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be
-unable to support the initial model compilation stage. The models with
-:doc:`stateful operations <../inference-request/stateful-models>`
-will be loaded to the CPU if it is in the candidate list. Otherwise,
-these models will follow the normal flow and be loaded to the device based on priority.
+unable to support the initial model compilation stage. For the models with
+:doc:`stateful operations <../inference-request/stateful-models>`,
+CPU acceleration feature will also be disabled during model compilation.
+These models will follow the normal flow and be loaded to the device based on priority.
 
 .. image:: ../../../assets/images/autoplugin_accelerate.svg
 
@@ -155,7 +155,7 @@ the following setup options:
 | ``ov::execution_devices``                    | Lists the runtime target devices on which the inferences are being |
 |                                              | executed.                                                          |
 |                                              |                                                                    |
-|                                              | Examples of returning results could be ``(CPU)``(``CPU`` is a      |
+|                                              | Examples of returning results could be ``(CPU)`` (``CPU`` is a     |
 |                                              | temporary device, indicating that CPU is used for acceleration at  |
 |                                              | the model compilation stage), ``CPU``, ``GPU``, ``CPU GPU``,       |
 |                                              | ``GPU.0``, etc.                                                    |

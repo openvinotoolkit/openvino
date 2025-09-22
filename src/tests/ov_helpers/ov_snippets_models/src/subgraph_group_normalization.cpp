@@ -3,7 +3,12 @@
 //
 
 #include "subgraph_group_normalization.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include <snippets/op/subgraph.hpp>
+#include <snippets/op/reshape.hpp>
+#include <snippets/op/reduce.hpp>
+#include <snippets/op/powerstatic.hpp>
+#include <snippets/op/scalar.hpp>
 
 namespace ov {
 namespace test {
@@ -14,7 +19,7 @@ std::shared_ptr<ov::Model> GroupNormalizationFunction::initOriginal() const {
     auto scale = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     auto shift = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
     const auto groupNormalization = std::make_shared<ov::op::v12::GroupNormalization>(data, scale, shift, num_groups, epsilon);
-    return std::make_shared<ov::Model>(NodeVector{groupNormalization}, ParameterVector{data, scale, shift});
+    return std::make_shared<ov::Model>(OutputVector{groupNormalization}, ParameterVector{data, scale, shift});
 }
 
 std::shared_ptr<ov::Model> GroupNormalizationFunction::initReference() const {
@@ -26,10 +31,11 @@ std::shared_ptr<ov::Model> GroupNormalizationFunction::initReference() const {
     auto shift_ = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
     const auto groupNormalization = std::make_shared<ov::op::v12::GroupNormalization>(data_, scale_, shift_, num_groups, epsilon);
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data, scale, shift},
-            std::make_shared<ov::Model>(NodeVector{groupNormalization}, ParameterVector{data_, scale_, shift_}));
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
+        OutputVector{data, scale, shift},
+        std::make_shared<ov::Model>(OutputVector{groupNormalization}, ParameterVector{data_, scale_, shift_}));
 
-    return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{data, scale, shift});
+    return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{data, scale, shift});
 }
 
 std::shared_ptr<ov::Model> GroupNormalizationFunction::initLowered() const {
@@ -91,7 +97,7 @@ std::shared_ptr<ov::Model> GroupNormalizationFunction::initLowered() const {
     // reshape_back [N, group, C / group, spatial] to [N, C, spatial]
     const auto reshape_back_node = std::make_shared<ov::snippets::op::Reshape>(biased_node, orig_shape);
 
-    return std::make_shared<ov::Model>(NodeVector{reshape_back_node}, ParameterVector{data, scale, bias});
+    return std::make_shared<ov::Model>(OutputVector{reshape_back_node}, ParameterVector{data, scale, bias});
 }
 
 }  // namespace snippets

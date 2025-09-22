@@ -113,7 +113,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const InterpolateV1Params& params) {
         const auto input = std::make_shared<op::v0::Parameter>(params.inType, params.inShape);
         const auto interpolate = std::make_shared<op::v0::Interpolate>(input, params.outShapeInput, params.attrs);
-        return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{input});
+        return std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 };
 
@@ -144,7 +144,7 @@ private:
         const auto node_scales = op::v0::Constant::create(element::Type_t::f32, {params.scales.size()}, params.scales);
         auto interpolate =
             std::make_shared<op::v4::Interpolate>(node_input, node_output_shape_input, node_scales, params.attrs);
-        return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{node_input});
+        return std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{node_input});
     }
 };
 
@@ -640,6 +640,24 @@ std::vector<InterpolateV4TestParams> generateParamsForInterpolate_v4_linear_onnx
                 NearestMode::ROUND_PREFER_FLOOR},
             {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
             {1.0f, 4.0f},
+        },
+        {   "linear_onnx.resize3dims_upsample_scales_linear",
+            Shape{1, 2, 2, 2},
+            {1, 4, 4, 4},
+            Shape{1, 4, 4, 4},
+            {1.0f, 2.0f, 2.0f, 2.0f},
+            {0, 1, 2, 3},
+            {   InterpolateMode::LINEAR_ONNX,
+                ShapeCalcMode::SCALES,
+                zero_pads,
+                zero_pads,
+                CoordinateTransformMode::HALF_PIXEL,
+                NearestMode::ROUND_PREFER_FLOOR},
+            {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
+            {1.0, 1.25, 1.75, 2.0, 1.5, 1.75, 2.25, 2.5, 2.5, 2.75, 3.25, 3.5, 3.0, 3.25, 3.75, 4.0,
+             2.0, 2.25, 2.75, 3.0, 2.5, 2.75, 3.25, 3.5, 3.5, 3.75, 4.25, 4.5, 4.0, 4.25, 4.75, 5.0,
+             4.0, 4.25, 4.75, 5.0, 4.5, 4.75, 5.25, 5.5, 5.5, 5.75, 6.25, 6.5, 6.0, 6.25, 6.75, 7.0,
+             5.0, 5.25, 5.75, 6.0, 5.5, 5.75, 6.25, 6.5, 6.5, 6.75, 7.25, 7.5, 7.0, 7.25, 7.75, 8.0}
         }
     };
     // clang-format on
@@ -779,7 +797,7 @@ private:
         auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{axes_data.size()}, axes_data);
         auto interpolate =
             std::make_shared<op::v4::Interpolate>(image, target_spatial_shape, scales, axes, param.attrs);
-        return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{image});
+        return std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{image});
     }
 };
 
@@ -1609,10 +1627,10 @@ private:
         if (!axes_data.empty()) {
             auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{axes_data.size()}, axes_data);
             auto interpolate = std::make_shared<op::v11::Interpolate>(image, sizes_or_scales, axes, param.attrs);
-            return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{image});
+            return std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{image});
         }
         auto interpolate = std::make_shared<op::v11::Interpolate>(image, sizes_or_scales, param.attrs);
-        return std::make_shared<Model>(NodeVector{interpolate}, ParameterVector{image});
+        return std::make_shared<Model>(OutputVector{interpolate}, ParameterVector{image});
     }
 };
 

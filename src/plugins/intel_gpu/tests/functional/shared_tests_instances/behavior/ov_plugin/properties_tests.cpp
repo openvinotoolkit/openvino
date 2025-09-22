@@ -643,7 +643,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_IEClassGetMetricTest,
                          ::testing::Values("GPU"));
 
 using OVGetMetricPropsTest_CACHING_PROPERTIES = OVClassBaseTestP;
-TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
+TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, smoke_GetMetricAndPrintNoThrow) {
     ov::Core ie = ov::test::utils::create_core();
     std::vector<ov::PropertyName> caching_properties = {};
     const std::vector<ov::PropertyName> expected_properties = {
@@ -651,6 +651,9 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
         ov::intel_gpu::execution_units_count.name(),
         ov::hint::inference_precision.name(),
         ov::hint::execution_mode.name(),
+        ov::hint::performance_mode.name(),
+        ov::hint::dynamic_quantization_group_size.name(),
+        ov::hint::activations_scale_factor.name()
     };
 
     OV_ASSERT_NO_THROW(caching_properties = ie.get_property(target_device, ov::internal::caching_properties));

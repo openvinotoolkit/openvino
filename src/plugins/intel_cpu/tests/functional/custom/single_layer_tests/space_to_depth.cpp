@@ -5,6 +5,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
+#include "openvino/op/space_to_depth.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -19,14 +20,8 @@ class SpaceToDepthLayerCPUTest : public testing::WithParamInterface<SpaceToDepth
                                  virtual public ov::test::SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SpaceToDepthLayerCPUTestParamSet> obj) {
-        InputShape shapes;
-        ElementType inType;
-        ov::op::v0::SpaceToDepth::SpaceToDepthMode mode;
-        std::size_t blockSize;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, mode, blockSize, cpuParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<SpaceToDepthLayerCPUTestParamSet>& obj) {
+        const auto& [shapes, inType, mode, blockSize, cpuParams] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -52,13 +47,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        ElementType inType;
-        ov::op::v0::SpaceToDepth::SpaceToDepthMode mode;
-        std::size_t blockSize;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, mode, blockSize, cpuParams) = this->GetParam();
-
+        const auto& [shapes, inType, mode, blockSize, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();

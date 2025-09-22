@@ -4,21 +4,24 @@
 
 #pragma once
 
+#include <algorithm>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "executor.hpp"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
-#include "nodes/executors/graph_emitter.hpp"
+#include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/printers.hpp"
 #include "nodes/executors/variable_executor.hpp"
 #include "openvino/core/except.hpp"
-#include "post_ops.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
@@ -28,16 +31,13 @@ public:
     using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
 
     ExecutorFactory(Attrs attrs,
-                    PostOps postOps,
                     ExecutorContext::CPtr context,
                     const MemoryDescArgs& descriptors,
                     const MemoryFormatFilter& memoryFormatFilter = {},
                     const std::string& implementationPriority = {})
-        : m_attrs(attrs),
-          m_postOps(std::move(postOps)),
+        : m_attrs(std::move(attrs)),
           m_context(std::move(context)),
-          m_suitableImplementations(
-              filter(m_attrs, m_postOps, descriptors, memoryFormatFilter, implementationPriority)) {
+          m_suitableImplementations(filter(m_attrs, descriptors, memoryFormatFilter, implementationPriority)) {
         OPENVINO_ASSERT(!m_suitableImplementations.empty(), "No suitable implementations found");
     }
 
@@ -45,32 +45,29 @@ public:
      * @brief Retrieves the proper memory descriptors based on the provided memory descriptors.
      *
      * Examines the given executor configuration and determines the appropriate
-     * memory descriptors to be used. Checks for fallback configurations if necessary and
-     * returns the corresponding memory descriptors.
+     * memory descriptors to be used.
      *
      * @param descriptors memory descriptors.
      * @return MemoryDescArgs The list of proper memory descriptors based on the configuration.
      * @todo Create proper memory descriptors for all the implementations
      *       to fully enable graph's layout propagation functionality
-     *
-     * @note The main use case is to avoid a fallback during the creation of an executor
-     *       by passing proper memory descriptors to the make() method
      */
     [[nodiscard]] std::vector<MemoryDescArgs> getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
         DEBUG_LOG("Preconfiguring memory descriptors");
 
-        executor::Config<Attrs> config{descriptors, m_attrs, m_postOps};
+        executor::Config<Attrs> config{descriptors, m_attrs};
 
         auto getProperMemoryDescArgs = [](const ExecutorImplementationRef& impl,
                                           const executor::Config<Attrs>& config) {
-            if (auto fallbackConfig = impl.get().requiresFallback(config)) {
-                return fallbackConfig->descs;
+            if (auto optimalConfig = impl.get().createOptimalConfig(config)) {
+                return optimalConfig->descs;
             }
 
             return config.descs;
         };
 
         std::vector<MemoryDescArgs> memoryDescArgs;
+        memoryDescArgs.reserve(m_suitableImplementations.size());
         for (const auto& impl : m_suitableImplementations) {
             memoryDescArgs.emplace_back(getProperMemoryDescArgs(impl, config));
         }
@@ -86,32 +83,53 @@ public:
      * - Simple Executor, if there is only one available implementation
      *
      * @param memory memory arguments.
+     * @param initVariableExecutor whether to init first available implementation of variable executor or not.
+     *        This option is mostly a workaround at the moment.
+     *        In general it might be beneficial to initialize all the shape dependent implementations
+     *        of the variable executor in advance to avoid first-time call delays.
      *
      * @return A shared pointer to the created Executor.
      */
-    ExecutorPtr make(const MemoryArgs& memory) {
-        // only single executor is available
-        if (m_suitableImplementations.size() == 1) {
-            auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs, m_postOps);
+    ExecutorPtr make(const MemoryArgs& memory, bool initVariableExecutor = true) {
+        std::vector<ExecutorImplementationRef> implementations;
 
-            const auto& theOnlyImplementation = m_suitableImplementations.front().get();
+        auto acceptsConfig = [](const ExecutorImplementationRef& impl, const executor::Config<Attrs>& config) {
+            // current config is already considered as the optimal one
+            return !impl.get().createOptimalConfig(config).has_value();
+        };
 
-            if (const auto fallbackConfig = theOnlyImplementation.requiresFallback(config)) {
-                return GraphEmitter<Attrs>::fallback(config,
-                                                     *fallbackConfig,
-                                                     memory,
-                                                     m_context,
-                                                     theOnlyImplementation.name());
+        // Filter out implementations that still require changes in configuration
+        for (const auto& impl : m_suitableImplementations) {
+            auto config = createConfig(memory, m_attrs);
+
+            if (!acceptsConfig(impl, config)) {
+                continue;
             }
 
-            return theOnlyImplementation.create(m_attrs, m_postOps, memory, m_context);
+            implementations.push_back(impl);
+
+            if (impl.get().shapeAgnostic() &&
+                impl.get().type() != ExecutorType::Acl) {  // @todo fix acl_eltwise precision mapping)
+                break;  // there is no way an implementation with a lower priority will be chosen
+            }
+        }
+
+        OPENVINO_ASSERT(
+            !implementations.empty(),
+            "No suitable implementations."
+            "This may indicate that the provided memory descriptors are not compatible with any implementation.");
+
+        // only single executor is available
+        if (implementations.size() == 1) {
+            const auto& theOnlyImplementation = implementations.front().get();
+            return theOnlyImplementation.create(m_attrs, memory, m_context);
         }
 
         return std::make_shared<VariableExecutor<Attrs>>(memory,
                                                          m_attrs,
-                                                         m_postOps,
                                                          m_context,
-                                                         m_suitableImplementations);
+                                                         implementations,
+                                                         initVariableExecutor);
     }
 
 private:
@@ -119,7 +137,6 @@ private:
      * @brief Filters and retrieves suitable implementations based on the provided executor configuration.
      *
      * @param attrs The attributes used for filtering implementations.
-     * @param postOps The post-operations to be applied.
      * @param descs The memory descriptor arguments.
      * @param implementationPriority Optional. The name of the implementation to prioritize.
      *        If specified, only the implementation with this name will be considered.
@@ -128,13 +145,12 @@ private:
      *       priority are considered.
      */
     static std::vector<ExecutorImplementationRef> filter(const Attrs& attrs,
-                                                         const PostOps& postOps,
                                                          const MemoryDescArgs& descs,
                                                          const MemoryFormatFilter& memoryFormatFilter = {},
                                                          const std::string& implementationPriority = {}) {
         const auto& implementations = getImplementations<Attrs>();
         std::vector<ExecutorImplementationRef> suitableImplementations;
-        const executor::Config<Attrs> config{descs, attrs, postOps};
+        const executor::Config<Attrs> config{descs, attrs};
 
         for (const auto& implementation : implementations) {
             DEBUG_LOG("Processing implementation: ", implementation.name());
@@ -147,27 +163,37 @@ private:
             }
 
             if (!implementation.supports(config, memoryFormatFilter)) {
-                DEBUG_LOG("Implementation is not supported: ", implementation.name());
+                DEBUG_LOG("Implementation is NOT supported: ", implementation.name());
                 continue;
             }
 
+            DEBUG_LOG("Implementation is supported: ", implementation.name());
             suitableImplementations.push_back(std::ref(implementation));
+        }
 
-            // implementation is supported and it is shape agnostic, there is no way
-            // an implementation with a lower priority will be chosen
-            if (implementation.shapeAgnostic()) {
-                DEBUG_LOG("Implementation is shape agnostic: ",
-                          implementation.name(),
-                          ". Stop processing implementations");
-                break;
-            }
+        const bool hasShapeAgnosticNonReferenceImplementation =
+            std::any_of(suitableImplementations.begin(),
+                        suitableImplementations.end(),
+                        [](const ExecutorImplementationRef& impl) {
+                            return impl.get().type() != ExecutorType::Reference &&
+                                   impl.get().type() != ExecutorType::Acl &&  // @todo fix acl_eltwise precision mapping
+                                   impl.get().shapeAgnostic();
+                        });
+
+        // Consider reference implementation only if there is nothing else available
+        if (hasShapeAgnosticNonReferenceImplementation) {
+            suitableImplementations.erase(std::remove_if(suitableImplementations.begin(),
+                                                         suitableImplementations.end(),
+                                                         [](const ExecutorImplementationRef& impl) {
+                                                             return impl.get().type() == ExecutorType::Reference;
+                                                         }),
+                                          suitableImplementations.end());
         }
 
         return suitableImplementations;
     }
 
     Attrs m_attrs;
-    PostOps m_postOps;
     ExecutorContext::CPtr m_context;
     std::vector<ExecutorImplementationRef> m_suitableImplementations;
 };

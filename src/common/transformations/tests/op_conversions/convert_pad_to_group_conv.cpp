@@ -12,8 +12,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/op/pad.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "openvino/opsets/opset12_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -86,9 +87,7 @@ using TestParams = std::tuple<PadFactoryPtr, TestModelFactoryPtr>;
 class ConvertPadGroupConvTestFixture : public ::testing::WithParamInterface<TestParams>, public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestParams>& obj) {
-        PadFactoryPtr pad_factory;
-        TestModelFactoryPtr model_factory;
-        std::tie(pad_factory, model_factory) = obj.param;
+        const auto& [pad_factory, model_factory] = obj.param;
 
         std::ostringstream test_name;
         test_name << "pad_factory=" << pad_factory->getTypeName() << "/";
@@ -99,9 +98,7 @@ public:
 };
 
 TEST_P(ConvertPadGroupConvTestFixture, CompareFunctions) {
-    PadFactoryPtr pad_factory;
-    TestModelFactoryPtr model_factory;
-    std::tie(pad_factory, model_factory) = this->GetParam();
+    const auto& [pad_factory, model_factory] = this->GetParam();
 
     model_factory->setup(pad_factory, manager);
     model = model_factory->model;
@@ -125,7 +122,7 @@ TEST_BODY(ConvertPadToConv) {
         auto pad_value = Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = pad_factory->create(input, pad_begin, pad_end, pad_value, pad_mode);
-        model = std::make_shared<Model>(NodeVector{pad}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{pad}, ParameterVector{input});
 
         manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
     }
@@ -137,7 +134,7 @@ TEST_BODY(ConvertPadToConv) {
         CoordinateDiff pad_begin{1, 0}, pad_end{0, 1};
         auto conv = std::make_shared<GroupConvolution>(input, weights, stride, pad_begin, pad_end, stride);
 
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 }
 
@@ -149,7 +146,7 @@ TEST_BODY(NegativeConvertPadToConv) {
         auto pad_value = Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = pad_factory->create(input, pad_begin, pad_end, pad_value, pad_mode);
-        model = std::make_shared<Model>(NodeVector{pad}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{pad}, ParameterVector{input});
     }
     manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
 }
@@ -162,7 +159,7 @@ TEST_BODY(ConvertPadToConvNeg1) {
         auto pad_value = Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = pad_factory->create(input, pad_begin, pad_end, pad_value, pad_mode);
-        model = std::make_shared<Model>(NodeVector{pad}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{pad}, ParameterVector{input});
     }
 
     manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
@@ -176,7 +173,7 @@ TEST_BODY(ConvertPadToConvNeg2) {
         auto pad_value = Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = pad_factory->create(input, pad_begin, pad_end, pad_value, pad_mode);
-        model = std::make_shared<Model>(NodeVector{pad}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{pad}, ParameterVector{input});
     }
 
     manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
@@ -190,7 +187,7 @@ TEST_BODY(ConvertPadToConvNeg3) {
         auto pad_value = Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::SYMMETRIC;  // Unsupported mode
         auto pad = pad_factory->create(input, pad_begin, pad_end, pad_value, pad_mode);
-        model = std::make_shared<Model>(NodeVector{pad}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{pad}, ParameterVector{input});
     }
 
     manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();
@@ -204,7 +201,7 @@ TEST_BODY(ConvertPadToConvNeg4) {
         auto pad_value = Constant::create(element::f32, Shape{}, {1.});  // Unsupported value
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = pad_factory->create(input, pad_begin, pad_end, pad_value, pad_mode);
-        model = std::make_shared<Model>(NodeVector{pad}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{pad}, ParameterVector{input});
     }
 
     manager.register_pass<ov::pass::ConvertPadToGroupConvolution>();

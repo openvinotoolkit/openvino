@@ -11,7 +11,12 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/einsum.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/einsum_decomposition.hpp"
@@ -34,7 +39,7 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul) {
         auto reshape_after = std::make_shared<ov::op::v1::Reshape>(matmul, const_reshape_after, false);
         auto const_tranpose_after = ov::op::v0::Constant::create(element::i32, Shape{3}, {2, 0, 1});
         auto tranpose_after = std::make_shared<ov::op::v1::Transpose>(reshape_after, const_tranpose_after);
-        model = std::make_shared<Model>(NodeVector{tranpose_after}, ParameterVector{data_1, data_2});
+        model = std::make_shared<Model>(OutputVector{tranpose_after}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::TransposeReshapeEliminationForMatmul>();
     }
@@ -42,7 +47,7 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul) {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_1, data_2);
-        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data_1, data_2});
+        model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{data_1, data_2});
     }
 }
 
@@ -61,14 +66,14 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_TransposedA) {
         auto reshape_after = std::make_shared<ov::op::v1::Reshape>(matmul, const_reshape_after, false);
         auto const_tranpose_after = ov::op::v0::Constant::create(element::i32, Shape{3}, {2, 0, 1});
         auto tranpose_after = std::make_shared<ov::op::v1::Transpose>(reshape_after, const_tranpose_after);
-        model = std::make_shared<Model>(NodeVector{tranpose_after}, ParameterVector{data_1, data_2});
+        model = std::make_shared<Model>(OutputVector{tranpose_after}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::TransposeReshapeEliminationForMatmul>();
     }
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_1, data_2, true, false);
-        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data_1, data_2});
+        model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{data_1, data_2});
     }
 }
 
@@ -87,14 +92,14 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_TransposedB) {
         auto reshape_after = std::make_shared<ov::op::v1::Reshape>(matmul, const_reshape_after, false);
         auto const_tranpose_after = ov::op::v0::Constant::create(element::i32, Shape{3}, {1, 0, 2});
         auto tranpose_after = std::make_shared<ov::op::v1::Transpose>(reshape_after, const_tranpose_after);
-        model = std::make_shared<Model>(NodeVector{tranpose_after}, ParameterVector{data_1, data_2});
+        model = std::make_shared<Model>(OutputVector{tranpose_after}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::TransposeReshapeEliminationForMatmul>();
     }
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_1, data_2);
-        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data_1, data_2});
+        model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{data_1, data_2});
     }
 }
 
@@ -113,14 +118,14 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_TransposedAB) 
         auto reshape_after = std::make_shared<ov::op::v1::Reshape>(matmul, const_reshape_after, false);
         auto const_tranpose_after = ov::op::v0::Constant::create(element::i32, Shape{3}, {1, 0, 2});
         auto tranpose_after = std::make_shared<ov::op::v1::Transpose>(reshape_after, const_tranpose_after);
-        model = std::make_shared<Model>(NodeVector{tranpose_after}, ParameterVector{data_1, data_2});
+        model = std::make_shared<Model>(OutputVector{tranpose_after}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::TransposeReshapeEliminationForMatmul>();
     }
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_1, data_2, true, false);
-        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data_1, data_2});
+        model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{data_1, data_2});
     }
 }
 
@@ -131,7 +136,7 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_Einsum) {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
-        model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2});
+        model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::EinsumDecomposition>();
         manager.register_pass<ov::pass::TransposeReshapeEliminationForMatmul>();
     }
@@ -153,6 +158,6 @@ TEST_F(TransformationTestsF, TransposeReshapeEliminationForMatMul_Einsum) {
             std::make_shared<ov::op::v0::Constant>(element::i64, Shape{data_shape_1.size()}, data_shape_1);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast_1, shape_constant, false);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, broadcast_2, false, false);
-        model_ref = std::make_shared<Model>(NodeVector{matmul}, ParameterVector{data_1, data_2});
+        model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{data_1, data_2});
     }
 }

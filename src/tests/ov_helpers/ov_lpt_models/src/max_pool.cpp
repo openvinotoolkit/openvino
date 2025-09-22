@@ -3,12 +3,12 @@
 //
 
 #include "ov_lpt_models/max_pool.hpp"
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include <ov_ops/type_relaxed.hpp>
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/max_pool.hpp"
 
 namespace ov {
 namespace builder {

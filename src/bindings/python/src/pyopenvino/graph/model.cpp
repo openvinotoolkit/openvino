@@ -30,6 +30,7 @@ namespace py = pybind11;
 using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
 
 namespace {
 template <class... Args>
@@ -103,7 +104,7 @@ static ov::Output<ov::Node> output_from_handle(ov::Model& model, const py::handl
     } else if (py::isinstance<ov::Output<ov::Node>>(handle)) {
         return handle.cast<ov::Output<ov::Node>>();
     } else {
-        throw py::type_error("Incorrect key type " + std::string(py::str(handle.get_type())) +
+        throw py::type_error("Incorrect key type " + std::string(py::str(py::type::of(handle))) +
                              " to reshape a model, expected keys as openvino.Output, int or str.");
     }
 }
@@ -116,7 +117,7 @@ static ov::PartialShape partial_shape_from_handle(const py::handle& handle) {
     } else if (py::isinstance<py::str>(handle)) {
         return ov::PartialShape(handle.cast<std::string>());
     } else {
-        throw py::type_error("Incorrect value type " + std::string(py::str(handle.get_type())) +
+        throw py::type_error("Incorrect value type " + std::string(py::str(py::type::of(handle))) +
                              " to reshape a model, expected values as openvino.PartialShape, str, list or tuple.");
     }
 }
@@ -125,7 +126,7 @@ static std::string string_from_handle(const py::handle& handle) {
     if (py::isinstance<py::str>(handle)) {
         return handle.cast<std::string>();
     } else {
-        throw py::type_error("Incorrect key type " + std::string(py::str(handle.get_type())) +
+        throw py::type_error("Incorrect key type " + std::string(py::str(py::type::of(handle))) +
                              " to reshape a model, expected values as str.");
     }
 }
@@ -175,20 +176,19 @@ void regclass_graph_Model(py::module m) {
               R"(
                     Create user-defined Model which is a representation of a model.
 
-                    :param results: List of results.
-                    :type results: List[op.Result]
-                    :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                    :type sinks: List[openvino.Node]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
+                    :param results: list of results.
+                    :type results: list[op.Result]
+                    :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+                    :type sinks: list[openvino.Node]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
                  )");
 
-    model.def(py::init([](const std::vector<std::shared_ptr<ov::Node>>& results,
-                          const ov::ParameterVector& parameters,
-                          const std::string& name) {
-                  return make_model_with_tensor_names(results, parameters, name);
+    model.def(py::init([](const ov::ResultVector& results, const ov::ParameterVector& params, const std::string& name) {
+                  auto model = make_model_with_tensor_names(results, params, name);
+                  return model;
               }),
               py::arg("results"),
               py::arg("parameters"),
@@ -196,13 +196,31 @@ void regclass_graph_Model(py::module m) {
               R"(
                     Create user-defined Model which is a representation of a model.
 
-                    :param results: List of Nodes to be used as results.
-                    :type results: List[openvino.Node]
-                    :param parameters: List of parameters.
-                    :type parameters:  List[op.Parameter]
+                    :param results: list of results.
+                    :type results: list[op.Result]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
-                 )");
+                )");
+
+    model.def(
+        py::init([](const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name) {
+            return make_model_with_tensor_names(ov::as_output_vector(results), parameters, name);
+        }),
+        py::arg("results"),
+        py::arg("parameters"),
+        py::arg("name") = "",
+        R"(
+            Create user-defined Model which is a representation of a model.
+
+            :param results: list of Nodes to be used as results.
+            :type results: list[openvino.Node]
+            :param parameters: list of parameters.
+            :type parameters:  list[op.Parameter]
+            :param name: String to set as model's friendly name.
+            :type name: str
+           )");
 
     model.def(py::init([](const std::shared_ptr<ov::Node>& result,
                           const ov::ParameterVector& parameters,
@@ -217,8 +235,8 @@ void regclass_graph_Model(py::module m) {
 
                     :param result: Node to be used as result.
                     :type result: openvino.Node
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
                  )");
@@ -233,10 +251,10 @@ void regclass_graph_Model(py::module m) {
         R"(
             Create user-defined Model which is a representation of a model
 
-            :param results: List of outputs.
-            :type results: List[openvino.Output]
-            :param parameters: List of parameters.
-            :type parameters: List[op.Parameter]
+            :param results: list of outputs.
+            :type results: list[openvino.Output]
+            :param parameters: list of parameters.
+            :type parameters: list[op.Parameter]
             :param name: String to set as model's friendly name.
             :type name: str
         )");
@@ -257,12 +275,12 @@ void regclass_graph_Model(py::module m) {
               R"(
             Create user-defined Model which is a representation of a model
 
-            :param results: List of outputs.
-            :type results: List[openvino.Output]
-            :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-            :type sinks: List[openvino.Node]
-            :param parameters: List of parameters.
-            :type parameters: List[op.Parameter]
+            :param results: list of outputs.
+            :type results: list[openvino.Output]
+            :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+            :type sinks: list[openvino.Node]
+            :param parameters: list of parameters.
+            :type parameters: list[op.Parameter]
             :param name: String to set as model's friendly name.
             :type name: str
             )");
@@ -283,12 +301,12 @@ void regclass_graph_Model(py::module m) {
               R"(
             Create user-defined Model which is a representation of a model
 
-            :param results: List of outputs.
-            :type results: List[openvino.Output]
-            :param sinks: List of Output sink node handles.
-            :type sinks: List[openvino.Output]
-            :param parameters: List of parameters.
-            :type parameters: List[op.Parameter]
+            :param results: list of outputs.
+            :type results: list[openvino.Output]
+            :param sinks: list of Output sink node handles.
+            :type sinks: list[openvino.Output]
+            :param parameters: list of parameters.
+            :type parameters: list[op.Parameter]
             :param name: String to set as model's friendly name.
             :type name: str
             )");
@@ -308,14 +326,14 @@ void regclass_graph_Model(py::module m) {
               R"(
             Create user-defined Model which is a representation of a model
 
-            :param results: List of outputs.
-            :type results: List[openvino.Output]
-            :param sinks: List of Output sink node handles.
-            :type sinks: List[openvino.Output]
-            :param parameters: List of parameters.
-            :type parameters: List[op.Parameter]
-            :param variables: List of variables.
-            :type variables: List[op.util.Variable]
+            :param results: list of outputs.
+            :type results: list[openvino.Output]
+            :param sinks: list of Output sink node handles.
+            :type sinks: list[openvino.Output]
+            :param parameters: list of parameters.
+            :type parameters: list[op.Parameter]
+            :param variables: list of variables.
+            :type variables: list[op.util.Variable]
             :param name: String to set as model's friendly name.
             :type name: str
             )");
@@ -336,12 +354,12 @@ void regclass_graph_Model(py::module m) {
               R"(
         Create user-defined Model which is a representation of a model
 
-        :param results: List of results.
-        :type results: List[op.Result]
-        :param sinks: List of Output sink node handles.
-        :type sinks: List[openvino.Output]
-        :param parameters: List of parameters.
-        :type parameters: List[op.Parameter]
+        :param results: list of results.
+        :type results: list[op.Result]
+        :param sinks: list of Output sink node handles.
+        :type sinks: list[openvino.Output]
+        :param parameters: list of parameters.
+        :type parameters: list[op.Parameter]
         :param name: String to set as model's friendly name.
         :type name: str
         )");
@@ -361,14 +379,14 @@ void regclass_graph_Model(py::module m) {
               R"(
         Create user-defined Model which is a representation of a model
 
-        :param results: List of results.
-        :type results: List[op.Result]
-        :param sinks: List of Output sink node handles.
-        :type sinks: List[openvino.Output]
-        :param parameters: List of parameters.
-        :type parameters: List[op.Parameter]
-        :param variables: List of variables.
-        :type variables: List[op.util.Variable]
+        :param results: list of results.
+        :type results: list[op.Result]
+        :param sinks: list of Output sink node handles.
+        :type sinks: list[openvino.Output]
+        :param parameters: list of parameters.
+        :type parameters: list[op.Parameter]
+        :param variables: list of variables.
+        :type variables: list[op.util.Variable]
         :param name: String to set as model's friendly name.
         :type name: str
         )");
@@ -388,14 +406,14 @@ void regclass_graph_Model(py::module m) {
               R"(
             Create user-defined Model which is a representation of a model
 
-            :param results: List of results.
-            :type results: List[op.Result]
-            :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-            :type sinks: List[openvino.Node]
-            :param parameters: List of parameters.
-            :type parameters: List[op.Parameter]
-            :param variables: List of variables.
-            :type variables: List[op.util.Variable]
+            :param results: list of results.
+            :type results: list[op.Result]
+            :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+            :type sinks: list[openvino.Node]
+            :param parameters: list of parameters.
+            :type parameters: list[op.Parameter]
+            :param variables: list of variables.
+            :type variables: list[op.util.Variable]
             :param name: String to set as model's friendly name.
             :type name: str
             )");
@@ -415,12 +433,12 @@ void regclass_graph_Model(py::module m) {
               R"(
             Create user-defined Model which is a representation of a model
 
-            :param results: List of results.
-            :type results: List[openvino.Output]
-            :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-            :type sinks: List[openvino.Node]
-            :param variables: List of variables.
-            :type variables: List[op.util.Variable]
+            :param results: list of results.
+            :type results: list[openvino.Output]
+            :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+            :type sinks: list[openvino.Node]
+            :param variables: list of variables.
+            :type variables: list[op.util.Variable]
             :param name: String to set as model's friendly name.
             :type name: str
         )");
@@ -438,12 +456,12 @@ void regclass_graph_Model(py::module m) {
               R"(
             Create user-defined Model which is a representation of a model
 
-            :param results: List of results.
-            :type results: List[op.Result]
-            :param parameters: List of parameters.
-            :type parameters: List[op.Parameter]
-            :param variables: List of variables.
-            :type variables: List[op.util.Variable]
+            :param results: list of results.
+            :type results: list[op.Result]
+            :param parameters: list of parameters.
+            :type parameters: list[op.Parameter]
+            :param variables: list of variables.
+            :type variables: list[op.util.Variable]
             :param name: String to set as model's friendly name.
             :type name: str
         )");
@@ -461,10 +479,10 @@ void regclass_graph_Model(py::module m) {
               R"(
             Create user-defined Model which is a representation of a model
 
-            :param results: List of results.
-            :type results: List[openvino.Output]
-            :param parameters: List of parameters.
-            :type parameters: List[op.Parameter]
+            :param results: list of results.
+            :type results: list[openvino.Output]
+            :param parameters: list of parameters.
+            :type parameters: list[op.Parameter]
             :param name: String to set as model's friendly name.
             :type name: str
         )");
@@ -475,7 +493,7 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const ov::PartialShape& partial_shape, const py::dict& variables_shapes) {
             const auto new_variable_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(partial_shape, new_variable_shapes);
         },
         py::arg("partial_shape"),
@@ -508,7 +526,7 @@ void regclass_graph_Model(py::module m) {
                 :param partial_shape: New shape.
                 :type partial_shape: openvino.PartialShape
                 :param variables_shapes: New shapes for variables
-                :type variables_shapes: Dict[keys, values]
+                :type variables_shapes: dict[keys, values]
                 :return : void
              )");
 
@@ -517,7 +535,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const py::list& partial_shape, const py::dict& variables_shapes) {
             const auto new_shape = Common::partial_shape_from_list(partial_shape);
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
@@ -550,7 +568,7 @@ void regclass_graph_Model(py::module m) {
                 :param partial_shape: New shape.
                 :type partial_shape: list
                 :param variables_shapes: New shapes for variables
-                :type variables_shapes: Dict[keys, values]
+                :type variables_shapes: dict[keys, values]
                 :return : void
              )");
 
@@ -559,7 +577,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const py::tuple& partial_shape, const py::dict& variables_shapes) {
             const auto new_shape = Common::partial_shape_from_list(partial_shape.cast<py::list>());
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
@@ -592,7 +610,7 @@ void regclass_graph_Model(py::module m) {
                 :param partial_shape: New shape.
                 :type partial_shape: tuple
                 :param variables_shapes: New shapes for variables
-                :type variables_shapes: Dict[keys, values]
+                :type variables_shapes: dict[keys, values]
                 :return : void
              )");
 
@@ -600,7 +618,7 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const std::string& partial_shape, const py::dict& variables_shapes) {
             const auto new_variables_shape = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(ov::PartialShape(partial_shape), new_variables_shape);
         },
         py::arg("partial_shape"),
@@ -634,7 +652,7 @@ void regclass_graph_Model(py::module m) {
                 :param partial_shape: New shape.
                 :type partial_shape: str
                 :param variables_shapes: New shapes for variables
-                :type variables_shapes: Dict[keys, values]
+                :type variables_shapes: dict[keys, values]
                 :return : void
              )");
 
@@ -648,7 +666,7 @@ void regclass_graph_Model(py::module m) {
                                         partial_shape_from_handle(item.second));
             }
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(new_shapes, new_variables_shapes);
         },
         py::arg("partial_shapes"),
@@ -706,9 +724,9 @@ void regclass_graph_Model(py::module m) {
             GIL is released while running this function.
 
             :param partial_shapes: New shapes.
-            :type partial_shapes: Dict[keys, values]
+            :type partial_shapes: dict[keys, values]
             :param variables_shapes: New shapes for variables
-            :type variables_shapes: Dict[keys, values]
+            :type variables_shapes: dict[keys, values]
         )");
 
     model.def("get_output_size",
@@ -724,16 +742,16 @@ void regclass_graph_Model(py::module m) {
               R"(
                     Return ops used in the model.
 
-                    :return: List of Nodes representing ops used in model.
-                    :rtype: List[openvino.Node]
+                    :return: list of Nodes representing ops used in model.
+                    :rtype: list[openvino.Node]
                  )");
     model.def("get_ordered_ops",
               &ov::Model::get_ordered_ops,
               R"(
                     Return ops used in the model in topological order.
 
-                    :return: List of sorted Nodes representing ops used in model.
-                    :rtype: List[openvino.Node]
+                    :return: list of sorted Nodes representing ops used in model.
+                    :rtype: list[openvino.Node]
                  )");
     model.def("get_output_op",
               &ov::Model::get_output_op,
@@ -785,7 +803,7 @@ void regclass_graph_Model(py::module m) {
                     Return the model parameters.
                     
                     :return: a list of model's parameters.
-                    :rtype: List[op.Parameter]
+                    :rtype: list[op.Parameter]
                  )");
     model.def_property_readonly("parameters",
                                 &ov::Model::get_parameters,
@@ -793,7 +811,7 @@ void regclass_graph_Model(py::module m) {
                                         Return the model parameters.
                                         
                                         :return: a list of model's parameters.
-                                        :rtype: List[op.Parameter]
+                                        :rtype: list[op.Parameter]
                                     )");
     model.def("get_results",
               &ov::Model::get_results,
@@ -801,7 +819,7 @@ void regclass_graph_Model(py::module m) {
                     Return a list of model outputs.
 
                     :return: a list of model's result nodes.
-                    :rtype: List[op.Result]
+                    :rtype: list[op.Result]
                 )");
     model.def_property_readonly("results",
                                 &ov::Model::get_results,
@@ -809,7 +827,7 @@ void regclass_graph_Model(py::module m) {
                                     Return a list of model outputs.
 
                                     :return: a list of model's result nodes.
-                                    :rtype: List[op.Result]
+                                    :rtype: list[op.Result]
                                 )");
     model.def("get_result",
               &ov::Model::get_result,
@@ -1053,6 +1071,8 @@ void regclass_graph_Model(py::module m) {
                 new_outputs.emplace_back(out);
                 i++;
             }
+            // Try to remove when it will be covered in C++ API
+            ov::util::set_tensors_names(ov::AUTO, self);
             return new_outputs;
         },
         py::arg("outputs"));
@@ -1102,7 +1122,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::remove_parameter,
               py::arg("parameter"),
               R"(
-            Delete Parameter node from the list of parameters. Method will not delete node from graph. 
+            Delete Parameter node from the list of parameters. Method will not delete node from graph.
             You need to replace Parameter with other operation manually.
 
             Attention: Indexing of parameters can be changed.
@@ -1163,7 +1183,7 @@ void regclass_graph_Model(py::module m) {
                     * call graph validation to check correctness of changes
 
                     :param parameter: new Parameter nodes.
-                    :type parameter: List[op.Parameter]
+                    :type parameter: list[op.Parameter]
                  )");
 
     model.def("add_results",
@@ -1171,11 +1191,11 @@ void regclass_graph_Model(py::module m) {
               py::arg("results"),
               R"(
                     Add new Result nodes to the list.
-                    
+
                     Method doesn't validate graph, it should be done manually after all changes.
 
                     :param results: new Result nodes.
-                    :type results: List[op.Result]
+                    :type results: list[op.Result]
                 )");
 
     model.def(
@@ -1193,23 +1213,23 @@ void regclass_graph_Model(py::module m) {
         py::arg("sinks"),
         R"(
             Add new sink nodes to the list.
-            
+
             Method doesn't validate graph, it should be done manually after all changes.
 
             :param sinks: new sink nodes.
-            :type sinks: List[openvino.Node]
+            :type sinks: list[openvino.Node]
         )");
 
     model.def("add_variables",
               &ov::Model::add_variables,
               py::arg("variables"),
               R"(
-                    Add new variables to the list. 
-                    
+                    Add new variables to the list.
+
                     Method doesn't validate graph, it should be done manually after all changes.
 
                     :param variables: new variables to add.
-                    :type variables: List[op.util.Variable]
+                    :type variables: list[op.util.Variable]
                 )");
 
     model.def("get_variables",
@@ -1218,7 +1238,7 @@ void regclass_graph_Model(py::module m) {
                     Return a list of model's variables.
                     
                     :return: a list of model's variables.
-                    :rtype: List[op.util.Variable]
+                    :rtype: list[op.util.Variable]
                 )");
 
     model.def_property_readonly("variables",
@@ -1227,14 +1247,14 @@ void regclass_graph_Model(py::module m) {
                                     Return a list of model's variables.
                                     
                                     :return: a list of model's variables.
-                                    :rtype: List[op.util.Variable]
+                                    :rtype: list[op.util.Variable]
                                 )");
 
     model.def("get_variable_by_id",
               &ov::Model::get_variable_by_id,
               R"(
                     Return a variable by specified variable_id.
-                    
+
                     :param variable_id: a variable id to get variable node.
                     :type variable_id: str
                     :return: a variable node.
@@ -1251,7 +1271,7 @@ void regclass_graph_Model(py::module m) {
             Return a list of model's sinks.
 
             :return: a list of model's sinks.
-            :rtype: List[openvino.Node]
+            :rtype: list[openvino.Node]
         )");
 
     model.def_property_readonly(
@@ -1264,7 +1284,7 @@ void regclass_graph_Model(py::module m) {
             Return a list of model's sinks.
 
             :return: a list of model's sinks.
-            :rtype: List[openvino.Node]
+            :rtype: list[openvino.Node]
         )");
 
     model.def(
@@ -1282,9 +1302,9 @@ void regclass_graph_Model(py::module m) {
             Evaluate the model on inputs, putting results in outputs
 
             :param output_tensors: Tensors for the outputs to compute. One for each result
-            :type output_tensors: List[openvino.Tensor]
+            :type output_tensors: Union[list[openvino.Tensor], TensorVector]
             :param input_tensors: Tensors for the inputs. One for each inputs.
-            :type input_tensors: List[openvino.Tensor]
+            :type input_tensors: Union[list[openvino.Tensor], TensorVector]
             :param evaluation_context: Storage of additional settings and attributes that can be used
                                        when evaluating the model. This additional information can be
                                        shared across nodes.
@@ -1332,8 +1352,8 @@ void regclass_graph_Model(py::module m) {
         R"(
                 Returns runtime attribute as a OVAny object.
 
-                :param path: List of strings which defines a path to runtime info.
-                :type path: List[str]
+                :param path: list of strings which defines a path to runtime info.
+                :type path: list[str]
 
                 :return: A runtime attribute.
                 :rtype: openvino.OVAny
@@ -1347,7 +1367,7 @@ void regclass_graph_Model(py::module m) {
         R"(
                 Returns runtime attribute as a OVAny object.
 
-                :param path: List of strings which defines a path to runtime info.
+                :param path: list of strings which defines a path to runtime info.
                 :type path: str
 
                 :return: A runtime attribute.
@@ -1366,8 +1386,8 @@ void regclass_graph_Model(py::module m) {
         R"(
                 Checks if given path exists in runtime info of the model.
 
-                :param path: List of strings which defines a path to runtime info.
-                :type path: List[str]
+                :param path: list of strings which defines a path to runtime info.
+                :type path: list[str]
 
                 :return: `True` if path exists, otherwise `False`.
                 :rtype: bool
@@ -1381,7 +1401,7 @@ void regclass_graph_Model(py::module m) {
         R"(
                 Checks if given path exists in runtime info of the model.
 
-                :param path: List of strings which defines a path to runtime info.
+                :param path: list of strings which defines a path to runtime info.
                 :type path: str
 
                 :return: `True` if path exists, otherwise `False`.
@@ -1403,8 +1423,8 @@ void regclass_graph_Model(py::module m) {
 
                 :param obj: value for the runtime info
                 :type obj: py:object
-                :param path: List of strings which defines a path to runtime info.
-                :type path: List[str]
+                :param path: list of strings which defines a path to runtime info.
+                :type path: list[str]
              )");
     model.def(
         "set_rt_info",
@@ -1429,7 +1449,7 @@ void regclass_graph_Model(py::module m) {
         },
         R"(
         Returns a raw address of the Model object from C++.
-        
+
         Use this function in order to compare underlying C++ addresses instead of using `__eq__` in Python.
 
         :return: a raw address of the Model object.

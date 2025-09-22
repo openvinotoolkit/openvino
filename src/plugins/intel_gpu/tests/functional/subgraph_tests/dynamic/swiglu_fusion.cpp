@@ -21,11 +21,8 @@ using SwiGLUFusionParams = std::tuple<std::vector<InputShape>,   // input shapes
 class SwiGLUFusion : public testing::WithParamInterface<SwiGLUFusionParams>,
                             virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SwiGLUFusionParams> obj) {
-        std::vector<InputShape> input_shapes;
-        ov::element::Type input_precision;
-
-        std::tie(input_shapes, input_precision) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<SwiGLUFusionParams>& obj) {
+        const auto& [input_shapes, input_precision] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -64,16 +61,13 @@ protected:
         // Mul(Xw, Xv) = Swish(Xw) * Xv
         auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(1));
 
-        return std::make_shared<ov::Model>(ov::NodeVector{mul}, params, "SwiGLUFusion");
+        return std::make_shared<ov::Model>(ov::OutputVector{mul}, params, "SwiGLUFusion");
     }
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::vector<InputShape> input_shapes;
-        ov::element::Type input_precision;
-
-        std::tie(input_shapes, input_precision) = GetParam();
+        const auto& [input_shapes, input_precision] = GetParam();
 
         init_input_shapes(input_shapes);
 

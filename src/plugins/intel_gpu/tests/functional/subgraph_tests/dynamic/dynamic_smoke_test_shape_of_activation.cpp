@@ -10,6 +10,8 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -34,14 +36,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<shapeofActivationDynamicGPUTestParamsSet>& obj) {
         shapeofActivationDynamicGPUTestParamsSet basicParamsSet = obj.param;
         std::ostringstream result;
-        InputShape inputShape;
-        ov::element::Type netType;
-        std::string targetDevice;
-        ov::test::utils::ActivationTypes activationType;
-        std::vector<size_t> inShape;
-        std::vector<float> constantValue;
 
-        std::tie(inputShape, netType, targetDevice, activationType, inShape, constantValue) = basicParamsSet;
+        const auto& [inputShape, netType, targetDevice, activationType, inShape, constantValue] = basicParamsSet;
         result << "IS=";
         result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         for (const auto& actual_shape : inputShape.second) {
@@ -73,12 +69,9 @@ protected:
 
     void SetUp() override {
         shapeofActivationDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
-        InputShape inputShape;
-        ov::element::Type netType;
-        ov::test::utils::ActivationTypes activationType;
-        std::vector<size_t> inShape;
-        std::vector<float> constantValue;
-        std::tie(inputShape, netType, targetDevice, activationType, inShape, constantValue) = basicParamsSet;
+
+        const auto& [inputShape, netType, _targetDevice, activationType, inShape, constantValue] = basicParamsSet;
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShape});
 

@@ -22,24 +22,24 @@
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov {
 namespace pass {
 namespace low_precision {
-
-// Return true if `type` can be castable to at least one of `type`
-bool NetworkHelper::is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types) {
-    for (auto another : types) {
-        if (type.is_castable(another)) {
-            return true;
-        }
-    }
-    return false;
-}
 
 // Collect and return a vector with all nodes that consumes any of the `node` output
 std::vector<Input<Node>> NetworkHelper::consumer_inputs(std::shared_ptr<Node> node) {
@@ -149,28 +149,6 @@ size_t NetworkHelper::getOutputChannelsCount(std::shared_ptr<const Node> layer, 
     }
 }
 
-std::vector<std::shared_ptr<Node>> NetworkHelper::getParentsRecursivelyExceptTypes(
-        std::shared_ptr<Node> layer,
-        const std::unordered_set<NodeTypeInfo>& exceptionLayerTypes,
-        const int portIndex) {
-    std::vector<std::shared_ptr<Node>> parents;
-    int i = 0;
-    for (auto input : layer->inputs()) {
-        if ((portIndex == -1) || (portIndex == i)) {
-            auto parent = input.get_source_output().get_node_shared_ptr();
-            if (is_castable_to_one_of(parent->get_type_info(), exceptionLayerTypes)) {
-                const std::vector<std::shared_ptr<Node>> tmpParents = getParentsRecursivelyExceptTypes(parent, exceptionLayerTypes);
-                parents.insert(parents.end(), tmpParents.begin(), tmpParents.end());
-            } else {
-                parents.push_back(parent);
-            }
-        }
-
-        i++;
-    }
-    return parents;
-}
-
 size_t NetworkHelper::getInputChannelsCount(std::shared_ptr<Node> layer) {
     if (layer->get_input_size() == 0) {
         THROW_TRANSFORMATION_EXCEPTION << "There are no input layers";
@@ -192,10 +170,6 @@ size_t NetworkHelper::getGroupsCount(std::shared_ptr<Node> layer) {
     } else {
         THROW_TRANSFORMATION_EXCEPTION << "Invalid layer type of " << layer->get_friendly_name() << "; expected Convolution or GroupConvolution";
     }
-}
-
-void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
-    ov::replace_output_update_name(layer->output(0), layer->input_value(0));
 }
 
 std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<ov::opset1::Add> addAfterMultiply, const int multiplyBranch) {

@@ -9,6 +9,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;
@@ -42,22 +43,9 @@ using SeqParams = std::tuple<SEQ_TYPE,                            // node type
 class SequenceCPUTest : public testing::WithParamInterface<SeqParams>, virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SeqParams> &obj) {
-        SEQ_TYPE seqType;
-        size_t hidden_size, input_size;
-        InputShapeParams inShapeParams;
-        std::vector<std::string> activations;
-        float clip;
-        bool linearBeforeReset;
-        ov::op::RecurrentSequenceDirection direction;
-        ElementType netPrecision;
-        InputLayerType seqInType;
-
-        std::tie(seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction, netPrecision, seqInType) = obj.param;
-
-        std::vector<ov::Dimension> bounds;
-        std::vector<TargetShapeParams> targetShapes;
-        std::tie(bounds, targetShapes) = inShapeParams;
-
+        const auto& [seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction,
+                     netPrecision, seqInType] = obj.param;
+        const auto& [bounds, targetShapes] = inShapeParams;
         std::ostringstream result;
 
         if (seqType == SEQ_TYPE::GRU) {
@@ -72,8 +60,7 @@ public:
         result << "hidden_size=" << hidden_size << "_input_size=" << input_size << "_";
         result << "batch_size_dyn=" << bounds[0] << "_seq_length_dyn=" << bounds[1] << "_";
         for (const auto &ts : targetShapes) {
-            size_t bs, sl;
-            std::tie(bs, sl) = ts;
+            const auto& [bs, sl] = ts;
             result << "(bs=" << bs << "_sl=" << sl << ")_";
         }
 
@@ -91,22 +78,10 @@ protected:
     void SetUp() override {
         const size_t batch_size_pos = 0;
         const size_t seq_length_pos = 1;
-
-        SEQ_TYPE seqType;
-        size_t hidden_size, input_size;
-        InputShapeParams inShapeParams;
-        std::vector<std::string> activations;
-        float clip;
-        bool linearBeforeReset;
-        ov::op::RecurrentSequenceDirection direction;
-        ElementType netPrecision;
-
-        std::tie(seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction, netPrecision, seqInType) = this->GetParam();
-
-        std::vector<ov::Dimension> bounds;
-        std::vector<TargetShapeParams> targetShapes;
-        std::tie(bounds, targetShapes) = inShapeParams;
-
+        const auto& [seqType, hidden_size, input_size, inShapeParams, activations, clip, linearBeforeReset, direction,
+                     netPrecision, _seqInType] = this->GetParam();
+        seqInType = _seqInType;
+        const auto& [bounds, targetShapes] = inShapeParams;
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         seqLengthInIdx = (seqType == SEQ_TYPE::LSTM ? 3 : 2);
@@ -154,10 +129,7 @@ protected:
         // target shape
         for (const auto &ts : targetShapes) {
             std::vector<ov::Shape> currTS;
-
-            size_t bs, sl;
-            std::tie(bs, sl) = ts;
-
+            const auto& [bs, sl] = ts;
             currTS.emplace_back(std::vector<size_t>{sl, bs, input_size});
             currTS.emplace_back(std::vector<size_t>{bs, numDirections, hidden_size});
             if (seqType == SEQ_TYPE::LSTM) {

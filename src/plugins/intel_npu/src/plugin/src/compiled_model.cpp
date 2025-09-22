@@ -13,7 +13,6 @@
 #include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
@@ -88,15 +87,16 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
 
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, CURRENT_OPENVINO_VERSION);
-    meta.write(stream);
+    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
+
+    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning, CURRENT_OPENVINO_VERSION, initBlobSizes)
+        .write(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     ov::ParameterVector parameters;
-    ov::NodeVector results;
+    ov::ResultVector results;
 
     for (const IODescriptor& inputDescriptor : _graph->get_metadata().inputs) {
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
@@ -130,10 +130,9 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
                                                      outputDescriptor.shapeFromCompiler,
                                                      outputDescriptor.outputTensorNames);
 
-        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
+        auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-        results.push_back(std::move(result));
     }
 
     _logger.warning("Returning a dummy ov::Model object that contains only the given parameter and result nodes");

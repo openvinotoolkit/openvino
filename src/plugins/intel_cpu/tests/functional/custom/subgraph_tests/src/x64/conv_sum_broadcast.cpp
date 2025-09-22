@@ -13,6 +13,9 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/convolution_params.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace CPUTestUtils;
 
@@ -31,13 +34,7 @@ class ConvSumInPlaceTest : public testing::WithParamInterface<convSumBroadcastPa
                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convSumBroadcastParamSet>& obj) {
-        InputShape convShape;
-        InputShape secondShape;
-        bool bias;
-        fusingSpecificParams fusingParams;
-        ov::AnyMap additionalConfig;
-        std::tie(convShape, secondShape, bias, fusingParams, additionalConfig) = obj.param;
-
+        const auto& [convShape, secondShape, bias, fusingParams, additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=";
         result  << ov::test::utils::partialShape2str({convShape.first, secondShape.first}) << "_";
@@ -91,14 +88,8 @@ public:
     }
 
     void SetUp() override {
-        InputShape convShape;
-        InputShape secondShape;
-        bool bias;
         CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        ov::AnyMap additionalConfig;
-        std::tie(convShape, secondShape, bias, fusingParams, additionalConfig) = this->GetParam();
-
+        const auto& [convShape, secondShape, bias, fusingParams, additionalConfig] = this->GetParam();
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());

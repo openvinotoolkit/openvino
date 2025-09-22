@@ -62,7 +62,7 @@ private:
                                                        : op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto depthToSpace = std::make_shared<op::v0::DepthToSpace>(data, mode, params.blockSize);
-        return std::make_shared<Model>(NodeVector{depthToSpace}, ParameterVector{data});
+        return std::make_shared<Model>(OutputVector{depthToSpace}, ParameterVector{data});
     }
 };
 

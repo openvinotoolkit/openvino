@@ -3,22 +3,31 @@
 //
 #pragma once
 
-#include <array>
 #include <cfloat>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <fstream>
-#include <vector>
+#include <cstring>
+#include <limits>
+#include <type_traits>
 
-#include "common.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
+
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    include <immintrin.h>
+
+#    include "common.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    if defined(HAVE_SVE)
 #        include "arm_sve.h"
 #    endif
 #    include "arm_neon.h"
+#    include "common.hpp"
 #endif
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -518,7 +527,7 @@ inline void scale_add2_reduce_max(ov::float16* a,
         i += inc;
     }
     max = svmaxv_f16(pg_f16, v_max);
-#    else
+#    elif defined(HAVE_NEON_FP16)
     float16x8_t v_max = vdupq_n_f16(static_cast<float16_t>(-FLT_MAX));
     float16x8_t v_scale = vdupq_n_f16(static_cast<float16_t>(scale));
     float16x8_t v_a;
@@ -948,8 +957,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
     }
 }
 
-template <typename T,
-          typename = std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
+template <typename T, typename = std::enable_if_t<ov::intel_cpu::any_of_v<T, ov::bfloat16, ov::float16>>>
 inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t size) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)

@@ -80,38 +80,31 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
     OPENVINO_ASSERT(PartialShape::broadcast_merge_into(input_shape, input2.get_partial_shape(), node->get_autob()),
                     "Argument shapes in divide operation are inconsistent.");
 
-    const auto input1_low = ov::util::evaluate_lower_bound(input1);
-    if (!input1_low)
+    const auto& [input1_low, input1_up] = ov::util::evaluate_both_bounds(input1);
+    if (!input1_low || !input1_up)
         return false;
-    const auto input1_up = ov::util::evaluate_upper_bound(input1);
-    if (!input1_up)
-        return false;
-    const auto input2_low = ov::util::evaluate_lower_bound(input2);
-    if (!input2_low)
-        return false;
-    const auto input2_up = ov::util::evaluate_upper_bound(input2);
-    if (!input2_up)
+
+    const auto& [input2_low, input2_up] = ov::util::evaluate_both_bounds(input2);
+    if (!input2_low || !input2_up)
         return false;
 
     const auto zeros_const = Constant::create(input2.get_element_type(), {}, {0});
-    auto zero_t = Tensor(input2.get_element_type(), Shape{});
-    memcpy(zero_t.data(), zeros_const->get_data_ptr(), zero_t.get_byte_size());
 
     const auto max_value = ov::util::make_tensor_of_max_value(input2.get_element_type());
-    const auto dynamic_mask = or_tensor(equality_mask(input1_up, max_value), equality_mask(input2_up, max_value));
+    const auto& dynamic_mask = or_tensor(equality_mask(input1_up, max_value), equality_mask(input2_up, max_value));
 
     // mask to find out positive values for arg2
     auto less_up_outputs = TensorVector{{element::boolean, input2.get_shape()}};
     auto& input2_positive_up_mask = less_up_outputs.front();
 
-    bool status = Less().evaluate(less_up_outputs, TensorVector{zero_t, input2_up});
+    bool status = Less().evaluate(less_up_outputs, TensorVector{zeros_const->get_tensor_view(), input2_up});
     if (!status)
         return status;
 
     // mask to find out negative values for arg2
     auto less_low_outputs = TensorVector{{element::boolean, input2.get_shape()}};
     auto& input2_negative_low_mask = less_low_outputs.front();
-    status = Less().evaluate(less_low_outputs, {input2_low, zero_t});
+    status = Less().evaluate(less_low_outputs, {input2_low, zeros_const->get_tensor_view()});
     if (!status)
         return status;
 
@@ -142,7 +135,7 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
             return status;
 
         // replace values where zeros inside range of second arg to maximum values
-        const auto output_min_value = ov::util::make_tensor_of_min_value(output_values[0].get_element_type());
+        const auto& output_min_value = ov::util::make_tensor_of_min_value(output_values[0].get_element_type());
         if (!output_min_value)
             return false;
 
@@ -151,7 +144,7 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
         if (!status)
             return status;
 
-        status = Select().evaluate(output_values, {dynamic_mask, zero_t, output_values[0]});
+        status = Select().evaluate(output_values, {dynamic_mask, zeros_const->get_tensor_view(), output_values[0]});
         if (!status)
             return status;
     } else {
@@ -166,16 +159,13 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
         // create mask where zeros in the second argument are placed
         auto eq_zero_mask = TensorVector{{element::boolean, input2.get_shape()}};
         auto& input2_zeros_mask = eq_zero_mask.front();
-        bool status = Equal().evaluate(eq_zero_mask, {value2, zero_t});
+        bool status = Equal().evaluate(eq_zero_mask, {value2, zeros_const->get_tensor_view()});
         if (!status)
             return status;
 
         // replace zeros by 1 values to get result of divide for other values of arguments
         const auto ones = Constant::create(input2.get_element_type(), input2.get_shape(), {1});
-        auto ones_t = Tensor(ones->get_element_type(), ones->get_shape());
-        memcpy(ones_t.data(), ones->get_data_ptr(), ones_t.get_byte_size());
-
-        status = Select().evaluate(value2_outs, {input2_zeros_mask, ones_t, value2});
+        status = Select().evaluate(value2_outs, {input2_zeros_mask, ones->get_tensor_view(), value2});
         if (!status)
             return status;
 
@@ -184,7 +174,7 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
             return status;
 
         // replace values where zeros were found in the second argument to maximum values
-        const auto out_max_value = ov::util::make_tensor_of_max_value(output_values[0].get_element_type());
+        const auto& out_max_value = ov::util::make_tensor_of_max_value(output_values[0].get_element_type());
         if (!out_max_value)
             return false;
 

@@ -4,9 +4,22 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/opsets/opset1.hpp>
 #include <transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp>
+
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -17,7 +30,7 @@ template <class T>
 static std::shared_ptr<ov::Model> createInitGraph(std::shared_ptr<ov::opset1::Parameter> param) {
         auto axes = ov::opset1::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
         auto reduce = std::make_shared<T>(param, axes, false);
-        return std::make_shared<ov::Model>(ov::NodeVector{ reduce }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{param});
 }
 
 template <class T>
@@ -25,15 +38,15 @@ static std::shared_ptr<ov::Model> createRefGraph(std::shared_ptr<ov::opset1::Par
         auto axes = ov::opset1::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
         auto reduce = std::make_shared<T>(param, axes, true);
         auto squeeze = std::make_shared<ov::opset1::Squeeze>(reduce, axes);
-        return std::make_shared<ov::Model>(ov::NodeVector{ squeeze }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{squeeze}, ov::ParameterVector{param});
 }
 
 template <class T>
 static bool registerAndRunReducePass(std::shared_ptr<ov::Model> model) {
     ov::pass::Manager manager;
-    if (std::is_base_of<ov::op::util::LogicalReductionKeepDims, T>::value) {
+    if (std::is_base_of_v<ov::op::util::LogicalReductionKeepDims, T>) {
         manager.register_pass<ConvertReduction<ov::op::util::LogicalReductionKeepDims>>();
-    } else if (std::is_base_of<ov::op::util::ArithmeticReductionKeepDims, T>::value) {
+    } else if (std::is_base_of_v<ov::op::util::ArithmeticReductionKeepDims, T>) {
         manager.register_pass<ConvertReduction<ov::op::util::ArithmeticReductionKeepDims>>();
     } else {
         return false;
@@ -48,8 +61,8 @@ static ov::PartialShape dynamic_param_shape = ov::PartialShape{2, -1, 2, 9};
 TYPED_TEST_SUITE_P(ConvertReduceNoKeepDimsTest);
 
 TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsAppliedForStaticShapes) {
-    ov::element::Type_t dataType = std::is_base_of<ov::op::util::LogicalReductionKeepDims, TypeParam>::value ?
-                                   ov::element::boolean : ov::element::f32;
+    ov::element::Type_t dataType =
+        std::is_base_of_v<ov::op::util::LogicalReductionKeepDims, TypeParam> ? ov::element::boolean : ov::element::f32;
     auto param = std::make_shared<ov::opset1::Parameter>(dataType, static_param_shape);
     auto model = createInitGraph<TypeParam>(param);
     auto model_ref = createRefGraph<TypeParam>(param);
@@ -63,8 +76,8 @@ TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsAppl
 }
 
 TYPED_TEST_P(ConvertReduceNoKeepDimsTest, CheckConvertReduceTransformationIsAppliedForDynaimcShapes) {
-    ov::element::Type_t dataType = std::is_base_of<ov::op::util::LogicalReductionKeepDims, TypeParam>::value ?
-                                   ov::element::boolean : ov::element::f32;
+    ov::element::Type_t dataType =
+        std::is_base_of_v<ov::op::util::LogicalReductionKeepDims, TypeParam> ? ov::element::boolean : ov::element::f32;
     auto param = std::make_shared<ov::opset1::Parameter>(dataType, dynamic_param_shape);
     auto model = createInitGraph<TypeParam>(param);
     auto model_ref = createRefGraph<TypeParam>(param);

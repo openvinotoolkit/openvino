@@ -19,6 +19,9 @@
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace pass {
@@ -178,19 +181,21 @@ bool ConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
                 dequantization.multiplyConstant->cast_vector<float>()[0]);
         }
 
-        const auto copyNode = convolution->clone_with_new_inputs({ dequantization.multiply->input_value(0), convolution->input_value(1) });
-        auto conv = ov::as_type_ptr<ov::opset1::Convolution>(copyNode);
+        const auto copyNode =
+            convolution->clone_with_new_inputs({dequantization.multiply->input_value(0), convolution->input_value(1)});
         std::shared_ptr<Node> relaxedNewConvolution;
-        if (conv) {
+        if (const auto conv = ov::as_type_ptr<ov::opset1::Convolution>(copyNode)) {
             relaxedNewConvolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
-                    *conv,
-                    std::vector<element::Type>{deqPrecision, deqPrecision},
-                    std::vector<element::Type>{deqPrecision});
-        } else {
+                *conv,
+                std::vector<element::Type>{deqPrecision, deqPrecision},
+                std::vector<element::Type>{deqPrecision});
+        } else if (const auto groupConv = ov::as_type_ptr<ov::opset1::GroupConvolution>(copyNode)) {
             relaxedNewConvolution = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-                    *ov::as_type_ptr<ov::opset1::GroupConvolution>(copyNode),
-                    std::vector<element::Type>{deqPrecision, deqPrecision},
-                    std::vector<element::Type>{deqPrecision});
+                *groupConv,
+                std::vector<element::Type>{deqPrecision, deqPrecision},
+                std::vector<element::Type>{deqPrecision});
+        } else {
+            OPENVINO_THROW("Unexpected conv op type");
         }
         NetworkHelper::copyInfo(convolution, relaxedNewConvolution);
 

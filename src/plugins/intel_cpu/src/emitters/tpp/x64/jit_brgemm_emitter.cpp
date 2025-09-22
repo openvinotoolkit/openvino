@@ -4,11 +4,27 @@
 
 #include "jit_brgemm_emitter.hpp"
 
-#include "emitters/snippets/x64/jit_snippets_emitters.hpp"
-#include "emitters/tpp/common/utils.hpp"
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "cpu_types.h"
+#include "emitters/tpp/common/kernel_executors/brgemm.hpp"
+#include "emitters/tpp/x64/jit_tpp_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::x64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
@@ -20,12 +36,13 @@ void BrgemmTppEmitter::validate_subtensors(const VectorDims& in_0, const VectorD
     OV_CPU_JIT_EMITTER_ASSERT(subtensors_compatible, "Incompatible subtensors");
 }
 
-BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h,
+BrgemmTppEmitter::BrgemmTppEmitter(jit_generator_t* h,
                                    cpu_isa_t isa,
                                    const ExpressionPtr& expr,
                                    const snippets::KernelExecutorTablePtr& kernel_table,
                                    const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
-    : TppEmitter(h, isa, expr) {
+    : jit_emitter(h, isa),
+      TppEmitter(h, isa, expr) {
     const auto& brgemm_node = as_type_ptr<intel_cpu::tpp::op::BrgemmTPP>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node && !brgemm_node->is_dynamic(), "Invoked with invalid node type");
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);

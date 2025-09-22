@@ -13,7 +13,9 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -30,8 +32,7 @@ using FQMulFusionParams = std::tuple<Shape,   // FQ data shape
 class FQMulFusion : public testing::WithParamInterface<FQMulFusionParams>, public ov::test::TestsCommon {
 public:
     void SetUp() override {
-        Shape data_shape, in_shape, out_shape, mul_const_shape, expected_out_shape;
-        std::tie(data_shape, in_shape, out_shape, mul_const_shape, expected_out_shape) = this->GetParam();
+        const auto& [data_shape, in_shape, out_shape, mul_const_shape, expected_out_shape] = this->GetParam();
 
         const auto data = opset4::Constant::create(element::Type_t::f32, data_shape, {0.0f});
         const auto in_low = opset4::Constant::create(element::Type_t::f32, in_shape, {-0.5f});

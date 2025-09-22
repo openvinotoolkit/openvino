@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/concat.hpp"
 
 using namespace CPUTestUtils;
 
@@ -20,13 +21,8 @@ class ConcatLayerCPUTest : public testing::WithParamInterface<concatCPUTestParam
                            virtual public SubgraphBaseTest,
                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<concatCPUTestParams> obj) {
-        int axis;
-        std::vector<InputShape> inputShapes;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(axis, inputShapes, netPrecision, cpuParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<concatCPUTestParams>& obj) {
+        const auto& [axis, inputShapes, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -65,13 +61,7 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        int axis;
-        std::vector<InputShape> inputShape;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(axis, inputShape, netPrecision, cpuParams) = this->GetParam();
-
+        const auto& [axis, inputShape, netPrecision, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType += std::string("_") + ov::element::Type(netPrecision).get_type_name();
 

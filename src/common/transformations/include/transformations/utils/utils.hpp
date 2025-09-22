@@ -9,6 +9,8 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <tuple>
+#include <variant>
 #include <vector>
 
 #include "openvino/core/descriptor_tensor.hpp"
@@ -16,6 +18,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/op.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "transformations_visibility.hpp"
@@ -193,7 +196,11 @@ TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ov::op::v0::Con
 
 TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Model>& function);
 
-TRANSFORMATIONS_API bool is_large_language_model(const ov::Model& model);
+TRANSFORMATIONS_API bool is_large_language_model(
+    const ov::Model& model,
+    std::function<bool(std::shared_ptr<ov::Node>)> func = [](std::shared_ptr<ov::Node>) {
+        return false;
+    });
 
 /**
  * \brief Check if 'other_shape' can be broadcasted to 'ref_shape'
@@ -284,6 +291,14 @@ TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output)
 
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
 
+TRANSFORMATIONS_API std::tuple<std::shared_ptr<ov::Node>,  // result
+                               std::shared_ptr<ov::Node>,  // reshape_kv
+                               std::shared_ptr<ov::Node>,  // unsqueeze_kv
+                               std::shared_ptr<ov::Node>,  // computed_bcst
+                               std::shared_ptr<ov::Node>,  // multiply_kv
+                               std::shared_ptr<ov::Node>>  // computed_bcst3
+match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv);
+
 template <typename T>
 ov::pass::pattern::op::Predicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {
     return ov::pass::pattern::op::Predicate([=](std::shared_ptr<Node> n) -> bool {
@@ -294,6 +309,21 @@ ov::pass::pattern::op::Predicate constant_predicate(std::function<bool(const std
         return false;
     });
 }
+
+TRANSFORMATIONS_API std::shared_ptr<ov::Node> NewGenStridedSlice(const std::shared_ptr<ov::Node>& data,
+                                                                 const ov::pass::pattern::PatternOp& start,
+                                                                 const ov::pass::pattern::PatternOp& stop,
+                                                                 const ov::pass::pattern::PatternOp& step,
+                                                                 size_t axis);
+
+using symbol_variant = std::variant<float, int32_t, int64_t, std::string>;
+
+TRANSFORMATIONS_API std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
+                                                          symbol_variant start,
+                                                          symbol_variant stop,
+                                                          symbol_variant step,
+                                                          size_t axis);
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

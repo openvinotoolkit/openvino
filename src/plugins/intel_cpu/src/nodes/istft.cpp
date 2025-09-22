@@ -4,14 +4,33 @@
 
 #include "istft.h"
 
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/rdft.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/istft.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -48,12 +67,8 @@ ISTFT::ISTFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 
 void ISTFT::getSupportedDescriptors() {
     const auto input_size = getParentEdges().size();
-    if (input_size < 4 || input_size > 5) {
-        THROW_CPU_NODE_ERR("ISTFT has incorrect number of input edges.");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("ISTFT has incorrect number of output edges.");
-    }
+    CPU_NODE_ASSERT(input_size >= 4 && input_size <= 5, "ISTFT has incorrect number of input edges.");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "ISTFT has incorrect number of output edges.");
 }
 
 void ISTFT::initSupportedPrimitiveDescriptors() {
@@ -62,7 +77,7 @@ void ISTFT::initSupportedPrimitiveDescriptors() {
     }
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
-    if (!one_of(dataPrecision, ov::element::f32)) {
+    if (none_of(dataPrecision, ov::element::f32)) {
         dataPrecision = ov::element::f32;
     }
 
@@ -86,11 +101,11 @@ bool ISTFT::created() const {
 }
 
 namespace {
-static void transpose_out4d(const uint8_t* in,
-                            uint8_t* out,
-                            const VectorDims& in_shape,
-                            const VectorDims& out_shape,
-                            size_t elem_size) {
+void transpose_out4d(const uint8_t* in,
+                     uint8_t* out,
+                     const VectorDims& in_shape,
+                     const VectorDims& out_shape,
+                     size_t elem_size) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
     parallel_for3d(out_shape[0],
                    out_shape[1],
@@ -126,11 +141,18 @@ void istft_impl(const float* in_data,
     const auto num_frames = data_shape[frames_axis];
 
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
-    const int64_t final_signal_length =
-        length > 0 ? length : (center ? (signal_length - (frame_size & ~1)) : signal_length);
-    std::fill(final_result, final_result + batch_size * final_signal_length, 0.f);
+    int64_t final_signal_length = [&]() -> int64_t {
+        if (length > 0) {
+            return length;
+        }
+        if (center) {
+            return signal_length - (frame_size & ~1);
+        }
+        return signal_length;
+    }();
+    std::fill(final_result, final_result + batch_size * final_signal_length, 0.F);
 
-    std::vector<float> mid_result(batch_size * signal_length, 0.f);
+    std::vector<float> mid_result(batch_size * signal_length, 0.F);
 
     const auto fft_results_dim = data_shape[data_shape.size() - 3];
     OPENVINO_ASSERT(fft_results_dim == static_cast<size_t>((frame_size / 2) + 1));
@@ -156,16 +178,16 @@ void istft_impl(const float* in_data,
 
     // Setting function for the result postprocessing
     const auto norm_window_div = [sqrt_frame_size](float a, float b) {
-        if (b != 0.f) {
+        if (b != 0.F) {
             return (a * sqrt_frame_size) / b;
         }
-        return 0.f;
+        return 0.F;
     };
     const auto window_div = [](float a, float b) {
-        if (b != 0.f) {
+        if (b != 0.F) {
             return a / b;
         }
-        return 0.f;
+        return 0.F;
     };
     std::function<float(float, float)> postprocess_func;
     if (normalized) {
@@ -217,7 +239,7 @@ void istft_impl(const float* in_data,
                        window_sum.begin() + batch * signal_length,
                        result,
                        postprocess_func);
-        const auto result_start = result + margin;
+        auto* const result_start = result + margin;
         std::copy(result_start, result_start + copy_end, final_result + batch * final_signal_length);
     });
 }
@@ -245,7 +267,7 @@ void ISTFT::executeDynamicImpl(const dnnl::stream& strm) {
 
 bool ISTFT::needShapeInfer() const {
     return (m_has_signal_length_input && !m_is_signal_length_const) ||
-           (!m_has_signal_length_input && !(m_is_frame_size_const && m_is_frame_step_const)) || Node::needShapeInfer();
+           (!m_has_signal_length_input && (!m_is_frame_size_const || !m_is_frame_step_const)) || Node::needShapeInfer();
 }
 
 void ISTFT::createPrimitive() {

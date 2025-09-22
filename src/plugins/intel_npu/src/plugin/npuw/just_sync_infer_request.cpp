@@ -353,6 +353,35 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }
 }
 
+void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
+                                            const ov::SoPtr<ov::ITensor>& tensor) {
+    // Check that it's I/O
+    NPUW_ASSERT(m_port_to_tensor.at(port).persistent);
+
+    // Assigning via .at() to ensure it is a known port
+    m_port_to_tensor.at(port).tensor = tensor;
+
+    // Check if setting output tensor
+    for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
+        if (m_npuw_model->outputs()[i] == port) {
+            const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
+            auto funcall_result_iter = m_funcall_result.find(from_submodel);
+            // This is a tricky case:
+            // 1) We already allocated an output tensor in m_funcall_result via FMM
+            // 2) We got an output tensor from outside
+            // m_funcall_result and m_port_to_tensor aren't connected, thus we will only write
+            // to m_funcall_result, but get_tensor() would return an empty tensor from m_port_to_tensor.
+            // Here we have to set the tensor to function's output, so the function will write to the correct tensor.
+            if (funcall_result_iter != m_funcall_result.end()) {
+                funcall_result_iter->second = tensor;
+            }
+        }
+    }
+
+    // Process setting input tensor
+    handle_set_remote_input(port, tensor);
+}
+
 ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) {
     const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
     auto funcall_result_iter = m_funcall_result.find(from_submodel);
@@ -373,8 +402,8 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
         const auto& subm_idx_from = kvp.second.first;
         const auto& port_idx_from = kvp.second.second;
 
-        LOG_DEBUG("Subgraph[" << subm_idx_from << "]/" << port_idx_from << " --> "
-                              << "Subgraph[" << subm_idx_to << "]/" << port_idx_to);
+        LOG_DEBUG("Subgraph[" << subm_idx_from << "]/" << port_idx_from << " --> " << "Subgraph[" << subm_idx_to << "]/"
+                              << port_idx_to);
         LOG_BLOCK();
 
         if (subm[subm_idx_from].replaced_by && subm[subm_idx_to].replaced_by) {
@@ -536,10 +565,10 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             } else {
                 // Producer is a function - maybe the same as we're calling now.
                 // Take its tensor from the storage
-                auto i_tensor = m_funcall_result.at({prod_idx, prod_port});
+                const auto& i_tensor = m_funcall_result.at({prod_idx, prod_port});
                 if (!is_spatial) {
                     // Non-spatial case - again, set immediately
-                    m_subrequests[real_idx]->set_tensor(iport, m_funcall_result.at({prod_idx, prod_port}));
+                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                 } else {
                     // Spatial case - defer
                     m_spatial_io[real_idx].inputs.at(i) = i_tensor;

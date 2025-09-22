@@ -118,8 +118,9 @@ JitConstants DynamicQuantizeKernelKVCache::GetJitConstants(const dynamic_quantiz
 
     const auto& input_dims = get_normalized_dims(params.inputs[0]);
     const auto total_grouped_elements = get_elements_number_per_group(params);
-    const auto per_iter_elements_number = get_per_iter_elements_number(params);
     const auto total_subgroups_number = total_grouped_elements / input_dims.back().v;
+    const auto per_iter_elements_number = get_per_iter_elements_number(params);
+    OPENVINO_ASSERT(per_iter_elements_number > 0, "[GPU] per_iter_elements_number is zero, division by zero would occur.");
 
     // Drop the last dimensions, since it will be processed in the kernel's loop
     grouped_dims.pop_back();
@@ -253,7 +254,7 @@ KernelsPriority DynamicQuantizeKernelKVCache::GetKernelsPriority(const Params& /
 
 bool DynamicQuantizeKernelKVCache::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
@@ -262,25 +263,25 @@ bool DynamicQuantizeKernelKVCache::Validate(const Params& params) const {
     const size_t non_compressed_dims_number = std::count(group_sizes.begin(), group_sizes.end(), 1);
 
     if (non_compressed_dims_number == group_sizes.size())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     for (size_t i = 0; i < group_sizes.size(); i++) {
         if (group_sizes[i] != 1 && input_dims[i].is_dynamic) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     }
 
     // Last dimension should be static, reduced by group_sizes configuration and divisible by 16
     if (group_sizes.back() == 1 || input_dims.back().is_dynamic || input_dims.back().v % subgroup_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     // Limit the size of the innermost dimension
     if (input_dims.back().v > 256)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     // In case of HEADS_NUM * HEAD_SIZE group size, check that it fits into the supported workgroup size limit
     if (get_elements_number_per_group(dq_params) / input_dims.back().v >= params.engineInfo.maxWorkGroupSize / subgroup_size)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

@@ -8,6 +8,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/core.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 namespace {
 bool isGPU1Present() {
@@ -20,6 +21,13 @@ bool isGPU1Present() {
     }
     return true;
 }
+
+bool immadSupported() {
+    ov::Core ie = ov::test::utils::create_core();
+    auto properties = ie.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+    bool support_immad = std::find(properties.begin(), properties.end(), ov::intel_gpu::capability::HW_MATMUL) != properties.end();
+    return support_immad;
+}
 } // namespace
 
 std::vector<std::string> disabledTestPatterns() {
@@ -27,7 +35,6 @@ std::vector<std::string> disabledTestPatterns() {
             // These tests might fail due to accuracy loss a bit bigger than threshold
             R"(.*(GRUCellTest).*)",
             R"(.*(RNNSequenceTest).*)",
-            R"(.*(GRUSequenceTest).*)",
             // These test cases might fail due to FP16 overflow
             R"(.*(LSTM).*activations=\(relu.*modelType=f16.*)",
 
@@ -77,54 +84,21 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.Inference.*)",
             // Issue: 111440
             R"(.*smoke_set1/GatherElementsGPUTest.Inference.*)",
-            // Issue: Disabled due to LPT precision matching issue
-            R"(.*smoke_.*FakeQuantizeTransformation.*)",
-            R"(.*smoke_LPT.*ReshapeTransformation.*)",
-            R"(.*smoke_LPT.*ConvolutionTransformation.*)",
-            R"(.*smoke_LPT.*MatMulWithConstantTransformation.*)",
+            // Issue: 168015. Low precision PRelu is not supported on GPU
+            R"(.*smoke_LPT.*PReluTransformation.*)",
+            // Issue: 168016. Low precision LSTMSequence/GPUSequence are not supported on GPU
+            R"(.*smoke_LPT.*RecurrentCellTransformation.*)",
+            // Issue: expected precision mismatch
             R"(.*smoke_LPT.*PullReshapeThroughDequantizationTransformation.*)",
-            R"(.*smoke_LPT.*ElementwiseBranchSelectionTransformation.*)",
+            // Issue: accuracy mismatch
+            R"(.*smoke_LPT.*FuseDequantizeToFakeQuantizeTransformation.*f32_0_dynamic_\[\]_f32__\{\}_\{\}__\{.0.01.\}_dynamic_\[\]_0_1_dynamic_f32_level=256_shape=\[\]_input_low=\{.0.\}_input_high=\{.2.55.\}_output_low=\{.0.\}_output_high=\{.2.55.\}_output_precision=_constant_precision=)",
+            R"(.*smoke_LPT.*MatMulWithConstantTransformation.*\[1,1,3,4\].*level=256_shape=\[1,3,1\]_input_low=\{.0,.0,.0.\}_input_high=\{.25,.24,.25.\}_output_low=\{.0,.0,.0.\}_output_high=\{.25,.24,.25.\}_output_precision=_constant_precision=.*)",
             // Issue: 123493
             R"(.*GroupNormalizationTest.*CompareWithRefs.*NetType=f16.*)",
             // Doesn't match reference results as v6 ref impl behavior is misaligned with expected
             R"(smoke_MemoryTestV3.*)",
-            // Issue: CVS-133173
+            // by calc abs_threshold with expected value
             R"(.*smoke_CTCLoss_Set2/CTCLossLayerTest.Inference/IS=\(\[\]\)_TS=\{\(3.6.8\)\}_LL=\(6.5.6\)_A=\(4.1.2.3.4.5\)\(5.4.3.0.1.0\)\(2.1.3.1.3.0\)_AL=\(3.3.5\)_BI=7_PCR=1_CMR=1_U=0_PF=f32_PI=i64.*)",
-            R"(.*smoke_LPT/BatchToSpaceTransformation.CompareWithRefImpl/f16_GPU_\[4,3,50,86\]_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 2.55 \}_precision=.*)",
-            R"(.*smoke_LPT/BatchToSpaceTransformation.CompareWithRefImpl/(f32|f16)_GPU_\[4,3,50,86\]_level=256_shape=\[1,3,1,1\]_input_low=\{ 0, 0, 0 \}_input_high=\{ 255, 127.5, 85 \}_output_low=\{ 0, 0, 0 \}_output_high\{ 255, 127.5, 85 \}_precision=.*)",
-            R"(.*smoke_LPT/ConcatTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_GPU_f32level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 2.55 \}_precision=\{\}level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 2.55 \}_precision=\{\}.*)",
-            R"(.*smoke_LPT/ConcatWithChildAndOutputTransformation.CompareWithRefImpl/f16_\[1,6,10,10\]_GPU_f32level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 2.55 \}_precision=level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 1.275 \}_precision=.*)",
-            R"(.*smoke_LPT/ConcatWithDifferentChildrenTransformation.CompareWithRefImpl/f16_\[1,3,10,10\]_GPU_f32_axis_(1|2)_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 2.55 \}_precision=level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 1.275 \}_precision=.*)",
-            R"(.*smoke_LPT/ConcatWithNeighborsGraphTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_GPU_f32.*)",
-            R"(.*smoke_LPT/ConcatWithIntermediateTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_GPU_f32.*)",
-            R"(.*smoke_LPT/ConcatWithSplitTransformation.CompareWithRefImpl/f16_\[1,6,10,10\]_GPU_f32level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 2.55 \}_precision=_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 1.275 \}_precision=.*)",
-            R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,32,16,16\]_.*_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__0_\[\]_\{  \}_\{  \}___f32_\{\}__\{ 4 \}_f32_\[\]_1_1_dynamic.*)",
-            R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f16_\[1,(8|32),16,16\]_.*_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__255_\[1,1,1,1\]_\{ 0 \}_\{ 25.4 \}_\{\}.*)",
-            R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f16_\[1,(8|32),16,16\]_.*_input_low.*0.*input_high=.*255.*_output_low=.*0.*_output_high.*25.5.*_precision=__0_\[\]_\{  \}_\{  \}___f32_\{\}__\{ 4 \}_f32_\[\]_1_1_dynamic.*)",
-            R"(.*smoke_LPT_3D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/(f32|f16)_\[1,32,16,16\]_GPU_f32_\[16\]_level=256_shape=\[1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__0_\[\]_\{  \}_\{  \}___f32_\{\}__\{ 4 \}_f32_\[\]_1_1_dynamic.*)",
-            R"(.*smoke_LPT/FakeQuantizeAndMaxPoolTransformation.CompareWithRefImpl/f16_\[1,32,72,48\]_GPU_f32.*)",
-            R"(.*smoke_LPT/FakeQuantizeAndAvgPoolTransformation.CompareWithRefImpl/f16_\[1,32,72,48\]_GPU_f32.*)",
-            R"(.*smoke_LPT/FuseConvertTransformation.CompareWithRefImpl/f32_\[1,4,16,16\]_GPU_f32_.*)",
-            R"(.*smoke_LPT/FuseFakeQuantizeAndScaleShiftTransformation.CompareWithRefImpl/f16_GPU_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 2.55 \}_precision=.*)",
-            R"(.*smoke_LPT/MVNTransformation.CompareWithRefImpl/f16_\[1,4,16,16\]_GPU_f32_AxisSet.*)",
-            R"(.*smoke_LPT/NormalizeL2Transformation.CompareWithRefImpl/f16_\[1,4,16,16\]_.*)",
-            R"(.*smoke_LPT/PadTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_GPU_f32_level=256_shape=\[1,1,1,1\]_.*_(constant|reflect|symmetric|edge)_.*)",
-            R"(.*smoke_LPT/OutputLayersConcat.CompareWithRefImpl/f32_\[1,3,16,16\]_GPU_f32.*)",
-            R"(.*smoke_LPT/ReduceMeanTransformation.CompareWithRefImpl/f16_\[1,3,10,10\]_GPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 127 \}_precision=\{\}\{\}_keepDims__reduce_axis_1_.*)",
-            R"(.*smoke_LPT/ReduceMeanTransformation.CompareWithRefImpl/f16_\[1,3,10,10\]_GPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 127 \}_precision=\{\}\{\}_reduce_axis_1_.*)",
-            R"(.*smoke_LPT/ReduceSumTransformation.CompareWithRefImpl/(f32|f16)_\[1,3,10,10\]_GPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 127 \}_precision=_keepDims__reduce_axis_2_3_.*)",
-            R"(.*smoke_LPT/ReduceSumTransformation.CompareWithRefImpl/f16_\[1,3,10,10\]_GPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ 2 \}_input_high=\{ 10 \}_output_low=\{ 2 \}_output_high\{ 10 \}_precision=_reduce_axis_2_3_.*)",
-            R"(.*smoke_LPT/ReluTransformation.CompareWithRefImpl/f16_GPU_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=.*)",
-            R"(.*smoke_LPT/ReluTransformation.CompareWithRefImpl/f16_GPU_level=256_shape=\[\]_input_low=\{ 12.75 \}_input_high=\{ 25.5 \}_output_low=\{ 12.75 \}_output_high\{ 25.5 \}_precision=.*)",
-            R"(.*smoke_LPT/SpaceToBatchTransformation.CompareWithRefImpl/(f32|f16)_GPU_\[1,3,100,171\]_level=256_shape=\[1,3,1,1\]_input_low=\{ 0, 0, 0 \}_input_high=\{ 255, 127.5, 85 \}_output_low=\{ 0, 0, 0 \}_output_high\{ 255, 127.5, 85 \}_precision=.*)",
-            R"(.*smoke_LPT/SpaceToBatchTransformation.CompareWithRefImpl/f16_GPU_\[1,3,100,171\]_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 2.55 \}_precision=.*)",
-            R"(.*smoke_LPT/SplitTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_GPU_f32_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 12.75 \}_precision=_axis=2_n_splits=2.*)",
-            R"(.*smoke_LPT/StridedSliceTransformation.CompareWithRefImpl/f16_\[1,3,24,24\]_GPU_f32_.*_precision=_\{ 0, 0, 0, 0 \}_\{ 1, 0, 1, 1 \}_\{ 1, 2, 1, 1 \}_\{ 1, 0, 1, 1 \}_\{ 1, 1, 1, 1 \}.*)",
-            R"(.*smoke_LPT/StridedSliceTransformation.CompareWithRefImpl/f16_\[1,3,24,24\]_GPU_f32_.*_precision=_\{ 0, 0, 0, 0 \}_\{ 1, 1, 0, 1 \}_\{ 1, 3, 20, 24 \}_\{ 1, 1, 0, 1 \}_\{ 1, 1, 1, 1 \}.*)",
-            R"(.*smoke_LPT/StridedSliceTransformation.CompareWithRefImpl/f16_\[1,3,24,24\]_GPU_f32_level=256_shape=\[1,3,1,1\]_.*_precision=_\{ 0, 0 \}_\{ 1, 0 \}_\{ 1, 2 \}_\{ 1, 0 \}_\{ 1, 1 \}.*)",
-            R"(.*smoke_LPT/SubtractTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_GPU_f32.*)",
-            R"(.*smoke_LPT/TransposeAfterMatMulTransformation.CompareWithRefImpl/f16.*(T|t)ransposeChannelDim.*)",
-            R"(.*smoke_LPT/VariadicSplitTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_GPU_f32_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 12.75 \}_precision=_axis=2_splitLengths=\{ 9, 7 \}.*)",
             R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=.*1.16.10.10.*_OS=\(\)_K\(1.1\)_S\(1.3\).*)",
             R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=.*1.32.10.10.*_OS=\(\)_K\(1.1\)_S\(1.3\).*)",
             R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=.*1.3.30.30.*_OS=\(\)_K\(1.1\)_S\(1.3\).*O=16.*)",
@@ -136,7 +110,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_MatMul_BothTranspose/MatMulLayerTest.Inference/IS=\(\[\]_\[\]\)_TS=\{\(5\)_\(5\)\}_transpose_a=1_transpose_b=1_secondary_input_type=(CONSTANT|PARAMETER)_modelType=(f16|f32).*)",
             R"(.*smoke_dynamic_conv_reshape_fullyconnected/ConvReshapeFullyConnectedDynamicGPUTestDynamic.Inference/IS=\[\?\.64\.1\.\?\.\?\]_\[1\.64\.1\.1\.1\]_model_type=f16.*)",
             R"(.*smoke_empty_tensor/EmptyTensorDynamicGPUTest.Inference/IS=\[\?\]_\[30\]_\[40\]_\[50\]_\[10\]_\[7\]_\[\?.\?\]_\[1.0\]_\[1.8\]_\[1.0\]_\[1.3\]_\[1.20\]_NetType=i32.*)",
-            // by calc abs_threshold with expected value
             R"(.*smoke_Convolution2D_ExplicitPadding/ActivatiConvolutionLayerTestonLayerTest.Inference.*netPRC=f16.*)",
             R"(.*smoke_Convolution2D_AutoPadValid/ConvolutionLayerTest.Inference.*netPRC=f16.*)",
             R"(.*smoke_Convolution3D_Basic1/ConvolutionLayerTest.*)",
@@ -228,6 +201,58 @@ std::vector<std::string> disabledTestPatterns() {
         returnVal.push_back(R"(.*nightly_OVClassSpecificDevice0Test/OVSpecificDeviceTestSetConfig.SetConfigSpecificDeviceNoThrow/GPU.1.*)");
         returnVal.push_back(R"(.*nightly_OVClassSetDefaultDeviceIDPropTest/OVClassSetDefaultDeviceIDPropTest.SetDefaultDeviceIDNoThrow/0.*)");
         returnVal.push_back(R"(.*nightly_OVClassSeveralDevicesTest/OVClassSeveralDevicesTestCompileModel.CompileModelActualSeveralDevicesNoThrow/0.*)");
+    }
+    if (immadSupported()) {
+        // Failure list
+        // Case (first 20 chars)                                                   Fail Count, Pass Count
+        // ----------------------------------------------------------------------  ------------------------
+        // LSTMCellCommon/LSTMCellTest.Inference/decomposition0_batch=5_hidden_si  [146, 622]
+        // LSTMCellCommon/LSTMCellTest.Inference/decomposition1_batch=5_hidden_si  [132, 636]
+        // smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompre  [96, 288]
+        // smoke_MaxPool8_ExplicitPad_FloorRounding/MaxPoolingV8LayerTest.Inferen  [64, 128]
+        // smoke_MaxPool8_ExplicitPad_CeilRounding/MaxPoolingV8LayerTest.Inferenc  [32, 64]
+        // MatMulCompressedWeights_corner_cases_big/MatmulWeightsDecompression.In  [22, 362]
+        // smoke_MatMulCompressedWeights_basic/MatmulWeightsDecompression.Inferen  [16, 44]
+        // smoke_MatmulAndGatherSharedWeightsDecompression/SharedMatmulAndGatherW  [14, 10]
+        // smoke_LoRA_HorizontalFusion/FullyConnectedHorizontalFusion.Inference/d  [12, 0]
+        // smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition0_batch=5_hid  [8, 56]
+        // smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition1_batch=5_hid  [8, 56]
+        // smoke_Decomposition_3D/Mvn6LayerTest.Inference/IS=([])_TS={(1.37.9)}_M  [2, 46]
+        // smoke_MatmulWeightsDecompressionQuantizeConvolution_basic/MatmulWeight  [2, 10]
+        // smoke_MatMulCompressedWeights_dyn_quan/MatmulWeightsDecompression.Infe  [2, 4]
+        // smoke_MatMul_NoTranspose/MatMulLayerTest.Inference/IS=([]_[])_TS={(1.2  [2, 2]
+        // smoke_static_conv_n_dynamic_concat/ConvStaticConcatDynamicGPUTestDynam  [2, 0]
+        // LSTMSequenceCM/LSTMSequenceGPUTest.Inference/mode=PURE_SEQ_seq_lengths  [2, 0]
+        // smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled/GroupConvo  [2, 0]
+        // LSTMSequenceCommonZeroClip/LSTMSequenceGPUTest.Inference/mode=CONVERT_  [1, 323]
+        // LSTMSequenceCommonZeroClip/LSTMSequenceGPUTest.Inference/mode=PURE_SEQ  [1, 323]
+        // smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netP  [1, 63]
+        // smoke_FC_3D/MatMulLayerGPUTest.Inference/IS=[]_[]_TS=((1.429))_((1.429  [1, 1]
+        // Inference_without_convert/BF16WeightsDecompression.Inference_without_c  [1, 1]
+        // smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest.  [1, 0]
+        returnVal.push_back(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompre.*)");
+        returnVal.push_back(R"(.*smoke_MaxPool8_ExplicitPad_FloorRounding/MaxPoolingV8LayerTest.Inferen.*)");
+        returnVal.push_back(R"(.*smoke_MaxPool8_ExplicitPad_CeilRounding/MaxPoolingV8LayerTest.Inferenc.*)");
+        returnVal.push_back(R"(.*smoke_MatMulCompressedWeights_basic/MatmulWeightsDecompression.Inferen.*)");
+        returnVal.push_back(R"(.*smoke_MatmulAndGatherSharedWeightsDecompression/SharedMatmulAndGatherW.*)");
+        returnVal.push_back(R"(.*smoke_LoRA_HorizontalFusion/FullyConnectedHorizontalFusion.Inference/d.*)");
+        returnVal.push_back(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition0_batch=5_hid.*)");
+        returnVal.push_back(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition1_batch=5_hid.*)");
+        returnVal.push_back(R"(.*smoke_Decomposition_3D/Mvn6LayerTest.Inference/IS=.*)");
+        returnVal.push_back(R"(.*smoke_MatmulWeightsDecompressionQuantizeConvolution_basic/MatmulWeight.*)");
+        returnVal.push_back(R"(.*smoke_MatMulCompressedWeights_dyn_quan/MatmulWeightsDecompression.Infe.*)");
+        returnVal.push_back(R"(.*smoke_MatMul_NoTranspose/MatMulLayerTest.Inference/IS=.*)");
+        returnVal.push_back(R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled/GroupConvo.*)");
+        returnVal.push_back(R"(.*smoke_static_conv_n_dynamic_concat/ConvStaticConcatDynamicGPUTestDynam.*)");
+        returnVal.push_back(R"(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netP.*)");
+        returnVal.push_back(R"(.*smoke_FC_3D/MatMulLayerGPUTest.Inference/.*)");
+        returnVal.push_back(R"(.*smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest..*)");
+        returnVal.push_back(R"(.*smoke_MatmulWeightsDecompressionQuantizeConvolution_basic.*)");
+        returnVal.push_back(R"(.*smoke_Nms9LayerTest/Nms9LayerTest.Inference/num_batches=2_num_boxes=50.*)");
+        returnVal.push_back(R"(.*smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/n.*)");
+    } else {
+        // CVS-172342
+        returnVal.push_back(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)");
     }
     return returnVal;
 }

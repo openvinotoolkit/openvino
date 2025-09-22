@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -28,12 +29,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<RandomUnifromDynamicGPUTestParamsSet>& obj) {
         RandomUnifromDynamicGPUTestParamsSet basicParamsSet = obj.param;
         std::ostringstream result;
-        std::vector<InputShape> input_shapes;
-        std::pair<double, double> min_max_values;
-        std::pair<uint64_t, uint64_t> seeds;
-        ov::element::Type precision;
-        std::string target_device;
-        std::tie(input_shapes, min_max_values, seeds, precision, target_device) = basicParamsSet;
+
+        const auto& [input_shapes, min_max_values, seeds, precision, target_device] = basicParamsSet;
 
         result << "shape=";
         for (const auto& shape : input_shapes) {
@@ -121,10 +118,10 @@ protected:
 
     void SetUp() override {
         RandomUnifromDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
-        std::vector<InputShape> shapes;
-        ov::element::Type netType;
-        std::pair<uint64_t, uint64_t> seeds;
-        std::tie(shapes, min_max_values, seeds, netType, targetDevice) = basicParamsSet;
+
+        const auto& [shapes, _min_max_values, seeds, netType, _targetDevice] = basicParamsSet;
+        min_max_values = _min_max_values;
+        targetDevice = _targetDevice;
 
         init_input_shapes(shapes);
 

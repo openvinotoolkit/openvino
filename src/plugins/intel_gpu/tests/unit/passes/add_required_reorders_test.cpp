@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
+#include "random_generator.hpp"
 #include "test_utils.h"
 
 #include "intel_gpu/runtime/engine.hpp"
@@ -19,6 +21,7 @@
 #include "shape_of_inst.h"
 #include "convolution_inst.h"
 #include "dft_inst.h"
+#include "mvn_inst.h"
 #include "to_string_utils.h"
 
 #include "program_wrapper.h"
@@ -197,4 +200,139 @@ TEST(add_required_reorders, skip_adding_reorder_batch_axis_padding) {
     ASSERT_EQ(reorder_prim->can_be_optimized(), false);
     auto concate = network.get_primitive("concat");
     ASSERT_EQ(concate->can_be_optimized(), false);
+}
+
+TEST(add_required_reorders, prevent_runtime_error_for_mvn_requiring_alignment) {
+    auto& engine = get_test_engine();
+    auto input_layout_dyn = layout{ ov::PartialShape{ov::Dimension::dynamic(), 24, 24, 2048},
+                                    data_types::f16,
+                                    format::bfyx };
+    auto conv_weights = engine.allocate_memory({ {2048, 2048, 1, 1}, data_types::f16, format::bfyx });
+    auto fc_weights = engine.allocate_memory({ {8192, 2048}, data_types::f32, format::bfyx });
+    auto input_mem = engine.allocate_memory({ {1, 24, 24, 2048}, data_types::f16, format::bfyx });
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dyn));
+    topology.add(data("weights", conv_weights));
+    topology.add(data("fc_weights", fc_weights));
+    topology.add(mvn("mvn1", input_info("input"), true, 1e-10f, false, {1}));
+    topology.add(permute("permute1", input_info("mvn1"), {0, 3, 1, 2}));
+    topology.add(convolution("conv", input_info("permute1"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(permute("permute2", input_info("conv"), {0, 2, 3, 1}));
+    topology.add(mvn("mvn2", input_info("permute2"), true, 1e-10f, false, {3}));
+    topology.add(fully_connected("fc", input_info("mvn2"), "fc_weights", "", data_types::f32, 4, 2));
+    topology.add(reorder("reorder", input_info("fc"), layout{ ov::PartialShape{1, 8192, 24, 24}, data_types::f16, format::bfyx }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    ASSERT_NO_THROW(network.execute());
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    const auto& fc_node = prog->get_node("fc");
+    ASSERT_TRUE(fc_node.is_all_valid_output_layouts());
+}
+
+class align_shape_for_numpy_broadcast_test: public ::testing::Test {
+public:
+    void test_eltwise_broadcast_static(format small_reshape_format) {
+        // Topology :
+        //   Input0 -> reorder -> (b_fs_yx_fsv16 / 5dims) -> Eltwise <- (bfyx / 3dims) <- Input1
+        // Expected :
+        //   Input0 -> reorder -> (b_fs_yx_fsv16 / 5dims) -> Eltwise <- (bfyx / 3dims) <- Input1
+        auto& engine = get_test_engine();
+
+        topology topology;
+        topology.add(input_layout("input", layout{ ov::PartialShape{ 1, 32, 2, 4, 8 }, data_types::f32, format::bfzyx }));
+        topology.add(reorder("reorder_input", input_info("input"), format::b_fs_zyx_fsv16, data_types::f16));
+        topology.add(input_layout("eltw_input", layout{ ov::PartialShape{ 2, 4, 8 }, data_types::f16, small_reshape_format }));
+        topology.add(eltwise("eltwise", input_info("eltw_input"), input_info("reorder_input"), eltwise_mode::sum, ov::op::AutoBroadcastType::NUMPY));
+        topology.add(reorder("reorder_output", input_info("eltwise"), format::b_fs_zyx_fsv16, data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        program::ptr prog = nullptr;
+        OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+        ASSERT_NE(prog, nullptr);
+
+        auto prog_impl = prog.get();
+        auto& eltwise_node = prog_impl->get_node("eltwise");
+        auto input_layouts = eltwise_node.get_input_layouts();
+
+        ASSERT_EQ(input_layouts[0].format, small_reshape_format);
+        ASSERT_EQ(input_layouts[1].format, format::b_fs_zyx_fsv16);
+        ASSERT_EQ(eltwise_node.get_input_pshape(0).rank(), 3);
+        ASSERT_EQ(eltwise_node.get_input_pshape(1).rank(), 5);
+        ASSERT_EQ(eltwise_node.get_output_layout().format, format::b_fs_zyx_fsv16);
+    }
+
+    void test_eltwise_broadcast_dynamic(format small_reshape_format) {
+        // Topology :
+        //   Input0 -> reorder -> (b_fs_yx_fsv16 / 5dims) -> Eltwise <- (bfyx / 3dims) <- Input1
+        // Expected :
+        //   Input0 -> reorder -> (b_fs_yx_fsv16 / 5dims) -> Eltwise <- (bfyx / 3dims) <- Input1
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+
+        // data input0
+        auto dyn_input_layout = layout{ ov::PartialShape{ -1, 32, -1, -1, 8 }, data_types::f32, format::bfzyx };
+        auto input_pshape = ov::PartialShape{ 1, 32, 2, 4, 8 };
+        auto input_mem = engine.allocate_memory({ input_pshape, data_types::f32, format::bfzyx });
+        auto input_data = rg.generate_random_1d<float>(input_mem->count(), -16.0, 16.0);
+        set_values<float>(input_mem, input_data);
+
+        // input1
+        auto dyn_eltw_layout = layout{ ov::PartialShape{ -1, -1, 8 }, data_types::f16, small_reshape_format };
+        auto elt_pshape = ov::PartialShape{ 2, 4, 8 };
+        auto elt_mem = engine.allocate_memory({ elt_pshape, data_types::f16, small_reshape_format });
+        auto elt_data = rg.generate_random_1d<ov::float16>(elt_mem->count(), -16.0f, 16.0f);
+        set_values<ov::float16>(elt_mem, elt_data);
+
+        topology topology;
+        topology.add(input_layout("input", dyn_input_layout));
+        topology.add(reorder("reorder_input", input_info("input"), format::b_fs_zyx_fsv16, data_types::f16));
+        topology.add(input_layout("eltw_input", dyn_eltw_layout));
+        topology.add(eltwise("eltwise", input_info("eltw_input"), input_info("reorder_input"), eltwise_mode::sum, ov::op::AutoBroadcastType::NUMPY));
+        topology.add(reorder("reorder_output", input_info("eltwise"), format::b_fs_zyx_fsv16, data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        program::ptr prog = nullptr;
+        OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+        ASSERT_NE(prog, nullptr);
+
+        auto prog_impl = prog.get();
+        auto& eltwise_node = prog_impl->get_node("eltwise");
+        auto input_layouts = eltwise_node.get_input_layouts();
+
+        ASSERT_EQ(input_layouts[0].format, small_reshape_format);
+        ASSERT_EQ(input_layouts[1].format, format::b_fs_zyx_fsv16);
+        ASSERT_EQ(eltwise_node.get_input_pshape(0).rank(), 3);
+        ASSERT_EQ(eltwise_node.get_input_pshape(1).rank(), 5);
+        ASSERT_EQ(eltwise_node.get_output_layout().format, format::b_fs_zyx_fsv16);
+    }
+};
+
+TEST_F(align_shape_for_numpy_broadcast_test, test_simple_format) {
+    this->test_eltwise_broadcast_static(format::bfyx);
+}
+
+TEST_F(align_shape_for_numpy_broadcast_test, test_imcompatible_blocked_format) {
+    this->test_eltwise_broadcast_static(format::b_fs_yx_fsv16);
+}
+
+TEST_F(align_shape_for_numpy_broadcast_test, test_simple_format_dynamic) {
+    this->test_eltwise_broadcast_dynamic(format::bfyx);
+}
+
+TEST_F(align_shape_for_numpy_broadcast_test, test_imcompatible_blocked_format_dynamic) {
+    this->test_eltwise_broadcast_dynamic(format::b_fs_yx_fsv16);
 }

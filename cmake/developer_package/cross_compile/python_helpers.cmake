@@ -78,6 +78,16 @@ macro(ov_find_python3 find_package_mode)
 
     find_package(Python3 ${find_package_mode} COMPONENTS Interpreter ${python3_development_component})
 
+    if(NOT ENABLE_GIL_PYTHON_API)
+        if(Python3_VERSION VERSION_LESS "3.13")
+            message(FATAL_ERROR "ENABLE_GIL_PYTHON_API=OFF requires Python >= 3.13, but found Python ${Python3_VERSION}")
+        else()
+            # the fourth value is gil_disabled, which is OFF by default
+            set(Python3_FIND_ABI "ANY" "ANY" "ANY" "ON")
+        endif()
+    endif()
+
+
     if(CMAKE_CROSSCOMPILING AND LINUX)
         ov_cross_compile_define_debian_arch_reset()
         set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ${_old_CMAKE_FIND_ROOT_PATH_MODE_INCLUDE})

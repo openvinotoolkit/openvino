@@ -6,6 +6,7 @@
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace CPUTestUtils;
 
@@ -17,11 +18,8 @@ using Conv3dReshapeTestParams = std::tuple<nodeType, size_t>;
 class Conv3dReshapeTest : public testing::WithParamInterface<Conv3dReshapeTestParams>,
                           virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<Conv3dReshapeTestParams> obj) {
-        nodeType conv;
-        size_t numOut;
-        std::tie(conv, numOut) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<Conv3dReshapeTestParams>& obj) {
+        const auto& [conv, numOut] = obj.param;
         std::ostringstream result;
         result << nodeType2str(conv) << "_";
         result << "NUM_OUTPUTS=" << numOut;
@@ -34,10 +32,7 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        nodeType convType;
-        size_t numOut;
-        std::tie(convType, numOut) = this->GetParam();
-
+        const auto& [convType, numOut] = this->GetParam();
         cpuNodeType = nodeType2PluginType(convType);
 
         ov::ParameterVector inputParams{

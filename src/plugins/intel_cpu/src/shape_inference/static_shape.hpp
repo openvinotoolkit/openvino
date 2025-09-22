@@ -5,16 +5,21 @@
 #pragma once
 
 #include <cstddef>
+#include <initializer_list>
+#include <iterator>
+#include <ostream>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "cpu_types.h"
-#include "openvino/core/attribute_adapter.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/shape.hpp"
-#include "shape_infer_type_utils.hpp"
 #include "static_dimension.hpp"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace op {
@@ -34,8 +39,14 @@ using StaticShape = StaticShapeAdapter<VectorDims>;
 template <class T>
 constexpr bool is_static_shape_adapter() {
     using U = std::decay_t<T>;
-    return std::is_same_v<U, StaticShapeRef> || std::is_same_v<U, StaticShape>;
+    return ov::intel_cpu::any_of_v<U, StaticShapeRef, StaticShape>;
 }
+
+// NOLINTBEGIN(google-explicit-constructor)
+
+// Implicit conversion is intentionally allowed (explicit constructor disabled)
+// because StaticDimension is used quite intensively throughout the codebase
+// and requiring explicit conversions would make the code more verbose.
 
 /**
  * @brief The static shape adapter by copy value to VectorDims.
@@ -68,7 +79,7 @@ public:
     StaticShapeAdapter(std::vector<value_type> dims) noexcept : m_dims(dims.begin(), dims.end()) {}
 
     StaticShapeAdapter(const StaticShape& other);
-    StaticShapeAdapter(const ov::PartialShape&);
+    StaticShapeAdapter(const ov::PartialShape& shape);
 
     const TDims& operator*() const& noexcept {
         return m_dims;
@@ -99,20 +110,20 @@ public:
         return !is_static();
     }
 
-    template <class T>
-    constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> compatible(const T& other) const {
+    template <class T, typename = std::enable_if_t<is_static_shape_adapter<T>()>>
+    constexpr bool compatible(const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }
 
-    template <class T>
-    constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> same_scheme(const T& other) const {
+    template <class T, typename = std::enable_if_t<is_static_shape_adapter<T>()>>
+    constexpr bool same_scheme(const T& other) const {
         // for static shape same_scheme == compatible;
         return compatible(other);
     }
 
     [[nodiscard]] ov::Rank rank() const;
-    bool merge_rank(const ov::Rank& r);
+    [[nodiscard]] bool merge_rank(const ov::Rank& r) const;
     [[nodiscard]] ov::Shape to_shape() const;
     [[nodiscard]] ov::Shape get_max_shape() const;
     [[nodiscard]] ov::Shape get_min_shape() const;
@@ -224,7 +235,7 @@ public:
     constexpr StaticShapeAdapter(const StaticShapeAdapter<const TDims>& other) = default;
 
     StaticShapeAdapter(const StaticShape& shape);
-    StaticShapeAdapter(const ov::PartialShape&);
+    StaticShapeAdapter(const ov::PartialShape& shape);
 
     operator StaticShape() const {
         return m_dims ? StaticShape(*m_dims) : StaticShape();
@@ -247,20 +258,20 @@ public:
         return !is_static();
     }
 
-    template <class T>
-    constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> compatible(const T& other) const {
+    template <class T, typename = std::enable_if_t<is_static_shape_adapter<T>()>>
+    [[nodiscard]] constexpr bool compatible(const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }
 
-    template <class T>
-    constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> same_scheme(const T& other) const {
+    template <class T, typename = std::enable_if_t<is_static_shape_adapter<T>()>>
+    constexpr bool same_scheme(const T& other) const {
         // for static shape same_scheme == compatible;
         return compatible(other);
     }
 
     [[nodiscard]] ov::Rank rank() const;
-    bool merge_rank(const ov::Rank& r);
+    [[nodiscard]] bool merge_rank(const ov::Rank& r) const;
     [[nodiscard]] ov::Shape to_shape() const;
     [[nodiscard]] ov::Shape get_max_shape() const;
     [[nodiscard]] ov::Shape get_min_shape() const;
@@ -295,9 +306,10 @@ public:
 private:
     const TDims* m_dims = nullptr;
 };
+// NOLINTEND(google-explicit-constructor)
 
-template <class T>
-std::enable_if_t<is_static_shape_adapter<T>(), std::ostream&> operator<<(std::ostream& out, const T& shape) {
+template <class T, typename = std::enable_if_t<is_static_shape_adapter<T>()>>
+std::ostream& operator<<(std::ostream& out, const T& shape) {
     out << '{';
     if (!shape.empty()) {
         std::copy(shape.cbegin(), shape.cend() - 1, std::ostream_iterator<StaticDimension>(out, ","));
@@ -307,10 +319,8 @@ std::enable_if_t<is_static_shape_adapter<T>(), std::ostream&> operator<<(std::os
     return out;
 }
 
-template <class T, class U>
-constexpr std::enable_if_t<is_static_shape_adapter<T>() && is_static_shape_adapter<U>(), bool> operator==(
-    const T& lhs,
-    const U& rhs) {
+template <class T, class U, typename = std::enable_if_t<is_static_shape_adapter<T>() && is_static_shape_adapter<U>()>>
+constexpr bool operator==(const T& lhs, const U& rhs) {
     // The CPU dimension type and StaticDimension::value_type is same,
     // use CPU dimension type to compare in order to reduce number of conversions to StaticDimension.
     return (lhs.size() == rhs.size()) && (lhs.empty() || std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin()));

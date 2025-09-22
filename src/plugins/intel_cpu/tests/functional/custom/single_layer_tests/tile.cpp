@@ -5,6 +5,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/tile.hpp"
 
 using namespace CPUTestUtils;
 
@@ -20,18 +21,9 @@ class TileLayerCPUTest : public testing::WithParamInterface<TileLayerCPUTestPara
                          virtual public ov::test::SubgraphBaseTest,
                          public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TileLayerCPUTestParamsSet> obj) {
-        TileLayerTestParamsSet basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-
-        std::vector<ov::test::InputShape> inputShapes;
-        std::vector<int64_t> repeats;
-        ov::element::Type_t netPrecision;
-        bool isRepeatsConst;
-        std::string deviceName;
-        std::tie(inputShapes, repeats, netPrecision, isRepeatsConst, deviceName) = basicParamsSet;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<TileLayerCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [inputShapes, repeats, netPrecision, isRepeatsConst, deviceName] = basicParamsSet;
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
@@ -55,17 +47,11 @@ public:
 
 protected:
     void SetUp() override {
-        TileLayerTestParamsSet basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        std::vector<ov::test::InputShape> inputShapes;
-        ov::element::Type_t netPrecision;
-        bool isRepeatsConst;
-        std::tie(inputShapes, repeatsData, netPrecision, isRepeatsConst, targetDevice) = basicParamsSet;
-
+        const auto& [inputShapes, _repeatsData, netPrecision, isRepeatsConst, _targetDevice] = basicParamsSet;
+        repeatsData = _repeatsData;
+        targetDevice = _targetDevice;
         selectedType += std::string("_") + ov::element::Type(netPrecision).get_type_name();
 
         if (inputShapes.front().first.rank() != 0) {

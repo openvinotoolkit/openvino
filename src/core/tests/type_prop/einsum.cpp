@@ -751,3 +751,70 @@ TEST_F(TypePropEinsumTest, input_rank_incompatible_with_equation_single_input) {
                     HasSubstr("Input rank must be greater or equal to a number of labels in the "
                               "corresponding input subscript."));
 }
+
+TEST_F(TypePropEinsumTest, scalar_1in) {
+    const std::string equation = "->";
+    constexpr auto et = element::i32;
+
+    auto input_shapes = PartialShapes{{}};
+    auto symbols_a = set_shape_symbols(input_shapes[0]);
+    const auto inputs = make_inputs(et, input_shapes);
+    const auto o = make_op(inputs, equation);
+
+    EXPECT_EQ(o->get_equation(), equation);
+    EXPECT_EQ(o->get_element_type(), et);
+    EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
+    EXPECT_EQ(o->get_output_partial_shape(0), PartialShape({}));
+    EXPECT_THAT(get_shape_symbols(o->get_output_partial_shape(0)), ElementsAre());
+}
+
+TEST_F(TypePropEinsumTest, scalar_2in) {
+    const std::string equation = ",->";
+    constexpr auto et = element::i32;
+
+    auto input_shapes = PartialShapes{{}, {}};
+    auto symbols_a = set_shape_symbols(input_shapes[0]);
+    auto symbols_b = set_shape_symbols(input_shapes[1]);
+    const auto inputs = make_inputs(et, input_shapes);
+    const auto o = make_op(inputs, equation);
+
+    EXPECT_EQ(o->get_equation(), equation);
+    EXPECT_EQ(o->get_element_type(), et);
+    EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
+    EXPECT_EQ(o->get_output_partial_shape(0), PartialShape({}));
+    EXPECT_THAT(get_shape_symbols(o->get_output_partial_shape(0)), ElementsAre());
+}
+
+TEST_F(TypePropEinsumTest, scalar_lhs) {
+    const std::string equation = ",a->a";
+    constexpr auto et = element::i32;
+
+    auto input_shapes = PartialShapes{{}, {2}};
+    auto symbols_a = set_shape_symbols(input_shapes[0]);
+    auto symbols_b = set_shape_symbols(input_shapes[1]);
+    const auto inputs = make_inputs(et, input_shapes);
+    const auto o = make_op(inputs, equation);
+
+    EXPECT_EQ(o->get_equation(), equation);
+    EXPECT_EQ(o->get_element_type(), et);
+    EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
+    EXPECT_EQ(o->get_output_partial_shape(0), PartialShape({2}));
+    EXPECT_THAT(get_shape_symbols(o->get_output_partial_shape(0)), ElementsAre(symbols_b[0]));
+}
+
+TEST_F(TypePropEinsumTest, scalar_rhs) {
+    const std::string equation = "a,->a";
+    constexpr auto et = element::i32;
+
+    auto input_shapes = PartialShapes{{2}, {}};
+    auto symbols_a = set_shape_symbols(input_shapes[0]);
+    auto symbols_b = set_shape_symbols(input_shapes[1]);
+    const auto inputs = make_inputs(et, input_shapes);
+    const auto o = make_op(inputs, equation);
+
+    EXPECT_EQ(o->get_equation(), equation);
+    EXPECT_EQ(o->get_element_type(), et);
+    EXPECT_EQ(o->get_output_size(), exp_einsum_outputs_count);
+    EXPECT_EQ(o->get_output_partial_shape(0), PartialShape({2}));
+    EXPECT_THAT(get_shape_symbols(o->get_output_partial_shape(0)), ElementsAre(symbols_a[0]));
+}

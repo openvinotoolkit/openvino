@@ -97,7 +97,7 @@ private:
 
         const auto augru_cell = std::make_shared<ov::op::internal::AUGRUCell>(X, H_t, W, R, B, A, params.hiddenSize);
 
-        auto function = std::make_shared<Model>(NodeVector{augru_cell}, ParameterVector{X, H_t, W, R, B, A});
+        auto function = std::make_shared<Model>(OutputVector{augru_cell}, ParameterVector{X, H_t, W, R, B, A});
         return function;
     }
 };

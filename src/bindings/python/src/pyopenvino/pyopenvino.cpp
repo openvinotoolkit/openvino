@@ -80,7 +80,13 @@ inline std::string get_version() {
     return version.buildNumber;
 }
 
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
+
+#ifdef Py_GIL_DISABLED
+PYBIND11_MODULE(_pyopenvino, m, py::mod_gil_not_used()) {
+#else
 PYBIND11_MODULE(_pyopenvino, m) {
+#endif
     m.doc() = "Package openvino._pyopenvino which wraps openvino C++ APIs";
     std::string pyopenvino_version = CI_BUILD_NUMBER;
     std::string runtime_version = get_version();
@@ -106,8 +112,8 @@ PYBIND11_MODULE(_pyopenvino, m) {
            const std::string& version) {
             const auto model = Common::utils::convert_to_model(ie_api_model);
             ov::serialize(model,
-                          Common::utils::convert_path_to_string(xml_path),
-                          Common::utils::convert_path_to_string(bin_path),
+                          Common::utils::to_fs_path(xml_path),
+                          Common::utils::to_fs_path(bin_path),
                           Common::convert_to_version(version));
         },
         py::arg("model"),
@@ -167,7 +173,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
         "save_model",
         [](py::object& ie_api_model, const py::object& xml_path, bool compress_to_fp16) {
             const auto model = Common::utils::convert_to_model(ie_api_model);
-            ov::save_model(model, Common::utils::convert_path_to_string(xml_path), compress_to_fp16);
+            ov::save_model(model, Common::utils::to_fs_path(xml_path), compress_to_fp16);
         },
         py::arg("model"),
         py::arg("output_model"),
@@ -223,6 +229,8 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_Output<ov::Node>(m, std::string(""));
     regclass_Tensor(m);
     regclass_graph_descriptor_Tensor(m);
+    // https://pybind11.readthedocs.io/en/stable/advanced/cast/stl.html#making-opaque-types
+    py::bind_vector<ov::TensorVector>(m, "TensorVector");
     regclass_graph_Input(m);
     regclass_graph_Node(m);
     regclass_graph_NodeFactory(m);

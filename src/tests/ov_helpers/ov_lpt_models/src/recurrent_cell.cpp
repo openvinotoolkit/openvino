@@ -3,9 +3,8 @@
 //
 
 #include "ov_lpt_models/recurrent_cell.hpp"
-
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
@@ -16,6 +15,9 @@
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 
 namespace ov {
 namespace builder {

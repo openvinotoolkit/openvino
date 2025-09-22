@@ -1,14 +1,22 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -51,15 +59,11 @@ class ConcatMultiQuerySDPTest : public testing::WithParamInterface<ConcatMultiQu
                                 public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatMultiQuerySDPParams>& obj) {
-        ElementType qkvType;
-        InputShapeAndTransposeOrder inputShapeAndOrders;
-        bool forceKVU8;
-        bool hasShapeOf;
-        std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = obj.param;
+        const auto& [qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf] = obj.param;
         ElementType kvCacheType = forceKVU8 ? ov::element::Type_t::u8 : qkvType;
         std::ostringstream result;
-        std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
-        std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
+        const auto &[inputShapes, transposeOrder] = inputShapeAndOrders;
+
         result << "IS=";
         for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
@@ -88,13 +92,8 @@ public:
     }
 
     void SetUp() override {
-        InputShapeAndTransposeOrder inputShapeAndOrders;
-        bool forceKVU8;
-        bool hasShapeOf;
-        ElementType qkvType;
-        std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = this->GetParam();
-        std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
-        std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
+        const auto& [qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf] = this->GetParam();
+        const auto &[inputShapes, transposeOrder] = inputShapeAndOrders;
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -304,11 +303,7 @@ public:
 
 TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    InputShapeAndTransposeOrder inputShapeAndOrders;
-    bool forceKVU8;
-    bool hasShapeOf;
-    ElementType qkvType;
-    std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = this->GetParam();
+    const auto &[qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf] = this->GetParam();
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);

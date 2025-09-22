@@ -5,11 +5,8 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
-#include "snippets/pass/tokenization.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 class CommonOptimizations : public ov::pass::MatcherPass {
     class SubgraphPass;
@@ -20,9 +17,34 @@ class CommonOptimizations : public ov::pass::MatcherPass {
 
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::CommonOptimizations");
-    CommonOptimizations(const SnippetsTokenization::Config& config);
+
+    /**
+     * @interface Config
+     * @brief Configuration for CommonOptimizations pass
+     * @ingroup snippets
+     */
+    struct Config {
+        Config(size_t concurrency, bool split_m_dimension)
+            : m_concurrency(concurrency),
+              m_split_m_dimension(split_m_dimension) {
+            OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
+        }
+
+        [[nodiscard]] size_t get_concurrency() const {
+            return m_concurrency;
+        }
+
+        [[nodiscard]] bool get_split_m_dimension() const {
+            return m_split_m_dimension;
+        }
+
+    private:
+        size_t m_concurrency = 0;
+        // True if "SplitDimensionM" optimization is enabled.
+        bool m_split_m_dimension = true;
+    };
+
+    explicit CommonOptimizations(const Config& config);
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

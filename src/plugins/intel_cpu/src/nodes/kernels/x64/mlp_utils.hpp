@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <array>
-#include <cstddef>
-#include <vector>
+#include <cstdint>
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -32,13 +30,13 @@ void llm_mlp_quantize_f16_i8(ov::float16* psrc,
                              bool asym);
 void llm_mlp_dequantize_i32_f32(int Batch,
                                 int OC,
-                                int32_t* src,
+                                const int32_t* src,
                                 int stride_src,
                                 float* dst,
                                 int stride_dst,
-                                float* p_src_scale_per_row,
-                                float* p_src_zp_per_row,
-                                float* p_wsum_per_oc,
-                                float* p_wscale_per_oc,
+                                const float* p_src_scale_per_row,
+                                const float* p_src_zp_per_row,
+                                const float* p_wsum_per_oc,
+                                const float* p_wscale_per_oc,
                                 bool asym);
 }  // namespace ov::Extensions::Cpu::XARCH

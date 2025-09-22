@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum impl_desc_type : int64_t {
     unknown = 0x00000000,
@@ -49,11 +49,11 @@ enum impl_desc_type : int64_t {
     sve512 = 1 << 31,
 
     // shl backend
-    shl = 1ll << 32,
+    shl = 1LL << 32,
 
-    gv = 1ll << 33,
+    gv = 1LL << 33,
 
-    kleidiai = 1ll << 34,
+    kleidiai = 1LL << 34,
 
     // real types
     ref_any = ref | any,
@@ -87,6 +87,8 @@ enum impl_desc_type : int64_t {
     jit_sse42_dw = jit | sse42 | _dw,
     jit_uni_dw = jit | uni | _dw,
     jit_avx512_amx_dw = jit | avx512 | amx | _dw,
+
+    jit_avx2_1x1_dw = jit | avx2 | _1x1 | _dw,
 
     brgconv_avx512 = brgconv | avx512,
     brgconv_avx2 = brgconv | avx2,
@@ -133,7 +135,6 @@ enum impl_desc_type : int64_t {
 std::vector<std::string> extractTypeAndImplName(const std::string& priority);
 const char* impl_type_to_string(impl_desc_type type);
 impl_desc_type parse_impl_name(std::string impl_desc_name);
-bool contains(const std::vector<impl_desc_type>& priorities, const impl_desc_type impl_type_str);
+bool contains(const std::vector<impl_desc_type>& priorities, impl_desc_type impl_type_str);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

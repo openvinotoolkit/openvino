@@ -116,7 +116,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
                     "Error while trying to create plane input with name '",
                     new_name,
                     "' - name already exists in model. Please specify another sub-name for set_color_format");
-                plane_tensor_names.insert(new_name);
+                plane_tensor_names.insert(std::move(new_name));
             }
             plane_param->get_default_output().get_tensor().set_names(plane_tensor_names);
             plane_param->set_friendly_name(res.m_param->get_friendly_name() + sub_name);
@@ -139,7 +139,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
                     TensorInfoMemoryType(get_tensor_data()->get_memory_type());
             }
         }
-        res.m_new_params.push_back(plane_param);
+        res.m_new_params.push_back(std::move(plane_param));
     }
     return res;
 }
@@ -371,10 +371,12 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
 
     auto orig_parent = result->get_input_source_output(0).get_node_shared_ptr();
     if (get_tensor_data()->get_names_compatibility_mode()) {
-        // Move result tensor names from previous input to new
-        const auto result_input_names = result->get_input_tensor(0).get_names();
-        result->get_input_tensor(0).set_names({});
-        node.get_tensor().set_names(result_input_names);
+        if (auto& res_tensor = result->get_input_tensor(0); &res_tensor != &node.get_tensor()) {
+            // If result input tensor is not the same as node tensor, then we need to move names
+            // from result input tensor to node tensor
+            node.get_tensor().set_names(res_tensor.get_names());
+            res_tensor.set_names({});
+        }
 
         if (!post_processing_applied) {
             return;

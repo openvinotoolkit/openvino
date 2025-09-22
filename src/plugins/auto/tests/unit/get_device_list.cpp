@@ -15,14 +15,9 @@ using ConfigParams = std::tuple<std::vector<std::string>,  // Available devices 
                                 >;
 class GetDeviceListTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        Params priorityAndMetaDev;
-        std::string priorityDevices;
-        std::string metaDevices;
-        std::vector<std::string> availableDevices;
-        int expectedTimes = 0;
-        std::tie(availableDevices, priorityAndMetaDev) = obj.param;
-        std::tie(priorityDevices, metaDevices, expectedTimes) = priorityAndMetaDev;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
+        const auto& [availableDevices, priorityAndMetaDev] = obj.param;
+        const auto& [priorityDevices, metaDevices, expectedTimes] = priorityAndMetaDev;
         std::ostringstream result;
         result << "priorityDevices_" << priorityDevices;
         result << "_expectedDevices_" << metaDevices;
@@ -37,21 +32,20 @@ public:
     }
 
     void SetUp() override {
-        ON_CALL(*plugin, get_device_list).WillByDefault([this](const ov::AnyMap& config) {
-            return plugin->Plugin::get_device_list(config);
-        });
+        ON_CALL(*plugin, get_device_list)
+            .WillByDefault([this](ov::AnyMap& config,
+                                  const std::shared_ptr<const ov::Model>& model,
+                                  const std::string& model_path) {
+                return plugin->Plugin::get_device_list(config);
+            });
     }
 };
 
 TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
     // get Parameter
-    Params priorityAndMetaDev;
-    std::string priorityDevices;
-    std::string metaDevices;
-    std::vector<std::string> availableDevs;
-    int expectedTimes = 0;
-    std::tie(availableDevs, priorityAndMetaDev) = this->GetParam();
-    std::tie(priorityDevices, metaDevices, expectedTimes) = priorityAndMetaDev;
+
+    const auto& [availableDevs, priorityAndMetaDev] = this->GetParam();
+    const auto& [priorityDevices, metaDevices, expectedTimes] = priorityAndMetaDev;
     std::vector<std::string> deviceIDs = {"0", "1"};
     if (availableDevs != availableDevsWithId) {
         deviceIDs.clear();
@@ -63,11 +57,12 @@ TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
 
     EXPECT_CALL(*core, get_available_devices()).Times(expectedTimes);
+    ov::AnyMap properties = {ov::device::priorities(priorityDevices)};
     if (metaDevices == "") {
-        EXPECT_THROW(plugin->get_device_list({ov::device::priorities(priorityDevices)}), ov::Exception);
+        EXPECT_THROW(plugin->get_device_list(properties, nullptr, {}), ov::Exception);
     } else {
         std::string result;
-        OV_ASSERT_NO_THROW(result = plugin->get_device_list({ov::device::priorities(priorityDevices)}));
+        OV_ASSERT_NO_THROW(result = plugin->get_device_list(properties, nullptr, {}));
         EXPECT_EQ(result, metaDevices);
     }
 }
@@ -75,13 +70,9 @@ TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
 using GetDeviceListTestWithNotInteldGPU = GetDeviceListTest;
 TEST_P(GetDeviceListTestWithNotInteldGPU, GetDeviceListTestWithExcludeList) {
     // get Parameter
-    Params priorityAndMetaDev;
-    std::string priorityDevices;
-    std::string metaDevices;
-    std::vector<std::string> availableDevs;
-    int expectedTimes = 0;
-    std::tie(availableDevs, priorityAndMetaDev) = this->GetParam();
-    std::tie(priorityDevices, metaDevices, expectedTimes) = priorityAndMetaDev;
+
+    const auto& [availableDevs, priorityAndMetaDev] = this->GetParam();
+    const auto& [priorityDevices, metaDevices, expectedTimes] = priorityAndMetaDev;
     std::vector<std::string> deviceIDs = {"0", "1"};
     if (availableDevs != availableDevsWithId) {
         deviceIDs.clear();
@@ -95,11 +86,12 @@ TEST_P(GetDeviceListTestWithNotInteldGPU, GetDeviceListTestWithExcludeList) {
     ON_CALL(*core, get_property(StrEq("GPU.1"), StrEq(ov::device::architecture.name()), _))
         .WillByDefault(RETURN_MOCK_VALUE(dgpuArchitecture));
     EXPECT_CALL(*core, get_available_devices()).Times(expectedTimes);
+    ov::AnyMap properties = {ov::device::priorities(priorityDevices)};
     if (metaDevices == "") {
-        EXPECT_THROW(plugin->get_device_list({ov::device::priorities(priorityDevices)}), ov::Exception);
+        EXPECT_THROW(plugin->get_device_list(properties, nullptr, {}), ov::Exception);
     } else {
         std::string result;
-        OV_ASSERT_NO_THROW(result = plugin->get_device_list({ov::device::priorities(priorityDevices)}));
+        OV_ASSERT_NO_THROW(result = plugin->get_device_list(properties, nullptr, {}));
         EXPECT_EQ(result, metaDevices);
     }
 }

@@ -85,14 +85,15 @@ uint8_t f16_to_f8e4m3_bits(const float16 value) {
         uint16_t fractional = (input & f16_m_mask) << (f16_e_size - f8e4m3_e_size);
 
         // for normalized values round apply rounding change f8 fractional and biased exponent
-        if ((fractional & round_half) == round_odd || (fractional & round_norm) != 0) {
-            fractional += round_even;
-            if (0 != (fractional & f8_e_mask)) {
-                fractional &= f8_e_mask;
-                ++f8_biased_exp;
+        if (f8_biased_exp >= 0) {
+            if ((fractional & round_half) == round_odd || (fractional & round_norm) != 0) {
+                fractional += round_even;
+                if (0 != (fractional & f8_e_mask)) {
+                    ++f8_biased_exp;
+                }
             }
+            fractional &= f8_m_mask;
         }
-        fractional &= f8_m_mask;
 
         // set exponent and mantissa on f8 bits
         if (f8_biased_exp > f8e4m3_e_max) {

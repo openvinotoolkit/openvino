@@ -4,13 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 
 #include "common/tile_broadcast_utils.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Tile : public Node, public TileBroadcastCommon {
 public:
@@ -32,8 +37,8 @@ protected:
 private:
     void plainExecute(const dnnl::stream& strm);
 
-    static constexpr size_t TILE_INPUT = 0lu;
-    static constexpr size_t TILE_REPEATS = 1lu;
+    static constexpr size_t TILE_INPUT = 0LU;
+    static constexpr size_t TILE_REPEATS = 1LU;
 
     int axis = -1;
     int tiles = 0;
@@ -41,6 +46,4 @@ private:
     VectorDims originRepeats;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

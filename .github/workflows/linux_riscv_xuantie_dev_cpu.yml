@@ -2,6 +2,10 @@ name: Linux RISC-V with Xuantie (Ubuntu 22.04, Python 3.10)
 on:
   workflow_dispatch:
     inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
       testFilterType:
         description: 'Filter for google tests {SMOKE | CONCISE}'
         required: true
@@ -15,6 +19,14 @@ on:
       - 'src/plugins/intel_cpu/src/nodes/executors/aarch64/**'
       - 'src/plugins/intel_cpu/src/nodes/executors/shl/**'
       - 'src/plugins/intel_cpu/src/nodes/kernels/riscv64/**'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/activation.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/comparison.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/eltwise.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/classes/logical.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/activation.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/comparison.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/eltwise.*'
+      - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/common/logical.*'
       - 'src/plugins/intel_cpu/tests/functional/custom/single_layer_tests/instances/riscv64/**'
       - 'src/plugins/intel_cpu/thirdparty/xbyak_riscv/**'
 
@@ -26,7 +38,7 @@ concurrency:
 permissions: read-all
 
 env:
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   RISCV_TOOLCHAIN_ROOT: /opt/riscv
 
 jobs:
@@ -156,7 +168,7 @@ jobs:
           -DENABLE_CPPLINT=OFF
           -DENABLE_INTEL_GPU=OFF
           -DENABLE_INTEL_NPU=OFF
-          -DENABLE_SAMPLES=OF
+          -DENABLE_SAMPLES=OFF
           -DENABLE_NCC_STYLE=OFF
           -DENABLE_PYTHON=OFF
           -DENABLE_TESTS=ON
@@ -164,6 +176,7 @@ jobs:
           -DCMAKE_VERBOSE_MAKEFILE=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+          -DENABLE_SYSTEM_TBB=ON
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64-100-xuantie-gnu.toolchain.cmake
           -S ${OPENVINO_REPO}
           -B ${BUILD_DIR}
@@ -192,7 +205,7 @@ jobs:
         
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -200,7 +213,7 @@ jobs:
           
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -221,15 +234,20 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*' }}
+      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*' }}
 
     steps:
-      - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+      - name: Download OpenVINO artifacts (package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[package|tests]*
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
           
       - name: Extract OpenVINO packages and tests
         run: |

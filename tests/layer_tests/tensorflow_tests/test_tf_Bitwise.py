@@ -65,9 +65,9 @@ class TestBitwise(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_bitwise(self, x_shape, y_shape, is_y_const, input_type, op_type, ie_device, precision, ir_version,
-                     temp_dir, use_legacy_frontend):
+                     temp_dir):
         if ie_device == 'GPU':
             pytest.skip("148540: Bitwise ops are not supported on GPU")
         self._test(*self.create_bitwise_net(x_shape=x_shape, y_shape=y_shape, is_y_const=is_y_const,
                                             input_type=input_type, op_type=op_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

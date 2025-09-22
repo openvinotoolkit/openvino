@@ -5,7 +5,9 @@
 #include <gtest/gtest.h>
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/adaptive_avg_pool.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -23,10 +25,7 @@ class AdaptiveAvgPoolV8CpuShapeInferenceTest  : public unit_test::OpCpuShapeInfe
                                                 public WithParamInterface<AdaptiveAvgPoolV8TestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<AdaptiveAvgPoolV8TestParams>& obj) {
-        unit_test::ShapeVector tmp_input_shapes;
-        std::vector<int32_t> tmp_axes;
-        StaticShape tmp_exp_shape;
-        std::tie(tmp_input_shapes, tmp_axes, tmp_exp_shape) = obj.param;
+        const auto& [tmp_input_shapes, tmp_axes, tmp_exp_shape] = obj.param;
         std::ostringstream result;
         result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
         result << "sd" << ov::test::utils::vec2str(tmp_axes) << "_";

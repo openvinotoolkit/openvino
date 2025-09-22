@@ -28,7 +28,13 @@ using IndicatorType = std::array<uint8_t, 6>;
 const constexpr ov::npuw::s11n::IndicatorType NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.2";
+const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
+    {char{0x43}, char{0x4f}, char{0x4d}, char{0x50}, char{0x4d}, char{0x4f}};
+
+const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
+    {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
+
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.9";
 
 // Forward declaration
 namespace intel_npu {
@@ -51,6 +57,9 @@ enum class CacheMode;
 namespace element {
 class Type;
 }
+namespace hint {
+enum class PerformanceMode;
+}
 
 // Forward declaration
 namespace op {
@@ -71,18 +80,32 @@ class LazyTensor;
 
 namespace s11n {
 
-using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
+class PairHash {
+public:
+    template <typename T, typename U>
+    std::size_t operator()(const std::pair<T, U>& p) const {
+        return std::hash<T>()(p.first) ^ std::hash<U>()(p.second);
+    }
+};
 
-struct EncryptContext {
-    explicit EncryptContext(bool _encrypted,
-                            std::function<std::string(const std::string&)> _encrypt,
-                            std::function<std::string(const std::string&)> _decrypt)
+using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
+using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
+using WeightsPtr = std::shared_ptr<Weights>;
+
+struct CompiledContext {
+    CompiledContext(bool _encrypted,
+                    const std::function<std::string(const std::string&)>& _encrypt,
+                    const std::function<std::string(const std::string&)>& _decrypt,
+                    const BF16Cache& _bf16_consts = {})
         : encrypted(_encrypted),
           encrypt(_encrypt),
-          decrypt(_decrypt) {}
+          decrypt(_decrypt),
+          bf16_consts(_bf16_consts) {}
     bool encrypted = false;
     std::function<std::string(const std::string&)> encrypt = nullptr;
     std::function<std::string(const std::string&)> decrypt = nullptr;
+    // FIXME: needed to pass original bf16 consts meta to CompiledModel
+    BF16Cache bf16_consts;
 };
 
 struct WeightsContext {
@@ -93,19 +116,33 @@ struct WeightsContext {
     };
     using ConstsCache = std::unordered_map<std::pair<std::size_t, std::size_t>, std::shared_ptr<ov::Node>, CtxHash>;
 
-    explicit WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset)
-        : is_weightless(_is_weightless),
-          const_to_offset(_const_to_offset) {}
+    WeightsContext() = default;
 
-    explicit WeightsContext(const ov::npuw::s11n::Weights& _weights, const ConstsCache& _consts_cache)
-        : weights(_weights),
-          consts_cache(_consts_cache) {}
+    // NOTE: This construtor should only be used when exporting blobs
+    WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
-    bool is_weightless;
+    // NOTE: This construtor can and should only be used when importing weightless blobs
+    WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
+                   const std::string& _weights_path,
+                   const ConstsCache& _consts_cache,
+                   const BF16Cache& _bf16_consts);
+
+    WeightsContext& operator=(const WeightsContext& other) = default;
+
+    void reset() {
+        weights = nullptr;
+        consts_cache.clear();
+    }
+
+    bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
-    ov::npuw::s11n::Weights weights = nullptr;
+    ov::npuw::s11n::WeightsPtr weights = nullptr;
+    std::string weights_path;
     ConstsCache consts_cache;
+    BF16Cache bf16_consts;
 };
+
+BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
 
 // Specific type overloads
 void write(std::ostream& stream, const std::streampos& var);
@@ -120,6 +157,8 @@ void write_any(std::ostream& stream, const ov::Any& var);
 void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
 void write(std::ostream& stream, const ov::CacheMode& var);
 void write(std::ostream& stream, const ov::element::Type& var);
+void write(std::ostream& stream, const std::map<std::string, Any>& var);
+void write(std::ostream& stream, const ov::hint::PerformanceMode& var);
 
 void read(std::istream& stream, std::streampos& var);
 void read(std::istream& stream, std::string& var);
@@ -134,6 +173,8 @@ void read_any(std::istream& stream, ov::Any& var);
 void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
 void read(std::istream& stream, ov::CacheMode& var);
 void read(std::istream& stream, ov::element::Type& var);
+void read(std::istream& stream, std::map<std::string, Any>& var);
+void read(std::istream& stream, ov::hint::PerformanceMode& var);
 
 // Weightless utils
 void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const WeightsContext& ctx);
@@ -183,6 +224,14 @@ void write(std::ostream& stream, const std::array<T, N>& var) {
 
 template <typename T>
 void write(std::ostream& stream, const std::unordered_set<T>& var) {
+    write(stream, var.size());
+    for (const auto& el : var) {
+        write(stream, el);
+    }
+}
+
+template <typename T, typename H>
+void write(std::ostream& stream, const std::unordered_set<T, H>& var) {
     write(stream, var.size());
     for (const auto& el : var) {
         write(stream, el);
@@ -243,6 +292,18 @@ void read(std::istream& stream, std::array<T, N>& var) {
 
 template <typename T>
 void read(std::istream& stream, std::unordered_set<T>& var) {
+    var.clear();
+    std::size_t var_size = 0;
+    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
+    for (std::size_t i = 0; i < var_size; ++i) {
+        T elem;
+        read(stream, elem);
+        var.insert(std::move(elem));
+    }
+}
+
+template <typename T, typename H>
+void read(std::istream& stream, std::unordered_set<T, H>& var) {
     var.clear();
     std::size_t var_size = 0;
     stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);

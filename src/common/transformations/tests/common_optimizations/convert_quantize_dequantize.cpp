@@ -12,7 +12,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
@@ -50,7 +53,7 @@ std::shared_ptr<Model> create_q_dq_function(const Shape& data_shape,
     auto scale = opset1::Constant::create(element::f32, scale_shape, scale_values);
     auto mul = std::make_shared<opset1::Multiply>(sub, scale);
 
-    return std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
+    return std::make_shared<Model>(OutputVector{mul}, ParameterVector{data});
 }
 
 template <typename LowPrecision, typename T>
@@ -95,7 +98,7 @@ void positive_test(const Shape& data_shape,
         auto output_high =
             opset1::Constant::create(element::f32, Shape{}, {(out_high - zero_point_values[0]) * scale_values[0]});
         auto fq = std::make_shared<opset1::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels);
-        f_ref = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        f_ref = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);

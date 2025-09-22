@@ -66,7 +66,7 @@ private:
         const auto indices =
             std::make_shared<op::v0::Parameter>(params.indicesTensor.type, PartialShape{params.indicesTensor.shape});
         const auto gatherElement = std::make_shared<op::v6::GatherElements>(data, indices, params.axis);
-        function = std::make_shared<ov::Model>(NodeVector{gatherElement}, ParameterVector{data, indices});
+        function = std::make_shared<ov::Model>(OutputVector{gatherElement}, ParameterVector{data, indices});
         return function;
     }
 };
@@ -96,16 +96,32 @@ std::vector<GatherElementsParams> generateParams() {
                              0,
                              reference_tests::Tensor(IN_ET, {7}, std::vector<T>{2, 3, 1, 3, 1, 1, 3}),
                              "evaluate_1D_gather_elements_3_indices_int32"),
+        GatherElementsParams(
+            reference_tests::Tensor(IN_ET, {3}, std::vector<T>{1, 2, 3}),
+            reference_tests::Tensor(element::i32, {7}, std::vector<int32_t>{-2, -1, -3, -1, -3, -3, -1}),
+            0,
+            reference_tests::Tensor(IN_ET, {7}, std::vector<T>{2, 3, 1, 3, 1, 1, 3}),
+            "evaluate_1D_gather_elements_3_negative_indices_int32"),
         GatherElementsParams(reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
                              reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 0}),
                              0,
                              reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 4, 1, 2}),
                              "evaluate_2D_gather_elements_2x2_indices_int32_axis_0"),
         GatherElementsParams(reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
+                             reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{-2, -1, -2, -2}),
+                             0,
+                             reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 4, 1, 2}),
+                             "evaluate_2D_gather_elements_2x2_negative_indices_int32_axis_0"),
+        GatherElementsParams(reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
                              reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 0}),
                              1,
                              reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 3}),
                              "evaluate_2D_gather_elements_2x2_indices_int32_axis_1"),
+        GatherElementsParams(reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
+                             reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{-2, -1, -2, -2}),
+                             1,
+                             reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 3}),
+                             "evaluate_2D_gather_elements_2x2_negative_indices_int32_axis_1"),
         GatherElementsParams(reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
                              reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 0, 0}),
                              -1,
@@ -122,6 +138,14 @@ std::vector<GatherElementsParams> generateParams() {
             -1,
             reference_tests::Tensor(IN_ET, {3, 2, 2}, std::vector<T>{2, 1, 3, 4, 6, 6, 8, 7, 9, 9, 12, 12}),
             "evaluate_3D_gather_elements_3x2x2_indices_int32"),
+        GatherElementsParams(
+            reference_tests::Tensor(IN_ET, {3, 2, 2}, std::vector<T>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}),
+            reference_tests::Tensor(element::i32,
+                                    {3, 2, 2},
+                                    std::vector<int32_t>{-1, -2, -2, -1, -1, -1, -1, -2, 0, 0, 1, 1}),
+            -1,
+            reference_tests::Tensor(IN_ET, {3, 2, 2}, std::vector<T>{2, 1, 3, 4, 6, 6, 8, 7, 9, 9, 12, 12}),
+            "evaluate_3D_gather_elements_3x2x2_negative_indices_int32"),
         GatherElementsParams(
             reference_tests::Tensor(IN_ET, {3, 2, 2, 2}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,
                                                                         9,  10, 11, 12, 13, 14, 15, 16,

@@ -4,16 +4,30 @@
 
 #include "align_matmul_input_ranks.hpp"
 
-#include <algorithm>
-#include <transformations/utils/utils.hpp>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "utils/general_utils.h"
 
 ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
     MATCHER_SCOPE(AlignMatMulInputRanks);
@@ -57,9 +71,9 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
                 unsqueeze_axes[unsqueeze_axes.size() - 1]++;
             }
 
-            auto unsqueeze = std::make_shared<ov::opset1::Unsqueeze>(
+            auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(
                 nodeFrom,
-                ov::opset1::Constant::create(ov::element::i64, ov::Shape{unsqueeze_axes.size()}, unsqueeze_axes));
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{unsqueeze_axes.size()}, unsqueeze_axes));
 
             unsqueeze->set_friendly_name(nodeFrom.get_node()->get_friendly_name() + "/Unsqueeze");
 
@@ -69,18 +83,18 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
         auto matmul_new_inputs = matmul->input_values();
         ov::NodeVector new_ops;
 
-        if (input0shape.size() == 1 && input1shape.size() == 1) {
+        if (all_of(1U, input0shape.size(), input1shape.size())) {
             // If the input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
             // for the first input:  by adding axes with size 1 at ROW_INDEX_DIM
             //                       to the left of the shape {S} -> {1, S}
             // for the second input: by adding axes with size 1 at COL_INDEX_DIM
             //                       to the right of the shape {S} -> {S, 1}
-            const auto unsqueezeInput0 = std::make_shared<ov::opset1::Unsqueeze>(
+            const auto unsqueezeInput0 = std::make_shared<ov::op::v0::Unsqueeze>(
                 input0,
-                ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
-            const auto unsqueezeInput1 = std::make_shared<ov::opset1::Unsqueeze>(
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+            const auto unsqueezeInput1 = std::make_shared<ov::op::v0::Unsqueeze>(
                 input1,
-                ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
 
             matmul_new_inputs[0] = unsqueezeInput0;
             new_ops.push_back(unsqueezeInput0);
@@ -118,7 +132,7 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             size_t squeeze_axis = 0;
             std::shared_ptr<ov::Node> squeeze_output;
             // If output data is scalar && new_out_shape is [1 1 .. 1], squeeze all the axis to produce a scalar
-            auto& new_output_partial_shape = matmul_new->get_output_partial_shape(0);
+            const auto& new_output_partial_shape = matmul_new->get_output_partial_shape(0);
             const bool can_squeeze_scalar =
                 new_output_partial_shape.is_static() ? ov::shape_size(new_output_partial_shape.to_shape()) == 1 : false;
             if (ov::is_scalar(output_shape) && can_squeeze_scalar) {
@@ -131,7 +145,7 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
                 }
                 squeeze_output = std::make_shared<ov::op::v0::Squeeze>(
                     matmul_new,
-                    ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {squeeze_axis}));
+                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {squeeze_axis}));
             }
             new_ops.push_back(squeeze_output);
             matmul_new->set_friendly_name(matmul->get_friendly_name() + "/MM");

@@ -12,8 +12,16 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace pass {
+namespace pugi {
+class xml_node;  // NCC
+}
+
+namespace ov::util {
+class XmlSerializer;
+class ConstantWriter;
+}  // namespace ov::util
+
+namespace ov::pass {
 
 /**
  * @brief Serialize transformation converts ov::Model into IR files
@@ -34,18 +42,15 @@ public:
 
     Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::UNSPECIFIED);
 
-    Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
-
     Serialize(const std::filesystem::path& xmlPath,
               const std::filesystem::path& binPath,
-              Version version = Version::UNSPECIFIED)
-        : Serialize(xmlPath.string(), binPath.string(), version) {}
+              Version version = Version::UNSPECIFIED);
 
 private:
     std::ostream* m_xmlFile;
     std::ostream* m_binFile;
-    const std::string m_xmlPath;
-    const std::string m_binPath;
+    const std::filesystem::path m_xmlPath;
+    const std::filesystem::path m_binPath;
     const Version m_version;
     const std::map<std::string, ov::OpSet> m_custom_opsets;
 };
@@ -77,10 +82,21 @@ public:
                     Serialize::Version version = Serialize::Version::UNSPECIFIED);
 
 private:
+    virtual bool use_absolute_offset();
+
+    virtual std::unique_ptr<util::XmlSerializer> make_serializer(
+        pugi::xml_node& data,
+        const std::string& node_type_name,
+        util::ConstantWriter& constant_write_handler,
+        int64_t version,
+        bool deterministic = false,
+        bool compress_to_fp16 = false,
+        ov::element::Type output_element_type = ov::element::dynamic,
+        bool data_is_temporary = false) const;
+
     std::ostream& m_stream;
     std::function<void(std::ostream&)> m_custom_data_serializer;
     std::function<std::string(const std::string&)> m_cache_encrypt;
     const Serialize::Version m_version;
 };
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

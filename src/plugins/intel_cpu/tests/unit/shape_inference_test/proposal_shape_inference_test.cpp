@@ -5,6 +5,7 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/op/proposal.hpp"
 #include "utils.hpp"
 
 using namespace ov;
@@ -23,9 +24,9 @@ protected:
     }
 
     static size_t exp_out_size() {
-        if (std::is_same<op::v0::Proposal, TOp>::value) {
+        if (std::is_same_v<op::v0::Proposal, TOp>) {
             return 1;
-        } else if (std::is_same<op::v4::Proposal, TOp>::value) {
+        } else if (std::is_same_v<op::v4::Proposal, TOp>) {
             return 2;
         } else {
             return 0;

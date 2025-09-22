@@ -5,11 +5,18 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset6.hpp"
 
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -84,7 +91,7 @@ TEST_F(TransformationTestsF, LoRAHorizontalFusion_default) {
         auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
         auto result2 = std::make_shared<ov::op::v0::Result>(reshape2);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{result0, result1, result2}, ov::ParameterVector{lora_input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{result0, result1, result2}, ov::ParameterVector{lora_input});
         manager.register_pass<LoRAHorizontalFusion>();
     }
 
@@ -160,7 +167,7 @@ TEST_F(TransformationTestsF, LoRAHorizontalFusion_default) {
         auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
         auto result2 = std::make_shared<ov::op::v0::Result>(reshape2);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{result0, result1, result2}, ov::ParameterVector{lora_input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{result0, result1, result2}, ov::ParameterVector{lora_input});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -231,7 +238,7 @@ TEST_F(TransformationTestsF, LoRAHorizontalFusion_swap_add_and_multiply_inputs) 
         auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
         auto result2 = std::make_shared<ov::op::v0::Result>(reshape2);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{result0, result1, result2}, ov::ParameterVector{lora_input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{result0, result1, result2}, ov::ParameterVector{lora_input});
         manager.register_pass<LoRAHorizontalFusion>();
     }
 
@@ -307,7 +314,7 @@ TEST_F(TransformationTestsF, LoRAHorizontalFusion_swap_add_and_multiply_inputs) 
         auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
         auto result2 = std::make_shared<ov::op::v0::Result>(reshape2);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{result0, result1, result2}, ov::ParameterVector{lora_input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{result0, result1, result2}, ov::ParameterVector{lora_input});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -361,7 +368,7 @@ TEST_F(TransformationTestsF, LoRAHorizontalFusion_split_two_outputs) {
         auto result0 = std::make_shared<ov::op::v0::Result>(reshape0);
         auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{result0, result1}, ov::ParameterVector{lora_input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{result0, result1}, ov::ParameterVector{lora_input});
         manager.register_pass<LoRAHorizontalFusion>();
     }
 
@@ -424,7 +431,7 @@ TEST_F(TransformationTestsF, LoRAHorizontalFusion_split_two_outputs) {
         auto result0 = std::make_shared<ov::op::v0::Result>(reshape0);
         auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{result0, result1}, ov::ParameterVector{lora_input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{result0, result1}, ov::ParameterVector{lora_input});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -487,7 +494,7 @@ TEST_F(TransformationTestsF, LoRAHorizontalFusion_multiple_split_output_users) {
         auto result4 = std::make_shared<ov::op::v0::Result>(shape_of2);
         auto result5 = std::make_shared<ov::op::v0::Result>(shape_of3);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{result0, result1, result2, result3, result4, result5}, ov::ParameterVector{lora_input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{result0, result1, result2, result3, result4, result5}, ov::ParameterVector{lora_input});
         manager.register_pass<LoRAHorizontalFusion>();
     }
 
@@ -559,7 +566,7 @@ TEST_F(TransformationTestsF, LoRAHorizontalFusion_multiple_split_output_users) {
         auto result4 = std::make_shared<ov::op::v0::Result>(shape_of2);
         auto result5 = std::make_shared<ov::op::v0::Result>(shape_of3);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{result0, result1, result2, result3, result4, result5}, ov::ParameterVector{lora_input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{result0, result1, result2, result3, result4, result5}, ov::ParameterVector{lora_input});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }

@@ -4,7 +4,18 @@
 
 #include "adaptive_pooling.hpp"
 
-#include "utils.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -23,7 +34,7 @@ Result AdaptivePoolingShapeInfer::infer(const std::vector<std::reference_wrapper
     VectorDims outputDims(inputRank);
     outputDims[0] = inputDims[0];
     outputDims[1] = inputDims[1];
-    auto newSpatialDimsPtr = data_dependency.at(1)->getDataAs<int32_t>();
+    auto* newSpatialDimsPtr = data_dependency.at(1)->getDataAs<int32_t>();
     for (size_t i = 0; i < spatialDimsSize; i++) {
         outputDims[i + 2] = newSpatialDimsPtr[i];
     }

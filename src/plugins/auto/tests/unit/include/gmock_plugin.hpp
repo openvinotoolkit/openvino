@@ -16,7 +16,10 @@ namespace mock_auto_plugin {
 
 class MockAutoPlugin : public Plugin {
 public:
-    MOCK_METHOD((std::string), get_device_list, ((const ov::AnyMap&)), (const, override));
+    MOCK_METHOD((std::string),
+                get_device_list,
+                ((ov::AnyMap&), const std::shared_ptr<const ov::Model>&, const std::string&),
+                (const, override));
     MOCK_METHOD((bool), is_meta_device, ((const std::string&)), (const, override));
     MOCK_METHOD((std::list<DeviceInformation>),
                 get_valid_device,

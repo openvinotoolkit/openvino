@@ -32,6 +32,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
+  NODEJS_VERSION: '21'
 
 jobs:
   Build:
@@ -47,10 +48,11 @@ jobs:
       CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\windows2022_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
+      CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
-      INSTALL_DIR_JS: "${{ github.workspace }}\\openvino_install\\js"
+      INSTALL_DIR_JS: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       INSTALL_DEV_PACKAGE: "${{ github.workspace }}\\install\\developer_package"
@@ -82,6 +84,12 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
+      
+      - name: Setup NodeJS
+        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODEJS_VERSION }}
 
       - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
         id: create_manifest
@@ -94,6 +102,7 @@ jobs:
           target_arch: 'x86_64'
           build_type: ${{ inputs.build-type }}
           save_to: ${{ env.MANIFEST_PATH }}
+          trigger_repo_branch: ${{ inputs.target-branch }}
 
       #
       # Print system info
@@ -185,7 +194,6 @@ jobs:
       - name: Cmake install - OpenVINO
         run: |
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
-          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DEV_PACKAGE }} --component developer_package
@@ -220,10 +228,20 @@ jobs:
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
 
+      # Setup additional Python versions for wheels building
+      - name: Setup Python 3.13
+        if: ${{ inputs.build-additional-python-wheels }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: '3.13'
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
-          $pyVersions = '3.9', '3.10', '3.12'
+          $pyVersions = '3.9', '3.10', '3.11', '3.12', '3.13'
           foreach ($pyVersion in $pyVersions) {
             $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
             New-Item -ItemType Directory -Path "$pyBuildDir" -Force
@@ -237,14 +255,17 @@ jobs:
 
             & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
-            cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir" &&
+            cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir" &&
             cmake --build "$pyBuildDir" --parallel $ENV:NUMBER_OF_PROCESSORS --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} &&
-            cmake --install "$pyBuildDir" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
+            cmake --install "$pyBuildDir" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels &&
+            cmake --install "$pyBuildDir" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pyopenvino_python$pyVersion
             if ($LASTEXITCODE -ne 0) {
               Write-Host "Failed to build Python wheels for Python $pyVersion"
               exit 1
             }
           }
+        env:
+          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
 
       - name: Pack Artifacts
         run: |
@@ -309,6 +330,21 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_js_package.zip"
           }
           Compress-Archive @compress
+      
+      - name: Pack openvino_node_npm_package
+        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        run: |
+          npm i
+          npm pack
+          $file1 = Get-ChildItem -Path . -Filter bin
+          $file2 = Get-ChildItem -Path . -Filter openvino-node-*
+          $compress = @{
+            Path = $file1, $file2
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_node_npm_package.zip"
+          }
+          Compress-Archive @compress
+        working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
       - name: Cmake & Build - OpenVINO Contrib
         run: |
@@ -322,7 +358,7 @@ jobs:
       #
 
       - name: Upload OpenVINO package
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
@@ -330,28 +366,28 @@ jobs:
 
       - name: Upload OpenVINO wheels
         if: ${{ inputs.build-type != 'Debug' }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO tests package
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
           if-no-files-found: 'error'
           
       - name: Upload OpenVINO developer package
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/developer_package.zip
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO PDB package
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_pdb
           path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
@@ -359,15 +395,23 @@ jobs:
 
       - name: Upload OpenVINO js package
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_js_package
           path: ${{ env.BUILD_DIR }}/openvino_js_package.zip
           if-no-files-found: 'error'
 
+      - name: Upload openvino-node NPM package
+        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openvino_node_npm_package
+          path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.zip
+          if-no-files-found: 'error'
+
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: always()
+        if: ${{ inputs.event-name != 'schedule' }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |
@@ -376,8 +420,10 @@ jobs:
             ${{ env.BUILD_DIR }}/openvino_tests.zip
             ${{ env.MANIFEST_PATH }}
             ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_js_package.zip', env.BUILD_DIR) || '' }}
+            ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_node_npm_package.zip', env.BUILD_DIR) || '' }}
             ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+          branch_name: ${{ inputs.target-branch }}
         env:
           STORE_WHEELS: ${{ inputs.build-type != 'Debug' }}

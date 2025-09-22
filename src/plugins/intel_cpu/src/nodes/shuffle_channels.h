@@ -4,12 +4,20 @@
 
 #pragma once
 
-#include "common/permute_kernel.h"
-#include "node.h"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "common/permute_kernel.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class ShuffleChannels : public Node {
 public:
@@ -17,23 +25,23 @@ public:
     ~ShuffleChannels() override = default;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     void prepareParams() override;
     struct ShuffleChannelsAttributes {
-        LayoutType layoutType;
+        LayoutType layoutType = LayoutType::nspc;
         int dataRank = 0;
         int axis = 0;
         int spatialRank = 0;
-        size_t group = 0lu;
-        size_t dataSize = 1lu;
+        size_t group = 0LU;
+        size_t dataSize = 1LU;
         VectorDims srcDims;
         VectorDims srcBlockedDims;
-        size_t hash() const;
+        [[nodiscard]] size_t hash() const;
         bool operator==(const ShuffleChannelsAttributes& rhs) const;
     };
 
@@ -44,8 +52,8 @@ private:
     ShuffleChannelsAttributes attrs;
 
     struct ShuffleChannelsExecutor final {
-        ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs);
-        void exec(const uint8_t* srcData, uint8_t* dstData, const int MB);
+        explicit ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs);
+        void exec(const uint8_t* srcData, uint8_t* dstData, int MB);
         ~ShuffleChannelsExecutor() = default;
 
     private:
@@ -55,6 +63,4 @@ private:
     executorPtr execPtr = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -4,17 +4,19 @@
 
 #pragma once
 
+#include <cstddef>
+#include <map>
+#include <memory>
+
+#include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface AnalyzeBroadcastableInputs
- * @brief Analyzes body parameters which affects inputs of broadcastable operations (If needed, `Broadcast` op should be inserted there).
- *        Also the pass initializes special map `BroadcastableInputsMap`
- *        Notes:
+ * @brief Analyzes body parameters which affects inputs of broadcastable operations (If needed, `Broadcast` op should be
+ * inserted there). Also the pass initializes special map `BroadcastableInputsMap` Notes:
  *          - Must be called after Canonicalization pass
  *          - Doesn't support `layouts` in PortDescriptors
  * @ingroup snippets
@@ -24,14 +26,12 @@ public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::AnalyzeBroadcastableInputs");
     // [Index of Parameter -> Index of broadcastable dimension from end]
     using BroadcastableInputsMap = std::map<size_t, size_t>;
-    AnalyzeBroadcastableInputs(BroadcastableInputsMap& map);
+    explicit AnalyzeBroadcastableInputs(BroadcastableInputsMap& map);
 
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& body) override;
 
 private:
     BroadcastableInputsMap& m_broadcastable_inputs;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

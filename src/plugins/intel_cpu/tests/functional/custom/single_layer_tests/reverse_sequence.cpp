@@ -8,6 +8,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/op/reverse_sequence.hpp"
 
 using namespace CPUTestUtils;
 
@@ -26,17 +27,9 @@ using ReverseSequenceCPUTestParams =
 class ReverseSequenceLayerCPUTest : public testing::WithParamInterface<ReverseSequenceCPUTestParams>,
                                     virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReverseSequenceCPUTestParams> obj) {
-        int64_t batchAxisIndex;
-        int64_t seqAxisIndex;
-        ov::element::Type netPrecision;
-        std::string targetName;
-        InputShape dataInputShape;
-        InputShape seqLengthsShape;
-        utils::InputLayerType secondaryInputType;
-
-        std::tie(batchAxisIndex, seqAxisIndex, dataInputShape, seqLengthsShape, secondaryInputType, netPrecision, targetName) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<ReverseSequenceCPUTestParams>& obj) {
+        const auto& [batchAxisIndex, seqAxisIndex, dataInputShape, seqLengthsShape, secondaryInputType, netPrecision,
+                     targetName] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({dataInputShape.first}) << "_";
         result << "TS=";
@@ -59,14 +52,9 @@ public:
 
 protected:
     void SetUp() override {
-        ov::element::Type netPrecision;
-        int64_t batchAxisIndex;
-        int64_t seqAxisIndex;
-        InputShape dataInputShape;
-        InputShape seqLengthsShape;
-        utils::InputLayerType secondaryInputType;
-
-        std::tie(batchAxisIndex, seqAxisIndex, dataInputShape, seqLengthsShape, secondaryInputType, netPrecision, targetDevice) = GetParam();
+        const auto& [batchAxisIndex, seqAxisIndex, dataInputShape, seqLengthsShape, secondaryInputType, netPrecision,
+                     _targetDevice] = GetParam();
+        targetDevice = _targetDevice;
         m_seqAxisIndex = seqAxisIndex;
 
         init_input_shapes({dataInputShape, seqLengthsShape});

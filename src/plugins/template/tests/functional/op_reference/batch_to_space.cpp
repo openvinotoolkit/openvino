@@ -75,7 +75,7 @@ private:
         const auto cropsBegin = std::make_shared<op::v0::Parameter>(element::i64, params.cropsBeginTensor.shape);
         const auto cropsEnd = std::make_shared<op::v0::Parameter>(element::i64, params.cropsEndTensor.shape);
         const auto batchToSpace = std::make_shared<op::v1::BatchToSpace>(data, blockShape, cropsBegin, cropsEnd);
-        return std::make_shared<Model>(NodeVector{batchToSpace},
+        return std::make_shared<Model>(OutputVector{batchToSpace},
                                        ParameterVector{data, blockShape, cropsBegin, cropsEnd});
     }
 };

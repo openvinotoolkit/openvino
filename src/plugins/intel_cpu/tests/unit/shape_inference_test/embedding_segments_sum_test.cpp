@@ -4,14 +4,13 @@
 
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "gmock/gmock.h"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace ov::opset10;
 using namespace testing;
-using namespace std;
 
 class EmbeddingSegmentsSumV3StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v3::EmbeddingSegmentsSum> {
 protected:
@@ -33,12 +32,12 @@ TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, default_ctor) {
 }
 
 TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, constant_input) {
-    auto emb_table = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1});
-    auto indices = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
-    auto segment_ids = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
+    auto emb_table = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1});
+    auto indices = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
+    auto segment_ids = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
     auto num_segments = op::v0::Constant::create(element::i64, ov::Shape{}, {3});
-    auto default_index = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
-    auto per_sample_weights = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1});
+    auto default_index = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
+    auto per_sample_weights = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1});
 
     auto op = make_op(emb_table, indices, segment_ids, num_segments, default_index, per_sample_weights);
     input_shapes = {StaticShape{5, 2, 6}, StaticShape{4}, StaticShape{4}, StaticShape{}, StaticShape{}, StaticShape{4}},
@@ -47,12 +46,12 @@ TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, constant_input) {
 }
 
 TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, constant_map) {
-    auto emb_table = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1});
-    auto indices = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
-    auto segment_ids = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
-    auto num_segments = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
-    auto default_index = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
-    auto per_sample_weights = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1});
+    auto emb_table = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1});
+    auto indices = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
+    auto segment_ids = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
+    auto num_segments = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
+    auto default_index = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
+    auto per_sample_weights = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1});
 
     auto op = make_op(emb_table, indices, segment_ids, num_segments, default_index, per_sample_weights);
     input_shapes = {StaticShape{5, 2, 6}, StaticShape{4}, StaticShape{4}, StaticShape{}, StaticShape{}, StaticShape{4}};
@@ -65,12 +64,12 @@ TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, constant_map) {
 }
 
 TEST_F(EmbeddingSegmentsSumV3StaticShapeInferenceTest, basic) {
-    auto emb_table = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1});
-    auto indices = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
-    auto segment_ids = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
+    auto emb_table = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1, -1});
+    auto indices = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
+    auto segment_ids = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{-1});
     auto num_segments = op::v0::Constant::create(element::i64, ov::Shape{}, {3});
-    auto default_index = make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
-    auto per_sample_weights = make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1});
+    auto default_index = std::make_shared<op::v0::Parameter>(element::i64, ov::PartialShape{});
+    auto per_sample_weights = std::make_shared<op::v0::Parameter>(element::f32, ov::PartialShape{-1});
 
     auto op = make_op(emb_table, indices, segment_ids, num_segments, default_index, per_sample_weights);
 

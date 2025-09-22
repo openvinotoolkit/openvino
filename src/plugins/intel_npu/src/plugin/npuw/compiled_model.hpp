@@ -48,6 +48,9 @@ public:
                   const bool serialized);
 
     void export_model(std::ostream& model) const override;
+    static std::shared_ptr<CompiledModel> import_model(std::istream& stream,
+                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                       const ov::AnyMap& properties);
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
@@ -63,6 +66,7 @@ private:
     friend class MemAccessSim;
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
+    friend class LLMInferRequest;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -73,10 +77,11 @@ private:
 
     void report_io() const;
 
-    void serialize(std::ostream& stream) const;
+    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
     static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                      const ov::AnyMap& properties);
+                                                      const ov::AnyMap& properties,
+                                                      const ov::npuw::s11n::CompiledContext& ctx);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
@@ -94,6 +99,8 @@ private:
 
     void log_device_dist() const;
     void implement_properties();
+
+    bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
 
     // For full deserialization flow with weights
     void reconstruct_closure();
@@ -148,6 +155,7 @@ private:
         std::optional<std::size_t> replaced_by;
 
         Subgraph::Gather host_gather;
+        Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
@@ -185,6 +193,8 @@ private:
     std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
 
     std::unordered_map<const void*, std::size_t> m_const_to_offset;
+    ov::npuw::s11n::BF16Cache m_bf16_consts;
+    ov::npuw::s11n::WeightsContext m_import_weights_ctx;
 };
 }  // namespace npuw
 }  // namespace ov

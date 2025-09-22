@@ -6,6 +6,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/embedding_segments_sum.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -32,17 +33,8 @@ class EmbeddingSegmentsSumLayerCPUTest : public testing::WithParamInterface<embe
                                          public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet>& obj) {
-        embeddingSegmentsSumParams params;
-        ElementType netPrecision, indPrecision;
-        std::string targetDevice;
-        std::tie(params, netPrecision, indPrecision, targetDevice) = obj.param;
-
-        InputShape inputShapes;
-        std::vector<size_t> indices, segmentIds;
-        size_t numSegments, defaultIndex;
-        bool withWeights, withDefIndex;
-        std::tie(inputShapes, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex) = params;
-
+        const auto& [params, netPrecision, indPrecision, targetDevice] = obj.param;
+        const auto& [inputShapes, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex] = params;
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
         result << "I" << ov::test::utils::vec2str(indices) << "_";
@@ -59,16 +51,11 @@ public:
 
 protected:
     void SetUp() override {
-        embeddingSegmentsSumParams embParams;
-        ElementType indPrecision;
-        std::tie(embParams, inType, indPrecision, targetDevice) = this->GetParam();
-
-        InputShape inputShapes;
-        std::vector<size_t> indices, segmentIds;
-        bool withWeights, withDefIndex;
-        size_t numSegments, defaultIndex;
-        std::tie(inputShapes, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex) = embParams;
-
+        const auto& [embParams, _inType, indPrecision, _targetDevice] = this->GetParam();
+        inType = _inType;
+        targetDevice = _targetDevice;
+        const auto& [inputShapes, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex] =
+            embParams;
         selectedType = makeSelectedTypeStr("ref", inType);
         targetDevice = ov::test::utils::DEVICE_CPU;
 

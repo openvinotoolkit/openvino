@@ -5,6 +5,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/proposal.hpp"
 
 using namespace CPUTestUtils;
 
@@ -55,31 +56,11 @@ using proposalLayerTestCPUParams = std::tuple<std::vector<InputShape>,  // Input
 class ProposalLayerCPUTest : public testing::WithParamInterface<proposalLayerTestCPUParams>,
                              public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<proposalLayerTestCPUParams> obj) {
-        std::vector<InputShape> inputShapes;
-        proposalSpecificParams proposalParams;
-        ov::element::Type netPrecision;
-        std::tie(inputShapes, proposalParams, netPrecision) = obj.param;
-
-        base_size_type base_size;
-        box_coordinate_scale_type box_coordinate_scale;
-        box_size_scale_type box_size_scale;
-        clip_after_nms_type clip_after_nms;
-        clip_before_nms_type clip_before_nms;
-        feat_stride_type feat_stride;
-        framework_type framework;
-        min_size_type min_size;
-        nms_thresh_type nms_thresh;
-        normalize_type normalize;
-        post_nms_topn_type post_nms_topn;
-        pre_nms_topn_type pre_nms_topn;
-        ratio_type ratio;
-        scale_type scale;
-        std::tie(base_size, box_coordinate_scale, box_size_scale,
-                 clip_after_nms, clip_before_nms, feat_stride,
-                 framework, min_size, nms_thresh, normalize,
-                 post_nms_topn, pre_nms_topn, ratio, scale) = proposalParams;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<proposalLayerTestCPUParams>& obj) {
+        const auto& [inputShapes, proposalParams, netPrecision] = obj.param;
+        const auto& [base_size, box_coordinate_scale, box_size_scale, clip_after_nms, clip_before_nms, feat_stride,
+                     framework, min_size, nms_thresh, normalize, post_nms_topn, pre_nms_topn, ratio, scale] =
+            proposalParams;
         std::ostringstream result;
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
@@ -106,31 +87,10 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> inputShapes;
-        proposalSpecificParams proposalParams;
-        ov::element::Type netPrecision;
-        std::tie(inputShapes, proposalParams, netPrecision) = this->GetParam();
-
-        base_size_type base_size;
-        box_coordinate_scale_type box_coordinate_scale;
-        box_size_scale_type box_size_scale;
-        clip_after_nms_type clip_after_nms;
-        clip_before_nms_type clip_before_nms;
-        feat_stride_type feat_stride;
-        framework_type framework;
-        min_size_type min_size;
-        nms_thresh_type nms_thresh;
-        normalize_type normalize;
-        post_nms_topn_type post_nms_topn;
-        pre_nms_topn_type pre_nms_topn;
-        ratio_type ratio;
-        scale_type scale;
-        std::tie(base_size, box_coordinate_scale, box_size_scale,
-                 clip_after_nms, clip_before_nms, feat_stride,
-                 framework, min_size, nms_thresh, normalize,
-                 post_nms_topn, pre_nms_topn, ratio, scale) = proposalParams;
-
+        const auto& [inputShapes, proposalParams, netPrecision] = this->GetParam();
+        const auto& [base_size, box_coordinate_scale, box_size_scale, clip_after_nms, clip_before_nms, feat_stride,
+                     framework, min_size, nms_thresh, normalize, post_nms_topn, pre_nms_topn, ratio, scale] =
+            proposalParams;
         selectedType = std::string("ref_any_") + netPrecision.to_string();
         init_input_shapes(inputShapes);
 

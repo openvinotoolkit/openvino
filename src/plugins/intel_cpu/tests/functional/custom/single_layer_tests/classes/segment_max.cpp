@@ -7,36 +7,24 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/precision_support.h"
+#include "openvino/op/segment_max.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
 namespace SegmentMax {
-std::string SegmentMaxLayerCPUTest::getTestCaseName(testing::TestParamInfo<SegmentMaxLayerCPUTestParamsSet> obj) {
-        SegmentMaxLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        SegmentMaxSpecificParams SegmentMaxPar;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        std::string td;
-        ElementType dataPrecision;
-        bool useNumSegments;
-        ov::test::utils::InputLayerType secondaryInputType;
-        std::tie(SegmentMaxPar, dataPrecision, useNumSegments, secondaryInputType, td) = basicParamsSet;
-
-        InputShape dataShape;
-        std::vector<int64_t> segmentIdsValues;
-        int64_t numSegments;
-        ov::op::FillMode fillMode;
-        std::tie(dataShape, segmentIdsValues, numSegments, fillMode) = SegmentMaxPar;
-        std::ostringstream result;
-
-        result << ov::test::utils::partialShape2str({ dataShape.first }) << "_";
-        result << "TS=";
-        result << "(";
-        for (const auto& targetShape : dataShape.second) {
-            result << ov::test::utils::vec2str(targetShape);
-        }
+std::string SegmentMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<SegmentMaxLayerCPUTestParamsSet>& obj) {
+    const auto& [basicParamsSet, cpuParams] = obj.param;
+    const auto& [SegmentMaxPar, dataPrecision, useNumSegments, secondaryInputType, td] = basicParamsSet;
+    const auto& [dataShape, segmentIdsValues, numSegments, fillMode] = SegmentMaxPar;
+    std::ostringstream result;
+    result << ov::test::utils::partialShape2str({dataShape.first}) << "_";
+    result << "TS=";
+    result << "(";
+    for (const auto& targetShape : dataShape.second) {
+        result << ov::test::utils::vec2str(targetShape);
+    }
         result << ")";
         result << "_segmentIds=" << ov::test::utils::vec2str(segmentIdsValues);
         if (useNumSegments) {
@@ -83,33 +71,19 @@ void SegmentMaxLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 }
 
 void SegmentMaxLayerCPUTest::SetUp() {
-        SegmentMaxLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        SegmentMaxSpecificParams SegmentMaxParams;
-        ElementType inputPrecision;
-        bool useNumSegments;
-        ov::test::utils::InputLayerType secondaryInputType;
-        std::tie(SegmentMaxParams, inputPrecision, useNumSegments, secondaryInputType, targetDevice) = basicParamsSet;
-
-        InputShape dataShape;
-        std::vector<int64_t> segmentIdsValues;
-        int64_t numSegmentsValue;
-        ov::op::FillMode fillMode;
-        std::tie(dataShape, segmentIdsValues, numSegmentsValue, fillMode) = SegmentMaxParams;
-        const ov::test::InputShape segmentIdsShape = {
-            ov::PartialShape{static_cast<ov::Dimension::value_type>(segmentIdsValues.size())}, std::vector<ov::Shape>{segmentIdsValues.size()}
-            };
-
-        std::vector<ov::test::InputShape> input_shapes = { dataShape, segmentIdsShape };
-        if (useNumSegments) {
-            const ov::test::InputShape numSegmentsShape = {
-                ov::PartialShape{}, std::vector<ov::Shape>{ov::Shape{}}
-            };
-            input_shapes.emplace_back(numSegmentsShape);
-        }
+    const auto& [basicParamsSet, cpuParams] = this->GetParam();
+    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+    const auto& [SegmentMaxParams, inputPrecision, useNumSegments, secondaryInputType, _targetDevice] = basicParamsSet;
+    targetDevice = _targetDevice;
+    const auto& [dataShape, segmentIdsValues, numSegmentsValue, fillMode] = SegmentMaxParams;
+    const ov::test::InputShape segmentIdsShape = {
+        ov::PartialShape{static_cast<ov::Dimension::value_type>(segmentIdsValues.size())},
+        std::vector<ov::Shape>{segmentIdsValues.size()}};
+    std::vector<ov::test::InputShape> input_shapes = {dataShape, segmentIdsShape};
+    if (useNumSegments) {
+        const ov::test::InputShape numSegmentsShape = {ov::PartialShape{}, std::vector<ov::Shape>{ov::Shape{}}};
+        input_shapes.emplace_back(numSegmentsShape);
+    }
         init_input_shapes(input_shapes);
         auto dataParameter = std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0]);
         ov::ParameterVector params{ dataParameter };

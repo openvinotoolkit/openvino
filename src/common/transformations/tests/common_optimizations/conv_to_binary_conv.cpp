@@ -12,7 +12,12 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/binary_convolution.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
@@ -40,7 +45,7 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowZeroOutputHighOne) {
                                                           Strides{1, 1},
                                                           op::PadType::EXPLICIT);
 
-        f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        f = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -73,7 +78,7 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowZeroOutputHighOne) {
         auto add = std::make_shared<opset5::Add>(conv, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.7f}));
         auto mul = std::make_shared<opset5::Multiply>(add, opset5::Constant::create(element::f32, Shape{}, {0.2f}));
 
-        f_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
+        f_ref = std::make_shared<Model>(OutputVector{mul}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -99,7 +104,7 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowMinusOneOutputHighOne) {
                                                           Strides{1, 1},
                                                           op::PadType::EXPLICIT);
 
-        f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        f = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -130,7 +135,7 @@ TEST(TransformationTests, ConvToBinaryConvOutputLowMinusOneOutputHighOne) {
                                                         0.0f,
                                                         op::PadType::EXPLICIT);
 
-        f_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        f_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -156,7 +161,7 @@ TEST(TransformationTests, NegativeConvToBinaryConvInvalidWeights) {
                                                           Strides{1, 1},
                                                           op::PadType::EXPLICIT);
 
-        f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        f = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -183,7 +188,7 @@ TEST(TransformationTests, NegativeConvToBinaryConvInvalidWeights) {
                                                           Strides{1, 1},
                                                           op::PadType::EXPLICIT);
 
-        f_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        f_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -209,7 +214,7 @@ TEST(TransformationTests, NegativeConvToBinaryConvInvalidLevels) {
                                                           Strides{1, 1},
                                                           op::PadType::EXPLICIT);
 
-        f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        f = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -236,7 +241,7 @@ TEST(TransformationTests, NegativeConvToBinaryConvInvalidLevels) {
                                                           Strides{1, 1},
                                                           op::PadType::EXPLICIT);
 
-        f_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        f_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -262,7 +267,7 @@ TEST(TransformationTests, NegativeConvToBinaryConvOutputLowHigh) {
                                                           Strides{1, 1},
                                                           op::PadType::EXPLICIT);
 
-        f = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        f = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -289,7 +294,7 @@ TEST(TransformationTests, NegativeConvToBinaryConvOutputLowHigh) {
                                                           Strides{1, 1},
                                                           op::PadType::EXPLICIT);
 
-        f_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        f_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);

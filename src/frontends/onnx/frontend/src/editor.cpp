@@ -216,7 +216,12 @@ void graph_topological_sort(GraphProto* graph) {
                 output_name_to_node.emplace(output_name, graph->mutable_node(i));
             }
         }
+        // Documentation says empty input/output names should be interpreted as unspecified
+        // inputs/outputs: https://github.com/onnx/onnx/blob/main/docs/IR.md#static-optional
         auto get_node_by_out_name = [&output_name_to_node](const std::string& out_name) -> const NodeProto* {
+            if (out_name.empty()) {
+                return nullptr;
+            }
             const auto& idx_iter = output_name_to_node.find(out_name);
             if (idx_iter != std::end(output_name_to_node)) {
                 return idx_iter->second;
@@ -231,6 +236,9 @@ void graph_topological_sort(GraphProto* graph) {
             auto* node = nodes_to_process.top();
             bool can_add = true;
             for (const auto& in_name : node->input()) {
+                if (in_name.empty()) {
+                    return;
+                }
                 const auto* in_node = get_node_by_out_name(in_name);
                 if (in_node == nullptr) {  // can be an initializer or an model's input
                     continue;

@@ -25,6 +25,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/bitwise_not.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -154,10 +155,7 @@ class CustomOpStringCPUTest : public testing::WithParamInterface<CustomOpStringC
                                   public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CustomOpStringCPUTestParams>& obj) {
-        ElementType in_type;
-        InputShape inputShape;
-        std::tie(in_type, inputShape) = obj.param;
-
+        const auto& [in_type, inputShape] = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "Prc=" << in_type;
@@ -167,11 +165,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
-
-        ElementType in_type;
-        InputShape inputShape;
-        std::tie(in_type, inputShape) = this->GetParam();
-
+        const auto& [in_type, inputShape] = this->GetParam();
         init_input_shapes({inputShape});
 
         auto in_0 = std::make_shared<ov::op::v0::Parameter>(in_type, inputDynamicShapes[0]);

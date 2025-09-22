@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/scatter_update.hpp"
 
 using namespace CPUTestUtils;
 
@@ -28,11 +29,8 @@ class ScatterUpdateLayerCPUTest : public testing::WithParamInterface<scatterUpda
                                   public SubgraphBaseTest,
                                   public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<scatterUpdateParams> obj) {
-        ScatterUpdateLayerParams scatterParams;
-        ElementType inputPrecision;
-        ElementType idxPrecision;
-        std::tie(scatterParams, inputPrecision, idxPrecision) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<scatterUpdateParams>& obj) {
+        const auto& [scatterParams, inputPrecision, idxPrecision] = obj.param;
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesDescr = scatterParams.indicesDescriprion;
         const auto axis = scatterParams.axis;
@@ -59,10 +57,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        ScatterUpdateLayerParams scatterParams;
-        ElementType inputPrecision;
-        ElementType idxPrecision;
-        std::tie(scatterParams, inputPrecision, idxPrecision) = this->GetParam();
+        const auto& [scatterParams, inputPrecision, idxPrecision] = this->GetParam();
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesDescr = scatterParams.indicesDescriprion;
         const auto axis = scatterParams.axis;

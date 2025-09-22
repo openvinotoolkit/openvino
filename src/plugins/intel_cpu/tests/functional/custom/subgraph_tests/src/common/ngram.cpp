@@ -7,6 +7,14 @@
 #include "internal_properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 using namespace CPUTestUtils;
 
@@ -144,11 +152,7 @@ class NgramCPUTest : public testing::WithParamInterface<NgramTestParams>,
                      public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NgramTestParams>& obj) {
-        std::vector<InputShape> input_shapes;
-        size_t k;
-        ElementType data_et;
-        ElementType idces_et;
-        std::tie(input_shapes, data_et, idces_et, k) = obj.param;
+        const auto& [input_shapes, data_et, idces_et, k] = obj.param;
         std::ostringstream results;
 
         results << "IS=(";
@@ -197,11 +201,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::vector<InputShape> inputShapes;
-        ElementType data_et;
-        ElementType idces_et;
-        size_t k;
-        std::tie(inputShapes, data_et, idces_et, k) = this->GetParam();
+        const auto& [inputShapes, data_et, idces_et, k] = this->GetParam();
         init_input_shapes(inputShapes);
         function = initNgram(inputDynamicShapes, data_et, idces_et, k);
 

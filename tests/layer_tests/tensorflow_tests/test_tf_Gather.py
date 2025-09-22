@@ -72,10 +72,8 @@ class TestGather(CommonTFLayerTest):
     @pytest.mark.parametrize("indices_type", [np.int32, np.int64])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_gather(self, params, params_type, indices_type, ie_device, precision, ir_version, temp_dir,
-                    use_legacy_frontend):
+    def test_gather(self, params, params_type, indices_type, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("timeout issue on GPU")
         self._test(*self.create_gather_net(**params, params_type=params_type, indices_type=indices_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

@@ -8,7 +8,10 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/parameter.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -30,11 +33,7 @@ class PriorBoxV0CpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTe
                                       public WithParamInterface<PriorBoxV0TestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxV0TestParams>& obj) {
-        unit_test::ShapeVector tmp_input_shapes;
-        op::v0::PriorBox::Attributes tmp_attrs;
-        std::vector<std::vector<int32_t>> tmp_data;
-        StaticShape tmp_exp_shape;
-        std::tie(tmp_input_shapes, tmp_attrs, tmp_data, tmp_exp_shape) = obj.param;
+        const auto& [tmp_input_shapes, tmp_attrs, tmp_data, tmp_exp_shape] = obj.param;
         std::ostringstream result;
         result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
         result << "min_size" << ov::test::utils::vec2str(tmp_attrs.min_size) << "_";

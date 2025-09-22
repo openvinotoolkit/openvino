@@ -13,7 +13,7 @@ jobs:
         timeout-minutes: 15
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v4.5.0
+        uses: actions/dependency-review-action@595b5aeba73380359d98a5e087f648dbb0edce1b # v4.7.3
         with:
           config-file: './.github/dependency_review.yml'
           base-ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_ref }}

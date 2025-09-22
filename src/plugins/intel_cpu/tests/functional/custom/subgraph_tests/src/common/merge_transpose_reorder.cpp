@@ -9,10 +9,18 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -59,10 +67,7 @@ using MergeTransposeReorderTestParams = std::tuple<InputShape, ExpectedResult>;
 class MergeTransposeReorderCPUTest : public testing::WithParamInterface<MergeTransposeReorderTestParams>, virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MergeTransposeReorderTestParams> &obj) {
-        InputShape input_shape;
-        ExpectedResult expected_result;
-        std::tie(input_shape, expected_result) = obj.param;
-
+        const auto& [input_shape, expected_result] = obj.param;
         std::ostringstream results;
         results << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << "_";
         results << ")_TS=(";
@@ -78,8 +83,8 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        InputShape input_shape;
-        std::tie(input_shape, m_expected_result) = this->GetParam();
+        const auto& [input_shape, _m_expected_result] = this->GetParam();
+        m_expected_result = _m_expected_result;
         init_input_shapes({input_shape});
 
         const auto precision = ov::element::f32;

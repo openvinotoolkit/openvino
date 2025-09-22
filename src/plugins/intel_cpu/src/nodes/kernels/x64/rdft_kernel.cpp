@@ -4,6 +4,12 @@
 
 #include "rdft_kernel.hpp"
 
+#include <xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 

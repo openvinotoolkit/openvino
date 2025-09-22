@@ -207,6 +207,8 @@ public:
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t get_current_iteration_num() { return iteration; }
+#else
+    int64_t get_current_iteration_num() { const int64_t NOT_AVAILABLE=-112233; return NOT_AVAILABLE; }
 #endif
 
 private:
@@ -255,7 +257,7 @@ private:
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
-    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type, const primitive* p);
+    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type, const primitive* p, bool transpose_required);
     void dump_memory_pool(std::string dump_path, int64_t curr_iter);
 
 #ifdef GPU_DEBUG_CONFIG

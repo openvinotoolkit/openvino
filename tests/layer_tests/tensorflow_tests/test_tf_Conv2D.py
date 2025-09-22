@@ -15,9 +15,8 @@ class TestConv2D(CommonTFLayerTest):
     # input_strides - should be an array, defines strides of a sliding window to use
     # input_padding - should be a string, defines padding algorithm
     # ir_version - common parameter
-    # use_legacy_frontend - common parameter
     def create_conv2d_placeholder_const_net(self, input_shape, input_filter, input_strides, input_padding, dilations,
-                                            ir_version, use_legacy_frontend):
+                                            ir_version):
         """
             Tensorflow net                  IR net
 
@@ -35,7 +34,7 @@ class TestConv2D(CommonTFLayerTest):
         #               Batch   Height Width  Channel
         expl_paddings = [0, 0, 1, 1, 1, 1, 0, 0]
 
-        if input_padding == 'EXPLICIT' and use_legacy_frontend == False:
+        if input_padding == 'EXPLICIT':
             pytest.xfail(reason="100300")
 
         tf.compat.v1.reset_default_graph()
@@ -81,11 +80,8 @@ class TestConv2D(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("padding", ['EXPLICIT', 'SAME', 'VALID'])
     @pytest.mark.nightly
-    def test_conv2d_placeholder_const(self, params, padding, ie_device, precision, ir_version, temp_dir,
-                                      use_legacy_frontend):
+    def test_conv2d_placeholder_const(self, params, padding, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.xfail('104862')
-        self._test(*self.create_conv2d_placeholder_const_net(**params, input_padding=padding, ir_version=ir_version,
-                                                             use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, input_padding=padding, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+        self._test(*self.create_conv2d_placeholder_const_net(**params, input_padding=padding, ir_version=ir_version),
+                   ie_device, precision, ir_version, input_padding=padding, temp_dir=temp_dir)

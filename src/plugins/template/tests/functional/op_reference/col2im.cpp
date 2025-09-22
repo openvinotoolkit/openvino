@@ -79,7 +79,8 @@ private:
                                                                   params.dilations,
                                                                   params.pads_begin,
                                                                   params.pads_end);
-        return std::make_shared<ov::Model>(ov::NodeVector{col2im}, ov::ParameterVector{data, output_size, kernel_size});
+        return std::make_shared<ov::Model>(ov::OutputVector{col2im},
+                                           ov::ParameterVector{data, output_size, kernel_size});
     }
 };
 

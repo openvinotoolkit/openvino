@@ -4,23 +4,33 @@
 
 #include "rms_norm.h"
 
-#include "common/arbitrary_order_desc_creator.h"
-#include "common/primitive_hashing_utils.hpp"
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "dnnl_extension_utils.h"
+#include "cpu_memory.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "onednn/dnnl.h"
-#include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/util/common_util.hpp"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "shape_inference/custom/rms_norm.hpp"
+#include "utils/general_utils.h"
 #ifdef OPENVINO_ARCH_X86_64
 #    include "kernels/x64/rms_kernel.hpp"
+#    include "nodes/kernels/x64/jit_kernel_base.hpp"
+#    include "openvino/core/parallel.hpp"
 #endif
 
-#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -76,10 +86,7 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
                           const uint8_t* src,
                           uint8_t* dst,
                           const float* scale) {
-    kernel::jit_rms_call_args call_args;
-    call_args.src = src;
-    call_args.dst = dst;
-    call_args.scale = scale;
+    kernel::jit_rms_call_args call_args{src, scale, dst};
     (*ker)(&call_args);
 }
 
@@ -95,8 +102,8 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
         m_kernel = createJitKernel(jcp);
     }
     void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
-        auto src = inputs[0]->getDataAs<uint8_t>();
-        auto dst = output->getDataAs<uint8_t>();
+        auto* src = inputs[0]->getDataAs<uint8_t>();
+        auto* dst = output->getDataAs<uint8_t>();
         auto* scale = inputs[1]->getDataAs<float>();
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -131,18 +138,19 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
         return;
     }
     auto precision = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+    if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
     }
 
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    auto impl_type = [&]() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        return impl_desc_type::ref;
+    }();
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision}, {LayoutType::ncsp, ov::element::f32}},
                          {{LayoutType::ncsp, precision}},
@@ -167,9 +175,7 @@ void RMSNorm::createPrimitive() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-    if (!result.first) {
-        OPENVINO_THROW("RMSNorm Executor creation fails with precision " + precision.to_string());
-    }
+    OPENVINO_ASSERT(result.first, "RMSNorm Executor creation fails with precision " + precision.to_string());
     m_executor = result.first;
 }
 

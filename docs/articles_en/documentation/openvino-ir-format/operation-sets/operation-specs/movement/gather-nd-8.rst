@@ -47,9 +47,11 @@ if ``indices.shape[-1] == data.rank - batch_dims``, else
 
 * **1**: ``data`` tensor of type *T*. A tensor of a rank not less than 1. **Required.**
 * **2**: ``indices`` tensor of type *T_IND*. A tensor of a rank not less than 1.
-  It requires all indices from this tensor to be in the range ``[0, s-1]`` where ``s`` is the corresponding dimension to
+  It requires all indices from this tensor to be in the range ``[-s, s-1]`` where ``s`` is the corresponding dimension to
   which this index is applied. **Required.**
 
+.. note::
+    Behavior before 2025.3 OpenVINO release: Negative indices were not supported.
 
 **Outputs**:
 

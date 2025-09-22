@@ -70,15 +70,11 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_parallel_dynamic_stitch_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                           use_legacy_frontend):
-        if use_legacy_frontend:
-            pytest.skip("DynamicStitch operation is not supported via legacy frontend.")
+    def test_parallel_dynamic_stitch_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("GPU error: Invalid constant blob dimensions")
         self._test(*self.create_parallel_dynamic_stitch_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_different_types = [
         dict(data_input_cnt=4, shape_of_element=[3, 2], data_type=tf.float64),
@@ -88,12 +84,8 @@ class TestParallelDynamicStitch(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_different_types)
     @pytest.mark.nightly
-    def test_parallel_dynamic_stitch_different_types(self, params, ie_device, precision, ir_version, temp_dir,
-                                                     use_legacy_frontend):
-        if use_legacy_frontend:
-            pytest.skip("DynamicStitch operation is not supported via legacy frontend.")
+    def test_parallel_dynamic_stitch_different_types(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("GPU error: Invalid constant blob dimensions")
         self._test(*self.create_parallel_dynamic_stitch_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

@@ -6,6 +6,12 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/softmax.hpp"
 
 namespace ov {
 namespace test {
@@ -27,10 +33,8 @@ using DisableGatherCompressedForQuantizedModelParams = std::tuple<element::Type,
 class DisableGatherCompressedForQuantizedModel : public testing::WithParamInterface<DisableGatherCompressedForQuantizedModelParams>,
                                                  virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DisableGatherCompressedForQuantizedModelParams> obj) {
-        element::Type weight_prec;
-        InputShape inputShape1, inputShape2;
-        std::tie(weight_prec, inputShape1, inputShape2) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<DisableGatherCompressedForQuantizedModelParams>& obj) {
+        const auto& [weight_prec, inputShape1, inputShape2] = obj.param;
         std::ostringstream result;
         result << "weight_prec=" << weight_prec << "_" << "inputShape1=" << inputShape1 << "_"
                << "inputShape2=" << inputShape2;
@@ -40,10 +44,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
-        element::Type weight_prec;
-        InputShape inputShape1, inputShape2;
-        std::tie(weight_prec, inputShape1, inputShape2) = GetParam();
-
+        const auto& [weight_prec, inputShape1, inputShape2] = GetParam();
         init_input_shapes({inputShape1, inputShape2});
 
         targetDevice = utils::DEVICE_CPU;

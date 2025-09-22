@@ -465,7 +465,7 @@ TEST_F(GetSupportedNodesTest, ShuffleChannelFusion) {
         auto reshape_after = std::make_shared<ov::op::v1::Reshape>(permute, shape_reshape_after, true);
         reshape_after->set_friendly_name("reshape_after");
 
-        m_function = std::make_shared<ov::Model>(ov::NodeVector{reshape_after}, ov::ParameterVector{input});
+        m_function = std::make_shared<ov::Model>(ov::OutputVector{reshape_after}, ov::ParameterVector{input});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -489,7 +489,7 @@ TEST_F(GetSupportedNodesTest, FusedNameReduceL2Test) {
         auto reduce_l2 = std::make_shared<ov::op::v4::ReduceL2>(data, axes, true);
         reduce_l2->set_friendly_name("reduce_l2");
 
-        m_function = std::make_shared<ov::Model>(ov::NodeVector{reduce_l2}, ov::ParameterVector{data});
+        m_function = std::make_shared<ov::Model>(ov::OutputVector{reduce_l2}, ov::ParameterVector{data});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -645,9 +645,8 @@ TEST_P(GetSupportedNodesCommonTest, SplitModelWithDifferentRatioTest) {
         result->set_friendly_name("res");
         m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
-    float query_model_ratio;
-    std::unordered_set<std::string> expected;
-    std::tie(query_model_ratio, expected) = this->GetParam();
+
+    const auto& [query_model_ratio, expected] = this->GetParam();
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
@@ -674,9 +673,8 @@ TEST_P(GetSupportedNodesOneConstOp, OneConstOpTest) {
         res->set_friendly_name("res");
         m_function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
     }
-    float query_model_ratio;
-    std::unordered_set<std::string> expected;
-    std::tie(query_model_ratio, expected) = this->GetParam();
+
+    const auto& [query_model_ratio, expected] = this->GetParam();
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
@@ -707,9 +705,8 @@ TEST_P(GetSupportedNodesStopSplit, StopSplitTest) {
         result->set_friendly_name("res");
         m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
-    float query_model_ratio;
-    std::unordered_set<std::string> expected;
-    std::tie(query_model_ratio, expected) = this->GetParam();
+
+    const auto& [query_model_ratio, expected] = this->GetParam();
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;

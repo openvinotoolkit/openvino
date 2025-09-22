@@ -63,9 +63,11 @@ void get_cur_stream_info(const int stream_id,
     } else {
         stream_type = STREAM_WITHOUT_PARAM;
         // Pcore only or Ecore only with no cpu binding in hybrid cores machine
-        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && core_type != ALL_PROC) {
+        if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) &&
+            core_type != ALL_PROC) {
             stream_type = STREAM_WITH_CORE_TYPE;
-        } else if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && core_type == ALL_PROC &&
+        } else if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) &&
+                   core_type == ALL_PROC &&
                    !ecore_used) {  // Latency mode and enable hyper threading in hybrid cores machine
             stream_type = STREAM_WITH_CORE_TYPE;
             core_type = MAIN_CORE_PROC;
@@ -195,7 +197,7 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
                             std::vector<std::vector<int>>& _proc_type_table) {
     std::map<int, int> numa_node_map;
 
-    _proc_type_table.assign((_numa_nodes == 1) ? 1 : _numa_nodes + 1, std::vector<int>({0, 0, 0, 0, -1, -1}));
+    _proc_type_table.assign((_numa_nodes == 1) ? 1 : _numa_nodes + 1, std::vector<int>({0, 0, 0, 0, 0, -1, -1}));
     if (_numa_nodes > 1) {
         for (int i = 0; i < _numa_nodes; i++) {
             _proc_type_table[i + 1][PROC_NUMA_NODE_ID] = i;
@@ -211,7 +213,7 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
         numa_node_map.insert(std::pair<int, int>(_proc_type_table[0][PROC_NUMA_NODE_ID], 0));
     }
 
-    std::vector<int> all_table{0, 0, 0, 0, -1, -1};
+    std::vector<int> all_table{0, 0, 0, 0, 0, -1, -1};
     for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
         if (_cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED && _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] >= 0 &&
             _cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {

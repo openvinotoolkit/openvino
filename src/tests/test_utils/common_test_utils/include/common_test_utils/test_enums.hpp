@@ -55,6 +55,7 @@ enum EltwiseTypes {
     SQUARED_DIFF,
     POWER,
     FLOOR_MOD,
+    FLOOR,
     MOD,
     ERF,
     BITWISE_AND,

@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -36,12 +37,8 @@ class StridedSliceLayerGPUTest : public testing::WithParamInterface<StridedSlice
                                  virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceLayerParamSet>& obj) {
-        InputShape shapes;
-        StridedSliceParams params;
-        ov::element::Type model_type;
-        std::vector<ov::test::utils::InputLayerType> rest_input_type;
         std::string targetDevice;
-        std::tie(shapes, params, model_type, rest_input_type) = obj.param;
+        const auto& [shapes, params, model_type, rest_input_type] = obj.param;
 
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -119,9 +116,9 @@ protected:
     size_t inferRequestNum = 0;
 
     void SetUp() override {
-        InputShape shapes;
-        StridedSliceParams ssParams;
-        std::tie(shapes, ssParams, inType, rest_input_type) = this->GetParam();
+        const auto& [shapes, ssParams, _inType, _rest_input_type] = this->GetParam();
+        inType = _inType;
+        rest_input_type = _rest_input_type;
 
         begin = ssParams.begin;
         end = ssParams.end;
@@ -240,9 +237,9 @@ protected:
     size_t inferRequestNum = 0;
 
     void SetUp() override {
-        InputShape shapes;
-        StridedSliceParams ssParams;
-        std::tie(shapes, ssParams, inType, rest_input_type) = this->GetParam();
+        const auto& [shapes, ssParams, _inType, _rest_input_type] = this->GetParam();
+        inType = _inType;
+        rest_input_type = _rest_input_type;
 
         begin = ssParams.begin;
         end = ssParams.end;

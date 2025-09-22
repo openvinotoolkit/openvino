@@ -7,7 +7,7 @@
 
 #include <cstdio>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -15,9 +15,15 @@
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "openvino/op/matmul.hpp"
 #ifndef WIN32
 #    include <unistd.h>
 #endif
@@ -55,11 +61,7 @@ typedef std::tuple<Import_API, bool, ov::element::Type, ov::element::Type> testP
 class CheckWeightlessCacheAccuracy : public ::testing::Test, public ::testing::WithParamInterface<testParams> {
 public:
     static std::string get_test_case_name(::testing::TestParamInfo<testParams> obj) {
-        Import_API import_api_;
-        bool do_encryption_;
-        ov::element::Type inference_mode_;
-        ov::element::Type model_dtype_;
-        std::tie(import_api_, do_encryption_, inference_mode_, model_dtype_) = obj.param;
+        const auto& [import_api_, do_encryption_, inference_mode_, model_dtype_] = obj.param;
 
         std::ostringstream result;
         const char separator = '_';
@@ -303,5 +305,35 @@ INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracyLowPrecision,
                                             ::testing::ValuesIn(inference_modes),
                                             ::testing::ValuesIn(low_precision_dtypes)),
                          CheckWeightlessCacheAccuracy::get_test_case_name);
+
+TEST(smoke_CheckWeightlessCacheAccuracy, ConstantFoldingAttrPropagation) {
+    const auto num_elements = 4;
+    std::vector<ov::float16> data(num_elements, 0.f);
+    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{num_elements}, data);
+    auto attr = ov::WeightlessCacheAttribute(num_elements * sizeof(ov::float16), 0, ov::element::f16);
+    constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] = attr;
+
+    ov::ParameterVector inputParams;
+    ov::ResultVector results;
+    ov::pass::Manager manager("ConstantFoldingAttrPropagationTest");
+    std::shared_ptr<ov::Model> model = nullptr;
+
+    auto convert_op = std::make_shared<ov::op::v0::Convert>(constant, ov::element::f32);
+    results.push_back(std::make_shared<ov::op::v0::Result>(convert_op->output(0)));
+    model = std::make_shared<ov::Model>(results, inputParams, "aux");
+    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.run_passes(model);
+
+    const auto& ops = model->get_ops();
+    auto constant_it = std::find_if(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& node) {
+        return ov::op::util::is_constant(node);
+    });
+    ASSERT_NE(constant_it, ops.end());
+    ASSERT_NE(constant, *constant_it);
+    auto transformed_constant_rt_info = (*constant_it)->get_rt_info();
+    auto attr_it = transformed_constant_rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+    ASSERT_NE(attr_it, transformed_constant_rt_info.end());
+    ASSERT_EQ(attr_it->second.as<ov::WeightlessCacheAttribute>().original_size, num_elements * sizeof(ov::float16));
+}
 
 }  // namespace

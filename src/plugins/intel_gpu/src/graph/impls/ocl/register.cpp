@@ -15,7 +15,6 @@ void register_implementations() {
     REGISTER_OCL(border);
     REGISTER_OCL(broadcast);
     REGISTER_OCL(bucketize);
-    REGISTER_OCL(col2im);
     REGISTER_OCL(concatenation);
     REGISTER_OCL(crop);
     REGISTER_OCL(custom_gpu_primitive);
@@ -36,7 +35,6 @@ void register_implementations() {
     REGISTER_OCL(generate_proposals);
     REGISTER_OCL(grid_sample);
     REGISTER_OCL(kv_cache);
-    REGISTER_OCL(paged_attention);
     REGISTER_OCL(lrn);
     REGISTER_OCL(multiclass_nms);
     REGISTER_OCL(multinomial);
@@ -61,7 +59,6 @@ void register_implementations() {
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(roll);
-    REGISTER_OCL(scatter_nd_update);
     REGISTER_OCL(select);
     REGISTER_OCL(shuffle_channels);
     REGISTER_OCL(space_to_batch);
@@ -83,9 +80,10 @@ void register_implementations() {
     REGISTER_OCL(eye);
     REGISTER_OCL(unique_count);
     REGISTER_OCL(unique_gather);
-    REGISTER_OCL(scaled_dot_product_attention);
     REGISTER_OCL(search_sorted);
     REGISTER_OCL(STFT);
+    REGISTER_OCL(ISTFT);
+    REGISTER_OCL(sparse_fill_empty_rows);
 }
 
 }  // namespace ocl

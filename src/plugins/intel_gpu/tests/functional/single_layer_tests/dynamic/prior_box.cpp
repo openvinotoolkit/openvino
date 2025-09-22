@@ -10,6 +10,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -30,13 +34,8 @@ typedef std::tuple<
 class PriorBoxLayerGPUTest : public testing::WithParamInterface<PriorBoxLayerGPUTestParamsSet>,
                              virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PriorBoxLayerGPUTestParamsSet> obj) {
-        InputShape input1Shape;
-        InputShape input2Shape;
-        ov::element::Type model_type;
-        std::vector<float> max_size;
-        priorbox_type priorboxType;
-        std::tie(input1Shape, input2Shape, model_type, max_size, priorboxType) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxLayerGPUTestParamsSet>& obj) {
+        const auto& [input1Shape, input2Shape, model_type, max_size, priorboxType] = obj.param;
 
         std::ostringstream result;
         switch (priorboxType) {
@@ -73,13 +72,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        auto model_type = ov::element::dynamic;
-        InputShape input1Shape;
-        InputShape input2Shape;
-        std::vector<float> max_size;
-        priorbox_type priorboxType;
-        std::tie(input1Shape, input2Shape, model_type, max_size, priorboxType) = this->GetParam();
-
+        const auto& [input1Shape, input2Shape, model_type, max_size, priorboxType] = this->GetParam();
 
         init_input_shapes({input1Shape, input2Shape});
 

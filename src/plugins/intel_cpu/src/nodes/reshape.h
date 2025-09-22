@@ -4,12 +4,15 @@
 
 #pragma once
 
-#include "input.h"
-#include "node.h"
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class Reshape : public Node {
 public:
@@ -17,12 +20,12 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    bool created() const override;
-    bool neverExecute() const override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool created() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
 
-    bool needShapeInfer() const override;
-    bool needPrepareParams() const override {
+    [[nodiscard]] bool needShapeInfer() const override;
+    [[nodiscard]] bool needPrepareParams() const override {
         return false;
     }
     void executeDynamicImpl(const dnnl::stream& strm) override;
@@ -34,6 +37,4 @@ private:
     mutable std::vector<int> lastSecondInputValues;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

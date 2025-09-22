@@ -6,6 +6,12 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace CPUTestUtils;
 
@@ -64,11 +70,8 @@ using ConvertRangeSubgraphCPUTestParams = std::tuple<
 class ConvertRangeSubgraphCPUTest: public testing::WithParamInterface<ConvertRangeSubgraphCPUTestParams>,
                                  virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvertRangeSubgraphCPUTestParams> obj) {
-        std::map<std::string, ov::element::Type> additionalConfig;
-        std::vector<InputShape> inputShapes;
-        std::vector<ov::Shape> targetShapes;
-        std::tie(additionalConfig, inputShapes, targetShapes) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertRangeSubgraphCPUTestParams>& obj) {
+        const auto& [additionalConfig, inputShapes, targetShapes] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -84,16 +87,15 @@ public:
             }
             result << ")";
         }
-        result << "Prc=" << additionalConfig[ov::hint::inference_precision.name()];
+
+        if (additionalConfig.count(ov::hint::inference_precision.name())) {
+            result << "Prc=" << additionalConfig.at(ov::hint::inference_precision.name());
+        }
         return result.str();
     }
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::vector<InputShape> inputShapes;
-        std::vector<ov::Shape> targetShapes;
-        std::map<std::string, ov::element::Type> additionalConfig;
-        std::tie(additionalConfig, inputShapes, targetShapes) = this->GetParam();
-
+        const auto &[additionalConfig, inputShapes, targetShapes] = this->GetParam();
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         init_input_shapes(inputShapes);

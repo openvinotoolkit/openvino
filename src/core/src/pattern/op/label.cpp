@@ -35,18 +35,18 @@ ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::NodeVec
 bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* matcher,
                                                const ov::Output<ov::Node>& pattern_value,
                                                const ov::Output<ov::Node>& graph_value) {
-    if (m_predicate(matcher->get_symbols(), graph_value)) {
+    if (m_predicate(matcher, graph_value)) {
         auto& pattern_map = matcher->get_pattern_value_map();
         auto saved = matcher->start_match();
         matcher->add_node(graph_value);
         if (pattern_map.count(shared_from_this())) {
-            OPENVINO_LOG_LABEL1(matcher, get_name());
+            OPENVINO_LOG_LABEL1(matcher, get_name(), pattern_value);
             return saved.finish(pattern_map[shared_from_this()] == graph_value);
         } else {
             pattern_map[shared_from_this()] = graph_value;
-            OPENVINO_LOG_LABEL2(matcher, get_name());
+            OPENVINO_LOG_LABEL2(matcher, get_name(), pattern_value);
             auto res = saved.finish(matcher->match_value(input_value(0), graph_value));
-            OPENVINO_LOG_LABEL3(matcher);
+            OPENVINO_LOG_LABEL3(matcher, pattern_value);
             return res;
         }
     }
@@ -54,6 +54,6 @@ bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* match
     return false;
 }
 
-std::shared_ptr<ov::Node> ov::pass::pattern::any_input() {
-    return std::make_shared<pattern::op::Label>();
+std::shared_ptr<ov::Node> ov::pass::pattern::any_input(const Attributes& attrs) {
+    return attrs.empty() ? std::make_shared<pattern::op::Label>() : any_input(attrs_match(attrs));
 }

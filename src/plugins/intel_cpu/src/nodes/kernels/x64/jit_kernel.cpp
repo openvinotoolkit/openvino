@@ -4,10 +4,19 @@
 
 #include "jit_kernel.hpp"
 
+#include <xbyak/xbyak.h>
+
+#include <array>
+#include <common/bfloat16.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
+#include <functional>
 #include <stdexcept>
-#include <unordered_set>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -43,9 +52,7 @@ void freeReg(jit_kernel::reg_indices& freeRegs, const registers<RegType>& regs, 
     // if (it != freeRegs.end())
     //     throw std::runtime_error("Some register was freed twice");
     freeRegs.emplace_back(idx);
-    if (freeRegs.size() > regs.size()) {
-        OPENVINO_THROW("Some register was freed twice");
-    }
+    OPENVINO_ASSERT(freeRegs.size() <= regs.size(), "Some register was freed twice");
 }
 
 const registers<Reg64>& x64regs() {
@@ -285,7 +292,7 @@ const Xbyak::Reg64& stack_frame::pointer() const {
 }
 
 void stack_frame::clear() const {
-    const size_t end = _size & ~static_cast<size_t>(7u);
+    const size_t end = _size & ~static_cast<size_t>(7U);
 
     _kernel.foreach (
         0,
@@ -320,7 +327,7 @@ const void* consts_table::store(const void* data, size_t size) {
 
 }  // namespace internal
 
-jit_kernel::jit_kernel(const char* name) : jit_generator(name) {
+jit_kernel::jit_kernel(const char* name) : jit_generator_t(name) {
     _free_rmmregs.reserve(16);
     _free_rmmregs.reserve(16);
 
@@ -403,7 +410,7 @@ void jit_kernel::free<Zmm>(const Zmm& reg) {
 }
 
 void jit_kernel::postamble() {
-    jit_generator::postamble();
+    jit_generator_t::postamble();
     for (const auto& emitter : _emitters) {
         if (emitter.second) {
             emitter.second->emit_data();

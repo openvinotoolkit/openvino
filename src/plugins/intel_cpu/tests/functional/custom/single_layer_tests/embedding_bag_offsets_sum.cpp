@@ -6,6 +6,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/embeddingbag_offsets_sum.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -31,17 +32,8 @@ class EmbeddingBagOffsetsSumLayerCPUTest : public testing::WithParamInterface<em
                                            public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<embeddingBagOffsetsSumLayerTestParamsSet>& obj) {
-        embeddingBagOffsetsSumParams params;
-        ElementType netPrecision, indPrecision;
-        std::string targetDevice;
-        std::tie(params, netPrecision, indPrecision, targetDevice) = obj.param;
-
-        InputShape inputShapes;
-        std::vector<size_t> indices, offsets;
-        size_t defaultIndex;
-        bool withWeights, withDefIndex;
-        std::tie(inputShapes, indices, offsets, defaultIndex, withWeights, withDefIndex) = params;
-
+        const auto& [params, netPrecision, indPrecision, targetDevice] = obj.param;
+        const auto& [inputShapes, indices, offsets, defaultIndex, withWeights, withDefIndex] = params;
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
         result << "I" << ov::test::utils::vec2str(indices) << "_";
@@ -56,16 +48,10 @@ public:
     }
 
     void SetUp() override {
-        embeddingBagOffsetsSumParams embParams;
-        ElementType indPrecision;
-        std::tie(embParams, inType, indPrecision, targetDevice) = this->GetParam();
-
-        InputShape inputShapes;
-        std::vector<size_t> indices, offsets;
-        bool withWeights, withDefIndex;
-        size_t defaultIndex;
-        std::tie(inputShapes, indices, offsets, defaultIndex, withWeights, withDefIndex) = embParams;
-
+        const auto& [embParams, _inType, indPrecision, _targetDevice] = this->GetParam();
+        inType = _inType;
+        targetDevice = _targetDevice;
+        const auto& [inputShapes, indices, offsets, defaultIndex, withWeights, withDefIndex] = embParams;
         selectedType = makeSelectedTypeStr("ref", inType);
         targetDevice = ov::test::utils::DEVICE_CPU;
 

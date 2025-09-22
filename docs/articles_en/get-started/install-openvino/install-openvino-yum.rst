@@ -11,7 +11,6 @@ Install OpenVINO™ Runtime on Linux From YUM Repository
    Note that the YUM distribution:
 
    * offers both C/C++ and Python APIs
-   * does not offer support for NPU inference
    * is dedicated to Linux users only
    * additionally includes code samples
 
@@ -93,7 +92,7 @@ Install OpenVINO Runtime
       .. code-block:: sh
 
 
-         sudo yum install openvino-2025.1.0
+         sudo yum install openvino-2025.3.0
 
 
 
@@ -164,7 +163,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
 
       .. code-block:: sh
 
-         sudo yum autoremove openvino-2025.1.0
+         sudo yum autoremove openvino-2025.3.0
 
 
 

@@ -148,7 +148,7 @@ void non_max_suppression_gather_inst::update_output_memory() {
         return;
 
     for (size_t i = 0; i < inputs_memory_count(); i++) {
-        if (node->get_program().is_new_shape_infer() && input_memory_ptr(i) == nullptr)
+        if (get_node().get_program().is_new_shape_infer() && input_memory_ptr(i) == nullptr)
             return;
 
         if (output_memory_ptr(i) != nullptr && _network.get_engine().is_the_same_buffer(output_memory(i), input_memory(i)))
@@ -157,8 +157,8 @@ void non_max_suppression_gather_inst::update_output_memory() {
         // Can_be_optimized nodes are allocating from memory_pool too. In this case,
         // we need release the legacy output memory from memory pool explicitly.
         if (static_cast<bool>(_outputs[i]) &&
-            _node->get_program().get_config().get_enable_memory_pool()) {
-            _network.get_memory_pool().release_memory(_outputs[i].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+            get_node().get_program().get_config().get_enable_memory_pool()) {
+            _network.get_memory_pool().release_memory(_outputs[i].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
         }
         _outputs[i] = {_network.get_engine().reinterpret_buffer(input_memory(i), _impl_params->get_output_layout(i))};
     }

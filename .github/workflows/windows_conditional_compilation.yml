@@ -1,6 +1,11 @@
 name: Windows Conditional Compilation (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   schedule:
     # run daily at 00:00
     - cron: '0 0 * * *'
@@ -20,7 +25,7 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -64,6 +69,7 @@ jobs:
       CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
+      CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_PDB_DIR: "${{ github.workspace }}\\install_pdb"
@@ -173,7 +179,7 @@ jobs:
             -DENABLE_NCC_STYLE=OFF `
             -DENABLE_PROFILING_ITT=ON `
             -DSELECTIVE_BUILD=COLLECT `
-            -DENABLE_FASTER_BUILD=ON `
+            -DENABLE_UNITY_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
@@ -203,13 +209,13 @@ jobs:
       - name: Ctest - OpenVINO unit tests
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
           ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
 
       - name: Perform code tracing via ITT collector
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
 
           python3 ${{ env.OPENVINO_REPO }}\thirdparty\itt_collector\runtool\sea_runtool.py ^
           --bindir ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }} ^
@@ -280,7 +286,7 @@ jobs:
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
@@ -288,7 +294,7 @@ jobs:
 
       - name: Upload OpenVINO PDB package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_pdb
           path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
@@ -296,7 +302,7 @@ jobs:
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.zip
@@ -304,7 +310,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -312,7 +318,7 @@ jobs:
 
   CC_Build:
     name: Conditional Compilation
-    timeout-minutes: 25
+    timeout-minutes: 40
     needs: [Build, Smart_CI]
     defaults:
       run:
@@ -345,7 +351,7 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
@@ -389,7 +395,7 @@ jobs:
       - name: Run with CC-ed runtime
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+          set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
           ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
 
   CPU_Functional_Tests:
@@ -409,7 +415,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -437,7 +443,7 @@ jobs:
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -452,7 +458,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu

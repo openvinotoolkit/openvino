@@ -6,8 +6,7 @@
 
 #include <memory>
 #include <vector>
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "low_precision/network_helper.hpp"

@@ -59,7 +59,10 @@ ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& 
     auto rms_value =
         std::make_shared<v0::Sqrt>(std::make_shared<v1::Add>(mean, v0::Constant::create(stash_type, {}, {epsilon})));
     auto inv_std_var = std::make_shared<v1::Divide>(v0::Constant::create(stash_type, {}, {1.0}), rms_value);
-    auto normalized = std::make_shared<v1::Multiply>(X, inv_std_var);  // X / RMS(X)
+    ov::Output<ov::Node> normalized = std::make_shared<v1::Multiply>(X, inv_std_var);  // X / RMS(X)
+    if (needs_type_casting) {
+        normalized = std::make_shared<v0::Convert>(normalized, scale.get_element_type());
+    }
 
     auto scaled = std::make_shared<v1::Multiply>(normalized, scale);  // (X / RMS(X)) * scale
 
@@ -80,6 +83,18 @@ ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& 
 ONNX_OP("SimplifiedLayerNormalization", OPSET_SINCE(1), ai_onnx::opset_1::simplified_layer_normalization);
 }  // namespace opset_1
 }  // namespace ai_onnx
+
+namespace com_microsoft {
+namespace opset_1 {
+OPENVINO_DEPRECATED("'SimplifiedLayerNormalization' in the 'com_microsoft' domain is deprecated. Please use the "
+                    "'ai_onnx' domain instead, which is adopted by ONNX Runtime Web.")
+ONNX_OP("SimplifiedLayerNormalization",
+        OPSET_SINCE(1),
+        ai_onnx::opset_1::simplified_layer_normalization,
+        MICROSOFT_DOMAIN);
+}  // namespace opset_1
+}  // namespace com_microsoft
+
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

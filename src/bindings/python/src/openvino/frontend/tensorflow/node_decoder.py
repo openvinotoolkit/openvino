@@ -175,7 +175,7 @@ class TFGraphNodeDecoder(DecoderBase):
         if name == "value":
             if self.m_data_type == 'string':
                 return OVAny(Tensor(self.m_parsed_content))
-            if self.m_parsed_content.size == 1:
+            if self.m_parsed_content.size == 1:  # type: ignore
                 if isinstance(self.m_parsed_content, np.ndarray):
                     return OVAny(Tensor(self.m_parsed_content))
                 self.m_parsed_content = np.array(self.m_parsed_content)

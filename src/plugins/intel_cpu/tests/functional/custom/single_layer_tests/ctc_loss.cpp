@@ -8,6 +8,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/ctc_loss.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -30,20 +31,13 @@ class CTCLossLayerCPUTest : public testing::WithParamInterface<CTCLossLayerCPUTe
                             public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CTCLossLayerCPUTestParams>& obj) {
-        CTCLossShapeParams shapes;
-        int blank;
-        bool preprocessCollapseRepeated;
-        bool ctcMergeRepeated;
-        bool unique;
-        ov::element::Type fPrecision;
-        ov::element::Type iPrecision;
-        std::tie(shapes, blank, preprocessCollapseRepeated, ctcMergeRepeated, unique, fPrecision, iPrecision) =
+        const auto& [shapes, blank, preprocessCollapseRepeated, ctcMergeRepeated, unique, fPrecision, iPrecision] =
             obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
-        for (std::vector<ov::Shape>& staticShapes : shapes.second) {
-            for (ov::Shape& shape : staticShapes) {
+        for (const std::vector<ov::Shape>& staticShapes : shapes.second) {
+            for (const ov::Shape& shape : staticShapes) {
                 size_t N = shape[0];
                 size_t T = shape[1];
                 size_t C = shape[2];
@@ -64,27 +58,19 @@ public:
 
 protected:
     void SetUp() override {
-        CTCLossShapeParams shapes;
-        bool preprocessCollapseRepeated;
-        bool ctcMergeRepeated;
-        bool unique;
-        ov::element::Type fPrecision;
-        ov::element::Type iPrecision;
-        std::tie(shapes, blank, preprocessCollapseRepeated, ctcMergeRepeated, unique, fPrecision, iPrecision) =
+        const auto& [shapes, _blank, preprocessCollapseRepeated, ctcMergeRepeated, unique, fPrecision, iPrecision] =
             GetParam();
-
+        blank = _blank;
         targetDevice = ov::test::utils::DEVICE_CPU;
         selectedType = std::string("ref_any_f32");
-
-        for (std::vector<ov::Shape>& staticShapes : shapes.second) {
-            for (ov::Shape& shape : staticShapes) {
+        for (const std::vector<ov::Shape>& staticShapes : shapes.second) {
+            for (const ov::Shape& shape : staticShapes) {
                 size_t N = shape[0];
                 size_t T = shape[1];
                 size_t C = shape[2];
                 targetStaticShapes.push_back({{N, T, C}, {N}, {N, T}, {N}});
             }
         }
-
         auto inputDynamicShapesValues = shapes.first.front();
         ov::PartialShape shapeN{inputDynamicShapesValues[0]};
         ov::PartialShape shapeNT{inputDynamicShapesValues[0], inputDynamicShapesValues[1]};

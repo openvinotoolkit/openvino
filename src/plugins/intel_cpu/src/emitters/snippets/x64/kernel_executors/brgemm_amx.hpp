@@ -4,28 +4,40 @@
 
 #pragma once
 
-#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
-#include <memory>
+#include <oneapi/dnnl/dnnl_common_types.h>
 
-#include "emitters/plugin/x64/jit_emitter.hpp"
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "cache/multi_cache.h"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 namespace ov::intel_cpu::x64 {
 
 struct BrgemmAMXKernelConfig : public x64::BrgemmBaseKernelConfig {
 public:
-    BrgemmAMXKernelConfig(const element::Type& in0_dtype,
-                          const element::Type& in1_dtype,
-                          dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+    BrgemmAMXKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config,
+                          const element::Type& out_dt,
+                          const dnnl_post_ops& post_ops);
     BrgemmAMXKernelConfig() = delete;
 
     [[nodiscard]] std::unique_ptr<GenericConfig> get_clone_ptr() const override {
         return std::make_unique<BrgemmAMXKernelConfig>(*this);
     }
 
-    [[nodiscard]] dnnl_dim_t get_inner_K_blk() const {
-        return m_static_params->inner_k_blk;
+    [[nodiscard]] dnnl_dim_t get_wei_K_blk() const {
+        return m_static_params->wei_K_blk;
     }
     [[nodiscard]] dnnl_dim_t get_vnni_factor() const {
         return m_static_params->vnni_factor;
@@ -37,9 +49,12 @@ private:
     struct StaticParams : StaticBaseParams {
         StaticParams(const element::Type& in0_dtype,
                      const element::Type& in1_dtype,
-                     dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+                     const element::Type& out_dtype,
+                     dnnl_dim_t wei_K_blk,
+                     dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                     const dnnl_post_ops& post_ops);
 
-        const dnnl_dim_t inner_k_blk{0};
+        const dnnl_dim_t wei_K_blk{0};
         const dnnl_dim_t vnni_factor{0};
 
         bool operator==(const StaticParams& rhs) const;
@@ -50,7 +65,7 @@ private:
         [[nodiscard]] std::string to_string() const override;
 #endif
     private:
-        static size_t compute_hash(dnnl_dim_t inner_k_blk, dnnl_dim_t vnni_factor);
+        static size_t compute_hash(dnnl_dim_t wei_K_blk, dnnl_dim_t vnni_factor);
     };
 
     [[nodiscard]] std::shared_ptr<StaticBaseParams> get_static_params() const override {
@@ -81,6 +96,7 @@ public:
         const uint8_t* B = nullptr;
         void* C = nullptr;
         uint8_t* scratch = nullptr;
+        const void* post_ops_binary_arg_vec = nullptr;
         amx_tile_config_t* amx_tile_config = nullptr;
     };
     BrgemmAMXKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmAMXKernelConfig config);

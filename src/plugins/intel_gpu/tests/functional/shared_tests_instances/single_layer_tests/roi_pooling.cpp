@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/roi_pooling.hpp"
+#include "openvino/op/roi_pooling.hpp"
 
 namespace ov {
 namespace test {
@@ -12,13 +13,9 @@ protected:
 };
 
 void ROIPoolingLayerTestGPU::SetUp() {
-    std::vector<InputShape> input_shapes;
-    ov::Shape pool_shape;
-    float spatial_scale;
-    ov::test::utils::ROIPoolingTypes pool_method;
-    ov::element::Type model_type;
     std::string target_device;
-    std::tie(input_shapes, pool_shape, spatial_scale, pool_method, model_type, targetDevice) = this->GetParam();
+    const auto& [input_shapes, pool_shape, spatial_scale, pool_method, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     abs_threshold = 0.08f;
     if (model_type == ov::element::f16) {

@@ -25,13 +25,45 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+
+namespace {
+
+bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
+                                 const ov::Output<ov::Node>& kT,
+                                 const ov::Output<ov::Node>& scale) {
+    const auto& scale_pshape = scale.get_partial_shape();
+    const auto& query_pshape = query.get_partial_shape();
+    if (scale_pshape.is_dynamic() || query_pshape.is_dynamic()) {
+        return false;
+    }
+
+    // According to the ov SDPA specification, the scale input have to be 1d with 1 element
+    // or scalar.
+    if (ov::shape_size(scale_pshape.to_shape()) != 1) {
+        return false;
+    }
+
+    // using the original implementation to calculate the shapes.
+    // we need to move the scale after MatMul only if the tensor after MatMul is smaller.
+    auto q_scaled = std::make_shared<ov::op::v1::Multiply>(query, scale);
+    auto scaled_attn = std::make_shared<ov::op::v0::MatMul>(q_scaled, kT);
+    const auto& scaled_attn_pshape = scaled_attn->output(0).get_partial_shape();
+    if (scaled_attn_pshape.is_static()) {
+        return ov::shape_size(query_pshape.to_shape()) > ov::shape_size(scaled_attn_pshape.to_shape());
+    }
+    return false;
+}
+
+}  // namespace
 
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
     MATCHER_SCOPE(ScaledDotProductAttentionDecomposition);
@@ -85,16 +117,21 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     };
 
     Output<Node> scale;
+    Output<Node> sink;
+    bool has_sink = false;
     if (node->get_input_size() < 5) {
         scale = build_extract_dim_subgraph(q_shape, -1);
         scale = register_new_node<v1::ConvertLike>(scale, query);
         auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
         scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
-    } else {
+    } else if (node->get_input_size() < 7) {
         scale = node->input_value(4);
+        if (node->get_input_size() == 6) {
+            sink = node->input_value(5);
+            has_sink = true;
+        }
     }
 
-    auto q_scaled = register_new_node<v1::Multiply>(query, scale);
     auto k_rank = register_new_node<v3::ShapeOf>(k_shape, element::i32)->output(0);
     auto k_last_dim = register_new_node<v1::Add>(k_rank, minus_one);
     auto k_next_dim = register_new_node<v1::Add>(k_rank, minus_two)->output(0);
@@ -108,7 +145,16 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto transpose_dims =
         register_new_node<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
     auto k_transposed = register_new_node<v1::Transpose>(key, transpose_dims);
-    auto scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
+
+    ov::Output<Node> scaled_atten;
+    if (can_move_scale_after_matmul(query, k_transposed, scale)) {
+        auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
+        scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
+    } else {
+        auto q_scaled = register_new_node<v1::Multiply>(query, scale);
+        scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
+    }
+
     minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
 
     if (node->get_causal() || node->get_input_size() > 3) {
@@ -121,9 +167,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
             // take part in attention. A float mask of the same type as query, key, value that is added to the attention
             // score.
             if (mask.get_element_type() == element::boolean) {
-                atten_mask = register_new_node<v1::ConvertLike>(mask, scaled_atten);
-                auto inv_mask = register_new_node<v1::LogicalNot>(mask);
-                atten_mask = register_new_node<v1::Select>(inv_mask, atten_mask, minus_inf);
+                atten_mask = register_new_node<v1::Select>(mask, zero_f, minus_inf);
             } else {
                 atten_mask = mask;
             }
@@ -145,7 +189,27 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
     }
 
-    scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
+    if (has_sink) {
+        auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-2}));
+        auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+        auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+        auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+
+        auto q_last_but_one_dim = register_new_node<v1::Subtract>(register_new_node<v0::ShapeOf>(q_shape),
+                                                                  v0::Constant::create(element::i64, Shape{}, {1}));
+        auto sink_target_shape_1 = register_new_node<v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
+        auto sink_target_shape = register_new_node<v0::Concat>(OutputVector{sink_target_shape_1, one_i}, 0);
+        auto sink_broadcast = register_new_node<v1::Broadcast>(sink, sink_target_shape);
+
+        auto scaled_attn_sink = register_new_node<v0::Concat>(OutputVector{scaled_atten, sink_broadcast}, -1);
+        scaled_atten = register_new_node<v8::Softmax>(scaled_attn_sink, -1);
+
+        auto seq_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
+        scaled_atten = register_new_node<v8::Slice>(scaled_atten, zero_i, seq_len, one_i, minus_one);
+    } else {
+        scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
+    }
+
     auto result = register_new_node<v0::MatMul>(scaled_atten, value);
     result->set_friendly_name(node->get_friendly_name());
     copy_runtime_info(node, get_new_nodes());

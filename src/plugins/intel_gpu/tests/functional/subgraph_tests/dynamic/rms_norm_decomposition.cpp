@@ -46,11 +46,8 @@ using RMSNormDecompositionParams = std::tuple<std::vector<InputShape>,          
 class RMSNormDecomposition : public testing::WithParamInterface<RMSNormDecompositionParams>,
                              virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RMSNormDecompositionParams> obj) {
-        std::vector<InputShape> input_shapes;
-        ov::element::Type input_precision;
-
-        std::tie(input_shapes, input_precision) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<RMSNormDecompositionParams>& obj) {
+        const auto& [input_shapes, input_precision] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -109,16 +106,13 @@ protected:
 
         auto comp = std::make_shared<ov::op::v0::Convert>(mul2, ov::element::f16);
 
-        return std::make_shared<ov::Model>(ov::NodeVector{comp}, params, "RMSNormDecomposition");
+        return std::make_shared<ov::Model>(ov::OutputVector{comp}, params, "RMSNormDecomposition");
     }
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::vector<InputShape> input_shapes;
-        ov::element::Type input_precision;
-
-        std::tie(input_shapes, input_precision) = GetParam();
+        const auto& [input_shapes, input_precision] = GetParam();
 
         init_input_shapes(input_shapes);
 

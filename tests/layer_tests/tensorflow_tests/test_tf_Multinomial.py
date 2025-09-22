@@ -119,9 +119,7 @@ class TestMultinomial(CommonTFLayerTest):
         ie_device,
         precision,
         ir_version,
-        temp_dir,
-        use_legacy_frontend,
-    ):
+        temp_dir):
         if ie_device == "GPU":
             pytest.skip("Multinomial is not supported on GPU")
         net = getattr(self, f"create_tf_multinomial_net_{test_type}")
@@ -137,6 +135,5 @@ class TestMultinomial(CommonTFLayerTest):
             precision,
             temp_dir=temp_dir,
             ir_version=ir_version,
-            use_legacy_frontend=use_legacy_frontend,
             kwargs_to_prepare_input={"input:0": input, "num_samples:0": num_samples},
         )

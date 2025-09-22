@@ -1,5 +1,6 @@
 # type: ignore
 from __future__ import annotations
+from builtins import list as TensorShape
 from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Shape
@@ -28,7 +29,7 @@ import typing
 """
 Factory functions for all openvino ops.
 """
-__all__ = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'as_node', 'as_nodes', 'assert_list_of_ints', 'batch_norm_inference', 'binary_op', 'check_valid_attributes', 'gather_nd', 'get_dtype', 'get_element_type', 'get_element_type_str', 'gru_sequence', 'hsigmoid', 'is_non_negative_value', 'is_positive_value', 'log_softmax', 'loop', 'lstm_sequence', 'make_constant_node', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rnn_sequence', 'round', 'unary_op']
+__all__: list[str] = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'as_node', 'as_nodes', 'assert_list_of_ints', 'batch_norm_inference', 'binary_op', 'check_valid_attributes', 'gather_nd', 'get_dtype', 'get_element_type', 'get_element_type_str', 'gru_sequence', 'hsigmoid', 'is_non_negative_value', 'is_positive_value', 'log_softmax', 'loop', 'lstm_sequence', 'make_constant_node', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'rnn_sequence', 'round', 'unary_op']
 def batch_norm_inference(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
@@ -190,5 +191,4 @@ NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvin
 NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]
-TensorShape: typing._GenericAlias  # value = typing.List[int]
 _get_node_factory_opset5: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset5')

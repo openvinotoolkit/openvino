@@ -53,7 +53,7 @@ protected:
 class MHA : public testing::WithParamInterface<ov::test::snippets::MHAParams>,
             virtual public MHABase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAParams>& obj);
 
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
@@ -119,14 +119,24 @@ protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
 
+class MHARankUpgradeToReductionReshape : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 class MHAWithDynamicMul : public testing::WithParamInterface<ov::test::snippets::MHAWithDynamicMulParams>,
                           virtual public MHABase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAWithDynamicMulParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MHAWithDynamicMulParams>& obj);
 
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
+};
+
+class MHASharedKV : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
 
 }  // namespace snippets

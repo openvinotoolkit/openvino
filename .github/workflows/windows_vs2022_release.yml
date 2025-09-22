@@ -1,6 +1,11 @@
 name: Windows (VS 2022, Python 3.11, Release)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -13,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
 
@@ -64,7 +69,7 @@ jobs:
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_PYTHON=ON
-            -DENABLE_WHEEL=ON
+            -DENABLE_WHEEL=OFF
             -DENABLE_CPPLINT=OFF
             -DENABLE_TESTS=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
@@ -89,24 +94,29 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\build"
 
     steps:
-      - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+      - name: Download OpenVINO package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[package|tests]*
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+
+      - name: Download OpenVINO tests package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[wheels]*
+          name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}
           merge-multiple: true
 
       - name: Extract OpenVINO packages
         run: |
-            Expand-Archive openvino_package.zip -DestinationPath .
-            Expand-Archive openvino_tests.zip -DestinationPath .
+            Expand-Archive openvino_package.zip -DestinationPath . -Verbose
+            Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python and install wheels actions
@@ -173,7 +183,7 @@ jobs:
         shell: pwsh
     runs-on: 'aks-win-4-cores-8gb'
     env:
-      OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js"
+      OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
       NODE_VERSION: 21
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
@@ -188,51 +198,52 @@ jobs:
           path: 'openvino'
 
       - name: Download OpenVINO artifacts (JS)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[js]*
+          name: openvino_js_package
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_js_package.zip -DestinationPath .
+        run: Expand-Archive openvino_js_package.zip -DestinationPath . -Verbose
         working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Configure OpenVINO JS API
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm i
 
       - name: Test OpenVINO JS API
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm test
 
       - name: Test OpenVINO JS API (cmd)
         shell: cmd
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: call npm test
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
 
       - name: E2E of openvino-node package
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test:e2e
 
       - name: E2E of openvino-node package (cmd)
         shell: cmd
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: call npm run test:e2e
 
       - name: Create package dir
-        working-directory: ${{ env.OPENVINO_JS_DIR }}
+        working-directory: ${{ github.workspace }}
         run: mkdir project-uses-openvino-node
+
       - name: Test installation of openvino-node package
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/project-uses-openvino-node
+        working-directory: ${{ github.workspace }}/project-uses-openvino-node
         run: |
           npm i openvino-node
           node -e "const { addon: ov } = require('openvino-node'); console.log(ov);"
@@ -246,6 +257,7 @@ jobs:
       shell: pwsh
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
+      target-branch: ${{ inputs.target-branch }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   Python_Unit_Tests:
@@ -266,21 +278,21 @@ jobs:
 
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[tests]*
+          name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[wheels]*
+          name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_tests.zip -DestinationPath .
+        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python and install wheels actions
@@ -341,7 +353,7 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         shell: cmd
         run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ -n logical --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_lite_tests/ -v -n logical --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -352,7 +364,7 @@ jobs:
         shell: cmd
         run: |
           :: Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/onnx -k "not cuda" ^
+          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/onnx -v -k "not cuda" ^
           --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-onnx_frontend.xml ^
           --ignore=${{ env.INSTALL_TEST_DIR }}/onnx/test_python/test_zoo_models.py
 
@@ -364,7 +376,7 @@ jobs:
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\python\openvino\test_utils;${{ env.INSTALL_TEST_DIR }}\python;%PYTHONPATH%
 
           :: Skip test ticket: 126319
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests -k "not test_ovc_tool_non_existng_output_dir" --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/ovc_python_api_tests -v -k "not test_ovc_tool_non_existng_output_dir" --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -373,15 +385,15 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test ||
             fromJSON(needs.smart_ci.outputs.affected_components).PDPD_FE.test
         run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
+          python3 -m pytest -v ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
 
       - name: OVC unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).OVC.test
         shell: cmd
-        run: python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
+        run: python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-unittests
@@ -409,21 +421,21 @@ jobs:
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[tests]*
+          name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[wheels]*
+          name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_tests.zip -DestinationPath .
+        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python and install wheels actions
@@ -471,7 +483,7 @@ jobs:
           python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/pyopenvino --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-Pyngraph_new_numpy.xml --ignore=${{ env.INSTALL_TEST_DIR }}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-${{ matrix.python-version }}
@@ -498,6 +510,15 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
+  Pytorch_FX_Layer_Tests:
+    name: Pytorch FX Layer Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
+    with:
+      runner: 'aks-win-8-cores-16gb'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
   JAX_Layer_Tests:
     name: JAX Layer Tests
     needs: [ Build, Smart_CI ]
@@ -516,7 +537,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'windows_2022'
       build-type: 'Release'
-      timeout-minutes: 50
+      timeout-minutes: 60
 
   CPU_Functional_Tests:
     name: CPU functional tests
@@ -535,13 +556,13 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -575,7 +596,7 @@ jobs:
         run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -589,14 +610,14 @@ jobs:
         timeout-minutes: 60
 
       - name: Save tests execution time
-        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu
@@ -613,7 +634,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

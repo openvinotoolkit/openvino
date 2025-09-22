@@ -38,8 +38,21 @@ void LoweredPassTestsF::TearDown() {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-ov::snippets::VectorDims get_default_subtensor() {
-    return VectorDims(2, ov::snippets::utils::get_full_dim_value());
+void LoweredPassTestsF::assign_loop_ids(const std::map<ExpressionPtr, std::vector<size_t>>& expr_to_loop_ids,
+                                        const std::map<size_t, size_t>& loop_ids_mapper) {
+    linear_ir_ref->get_loop_manager()->reorder_identifiers(loop_ids_mapper);
+    for (const auto& [expr, original_loop_ids] : expr_to_loop_ids) {
+        std::vector<size_t> reordered_loop_ids;
+        reordered_loop_ids.reserve(original_loop_ids.size());
+        for (auto original_id : original_loop_ids) {
+            reordered_loop_ids.push_back(loop_ids_mapper.at(original_id));
+        }
+        expr->set_loop_ids(reordered_loop_ids);
+    }
+}
+
+ov::snippets::VectorDims get_default_subtensor(size_t rank) {
+    return VectorDims(rank, ov::snippets::utils::get_full_dim_value());
 }
 
 void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
@@ -68,14 +81,16 @@ void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
 
     const auto node = expr->get_node();
     for (size_t i = 0; i < n_inputs; ++i) {
-        const auto& subtensor = subtensors.empty() ? get_default_subtensor() : subtensors[i];
+        const auto subtensor_rank = std::min(static_cast<size_t>(2), node->input(i).get_partial_shape().size());
+        const auto& subtensor = subtensors.empty() ? get_default_subtensor(subtensor_rank) : subtensors[i];
         const auto& layout = layouts.empty() ? VectorDims{} : layouts[i];
         const auto desc = std::make_shared<PortDescriptor>(node->input(i), subtensor, layout);
         PortDescriptorUtils::set_port_descriptor_ptr(node->input(i), desc);
         update_expr_desc(expr->get_input_port_descriptor(i), desc);
     }
     for (size_t i = 0; i < n_outputs; ++i) {
-        const auto& subtensor = subtensors.empty() ? get_default_subtensor() : subtensors[i + n_inputs];
+        const auto subtensor_rank = std::min(static_cast<size_t>(2), node->output(i).get_partial_shape().size());
+        const auto& subtensor = subtensors.empty() ? get_default_subtensor(subtensor_rank) : subtensors[i + n_inputs];
         const auto& layout = layouts.empty() ? VectorDims{} : layouts[i + n_inputs];
         const auto desc = std::make_shared<PortDescriptor>(node->output(i), subtensor, layout);
         PortDescriptorUtils::set_port_descriptor_ptr(node->output(i), desc);

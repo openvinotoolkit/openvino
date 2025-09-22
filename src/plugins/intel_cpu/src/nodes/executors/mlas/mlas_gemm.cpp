@@ -4,16 +4,23 @@
 
 #include "mlas_gemm.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <numeric>
+#include <string>
 
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "mlas/sgemm.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mlas/mlas_gemm.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
@@ -57,7 +64,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
         const std::string string_hash = format + "_" + std::to_string(weightsMemory->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(weightsMemory->getData()));
         DEBUG_LOG("MlasGemmExecutor: findOrCreate, string_hash: ", string_hash);
-        return *weightCache->findOrCreate(string_hash, create);
+        return MemoryPtr(*weightCache->findOrCreate(string_hash, create));
     }
 
     DEBUG_LOG("MlasGemmExecutor: Weights cache is not available");
@@ -66,7 +73,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
 
 // @todo use VERIFY macro for the checks
 bool MlasGemmExecutor::supports(const FCConfig& config) {
-    if (!config.postOps.empty()) {
+    if (!config.attrs.postOps.empty()) {
         DEBUG_LOG("MlasGemmExecutor: PostOps are not supported");
         return false;
     }
@@ -95,14 +102,11 @@ bool MlasGemmExecutor::supports(const FCConfig& config) {
     return true;
 }
 
-MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
-                                   [[maybe_unused]] const PostOps& postOps,
-                                   const MemoryArgs& memory,
-                                   const ExecutorContext::CPtr& context)
+MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context)
     : m_attrs(attrs),
       m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
-      M(0),
+
       N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
       K(memory.at(ARG_WEI)->getStaticDims().back()) {}
 
@@ -116,10 +120,10 @@ bool MlasGemmExecutor::update(const MemoryArgs& memory) {
 }
 
 void MlasGemmExecutor::execute(const MemoryArgs& memory) {
-    const auto srcRawMemPtr = memory.at(ARG_SRC)->getDataAs<float>();
-    const auto weiRawMemPtr = packedWeights->getDataAs<float>();
-    const auto dstRawMemPtr = memory.at(ARG_DST)->getDataAs<float>();
-    const auto biasRawMemPtr = memory.at(ARG_BIAS)->getDataAs<float>();
+    auto* const srcRawMemPtr = memory.at(ARG_SRC)->getDataAs<float>();
+    auto* const weiRawMemPtr = packedWeights->getDataAs<float>();
+    auto* const dstRawMemPtr = memory.at(ARG_DST)->getDataAs<float>();
+    auto* const biasRawMemPtr = memory.at(ARG_BIAS)->getDataAs<float>();
 
     const auto lda = K;
     const auto ldb = K;
@@ -130,12 +134,12 @@ void MlasGemmExecutor::execute(const MemoryArgs& memory) {
                        M,
                        N,
                        K,
-                       1.0f,
+                       1.0F,
                        srcRawMemPtr,
                        lda,
                        weiRawMemPtr,
                        ldb,
-                       0.0f,
+                       0.0F,
                        dstRawMemPtr,
                        ldc,
                        biasRawMemPtr);

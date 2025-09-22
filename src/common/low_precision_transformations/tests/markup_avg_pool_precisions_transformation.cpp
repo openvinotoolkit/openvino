@@ -22,6 +22,8 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/markup_avg_pool_precisions.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 
 using namespace testing;
 using namespace ov::pass;
@@ -60,12 +62,7 @@ class MarkupAvgPoolPrecisionsTransformation
       public testing::WithParamInterface<MarkupAvgPoolPrecisionsTransformationParams> {
 public:
     void SetUp() override {
-        ov::element::Type precision;
-        ov::Shape shape;
-        bool addFakeQuantize;
-        std::string additionalLayer;
-        MarkupAvgPoolPrecisionsTransformationTestValues testValues;
-        std::tie(precision, shape, addFakeQuantize, additionalLayer, testValues) = GetParam();
+        const auto& [precision, shape, addFakeQuantize, additionalLayer, testValues] = GetParam();
 
         actualFunction =
             ov::builder::subgraph::MarkupAvgPoolPrecisionsFunction::getOriginal(precision,
@@ -107,12 +104,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MarkupAvgPoolPrecisionsTransformationParams> obj) {
-        ov::element::Type precision;
-        ov::Shape shape;
-        bool addFakeQuantize;
-        std::string additionalLayer;
-        MarkupAvgPoolPrecisionsTransformationTestValues testValues;
-        std::tie(precision, shape, addFakeQuantize, additionalLayer, testValues) = obj.param;
+        const auto& [precision, shape, addFakeQuantize, additionalLayer, testValues] = obj.param;
 
         std::ostringstream result;
         result << precision << "_"

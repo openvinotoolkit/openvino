@@ -24,6 +24,7 @@
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
 namespace {
 static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
@@ -37,7 +38,7 @@ uint64_t get_blob_data_size(std::istream& model) {
 }
 
 std::string get_model_str(std::istream& model) {
-    const auto model_size = std::min<uint64_t>(model.rdbuf()->in_avail(), get_blob_data_size(model));
+    const auto model_size = get_blob_data_size(model);
     std::string xml;
     xml.resize(model_size);
     model.read(xml.data(), model_size);
@@ -51,7 +52,7 @@ ov::Tensor read_weights(std::istream& model, const size_t weights_size) {
 }
 
 ov::Tensor get_model_weights(std::istream& model) {
-    const auto weights_size = std::min<uint64_t>(model.rdbuf()->in_avail(), get_blob_data_size(model));
+    const auto weights_size = get_blob_data_size(model);
     return weights_size != 0 ? read_weights(model, weights_size) : ov::Tensor();
 }
 
@@ -141,6 +142,9 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     // Allow FP16 Converts to be folded and FP16 constants to be upgraded to FP32 data type
     pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
     pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+
+    // Disabled SDPA transformation, since there is ref SDPA op.
+    pass_config->disable<ov::pass::ScaledDotProductAttentionDecomposition>();
 
     // After `run_passes`, we have the transformed function, where operations match device operations,
     // and we can create device backend-dependent graph
@@ -262,6 +266,22 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
 }
 // ! [plugin:import_model_with_remote]
 
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(const ov::Tensor& model,
+                                                                              const ov::AnyMap& properties) const {
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
+    const ov::Tensor& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& properties) const {
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, properties);
+}
+
 // ! [plugin:query_model]
 ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                                              const ov::AnyMap& properties) const {
@@ -347,6 +367,11 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             ov::template_plugin::disable_transformations,
             ov::log::level,
             ov::hint::model_priority,
+            ov::hint::enable_hyper_threading,
+            ov::hint::enable_cpu_pinning,
+            ov::hint::scheduling_core_type,
+            ov::compilation_num_threads,
+            ov::inference_num_threads,
             ov::weights_path,
             ov::cache_mode,
         };

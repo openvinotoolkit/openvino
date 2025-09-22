@@ -1,10 +1,12 @@
 # type: ignore
 from __future__ import annotations
+from collections.abc import Callable
 from openvino._pyopenvino import PartialShape
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.utils import refer_to_faq_msg
+import collections.abc
 import openvino._pyopenvino
-__all__ = ['Error', 'PartialShape', 'get_dimension_index_by_label', 'refer_to_faq_msg', 'update_layout_to_dict']
+__all__: list[str] = ['Callable', 'Error', 'PartialShape', 'get_dimension_index_by_label', 'refer_to_faq_msg', 'update_layout_to_dict']
 def get_dimension_index_by_label(input_shape: openvino._pyopenvino.PartialShape, input_names: list, layout_dict: [dict], dimension_label: str, default_dim: int):
     """
     
@@ -13,7 +15,7 @@ def get_dimension_index_by_label(input_shape: openvino._pyopenvino.PartialShape,
         For example, the index for 'D' dimension in "NHWDC" layout is 3.
         
     """
-def update_layout_to_dict(inputs: list, layout: [list, dict], get_names_func: typing.Callable):
+def update_layout_to_dict(inputs: list, layout: [list, dict], get_names_func: collections.abc.Callable):
     """
     
         The function prepares layout values in the dictionary with items of the format:

@@ -4,6 +4,33 @@
 
 #include "eltwise.hpp"
 
+#include <libxsmm_typedefs.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <set>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/subtract.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
+
 namespace ov::intel_cpu::tpp::op {
 
 #define GENERAL_AUX_METHODS(OP, OP_TYPE, ...)                                             \
@@ -13,7 +40,9 @@ namespace ov::intel_cpu::tpp::op {
         new_op->clone_memory_access_ports(*this);                                         \
         return new_op;                                                                    \
     }                                                                                     \
-    bool OP::visit_attributes(AttributeVisitor& visitor) { return OP_TYPE::visit_attributes(visitor); }
+    bool OP::visit_attributes(AttributeVisitor& visitor) {                                \
+        return OP_TYPE::visit_attributes(visitor);                                        \
+    }
 
 // Note: Unary Ops don't require broadcasting flags update => no need to override validate_and_infer_types
 #define BINARY_AUX_METHODS(BINARY_OP, OV_OP)                                                            \
@@ -57,13 +86,16 @@ libxsmm_bitfield BinaryEltwiseTPP::get_broadcasting_flags(const snippets::Vector
     snippets::VectorDims subshape_0 = get_subshape(shape_0);
     snippets::VectorDims subshape_1 = get_subshape(shape_1);
 
-    if (snippets::utils::is_dynamic_vdims(subshape_0) || snippets::utils::is_dynamic_vdims(subshape_1))
+    if (snippets::utils::is_dynamic_vdims(subshape_0) || snippets::utils::is_dynamic_vdims(subshape_1)) {
         return LIBXSMM_MELTW_FLAG_BINARY_NONE;
+    }
     if (subshape_0 == subshape_1) {
         return LIBXSMM_MELTW_FLAG_BINARY_NONE;
-    } else if (ov::shape_size(subshape_0) == 1) {
+    }
+    if (ov::shape_size(subshape_0) == 1) {
         return LIBXSMM_MELTW_FLAG_BINARY_BCAST_SCALAR_IN_0;
-    } else if (ov::shape_size(subshape_1) == 1) {
+    }
+    if (ov::shape_size(subshape_1) == 1) {
         return LIBXSMM_MELTW_FLAG_BINARY_BCAST_SCALAR_IN_1;
     } else {
         libxsmm_bitfield flags = LIBXSMM_MELTW_FLAG_BINARY_NONE;
@@ -135,19 +167,19 @@ UNARY_AUX_METHODS(Relu)
 
 Reciprocal::Reciprocal(const Output<Node>& arg)
     : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_RECIPROCAL),
-      ov::snippets::op::PowerStatic(arg, -1.f) {}
+      ov::snippets::op::PowerStatic(arg, -1.F) {}
 
 UNARY_AUX_METHODS(Reciprocal)
 
 Square::Square(const Output<Node>& arg)
     : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_X2),
-      ov::snippets::op::PowerStatic(arg, 2.f) {}
+      ov::snippets::op::PowerStatic(arg, 2.F) {}
 
 UNARY_AUX_METHODS(Square)
 
 SquareRoot::SquareRoot(const Output<Node>& arg)
     : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_SQRT),
-      ov::snippets::op::PowerStatic(arg, 0.5f) {}
+      ov::snippets::op::PowerStatic(arg, 0.5F) {}
 
 UNARY_AUX_METHODS(SquareRoot)
 

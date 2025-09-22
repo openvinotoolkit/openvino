@@ -3,6 +3,7 @@
 //
 
 #include "subgraph_customizable.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include <snippets/op/subgraph.hpp>
 #include "common_test_utils/data_utils.hpp"
@@ -28,7 +29,7 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initOriginal() const {
     auto eltwise_unary_1 = custom_ops[1]->clone_with_new_inputs({eltwise_binary->output(0)});
     auto eltwise_unary_2 = custom_ops[2]->clone_with_new_inputs({eltwise_unary_1->output(0)});
 
-    return std::make_shared<ov::Model>(NodeVector{eltwise_unary_2}, ParameterVector{conv_param, eltwise_param});
+    return std::make_shared<ov::Model>(OutputVector{eltwise_unary_2}, ParameterVector{conv_param, eltwise_param});
 }
 std::shared_ptr<ov::Model> ConvMulActivationFunction::initReference() const {
     auto conv_param = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -50,10 +51,10 @@ std::shared_ptr<ov::Model> ConvMulActivationFunction::initReference() const {
     auto ineltwise_unary_1 = custom_ops[1]->clone_with_new_inputs({ineltwise_binary->output(0)});
     auto ineltwise_unary_2 = custom_ops[2]->clone_with_new_inputs({ineltwise_unary_1->output(0)});
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{conv, eltwise_sinh},
-                                          std::make_shared<ov::Model>(NodeVector{ineltwise_unary_2},
-                                                                  ParameterVector{indata0, indata1}));
-    return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{conv_param, eltwise_param});
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
+        OutputVector{conv, eltwise_sinh},
+        std::make_shared<ov::Model>(OutputVector{ineltwise_unary_2}, ParameterVector{indata0, indata1}));
+    return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{conv_param, eltwise_param});
 }
 std::shared_ptr<ov::Model> ConvBiasActivationFunction::initOriginal() const {
     auto conv_param = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -73,7 +74,7 @@ std::shared_ptr<ov::Model> ConvBiasActivationFunction::initOriginal() const {
     auto add = std::make_shared<op::v1::Add>(conv->output(0), add_const->output(0));
     auto unary = custom_ops[1]->clone_with_new_inputs({add->output(0)});
 
-    return std::make_shared<ov::Model>(NodeVector{unary}, ParameterVector{conv_param});
+    return std::make_shared<ov::Model>(OutputVector{unary}, ParameterVector{conv_param});
 }
 std::shared_ptr<ov::Model> ConvBiasTwoActivationFunction::initOriginal() const {
     auto conv_param = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -94,7 +95,7 @@ std::shared_ptr<ov::Model> ConvBiasTwoActivationFunction::initOriginal() const {
     auto unary_1 = custom_ops[1]->clone_with_new_inputs({add->output(0)});
     auto unary_2 = custom_ops[2]->clone_with_new_inputs({unary_1->output(0)});
 
-    return std::make_shared<ov::Model>(NodeVector{unary_2}, ParameterVector{conv_param});
+    return std::make_shared<ov::Model>(OutputVector{unary_2}, ParameterVector{conv_param});
 }
 std::shared_ptr<ov::Model> ConvBiasTwoActivationFunction::initReference() const {
     auto conv_param = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -118,10 +119,10 @@ std::shared_ptr<ov::Model> ConvBiasTwoActivationFunction::initReference() const 
 
     auto unary_2 = custom_ops[2]->clone_with_new_inputs({indata->output(0)});
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{unary_1},
-                                                                 std::make_shared<ov::Model>(NodeVector{unary_2},
-                                                                 ParameterVector{indata}));
-    return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{conv_param});
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
+        OutputVector{unary_1},
+        std::make_shared<ov::Model>(OutputVector{unary_2}, ParameterVector{indata}));
+    return std::make_shared<ov::Model>(OutputVector{subgraph}, ParameterVector{conv_param});
 }
 std::shared_ptr<ov::Model> MatMulTwoActivationFunction::initOriginal() const {
     auto matmul_param0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -138,7 +139,7 @@ std::shared_ptr<ov::Model> MatMulTwoActivationFunction::initOriginal() const {
     auto unary_1 = custom_ops[1]->clone_with_new_inputs({add->output(0)});
     auto unary_2 = custom_ops[2]->clone_with_new_inputs({unary_1->output(0)});
 
-    return std::make_shared<ov::Model>(NodeVector{unary_2}, ParameterVector{matmul_param0, matmul_param1});
+    return std::make_shared<ov::Model>(OutputVector{unary_2}, ParameterVector{matmul_param0, matmul_param1});
 }
 std::shared_ptr<ov::Model> MatMulBiasActivationBinaryFunction::initOriginal() const {
     auto matmul_param0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -157,7 +158,8 @@ std::shared_ptr<ov::Model> MatMulBiasActivationBinaryFunction::initOriginal() co
     auto binary_param = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
     auto binary = custom_ops[2]->clone_with_new_inputs({unary->output(0), binary_param});
 
-    return std::make_shared<ov::Model>(NodeVector{binary}, ParameterVector{matmul_param0, matmul_param1, binary_param});
+    return std::make_shared<ov::Model>(OutputVector{binary},
+                                       ParameterVector{matmul_param0, matmul_param1, binary_param});
 }
 std::shared_ptr<ov::Model> MatMulBiasActivationBinaryFunction::initReference() const {
     auto matmul_param0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -180,11 +182,12 @@ std::shared_ptr<ov::Model> MatMulBiasActivationBinaryFunction::initReference() c
 
     auto binary = custom_ops[2]->clone_with_new_inputs({indata0->output(0), indata1->output(0)});
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{unary, binary_param},
-                                                                 std::make_shared<ov::Model>(NodeVector{binary},
-                                                                 ParameterVector{indata0, indata1}));
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
+        OutputVector{unary, binary_param},
+        std::make_shared<ov::Model>(OutputVector{binary}, ParameterVector{indata0, indata1}));
 
-    return std::make_shared<ov::Model>(NodeVector{subgraph}, ParameterVector{matmul_param0, matmul_param1, binary_param});
+    return std::make_shared<ov::Model>(OutputVector{subgraph},
+                                       ParameterVector{matmul_param0, matmul_param1, binary_param});
 }
 }  // namespace snippets
 }  // namespace test

@@ -460,6 +460,66 @@ private:
     bool add_2nd_reshape = false;
 };
 
+/* Graph:
+ *           input0   input1
+ *              \     /
+ *              MatMul0  input2
+ *                 |     /
+ *              Eltwise1
+ *                 |
+ *              Reshape input3
+ *                 |    /
+ *              Eltwise2
+ *                 |
+ *              Reshape
+ *                 |
+ *              Softmax
+ *                 |       input4
+ *                  \      /
+ *                   MatMul1
+ */
+class MHARankUpgradeToReductionFunction : public SnippetsFunctionBase {
+public:
+    explicit MHARankUpgradeToReductionFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 5, "Got invalid number of input shapes");
+        bool are_static_shapes = std::all_of(input_shapes.cbegin(), input_shapes.cend(), [](const PartialShape& shape) {
+            return shape.is_static();
+        });
+        OPENVINO_ASSERT(are_static_shapes, "Expect static shape, got dynamic shape");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
+};
+
+/* Graph:
+ * input0   input1
+ *    \     /  \
+ *    MatMul0   \
+ *       |       \
+ *    Softmax     \
+ *       \       /
+ *       MatMul1
+ * Note: This is a MHA pattern with shared K and V inputs, duplicating one of the python TF tests
+ */
+class MHASharedKVFunction : public SnippetsFunctionBase {
+public:
+    explicit MHASharedKVFunction(const std::vector<PartialShape>& inputShapes,
+                                 const std::vector<ov::element::Type>& precisions)
+        : SnippetsFunctionBase(inputShapes),
+          precisions(precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(precisions.size() == 2, "Got invalid number of input precisions");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+
+    const std::vector<ov::element::Type> precisions;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

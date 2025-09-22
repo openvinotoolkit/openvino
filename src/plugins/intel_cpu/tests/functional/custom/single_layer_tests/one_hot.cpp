@@ -6,35 +6,31 @@
 #include "common_test_utils/test_enums.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/one_hot.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
+
+using OHMode = ov::op::v16::OneHot::NegativeIndicesMode;
 namespace test {
 
 using oneHotCPUTestParams =
-    std::tuple<InputShape,                              // Input shape
-               int,                                     // axis to extend
-               std::pair<utils::InputLayerType, bool>,  // secondary input type && need to generate depth
-               size_t,                                  // depth
-               float,                                   // on_value
-               float,                                   // off_value
-               ov::element::Type,                       // Output precision
+    std::tuple<InputShape,                               // Input shape
+               int,                                      // axis to extend
+               OHMode,  // mode
+               std::pair<utils::InputLayerType, bool>,   // secondary input type && need to generate depth
+               size_t,                                   // depth
+               float,                                    // on_value
+               float,                                    // off_value
+               ov::element::Type,                        // Output precision
                CPUSpecificParams>;
 
 class OneHotLayerCPUTest : public testing::WithParamInterface<oneHotCPUTestParams>,
                            virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<oneHotCPUTestParams>& obj) {
-        InputShape inputShape;
-        int axis;
-        std::pair<utils::InputLayerType, bool> inputType;
-        size_t depth;
-        float onValue, offValue;
-        ov::element::Type outPrc;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShape, axis, inputType, depth, onValue, offValue, outPrc, cpuParams) = obj.param;
-
+        const auto& [inputShape, axis, mode, inputType, depth, onValue, offValue, outPrc, cpuParams] = obj.param;
         std::ostringstream result;
         if (inputShape.first.size() != 0) {
             result << "IS=(" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
@@ -44,6 +40,8 @@ public:
                 result << ov::test::utils::vec2str(shape) << "_";
         }
         result << "axis=" << axis << "_";
+        result << "mode="
+               << (mode == OHMode::NORMALIZE ? "NORMALIZE" : "IGNORE_NEGATIVE") << "_";
         if (inputType.first == utils::InputLayerType::CONSTANT && !inputType.second) {
             result << "depth=" << depth << "_";
         } else if (inputType.first == utils::InputLayerType::CONSTANT && inputType.second) {
@@ -63,8 +61,14 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-
-            if (i == 1) {
+            if (i == 0) {
+                const double start = -static_cast<double>(Depth);
+                const uint32_t range = 2 * static_cast<uint32_t>(Depth) - 1;
+                ov::test::utils::InputGenerateData inGenData(start, range, 1, 1);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 inGenData);
+            } else if (i == 1) {
                 tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 auto *dataPtr = tensor.data<int32_t>();
                 dataPtr[0] = Depth;
@@ -78,12 +82,14 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        InputShape inputShape;
-        std::pair<utils::InputLayerType, bool> inputType;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShape, Axis, inputType, Depth, OnValue, OffValue, outType, cpuParams) = this->GetParam();
-
+        const auto& [inputShape, _Axis, _Mode, inputType, _Depth, _OnValue, _OffValue, _outType, cpuParams] =
+            this->GetParam();
+        Axis = _Axis;
+        Mode = _Mode;
+        Depth = _Depth;
+        OnValue = _OnValue;
+        OffValue = _OffValue;
+        outType = _outType;
         if (inputType.second && inputType.first == utils::InputLayerType::CONSTANT) {
             generateDepth();
         }
@@ -136,7 +142,8 @@ protected:
         }
         auto on_value_const = std::make_shared<ov::op::v0::Constant>(outType, ov::Shape{ }, OnValue);
         auto off_value_const = std::make_shared<ov::op::v0::Constant>(outType, ov::Shape{ }, OffValue);
-        auto oneHot = std::make_shared<ov::op::v1::OneHot>(params[0], depth, on_value_const, off_value_const, Axis);
+        auto oneHot =
+            std::make_shared<ov::op::v16::OneHot>(params[0], depth, on_value_const, off_value_const, Axis, Mode);
         return makeNgraphFunction(ov::element::i32, params, oneHot, "OneHot");
     }
     void generateDepth() {
@@ -146,6 +153,7 @@ protected:
     }
 
     int Axis;
+    OHMode Mode;
     size_t Depth;
     float OnValue, OffValue;
 };
@@ -181,6 +189,7 @@ const std::vector<ov::Shape> staticInputShapes0D = {
 const auto testCase_1d = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes0D)),
         ::testing::Values(-1, 0),
+        ::testing::Values(OHMode::IGNORE_NEGATIVE, OHMode::NORMALIZE),
         ::testing::ValuesIn(secondaryInputTypesStaticCase),
         ::testing::Values(3),
         ::testing::Values(1.f),
@@ -197,6 +206,7 @@ const std::vector<ov::Shape> staticInputShapes1D = {
 const auto testCase_2d_static = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes1D)),
         ::testing::Values(-1, 0, 1),
+        ::testing::Values(OHMode::IGNORE_NEGATIVE),
         ::testing::ValuesIn(secondaryInputTypesStaticCase),
         ::testing::Values(6),
         ::testing::Values(1.f),
@@ -214,6 +224,7 @@ const std::vector<InputShape> dynamicInputShapes1D = {
 const auto testCase_2d_dynamic = ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes1D),
         ::testing::Values(-1, 0, 1),
+        ::testing::Values(OHMode::IGNORE_NEGATIVE),
         ::testing::ValuesIn(secondaryInputTypesDynamicCase),
         ::testing::Values(6),
         ::testing::Values(1.f),
@@ -230,6 +241,7 @@ const std::vector<ov::Shape> staticInputShapes2D = {
 const auto testCase_3d_static = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes2D)),
         ::testing::Values(-1, 0, 1),
+        ::testing::Values(OHMode::IGNORE_NEGATIVE),
         ::testing::ValuesIn(secondaryInputTypesStaticCase),
         ::testing::Values(4),
         ::testing::Values(2.f),
@@ -248,6 +260,7 @@ const std::vector<InputShape> dynamicInputShapes2D = {
 const auto testCase_3d_dynamic = ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes2D),
         ::testing::Values(-1, 0, 1),
+        ::testing::Values(OHMode::IGNORE_NEGATIVE),
         ::testing::ValuesIn(secondaryInputTypesDynamicCase),
         ::testing::Values(4),
         ::testing::Values(2.f),
@@ -264,6 +277,7 @@ const std::vector<ov::Shape> staticInputShapes3D = {
 const auto testCase_4d_static = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes3D)),
         ::testing::Values(-1, 0, 1, 2),
+        ::testing::Values(OHMode::IGNORE_NEGATIVE),
         ::testing::ValuesIn(secondaryInputTypesStaticCase),
         ::testing::Values(4),
         ::testing::Values(1.f),
@@ -282,6 +296,7 @@ const std::vector<InputShape> dynamicInputShapes3D = {
 const auto testCase_4d_dynamic = ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes3D),
         ::testing::Values(-1, 0, 1, 2),
+        ::testing::Values(OHMode::IGNORE_NEGATIVE),
         ::testing::ValuesIn(secondaryInputTypesDynamicCase),
         ::testing::Values(4),
         ::testing::Values(1.f),
@@ -298,6 +313,7 @@ const std::vector<ov::Shape> staticInputShapes4D = {
 const auto testCase_5d_static = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes4D)),
         ::testing::Values(-1, 0, 1, 2, 3),
+        ::testing::Values(OHMode::IGNORE_NEGATIVE),
         ::testing::ValuesIn(secondaryInputTypesStaticCase),
         ::testing::Values(4),
         ::testing::Values(1.f),
@@ -316,6 +332,7 @@ const std::vector<InputShape> dynamicInputShapes4D = {
 const auto testCase_5d_dynamic = ::testing::Combine(
         ::testing::ValuesIn(dynamicInputShapes4D),
         ::testing::Values(-1, 0, 1, 2, 3),
+        ::testing::Values(OHMode::IGNORE_NEGATIVE, OHMode::NORMALIZE),
         ::testing::ValuesIn(secondaryInputTypesDynamicCase),
         ::testing::Values(4),
         ::testing::Values(1.f),

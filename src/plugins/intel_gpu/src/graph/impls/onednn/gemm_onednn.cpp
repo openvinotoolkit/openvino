@@ -92,20 +92,6 @@ protected:
 
         bool batched_dims_can_be_removed = false;
 
-        if (in0_l.count() != 0 && in1_l.count() != 0) {
-            size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
-            size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
-            size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
-
-            batched_dims_can_be_removed = in0_batched_size == 1 && in1_batched_size == 1 && out_batched_size == 1;
-        }
-
-        if (gemm_with_bias) {
-            const auto& bias_l = in_layouts[2];
-            size_t bias_batched_size = bias_l.count() / (bias_l.spatial(0) * bias_l.spatial(1));
-            batched_dims_can_be_removed &= bias_batched_size == 1;
-        }
-
         size_t rank = cldnn::format::dimension(out_l.format);
 
         in0_dt = onednn::convert_data_type(in0_l.data_type);
@@ -456,7 +442,7 @@ public:
             instance.get_input_layout(1).count() == 0) {
             stream& stream = instance.get_network().get_stream();
             stream.enqueue_barrier();
-            return instance.output_memory_ptr()->fill(stream, false);
+            return instance.output_memory_ptr()->fill(stream, {}, false);
         }
 
         return parent::execute_impl(events, instance);

@@ -12,8 +12,17 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reorg_yolo.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -61,7 +70,7 @@ TEST(TransformationTests, CompareFunctoinsTIPositive) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     {
@@ -104,7 +113,7 @@ TEST(TransformationTests, CompareFunctoinsTIPositive) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -151,7 +160,7 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     {
@@ -195,7 +204,7 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -227,7 +236,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenS
 
         auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
 
-        return std::make_shared<Model>(NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+        return std::make_shared<Model>(OutputVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
     };
     const auto f1 = createFunc(element::f32);
     const auto f2 = createFunc(element::f16);
@@ -263,7 +272,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweenI
 
         auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
 
-        return std::make_shared<Model>(NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+        return std::make_shared<Model>(OutputVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
     };
     const auto f1 = createFunc(element::f32);
 
@@ -298,7 +307,7 @@ TEST(TransformationTests, CompareFunctoinsTINegativeDifferentElementTypeBetweent
 
         auto out = ti->get_concatenated_slices(result, 0, 1, 1, -1, 1);
 
-        auto fn = std::make_shared<Model>(NodeVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
+        auto fn = std::make_shared<Model>(OutputVector{out.get_node_shared_ptr()}, ParameterVector{X, Y});
 
         /// <<
         auto&& result_out = result->output(0);
@@ -337,7 +346,7 @@ TEST(TransformationTests, ConstantNegativeDifferentElementType) {
         using namespace opset5;
         auto constant = Constant::create(t, Shape{1}, {1.1});
 
-        return std::make_shared<ov::Model>(NodeVector{constant}, ParameterVector{});
+        return std::make_shared<ov::Model>(OutputVector{constant}, ParameterVector{});
     };
 
     const auto& f1 = createConstantFunc(element::f64);
@@ -354,7 +363,7 @@ TEST(TransformationTests, ConstantNegativeDifferentValues) {
         using namespace opset5;
         auto constant = Constant::create(element::f32, Shape{1}, {value});
 
-        return std::make_shared<ov::Model>(NodeVector{constant}, ParameterVector{});
+        return std::make_shared<ov::Model>(OutputVector{constant}, ParameterVector{});
     };
 
     const auto& f1 = createConstantFunc(1.0);
@@ -371,7 +380,7 @@ TEST(TransformationTests, ConstantNegativeDifferentShapes) {
         using namespace opset5;
         auto constant = Constant::create(element::f32, s, {1.1});
 
-        return std::make_shared<ov::Model>(NodeVector{constant}, ParameterVector{});
+        return std::make_shared<ov::Model>(OutputVector{constant}, ParameterVector{});
     };
 
     const auto& f1 = createConstantFunc(Shape{2});
@@ -389,7 +398,7 @@ TEST(TransformationTests, ClampNegativeDifferentMin) {
         auto constant = Constant::create(element::f32, Shape{1}, {1.0});
         auto clamp = std::make_shared<Clamp>(constant, min, 20.);
 
-        return std::make_shared<ov::Model>(NodeVector{clamp}, ParameterVector{});
+        return std::make_shared<ov::Model>(OutputVector{clamp}, ParameterVector{});
     };
 
     const auto& f1 = createClampFunc(1.0);
@@ -407,7 +416,7 @@ TEST(TransformationTests, ClampNegativeDifferentMax) {
         auto constant = Constant::create(element::f32, Shape{1}, {1.0});
         auto clamp = std::make_shared<Clamp>(constant, 1., max);
 
-        return std::make_shared<ov::Model>(NodeVector{clamp}, ParameterVector{});
+        return std::make_shared<ov::Model>(OutputVector{clamp}, ParameterVector{});
     };
 
     const auto& f1 = createClampFunc(10.1);
@@ -425,7 +434,7 @@ TEST(TransformationTests, ConcatNegativeDifferentMax) {
         auto constant = Constant::create(element::f32, Shape{10, 10, 2, 2, 3}, {1.0});
         auto clamp = std::make_shared<Concat>(OutputVector{constant}, axis);
 
-        return std::make_shared<ov::Model>(NodeVector{clamp}, ParameterVector{});
+        return std::make_shared<ov::Model>(OutputVector{clamp}, ParameterVector{});
     };
 
     const auto& f1 = createConcatFunc(1);
@@ -546,7 +555,7 @@ template <typename Member>
 std::shared_ptr<ov::Model> createDummyFunc(const Member& m) {
     auto constant = std::make_shared<DummyConstant<Member>>(m);
 
-    return std::make_shared<ov::Model>(NodeVector{constant}, ParameterVector{});
+    return std::make_shared<ov::Model>(OutputVector{constant}, ParameterVector{});
 }
 
 }  // namespace
@@ -664,9 +673,9 @@ const auto createU1ConstantFunc = [](const Shape& s, const uint8_t* data) {
     using namespace opset5;
     auto c = std::make_shared<Constant>(element::u1, s, data);
 
-    return std::make_shared<ov::Model>(NodeVector{c}, ParameterVector{});
+    return std::make_shared<ov::Model>(OutputVector{c}, ParameterVector{});
 };
-}
+}  // namespace
 
 TEST(TransformationTests, ConstantComparison_ElementTypeU1_Positive_1stbit) {
     const Shape shape{1};

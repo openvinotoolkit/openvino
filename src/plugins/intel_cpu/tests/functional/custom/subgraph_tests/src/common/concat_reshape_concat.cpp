@@ -4,6 +4,9 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 /*This test runs the following subgraph:
 
@@ -45,8 +48,8 @@ using VectorShapes = std::vector<InputShape>;
 class ConcatReshapeConcatSubgraphTest : public testing::WithParamInterface<VectorShapes>,
                                         virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<VectorShapes> obj) {
-        VectorShapes& inputShapes = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<VectorShapes>& obj) {
+        const VectorShapes& inputShapes = obj.param;
 
         std::ostringstream result;
         result << "IS=";

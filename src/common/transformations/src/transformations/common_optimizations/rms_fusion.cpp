@@ -37,7 +37,7 @@ static std::function<bool(ov::Output<ov::Node>)> constant_value(const float targ
     };
 }
 
-RMSFusion::RMSFusion(bool force_tail_convert) {
+RMSFusion::RMSFusion(bool force_tail_convert, bool enable_div_x) {
     using namespace ov::pass::pattern;
 
     // Detect RMS decomposition pattern
@@ -74,10 +74,21 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps)
     auto mul1 = wrap_type<ov::op::v1::Multiply>({x, div_or_pow});
 
+    std::shared_ptr<pattern::op::Or> mul_or_div;
+    // TODO: Check div_x pattern failed in CPU CI Pytorch layer test.
+    if (enable_div_x) {
+        // x / Sqrt(ReduceMean(x^2,axes)+eps)
+        auto div_x = wrap_type<ov::op::v1::Divide>({x, sqrt});
+        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
+    } else {
+        mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1});
+    }
+
     // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma
     auto gamma = wrap_type<ov::op::v0::Constant>();
     auto gamma_convert = pattern::optional<ov::op::v0::Convert>(gamma);
-    auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma_convert, mul1});
+
+    auto mul2 = wrap_type<ov::op::v1::Multiply>({gamma_convert, mul_or_div});
 
     std::shared_ptr<ov::Node> comp = mul2;
     if (force_tail_convert) {
@@ -85,7 +96,7 @@ RMSFusion::RMSFusion(bool force_tail_convert) {
         comp = wrap_type<ov::op::v0::Convert>({mul2});
     }
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto node = m.get_match_root();
         if (transformation_callback(node)) {

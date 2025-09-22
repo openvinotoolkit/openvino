@@ -39,7 +39,6 @@ class TestRint(CommonTFLayerTest):
                                                                                                      'arm64', 'ARM64'],
                        reason='Ticket - 126314, 132699')
     def test_rint_basic(self, input_shape, input_type, ie_device, precision,
-                        ir_version, temp_dir, use_legacy_frontend):
+                        ir_version, temp_dir):
         self._test(*self.create_tf_rint_net(input_shape, input_type),
-                ie_device, precision, ir_version, temp_dir=temp_dir,
-                use_legacy_frontend=use_legacy_frontend)
+                ie_device, precision, ir_version, temp_dir=temp_dir)

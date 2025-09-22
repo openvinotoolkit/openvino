@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace ov::intel_cpu {

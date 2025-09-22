@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/pass/pattern/op/op.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 
 namespace ov::pass::pattern {
@@ -53,7 +54,7 @@ public:
     /// \param patterns The pattern to match a graph.
     Optional(const std::vector<DiscreteTypeInfo>& type_infos, const OutputVector& inputs = {})
         : Pattern(inputs),
-          optional_types(type_infos){};
+          optional_types(type_infos) {};
 
     template <typename TPredicate>
     Optional(const std::vector<DiscreteTypeInfo>& type_infos, const OutputVector& inputs, const TPredicate& pred)
@@ -84,37 +85,33 @@ void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
     collect_type_info<NodeTypeArgs...>(type_info_vec);
 }
 
-template <class... NodeTypes, typename TPredicate>
-std::shared_ptr<Node> optional(const OutputVector& inputs, const TPredicate& pred) {
+template <class... NodeTypes,
+          typename TPredicate,
+          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate>>* = nullptr>
+std::shared_ptr<Node> optional(const PatternOps& inputs, const TPredicate& pred, const Attributes& attrs = {}) {
     std::vector<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
-    return std::make_shared<op::Optional>(optional_type_info_vec, inputs, op::Predicate(pred));
-}
-
-template <class... NodeTypes, typename TPredicate>
-std::shared_ptr<Node> optional(const Output<Node>& input, const TPredicate& pred) {
-    return optional<NodeTypes...>(OutputVector{input}, op::Predicate(pred));
+    return std::make_shared<op::Optional>(
+        optional_type_info_vec,
+        ov::OutputVector(inputs),
+        attrs.empty() ? op::Predicate(pred) : attrs_match(attrs) && op::Predicate(pred));
 }
 
 template <class... NodeTypes,
           typename TPredicate,
-          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate>>* = nullptr>
-std::shared_ptr<Node> optional(const TPredicate& pred) {
-    return optional<NodeTypes...>(OutputVector{}, op::Predicate(pred));
+          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate> &&
+                                    !std::is_constructible_v<std::vector<PatternOp>, TPredicate>>* = nullptr>
+std::shared_ptr<Node> optional(const TPredicate& pred, const Attributes& attrs = {}) {
+    return optional<NodeTypes...>(OutputVector{}, op::Predicate(pred), attrs);
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const OutputVector& inputs) {
-    return optional<NodeTypes...>(inputs, op::Predicate());
+std::shared_ptr<Node> optional(const PatternOps& inputs = {}, const Attributes& attrs = {}) {
+    return optional<NodeTypes...>(inputs, attrs.empty() ? op::Predicate() : attrs_match(attrs));
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const Output<Node>& input) {
-    return optional<NodeTypes...>(OutputVector{input}, op::Predicate());
-}
-
-template <class... NodeTypes>
-std::shared_ptr<Node> optional() {
-    return optional<NodeTypes...>(OutputVector{}, op::Predicate());
+std::shared_ptr<Node> optional(std::initializer_list<std::pair<const std::string, ov::Any>>&& attrs) {
+    return optional<NodeTypes...>(OutputVector{}, attrs);
 }
 }  // namespace ov::pass::pattern

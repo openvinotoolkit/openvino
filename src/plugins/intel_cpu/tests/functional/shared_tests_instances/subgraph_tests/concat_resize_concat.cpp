@@ -7,6 +7,9 @@
 #include <tuple>
 #include <string>
 #include <vector>
+#include "openvino/op/concat.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/util/interpolate_base.hpp"
 
 namespace ov {
 namespace test {
@@ -20,9 +23,7 @@ class ConcatResizeConcatTest : public testing::WithParamInterface<ConcResizeConc
                                public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcResizeConcParams>& obj) {
-        int channels_count;
-        int batch_count;
-        std::tie(channels_count, batch_count) = obj.param;
+        const auto& [channels_count, batch_count] = obj.param;
         std::ostringstream result;
         result << "Batches=" << batch_count << "_";
         result << "Channels=" << channels_count << "_";
@@ -33,10 +34,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        int channels_count;
-        int batch_count;
-        std::tie(channels_count, batch_count) = this->GetParam();
-
+        const auto& [channels_count, batch_count] = this->GetParam();
         std::vector<int> dims1({batch_count, channels_count, 2, 2});
         std::vector<int> dims2({batch_count, channels_count, 3, 3});
 

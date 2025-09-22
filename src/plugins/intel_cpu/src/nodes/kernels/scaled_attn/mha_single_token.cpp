@@ -3,17 +3,20 @@
 //
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
 #include <type_traits>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
+#include "utils/plain_tensor.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
 #endif
 
-#include "attn_quant_kernel.hpp"
-#include "common.hpp"
 #include "mha_single_token.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
@@ -208,7 +211,7 @@ attn_acc_value(ov::float16* out, ov::float16 weight, T* v, size_t S, float* scal
         svst1_f16(pg, _out + i, v_out);
         i += inc;
     }
-#    else
+#    elif defined(HAVE_NEON_FP16)
     auto attn_w_vec_fp16 = vdupq_n_f16(weight);
     for (; i + vec_len_f16_neon <= S; i += vec_len_f16_neon) {
         auto v_value = vld1q_f16(_v + i);
@@ -216,6 +219,9 @@ attn_acc_value(ov::float16* out, ov::float16 weight, T* v, size_t S, float* scal
         v_out = vfmaq_f16(v_out, attn_w_vec_fp16, v_value);
         vst1q_f16(_out + i, v_out);
     }
+#    else
+    (void)_v;
+    (void)_out;
 #    endif
     for (; i < S; i++) {
         out[i] += weight * v[i];
@@ -386,7 +392,7 @@ template <typename T>
 void sum_q_head(T* a, size_t n, size_t group_size, float* out) {
     size_t group_id = 0;
     while (group_id < n / group_size) {
-        float group_sum = 0.0f;
+        float group_sum = 0.0F;
         size_t offset = group_id * group_size;
         size_t i = 0;
 #if defined(HAVE_AVX512F)
@@ -556,7 +562,7 @@ template <typename TA, typename TB>
 static float
 dot_product(TA* a, TB* b, size_t n, float* scale, float* zp, float* head_sum, [[maybe_unused]] size_t group_size) {
     size_t i = 0;
-    float sum = 0.0f;
+    float sum = 0.0F;
 #if defined(HAVE_AVX512F)
     auto vsum0 = _mm512_setzero_ps();
     auto vsum1 = _mm512_setzero_ps();
@@ -822,7 +828,7 @@ static ov::float16 dot_product_fp16(ov::float16* a,
     float16_t sum_2 = svaddv_f16(pg, sum2);
     float16_t sum_3 = svaddv_f16(pg, sum3);
     sum = static_cast<float>(sum_0 + sum_1 + sum_2 + sum_3);
-#    else
+#    elif defined(HAVE_NEON_FP16)
     auto vsum0 = vdupq_n_f16(0.0f);
     auto vsum1 = vdupq_n_f16(0.0f);
     auto vsum2 = vdupq_n_f16(0.0f);
@@ -867,7 +873,11 @@ static ov::float16 dot_product_fp16(ov::float16* a,
     vsum0 = vaddq_f16(vsum0, vsum2);
 
     sum = hsum(vsum0);
+#    else
+    (void)_a;
+    (void)_b;
 #    endif
+
     for (; i < n; i++) {
         sum += a[i] * b[i];
     }
@@ -879,8 +889,8 @@ template <typename TA>
 static float dot_product_by_channel(TA* a,
                                     uint8_t* b,
                                     size_t n,
-                                    float* scale,
-                                    float* zp,
+                                    const float* scale,
+                                    const float* zp,
                                     [[maybe_unused]] size_t group_size) {
     float sum = 0.0f;
     size_t i = 0;
@@ -1253,7 +1263,7 @@ static float dot_product(TA* a, uint8_t* b, size_t n, float* scale, float* zp, f
         float group_scale = *(scale + group_id * 2);
         float group_zp = *(zp + group_id * 2);
         size_t offset = group_id * group_size;
-        float group_sum = 0.0f;
+        float group_sum = 0.0F;
         for (; i < group_size; i++) {
             group_sum += a[i + offset] * (b[i + offset] - group_zp);
         }
@@ -1327,7 +1337,7 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
 #endif
     for (; i < S; i++) {
         auto* src = temp + i;
-        float sum = 0.0f;
+        float sum = 0.0F;
         // sum result from all threads partition
         for (size_t m = 0; m < M; m++) {
             sum += src[0];
@@ -1354,7 +1364,7 @@ static void attn_reduce(ov::float16* dst, ov::float16* temp, size_t M, size_t S,
         }
         svst1_f16(pg, reinterpret_cast<float16_t*>(dst + i), result_vec_fp16);
     }
-#    else
+#    elif defined(HAVE_NEON_FP16)
     for (; i + vec_len_f16_neon <= S; i += vec_len_f16_neon) {
         auto* src = temp + i;
         auto result_vec_fp16 = vdupq_n_f16(0.0f);
@@ -1414,12 +1424,12 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     if (h_group_num != H) {
         h_each_group_len = H / h_group_num;
     }
-    if (d_scale == 0.0f) {
-        d_scale = 1.0f / sqrt(S);
+    if (d_scale == 0.0F) {
+        d_scale = 1.0F / sqrt(S);
     }
     auto nthr = parallel_get_max_threads();
     auto kv_len = present_key.size(2);
-    bool pastkv_is_int8 = past_k_scale_zp;
+    bool pastkv_is_int8 = static_cast<bool>(past_k_scale_zp);
 #if defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
     // avx2 will pre-compute the zero point and try to save the sub instruction in the dot_product,
     //  but it seems not necessary for avx512. Possible reason may be that for avx2 the cost of dot_product
@@ -1435,20 +1445,23 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 #endif
 
     parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
+        size_t start{0};
+        size_t end{0};
         splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
 
-        size_t b, h_group, pk;
+        size_t b = 0;
+        size_t h_group = 0;
+        size_t pk = 0;
         if (start < end) {
             parallel_it_init(start, pk, kv_len, b, B, h_group, h_group_num);
-            if (q_len == 1 && h_each_group_len == 1) {
+            if (intel_cpu::all_of(1U, q_len, h_each_group_len)) {
                 if (B == 1) {
                     // the memory will be continuous when b==1
                     for (size_t iwork = start; iwork < end; ++iwork) {
-                        auto p = past_k_scale_zp.ptr<float>(pk, 0, h_group);
+                        auto* p = past_k_scale_zp.ptr<float>(pk, 0, h_group);
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                        if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value &&
-                            std::is_same<T2, ov::float16>::value) {
+                        if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16> &&
+                            std::is_same_v<T2, ov::float16>) {
                             auto p_k = present_key.ptr<ov::float16>(0, h_group, pk);
                             prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
                             auto _qk = dot_product_fp16(query.ptr<ov::float16>(0, h_group),
@@ -1463,9 +1476,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                         }
 #endif
                         if (quant_key_by_channel && pastkv_is_int8) {
-                            auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, 0, h_group);
-                            auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, 0, h_group);
-                            auto p_k = present_key.ptr<uint8_t>(0, h_group, pk);
+                            auto* p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, 0, h_group);
+                            auto* p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, 0, h_group);
+                            auto* p_k = present_key.ptr<uint8_t>(0, h_group, pk);
                             prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
                             buf_attn_w.ptr<T3>(0, h_group, 0)[pk] =
                                 dot_product_by_channel(query.ptr<T>(0, h_group), p_k, S, p_scale, p_zp, key_group_size);
@@ -1485,10 +1498,10 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 } else {
                     for (size_t iwork = start; iwork < end; ++iwork) {
                         auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
-                        auto p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
+                        auto* p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                        if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value &&
-                            std::is_same<T2, ov::float16>::value) {
+                        if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16> &&
+                            std::is_same_v<T2, ov::float16>) {
                             auto p_k = present_key.ptr<ov::float16>(b_kv, h_group, pk);
                             auto _qk = dot_product_fp16(query.ptr<ov::float16>(b, h_group),
                                                         p_k,
@@ -1502,9 +1515,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                         }
 #endif
                         if (quant_key_by_channel && pastkv_is_int8) {
-                            auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, b_kv, h_group);
-                            auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, b_kv, h_group);
-                            auto p_k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
+                            auto* p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, b_kv, h_group);
+                            auto* p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, b_kv, h_group);
+                            auto* p_k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
                             buf_attn_w.ptr<T3>(b, h_group, 0)[pk] =
                                 dot_product_by_channel(query.ptr<T>(b, h_group), p_k, S, p_scale, p_zp, key_group_size);
                         } else {
@@ -1524,11 +1537,11 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 for (size_t iwork = start; iwork < end; ++iwork) {
                     auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
                     for (size_t pq = 0; pq < q_len; pq++) {
-                        auto p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
+                        auto* p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
                         for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                            if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value &&
-                                std::is_same<T2, ov::float16>::value) {
+                            if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16> &&
+                                std::is_same_v<T2, ov::float16>) {
                                 auto p_k = present_key.ptr<ov::float16>(b_kv, h_group, pk);
                                 auto _qk = dot_product_fp16(query.ptr<ov::float16>(b, h, pq),
                                                             p_k,
@@ -1541,9 +1554,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                             }
 #endif
                             if (quant_key_by_channel && pastkv_is_int8) {
-                                auto p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, b_kv, h_group);
-                                auto p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, b_kv, h_group);
-                                auto p_k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
+                                auto* p_scale = past_k_scale_zp.ptr<float>(pk / key_group_size * 2, b_kv, h_group);
+                                auto* p_zp = past_k_scale_zp.ptr<float>(pk / key_group_size * 2 + 1, b_kv, h_group);
+                                auto* p_k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
                                 buf_attn_w.ptr<T3>(b, h, pq)[pk] = dot_product_by_channel(query.ptr<T>(b, h, pq),
                                                                                           p_k,
                                                                                           S,
@@ -1601,7 +1614,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             for (size_t pv = 0; pv < kv_len; pv++) {
                 auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
                 auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
-                auto p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
+                auto* p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len;
                          h++, group_idx++) {
@@ -1630,19 +1643,22 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     buf_attn_score.resize<T3>({static_cast<size_t>(nthr), B, q_len, H, SV});
     // buf_attn_w {B, H, q_len, kv_len}
     parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
+        size_t start{0};
+        size_t end{0};
         splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
 
         memset(buf_attn_score.ptr<T3>(ithr, 0, 0, 0, 0), 0, buf_attn_score.stride(0) * sizeof(T3));
 
-        size_t b, h_group, pv;
+        size_t b = 0;
+        size_t h_group = 0;
+        size_t pv = 0;
         if (start < end) {
             parallel_it_init(start, pv, kv_len, b, B, h_group, h_group_num);
-            if (q_len == 1 && h_each_group_len == 1) {
+            if (intel_cpu::all_of(1U, q_len, h_each_group_len)) {
                 for (size_t iwork = start; iwork < end; ++iwork) {
                     auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
                     auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
-                    auto p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
+                    auto* p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                     attn_acc_value(buf_attn_score.ptr<T3>(ithr, b, 0, h_group),
                                    buf_attn_w.ptr<T3>(b, h_group, 0, pv)[0],
                                    v,
@@ -1656,7 +1672,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 for (size_t iwork = start; iwork < end; ++iwork) {
                     auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
                     auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
-                    auto p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
+                    auto* p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
                             attn_acc_value(buf_attn_score.ptr<T3>(ithr, b, pq, h),

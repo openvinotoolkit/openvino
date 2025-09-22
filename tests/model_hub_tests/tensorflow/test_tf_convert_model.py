@@ -29,6 +29,14 @@ def is_tf_keras_application(link: str):
     return link.startswith("tf_keras_applications")
 
 
+def get_keras_application_model_by_name(model_name):
+    try:
+        model_class = getattr(tf.keras.applications, model_name)
+        return model_class
+    except AttributeError:
+        raise ValueError(f"Model '{model_name}' not found in tf.keras.applications")
+
+
 class TestTFHubConvertModel(TestConvertModel):
     def setup_class(self):
         self.model_dir = tempfile.TemporaryDirectory()
@@ -56,10 +64,7 @@ class TestTFHubConvertModel(TestConvertModel):
                 graph = load_graph(model_file_name)
                 return graph
         elif is_tf_keras_application(model_link):
-            if model_name == 'ResNet50':
-                return tf.keras.applications.resnet50.ResNet50(weights="imagenet")
-            else:
-                raise Exception('Unknown model from tf.keras.applications')
+            return get_keras_application_model_by_name(model_name)()
 
         load = hub.load(model_link)
         if 'serving_default' in list(load.signatures.keys()):

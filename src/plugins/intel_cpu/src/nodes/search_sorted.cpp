@@ -4,8 +4,27 @@
 
 #include "search_sorted.h"
 
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <tuple>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/reference/search_sorted.hpp"
+#include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 SearchSorted::SearchSorted(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -42,7 +61,7 @@ void SearchSorted::initSupportedPrimitiveDescriptors() {
     ov::element::Type inputPrec = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
 
-    if (!one_of(inputPrec,
+    if (none_of(inputPrec,
                 ov::element::f32,
                 ov::element::i32,
                 ov::element::bf16,
@@ -52,7 +71,7 @@ void SearchSorted::initSupportedPrimitiveDescriptors() {
         inputPrec = ov::element::f32;
     }
 
-    if (!one_of(outputPrec, ov::element::i32, ov::element::i64)) {
+    if (none_of(outputPrec, ov::element::i32, ov::element::i64)) {
         outputPrec = ov::element::i32;
     }
 

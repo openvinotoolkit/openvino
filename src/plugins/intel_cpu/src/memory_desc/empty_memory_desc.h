@@ -4,14 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <string>
+
 #include "cpu_memory_desc.h"
 #include "cpu_shape.h"
+#include "cpu_types.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief Represents an empty memory descriptor.
@@ -33,7 +37,7 @@ public:
     }
 
     bool isCompatible(const MemoryDesc& rhs) const override {
-        return everyone_is(this->getType(), rhs.getType(), Empty);
+        return all_of(this->getType(), rhs.getType(), Empty);
     };
 
     ov::element::Type getPrecision() const override {
@@ -44,7 +48,7 @@ public:
         return 0;
     }
 
-    bool hasLayoutType(LayoutType layoutType) const override {
+    bool hasLayoutType([[maybe_unused]] LayoutType layoutType) const override {
         return false;
     }
 
@@ -65,7 +69,7 @@ public:
     }
 
 private:
-    size_t getElementOffset(size_t elemNumber) const override {
+    size_t getElementOffset([[maybe_unused]] size_t elemNumber) const override {
         return 0;
     }
     bool canComputeMemSizeZeroDims() const override {
@@ -74,13 +78,13 @@ private:
     size_t getCurrentMemSizeImp() const override {
         return 0;
     }
-    size_t getOffset(const VectorDims& v) const {
+    static size_t getOffset([[maybe_unused]] const VectorDims& v) {
         return 0;
     }
     bool isDefinedImp() const override {
         return true;
     }
-    MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override {
+    MemoryDescPtr cloneWithNewDimsImp([[maybe_unused]] const VectorDims& dims) const override {
         OPENVINO_THROW("Clone an empty memory desc with any new dimensions is prohibited");
     }
 
@@ -92,5 +96,4 @@ private:
 using EmptyMemoryDescPtr = std::shared_ptr<EmptyMemoryDesc>;
 using EmptyMemoryDescCPtr = std::shared_ptr<const EmptyMemoryDesc>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

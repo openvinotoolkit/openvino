@@ -5,12 +5,19 @@
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "internal_properties.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -52,15 +59,10 @@ class ConcatSDPTransposeTestBase : public testing::WithParamInterface<ConcatSDPT
                                    public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatSDPTransposeTestParams>& obj) {
-        ElementType inType;
-        InputShapeAndTransposeOrder inputShapeAndOrders;
-        bool hasShapeof;
-        bool quantKeyByChannel;
-        size_t groupSize;
-        std::tie(inType, inputShapeAndOrders, hasShapeof, quantKeyByChannel, groupSize) = obj.param;
+        const auto& [inType, inputShapeAndOrders, hasShapeof, quantKeyByChannel, groupSize] = obj.param;
+        const auto& [inputShapes, transposeOrder] = inputShapeAndOrders;
         std::ostringstream result;
-        std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
-        std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
+
         result << "IS=";
         for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
@@ -90,18 +92,20 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        InputShapeAndTransposeOrder inputShapeAndOrders;
-        std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, keyGroupSize) = this->GetParam();
-        std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
+        const auto& [inType, inputShapeAndOrders, _hasShapeOf, _quantKeyByChannel, _keyGroupSize] = this->GetParam();
+        hasShapeOf = _hasShapeOf;
+        quantKeyByChannel = _quantKeyByChannel;
+        keyGroupSize = _keyGroupSize;
+        const std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         transposeOrder = inputShapeAndOrders.second;
+
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
         configuration[ov::key_cache_group_size.name()] = keyGroupSize;
         configuration[ov::value_cache_group_size.name()] = keyGroupSize;
-        configuration[ov::intel_cpu::key_cache_quant_mode.name()] =
-            quantKeyByChannel ? ov::intel_cpu::CacheQuantMode::BY_CHANNEL : ov::intel_cpu::CacheQuantMode::BY_HIDDEN;
+        configuration[ov::internal::key_cache_quant_mode.name()] =
+            quantKeyByChannel ? ov::internal::CacheQuantMode::BY_CHANNEL : ov::internal::CacheQuantMode::BY_TOKEN;
         // explictly set u8 kv_cache for QuantByChannel
         if (quantKeyByChannel) {
             configuration[ov::hint::kv_cache_precision.name()] = ov::element::u8;
@@ -476,13 +480,7 @@ public:
 
 TEST_P(ConcatSDPTransposeTestSetState, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ElementType inType;
-    InputShapeAndTransposeOrder inputShapeAndOrders;
-    bool hasShapeOf;
-    bool quantKeyByChannel;
-    size_t groupSize;
-    std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize) = this->GetParam();
-
+    const auto& [inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize] = this->GetParam();
     // skip bf16 test on avx512 platform
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
@@ -563,13 +561,7 @@ public:
 
 TEST_P(ConcatSDPTransposeTestWrongBeamIdx, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ElementType inType;
-    InputShapeAndTransposeOrder inputShapeAndOrders;
-    bool hasShapeOf;
-    bool quantKeyByChannel;
-    size_t groupSize;
-    std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize) = this->GetParam();
-
+    const auto& [inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize] = this->GetParam();
     // skip bf16 test on avx512 platform
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();

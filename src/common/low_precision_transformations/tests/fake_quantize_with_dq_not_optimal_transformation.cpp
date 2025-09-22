@@ -22,6 +22,7 @@
 #include "ov_lpt_models/common/constant.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_weights.hpp"
+#include "openvino/op/convolution.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -111,11 +112,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeWithNotOptimalTransformationParams> obj) {
-        ov::element::Type precision;
-        ov::Shape shape;
-        bool updatePrecision;
-        FakeQuantizeWithNotOptimalTransformationTestValues fakeQuantizeOnData;
-        std::tie(precision, shape, updatePrecision, fakeQuantizeOnData) = obj.param;
+        const auto& [precision, shape, updatePrecision, fakeQuantizeOnData] = obj.param;
 
         std::ostringstream result;
         result << LayerTransformation::getTestCaseNameByParams(precision, shape, fakeQuantizeOnData.params) <<

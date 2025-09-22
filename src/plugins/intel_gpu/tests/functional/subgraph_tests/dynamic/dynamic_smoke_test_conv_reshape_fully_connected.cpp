@@ -15,6 +15,10 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 
 
 namespace {
@@ -31,12 +35,8 @@ class ConvReshapeFullyConnectedDynamicGPUTestDynamic : public testing::WithParam
                                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convReshapeFullyConnectedDynamicGPUTestDynamicParamsSet>& obj) {
-        InputShape inputShape;
-        ov::element::Type model_type;
-        std::string targetDevice;
-
         convReshapeFullyConnectedDynamicGPUTestDynamicParamsSet basicParamsSet = obj.param;
-        std::tie(inputShape, model_type, targetDevice) = basicParamsSet;
+        const auto& [inputShape, model_type, targetDevice] = basicParamsSet;
 
         std::ostringstream result;
         result << "IS=";
@@ -51,10 +51,9 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape inputShape;
-        ov::element::Type model_type;
         convReshapeFullyConnectedDynamicGPUTestDynamicParamsSet basicParamsSet = this->GetParam();
-        std::tie(inputShape, model_type, targetDevice) = basicParamsSet;
+        const auto& [inputShape, model_type, _targetDevice] = basicParamsSet;
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShape});
 
@@ -127,4 +126,3 @@ const auto testParams_smoke = ::testing::Combine(::testing::ValuesIn(dynInputSha
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_conv_reshape_fullyconnected, ConvReshapeFullyConnectedDynamicGPUTestDynamic,
                          testParams_smoke, ConvReshapeFullyConnectedDynamicGPUTestDynamic::getTestCaseName);
 }  // namespace
-

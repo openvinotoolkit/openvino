@@ -4,14 +4,31 @@
 
 #include "gather.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
-#include "utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 
 namespace ov::intel_cpu::node {
 
 Result GatherShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    static constexpr size_t GATHER_DATA = 0, GATHER_INDICES = 1, GATHER_AXIS = 2;
+    static constexpr size_t GATHER_DATA = 0;
+    static constexpr size_t GATHER_INDICES = 1;
+    static constexpr size_t GATHER_AXIS = 2;
     const auto& input_shape = input_shapes[GATHER_DATA].get();
     // Use VectorDims{} instead of {1} for Scalar
     const auto& indices_shape = m_isIndicesScalar ? VectorDims{} : input_shapes[GATHER_INDICES].get();
@@ -38,21 +55,21 @@ Result GatherShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
 }
 
 ShapeInferPtr GatherShapeInferFactory::makeShapeInfer() const {
-    static constexpr size_t GATHER_INDICES = 1, GATHER_AXIS = 2;
+    static constexpr size_t GATHER_INDICES = 1;
+    static constexpr size_t GATHER_AXIS = 2;
     bool isAxisInputConst = ov::is_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS));
     const auto& indicesShape = m_op->get_input_partial_shape(GATHER_INDICES);
-    if (!indicesShape.rank().is_static()) {
-        OPENVINO_THROW("indicesShape do not support dynamic rank.");
-    }
+    OPENVINO_ASSERT(indicesShape.rank().is_static(), "indicesShape do not support dynamic rank.");
     bool isIndicesScalar = indicesShape.rank().get_length() == 0;
     int axis = isAxisInputConst
                    ? ov::as_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0]
                    : 0;
-    int batchDims = ov::is_type<ov::op::v8::Gather>(m_op)
-                        ? static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(m_op)->get_batch_dims())
-                        : (ov::is_type<ov::op::v7::Gather>(m_op)
-                               ? static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(m_op)->get_batch_dims())
-                               : 0);
+    int batchDims = 0;
+    if (ov::is_type<ov::op::v8::Gather>(m_op)) {
+        batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(m_op)->get_batch_dims());
+    } else if (ov::is_type<ov::op::v7::Gather>(m_op)) {
+        batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(m_op)->get_batch_dims());
+    }
     return std::make_shared<GatherShapeInfer>(isAxisInputConst, isIndicesScalar, axis, batchDims);
 }
 

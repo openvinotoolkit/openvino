@@ -22,13 +22,8 @@ using DynamicUnfusionsParams = std::tuple<std::vector<InputShape>,   // input sh
 class DynamicUnfusions : public testing::WithParamInterface<DynamicUnfusionsParams>,
                          virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DynamicUnfusionsParams> obj) {
-        std::vector<InputShape> input_shapes;
-        bool transpose_a;
-        bool transpose_b;
-        ov::element::Type input_precision;
-
-        std::tie(input_shapes, transpose_a, transpose_b, input_precision) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<DynamicUnfusionsParams>& obj) {
+        const auto& [input_shapes, transpose_a, transpose_b, input_precision] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -67,18 +62,13 @@ protected:
         matmul->set_friendly_name("MatMul");
         mul->set_friendly_name("Multiply");
 
-        return std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{input0, input1, input2}, "DynamicUnfusions");
+        return std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input0, input1, input2}, "DynamicUnfusions");
     }
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::vector<InputShape> input_shapes;
-        bool transpose_a;
-        bool transpose_b;
-        ov::element::Type input_precision;
-
-        std::tie(input_shapes, transpose_a, transpose_b, input_precision) = GetParam();
+        const auto& [input_shapes, transpose_a, transpose_b, input_precision] = GetParam();
 
         init_input_shapes(input_shapes);
 

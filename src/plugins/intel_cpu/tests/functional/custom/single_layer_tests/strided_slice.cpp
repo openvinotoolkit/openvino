@@ -7,6 +7,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov;
@@ -36,14 +37,8 @@ class StridedSliceLayerCPUTest : public testing::WithParamInterface<StridedSlice
                                  virtual public SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<StridedSliceLayerCPUTestParamSet> obj) {
-        InputShape shapes;
-        StridedSliceParams params;
-        ov::test::utils::InputLayerType secondaryInputType;
-        ElementType dataType;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, params, secondaryInputType, dataType, cpuParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceLayerCPUTestParamSet>& obj) {
+        const auto& [shapes, params, secondaryInputType, dataType, cpuParams] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -91,11 +86,8 @@ protected:
     }
 
     void SetUp() override {
-        InputShape shapes;
-        ov::test::utils::InputLayerType secondaryInputType;
-        CPUSpecificParams cpuParams;
-        ov::element::Type dataType;
-        std::tie(shapes, ssParams, secondaryInputType, dataType, cpuParams) = this->GetParam();
+        const auto& [shapes, _ssParams, secondaryInputType, dataType, cpuParams] = this->GetParam();
+        ssParams = _ssParams;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         selectedType = makeSelectedTypeStr("ref", dataType);

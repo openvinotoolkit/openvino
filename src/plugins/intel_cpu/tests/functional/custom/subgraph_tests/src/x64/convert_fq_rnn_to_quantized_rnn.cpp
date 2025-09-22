@@ -17,6 +17,8 @@
 #include <cassert>
 #include <memory>
 #include <vector>
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 
 using namespace CPUTestUtils;
 
@@ -30,12 +32,7 @@ class ConvertFqRnnToQuantizedRnn : public testing::WithParamInterface<ConvertFqR
                                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvertFqRnnToQuantizedRnnTestParams>& obj) {
-        std::vector<InputShape> inputShapes;
-        std::string rnnType;
-        bool quantizedHiddenState = false;
-
-        std::tie(rnnType, inputShapes, quantizedHiddenState) = obj.param;
-
+        const auto& [rnnType, inputShapes, quantizedHiddenState] = obj.param;
         auto batchSize  = inputShapes[0];
         auto inputSize  = inputShapes[1];
         auto hiddenSize = inputShapes[2];
@@ -94,13 +91,8 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
         selectedType = "ref_any_I8";
-
-        std::vector<InputShape> inputShapes;
-        std::string rnnType;
-        bool quantizedHiddenState = false;
-
-        std::tie(rnnType, inputShapes, quantizedHiddenState) = this->GetParam();
-
+        const auto& [rnnType, origInputShapes, quantizedHiddenState] = this->GetParam();
+        auto inputShapes = origInputShapes;
         if (rnnType != "LSTMSequence") // remove cell input for non-cell rnn types
             inputShapes.erase(inputShapes.begin() + cellIdx);
 

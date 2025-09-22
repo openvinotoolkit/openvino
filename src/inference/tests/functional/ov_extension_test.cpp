@@ -5,6 +5,7 @@
 #include "ov_extension_test.hpp"
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/file_util.hpp"
 
 using namespace testing;
@@ -141,6 +142,24 @@ TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewOps) {
 TEST_F(OVExtensionTests, load_new_extension) {
     EXPECT_NO_THROW(core.add_extension(getOVExtensionPath()));
 }
+
+#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+TEST_F(OVExtensionTests, load_new_extension_with_unicode_path) {
+    for (auto& unicode_name : ov::test::utils::test_unicode_postfix_vector) {
+        std::filesystem::path dir = ov::util::string_to_wstring(ov::test::utils::getExecutableDirectory()) /
+                                    std::filesystem::path(unicode_name);
+        std::filesystem::create_directories(dir);
+        std::filesystem::path unicode_ext_path =
+            dir / std::filesystem::path(ov::util::string_to_wstring(ov::util::make_plugin_library_name<char>(
+                      "",
+                      std::string("openvino_template_extension") + OV_BUILD_POSTFIX)));
+        std::filesystem::rename(ov::util::string_to_wstring(getOVExtensionPath()), unicode_ext_path);
+        EXPECT_NO_THROW(core.add_extension(unicode_ext_path));
+        std::filesystem::rename(unicode_ext_path, ov::util::string_to_wstring(getOVExtensionPath()));
+        std::filesystem::remove_all(dir);
+    }
+}
+#    endif
 
 TEST_F(OVExtensionTests, load_incorrect_extension) {
     EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);

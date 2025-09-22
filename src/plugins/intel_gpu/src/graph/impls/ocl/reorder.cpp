@@ -57,7 +57,7 @@ public:
         auto params = get_default_params<kernel_selector::reorder_params>(impl_param, is_shape_agnostic);
 
         auto inputs_count = primitive->input.size();
-        bool has_mean = !primitive->mean.empty();
+        bool has_mean = primitive->mean.is_valid();
         for (size_t i = 1; i < inputs_count; i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
@@ -153,6 +153,8 @@ public:
         r_params.layerID = impl_param.desc->id + "_reorder_weights";
         r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
         r_params.rotate_180 = weights_params->should_be_transposed();
+        r_params.original_input_rank = weights_params->get_input_layout().get_partial_shape().size();
+        r_params.original_output_rank = weights_params->get_output_layout().get_partial_shape().size();
 
         auto best_kernel = kernel_selector.get_best_kernel(r_params);
 

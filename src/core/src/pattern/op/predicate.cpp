@@ -4,15 +4,17 @@
 
 #include "openvino/pass/pattern/op/predicate.hpp"
 
+#include "openvino/core/log_util.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov::pass::pattern {
 
-PatternSymbolValue::PatternSymbolValue() : m_value(){};
-PatternSymbolValue::PatternSymbolValue(const std::shared_ptr<ov::Symbol>& s) : m_value(s){};
-PatternSymbolValue::PatternSymbolValue(int64_t i) : m_value(i){};
-PatternSymbolValue::PatternSymbolValue(double d) : m_value(d){};
-PatternSymbolValue::PatternSymbolValue(const std::vector<PatternSymbolValue>& g) : m_value(g){};
+PatternSymbolValue::PatternSymbolValue() : m_value() {};
+PatternSymbolValue::PatternSymbolValue(const std::shared_ptr<ov::Symbol>& s) : m_value(s) {};
+PatternSymbolValue::PatternSymbolValue(int64_t i) : m_value(i) {};
+PatternSymbolValue::PatternSymbolValue(double d) : m_value(d) {};
+PatternSymbolValue::PatternSymbolValue(const std::vector<PatternSymbolValue>& g) : m_value(g) {};
 
 bool PatternSymbolValue::is_dynamic() const {
     return is_valid() && m_value.is<std::shared_ptr<ov::Symbol>>();
@@ -59,7 +61,21 @@ bool PatternSymbolValue::is_valid() const {
 }
 
 bool PatternSymbolValue::operator==(const ov::pass::pattern::PatternSymbolValue& other) const {
-    return m_value == other.m_value;
+    if (is_integer() && other.is_double()) {
+        return std::fabs(static_cast<double>(i()) - other.d()) < 1e-5;
+    } else if (is_double() && other.is_integer()) {
+        return std::fabs(d() - static_cast<double>(other.i())) < 1e-5;
+    } else if (is_double() && other.is_double()) {
+        return std::fabs(d() - other.d()) < 1e-5;
+    } else if (is_dynamic() && other.is_dynamic()) {
+        return ov::symbol::are_equal(s(), other.s());
+    } else {
+        return m_value == other.m_value;
+    }
+}
+
+bool PatternSymbolValue::operator!=(const ov::pass::pattern::PatternSymbolValue& other) const {
+    return !(*this == other);
 }
 
 namespace op {
@@ -70,12 +86,12 @@ constexpr bool symbol_true_predicate(pass::pattern::PatternSymbolMap&, const Out
 }
 }  // namespace
 
-Predicate::Predicate() : m_pred(symbol_true_predicate) {}
+Predicate::Predicate() : m_name("always_true"), m_pred(symbol_true_predicate) {}
 Predicate::Predicate(std::nullptr_t) : Predicate() {}
 
-bool Predicate::operator()(pass::pattern::PatternSymbolMap& m, const Output<Node>& output) const {
-    bool result = m_pred(m, output);
-    OPENVINO_DEBUG("Predicate `", m_name, "` has ", (result ? "passed" : "failed"), ". Applied to ", output);
+bool Predicate::operator()(Matcher* m, const Output<Node>& output) const {
+    bool result = m_pred(m->get_symbols(), output);
+    OPENVINO_LOG_PREDICATE1(m, m_name, result);
     return result;
 }
 

@@ -8,7 +8,11 @@
 #include <tuple>
 #include "low_precision/lpt_visibility.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace pass {

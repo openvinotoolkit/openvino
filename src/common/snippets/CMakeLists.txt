@@ -22,9 +22,12 @@ add_library(${TARGET_NAME} STATIC
 
 add_library(openvino::snippets ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME snippets)
+ov_apply_clang_tidy(TARGET ${TARGET_NAME} EXCLUDE_RISCV64)
+
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY
+    PCH
 )
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
@@ -33,7 +36,7 @@ target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                           PRIVATE $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>)
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 ov_mark_target_as_cc(${TARGET_NAME})
 

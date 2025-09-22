@@ -5,6 +5,14 @@
 # mypy: ignore-errors
 
 import jax
+from packaging import version
+
+if version.parse(jax.__version__) < version.parse("0.6.0"):
+    import jax as jex
+    import jax.core
+else:
+    import jax.extend as jex
+
 import jax.numpy as jnp
 import numpy as np
 from openvino.frontend.jax.passes import filter_element, filter_ivalue, filter_param
@@ -95,7 +103,7 @@ def _get_ov_type_from_value(value):
 
 
 def get_ov_type_for_value(value):
-    if isinstance(value, (jax.core.Var, jax.core.Literal)):
+    if isinstance(value, (jex.core.Var, jex.core.Literal)):
         if value.aval.dtype in jax_to_ov_type_map:
             return OVAny(jax_to_ov_type_map[value.aval.dtype])
         for k, v in numpy_to_ov_type_map.items():
@@ -151,7 +159,8 @@ def ivalue_to_constant(ivalue, shared_memory=True):
                 second_len = len(ivalue[0])
                 flattened_ivalue = []
                 for value in ivalue:
-                    assert isinstance(value, (list, tuple)), "Can't deduce type for a list with both list and basic types."
+                    assert isinstance(value,
+                                      (list, tuple)), "Can't deduce type for a list with both list and basic types."
                     assert len(value) == second_len or len(
                         value) == 0, "Can't deduce type for nested list with different lengths."
                     flattened_ivalue.extend([filter_element(item) for item in value])

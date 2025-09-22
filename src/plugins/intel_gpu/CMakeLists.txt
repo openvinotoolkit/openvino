@@ -22,10 +22,6 @@ if(OV_COMPILER_IS_INTEL_LLVM)
     endif()
 endif()
 
-if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
-    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
-endif()
-
 if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()
@@ -89,6 +85,8 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow"
                                                   LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")
 endif()
+
+ov_build_target_faster(${TARGET_NAME} PCH)
 
 if(ENABLE_TESTS)
   add_subdirectory(tests)

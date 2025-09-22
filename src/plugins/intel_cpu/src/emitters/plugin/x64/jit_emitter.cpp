@@ -4,9 +4,21 @@
 
 #include "jit_emitter.hpp"
 
+#include <xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cassert>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
 #include <vector>
 
-#include "utils.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu;
@@ -16,13 +28,17 @@ using namespace Xbyak;
 namespace ov::intel_cpu {
 
 size_t jit_emitter::get_max_vecs_count() const {
-    return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 32 : 16;
+    return any_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 32 : 16;
 }
 
 size_t jit_emitter::get_vec_length() const {
-    return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 64
-           : one_of(host_isa_, cpu::x64::avx2)                             ? 32
-                                                                           : 16;
+    if (host_isa_ == cpu::x64::avx512_core) {
+        return 64;
+    }
+    if (host_isa_ == cpu::x64::avx2) {
+        return 32;
+    }
+    return 16;
 }
 
 void jit_emitter::push_vec(const Xbyak::Address& addr, size_t vec_idx) const {
@@ -68,10 +84,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
                                    const std::vector<size_t>& pool_vec_idxs,
                                    const std::vector<size_t>& pool_gpr_idxs) const {
     using namespace Xbyak::util;
-    bool is_vec_input =
-        (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::vec_to_gpr);
-    bool is_vec_output =
-        (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::gpr_to_vec);
+    bool is_vec_input = any_of(in_out_type_, emitter_in_out_map::vec_to_vec, emitter_in_out_map::vec_to_gpr);
+    bool is_vec_output = any_of(in_out_type_, emitter_in_out_map::vec_to_vec, emitter_in_out_map::gpr_to_vec);
 
     for (auto idx : pool_vec_idxs) {
         aux_vec_idxs.push_back(idx);
@@ -173,6 +187,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
 
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
+        OPENVINO_ASSERT(!aux_gpr_idxs.empty(), "No aux gprs available");
         p_table = Reg64(aux_gpr_idxs[aux_gprs_count() - 1]);
         aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
     }
@@ -218,10 +233,10 @@ void jit_emitter::emitter_postamble() const {
 
 void jit_emitter::emit_data() const {
     h->align(64);
-    h->L(*l_table.get());
+    h->L(*l_table);
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
-    assert(sizeof(table_entry_val_t) == 4);
+    static_assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
     for (const auto& it : entry_map_) {

@@ -254,7 +254,7 @@ private:
         auto reverse = std::make_shared<op::v1::Reverse>(broadcast,
                                                          op::v0::Constant::create(element::i64, {1}, {1}),
                                                          op::v1::Reverse::Mode::INDEX);
-        auto f = std::make_shared<Model>(NodeVector{reverse}, ParameterVector{A});
+        auto f = std::make_shared<Model>(OutputVector{reverse}, ParameterVector{A});
         return f;
     }
 };

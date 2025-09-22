@@ -4,12 +4,28 @@
 
 #include "strided_slice.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/slice_scatter.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "shape_inference/shape_inference.hpp"
-#include "slice_shape_inference.hpp"
-#include "utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
+#include "slice_shape_inference_utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -27,17 +43,20 @@ StridedSliceShapeInfer::StridedSliceShapeInfer(size_t output_size,
 Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                      const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     // align with intel_cpu::node::StridedSlice
-    static constexpr size_t DATA_ID = 0, BEGIN_ID = 1, END_ID = 2, STRIDE_ID = 3;
+    static constexpr size_t DATA_ID = 0;
+    static constexpr size_t BEGIN_ID = 1;
+    static constexpr size_t END_ID = 2;
+    static constexpr size_t STRIDE_ID = 3;
     const VectorDims& shapeIn = input_shapes[DATA_ID].get();
     const VectorDims& shapeBegin = input_shapes[BEGIN_ID].get();
-    if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != ov::element::i32 ||
-        data_dependency.at(END_ID)->getDesc().getPrecision() != ov::element::i32 ||
-        data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != ov::element::i32) {
-        OPENVINO_THROW("The data type of begin/end/stride is NOT I32, which is unexpected!");
-    }
-    auto beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
-    auto endPtr = data_dependency.at(END_ID)->getDataAs<int32_t>();
-    auto stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();
+    OPENVINO_ASSERT(all_of(ov::element::i32,
+                           data_dependency.at(BEGIN_ID)->getDesc().getPrecision(),
+                           data_dependency.at(END_ID)->getDesc().getPrecision(),
+                           data_dependency.at(STRIDE_ID)->getDesc().getPrecision()),
+                    "The data type of begin/end/stride is NOT I32, which is unexpected!");
+    auto* beginPtr = data_dependency.at(BEGIN_ID)->getDataAs<int32_t>();
+    auto* endPtr = data_dependency.at(END_ID)->getDataAs<int32_t>();
+    auto* stridePtr = data_dependency.at(STRIDE_ID)->getDataAs<int32_t>();
 
     const auto begin_size = shapeBegin[0];
 
@@ -45,7 +64,8 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         if ((cur_idx >= begin_size) || (shapeIn[in_idx] == 0)) {
             return shapeIn[in_idx];
         }
-        int32_t begin = 0, end = 0;
+        int32_t begin = 0;
+        int32_t end = 0;
         if (stridePtr[cur_idx] < 0) {
             begin = m_begin_mask_set.count(cur_idx) ? shapeIn[in_idx] : beginPtr[cur_idx];
             end = m_end_mask_set.count(cur_idx) ? (-1 - shapeIn[in_idx]) : endPtr[cur_idx];
@@ -68,8 +88,8 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
     for (size_t axis_idx = 0, out_idx = 0, in_idx = 0;
          axis_idx < maxAxisSize && in_idx < shapeInSize && out_idx < outputShapeSize;
          axis_idx++) {
-        newAxis = m_new_axis_mask_set.count(axis_idx);
-        shrinkAxis = m_shrink_axis_mask_set.count(axis_idx);
+        newAxis = (m_new_axis_mask_set.count(axis_idx) != 0U);
+        shrinkAxis = (m_shrink_axis_mask_set.count(axis_idx) != 0U);
         if (newAxis) {
             // from test when shrinkAxis && newAxis, only newAxis is working in NgraphShapeInfer,
             // so merge if(newAxis) and if(shrinkAxis && newAxis) together.

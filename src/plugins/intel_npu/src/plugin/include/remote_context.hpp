@@ -9,7 +9,9 @@
 #include <string>
 
 #include "intel_npu/common/npu.hpp"
-#include "intel_npu/config/config.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
@@ -17,9 +19,7 @@ namespace intel_npu {
 
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
-    RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend,
-                      const Config& config,
-                      const ov::AnyMap& remote_properties = {});
+    RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend, const ov::AnyMap& remote_properties = {});
 
     /**
      * @brief Returns name of a device on which underlying object is allocated.
@@ -57,14 +57,15 @@ public:
 private:
     std::shared_ptr<ov::IRemoteContext> get_this_shared_ptr();
 
-    const Config _config;
-    std::shared_ptr<intel_npu::IDevice> _device;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+
     ov::AnyMap _properties;
     std::string _device_name;
 
     std::optional<ov::intel_npu::MemType> _mem_type_object = std::nullopt;
     std::optional<ov::intel_npu::TensorType> _tensor_type_object = std::nullopt;
     std::optional<void*> _mem_handle_object = std::nullopt;
+    std::optional<ov::intel_npu::FileDescriptor> _file_descriptor_object = std::nullopt;
 };
 
 }  // namespace intel_npu

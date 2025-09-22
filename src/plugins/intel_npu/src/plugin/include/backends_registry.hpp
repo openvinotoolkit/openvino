@@ -17,7 +17,7 @@
 
 namespace intel_npu {
 
-enum class AvailableBackends { LEVEL_ZERO, IMD };
+enum class AvailableBackends { LEVEL_ZERO };
 
 class BackendsRegistry final {
 public:
@@ -27,6 +27,8 @@ public:
     BackendsRegistry(BackendsRegistry&& other) = delete;
     void operator=(const BackendsRegistry&) = delete;
     void operator=(BackendsRegistry&&) = delete;
+
+    ~BackendsRegistry() = default;
 
     ov::SoPtr<IEngineBackend> getEngineBackend();
 

@@ -4,7 +4,15 @@
 
 #include "rope_kernel.hpp"
 
-#include <memory>
+#include <xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 

@@ -6,20 +6,14 @@
 
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-std::string TransposeLayerCPUTest::getTestCaseName(testing::TestParamInfo<TransposeLayerCPUTestParamSet> obj) {
-    ov::element::Type netPrecision;
-    InputShape inputShapes;
-    std::vector<size_t> inputOrder;
-    std::string targetDevice;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams) = obj.param;
-
+std::string TransposeLayerCPUTest::getTestCaseName(const testing::TestParamInfo<TransposeLayerCPUTestParamSet>& obj) {
+    const auto& [inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams] = obj.param;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
     result << "TS=(";
@@ -41,12 +35,8 @@ std::string TransposeLayerCPUTest::getTestCaseName(testing::TestParamInfo<Transp
 }
 
 void TransposeLayerCPUTest::SetUp() {
-    ov::element::Type netPrecision;
-    InputShape inputShapes;
-    std::vector<size_t> inputOrder;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams) = this->GetParam();
+    const auto& [inputShapes, inputOrder, netPrecision, _targetDevice, additionalConfig, cpuParams] = this->GetParam();
+    targetDevice = _targetDevice;
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     inType = netPrecision;
     outType = netPrecision;

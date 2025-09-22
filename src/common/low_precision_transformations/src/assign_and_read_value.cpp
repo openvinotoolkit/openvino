@@ -6,8 +6,8 @@
 
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/op/util/assign_base.hpp"
 #include "low_precision/fake_quantize.hpp"

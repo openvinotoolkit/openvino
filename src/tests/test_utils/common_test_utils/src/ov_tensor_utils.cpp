@@ -4,11 +4,12 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 
+#include <iomanip>
+
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
-#include "precomp.hpp"
 
 namespace ov {
 namespace test {
@@ -365,18 +366,31 @@ inline bool less_or_equal(double a, double b) {
     return less(a, b) || equal(a, b);
 }
 
+template <typename T>
+inline constexpr bool is_ov_integral =
+    std::is_same_v<T, char> || std::is_same_v<T, int8_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, int32_t> ||
+    std::is_same_v<T, int64_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> ||
+    std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t>;
+
+template <typename T>
+inline bool value_is_out_of_limits(T value, bool upper_bound_check) {
+    if constexpr (is_ov_integral<T>) {
+        return false;
+    } else {
+        bool out_of_limits = std::isnan(value) || std::isinf(value);
+        out_of_limits |=
+            upper_bound_check ? value >= std::numeric_limits<T>::max() : value <= std::numeric_limits<T>::lowest();
+        return out_of_limits;
+    }
+}
+
 template <typename T1, typename T2>
-inline bool is_value_suitable_for_comparation(const double value1, const double value2) {
+inline bool is_value_suitable_for_comparation(const T1 value1, const T2 value2) {
     bool res = true;
-    auto max_val1 = std::numeric_limits<T1>::max();
-    auto min_val1 = std::numeric_limits<T1>::lowest();
-    auto max_val2 = std::numeric_limits<T2>::max();
-    auto min_val2 = std::numeric_limits<T2>::lowest();
-    if (std::isnan(value1) && std::isnan(value2)) {
+
+    if (value_is_out_of_limits<T1>(value1, true) && value_is_out_of_limits<T2>(value2, true)) {
         res = false;
-    } else if ((std::isinf(value1) || value1 >= max_val1) && (std::isinf(value2) || value2 >= max_val2)) {
-        res = false;
-    } else if ((std::isinf(value1) || value1 <= min_val1) && std::isinf(value2) || value2 <= min_val2) {
+    } else if (value_is_out_of_limits<T1>(value1, false) && value_is_out_of_limits<T2>(value2, false)) {
         res = false;
     }
     return res;
@@ -433,27 +447,37 @@ public:
         mvn_results /= tensor_size ? tensor_size : 1;
         if (!incorrect_values_abs.empty() && equal(1.f, topk_threshold) ||
             incorrect_values_abs.size() > static_cast<int>(std::floor(topk_threshold * tensor_size))) {
-            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED!";
+            std::string msg = "[ COMPARATION ] COMPARATION FAILED!";
+            msg.append(" abs_threshold: ")
+                .append(std::to_string(abs_threshold))
+                .append(" rel_threshold: ")
+                .append(std::to_string(rel_threshold));
 #ifndef NDEBUG
-            msg += " incorrect elem counter: ";
-            msg += std::to_string(incorrect_values_abs.size());
-            msg += " among ";
-            msg += std::to_string(tensor_size);
-            msg += " shapes.";
+            msg.append(" incorrect elem counter: ")
+                .append(std::to_string(incorrect_values_abs.size()))
+                .append(" among ")
+                .append(std::to_string(tensor_size))
+                .append(" shapes.");
+            constexpr size_t max_num_to_print = 32;
+#else
+            constexpr size_t max_num_to_print = 1;
 #endif
-            for (auto val : incorrect_values_abs) {
-                std::cout << "\nExpected: " << val.expected_value << " Actual: " << val.actual_value
-                          << " Coordinate: " << val.coordinate
+            size_t i = 0;
+            for (; i < incorrect_values_abs.size() && i < max_num_to_print; ++i) {
+                auto val = incorrect_values_abs[i];
+                std::cout << "Coordinate: " << std::setw(2) << val.coordinate << " Expected: " << val.expected_value
+                          << " Actual: " << val.actual_value
                           << " Diff: " << std::fabs(val.expected_value - val.actual_value)
-                          << " calculated_abs_threshold: " << val.threshold << " abs_threshold: " << abs_threshold
-                          << " rel_threshold: " << rel_threshold << "\n";
-#ifdef NDEBUG
-                break;
-#endif
+                          << " abs_threshold: " << val.threshold << "\n";
             }
+
+            if constexpr (max_num_to_print > 1) {
+                std::cout << i << " of " << incorrect_values_abs.size() << " incorrect elements printed" << "\n";
+            }
+
             throw std::runtime_error(msg);
         } else if (!less_or_equal(mvn_results, mvn_threshold)) {
-            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED due to MVN THRESHOLD: ";
+            std::string msg = "[ COMPARATION ] COMPARATION FAILED due to MVN THRESHOLD: ";
             msg += std::to_string(mvn_threshold);
             msg += ". Actual MVN value is ";
             msg += std::to_string(mvn_results);
@@ -567,8 +591,8 @@ void compare(const ov::Tensor& expected,
     const auto expected_data = expected.data<ExpectedT>();
     const auto actual_data = actual.data<ActualT>();
     for (size_t i = 0; i < shape_size_cnt; ++i) {
-        double expected_value = expected_data[i];
-        double actual_value = actual_data[i];
+        auto expected_value = expected_data[i];
+        auto actual_value = actual_data[i];
         if (!tensor_comparation::is_value_suitable_for_comparation<ExpectedT, ActualT>(expected_value, actual_value)) {
             continue;
         }

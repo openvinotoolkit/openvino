@@ -37,10 +37,9 @@ memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type
 memory_pool::~memory_pool() {}
 
 bool memory_pool::has_conflict(const memory_set& mem_cand,
-                               const std::unordered_set<size_t>& restrictions,
-                               uint32_t b_network_id) {
+                               const memory_restricter<uint32_t>& restrictions) {
     for (const auto& mem_usr : mem_cand) {
-        if (restrictions.find(mem_usr._unique_id) != restrictions.end())
+        if (restrictions.contains(static_cast<uint32_t>(mem_usr._unique_id)))
             return true;
     }
     return false;
@@ -155,7 +154,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   const primitive_id& prim_id,
                                                   size_t unique_id,
                                                   uint32_t network_id,
-                                                  const std::unordered_set<size_t>& restrictions,
+                                                  const memory_restricter<uint32_t>& restrictions,
                                                   allocation_type type,
                                                   bool reset,
                                                   bool is_dynamic) {
@@ -169,10 +168,10 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             layout.format != format::fs_b_yx_fsv32 &&
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
              (layout.feature() % 32 == 0)) &&
-            !has_conflict(it->second._users, restrictions, network_id))) {
+            !has_conflict(it->second._users, restrictions))) {
             it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
-            GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
+            ret_mem->from_memory_pool = true;
             return ret_mem;
         } else {
             ++it;
@@ -201,7 +200,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                                               const primitive_id& prim_id,
                                               size_t unique_id,
                                               uint32_t network_id,
-                                              const std::unordered_set<size_t>& restrictions,
+                                              const memory_restricter<uint32_t>& restrictions,
                                               allocation_type type) {
     auto first_level_cache = _padded_pool.find(layout);
     if (first_level_cache != _padded_pool.end()) {
@@ -215,10 +214,10 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 layout.batch() <= rec_list._memory->get_layout().batch() &&
                 rec_list._memory->get_layout().format != format::fs_b_yx_fsv32 &&
                 layout.format != format::fs_b_yx_fsv32 &&
-                !has_conflict(rec_list._users, restrictions, network_id)) {
+                !has_conflict(rec_list._users, restrictions)) {
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);
                 rec_list._users.insert({MEM_USER(unique_id, network_id, prim_id, ret_mem->size())});
-                GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
+                ret_mem->from_memory_pool = true;
                 return ret_mem;
             }
         }
@@ -254,38 +253,6 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
     return mem;
 }
 
-/*
-        This is not reusable within one network or it's internal micro networks. But we can use this memory records
-   between networks.
-    */
-memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
-                                                       const primitive_id& prim_id,
-                                                       size_t unique_id,
-                                                       uint32_t network_id,
-                                                       allocation_type type) {
-    const auto layout_bytes_count = layout.bytes_count();
-    auto it = _no_reusable_pool.lower_bound(layout_bytes_count);
-
-    while (it != _no_reusable_pool.end()) {
-        if (it->second._network_id != network_id &&
-            it->second._type == type) {  // don't use non reusable resources within the same network
-            if (!has_conflict(it->second._users, {}, network_id)) {
-                it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
-                auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
-                GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
-                return ret_mem;
-            }
-        }
-        ++it;
-    }
-    auto mem = alloc_memory(layout, type);
-    {
-        _no_reusable_pool.emplace(layout_bytes_count,
-                                  memory_record({{MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)}}, mem, network_id, type));
-    }
-    return mem;
-}
-
 memory::ptr memory_pool::get_memory(const layout& layout, allocation_type type, bool reset) {
     return alloc_memory(layout, type, reset);
 }
@@ -294,7 +261,7 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                                     const primitive_id& prim_id,
                                     const size_t unique_id,
                                     uint32_t network_id,
-                                    const std::unordered_set<size_t>& restrictions,
+                                    const memory_restricter<uint32_t>& restrictions,
                                     allocation_type type,
                                     bool reusable_across_network,
                                     bool reset,
@@ -303,30 +270,9 @@ memory::ptr memory_pool::get_memory(const layout& layout,
     GPU_DEBUG_IF(_config.get_disable_memory_reuse()) {
         do_reuse = false;
     }
-    if (do_reuse) {
-        // reusable within the same network
-        if (!layout.format.is_image() && !layout.data_padding) {
-            // non-padded buffers
-            return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset, is_dynamic);
-        } else if (!layout.format.is_image()) {
-            // padded buffers
-            return get_from_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type);
-        } else {
-            // images (reuse not yet implemented)
-            auto mem = alloc_memory(layout, type, reset);
-#ifdef GPU_DEBUG_CONFIG
-            GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
-                auto allocated_mem_size = mem->size();
-                _no_reusable_mems.push_back(
-                                        memory_record({{MEM_USER(unique_id, network_id, prim_id, allocated_mem_size)}}, mem, network_id, type));
-                total_mem_size_no_reusable += allocated_mem_size;
-                if (type == allocation_type::usm_host)
-                    mem_size_no_reusable_host += allocated_mem_size;
-            }
-#endif
-            return mem;
-        }
-    } else {
+
+    if (!do_reuse || layout.format.is_image()) {
+        // images (reuse not yet implemented)
         auto mem = alloc_memory(layout, type, reset);
 #ifdef GPU_DEBUG_CONFIG
         GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
@@ -339,6 +285,12 @@ memory::ptr memory_pool::get_memory(const layout& layout,
         }
 #endif
         return mem;
+    } else if (!layout.data_padding || is_dynamic) {
+        // non-padded buffers. For dynamic shape, use non-padded pool even if it has padding because we will reset the buffer if it is reused
+        return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset, is_dynamic);
+    } else {
+        // padded buffers
+        return get_from_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type);
     }
 }
 
@@ -420,21 +372,6 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
         }
     }
 #endif
-
-    // free up _no_reusable_pool for this network
-    {
-        auto itr = _no_reusable_pool.begin();
-
-        while (itr != _no_reusable_pool.end()) {
-            auto& record = itr->second;
-
-            if (record._network_id == network_id) {
-                itr = _no_reusable_pool.erase(itr);
-            } else {
-                itr++;
-            }
-        }
-    }
 }
 
 memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engine(&engine), _config(config) {

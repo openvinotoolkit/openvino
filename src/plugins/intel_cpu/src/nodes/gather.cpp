@@ -6,23 +6,49 @@
 
 #include <partitioned_mem_blk.h>
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <functional>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/gather.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "kernels/x64/gather_uni_kernel.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "ov_ops/gather_compressed.hpp"
 #include "selective_build.h"
 #include "shape_inference/custom/gather.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "kernels/x64/gather_uni_kernel.hpp"
+#endif
 
 using namespace dnnl::impl::cpu;
 
@@ -38,7 +64,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         if (op->get_output_element_type(0) == element::string) {
             return false;
         }
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v7::Gather::get_type_info_static(),
                     ov::op::v8::Gather::get_type_info_static())) {
             errorMessage = "Not supported Gather operation version. CPU plug-in supports only 7 and 8 versions.";
@@ -63,10 +89,11 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (one_of(op->get_input_size(), 4u, 5u) && op->get_output_size() == 1u) {
+    if (any_of(op->get_input_size(), 4U, 5U) && op->get_output_size() == 1U) {
         compressed = true;
-    } else if (op->get_input_size() != 3 || op->get_output_size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+    } else {
+        CPU_NODE_ASSERT(op->get_input_size() == 3 && op->get_output_size() == 1,
+                        "has incorrect number of input/output edges!");
     }
 
     const auto& dataShape = getInputShapeAtPort(GATHER_DATA);
@@ -76,9 +103,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     const auto& idxShape = getInputShapeAtPort(GATHER_INDICES);
     isIdxShapeStat = idxShape.isStatic();
     const auto indicesRank = idxShape.getRank();
-    if (dataSrcRank == 0lu || indicesRank == 0lu) {
-        THROW_CPU_NODE_ERR("has incorrect input parameters ranks.");
-    }
+    CPU_NODE_ASSERT(dataSrcRank != 0LU && indicesRank != 0LU, "has incorrect input parameters ranks.");
 
     if (ov::is_type<ov::op::v8::Gather>(op)) {
         batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(op)->get_batch_dims());
@@ -87,11 +112,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         // and sets the dontReverseIndices flag.
         const auto& rti = op->get_rt_info();
         const auto& reverse = rti.find("dontReverseIndices");
-        if (reverse == rti.end()) {
-            reverseIndexing = true;
-        } else {
-            reverseIndexing = false;
-        }
+        reverseIndexing = reverse == rti.end();
     } else if (ov::is_type<ov::op::v7::Gather>(op)) {
         batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(op)->get_batch_dims());
         reverseIndexing = false;
@@ -103,9 +124,10 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     if (batchDims < 0) {
         batchDims += indicesRank;
     }
-    if (batchDims < 0 || batchDims > std::min(static_cast<int>(dataSrcRank), static_cast<int>(indicesRank))) {
-        THROW_CPU_NODE_ERR("has incorrect batch_dims ", batchDims, "!");
-    }
+    CPU_NODE_ASSERT(batchDims >= 0 && batchDims <= std::min(dataSrcRank, static_cast<int>(indicesRank)),
+                    "has incorrect batch_dims ",
+                    batchDims,
+                    "!");
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))) {
         isAxisInputConst = true;
@@ -113,12 +135,12 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         if (axis < 0) {
             axis += dataSrcRank;
         }
-        if (axis < 0 || axis >= dataSrcRank || batchDims > axis) {
-            THROW_CPU_NODE_ERR("has incorrect input parameter axis value: ", axis);
-        }
+        CPU_NODE_ASSERT(axis >= 0 && axis < dataSrcRank && batchDims <= axis,
+                        "has incorrect input parameter axis value: ",
+                        axis);
     }
 
-    if (auto indices = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_INDICES))) {
+    if (auto* indices = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_INDICES))) {
         constIndices = indices->cast_vector<int>();
     }
 }
@@ -140,10 +162,10 @@ void Gather::initSupportedPrimitiveDescriptors() {
     const auto& dataDims = getInputShapeAtPort(GATHER_DATA).getDims();
     if (isAxisInputConst && isDataShapeStat) {
         axisDim = dataDims[axis];
-        beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1lu, std::multiplies<>());
+        beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1LU, std::multiplies<>());
         betweenBatchAndAxisSize =
-            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<>());
-        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<>());
+            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1LU, std::multiplies<>());
+        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1LU, std::multiplies<>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
         afterAxisSizeInBytesOut = afterAxisSize * outTypeSize;
@@ -153,11 +175,11 @@ void Gather::initSupportedPrimitiveDescriptors() {
         srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
     }
     if (isDataShapeStat) {
-        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<>());
+        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1LU, std::multiplies<>());
     }
     if (isIdxShapeStat) {
         const auto& idxDims = getInputShapeAtPort(GATHER_INDICES).getDims();
-        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<>());
+        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1LU, std::multiplies<>());
 
         if (isDataShapeStat) {
             specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
@@ -168,7 +190,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
     }
     if (compressed) {
         // gatherCompressed support input precision (u4/i4/u8/i8) to output precision (f16/bf16/f32).
-        if (!one_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
+        if (none_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
             dataPrecision = ov::element::f32;
         }
 
@@ -177,21 +199,21 @@ void Gather::initSupportedPrimitiveDescriptors() {
             scalePrecision = ov::element::f32;
         }
 
-        if (!one_of(outPrecision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+        if (none_of(outPrecision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
             outPrecision = ov::element::f32;
         }
         scale_group_size =
             getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_SCALE).getElementsCount();
-        have_scalar_scale = getInputShapeAtPort(GATHER_SCALE).getElementsCount() == 1u;
+        have_scalar_scale = getInputShapeAtPort(GATHER_SCALE).getElementsCount() == 1U;
 
-        if (getOriginalInputsNumber() == 5u) {
+        if (getOriginalInputsNumber() == 5U) {
             ov::element::Type zpPrecision = getOriginalInputPrecisionAtPort(GATHER_ZP);
             if (zpPrecision != ov::element::f32) {
                 zpPrecision = ov::element::f32;
             }
 
             have_zp = true;
-            have_scalar_zp = getInputShapeAtPort(GATHER_ZP).getElementsCount() == 1u;
+            have_scalar_zp = getInputShapeAtPort(GATHER_ZP).getElementsCount() == 1U;
             zp_group_size =
                 getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_ZP).getElementsCount();
             addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
@@ -270,9 +292,13 @@ void Gather::createPrimitive() {
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
-        idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize
-                      : x64::mayiuse(x64::avx2)      ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize
-                                                     : 1;
+        if (x64::mayiuse(x64::avx512_core)) {
+            idxElPerVec = x64::cpu_isa_traits_t<x64::avx512_core>::vlen / idxTypeSize;
+        } else if (x64::mayiuse(x64::avx2)) {
+            idxElPerVec = x64::cpu_isa_traits_t<x64::avx2>::vlen / idxTypeSize;
+        } else {
+            idxElPerVec = 1;
+        }
     }
     // Gather instruction is not supported by SSE.
     if ((x64::mayiuse(x64::avx512_core) || x64::mayiuse(x64::avx2)) &&
@@ -324,7 +350,7 @@ void Gather::createPrimitive() {
                     p.idxBatchSumInBytes.resize(dataElPerVec);
                     p.dataBeforeAxisSumInBytes.resize(dataElPerVec);
                     p.betweenBatchAndAxisIter = (dstStart / specIndicesSize) % betweenBatchAndAxisSize;
-                    for (uint64_t j = 0lu; j < dataElPerVec; j++) {
+                    for (uint64_t j = 0LU; j < dataElPerVec; j++) {
                         p.specIdxInBytes[j] = (((dstStart + j) / afterAxisSize) % specIndicesSize) * idxTypeSize;
                         p.idxBatchSumInBytes[j] =
                             ((dstStart + j) / (betweenBatchAndAxisSize * specIndicesSize * afterAxisSize)) *
@@ -355,14 +381,14 @@ bool Gather::needPrepareParams() const {
 void Gather::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(GATHER_DATA);
     if (!dataMemPtr || !dataMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input data memory.");
+        CPU_NODE_THROW("has undefined input data memory.");
     }
     auto idxMemPtr = getSrcMemoryAtPort(GATHER_INDICES);
     if (!idxMemPtr || !idxMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input indices memory.");
+        CPU_NODE_THROW("has undefined input indices memory.");
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
+        CPU_NODE_THROW("has unidentified preferable primitive descriptor.");
     }
 
     // short 1D vector fast execution impl (typical in shape infer subgraph)
@@ -382,18 +408,18 @@ void Gather::prepareParams() {
         if (axis < 0) {
             axis += dataSrcRank;
         }
-        if (axis < 0 || axis >= dataSrcRank || batchDims > axis) {
-            THROW_CPU_NODE_ERR("has incorrect input parameter axis value: ", axis);
-        }
+        CPU_NODE_ASSERT(axis >= 0 && axis < dataSrcRank && batchDims <= axis,
+                        "has incorrect input parameter axis value: ",
+                        axis);
     }
 
     if (!isDataShapeStat || !isAxisInputConst) {
         const auto& dataDims = dataMemPtr->getStaticDims();
         axisDim = dataDims[axis];
-        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<>());
+        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1LU, std::multiplies<>());
         betweenBatchAndAxisSize =
-            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<>());
-        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<>());
+            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1LU, std::multiplies<>());
+        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1LU, std::multiplies<>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
         afterAxisSizeInBytesOut = afterAxisSize * outTypeSize;
@@ -412,7 +438,7 @@ void Gather::prepareParams() {
 
     if (!isIdxShapeStat) {
         const auto& idxDims = idxMemPtr->getStaticDims();
-        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<>());
+        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1LU, std::multiplies<>());
 
         specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
         specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
@@ -443,7 +469,8 @@ void Gather::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (compressed) {
-        return execCompressed();
+        execCompressed();
+        return;
     }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
@@ -510,7 +537,8 @@ void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (compressed) {
-        return execCompressed();
+        execCompressed();
+        return;
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -577,9 +605,7 @@ void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
 }
 
 void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
-    if (!jitKernel) {
-        THROW_CPU_NODE_ERR("has uninitialized kernel in function initShortParams.");
-    }
+    CPU_NODE_ASSERT(jitKernel, "has uninitialized kernel in function initShortParams.");
     const uint64_t idxElPerVec = jitKernel->getIdxElPerVec();
 
     if (afterAxisSize == 1) {  // Elementwise gather.
@@ -632,7 +658,7 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
 
             p.afterAxIdxInBytes[i] *= dataTypeSize;
             p.afterAxPermMask[i] = idxElPerVec - afterAxisSize + i;
-            for (size_t j = 0lu; j < 6lu; j++) {
+            for (size_t j = 0LU; j < 6LU; j++) {
                 if (static_cast<uint64_t>(p.afterAxPermMask[i]) >= idxElPerVec) {
                     p.afterAxPermMask[i] -= afterAxisSize;
                 }
@@ -836,9 +862,9 @@ int8_t Gather::get_i4(const uint8_t& val, bool high) {
 
 int8_t Gather::get_u4(const uint8_t& val, bool high) {
     if (high) {
-        return (val >> 4) & 0xF;
+        return static_cast<int8_t>((val >> 4) & 0xF);
     }
-    return val & 0xF;
+    return static_cast<int8_t>(val & 0xF);
 }
 
 struct ExecCompressedContext {
@@ -977,13 +1003,11 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
         return;
     }
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
+    CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
     constexpr size_t outputPort = 0;
 
-    auto& config = selected_pd->getConfig();
+    const auto& config = selected_pd->getConfig();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[outputPort].inPlace();
     const auto baseDim = inputShapes.front().getDims()[axis];
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM, "can not use inPlace memory with splitting on dynamic dimention");
@@ -991,7 +1015,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
     const auto index = constIndices.front();
     const ptrdiff_t offset = index < 0 ? baseDim + index : index;
     const auto& childEdges = getChildEdgesAtPort(outputPort);
-    for (auto& childEdge : childEdges) {
+    for (const auto& childEdge : childEdges) {
         CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 
         auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset);
@@ -1005,11 +1029,8 @@ bool Gather::canFuse(const NodePtr& node) const {
     if (node->getType() != Type::Convert) {
         return false;
     }
-    if (!one_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16) ||
-        node->getOriginalOutputPrecisionAtPort(0) != ov::element::f32) {
-        return false;
-    }
-    return true;
+    return any_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16) &&
+           node->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
 }
 
 }  // namespace ov::intel_cpu::node

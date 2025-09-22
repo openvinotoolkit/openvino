@@ -4,22 +4,40 @@
 
 #include "rdft.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <functional>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/irdft.hpp>
 #include <openvino/op/rdft.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/kernels/x64/rdft_kernel.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -81,31 +99,25 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     }
 
     const size_t numInputs = getOriginalInputsNumber();
-    if (numInputs != 2 && numInputs != 3) {
-        THROW_CPU_NODE_ERR("has invalid number of input/output edges: ", numInputs);
-    }
+    CPU_NODE_ASSERT(any_of(numInputs, 2U, 3U), "has invalid number of input/output edges: ", numInputs);
 
     const auto axesRank = inputShapes[AXES_INDEX].getRank();
-    if (axesRank != 1) {
-        THROW_CPU_NODE_ERR("has invalid 'axes' input tensor with rank: ", axesRank);
-    }
+    CPU_NODE_ASSERT(axesRank == 1, "has invalid 'axes' input tensor with rank: ", axesRank);
 
     inverse = ov::is_type<ov::op::v9::IRDFT>(op);
 
-    auto axesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(1));
+    auto* axesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(1));
     if (axesNode) {
         axes = axesNode->cast_vector<int>();
         isAxesConstant = true;
-        auto rank = inputShapes[DATA_INDEX].getRank() - inverse;
+        auto rank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
         normalizeAxes(axes, rank);
     }
 
     if (numInputs > 2) {
         const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
-        if (signalSizeRank != 1) {
-            THROW_CPU_NODE_ERR("has invalid 'signalSize' input tensor with rank: ", signalSizeRank);
-        }
-        auto signalSizesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
+        CPU_NODE_ASSERT(signalSizeRank == 1, "has invalid 'signalSize' input tensor with rank: ", signalSizeRank);
+        auto* signalSizesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
         if (!signalSizesNode) {
             return;
         }
@@ -125,20 +137,18 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     }
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (!dataPrecision.is_real()) {
-        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
-    }
+    CPU_NODE_ASSERT(dataPrecision.is_real(), "has unsupported 'data' input precision: ", dataPrecision.get_type_name());
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
-    if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
-        THROW_CPU_NODE_ERR("has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
-    }
+    CPU_NODE_ASSERT(any_of(axesPrecision, ov::element::i32, ov::element::i64),
+                    "has unsupported 'axes' input precision: ",
+                    axesPrecision.get_type_name());
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizePrecision = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
-        if (signalSizePrecision != ov::element::i32 && signalSizePrecision != ov::element::i64) {
-            THROW_CPU_NODE_ERR("has unsupported 'signalSize' input precision: ", signalSizePrecision.get_type_name());
-        }
+        CPU_NODE_ASSERT(any_of(signalSizePrecision, ov::element::i32, ov::element::i64),
+                        "has unsupported 'signalSize' input precision: ",
+                        signalSizePrecision.get_type_name());
     }
 
     std::vector<PortConfigurator> configurators(
@@ -156,10 +166,10 @@ void RDFT::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& inputShape = inputMem.getStaticDims();
     const auto& outputShape = outputMem.getStaticDims();
 
-    auto inputPtr = inputMem.getDataAs<float>();
-    auto outputPtr = outputMem.getDataAs<float>();
+    auto* inputPtr = inputMem.getDataAs<float>();
+    auto* outputPtr = outputMem.getDataAs<float>();
 
-    auto rank = inputShape.size() - inverse;
+    auto rank = inputShape.size() - static_cast<size_t>(inverse);
 
     const auto& inputStrides = inputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto& outputStrides = outputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -191,8 +201,8 @@ void RDFT::prepareParams() {
         if (axes.size() != newAxesSize) {
             axes.resize(newAxesSize);
         }
-        auto axesPtr = axesMem->getDataAs<const int>();
-        auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
+        const auto* axesPtr = axesMem->getDataAs<const int>();
+        auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
         for (size_t i = 0; i < axes.size(); i++) {
             axes[i] = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
         }
@@ -236,8 +246,8 @@ bool RDFT::axesChanged() const {
     if (axes.size() != axesMem->getStaticDims()[0]) {
         return true;
     }
-    auto axesPtr = axesMem->getDataAs<const int>();
-    auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
+    const auto* axesPtr = axesMem->getDataAs<const int>();
+    auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
     for (size_t i = 0; i < axes.size(); i++) {
         auto newAxis = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
         if (static_cast<size_t>(axes[i]) != newAxis) {
@@ -298,8 +308,8 @@ static void adjustInputSize(VectorDims& inputShape,
         size_t signalSize = signalSizes[i];
         if (signalSize <= inputSize) {
             inputShape[axis] = signalSize;
-        } else if (!isInverse) {
-            OPENVINO_THROW("Signal size greater than input size is not supported yet");
+        } else {
+            OPENVINO_ASSERT(isInverse, "Signal size greater than input size is not supported yet");
         }
     }
     if (isInverse) {
@@ -320,7 +330,7 @@ void RDFTExecutor::execute(float* inputPtr,
     adjustInputSize(inputShape, signalSizes, axes, isInverse);
 
     if (rank == 1) {
-        auto twiddlesPtr = twiddles[0].data();
+        const auto* twiddlesPtr = twiddles[0].data();
         dftCommon(inputPtr,
                   twiddlesPtr,
                   outputPtr,
@@ -465,7 +475,7 @@ static void fftCopyInverseInputData(float* dst, float* src, size_t inputSize, si
     }
 }
 
-static void fftCopyRealInputData(float* dst, float* src, size_t inputSize, bool parallelize) {
+static void fftCopyRealInputData(float* dst, const float* src, size_t inputSize, bool parallelize) {
     if (!parallelize) {
         for (size_t i = 0; i < inputSize; i++) {
             dst[2 * i] = src[i];
@@ -479,7 +489,7 @@ static void fftCopyRealInputData(float* dst, float* src, size_t inputSize, bool 
     }
 }
 
-static void fftCopyInverseRealOutput(float* dst, float* src, size_t signalSize, bool parallelize) {
+static void fftCopyInverseRealOutput(float* dst, const float* src, size_t signalSize, bool parallelize) {
     if (!parallelize) {
         for (size_t i = 0; i < signalSize; i++) {
             dst[i] = src[2 * i];
@@ -506,11 +516,11 @@ void RDFTExecutor::fft(float* input,
 
     if (inputSize < signalSize || type == real_to_complex) {
         if (isInverse) {
-            fftCopyInverseInputData(&scratchSpace[0], input, inputSize, signalSize, parallelize);
+            fftCopyInverseInputData(scratchSpace.data(), input, inputSize, signalSize, parallelize);
         } else if (type == real_to_complex) {
-            fftCopyRealInputData(&scratchSpace[0], input, inputSize, parallelize);
+            fftCopyRealInputData(scratchSpace.data(), input, inputSize, parallelize);
         }
-        inputPtr = &scratchSpace[0];
+        inputPtr = scratchSpace.data();
     }
 
     size_t numBlocks = 0;
@@ -556,7 +566,7 @@ void RDFTExecutor::fft(float* input,
         }
         twiddlesPtr += numBlocks * 2;
         if (numBlocks == 1 && inputPtr == input) {
-            inputPtr = &scratchSpace[0];
+            inputPtr = scratchSpace.data();
         }
         std::swap(inputPtr, outputPtr);
     }
@@ -645,7 +655,7 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
         parallel_for(totalWorkSize, [&](size_t i) {
             std::vector<size_t> coords(iterationRange.size(), 0);
             std::vector<float> gatherScatterBuffer(gatherSize + scatterSize);
-            float* gatherBuffer = &gatherScatterBuffer[0];
+            float* gatherBuffer = gatherScatterBuffer.data();
             float* scatterBuffer = &gatherScatterBuffer[gatherSize];
             coordsFromIndex(i, coords, iterationRange, axis);
             gather(gatherBuffer, inputPtr, axis, coords, inputSize, inputStrides);
@@ -663,7 +673,7 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
     } else {
         std::vector<size_t> coords(iterationRange.size(), 0);
         std::vector<float> gatherScatterBuffer(gatherSize + scatterSize);
-        float* gatherBuffer = &gatherScatterBuffer[0];
+        float* gatherBuffer = gatherScatterBuffer.data();
         float* scatterBuffer = &gatherScatterBuffer[gatherSize];
         for (size_t i = 0; i < totalWorkSize; i++) {
             coordsFromIndex(i, coords, iterationRange, axis);
@@ -756,7 +766,7 @@ void RDFTExecutor::irdftNd(float* inputPtr,
     size_t outputShapeSize = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<>());
     if (inputShapeSize > outputShapeSize) {
         tmp.resize(inputShapeSize);
-        output = &tmp[0];
+        output = tmp.data();
     }
 
     std::vector<size_t> inputStrides(originalInputStrides.size());
@@ -798,8 +808,8 @@ std::vector<float> RDFTExecutor::generateTwiddlesFFT(size_t N) {
     for (size_t numBlocks = 1; numBlocks < N; numBlocks *= 2) {
         for (size_t block = 0; block < numBlocks; block++) {
             double angle = 2 * PI * block / (numBlocks * 2);
-            twiddles.push_back(std::cos(angle));
-            twiddles.push_back(-std::sin(angle));
+            twiddles.push_back(static_cast<float>(std::cos(angle)));
+            twiddles.push_back(static_cast<float>(-std::sin(angle)));
         }
     }
     return twiddles;
@@ -839,21 +849,21 @@ struct RDFTJitExecutor : public RDFTExecutor {
         if (mayiuse(cpu::x64::avx512_core)) {
             rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, rdftType);
             dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, complex_to_complex);
-            vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
+            vlen = cpu_isa_traits_t<cpu::x64::avx512_core>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx512);
             }
         } else if (mayiuse(cpu::x64::avx2)) {
             rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx2>>(isInverse, rdftType);
             dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx2>>(isInverse, complex_to_complex);
-            vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
+            vlen = cpu_isa_traits_t<cpu::x64::avx2>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx2);
             }
         } else if (mayiuse(cpu::x64::sse41)) {
             rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, rdftType);
             dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, complex_to_complex);
-            vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
+            vlen = cpu_isa_traits_t<cpu::x64::sse41>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_sse42);
             }
@@ -880,18 +890,18 @@ struct RDFTJitExecutor : public RDFTExecutor {
             if (type == real_to_complex) {
                 for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
-                    twiddles[((K * inputSize + n) * simdSize + k) * 2] = std::cos(angle);
-                    twiddles[((K * inputSize + n) * simdSize + k) * 2 + 1] = -std::sin(angle);
+                    twiddles[((K * inputSize + n) * simdSize + k) * 2] = static_cast<float>(std::cos(angle));
+                    twiddles[((K * inputSize + n) * simdSize + k) * 2 + 1] = static_cast<float>(-std::sin(angle));
                 }
-            } else if (type == complex_to_real || type == complex_to_complex) {
+            } else if (any_of(type, complex_to_real, complex_to_complex)) {
                 for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
-                    twiddles[(K * inputSize + n) * 2 * simdSize + k] = std::cos(angle);
+                    twiddles[(K * inputSize + n) * 2 * simdSize + k] = static_cast<float>(std::cos(angle));
                 }
                 for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
                     twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] =
-                        isInverse ? std::sin(angle) : -std::sin(angle);
+                        isInverse ? static_cast<float>(std::sin(angle)) : static_cast<float>(-std::sin(angle));
                 }
             }
         });
@@ -900,8 +910,9 @@ struct RDFTJitExecutor : public RDFTExecutor {
             parallel_for2d(outputSize - start, inputSize, [&](size_t k, size_t n) {
                 k += start;
                 double angle = 2 * PI * k * n / inputSize;
-                twiddles[2 * (k * inputSize + n)] = std::cos(angle);
-                twiddles[2 * (k * inputSize + n) + 1] = isInverse ? std::sin(angle) : -std::sin(angle);
+                twiddles[2 * (k * inputSize + n)] = static_cast<float>(std::cos(angle));
+                twiddles[2 * (k * inputSize + n) + 1] =
+                    isInverse ? static_cast<float>(std::sin(angle)) : static_cast<float>(-std::sin(angle));
             });
         }
         return twiddles;
@@ -946,7 +957,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
 #endif
 
 struct RDFTRefExecutor : public RDFTExecutor {
-    RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
+    explicit RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
 
 private:
     std::vector<float> generateTwiddlesDFT(size_t inputSize,
@@ -958,20 +969,21 @@ private:
             if (!isInverse) {
                 angle = -angle;
             }
-            twiddles[(k * inputSize + n) * 2] = std::cos(angle);
-            twiddles[(k * inputSize + n) * 2 + 1] = std::sin(angle);
+            twiddles[(k * inputSize + n) * 2] = static_cast<float>(std::cos(angle));
+            twiddles[(k * inputSize + n) * 2 + 1] = static_cast<float>(std::sin(angle));
         });
         return twiddles;
     }
 
-    void dftRealToComplex(float* inputPtr,
-                          const float* twiddlesPtr,
-                          float* outputPtr,
-                          size_t inputSize,
-                          size_t outputSize,
-                          bool parallelize) {
+    static void dftRealToComplex(const float* inputPtr,
+                                 const float* twiddlesPtr,
+                                 float* outputPtr,
+                                 size_t inputSize,
+                                 size_t outputSize,
+                                 bool parallelize) {
         auto dftIteration = [&](size_t k) {
-            float real = 0, imag = 0;
+            float real = 0;
+            float imag = 0;
             for (size_t n = 0; n < inputSize; n++) {
                 float cos = twiddlesPtr[2 * (k * inputSize + n)];
                 float sin = twiddlesPtr[2 * (k * inputSize + n) + 1];
@@ -998,7 +1010,8 @@ private:
                              size_t outputSize,
                              bool parallelize) {
         auto dftIteration = [&](size_t k) {
-            float real = 0, imag = 0;
+            float real = 0;
+            float imag = 0;
             for (size_t n = 0; n < inputSize; n++) {
                 float cos = twiddlesPtr[2 * (k * outputSize + n)];
                 float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];

@@ -232,7 +232,7 @@ TEST_P(fully_connected_skip_fake_align_test, skip_fake_alignment_case) {
 
     topology.add(input_layout("weights", p.weight_layout));
     topology.add(fully_connected("fc_prim1", input_info("eltwise_add1"), "weights", "",
-                 cldnn::data_types::f32, p.input_layout.get_rank(), p.weight_layout.get_rank()));
+                 cldnn::data_types::f32, p.input_layout.get_partial_shape().size(), p.weight_layout.get_partial_shape().size()));
 
     topology.add(input_layout("bias",
                  layout{ov::PartialShape{1, 1, p.expected_output_layout_igpu.get_dims()[2]}, cldnn::data_types::f32, cldnn::format::bfyx}));

@@ -1,6 +1,11 @@
 name: macOS (Python 3.11)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
@@ -32,8 +37,10 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
+  NODEJS_VERSION: '21'
   MANIFEST_FILE: manifest.yml
   PRODUCT_TYPE: public_macos_x86_64_release
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
 
@@ -79,7 +86,7 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
-      INSTALL_DIR_JS: ${{ github.workspace }}/openvino_install/js
+      INSTALL_DIR_JS: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/developer_package_install
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
@@ -99,6 +106,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
+          ref: ${{ env.TARGET_BRANCH }}
 
       #
       # Print system info
@@ -135,12 +143,18 @@ jobs:
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
+      - name: Setup NodeJS
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODEJS_VERSION }}
+
       #
       # Build
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
+        uses: hendrikmuhs/ccache-action@bfa03e1de4d7f7c3e80ad9109feedd05c4f5a716 # v1.2.19
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
@@ -162,6 +176,7 @@ jobs:
           target_arch: ${{ runner.arch }}
           build_type: 'release'
           save_to: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
+          trigger_repo_branch: ${{ inputs.target-branch }}
 
       - name: CMake configure
         run: |
@@ -276,20 +291,28 @@ jobs:
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_js_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR_JS }}
 
+      - name: Pack openvino_node_npm_package
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        run: |
+          npm i
+          npm pack
+          tar -czvf ${BUILD_DIR}/openvino_node_npm_package.tar.gz bin openvino-node-*
+        working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
+
       #
       # Upload build artifacts
       #
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO wheels
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
@@ -297,7 +320,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -305,7 +328,7 @@ jobs:
 
       - name: Upload OpenVINO developer package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/developer_package.tar.gz
@@ -313,15 +336,23 @@ jobs:
 
       - name: Upload OpenVINO js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_js_package
           path: ${{ env.BUILD_DIR }}/openvino_js_package.tar.gz
           if-no-files-found: 'error'
 
+      - name: Upload openvino-node NPM package
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openvino_node_npm_package
+          path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
+          if-no-files-found: 'error'
+
       - name: Upload product manifest
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package_manifest
           path: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
@@ -365,15 +396,38 @@ jobs:
             .github/actions/store_artifacts
           path: ${{ env.OPENVINO_REPO }}
 
-      - name: Download OpenVINO artifacts
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+      - name: Download OpenVINO artifacts (package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: "{openvino_package,openvino_developer_package,openvino_js_package,openvino_package_manifest}"
+          name: openvino_package
           path: ${{ env.ARTIFACTS_DIR }}
-          merge-multiple: true
+      
+      - name: Download OpenVINO artifacts (dev package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_developer_package
+          path: ${{ env.ARTIFACTS_DIR }}
+
+      - name: Download OpenVINO artifacts (openvino_js_package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_js_package
+          path: ${{ env.ARTIFACTS_DIR }}
+
+      - name: Download OpenVINO artifacts (openvino_node_npm_package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_node_npm_package
+          path: ${{ env.ARTIFACTS_DIR }}
+      
+      - name: Download OpenVINO artifacts (openvino_package_manifest)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_package_manifest
+          path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO wheels
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_wheels
           path: ${{ env.WHEELS_DIR }}
@@ -390,5 +444,7 @@ jobs:
             ${{ env.ARTIFACTS_DIR }}/developer_package.tar.gz
             ${{ env.WHEELS_DIR }}
             ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/openvino_js_package.tar.gz', env.ARTIFACTS_DIR) || '' }}
+            ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/openvino_node_npm_package.tar.gz', env.ARTIFACTS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+          branch_name: ${{ inputs.target-branch }}

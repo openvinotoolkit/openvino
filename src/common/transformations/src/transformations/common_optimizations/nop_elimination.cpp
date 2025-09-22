@@ -549,7 +549,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                     }
                     return false;
                 };
-                // check that we won't do change dimenstion rank
+                // check that we won't do change dimension rank
                 if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
                     !check_mask(strided_slice_node->get_new_axis_mask()) ||
                     !check_mask(strided_slice_node->get_ellipsis_mask())) {
@@ -585,6 +585,8 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 if (end_constant_node == nullptr)
                     return false;
                 auto end_values = end_constant_node->cast_vector<int64_t>();
+                if (end_values[concat_axis] > static_cast<int64_t>(concat->get_shape()[concat_axis]))
+                    end_values[concat_axis] = static_cast<int64_t>(concat->get_shape()[concat_axis]);
 
                 slice_out_index_in_concat.push_back(
                     std::make_tuple(strided_slice_node, begin_values[concat_axis], end_values[concat_axis] - 1));
@@ -605,6 +607,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
         }
 
         node_index_info_map mismatch_slices{};
+        bool model_changed = false;
         for (const auto& [slice_node, slice_begin, slice_end] : slice_out_index_in_concat) {
             bool matched = false;
             for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
@@ -612,6 +615,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                     auto slice_outputs = slice_node->outputs();
                     for (auto& slice_output : slice_outputs) {
                         replace_output_update_name(slice_output, concat_input_node);
+                        model_changed = true;
                     }
                     matched = true;
                     break;
@@ -620,18 +624,23 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
             if (!matched)
                 mismatch_slices.push_back(std::make_tuple(slice_node, slice_begin, slice_end));
         }
+        if (mismatch_slices.empty())
+            return model_changed;
+
+        if (mismatch_slices.size() == slice_out_index_in_concat.size())
+            return model_changed;
 
         int64_t new_start_value{std::numeric_limits<int64_t>::max()};
         int64_t new_end_value{0};
         for (const auto& [slice_node, slice_begin, slice_end] : mismatch_slices) {
             for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
-                if ((concat_input_begin <= slice_begin) && (concat_input_end > slice_begin)) {
+                if ((concat_input_begin <= slice_begin) && (concat_input_end >= slice_begin)) {
                     if (concat_input_begin < new_start_value)
                         new_start_value = concat_input_begin;
                     if (concat_input_end > new_end_value)
                         new_end_value = concat_input_end;
                 }
-                if ((concat_input_begin < slice_end) && (concat_input_end >= slice_end)) {
+                if ((concat_input_begin <= slice_end) && (concat_input_end >= slice_end)) {
                     if (concat_input_begin < new_start_value)
                         new_start_value = concat_input_begin;
                     if (concat_input_end > new_end_value)
@@ -663,18 +672,17 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 ov::as_type_ptr<ov::op::v0::Concat>(slice_node->get_users()[0])->get_axis() == concat_axis) {
                 auto next_concat = ov::as_type_ptr<ov::op::v0::Concat>(slice_node->get_users()[0]);
                 auto next_concat_inputs = next_concat->input_values();
-                std::vector<std::shared_ptr<Node>> new_next_concat_inputs{};
+                ov::OutputVector new_next_concat_inputs{};
                 for (const auto& t : next_concat_inputs) {
                     if (t.get_node_shared_ptr() == slice_node) {
                         for (const auto& need_insert : new_concat_in_nodes) {
                             new_next_concat_inputs.push_back(need_insert);
                         }
-                        continue;
+                    } else {
+                        new_next_concat_inputs.push_back(t);
                     }
-                    new_next_concat_inputs.push_back(t.get_node_shared_ptr());
                 }
-                auto new_next_concat_node =
-                    next_concat->clone_with_new_inputs(ov::as_output_vector(new_next_concat_inputs));
+                auto new_next_concat_node = next_concat->clone_with_new_inputs(new_next_concat_inputs);
                 replace_output_update_name(next_concat, new_next_concat_node);
             } else {
                 std::vector<std::shared_ptr<Node>> new_slice_in_nodes{};

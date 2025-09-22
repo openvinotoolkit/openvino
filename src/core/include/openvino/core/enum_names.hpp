@@ -48,7 +48,7 @@ private:
     /// Creates the mapping.
     EnumNames(const std::string& enum_name, const std::vector<std::pair<std::string, EnumType>> string_enums)
         : m_enum_name(enum_name),
-          m_string_enums(string_enums) {}
+          m_string_enums(std::move(string_enums)) {}
 
     /// Must be defined to returns a singleton for each supported enum class
     static EnumNames<EnumType>& get();
@@ -62,6 +62,13 @@ template <typename Type, typename Value>
 typename std::enable_if<std::is_convertible<Value, std::string>::value, Type>::type as_enum(const Value& value) {
     return EnumNames<Type>::as_enum(value);
 }
+
+namespace op {
+enum class BroadcastType;
+}  // namespace op
+
+extern template OPENVINO_API_EXTERN ov::op::BroadcastType as_enum<ov::op::BroadcastType, const char*>(
+    const char* const&);
 
 /// Returns the string matching the enum value
 template <typename Value>

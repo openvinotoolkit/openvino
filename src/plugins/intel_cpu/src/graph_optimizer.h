@@ -4,64 +4,65 @@
 
 #pragma once
 
+#include "cpu_types.h"
 #include "graph.h"
+#include "node.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class GraphOptimizer {
 public:
     GraphOptimizer();
 
-public:
-    void ApplyCommonGraphOptimizations(Graph& graph);
-    void ApplyImplSpecificGraphOptimizations(Graph& graph);
-    void ShareReorders(Graph& graph);
+    static void ApplyCommonGraphOptimizations(Graph& graph);
+    static void ApplyImplSpecificGraphOptimizations(Graph& graph);
+    static void ShareReorders(Graph& graph);
 
 private:
-    void FuseConvMatmulFCDeconvAndDQScales(Graph& graph);
-    void FuseConvolutionMatMulDeconvAndBias(Graph& graph);
-    void FuseDeconvolutionAndSimpleOperation(Graph& graph);
-    void FuseMultiplyAndAdd(Graph& graph);
-    void MergeEltwiseAndConvert(Graph& graph);
-    void MergeConvertAndEltwise(Graph& graph);
-    void FuseFCAndConvertOnWeights(Graph& graph);
-    void FuseFCAndTransposeOnWeights(Graph& graph);
-    void FuseFullyConnectedAndSimpleOperation(Graph& graph);
-    void FuseMatMulAndSimpleOperation(Graph& graph);
-    void FuseConvolutionAndSimpleOperationThroughMaxPool(Graph& graph);
-    void FuseConvolutionAndSimpleOperation(Graph& graph);
-    void FuseConvolutionAndDWConvolution(Graph& graph);
-    void FusePoolingAndFakeQuantize(Graph& graph);
-    void FuseConvolutionSumAndConvolutionSumActivation(Graph& graph);
-    void FuseMVNAndSimpleOperation(Graph& graph);
-    void FuseInterpolateAndSimpleOperation(Graph& graph);
-    void FuseNormalizeL2AndSimpleOperation(Graph& graph);
-    void FuseReduceAndSimpleOperation(Graph& graph);
-    void FuseGatherAndConvert(Graph& graph);
+    void extracted();
+    static void FuseConvMatmulFCDeconvAndDQScales(Graph& graph);
+    static void FuseConvolutionMatMulDeconvAndBias(Graph& graph);
+    static void FuseDeconvolutionAndSimpleOperation(Graph& graph);
+    static void FuseMultiplyAndAdd(Graph& graph);
+    static void MergeEltwiseAndConvert(Graph& graph);
+    static void MergeConvertAndEltwise(Graph& graph);
+    static void FuseFCAndConvertOnWeights(Graph& graph);
+    static void FuseFCAndTransposeOnWeights(Graph& graph);
+    static void FuseFullyConnectedAndSimpleOperation(Graph& graph);
+    static void FuseMatMulAndSimpleOperation(Graph& graph);
+    static void FuseConvolutionAndSimpleOperationThroughMaxPool(Graph& graph);
+    static void FuseConvolutionAndSimpleOperation(Graph& graph);
+    static void FuseConvolutionAndDWConvolution(Graph& graph);
+    static void FusePoolingAndFakeQuantize(Graph& graph);
+    static void FuseConvolutionSumAndConvolutionSumActivation(Graph& graph);
+    static void FuseMVNAndSimpleOperation(Graph& graph);
+    static void FuseInterpolateAndSimpleOperation(Graph& graph);
+    static void FuseNormalizeL2AndSimpleOperation(Graph& graph);
+    static void FuseReduceAndSimpleOperation(Graph& graph);
+    static void FuseGatherAndConvert(Graph& graph);
 
-    void DropDoubleReorders(Graph& graph);
-    void FuseConvolutionAndZeroPoints(Graph& graph);
+    static void DropDoubleReorders(Graph& graph);
+    static void FuseConvolutionAndZeroPoints(Graph& graph);
     void FuseBroadcastAndEltwise(Graph& graph);
-    void FuseEltwiseAndSimple(Graph& graph);
-    void FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph);
-    void FuseClampAndFakeQuantize(Graph& graph);
-    void MergeTransposeAndReorder(Graph& graph);
-    void MergeReorderAndTranspose(Graph& graph);
-    void reshapeRnnSeq(Graph& graph);
-    void RemoveSameConvert(Graph& graph);
-    void RemoveMemoryInputConvert(Graph& graph);
-    void RemoveConvertMemoryOutput(Graph& graph);
-    void MatchSdpaKvCache(Graph& graph);
-    void DropRedundantMemoryOutput(Graph& graph);
+    static void FuseEltwiseAndSimple(Graph& graph);
+    static void FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph);
+    static void FuseClampAndFakeQuantize(Graph& graph);
+    static void MergeTransposeAndReorder(Graph& graph);
+    static void MergeReorderAndTranspose(Graph& graph);
+    static void reshapeRnnSeq(Graph& graph);
+    static void RemoveSameConvert(Graph& graph);
+    static void RemoveMemoryInputConvert(Graph& graph);
+    static void RemoveConvertMemoryOutput(Graph& graph);
+    static void MatchSdpaKvCache(Graph& graph);
+    static void DropRedundantMemoryOutput(Graph& graph);
 
-    bool canBeInplaced(const NodePtr& parentNode, const NodePtr& childNode);
+    static bool canBeInplaced(const NodePtr& parentNode, const NodePtr& childNode);
     // Method checks that after the sequential execution of Transpose and Reorder nodes,
     // the order of the elements in the memory (physical layout) will not change.
-    bool checkAscendingFinalOrder(const VectorDims& transposeOrder,
-                                  const VectorDims& layoutOrder,
-                                  const VectorDims& reorderInOrder,
-                                  const VectorDims& reorderOutOrder);
+    static bool checkAscendingFinalOrder(const VectorDims& transposeOrder,
+                                         const VectorDims& layoutOrder,
+                                         const VectorDims& reorderInOrder,
+                                         const VectorDims& reorderOutOrder);
     // Method merges Transpose -> Reshape(optional) -> Reorder sequences which do opposite permutation to each other.
     // Reverse order Reorder -> Reshape(optional) -> Transpose is supported too.
     // Reshape support has the following limitations:
@@ -86,12 +87,29 @@ private:
     //    After:  [N,C,H,W]acdb==>Reorder(acdb->abc, isOptimized=true)==>[N,L,C]abc
     // Note: in some cases (inplace conflicts or transpose with blocked input and non-blocked output) the merged Reorder
     // can not be optimized.
-    void mergeTransposeReshapeReorder(Graph& graph,
-                                      const NodePtr& transposeNode,
-                                      const NodePtr& reshapeNode,
-                                      const NodePtr& reorderNode,
-                                      const bool reverseOrder);
+    static void mergeTransposeReshapeReorder(Graph& graph,
+                                             const NodePtr& transposeNode,
+                                             const NodePtr& reshapeNode,
+                                             const NodePtr& reorderNode,
+                                             bool reverseOrder);
+    // Method optimizes tail nodes inference performance under FP16 inference precision through two main approaches:
+    // 1. Inplace Tail Nodes Optimization:
+    //    For inplace tail node scenarios (including Eltwise and Concat nodes), the model output type is fused into
+    //    the nearest tail node, ensuring all tail nodes in the path maintain consistent types with the model output.
+    //    Since inplace nodes don't perform actual data movement, this type alignment doesn't introduce additional
+    //    overhead while eliminating the convert node as well as the f32->f16 instruction overhead within the tail
+    //    nodes.
+    // 2. Non-inplace Tail Nodes Fusion:
+    //    For non-inplace tail node scenarios, Convert operations are fused into its input (data movement) nodes.
+    //    Currently implemented Concat fusion kernel support, with future extensibility to other node types.
+    // Examples:
+    // 1. Inplace optimization (Concat):
+    //    Before: Eltwise(f16,f16)->Concat(f16,f16)->Convert(f16->f32)->Output(f32) (when concat is inplace)
+    //    After:  Eltwise(f16,f32)->Concat(f32,f32)->Output(f32) (Convert node eliminated, Concat directly outputs f32)
+    // 2. Non-inplace fusion (Concat):
+    //    Before: Concat(f16,f16)->Convert(f16->f32)->Output(f32) (when concat is non-inplace)
+    //    After:  ConcatWithFuseConvert(f16,f32)->Output(f32) (Convert fused into Concat)
+    static void TailNodesPrecisionOptimize(Graph& graph);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

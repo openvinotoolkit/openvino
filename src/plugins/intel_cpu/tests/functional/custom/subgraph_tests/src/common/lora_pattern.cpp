@@ -7,6 +7,11 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {
@@ -17,7 +22,7 @@ constexpr auto t5_name = "lora/MatMul.alpha";
 constexpr auto t6_name = "lora/MatMul.A";
 constexpr auto netType = ov::element::f32;
 
-enum class StatesPolicy {
+enum class StatesPolicy : uint8_t {
     EMPTY_TENSORS,
     RANDOM_TENSORS,
     UNDEFINED
@@ -42,14 +47,11 @@ using LoraPatternParams = std::tuple<ov::element::Type,  // states precision
 
 class LoraPatternBaseCPUTest : public SubgraphBaseTest, public testing::WithParamInterface<LoraPatternParams> {
 public:
-static std::string getTestCaseName(testing::TestParamInfo<LoraPatternParams> obj) {
-        ov::element::Type states_precision;
-        StatesPolicy states_policy;
-        std::tie(states_precision, states_policy) = obj.param;
-
-        std::ostringstream result;
-        result << "states_precision=" << states_precision << "_states_policy=" << states_policy;
-        return result.str();
+static std::string getTestCaseName(const testing::TestParamInfo<LoraPatternParams>& obj) {
+    const auto& [states_precision, states_policy] = obj.param;
+    std::ostringstream result;
+    result << "states_precision=" << states_precision << "_states_policy=" << states_policy;
+    return result.str();
     }
 
     void SetUp() override {

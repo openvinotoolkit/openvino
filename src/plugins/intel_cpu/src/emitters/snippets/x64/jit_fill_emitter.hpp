@@ -4,13 +4,20 @@
 
 #pragma once
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "emitters/plugin/x64/jit_emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
 class jit_fill_emitter : public jit_emitter {
 public:
-    jit_fill_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_fill_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                      const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -27,9 +34,9 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
     template <typename Vmm>
-    void fill_full(const Vmm& vmm_dst) const;
+    void fill_full(const Vmm& dst_vmm) const;
     template <typename Vmm>
-    void fill_tail(const Vmm& vmm_src, const Vmm& vmm_dst) const;
+    void fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const;
 
     bool is_full_reg() const {
         return offset == 0;

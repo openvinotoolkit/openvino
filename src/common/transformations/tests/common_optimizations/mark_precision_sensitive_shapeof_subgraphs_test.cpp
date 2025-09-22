@@ -11,7 +11,16 @@
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
@@ -27,7 +36,7 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_trivial_case) {
         auto input_2 = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
         auto new_shape = std::make_shared<opset10::ShapeOf>(input_2);
         auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
-        model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
@@ -38,7 +47,7 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_trivial_case) {
         auto input_2 = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 3, 720, 1280});
         auto new_shape = std::make_shared<opset10::ShapeOf>(input_2);
         auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
-        model_ref = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
     }
 }
 
@@ -54,7 +63,7 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
 
         auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
-        model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
@@ -75,7 +84,7 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         disable_fp16_compression(const_denominator);
         disable_fp16_compression(div);
         disable_fp16_compression(new_shape);
-        model_ref = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
     }
 }
 
@@ -100,7 +109,7 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
         auto slice = std::make_shared<opset10::StridedSlice>(input_1, begin, concat_with_ends, begin_mask, end_mask);
         auto result = std::make_shared<opset10::Result>(slice);
-        model = std::make_shared<Model>(NodeVector{result}, ParameterVector{input_1});
+        model = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_1});
 
         pass::Manager manager;
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
@@ -134,7 +143,7 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         disable_fp16_compression(new_dim_size);
         disable_fp16_compression(const_ends);
         disable_fp16_compression(concat_with_ends);
-        model_ref = std::make_shared<Model>(NodeVector{result}, ParameterVector{input_1});
+        model_ref = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_1});
     }
 }
 
@@ -175,7 +184,7 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         auto add_1 = std::make_shared<opset10::Add>(input_1, const_4);
         auto result_1 = std::make_shared<opset10::Result>(add_1);
         auto result_2 = std::make_shared<opset10::Result>(interpolate);
-        model = std::make_shared<Model>(NodeVector{result_1, result_2}, ParameterVector{input_1, input_2});
+        model = std::make_shared<Model>(OutputVector{result_1, result_2}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
@@ -229,7 +238,7 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         disable_fp16_compression(mul_1);
         disable_fp16_compression(convert_3);
 
-        model_ref = std::make_shared<Model>(NodeVector{result_1, result_2}, ParameterVector{input_1, input_2});
+        model_ref = std::make_shared<Model>(OutputVector{result_1, result_2}, ParameterVector{input_1, input_2});
     }
 }
 
@@ -245,7 +254,7 @@ TEST_F(TransformationTestsF, MarkConstantsInShapeSubgraphs_only_consts_marked_1)
         auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
         auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
 
-        model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
         manager.register_pass<pass::MarkPrecisionSensitiveConstants>();
@@ -264,7 +273,7 @@ TEST_F(TransformationTestsF, MarkConstantsInShapeSubgraphs_only_consts_marked_1)
 
         disable_fp16_compression(const_denominator);
 
-        model_ref = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{input_1, input_2});
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
     }
 }
 
@@ -290,7 +299,7 @@ TEST_F(TransformationTestsF, MarkConstantsInShapeSubgraphs_only_consts_marked_2)
         std::vector<int64_t> end_mask = {0, 0, 0, 0};
         auto slice = std::make_shared<opset10::StridedSlice>(input_1, begin, concat_with_ends, begin_mask, end_mask);
         auto result = std::make_shared<opset10::Result>(slice);
-        model = std::make_shared<Model>(NodeVector{result}, ParameterVector{input_1});
+        model = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_1});
 
         pass::Manager manager;
         manager.register_pass<pass::MarkPrecisionSensitiveConstants>();
@@ -319,6 +328,6 @@ TEST_F(TransformationTestsF, MarkConstantsInShapeSubgraphs_only_consts_marked_2)
 
         disable_fp16_compression(const_denominator);
         disable_fp16_compression(const_ends);
-        model_ref = std::make_shared<Model>(NodeVector{result}, ParameterVector{input_1});
+        model_ref = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_1});
     }
 }

@@ -4,6 +4,14 @@
 
 #include "dft_uni_kernel.hpp"
 
+#include <xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+
+#include "utils/cpu_utils.hpp"
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
@@ -15,12 +23,12 @@ namespace ov::intel_cpu {
 
 template <cpu::x64::cpu_isa_t isa>
 jit_uni_dft_kernel_f32<isa>::jit_uni_dft_kernel_f32() : jit_uni_dft_kernel(),
-                                                        jit_generator(jit_name()) {}
+                                                        jit_generator_t(jit_name()) {}
 
 template <cpu::x64::cpu_isa_t isa>
 void jit_uni_dft_kernel_f32<isa>::create_ker() {
-    jit_generator::create_kernel();
-    ker_ = (decltype(ker_))jit_ker();
+    jit_generator_t::create_kernel();
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <cpu::x64::cpu_isa_t isa>
@@ -116,12 +124,12 @@ template struct jit_uni_dft_kernel_f32<cpu::x64::avx512_core>;
 
 template <cpu::x64::cpu_isa_t isa>
 jit_uni_fft_kernel_f32<isa>::jit_uni_fft_kernel_f32() : jit_uni_fft_kernel(),
-                                                        jit_generator(jit_name()) {}
+                                                        jit_generator_t(jit_name()) {}
 
 template <cpu::x64::cpu_isa_t isa>
 void jit_uni_fft_kernel_f32<isa>::create_ker() {
-    jit_generator::create_kernel();
-    ker_ = (decltype(ker_))jit_ker();
+    jit_generator_t::create_kernel();
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <cpu::x64::cpu_isa_t isa>

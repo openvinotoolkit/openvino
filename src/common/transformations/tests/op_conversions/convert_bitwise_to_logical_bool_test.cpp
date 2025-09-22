@@ -9,8 +9,16 @@
 #include <memory>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/utils/utils.hpp"
 using namespace ov;

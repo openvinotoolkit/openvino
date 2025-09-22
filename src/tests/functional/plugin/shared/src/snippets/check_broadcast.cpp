@@ -7,6 +7,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "subgraph_converts.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace test {
@@ -41,12 +42,8 @@ public:
     }
 };
 
-std::string CheckBroadcast::getTestCaseName(testing::TestParamInfo<CheckBroadcastParams> obj) {
-    ov::element::Type input_type;
-    CheckBroadcastTestCaseParams test_case_params;
-    std::string target_device;
-
-    std::tie(input_type, test_case_params, target_device) = obj.param;
+std::string CheckBroadcast::getTestCaseName(const testing::TestParamInfo<CheckBroadcastParams>& obj) {
+    const auto& [input_type, test_case_params, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({test_case_params.input_shapes.first.first}) << "_";
@@ -69,10 +66,8 @@ std::string CheckBroadcast::getTestCaseName(testing::TestParamInfo<CheckBroadcas
 }
 
 void CheckBroadcast::SetUp() {
-    ov::element::Type input_type;
-    CheckBroadcastTestCaseParams test_case_params;
-
-    std::tie(input_type, test_case_params, targetDevice) = this->GetParam();
+    const auto& [input_type, test_case_params, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     ref_num_nodes = test_case_params.num_nodes;
     ref_num_subgraphs = test_case_params.num_subgraphs;
 
@@ -83,9 +78,7 @@ void CheckBroadcast::SetUp() {
         inputDynamicShapes[1],
         input_type,
         test_case_params.broadcast);
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(CheckBroadcast, CompareWithRefImpl) {

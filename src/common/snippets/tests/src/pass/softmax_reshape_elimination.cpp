@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <snippets/snippets_isa.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <snippets/pass/softmax_reshape_elimination.hpp>
 
 #include <transformations/init_node_info.hpp>
@@ -22,14 +22,14 @@ TEST_F(TransformationTestsF, SoftmaxV1ReshapeElimination) {
         auto softmax_v1 = std::make_shared<ov::op::v1::Softmax>(reshape0, 1);
         auto shape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{2, 3, 240});
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
-        model = std::make_shared<Model>(NodeVector{reshape1}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{reshape1}, ParameterVector{data});
 
         manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
     }
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3, 240});
         auto softmax_v1 = std::make_shared<ov::op::v1::Softmax>(data, 2);
-        model_ref = std::make_shared<Model>(NodeVector{softmax_v1}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{softmax_v1}, ParameterVector{data});
     }
 }
 
@@ -41,14 +41,14 @@ TEST_F(TransformationTestsF, SoftmaxV8ReshapeElimination) {
         auto softmax_v1 = std::make_shared<ov::op::v8::Softmax>(reshape0, -1);
         auto shape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{1, 2, 340, 240});
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
-        model = std::make_shared<Model>(NodeVector{reshape1}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{reshape1}, ParameterVector{data});
 
         manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
     }
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 340, 240});
         auto softmax_v1 = std::make_shared<ov::op::v8::Softmax>(data, 3);
-        model_ref = std::make_shared<Model>(NodeVector{softmax_v1}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{softmax_v1}, ParameterVector{data});
     }
 }
 
@@ -60,7 +60,7 @@ TEST_F(TransformationTestsF, SoftmaxReshapeElimination_IncorrectReshape) {
         auto softmax_v1 = std::make_shared<ov::op::v8::Softmax>(reshape0, -1);
         auto shape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{1, 2, 340, 240});
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
-        model = std::make_shared<Model>(NodeVector{reshape1}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{reshape1}, ParameterVector{data});
 
         manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
     }
@@ -74,13 +74,13 @@ TEST_F(TransformationTestsF, SoftmaxV8ReshapeElimination_DynamicBatch) {
         auto softmax_v1 = std::make_shared<ov::op::v8::Softmax>(reshape0, -1);
         auto shape1 = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{-1, 2, 340, 240});
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(softmax_v1, shape1, false);
-        model = std::make_shared<Model>(NodeVector{reshape1}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{reshape1}, ParameterVector{data});
 
         manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
     }
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, ov::PartialShape{-1, 2, 340, 240});
         auto softmax_v1 = std::make_shared<ov::op::v8::Softmax>(data, 3);
-        model_ref = std::make_shared<Model>(NodeVector{softmax_v1}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{softmax_v1}, ParameterVector{data});
     }
 }

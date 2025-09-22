@@ -7,18 +7,19 @@
 #include <memory>
 
 #include "openvino/runtime/core.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "execution_graph_tests/normalize_l2_decomposition.hpp"
+#include "openvino/op/normalize_l2.hpp"
 
 namespace ExecutionGraphTests {
 
 std::string ExecGrapDecomposeNormalizeL2::getTestCaseName(
-    testing::TestParamInfo<std::string> obj) {
-  std::string targetDevice = obj.param;
+    const testing::TestParamInfo<std::string>& obj) {
+  const std::string& targetDevice = obj.param;
   return "Dev=" + targetDevice;
 }
 
@@ -31,7 +32,7 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeAppliedForNonContiguousAxes
       const auto axes_const = ov::opset9::Constant::create(ov::element::i64, ov::Shape{2}, {0, 2});
       const auto normalize_l2 = std::make_shared<ov::opset9::NormalizeL2>(input, axes_const, eps_value, ov::op::EpsMode::MAX);
 
-      const auto model = std::make_shared<ov::Model>(ov::NodeVector{normalize_l2}, ov::ParameterVector{input});
+      const auto model = std::make_shared<ov::Model>(ov::OutputVector{normalize_l2}, ov::ParameterVector{input});
 
       auto core = ov::Core();
       ov::AnyMap config;
@@ -51,7 +52,7 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeAppliedForNormalizeOverAllA
       const auto axes_const = ov::opset9::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 2});
       const auto normalize_l2 = std::make_shared<ov::opset9::NormalizeL2>(input, axes_const, eps_value, ov::op::EpsMode::MAX);
 
-      const auto model = std::make_shared<ov::Model>(ov::NodeVector{normalize_l2}, ov::ParameterVector{input});
+      const auto model = std::make_shared<ov::Model>(ov::OutputVector{normalize_l2}, ov::ParameterVector{input});
 
       auto core = ov::Core();
       ov::AnyMap config;
@@ -71,7 +72,7 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForNotSorted) {
       const auto axes_const = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {1});
       const auto normalize_l2 = std::make_shared<ov::opset9::NormalizeL2>(input, axes_const, eps_value, ov::op::EpsMode::ADD);
 
-      const auto model = std::make_shared<ov::Model>(ov::NodeVector{normalize_l2}, ov::ParameterVector{input});
+      const auto model = std::make_shared<ov::Model>(ov::OutputVector{normalize_l2}, ov::ParameterVector{input});
 
       auto core = ov::Core();
       ov::AnyMap config;
@@ -91,7 +92,7 @@ TEST_P(ExecGrapDecomposeNormalizeL2, CheckIfDecomposeNotAppliedForSingleAxis) {
       const auto axes_const = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {1});
       const auto normalize_l2 = std::make_shared<ov::opset9::NormalizeL2>(input, axes_const, eps_value, ov::op::EpsMode::ADD);
 
-      const auto model = std::make_shared<ov::Model>(ov::NodeVector{normalize_l2}, ov::ParameterVector{input});
+      const auto model = std::make_shared<ov::Model>(ov::OutputVector{normalize_l2}, ov::ParameterVector{input});
 
       auto core = ov::Core();
       ov::AnyMap config;

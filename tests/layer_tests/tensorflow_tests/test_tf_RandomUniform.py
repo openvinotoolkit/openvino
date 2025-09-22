@@ -39,14 +39,8 @@ class TestRandomUniform(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_random_uniform(self, shape_value, shape_type, dtype, seed, seed2,
-                            ie_device, precision, ir_version, temp_dir,
-                            use_legacy_frontend):
+                            ie_device, precision, ir_version, temp_dir):
         if dtype == np.float16 or dtype == np.float64:
             pytest.skip('156027: Incorrect specification of RandomUniform for float16 and float64 output type')
-        if platform.machine() in ["aarch64", "arm64", "ARM64"]:
-            pytest.skip("156055: accuracy error on ARM")
-        if ie_device == 'GPU':
-            pytest.skip('156056: Accuracy error on GPU')
         self._test(*self.create_tf_random_uniform_net(shape_value, shape_type, dtype, seed, seed2),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

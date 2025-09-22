@@ -193,24 +193,24 @@ KernelsPriority DynamicQuantizeKernelOpt::GetKernelsPriority(const Params& /*par
 
 bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
 
     auto bf = get_input_bf_size(dq_params);
     if (((bf.second) % (simd * 2)) != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (dq_params.append_axis != -1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     for (size_t i = 0; i < dq_params.group_sizes.size() - 1; i++) {
         if (dq_params.group_sizes[i] != 1)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // Allow only default scales order
@@ -218,14 +218,14 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (!scales_output_order.empty()) {
         for (size_t i = 0; i < scales_output_order.size(); i++)
             if (scales_output_order[i] != i)
-                return false;
+                DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (dq_params.use_asymmetric_quantization) {
         if (dq_params.combine_scales_and_zp)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         if (dq_params.outputs[0].GetDType() != Datatype::UINT8)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

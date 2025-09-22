@@ -188,6 +188,7 @@
 #include "openvino/op/softsign.hpp"
 #include "openvino/op/space_to_batch.hpp"
 #include "openvino/op/space_to_depth.hpp"
+#include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"

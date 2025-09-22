@@ -18,6 +18,9 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "ov_lpt_models/fake_quantize_precision_selection.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/prelu.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -115,11 +118,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizePrecisionSelectionTransformationParams> obj) {
-        ov::element::Type precision;
-        ov::Shape shape;
-        bool updatePrecision;
-        FakeQuantizePrecisionSelectionTransformationTestValues testValues;
-        std::tie(precision, shape, updatePrecision, testValues) = obj.param;
+        const auto& [precision, shape, updatePrecision, testValues] = obj.param;
 
         TestTransformationParams params;
         params.setUpdatePrecisions(updatePrecision);

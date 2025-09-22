@@ -3,11 +3,21 @@
 //
 #include "graph_context.h"
 
+#include <algorithm>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <utility>
 
+#include "cache/multi_cache.h"
 #include "config.h"
+#include "dnnl_scratch_pad.h"
 #include "memory_control.hpp"
 #include "nodes/memory.hpp"
+#include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "sub_memory_manager.hpp"
+#include "weights_cache.hpp"
 
 namespace ov::intel_cpu {
 
@@ -19,6 +29,7 @@ GraphContext::GraphContext(Config config,
     : m_config(std::move(config)),
       m_weightsCache(std::move(w_cache)),
       m_rtParamsCache(std::make_shared<MultiCache>(m_config.rtCacheCapacity)),
+      m_snippetsParamsCache(std::make_shared<MultiCache>(m_config.snippetsCacheCapacity)),
       m_isGraphQuantizedFlag(isGraphQuantized),
       m_streamExecutor(std::move(streamExecutor)),
       m_subMemoryManager(std::move(sub_memory_manager)),
@@ -36,7 +47,8 @@ GraphContext::GraphContext(Config config,
     }
     // primitive/executors can be shared across sub-stream
     // but scratch pad cannot be shared.
-    for (int i = 0; i < m_numNumaNodes; i++) {
+    int numaNum = std::max(m_numaNodeId + 1, m_numNumaNodes);
+    for (int i = 0; i < numaNum; i++) {
         m_rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i));
     }
 }

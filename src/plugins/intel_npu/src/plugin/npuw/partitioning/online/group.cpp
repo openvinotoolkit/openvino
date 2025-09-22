@@ -17,8 +17,11 @@
 using ov::npuw::online::Group;
 using ov::npuw::online::Interconnect;
 using ov::npuw::online::MetaInterconnect;
+using ov::npuw::online::MetaInterconnectIO;
 using ov::npuw::online::Repeated;
 using ov::npuw::online::detail::isOp;
+using ov::npuw::online::detail::MICSet;
+using ov::npuw::online::detail::PairMICSetIO;
 
 Group::Group(const std::shared_ptr<ov::Node>& node,
              size_t gid,
@@ -244,7 +247,6 @@ void Group::fuse(const Group::GPtr& gptr_prod) {
 
 // This group absorbs the consumer
 void Group::fuseWith(const Group::GPtr& gptr_cons) {
-    // Update ov::node to own::ade::NodeHandle map
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
     for (const auto& layer : gptr_cons->m_content) {
@@ -389,8 +391,8 @@ void Group::setRepeated(const std::shared_ptr<Repeated>& rep) {
     }
 }
 
-std::unordered_set<MetaInterconnect> Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
-    std::unordered_set<MetaInterconnect> mics;
+PairMICSetIO Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
+    MICSet mics;
 
     auto ics = interconnect(gptr_prod);
     for (const auto& ic : ics) {
@@ -402,7 +404,16 @@ std::unordered_set<MetaInterconnect> Group::metaInterconnect(const Group::GPtr& 
                      ic.output_port});
     }
 
-    return mics;
+    MetaInterconnectIO mic_io;
+    auto locked_snapshot = m_snapshot.lock();
+    for (const auto& oi : m_input_layers) {
+        mic_io.output_imeta.insert(ov::npuw::online::util::getMetaDesc(oi));
+    }
+    for (const auto& oo : m_output_layers) {
+        mic_io.output_ometa.insert(ov::npuw::online::util::getMetaDesc(oo));
+    }
+
+    return {mics, mic_io};
 }
 
 std::unordered_set<Interconnect> Group::interconnect(const Group::GPtr& gptr_prod) const {

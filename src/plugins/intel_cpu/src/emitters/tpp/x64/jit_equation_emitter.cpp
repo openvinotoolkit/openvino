@@ -4,7 +4,29 @@
 
 #include "jit_equation_emitter.hpp"
 
+#include <libxsmm.h>
+#include <libxsmm_typedefs.h>
+#include <xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/tpp/common/utils.hpp"
+#include "emitters/tpp/x64/jit_tpp_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "transformations/tpp/x64/op/equation.hpp"
 
 using namespace Xbyak;
@@ -12,12 +34,13 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::x64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-EquationTppEmitter::EquationTppEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : TppEmitter(h, isa, expr),
+EquationTppEmitter::EquationTppEmitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
+    : jit_emitter(h, isa),
+      TppEmitter(h, isa, expr),
       m_num_inputs(expr->get_input_count()) {
     const auto& eq_tpp = ov::as_type_ptr<tpp::op::EquationTPP>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(eq_tpp, "Invalid TPP node type detected");
@@ -32,7 +55,8 @@ EquationTppEmitter::EquationTppEmitter(jit_generator* h, cpu_isa_t isa, const Ex
     const auto op_metadata = libxsmm_create_meqn_op_metadata(m_equation_id, -1);
     const auto sing_attr =
         libxsmm_create_matrix_arg_attributes(LIBXSMM_MATRIX_ARG_TYPE_SINGULAR, LIBXSMM_MATRIX_ARG_SET_TYPE_NONE, 0, 0);
-    libxsmm_blasint M, N;
+    libxsmm_blasint M;
+    libxsmm_blasint N;
     for (const auto& op_desc : eq_tpp->get_op_descs()) {
         switch (op_desc.get_arity()) {
         case tpp::op::OpDescTPP::ARITY::BINARY: {
@@ -82,8 +106,9 @@ std::set<std::vector<element::Type>> EquationTppEmitter::get_supported_precision
     // created)
     OV_CPU_JIT_EMITTER_ASSERT(node && ov::is_type<tpp::op::EquationTPP>(node), "Invalid node ptr or type");
     std::vector<element::Type> input_precs;
-    for (const auto& in : node->inputs())
+    for (const auto& in : node->inputs()) {
         input_precs.push_back(in.get_element_type());
+    }
     return {input_precs};
 }
 

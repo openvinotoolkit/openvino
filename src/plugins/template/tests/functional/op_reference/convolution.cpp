@@ -130,9 +130,9 @@ private:
                                                                             params.padEnd,
                                                                             params.dialations,
                                                                             auto_pad);
-            return std::make_shared<ov::Model>(NodeVector{Convolution2}, ParameterVector{in, filter});
+            return std::make_shared<ov::Model>(OutputVector{Convolution2}, ParameterVector{in, filter});
         } else {
-            return std::make_shared<ov::Model>(NodeVector{Convolution}, ParameterVector{in, filter});
+            return std::make_shared<ov::Model>(OutputVector{Convolution}, ParameterVector{in, filter});
         }
     }
 };

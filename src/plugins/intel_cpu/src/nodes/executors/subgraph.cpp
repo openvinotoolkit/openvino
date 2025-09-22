@@ -4,10 +4,26 @@
 
 #include "nodes/executors/subgraph.hpp"
 
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <utility>
+#include <vector>
 
+#include "cache/multi_cache.h"
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_memory.h"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "snippets/generator.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -27,10 +43,7 @@ bool operator==(const SubgraphAttrs& lhs, const SubgraphAttrs& rhs) {
     if (lhs.inMemOrders != rhs.inMemOrders || lhs.inMemPrecs != rhs.inMemPrecs) {
         return false;
     }
-    if (lhs.outMemOrders != rhs.outMemOrders || lhs.outMemPrecs != rhs.outMemPrecs) {
-        return false;
-    }
-    return true;
+    return lhs.outMemOrders == rhs.outMemOrders && lhs.outMemPrecs == rhs.outMemPrecs;
 }
 
 size_t get_attr_hash(size_t seed, const std::shared_ptr<SubgraphAttrs>& attrs) {
@@ -56,12 +69,19 @@ size_t get_attr_hash(size_t seed, const std::shared_ptr<SubgraphAttrs>& attrs) {
 }
 
 SubgraphCodeGenerator::SubgraphCodeGenerator(const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
-                                             const std::shared_ptr<CPURuntimeConfig>& config) {
+                                             const std::shared_ptr<CPURuntimeConfig>& config,
+                                             const std::set<size_t>& external_ptrs_idces) {
     OPENVINO_ASSERT(snippet_attrs, "Subgraph attributes are empty!");
     OPENVINO_ASSERT(config, "Runtime Config is empty!");
 
     jit_snippets_compile_args jcp;
-    jcp.data_offsets = config->io_data_offsets;
+    jcp.data_offsets.reserve(config->io_data_offsets.size());
+    for (size_t i = 0; i < config->io_data_offsets.size(); ++i) {
+        // Note: external ptrs must be ignored by the kernel during compilation
+        if (!external_ptrs_idces.count(i)) {
+            jcp.data_offsets.push_back(config->io_data_offsets[i]);
+        }
+    }
     SubgraphBaseExecutor::init_parallel_domain(config, jcp.exec_domain);
     schedule =
         std::make_shared<ov::snippets::Schedule>(snippet_attrs->snippet->generate(reinterpret_cast<const void*>(&jcp)));
@@ -117,7 +137,8 @@ void SubgraphBaseExecutor::parallel_for6d(const initializer_functor& initializer
         jit_snippets_call_args call_args;
         initializer(call_args, ithr);
 
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(m_harness_work_amount, nthr, ithr, start, end);
 
         std::vector<size_t> indexes{0, 0, 0, 0, 0};
@@ -155,7 +176,8 @@ void SubgraphBaseExecutor::parallel_forNd(const initializer_functor& initializer
         jit_snippets_call_args call_args;
         initializer(call_args, ithr);
 
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         splitter(m_harness_work_amount, nthr, ithr, start, end);
 
         std::vector<size_t> indexes(dom.size() - 1, 0);

@@ -4,21 +4,27 @@
 
 #include "acl_fullyconnected.hpp"
 
-#include <common/primitive_desc_iface.hpp>
-#include <cpu/acl/acl_utils.hpp>
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
+#include <arm_compute/function_info/FullyConnectedLayerInfo.h>
+#include <arm_compute/runtime/NEON/functions/NEFullyConnectedLayer.h>
+
+#include <any>
+#include <memory>
 
 #include "acl_utils.hpp"
-#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "nodes/common/reorder_prim.h"
-#include "nodes/convert.h"
+#include "nodes/executors/acl/acl_common_executor.hpp"
+#include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "utils/cpu_utils.hpp"
-#include "utils/debug_capabilities.h"
+#include "openvino/core/type/element_type.hpp"
+#include "post_ops.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -29,7 +35,7 @@ static bool checkPostOps(const PostOps& postOps) {
     if (postOps.size() > 1) {
         return false;
     }
-    if (const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0])) {
+    if (const auto* const activation = std::any_cast<ActivationPostOp>(postOps.data())) {
         if (checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()))) {
             return true;
         }
@@ -41,20 +47,19 @@ static void initFCAttrs(const FCAttrs& attrs,
                         ACLTensorAttrs& aclTensorAttrs,
                         ACLFCAttrs& aclfcAttrs,
                         const MemoryArgs& memory,
-                        arm_compute::FullyConnectedLayerInfo& fullyConnectedLayerInfo,
-                        const PostOps& postOps) {
+                        arm_compute::FullyConnectedLayerInfo& fullyConnectedLayerInfo) {
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
     fullyConnectedLayerInfo.weights_trained_layout = getAclDataLayoutByMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
     aclfcAttrs.inputPrecision = memory.at(ARG_SRC)->getDescPtr()->getPrecision();
     fullyConnectedLayerInfo.transpose_weights = false;
     aclfcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
-    if (!postOps.empty() && checkPostOps(postOps)) {
-        auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0]);
-        fullyConnectedLayerInfo.activation_info = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
-                                                                         activation->alpha(),
-                                                                         activation->beta(),
-                                                                         activation->gamma());
+    if (!attrs.postOps.empty() && checkPostOps(attrs.postOps)) {
+        const auto& activation = std::any_cast<const ActivationPostOp&>(attrs.postOps[0]);
+        fullyConnectedLayerInfo.activation_info = getActivationLayerInfo(convertToEltwiseAlgorithm(activation.type()),
+                                                                         activation.alpha(),
+                                                                         activation.beta(),
+                                                                         activation.gamma());
     }
 
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {
@@ -63,26 +68,21 @@ static void initFCAttrs(const FCAttrs& attrs,
 }
 
 ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs& attrs,
-                                                     const PostOps& postOps,
                                                      const MemoryArgs& memory,
                                                      const ExecutorContext::CPtr& context) {
-    initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
-    packedWeights = acl_fc_executor::prepareWeightMemory(memory,
-                                                         context,
-                                                         attrs,
-                                                         aclfcAttrs,
-                                                         postOps,
-                                                         expectedWeightFormat,
-                                                         weiTensorInfo);
+    initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo);
+    packedWeights =
+        acl_fc_executor::prepareWeightMemory(memory, context, attrs, aclfcAttrs, expectedWeightFormat, weiTensorInfo);
 }
 
 bool ACLFullyConnectedExecutor::supports(const FCConfig& config) {
-    VERIFY(one_of(srcType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_SRC_PRECISIONS);
-    VERIFY(one_of(weiType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_WEI_PRECISIONS);
+    VERIFY(any_of(srcType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_SRC_PRECISIONS);
+    VERIFY(any_of(weiType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_WEI_PRECISIONS);
     VERIFY(postOpsNumbers(config) < 2, UNSUPPORTED_NUMBER_OF_POSTOPS);
-    VERIFY(checkPostOps(config.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
-    VERIFY(one_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
-    VERIFY(one_of(weiRank(config), 2U, 3U), UNSUPPORTED_WEI_RANK);
+
+    VERIFY(checkPostOps(config.attrs.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
+    VERIFY(any_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
+    VERIFY(any_of(weiRank(config), 2U, 3U), UNSUPPORTED_WEI_RANK);
     return true;
 }
 

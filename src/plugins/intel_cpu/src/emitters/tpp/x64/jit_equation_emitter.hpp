@@ -4,13 +4,26 @@
 
 #pragma once
 
+#include <libxsmm_typedefs.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <vector>
+
 #include "jit_tpp_emitter.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
 class EquationTppEmitter : public TppEmitter {
 public:
-    EquationTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+    EquationTppEmitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override;

@@ -33,7 +33,6 @@ typedef std::tuple <
     ov::element::Type,
     std::vector<ov::PartialShape>,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     bool,
     MoveFakeQuantizeTransformationParam
 > MoveFakeQuantizeTransformationParams;
@@ -42,7 +41,7 @@ class MoveFakeQuantizeTransformation :
     public testing::WithParamInterface<MoveFakeQuantizeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MoveFakeQuantizeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MoveFakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

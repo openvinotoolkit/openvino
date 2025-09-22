@@ -4,7 +4,17 @@
 
 #include "rms_kernel.hpp"
 
-#include <memory>
+#include <xbyak/xbyak.h>
+
+#include <cassert>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
@@ -161,7 +171,7 @@ void jit_rms_kernel<isa>::generate() {
 
     // mean(x^2)
     OPENVINO_ASSERT(m_jcp.data_size != 0);
-    mov(reg_tmp.cvt32(), float2int(1.0f / m_jcp.data_size));
+    mov(reg_tmp.cvt32(), float2int(1.0F / m_jcp.data_size));
     vmovd(xmm_tmp, reg_tmp.cvt32());
     vmulss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
     // mean(x^2)+eps
@@ -171,7 +181,7 @@ void jit_rms_kernel<isa>::generate() {
     // 1 / sqrt(mean(x^2)+eps) dont's use VRSQRTSS. VRSQRTSS uses approximation and has accuracy issue
     vsqrtss(xmm_rsqrt, xmm_rsqrt, xmm_rsqrt);
 
-    mov(reg_tmp.cvt32(), float2int(1.0f));
+    mov(reg_tmp.cvt32(), float2int(1.0F));
     vmovd(xmm_tmp, reg_tmp.cvt32());
     vdivss(xmm_rsqrt, xmm_tmp, xmm_rsqrt);
 

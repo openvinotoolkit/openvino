@@ -7,10 +7,12 @@
 #include <cfenv>
 #include <cstring>
 #include <iterator>
+#include <optional>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/reference/rounding_guard.hpp"
 #include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
@@ -133,25 +135,6 @@ typename std::enable_if<std::is_integral<T>::value, T>::type arithmetic_mean(con
     return value;
 }
 
-template <typename T>
-struct RoundingDirectionGuard {
-    RoundingDirectionGuard() {
-        if (std::is_integral<T>::value) {
-            m_original_mode = std::fegetround();
-            std::fesetround(FE_DOWNWARD);
-        }
-    }
-
-    ~RoundingDirectionGuard() {
-        if (std::is_integral<T>::value) {
-            std::fesetround(m_original_mode);
-        }
-    }
-
-private:
-    decltype(std::fegetround()) m_original_mode;
-};
-
 template <typename DataType>
 void scatter_elem_update_with_reduction(const int64_t* indices,
                                         const DataType* updates,
@@ -210,11 +193,14 @@ void scatter_elem_update_with_reduction(const int64_t* indices,
     if (reduction_type == ov::op::v12::ScatterElementsUpdate::Reduction::MEAN) {
         // this object will change the rounding mode only for integer types which is required to match torch
         // upon destruction the previously used rounding mode will be restored
-        RoundingDirectionGuard<DataType> rounding_guard;
-        for (const auto& counter : mean_reduction_counters) {
+        std::optional<RoundingGuard> r_guard;
+        if constexpr (std::is_integral_v<DataType>) {
+            r_guard.emplace(FE_DOWNWARD);
+        }
+        for (const auto& [idx, count] : mean_reduction_counters) {
             // include the initial value in the arithmetic mean divisor (if needed)
-            const auto N = counter.second + static_cast<int32_t>(use_init_val);
-            out_buf[counter.first] = arithmetic_mean<DataType>(out_buf[counter.first], N);
+            const auto N = count + static_cast<int32_t>(use_init_val);
+            out_buf[idx] = arithmetic_mean<DataType>(out_buf[idx], N);
         }
     }
 }

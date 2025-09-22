@@ -33,8 +33,6 @@ class TestExpm1(CommonTFLayerTest):
     @pytest.mark.parametrize('x_type', [np.float16, np.float32, np.float64])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_expm1(self, x_shape, x_type, ie_device, precision, ir_version, temp_dir,
-                   use_legacy_frontend):
+    def test_expm1(self, x_shape, x_type, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_expm1_net(x_shape, x_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

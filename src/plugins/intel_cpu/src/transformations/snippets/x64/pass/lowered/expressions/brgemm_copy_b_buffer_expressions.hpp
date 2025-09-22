@@ -4,7 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov::intel_cpu {
 

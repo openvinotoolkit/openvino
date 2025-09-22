@@ -6,6 +6,8 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/if.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -20,25 +22,38 @@ namespace pass {
 using namespace ov::op;
 
 PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
-    auto tuple_unpack = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto tuple_unpack =
+        ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"prim::TupleUnpack"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto tuple_unpack = cast_fw_node(m.get_match_root(), "prim::TupleUnpack");
-        if (!tuple_unpack)
-            return false;
+        auto tuple_unpack = m.get_match_root();
         OutputVector outputs;
         auto input_node = tuple_unpack->get_input_node_shared_ptr(0);
-        auto tuple_construct = cast_fw_node(input_node, "prim::TupleConstruct");
-        if (!tuple_construct) {
-            return false;
-        }
-        for (const auto& input : input_node->inputs()) {
-            const auto& out = input.get_source_output();
-            outputs.push_back(out);
-        }
-        replace_node(tuple_unpack, outputs);
+        if (cast_fw_node(input_node, "prim::TupleConstruct")) {
+            for (const auto& input : input_node->inputs()) {
+                const auto& out = input.get_source_output();
+                outputs.push_back(out);
+            }
+            replace_node(tuple_unpack, outputs);
 
-        return true;
+            return true;
+        } else if (ov::as_type_ptr<v0::Constant>(input_node)) {
+            // tuple might have been merged as a single constant
+            auto axis_zero = v0::Constant::create(element::i32, Shape{}, {0});
+            auto split = std::make_shared<v1::Split>(input_node, axis_zero, tuple_unpack->outputs().size());
+            for (size_t i = 0; i < split->get_output_size(); ++i) {
+                auto squeeze = std::make_shared<v15::Squeeze>(split->output(i), axis_zero);
+                replace_output_update_name(tuple_unpack->output(i), squeeze);
+            }
+            return true;
+        } else if (input_node->get_rt_info().count("__torch_tuple_unpackable__")) {
+            // This case is produced by inlined_extension
+            input_node->get_rt_info().erase("__torch_tuple_unpackable__");
+            // remove TupleUnpack just bypassing it with all outputs from a custom operation which returns tuple
+            replace_node(tuple_unpack, input_node->outputs());
+            return true;
+        }
+        return false;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(tuple_unpack,

@@ -6,14 +6,27 @@
 
 #include <selective_build.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "dnnl_types.h"
-#include "nodes/common/blocked_desc_creator.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "node.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
 namespace ov::intel_cpu::node {
@@ -21,10 +34,10 @@ namespace ov::intel_cpu::node {
 bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type<ov::op::v1::Broadcast>(op)) {
-            errorMessage = "Only Broadcast operations from opset1 are supported.";
+            errorMessage = "Only Broadcast v1 are supported.";
             return false;
         }
-        if (!one_of(ov::as_type_ptr<const ov::op::v1::Broadcast>(op)->get_broadcast_spec().m_type,
+        if (none_of(ov::as_type_ptr<const ov::op::v1::Broadcast>(op)->get_broadcast_spec().m_type,
                     ov::op::AutoBroadcastType::NUMPY,
                     ov::op::AutoBroadcastType::EXPLICIT)) {
             errorMessage = "Only NUMPY and EXPLICIT broadcast types are supported.";
@@ -55,23 +68,21 @@ Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 2 && op->get_input_size() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    }
-    if (op->get_output_size() == 0) {
-        THROW_CPU_NODE_ERR("has no output edges.");
-    }
+    CPU_NODE_ASSERT(any_of(op->get_input_size(), 2U, 3U),
+                    "has incorrect number of input edges: ",
+                    getParentEdges().size());
+    CPU_NODE_ASSERT(op->get_output_size() != 0U, "has no output edges.");
 
     auto broadcastOp = ov::as_type_ptr<const ov::op::v1::Broadcast>(op);
     if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY) {
         broadcastType = NUMPY;
     } else if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::EXPLICIT) {
-        if (op->get_input_size() <= AXES_MAPPING_IDX) {
-            THROW_CPU_NODE_ERR("and EXPLICIT mode must have tree input edges: ", getParentEdges().size());
-        }
+        CPU_NODE_ASSERT(op->get_input_size() > AXES_MAPPING_IDX,
+                        "and EXPLICIT mode must have tree input edges: ",
+                        getParentEdges().size());
         broadcastType = EXPLICIT;
     } else {
-        THROW_CPU_NODE_ERR("has unexpected broadcast type: ", broadcastOp->get_broadcast_spec().m_type);
+        CPU_NODE_THROW("has unexpected broadcast type: ", broadcastOp->get_broadcast_spec().m_type);
     }
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
@@ -93,11 +104,11 @@ void Broadcast::getSupportedDescriptors() {
         const auto ndims = repeats.size();
 
         if (broadcastType == NUMPY) {
-            for (size_t i = 0lu; i < srcDims.size(); i++) {
-                repeats[ndims - 1lu - i] /= srcDims[srcDims.size() - 1lu - i];
+            for (size_t i = 0LU; i < srcDims.size(); i++) {
+                repeats[ndims - 1LU - i] /= srcDims[srcDims.size() - 1LU - i];
             }
         } else if (broadcastType == EXPLICIT) {
-            for (size_t i = 0lu; i < axesMapping.size(); i++) {
+            for (size_t i = 0LU; i < axesMapping.size(); i++) {
                 repeats[axesMapping[i]] /= srcDims[i];
             }
         }
@@ -137,8 +148,8 @@ void Broadcast::prepareParams() {
     auto dstBlockedDims = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     if (broadcastType == NUMPY) {
-        for (size_t i = 0lu; i < srcDims.size(); i++) {
-            repeats[ndims - 1lu - i] /= srcDims[srcDims.size() - 1lu - i];
+        for (size_t i = 0LU; i < srcDims.size(); i++) {
+            repeats[ndims - 1LU - i] /= srcDims[srcDims.size() - 1LU - i];
         }
     } else if (broadcastType == EXPLICIT) {
         for (size_t i = 0; i < getInputShapeAtPort(AXES_MAPPING_IDX).getDims()[0]; i++) {
@@ -166,7 +177,7 @@ bool Broadcast::needShapeInfer() const {
             return true;
         }
         const auto* targetShapeData = getSrcDataAtPortAs<const int32_t>(TARGET_SHAPE_IDX);
-        for (size_t i = 0lu; i < targetShape.size(); i++) {
+        for (size_t i = 0LU; i < targetShape.size(); i++) {
             if (targetShape[i] != targetShapeData[i]) {
                 return true;
             }
@@ -177,7 +188,7 @@ bool Broadcast::needShapeInfer() const {
             return true;
         }
         const auto* axesMappingData = getSrcDataAtPortAs<const int32_t>(AXES_MAPPING_IDX);
-        for (size_t i = 0lu; i < axesMapping.size(); i++) {
+        for (size_t i = 0LU; i < axesMapping.size(); i++) {
             if (axesMapping[i] != axesMappingData[i]) {
                 return true;
             }
@@ -229,7 +240,7 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
     VectorDims srcAligned(dataDstRank);
     VectorDims srcStridesAligned(dataDstRank);
     const size_t prefixSize = dataDstRank - dataSrcRank;
-    for (size_t i = 0lu; i < dataDstRank; i++) {
+    for (size_t i = 0LU; i < dataDstRank; i++) {
         if (i < prefixSize) {
             srcAligned[i] = 1;
             srcStridesAligned[i] = srcStrides[0];
@@ -244,7 +255,10 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t i = 0lu, srcIdx = 0lu, start = 0lu, end = 0lu;
+        size_t i = 0LU;
+        size_t srcIdx = 0LU;
+        size_t start = 0LU;
+        size_t end = 0LU;
         VectorDims counters(dataDstRank, 0);
         splitter(workAmountDst, nthr, ithr, start, end);
         for (int j = dataDstRank - 1, i = start; j >= 0; j--) {
@@ -252,7 +266,7 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
             i /= dstDims[j];
         }
         for (size_t iwork = start * dataSize; iwork < end * dataSize; iwork += dataSize) {
-            for (i = 0lu, srcIdx = 0lu; i < dataDstRank; ++i) {
+            for (i = 0LU, srcIdx = 0LU; i < dataDstRank; ++i) {
                 srcIdx += counters[i] ? ((counters[i] % srcAligned[i]) * srcStridesAligned[i]) : 0;
             }
 

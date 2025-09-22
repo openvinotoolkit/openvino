@@ -1,6 +1,11 @@
 name: Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -18,7 +23,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -54,20 +59,26 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    if: "!needs.smart_ci.outputs.skip_workflow"
     runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
         - /mount:/mount
     outputs:
-      images: "${{ steps.handle_docker.outputs.images }}"
+      images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
     steps:
+      - name: Set mock output images if pipeline should be skipped
+        if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
+        id: mock_image
+        run: echo "images={\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_x64_cc\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         id: handle_docker
         with:
           images: |
@@ -79,6 +90,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
+    if: ${{ github.event_name != 'merge_group' && needs.smart_ci.outputs.skip_workflow != 'True' }}
     timeout-minutes: 150
     defaults:
       run:
@@ -151,9 +163,7 @@ jobs:
       # Build
       #
 
-      - name: CMake configure - CC COLLECT with clang-tidy
-         # clang-tidy static analysis check is enabled as part of collection
-         # to avoid an additional separate build execution
+      - name: CMake configure
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
@@ -161,11 +171,10 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_CPPLINT=OFF \
-            -DENABLE_CLANG_TIDY=ON \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
-            -DENABLE_FASTER_BUILD=ON \
+            -DENABLE_UNITY_BUILD=ON \
             -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
@@ -213,7 +222,7 @@ jobs:
             tar -cvf - install_dependencies/install_openvino_dependencies.sh | pigz > ${BUILD_DIR}/openvino_package.tar.gz
           popd
 
-          cp -v ${OPENVINO_REPO}/temp/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
+          cp -v ${OPENVINO_REPO}/temp/Linux_x86_64/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
           pushd ${INSTALL_TEST_DIR}
             tar -cvf - \
               tests/ov_cpu_func_tests \
@@ -228,7 +237,7 @@ jobs:
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: build_logs
@@ -237,7 +246,7 @@ jobs:
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -245,7 +254,7 @@ jobs:
 
       - name: Upload selective build statistics package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_selective_build_stat
           path: ${{ env.BUILD_DIR }}/openvino_selective_build_stat.tar.gz
@@ -253,7 +262,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -303,7 +312,7 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}

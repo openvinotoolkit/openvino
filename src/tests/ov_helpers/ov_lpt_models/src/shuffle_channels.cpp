@@ -1,13 +1,13 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
 #include "ov_lpt_models/shuffle_channels.hpp"
+#include "openvino/op/shuffle_channels.hpp"
 
 namespace ov {
 namespace builder {

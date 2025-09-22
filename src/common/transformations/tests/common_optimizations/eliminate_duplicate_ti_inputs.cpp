@@ -7,7 +7,10 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 
 using namespace testing;
 using namespace std;

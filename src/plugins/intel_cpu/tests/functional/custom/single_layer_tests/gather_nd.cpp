@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/gather_nd.hpp"
 
 namespace ov {
 namespace test {
@@ -17,13 +18,8 @@ using GatherNDLayerCPUTestParamSet = std::tuple<InputShape,                     
 class GatherNDLayerCPUTest : public testing::WithParamInterface<GatherNDLayerCPUTestParamSet>,
                              virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherNDLayerCPUTestParamSet> obj) {
-        InputShape shapes;
-        std::pair<Shape, std::vector<int>> indexes;
-        ElementType dataElementType, idxElementType;
-        int batchDims;
-        std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherNDLayerCPUTestParamSet>& obj) {
+        const auto& [shapes, indexes, dataElementType, idxElementType, batchDims] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -40,12 +36,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        std::pair<Shape, std::vector<int>> indexes;
-        ElementType dataElementType, idxElementType;
-        int batchDims;
-        std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
-
+        const auto& [shapes, indexes, dataElementType, idxElementType, batchDims] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
@@ -63,18 +54,13 @@ protected:
 class GatherND8LayerCPUTest : public testing::WithParamInterface<GatherNDLayerCPUTestParamSet>,
                               virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherNDLayerCPUTestParamSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherNDLayerCPUTestParamSet>& obj) {
         return GatherNDLayerCPUTest::getTestCaseName(obj);
     }
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        std::pair<Shape, std::vector<int>> indexes;
-        ElementType dataElementType, idxElementType;
-        int batchDims;
-        std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
-
+        const auto& [shapes, indexes, dataElementType, idxElementType, batchDims] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 

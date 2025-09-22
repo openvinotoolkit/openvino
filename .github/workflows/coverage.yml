@@ -20,14 +20,14 @@ jobs:
 
     steps:
       - name: Setup python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:
           python-version: '3.10.10'
           architecture: 'x64'
 
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
+        uses: hendrikmuhs/ccache-action@bfa03e1de4d7f7c3e80ad9109feedd05c4f5a716 # v1.2.19
         with:
           max-size: 50G
 
@@ -65,7 +65,6 @@ jobs:
             -DENABLE_ONEDNN_FOR_GPU=ON
             -DENABLE_TESTS=ON
             -DENABLE_OV_ONNX_FRONTEND=ON
-            -DENABLE_FASTER_BUILD=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_COVERAGE=ON
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -129,6 +128,6 @@ jobs:
           lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
           genhtml coverage.info --output-directory coverage-report
       - name: Collect coverage
-        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # v5.4.0
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
           verbose: true

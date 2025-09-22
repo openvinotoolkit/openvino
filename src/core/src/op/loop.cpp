@@ -124,7 +124,7 @@ void Loop::validate_and_infer_types() {
             m_num_iterations = val[0];
     }
 
-    // WA: input description with index 0 or 1 means that Loop consructor will duplicate it in
+    // Input description with index 0 or 1 means that Loop consructor will duplicate it in
     // the inputs.
     // When using visit_attributes() no duplication occurs, input_offset shall be decremented.
     int64_t input_offset = 2;

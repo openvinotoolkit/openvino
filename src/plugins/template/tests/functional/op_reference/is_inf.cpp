@@ -67,7 +67,7 @@ private:
                                                  op::v10::IsInf::Attributes attrs) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto is_inf = std::make_shared<op::v10::IsInf>(in, attrs);
-        return std::make_shared<Model>(NodeVector{is_inf}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{is_inf}, ParameterVector{in});
     }
 };
 

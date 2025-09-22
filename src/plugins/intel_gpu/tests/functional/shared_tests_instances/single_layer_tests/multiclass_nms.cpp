@@ -10,6 +10,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/op/multiclass_nms.hpp"
 
 namespace ov {
 namespace test {
@@ -65,25 +66,13 @@ TEST_P(MulticlassNmsLayerTestGPU8, Inference) {
 };
 
 std::string MulticlassNmsLayerTestGPU::getTestCaseName(const testing::TestParamInfo<MulticlassNmsParamsGPU>& obj) {
-    std::vector<ov::test::InputShape> shapes;
-    InputTypes input_types;
-    int32_t nmsTopK, backgroundClass, keepTopK;
-    ov::element::Type outType;
-    op::util::MulticlassNmsBase::SortResultType sortResultType;
-    InputfloatVar inFloatVar;
-    InputboolVar inboolVar;
-    std::string targetDevice;
+    const auto& [shapes, input_types, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice] = obj.param;
 
-    std::tie(shapes, input_types, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) = obj.param;
+    const auto& [paramsPrec, roisnumPrec] = input_types;
 
-    ov::test::ElementType paramsPrec, roisnumPrec;
-    std::tie(paramsPrec, roisnumPrec) = input_types;
+    const auto& [iouThr, scoreThr, nmsEta] = inFloatVar;
 
-    float iouThr, scoreThr, nmsEta;
-    std::tie(iouThr, scoreThr, nmsEta) = inFloatVar;
-
-    bool sortResCB, normalized;
-    std::tie(sortResCB, normalized) = inboolVar;
+    const auto& [sortResCB, normalized] = inboolVar;
 
     std::ostringstream result;
     result << "IS=(";
@@ -341,29 +330,17 @@ void MulticlassNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedO
 }
 
 void MulticlassNmsLayerTestGPU::SetUp() {
-    std::vector<InputShape> shapes;
-    InputTypes input_types;
-    size_t maxOutBoxesPerClass, backgroundClass, keepTopK;
-    element::Type outType;
-
-    op::util::MulticlassNmsBase::SortResultType sortResultType;
-
-    InputfloatVar inFloatVar;
-    InputboolVar inboolVar;
-
-    std::tie(shapes, input_types, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice)
-        = this->GetParam();
+    const auto& [shapes, input_types, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, _targetDevice] =
+        this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(shapes);
 
-    ElementType paramsPrec, roisnumPrec;
-    std::tie(paramsPrec, roisnumPrec) = input_types;
+    const auto& [paramsPrec, roisnumPrec] = input_types;
 
-    float iouThr, scoreThr, nmsEta;
-    std::tie(iouThr, scoreThr, nmsEta) = inFloatVar;
+    const auto& [iouThr, scoreThr, nmsEta] = inFloatVar;
 
-    bool sortResCB, normalized;
-    std::tie(sortResCB, normalized) = inboolVar;
+    const auto& [sortResCB, normalized] = inboolVar;
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(paramsPrec, inputDynamicShapes.at(0)),
                                 std::make_shared<ov::op::v0::Parameter>(paramsPrec, inputDynamicShapes.at(1))};

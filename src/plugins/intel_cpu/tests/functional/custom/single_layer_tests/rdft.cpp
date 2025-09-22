@@ -5,6 +5,8 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/irdft.hpp"
+#include "openvino/op/rdft.hpp"
 
 using namespace CPUTestUtils;
 
@@ -24,19 +26,9 @@ using RDFTTestCPUParams = std::tuple<std::vector<InputShape>,
 class RDFTTestCPU : public testing::WithParamInterface<std::tuple<ov::element::Type, RDFTTestCPUParams>>,
                            virtual public test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<ov::element::Type, RDFTTestCPUParams>> obj) {
-        ov::element::Type precision;
-        RDFTTestCPUParams params;
-        std::vector<InputShape> shapes;
-        std::vector<std::vector<int64_t>> axes;
-        std::vector<std::vector<int64_t>> signalSizes;
-        bool inverse;
-        bool constAxes, constSignalSizes;
-        CPUSpecificParams cpuParams;
-
-        std::tie(precision, params) = obj.param;
-        std::tie(shapes, axes, signalSizes, inverse, constAxes, constSignalSizes, cpuParams) = params;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<ov::element::Type, RDFTTestCPUParams>>& obj) {
+        const auto& [precision, params] = obj.param;
+        const auto& [shapes, axes, signalSizes, inverse, constAxes, constSignalSizes, cpuParams] = params;
         std::ostringstream result;
         result << "prec=" << precision;
         for (size_t i = 0; i < shapes.size(); i++) {
@@ -73,15 +65,13 @@ public:
 
 protected:
     void SetUp() override {
-        ov::element::Type precision;
-        RDFTTestCPUParams params;
-        std::vector<InputShape> shapes;
-        bool inverse;
-        CPUSpecificParams cpuParams;
         inputIdx = 0;
-
-        std::tie(precision, params) = GetParam();
-        std::tie(shapes, axes, signalSizes, inverse, constAxes, constSignalSizes, cpuParams) = params;
+        const auto& [precision, params] = GetParam();
+        const auto& [shapes, _axes, _signalSizes, inverse, _constAxes, _constSignalSizes, cpuParams] = params;
+        axes = _axes;
+        signalSizes = _signalSizes;
+        constAxes = _constAxes;
+        constSignalSizes = _constSignalSizes;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = makeSelectedTypeStr(selectedType, precision);
         targetDevice = ov::test::utils::DEVICE_CPU;

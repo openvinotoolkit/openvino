@@ -2,20 +2,21 @@
 from __future__ import annotations
 from builtins import builtin_function_or_method as BuiltinFunctionType
 from builtins import module as ModuleType
-from typing import Any
+from collections.abc import Callable
+import collections.abc
 import sys as sys
 import typing
-__all__ = ['Any', 'BuiltinFunctionType', 'ModuleType', 'Property', 'sys']
+__all__: list[str] = ['BuiltinFunctionType', 'Callable', 'ModuleType', 'Property', 'sys']
 class Property(str):
     """
     This class allows to make a string object callable. Call returns underlying string's data.
     """
     @classmethod
-    def __new__(cls, prop: typing.Callable[..., typing.Any]):
+    def __new__(cls, prop: collections.abc.Callable[..., typing.Any]):
         ...
-    def __call__(self, *args: typing.Any) -> typing.Callable[..., typing.Any]:
+    def __call__(self, *args: typing.Any) -> collections.abc.Callable[..., typing.Any]:
         ...
-def __append_property_to_module(func: typing.Callable[..., typing.Any], target_module_name: str) -> None:
+def __append_property_to_module(func: collections.abc.Callable[..., typing.Any], target_module_name: str) -> None:
     """
     Modifies the target module's __getattr__ method to expose a python property wrapper by the function's name.
     

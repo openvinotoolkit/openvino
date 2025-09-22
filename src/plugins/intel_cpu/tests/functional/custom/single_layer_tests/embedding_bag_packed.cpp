@@ -7,6 +7,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/embeddingbag_packed.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -31,17 +32,8 @@ class EmbeddingBagPackedLayerCPUTest : public testing::WithParamInterface<embedd
 public:
     using Reduction = ov::op::util::EmbeddingBagPackedBase::Reduction;
     static std::string getTestCaseName(const testing::TestParamInfo<embeddingBagPackedLayerTestParamsSet>& obj) {
-        embeddingBagPackedParams params;
-        ElementType netPrecision, indPrecision;
-        std::string targetDevice;
-        std::tie(params, netPrecision, indPrecision, targetDevice) = obj.param;
-
-        InputShape inputShapes;
-        std::vector<std::vector<size_t>> indices;
-        bool withWeights;
-        Reduction reduction;
-        std::tie(inputShapes, indices, withWeights, reduction) = params;
-
+        const auto& [params, netPrecision, indPrecision, targetDevice] = obj.param;
+        const auto& [inputShapes, indices, withWeights, reduction] = params;
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
         result << "I" << ov::test::utils::vec2str(indices) << "_";
@@ -55,16 +47,10 @@ public:
 
 protected:
     void SetUp() override {
-        embeddingBagPackedParams embParams;
-        ElementType indPrecision;
-        std::tie(embParams, inType, indPrecision, targetDevice) = this->GetParam();
-
-        InputShape inputShapes;
-        std::vector<std::vector<size_t>> indices;
-        bool withWeights;
-        Reduction reduction;
-        std::tie(inputShapes, indices, withWeights, reduction) = embParams;
-
+        const auto& [embParams, _inType, indPrecision, _targetDevice] = this->GetParam();
+        inType = _inType;
+        targetDevice = _targetDevice;
+        const auto& [inputShapes, indices, withWeights, reduction] = embParams;
         selectedType = makeSelectedTypeStr("ref", inType);
         targetDevice = ov::test::utils::DEVICE_CPU;
 

@@ -5,8 +5,8 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "openvino/opsets/opset11.hpp"
 #include "utils.hpp"
+#include "openvino/op/deformable_convolution.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

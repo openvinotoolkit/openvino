@@ -5,16 +5,28 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <exception>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utility>
 #include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 #if defined(HAVE_AVX2)
 #    include <immintrin.h>
 #endif
 
-#include "common/cpu_memcpy.h"
 #include "generate_proposals.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/generate_proposals.hpp"
@@ -72,8 +84,8 @@ void refine_anchors(const float* deltas,
             const float ww = x1 - x0 + coordinates_offset;
             const float hh = y1 - y0 + coordinates_offset;
             // center location of box
-            const float ctr_x = x0 + 0.5f * ww;
-            const float ctr_y = y0 + 0.5f * hh;
+            const float ctr_x = x0 + 0.5F * ww;
+            const float ctr_y = y0 + 0.5F * hh;
 
             // new center location according to deltas (dx, dy)
             const float pred_ctr_x = dx * ww + ctr_x;
@@ -83,17 +95,17 @@ void refine_anchors(const float* deltas,
             const float pred_h = std::exp(std::min(d_log_h, max_delta_log_wh)) * hh;
 
             // update upper-left corner location
-            x0 = pred_ctr_x - 0.5f * pred_w;
-            y0 = pred_ctr_y - 0.5f * pred_h;
+            x0 = pred_ctr_x - 0.5F * pred_w;
+            y0 = pred_ctr_y - 0.5F * pred_h;
             // update lower-right corner location
-            x1 = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
-            y1 = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
+            x1 = pred_ctr_x + 0.5F * pred_w - coordinates_offset;
+            y1 = pred_ctr_y + 0.5F * pred_h - coordinates_offset;
 
             // adjust new corner locations to be within the image region,
-            x0 = std::max<float>(0.0f, std::min<float>(x0, img_W - coordinates_offset));
-            y0 = std::max<float>(0.0f, std::min<float>(y0, img_H - coordinates_offset));
-            x1 = std::max<float>(0.0f, std::min<float>(x1, img_W - coordinates_offset));
-            y1 = std::max<float>(0.0f, std::min<float>(y1, img_H - coordinates_offset));
+            x0 = std::max<float>(0.0F, std::min<float>(x0, img_W - coordinates_offset));
+            y0 = std::max<float>(0.0F, std::min<float>(y0, img_H - coordinates_offset));
+            x1 = std::max<float>(0.0F, std::min<float>(x1, img_W - coordinates_offset));
+            y1 = std::max<float>(0.0F, std::min<float>(y1, img_H - coordinates_offset));
 
             // recompute new width & height
             const float box_w = x1 - x0 + coordinates_offset;
@@ -105,7 +117,8 @@ void refine_anchors(const float* deltas,
             proposals[p_idx + 2] = x1;
             proposals[p_idx + 3] = y1;
             proposals[p_idx + 4] = score;
-            proposals[p_idx + 5] = (min_box_W <= box_w) * (min_box_H <= box_h) * 1.0;
+            proposals[p_idx + 5] =
+                static_cast<float>(static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h)) * 1.0F;
         }
     });
 }
@@ -209,7 +222,7 @@ void nms_cpu(const int num_boxes,
 #endif
 
         for (; tail < num_boxes; ++tail) {
-            float res = 0.0f;
+            float res = 0.0F;
 
             const float x0i = x0[box];
             const float y0i = y0[box];
@@ -229,8 +242,8 @@ void nms_cpu(const int num_boxes,
                 const float y1 = std::min<float>(y1i, y1j);
 
                 // intersection area
-                const float width = std::max<float>(0.0f, x1 - x0 + coordinates_offset);
-                const float height = std::max<float>(0.0f, y1 - y0 + coordinates_offset);
+                const float width = std::max<float>(0.0F, x1 - x0 + coordinates_offset);
+                const float height = std::max<float>(0.0F, y1 - y0 + coordinates_offset);
                 const float area = width * height;
 
                 // area of A, B
@@ -311,9 +324,9 @@ GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const 
 
     min_size_ = proposalAttrs.min_size;
     nms_thresh_ = proposalAttrs.nms_threshold;
-    pre_nms_topn_ = proposalAttrs.pre_nms_count;
-    post_nms_topn_ = proposalAttrs.post_nms_count;
-    coordinates_offset_ = proposalAttrs.normalized ? 0.f : 1.f;
+    pre_nms_topn_ = static_cast<int>(proposalAttrs.pre_nms_count);
+    post_nms_topn_ = static_cast<int>(proposalAttrs.post_nms_count);
+    coordinates_offset_ = proposalAttrs.normalized ? 0.F : 1.F;
 
     roi_indices_.resize(post_nms_topn_);
 }
@@ -340,9 +353,8 @@ void GenerateProposals::executeDynamicImpl(const dnnl::stream& strm) {
 
 void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
-        if (inputShapes.size() != 4 || outputShapes.size() != 3) {
-            THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
-        }
+        CPU_NODE_ASSERT(inputShapes.size() == 4 && outputShapes.size() == 3,
+                        "Incorrect number of input or output edges!");
 
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
@@ -355,18 +367,16 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
         for (size_t i = 1; i < deltaDims.size(); i++) {
             deltas_dims_size *= deltaDims[i];
         }
-        if (anchor_dims_size != deltas_dims_size) {
-            THROW_CPU_NODE_ERR("'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
-        }
+        CPU_NODE_ASSERT(anchor_dims_size == deltas_dims_size,
+                        "'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
         for (size_t i = 1; i < scoreDims.size(); i++) {
             score_dims_size *= scoreDims[i];
         }
-        if (deltas_dims_size != (4 * score_dims_size)) {
-            THROW_CPU_NODE_ERR("'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
-        }
+        CPU_NODE_ASSERT(deltas_dims_size == (4 * score_dims_size),
+                        "'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
 
         size_t im_info_dims_size = 1;
         const auto& infoDims = getParentEdgeAt(INPUT_IM_INFO)->getMemory().getStaticDims();
@@ -414,9 +424,10 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
         // Execute
         size_t batch_size = scoreDims[0];
         size_t total_num_rois = 0;
-        std::vector<float> roi_item, score_item;
+        std::vector<float> roi_item;
+        std::vector<float> score_item;
         std::vector<int64_t> roi_num(batch_size);
-        auto* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
+        auto* p_roi_num = reinterpret_cast<uint8_t*>(roi_num.data());
         auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
         const auto roi_num_item_size = roi_num_type == ov::element::i32 ? sizeof(int32_t) : sizeof(int64_t);
         for (size_t n = 0; n < batch_size; ++n) {
@@ -440,7 +451,7 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
             refine_anchors(p_deltas_item,
                            p_scores_item,
                            p_anchors_item,
-                           reinterpret_cast<float*>(&proposals_[0]),
+                           reinterpret_cast<float*>(proposals_.data()),
                            anchors_num,
                            bottom_H,
                            bottom_W,
@@ -457,11 +468,14 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
                                   return (struct1.score > struct2.score);
                               });
 
-            unpack_boxes(reinterpret_cast<float*>(&proposals_[0]), &unpacked_boxes[0], &is_dead[0], pre_nms_topn);
+            unpack_boxes(reinterpret_cast<float*>(proposals_.data()),
+                         unpacked_boxes.data(),
+                         is_dead.data(),
+                         pre_nms_topn);
             nms_cpu(pre_nms_topn,
-                    &is_dead[0],
-                    &unpacked_boxes[0],
-                    &roi_indices_[0],
+                    is_dead.data(),
+                    unpacked_boxes.data(),
+                    roi_indices_.data(),
                     &num_rois,
                     0,
                     nms_thresh_,
@@ -472,8 +486,8 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
             roi_item.resize(new_num_rois * 4);
             score_item.resize(new_num_rois);
 
-            fill_output_blobs(&unpacked_boxes[0],
-                              &roi_indices_[0],
+            fill_output_blobs(unpacked_boxes.data(),
+                              roi_indices_.data(),
                               &roi_item[total_num_rois * 4],
                               &score_item[total_num_rois],
                               p_roi_num,
@@ -491,11 +505,11 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
         auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
         auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
         auto* p_roi_num_item = getDstDataAtPortAs<uint8_t>(OUTPUT_ROI_NUM);
-        memcpy(p_roi_item, &roi_item[0], roi_item.size() * sizeof(float));
-        memcpy(p_roi_score_item, &score_item[0], score_item.size() * sizeof(float));
-        memcpy(p_roi_num_item, &roi_num[0], getDstMemoryAtPort(OUTPUT_ROI_NUM)->getSize());
+        memcpy(p_roi_item, roi_item.data(), roi_item.size() * sizeof(float));
+        memcpy(p_roi_score_item, score_item.data(), score_item.size() * sizeof(float));
+        memcpy(p_roi_num_item, roi_num.data(), getDstMemoryAtPort(OUTPUT_ROI_NUM)->getSize());
     } catch (const std::exception& e) {
-        THROW_CPU_NODE_ERR(e.what());
+        CPU_NODE_THROW(e.what());
     }
 }
 

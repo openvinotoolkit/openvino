@@ -12,8 +12,11 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/gemm.hpp>
 
 #include "reshape_inst.h"
+#include "program_wrapper.h"
+
 
 using namespace cldnn;
 using namespace ::tests;
@@ -220,7 +223,7 @@ TEST(reshpape_gpu_f32, basic_2dim_output_padd) {
         tensor(1, 1, 8, 1),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 1, 1}));
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 1, 1}));
 }
 
 TEST(reshape_gpu_f16, basic_2dim_output_padd) {
@@ -230,7 +233,7 @@ TEST(reshape_gpu_f16, basic_2dim_output_padd) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}));
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
 TEST(reshape_gpu_i8, basic_2dim_output_padd) {
@@ -240,7 +243,7 @@ TEST(reshape_gpu_i8, basic_2dim_output_padd) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}));
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
 TEST(reshape_gpu_i32, basic_2dim_output_padd) {
@@ -250,7 +253,7 @@ TEST(reshape_gpu_i32, basic_2dim_output_padd) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}));
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
 TEST(reshape_gpu_i64, basic_2dim_output_padd) {
@@ -260,7 +263,7 @@ TEST(reshape_gpu_i64, basic_2dim_output_padd) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}));
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
 TEST(reshape_gpu_f32, basic_2dim_input_padd) {
@@ -538,6 +541,76 @@ void test_calc_output_shape(bool is_caching_test) {
 
 TEST(reshape_gpu_f32, calc_output_shape) {
     test_calc_output_shape<float>(false);
+}
+
+
+template <typename T>
+void test_calc_output_support_shape(bool is_caching_test) {
+    //  reshape does not handle some cases when format is updated.
+    //  some of which will be incompatible between output and input. 
+    //  for example, a default input  layout of [1,  1,  157, 1024] with bfyx
+    //  is compatible with the output layout of [157,1,  1024] with bfyx.
+    //  but if the format is updated by some pass to i.e, ybfx.
+    //  the layout becames incompatible.
+    //  thus the primitie will refuse to update shape when running calc_output_layouts.
+    //
+    //  This situation is observed in RNNT model, whose format is updated by ov::pass::reorder_input.
+    //  The incompatible caused by refuse update will be fixed by the following passes.  
+
+    auto& engine = get_test_engine();
+    ov::Shape in1_shape = { 1, 1, 3, 3 };
+    ov::Shape in2_shape = { 1, 1, 7, 3 };
+    ov::Shape out1_shape = { 3, 1, 7, 1 };
+    auto in1_layout = layout{in1_shape, data_types::f32, format::bfyx};
+    auto in2_layout = layout{in2_shape, data_types::f32, format::bfyx};
+    auto out1_layout = layout{out1_shape, data_types::f32, format::bfyx};
+    auto input1 = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f32, format::bfyx});
+    auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx});
+    topology topology;
+
+    topology.add(input_layout("input1", in1_layout),
+                    input_layout("input2", in2_layout),
+                    gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 4)
+        );
+    topology.add(input_layout("input", out1_layout));
+    topology.add(shape_of("shape_of_input", input_info("input"), data_types::i32));
+    
+    topology.add(reshape("reshape", input_info("gemm"), false, { 3, 1, 7, 1 }, ov::PartialShape{ 3, 1, 7, 1 }));
+
+    set_values(input1, {-1.f, 2.f, -3.f,
+                        -4.f, 5.f, -6.f});
+    set_values(input2, {-1.f, 2.f, -3.f,
+                        -4.f, 5.f, -6.f,
+                        -7.f, 8.f, -9.f,
+                        1.f, -2.f, 3.f,
+                        4.f, -5.f, 6.f,
+                        7.f, -8.f, 9.f,
+                        -7.f, 8.f, -9.f});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<basic_memory_dependencies>(*prog);
+    program_wrapper::apply_opt_pass<skipped_branch_memory_dependencies>(*prog);
+    program_wrapper::apply_opt_pass<oooq_memory_dependencies>(*prog);
+    program_wrapper::apply_opt_pass<reorder_inputs>(*prog, rf);
+    auto& node = prog->get_node("gemm");
+    node.set_preferred_output_fmt(0, format::ybfx);
+    node.recalc_output_layouts(false);
+
+    auto& reshape_node = prog->get_node("reshape");
+    auto ori_layout = reshape_node.get_output_layout(0);
+    reshape_node.get_kernel_impl_params()->memory_deps = {{1,input1}};
+    reshape_node.recalc_output_layouts(false);
+    
+    ASSERT_TRUE(reshape_node.get_output_layout(0) == ori_layout);
+
+}
+
+TEST(reshape_gpu_f32, calc_output_support_shape) {
+    test_calc_output_support_shape<float>(false);
 }
 
 template <typename T>
@@ -935,7 +1008,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
     ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
     ASSERT_EQ(output->get_layout().format, format::bfyx);
     ASSERT_TRUE(output->get_layout().is_static());
-    std::vector<int32_t> ref_dims = {12, 3, 1, 1};
+    std::vector<ov::Dimension::value_type> ref_dims = {12, 3, 1, 1};
     ASSERT_EQ(output->get_layout().get_dims(), ref_dims);
     ov::PartialShape ref_pshape = {12, 3};
     ASSERT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
@@ -992,7 +1065,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
     ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
     ASSERT_EQ(output->get_layout().format, format::bfyx);
     ASSERT_TRUE(output->get_layout().is_static());
-    std::vector<int32_t> ref_dims = {12, 3, 1, 1};
+    std::vector<ov::Dimension::value_type> ref_dims = {12, 3, 1, 1};
     ASSERT_EQ(output->get_layout().get_dims(), ref_dims);
     ov::PartialShape ref_pshape = {12, 3};
     ASSERT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
@@ -1320,7 +1393,7 @@ TEST(reshpape_gpu_f32, basic_2dim_output_padd_cached) {
         tensor(1, 1, 8, 1),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 1, 1}),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 1, 1}),
         true);
 }
 
@@ -1331,7 +1404,7 @@ TEST(reshape_gpu_f16, basic_2dim_output_padd_cached) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}),
         true);
 }
 
@@ -1342,7 +1415,7 @@ TEST(reshape_gpu_i8, basic_2dim_output_padd_cached) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}),
         true);
 }
 
@@ -1353,7 +1426,7 @@ TEST(reshape_gpu_i32, basic_2dim_output_padd_cached) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}),
         true);
 }
 
@@ -1364,7 +1437,7 @@ TEST(reshape_gpu_i64, basic_2dim_output_padd_cached) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}),
         true);
 }
 

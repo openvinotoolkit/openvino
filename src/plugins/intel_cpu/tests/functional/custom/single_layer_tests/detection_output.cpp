@@ -5,6 +5,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/detection_output.hpp"
 
 namespace DetectionOutput {
 static std::ostream& operator<<(std::ostream& result, const ov::op::v0::DetectionOutput::Attributes& attrs) {
@@ -71,19 +72,10 @@ class DetectionOutputLayerCPUTest : public testing::WithParamInterface<Detection
                                     public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParamsDynamic>& obj) {
-        DetectionOutputAttributes commonAttrs;
-        ParamsWhichSizeDependsDynamic specificAttrs;
         ov::op::v0::DetectionOutput::Attributes attrs;
-        size_t batch;
-        bool replaceDynamicShapesToIntervals;
-        std::string targetDevice;
-        std::tie(commonAttrs,
-                 specificAttrs,
-                 batch,
-                 attrs.objectness_score,
-                 replaceDynamicShapesToIntervals,
-                 targetDevice) = obj.param;
-
+        const auto& [commonAttrs, specificAttrs, batch, _objectness_score, replaceDynamicShapesToIntervals,
+                     targetDevice] = obj.param;
+        attrs.objectness_score = _objectness_score;
         std::tie(attrs.num_classes,
                  attrs.background_label_id,
                  attrs.top_k,
@@ -167,17 +159,10 @@ public:
     }
 
     void SetUp() override {
-        DetectionOutputAttributes commonAttrs;
-        ParamsWhichSizeDependsDynamic specificAttrs;
-        size_t batch;
-        bool replaceDynamicShapesToIntervals;
-        std::tie(commonAttrs,
-                 specificAttrs,
-                 batch,
-                 attrs.objectness_score,
-                 replaceDynamicShapesToIntervals,
-                 targetDevice) = this->GetParam();
-
+        const auto& [commonAttrs, specificAttrs, batch, _objectness_score, replaceDynamicShapesToIntervals,
+                     _targetDevice] = this->GetParam();
+        attrs.objectness_score = _objectness_score;
+        targetDevice = _targetDevice;
         std::tie(attrs.num_classes,
                  attrs.background_label_id,
                  attrs.top_k,

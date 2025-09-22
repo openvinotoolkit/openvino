@@ -33,26 +33,24 @@ void regclass_transformations(py::module m) {
         serialize(m, "Serialize");
     serialize.doc() = "openvino.passes.Serialize transformation";
 
-    serialize.def(
-        py::init([](const py::object& path_to_xml, const py::object& path_to_bin, const py::object& version) {
-            if (py::isinstance<py::str>(version)) {
-                return std::make_shared<ov::pass::Serialize>(
-                    Common::utils::convert_path_to_string(path_to_xml),
-                    Common::utils::convert_path_to_string(path_to_bin),
-                    Common::utils::convert_to_version(version.cast<std::string>()));
-            } else if (py::isinstance<Version>(version)) {
-                return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
-                                                             Common::utils::convert_path_to_string(path_to_bin),
-                                                             version.cast<Version>());
-            } else {
-                return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
-                                                             Common::utils::convert_path_to_string(path_to_bin));
-            }
-        }),
-        py::arg("path_to_xml"),
-        py::arg("path_to_bin"),
-        py::arg("version") = py::none(),
-        R"(
+    serialize.def(py::init([](const py::object& path_to_xml, const py::object& path_to_bin, const py::object& version) {
+                      const auto xml_path = Common::utils::to_fs_path(path_to_xml);
+                      const auto bin_path = Common::utils::to_fs_path(path_to_bin);
+                      if (py::isinstance<py::str>(version)) {
+                          return std::make_shared<ov::pass::Serialize>(
+                              xml_path,
+                              bin_path,
+                              Common::utils::convert_to_version(version.cast<std::string>()));
+                      } else if (py::isinstance<Version>(version)) {
+                          return std::make_shared<ov::pass::Serialize>(xml_path, bin_path, version.cast<Version>());
+                      } else {
+                          return std::make_shared<ov::pass::Serialize>(xml_path, bin_path);
+                      }
+                  }),
+                  py::arg("path_to_xml"),
+                  py::arg("path_to_bin"),
+                  py::arg("version") = py::none(),
+                  R"(
         Create Serialize pass which is used for Model to IR serialization.
 
         :param path_to_xml: Path where *.xml file will be saved.
@@ -115,7 +113,7 @@ void regclass_transformations(py::module m) {
         R"( The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
                     
                       :param pairs_to_replace:
-                      :type pairs_to_replace: List[Tuple[op.Parameter, op.Result]
+                      :type pairs_to_replace: list[tuple[op.Parameter, op.Result]
     )");
     make_stateful.def(py::init<const std::map<std::string, std::string>&>(),
                       py::arg("pairs_to_replace"),
@@ -123,7 +121,7 @@ void regclass_transformations(py::module m) {
         The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
         
         :param pairs_to_replace: a dictionary of names of the provided Parameter and Result operations.
-        :type pairs_to_replace: Dict[str, str]
+        :type pairs_to_replace: dict[str, str]
     )");
     make_stateful.def("__repr__", [](const ov::pass::MakeStateful& self) {
         return Common::get_simple_repr(self);

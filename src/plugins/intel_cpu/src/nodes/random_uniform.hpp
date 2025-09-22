@@ -6,9 +6,21 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <random>
+#include <string>
+#include <utility>
 
-#include "kernels/x64/random_uniform.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -64,21 +76,21 @@ private:
 
     void prepareGeneratorKernel();
 
-    enum PortIndex { SHAPE = 0, MIN_VAL, MAX_VAL };
-    enum AlgorithmType { STL = 0, PHILOX, MERSENNE_TWISTER };
+    enum PortIndex : uint8_t { SHAPE = 0, MIN_VAL, MAX_VAL };
+    enum AlgorithmType : uint8_t { STL = 0, PHILOX, MERSENNE_TWISTER };
 
     bool m_const_inputs[3] = {false, false, false};
 
     ov::element::Type m_output_prc;
-    uint64_t m_global_seed = 0lu;
-    uint64_t m_op_seed = 0lu;
-    std::pair<uint64_t, uint64_t> m_state{0lu, 0lu};
+    uint64_t m_global_seed = 0LU;
+    uint64_t m_op_seed = 0LU;
+    std::pair<uint64_t, uint64_t> m_state{0LU, 0LU};
 
-    VectorDims m_out_shape = {};
-    uint64_t m_output_elements_count = 1lu;
-    OutputType m_min_val;
-    OutputType m_max_val;
-    OutputType m_range_val;
+    VectorDims m_out_shape;
+    uint64_t m_output_elements_count = 1LU;
+    OutputType m_min_val = {};
+    OutputType m_max_val = {};
+    OutputType m_range_val = {};
     AlgorithmType m_algo = STL;
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -88,16 +100,16 @@ private:
     std::shared_ptr<kernel::JitKernelBase> m_jit_kernel;
 
     struct PhiloxThreadParams {
-        uint64_t work_amount = 0lu;
-        uint64_t dst_shift = 0lu;
-        uint64_t n_shift = 0lu;
-        uint64_t step = 0lu;
+        uint64_t work_amount = 0LU;
+        uint64_t dst_shift = 0LU;
+        uint64_t n_shift = 0LU;
+        uint64_t step = 0LU;
     };
 
     struct MersenneTwisterThreadParams {
-        uint64_t src_start_idx = 0lu;
-        uint64_t dst_start_idx = 0lu;
-        uint64_t state_accesses_count = 0lu;
+        uint64_t src_start_idx = 0LU;
+        uint64_t dst_start_idx = 0LU;
+        uint64_t state_accesses_count = 0LU;
     };
 
     int32_t m_threads_num = 0;
@@ -110,22 +122,22 @@ private:
     ///// PHILOX /////
 
     // Output elements number threshold to execute on one thread.
-    static constexpr uint64_t PHILOX_PARALLEL_EXECUTION_THRESHOLD = 1000lu;
+    static constexpr uint64_t PHILOX_PARALLEL_EXECUTION_THRESHOLD = 1000LU;
 
     // Determines how many sequence elements of RNG sequence are skipped between runs.
     // 256 is chosen for parity with Tensorflow.
-    static constexpr uint64_t SKIP_CONST = 256lu;
+    static constexpr uint64_t SKIP_CONST = 256LU;
 
     // Philox algorithm returns 4 elements of RNG sequence per each invocation
-    static constexpr uint64_t PHILOX_GROUP_SIZE = 4lu;
+    static constexpr uint64_t PHILOX_GROUP_SIZE = 4LU;
 
     // Used to parallelize state generation
-    uint64_t m_skip_count = 0lu;
+    uint64_t m_skip_count = 0LU;
 
     void preparePhiloxParams();
 
     std::pair<uint64_t, uint64_t> computePhilox(void* out,
-                                                size_t work_amount,
+                                                size_t output_elements_count,
                                                 const std::pair<uint64_t, uint64_t>& prev_state);
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -142,7 +154,7 @@ private:
 
     void prepareMersenneTwisterParams();
 
-    void computeMersenneTwister(void* out, size_t work_amount);
+    void computeMersenneTwister(void* out, size_t output_elements_count);
 
     /////////////////////////////////////////////////////////////////////////////////
 

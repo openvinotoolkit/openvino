@@ -18,6 +18,8 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "ov_lpt_models/convolution_backprop_data.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/convolution.hpp"
 
 namespace {
 using namespace testing;

@@ -28,10 +28,6 @@ target_link_libraries(${TARGET_NAME}
         openvino_npu_level_zero_backend
 )
 
-if(ENABLE_IMD_BACKEND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_IMD_BACKEND)
-endif()
-
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
 endif()
@@ -40,6 +36,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::npu_al
         openvino::npu_common
+        openvino::reference
 )
 
 target_include_directories(${TARGET_NAME}
@@ -53,7 +50,7 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX2 ANY
                     npuw/util_xarch.cpp
         API         npuw/util_xarch.hpp
-        NAME        unpack_i4i8 unpack_u4i8 unpack_i4f16 unpack_i4f16_scale unpack_i4f16_z unpack_u4f16 unpack_u4f16_scale_zp unpack_u4f16_asymm_zp unpack_u4f16_z unpack_u4f32 unpack_i8f16 unpack_i8f16_scale unpack_u8f16 to_f16 copy_row_as_column
+        NAME        unpack_i4i8 unpack_u4i8 unpack_i4f16 unpack_i4f16_scale unpack_i4f16_z unpack_u4f16 unpack_u4f16_scale_zp unpack_u4f16_asymm_zp unpack_u4f16_z unpack_u4f32 unpack_i8f16 unpack_i8f16_scale unpack_u8f16 to_f16 copy_row_as_column transpose_i4 transpose_f16 transpose_f32
         NAMESPACE   ov::npuw::util::XARCH
 )
 

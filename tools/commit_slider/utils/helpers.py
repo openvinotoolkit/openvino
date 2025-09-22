@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib
@@ -14,7 +14,8 @@ from argparse import ArgumentParser
 from utils.cfg_manager import CfgManager
 import copy
 
-
+bigOutputFilesNumber = 10
+bigFloatNumber = 1000000 # sys.float_info.max does not seem to work correctly
 mulKey = 'multiplication_key'
 
 def getMeaningfullCommitTail(commit):
@@ -58,6 +59,13 @@ def getParams():
         help="run utility with specified name",
         default="no_utility",
     )
+    parser.add_argument(
+        "-t",
+        "--template",
+        dest="template",
+        help="launched with template",
+        default="undefined",
+    )
 
     parser.add_argument(
         "-x",
@@ -83,6 +91,20 @@ def getParams():
         presetCfgData = loadJSONToObject(presetCfgPath)
         return argHolder, presetCfgData, presetCfgPath
 
+    if argHolder.template != "undefined":
+        it = iter(additionalArgs)
+        addDict = dict(zip(it, it))
+        mergedArgs = {**(args.__dict__), **addDict}
+        argHolder = DictHolder(mergedArgs)
+        customCfgPath = "custom_cfg_on_run.json"
+        jsonObj = {"template" : {"name" : argHolder.template}}
+        for k, v in addDict.items():
+            jsonObj['template'][k] = v
+            curTempl = jsonObj['template']
+            curTempl[k.replace('-', '')] = v
+            jsonObj['template'] = curTempl
+        saveJSON(jsonObj, customCfgPath)
+
     customCfgData = loadJSONToString(customCfgPath)
     if mulKey in customCfgData:
         customCfgData = multiplyCfgByKey(json.loads(customCfgData))
@@ -107,6 +129,9 @@ def loadJSONToObject(path):
     file.close()
     return obj
 
+def saveJSON(obj, path):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, ensure_ascii=False, indent=4)
 
 def customizeCfg(customCfg, presetCfg: str):
     if isinstance(customCfg, list):
@@ -137,25 +162,72 @@ def getBlobDiff(file1, file2):
         content = file.readlines()
     with open(file2) as sampleFile:
         sampleContent = sampleFile.readlines()
-    # ignore first line with memory address
-    i = -1
     curMaxDiff = 0
-    for sampleLine in sampleContent:
-        i = i + 1
+    for i, sampleLine in enumerate(sampleContent):
+        if i == 0:
+            # ignore first line with memory address
+            continue
         if i >= len(sampleContent):
             break
         line = content[i]
+        if "nan" in sampleLine.lower() or "nan" in line.lower():
+            if "nan" in sampleLine.lower() and "nan" in line.lower():
+                continue
+            return bigFloatNumber
         sampleVal = 0
         val = 0
-        try:
-            sampleVal = float(sampleLine)
-            val = float(line)
-        except ValueError:
-            continue
+        sampleVal = float(sampleLine)
+        val = float(line)
         if val != sampleVal:
             curMaxDiff = max(curMaxDiff, abs(val - sampleVal))
     return curMaxDiff
 
+def trimFileNameByCommitHash(fileList, commit):
+    prefixLen = len(getMeaningfullCommitTail(commit))
+    return [file[(prefixLen + 1):] for file in fileList]
+
+def getBlobMatch(fileList1, fileList2, leftCommit = None, rightCommit = None):
+    if len(fileList1) >= bigOutputFilesNumber:
+        raise Exception("Too much files to compare: {f1}, {f2}. Comparision may bee too long".format(
+            f1=fileList1, f2=fileList2
+        ))
+    trimmedFileList1 = [x for x in fileList1]
+    trimmedFileList2 = [x for x in fileList2]
+
+    if not leftCommit is None or not rightCommit is None:
+        trimmedFileList1 = trimFileNameByCommitHash(fileList1, leftCommit)
+        trimmedFileList2 = trimFileNameByCommitHash(fileList2, rightCommit)
+
+    def gcs(s1: str, s2: str) -> int:
+        # great common substring
+        if s1 < s1: # gcs(A,B) == gcs(B,A)
+            return gcs(s2, s1)
+        else:
+            l1, l2 = len(s1), len(s2)
+            res = [[0] * (l2 + 1) for _ in range(l1 + 1)]
+            for i in range(1, l1 + 1):
+                for j in range(1, l2 + 1):
+                    if s1[i - 1] == s2[j - 1]:
+                        res[i][j] = res[i - 1][j - 1] + 1
+                    else:
+                        res[i][j] = max(res[i - 1][j], res[i][j - 1])      
+            return res[l1][l2]
+    length = len(fileList1)
+    naturalSet = set([i for i in range(length)])
+    excMsg = "Output blobs matching error, {l1} doesn't match {l2}".format(
+        l1=fileList1, l2=fileList2)
+    if length != len(fileList2):
+        raise Exception(excMsg)
+
+    matchMtrx = [[gcs(f1, f2) for f1 in trimmedFileList1] for f2 in trimmedFileList2]
+    indOfMax = lambda a: a.index(max(a))
+    colMatch = [indOfMax([matchMtrx[i1][i2] for i1, _ in enumerate(trimmedFileList1)]) for i2, _ in enumerate(trimmedFileList2)]
+    rowMatch = [indOfMax([matchMtrx[i1][i2] for i2, _ in enumerate(trimmedFileList2)]) for i1, _ in enumerate(trimmedFileList1)]
+    if set(rowMatch) == naturalSet and set(colMatch) == naturalSet:
+        return [[f1, fileList2[colMatch[i1]]] \
+                for i1, f1 in enumerate(fileList1)]
+    else:
+        raise Exception(excMsg)
 
 def absolutizePaths(cfg):
     pl = sys.platform
@@ -314,6 +386,14 @@ def runCommandList(commit, cfgData):
 
 
 def fetchAppOutput(cfg, commit):
+    appCmd = cfg["appCmd"]
+    if isinstance(appCmd, list):
+        aggregatedOutput = ""
+        for cmd in appCmd:
+            curCfg = deepCopyJSON(cfg)
+            curCfg["appCmd"] = cmd
+            aggregatedOutput = aggregatedOutput + fetchAppOutput(curCfg, commit)
+        return aggregatedOutput
     commitLogger = getCommitLogger(cfg, commit)
     appPath = cfg["appPath"]
     # format appPath if it was cashed
@@ -330,7 +410,6 @@ def fetchAppOutput(cfg, commit):
             envKey = env["name"]
             envVal = env["val"]
             newEnv[envKey] = envVal
-    appCmd = cfg["appCmd"]
     commitLogger.info("Run command: {command}".format(
         command=appCmd)
     )
@@ -588,9 +667,13 @@ def safeClearDir(path, cfg):
 
 def runUtility(cfg, args):
     modName = args.utility
+    fullModName = "utils.{un}".format(un=modName)
     try:
-        mod = importlib.import_module(
-            "utils.{un}".format(un=modName))
+        if importlib.util.find_spec(fullModName) is not None:
+            mod = importlib.import_module(fullModName)
+        else:
+            mod = importlib.import_module(
+                "utils.preprocess.{un}".format(un=modName))
         utilName = checkAndGetUtilityByName(cfg, modName)
         utility = getattr(mod, utilName)
         utility(args)
@@ -675,6 +758,12 @@ def checkAndGetSubclass(clName, parentClass):
     else:
         return cl[0]
 
+def getClassByMethod(method, methodRes, parentClass):
+    cl = [cl for cl in parentClass.__subclasses__() if getattr(cl, method)() == methodRes]
+    if not (cl.__len__() == 1):
+        raise CfgError("Class returning {} doesn't exist".format(methodRes))
+    else:
+        return cl[0]
 
 class DictHolder:
     def __init__(self, dict: dict = None):
@@ -841,6 +930,20 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
             )
         )
         cfg = deepMapUpdate(cfg, pathToDst, dstPos)
+
+def simpleSubstitute(cfg: map, placeholder: str,
+                     fromPath: str, toPath: str):
+    rules = [
+            {
+                "name": "simple rule",
+                "enabled": True,
+                "type": "static",
+                "placeholder": placeholder,
+                "from": fromPath,
+                "to": toPath
+            }
+        ]
+    applySubstitutionRules(cfg, rules)
 
 def getMapValueByShortHash(map: dict, commit: str):
     for k in map:

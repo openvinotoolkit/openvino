@@ -1141,6 +1141,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18_axes_as_input) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18_axes_as_input_v2) {
+    auto model = convert_model("reduce_l1_18_axis_as_input_v2.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{1, 2, 3, 2}, {23, 41, 81, 61, 24, 45, 59, 24, 71, 91, 47, 35});
+    test_case.add_input<int64_t>({1});
+
+    test_case.add_expected_output(Shape{1, 1, 3, 2}, std::vector<float>{82, 65, 152, 152, 71, 80});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l2) {
     auto model = convert_model("reduce_l2.onnx");
 
@@ -2123,6 +2136,65 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_tf_half_pixel) {
     test_case.run_with_tolerance_as_fp(2.0e-2f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_equal_sizes_3D_linear_params) {
+    const auto model = convert_model("resize13_equal_sizes_3D_params.onnx");
+
+    const Shape expected_output_shape{1, 8, 9};
+    auto test_case = ov::test::TestCase(model, s_device);
+    std::vector<float> input_data{
+        0.29985732f, 0.3252961f,  0.11366114f, 0.9315298f,  0.47235882f, 0.3571615f,  0.04605021f, 0.29799214f,
+        0.8341256f,  0.10519959f, 0.300735f,   0.6292097f,  0.97832805f, 0.62884325f, 0.12432629f, 0.08092773f,
+        0.5305715f,  0.09272648f, 0.7379461f,  0.4102088f,  0.7970999f,  0.1305438f,  0.7790289f,  0.72570837f,
+        0.77850974f, 0.02760043f, 0.85330886f, 0.35184756f, 0.3510722f,  0.18521385f, 0.3399043f,  0.25860593f,
+        0.5915895f,  0.01594686f, 0.54833883f, 0.9266603f,  0.55851257f, 0.8490857f,  0.4682112f,  0.551452f,
+        0.7848713f,  0.12017566f, 0.24008171f, 0.13872865f, 0.7090255f,  0.9357899f,  0.4172489f,  0.10856992f,
+        0.74415976f, 0.49013352f, 0.5125369f,  0.98959494f, 0.09645539f, 0.5718974f,  0.46022636f, 0.4032272f,
+        0.37328756f, 0.42078483f, 0.68285966f, 0.15691188f, 0.6668625f,  0.04999063f, 0.3256703f,  0.9700244f,
+        0.76924187f, 0.69528985f, 0.34477797f, 0.3095121f,  0.8352418f,  0.23829548f, 0.19672793f, 0.15877233f};
+    test_case.add_input<float>(input_data);
+    test_case.add_input<int64_t>(std::vector<int64_t>{1, 8, 9});  // sizes
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {0.29985732f, 0.3252961f,  0.11366114f, 0.9315298f,  0.47235882f, 0.3571615f,  0.04605021f, 0.29799214f,
+         0.8341256f,  0.10519959f, 0.300735f,   0.6292097f,  0.97832805f, 0.62884325f, 0.12432629f, 0.08092773f,
+         0.5305715f,  0.09272648f, 0.7379461f,  0.4102088f,  0.7970999f,  0.1305438f,  0.7790289f,  0.72570837f,
+         0.77850974f, 0.02760043f, 0.85330886f, 0.35184756f, 0.3510722f,  0.18521385f, 0.3399043f,  0.25860593f,
+         0.5915895f,  0.01594686f, 0.54833883f, 0.9266603f,  0.55851257f, 0.8490857f,  0.4682112f,  0.551452f,
+         0.7848713f,  0.12017566f, 0.24008171f, 0.13872865f, 0.7090255f,  0.9357899f,  0.4172489f,  0.10856992f,
+         0.74415976f, 0.49013352f, 0.5125369f,  0.98959494f, 0.09645539f, 0.5718974f,  0.46022636f, 0.4032272f,
+         0.37328756f, 0.42078483f, 0.68285966f, 0.15691188f, 0.6668625f,  0.04999063f, 0.3256703f,  0.9700244f,
+         0.76924187f, 0.69528985f, 0.34477797f, 0.3095121f,  0.8352418f,  0.23829548f, 0.19672793f, 0.15877233f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize13_downsample_sizes_3D_linear_params) {
+    const auto model = convert_model("resize13_downsample_sizes_3D_params.onnx");
+
+    const Shape expected_output_shape{1, 6, 7};
+    auto test_case = ov::test::TestCase(model, s_device);
+    std::vector<float> input_data{
+        0.5767846f,  0.35581085f, 0.24668953f, 0.9545147f,  0.7606464f,  0.705429f,   0.8132863f,  0.56191707f,
+        0.72524476f, 0.5405465f,  0.7190639f,  0.12027929f, 0.97832054f, 0.7096664f,  0.9160756f,  0.6260389f,
+        0.16307232f, 0.3839192f,  0.41188183f, 0.295265f,   0.37546593f, 0.9100228f,  0.4225918f,  0.87776357f,
+        0.747742f,   0.44936505f, 0.91132724f, 0.3980546f,  0.7400141f,  0.8426097f,  0.21246035f, 0.78183395f,
+        0.76318717f, 0.47106653f, 0.4124195f,  0.77141804f, 0.55951446f, 0.650487f,   0.20082834f, 0.6401097f,
+        0.86262995f, 0.249077f,   0.469196f,   0.9600796f,  0.47439033f, 0.34698826f, 0.28442344f, 0.62101555f,
+        0.00600956f, 0.8459579f,  0.17939363f, 0.27994925f, 0.29580343f, 0.39992756f, 0.29835626f, 0.26056352f,
+        0.04981562f, 0.94394135f, 0.6154581f,  0.7322748f,  0.4933182f,  0.51235014f, 0.28404027f, 0.99321055f,
+        0.11399073f, 0.12730141f, 0.94743377f, 0.4440488f,  0.4849618f,  0.6661992f,  0.8572858f,  0.3423282f};
+    test_case.add_input<float>(input_data);
+    test_case.add_input<int64_t>(std::vector<int64_t>{1, 6, 7});  // sizes
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {0.5486889f,  0.3346108f,  0.7490933f,  0.7521497f,  0.7524059f,  0.6182868f,  0.64365506f,
+         0.4806356f,  0.3960394f,  0.745229f,   0.5661291f,  0.83691126f, 0.46936384f, 0.598851f,
+         0.43829203f, 0.7082591f,  0.4533013f,  0.72196025f, 0.7065393f,  0.46083516f, 0.7409991f,
+         0.53343385f, 0.45292634f, 0.4591216f,  0.85985124f, 0.29466072f, 0.6729188f,  0.51732105f,
+         0.31550384f, 0.2994601f,  0.4351012f,  0.730708f,   0.43606266f, 0.39660117f, 0.35085434f,
+         0.7718327f,  0.12811992f, 0.70900464f, 0.47261697f, 0.5579535f,  0.7301918f,  0.39935416f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_shape) {
     auto model = convert_model("shape.onnx");
 
@@ -2907,6 +2979,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_one_hot_without_axis) {
     auto model = convert_model("one_hot_no_axis.onnx");
 
     std::vector<std::vector<std::int64_t>> inputs{{0, 7, 8}, {2, 5}};
+    std::vector<std::int64_t> expected_output{5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                                              2, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 2};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_one_hot_negative_indices) {
+    auto model = convert_model("one_hot_negative_indices.onnx");
+
+    std::vector<std::vector<std::int64_t>> inputs{{0, -5, -4}};
     std::vector<std::int64_t> expected_output{5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
                                               2, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 2};
 

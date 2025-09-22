@@ -86,20 +86,18 @@ class TestNonMaxSuppression(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_NonMaxSuppression(self, test_params, ie_device, precision, ir_version, temp_dir,
-                              use_legacy_frontend):
+    def test_NonMaxSuppression(self, test_params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Skip TF NonMaxSuppresion test on GPU")
         self._test(*self.create_nms_net(test_params), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   ir_version, temp_dir=temp_dir)
 
     @pytest.mark.parametrize("test_params", test_params)
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit
-    def test_NonMaxSuppressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir,
-                                        use_legacy_frontend):
+    def test_NonMaxSuppressionWithScores(self, test_params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Skip TF NonMaxSuppresionWithScores test on GPU")
         self._test(*self.create_nms_net(test_params, with_scores=True), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+                   ir_version, temp_dir=temp_dir)

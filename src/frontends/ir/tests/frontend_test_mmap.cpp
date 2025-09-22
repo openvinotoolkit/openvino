@@ -22,7 +22,7 @@ protected:
                                                                std::vector<float>(CONST_SIZE, 0));
         auto add = std::make_shared<ov::opset1::Add>(parameter, constant);
         auto result = std::make_shared<ov::opset1::Result>(add);
-        auto model = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
 
         auto filePrefix = ov::test::utils::generateTestFilePrefix();
         xmlFileName = filePrefix + "_IrFrontendTestModel.xml";

@@ -4,22 +4,41 @@
 
 #include "cum_sum.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/cum_sum.hpp"
+#include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
 bool CumSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto cumsum = ov::as_type_ptr<const ov::opset3::CumSum>(op);
+        const auto cumsum = ov::as_type_ptr<const ov::op::v0::CumSum>(op);
         if (!cumsum) {
-            errorMessage = "Only opset3 CumSum operation is supported";
+            errorMessage = "Only v0 CumSum operation is supported";
             return false;
         }
     } catch (...) {
@@ -35,35 +54,27 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if ((getOriginalInputsNumber() != numOfInputs && getOriginalInputsNumber() != (numOfInputs - 1)) ||
-        getOriginalOutputsNumber() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+    if ((none_of(getOriginalInputsNumber(), numOfInputs, (numOfInputs - 1U))) || getOriginalOutputsNumber() != 1) {
+        CPU_NODE_THROW("has incorrect number of input/output edges!");
     }
 
     const auto& dataShape = getInputShapeAtPort(CUM_SUM_DATA);
     numOfDims = dataShape.getRank();
-    if (numOfDims < 1) {
-        THROW_CPU_NODE_ERR("doesn't support 'data' input tensor with rank: ", numOfDims);
-    }
+    CPU_NODE_ASSERT(numOfDims >= 1, "doesn't support 'data' input tensor with rank: ", numOfDims);
 
-    const auto cumsum = ov::as_type_ptr<const ov::opset3::CumSum>(op);
-    if (cumsum == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of CumSum from opset3.");
-    }
+    const auto cumsum = ov::as_type_ptr<const ov::op::v0::CumSum>(op);
+    CPU_NODE_ASSERT(cumsum, "is not an instance of CumSum from opset3.");
 
     exclusive = cumsum->is_exclusive();
     reverse = cumsum->is_reverse();
 
     if (getOriginalInputsNumber() == numOfInputs) {
         const auto axis_shape = cumsum->get_input_partial_shape(AXIS);
-        if (axis_shape.is_dynamic() || !ov::is_scalar(axis_shape.to_shape())) {
-            THROW_CPU_NODE_ERR("doesn't support 'axis' input tensor with non scalar rank");
-        }
+        CPU_NODE_ASSERT(!axis_shape.is_dynamic() && ov::is_scalar(axis_shape.to_shape()),
+                        "doesn't support 'axis' input tensor with non scalar rank");
     }
 
-    if (dataShape != getOutputShapeAtPort(0)) {
-        THROW_CPU_NODE_ERR("has different 'data' input and output dimensions");
-    }
+    CPU_NODE_ASSERT(dataShape == getOutputShapeAtPort(0), "has different 'data' input and output dimensions");
 }
 
 void CumSum::initSupportedPrimitiveDescriptors() {
@@ -72,7 +83,7 @@ void CumSum::initSupportedPrimitiveDescriptors() {
     }
 
     dataPrecision = getOriginalInputPrecisionAtPort(CUM_SUM_DATA);
-    if (!one_of(dataPrecision,
+    if (none_of(dataPrecision,
                 ov::element::i8,
                 ov::element::u8,
                 ov::element::i16,
@@ -82,14 +93,14 @@ void CumSum::initSupportedPrimitiveDescriptors() {
                 ov::element::bf16,
                 ov::element::f16,
                 ov::element::f32)) {
-        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+        CPU_NODE_THROW("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 
     if (inputShapes.size() == numOfInputs) {
         const auto& axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
-        if (axisTensorPrec != ov::element::i32 && axisTensorPrec != ov::element::i64) {
-            THROW_CPU_NODE_ERR("has unsupported 'axis' input precision: ", axisTensorPrec.get_type_name());
-        }
+        CPU_NODE_ASSERT(any_of(axisTensorPrec, ov::element::i32, ov::element::i64),
+                        "has unsupported 'axis' input precision: ",
+                        axisTensorPrec.get_type_name());
     }
 
     std::vector<PortConfigurator> inDataConf;
@@ -158,7 +169,8 @@ void CumSum::cumSum(const dataType* input, dataType* output, const VectorDims& s
     size_t work_amount_dst =
         std::accumulate(iterationRange.begin(), iterationRange.end(), static_cast<size_t>(1), std::multiplies<>());
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
+        size_t start = 0;
+        size_t end = 0;
         VectorDims counters(numOfDims - 1, 0);
         splitter(work_amount_dst, nthr, ithr, start, end);
 
@@ -236,8 +248,7 @@ inline void CumSum::parallelItStep(std::vector<size_t>& counters, const std::vec
     }
 }
 
-inline size_t CumSum::getStartOffset(const std::vector<size_t>& forStartOffset,
-                                     const std::vector<size_t>& strides) const {
+inline size_t CumSum::getStartOffset(const std::vector<size_t>& forStartOffset, const std::vector<size_t>& strides) {
     size_t startOffset = 0;
     for (size_t idx = 0; idx < forStartOffset.size(); ++idx) {
         startOffset += forStartOffset[idx] * strides[idx];
@@ -261,12 +272,12 @@ size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
         break;
     }
     default: {
-        THROW_CPU_NODE_ERR("doesn't support 'axis' input with precision: ", axisPrecision.get_type_name());
+        CPU_NODE_THROW("doesn't support 'axis' input with precision: ", axisPrecision.get_type_name());
     }
     }
-    if (axisValueFromBlob < -dataShapeSize || axisValueFromBlob > dataShapeSize - 1) {
-        THROW_CPU_NODE_ERR("has axis with a value out of range: ", axisValueFromBlob);
-    }
+    CPU_NODE_ASSERT(axisValueFromBlob >= -dataShapeSize && axisValueFromBlob <= dataShapeSize - 1,
+                    "has axis with a value out of range: ",
+                    axisValueFromBlob);
     return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
 }
 

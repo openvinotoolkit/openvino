@@ -16,10 +16,6 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
-};
-
 const std::vector<LayerTestsDefinitions::StridedSliceTransformationParam> params = {
     // channel slice, tensor quantization
     {
@@ -109,7 +105,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, StridedSliceTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::PartialShape({ 1, 3, 24, 24 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     StridedSliceTransformation::getTestCaseName);
 

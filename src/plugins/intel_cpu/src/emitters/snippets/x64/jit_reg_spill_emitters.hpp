@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
 #include "emitters/plugin/x64/jit_emitter.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
@@ -15,7 +24,7 @@ class jit_reg_spill_begin_emitter : public jit_emitter {
     friend jit_reg_spill_end_emitter;
 
 public:
-    jit_reg_spill_begin_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_reg_spill_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                 dnnl::impl::cpu::x64::cpu_isa_t isa,
                                 const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -40,7 +49,7 @@ protected:
 
 class jit_reg_spill_end_emitter : public jit_emitter {
 public:
-    jit_reg_spill_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_reg_spill_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                               dnnl::impl::cpu::x64::cpu_isa_t isa,
                               const ov::snippets::lowered::ExpressionPtr& expr);
 

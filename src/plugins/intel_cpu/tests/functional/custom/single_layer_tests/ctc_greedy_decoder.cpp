@@ -8,6 +8,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/ctc_greedy_decoder.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -30,18 +31,12 @@ class CTCGreedyDecoderLayerCPUTest : public testing::WithParamInterface<CTCGreed
                                      public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CTCGreedyDecoderLayerCPUTestParams>& obj) {
-        ElementType inType;
-        bool mergeRepeated;
-        InputShapeParams shapes;
-        std::tie(shapes, inType, mergeRepeated) = obj.param;
+        const auto& [shapes, inType, mergeRepeated] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
         for (const auto& shape : shapes.second) {
-            size_t T;
-            size_t N;
-            size_t C;
-            std::tie(T, N, C) = shape;
+            const auto& [T, N, C] = shape;
             results << "{" << T << "," << N << "," << C << "}"
                     << "_";
         }
@@ -54,10 +49,7 @@ public:
 
 protected:
     void SetUp() override {
-        ElementType inType;
-        bool mergeRepeated;
-        InputShapeParams shapes;
-        std::tie(shapes, inType, mergeRepeated) = GetParam();
+        const auto& [shapes, inType, mergeRepeated] = GetParam();
         selectedType = "ref_any_f32";
         targetDevice = ov::test::utils::DEVICE_CPU;
         // construct input shapes
@@ -68,10 +60,7 @@ protected:
         inputDynamicShapes = {ov::PartialShape{in_dyn_T, in_dyn_N, in_dyc_C}, ov::PartialShape{in_dyn_T, in_dyn_N}};
 
         for (const auto& shape : shapes.second) {
-            size_t T;
-            size_t N;
-            size_t C;
-            std::tie(T, N, C) = shape;
+            const auto& [T, N, C] = shape;
             targetStaticShapes.push_back({{T, N, C}, {T, N}});
         }
 

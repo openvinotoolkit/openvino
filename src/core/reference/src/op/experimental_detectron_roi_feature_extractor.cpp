@@ -275,8 +275,8 @@ void ROIAlignForward(const int64_t nthreads,
 
                     top_data[index] = output_val;
                 }  // for pw
-            }      // for ph
-        }          // for c
+            }  // for ph
+        }  // for c
     }
 }
 }  // namespace

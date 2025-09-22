@@ -44,13 +44,11 @@ class TestReshape(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_reshape_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_legacy_frontend):
+    def test_reshape_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' and params['target_shape'] == []:
             pytest.skip("timeout issue on GPU")
         self._test(*self.create_reshape_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexReshape(CommonTFLayerTest):
@@ -90,9 +88,7 @@ class TestComplexReshape(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_reshape(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_legacy_frontend):
+    def test_complex_reshape(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(
             *self.create_complex_transpose_net(**params),
-            ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend)
+            ie_device, precision, ir_version, temp_dir=temp_dir)

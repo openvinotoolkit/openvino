@@ -3,7 +3,7 @@
 //
 
 // clang-format off
-#include "openvino/op/ops.hpp"
+#include "openvino/op/matrix_nms.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 // clang-format on
 

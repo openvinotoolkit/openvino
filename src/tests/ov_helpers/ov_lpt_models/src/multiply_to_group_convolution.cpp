@@ -6,6 +6,8 @@
 
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/max_pool.hpp"
 
 namespace ov {
 namespace builder {

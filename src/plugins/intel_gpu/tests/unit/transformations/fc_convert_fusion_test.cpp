@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, FullyConnectedConvertFusionTest1) {
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights_const, no_bias, scale_const, zp_const);
         auto convert = std::make_shared<ov::op::v0::Convert>(fc_compressed, ov::element::f32);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{convert}, ov::ParameterVector{input});
         manager.register_pass<FullyConnectedConvertFusion>();
     }
     {
@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, FullyConnectedConvertFusionTest1) {
         auto zp_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights_const, no_bias, scale_const, zp_const, ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ fc_compressed }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
     }
 }
 
@@ -57,7 +57,7 @@ TEST_F(TransformationTestsF, FullyConnectedConvertFusionTest2) {
         auto matmul = std::make_shared<op::FullyConnected>(input1, input2, no_bias);
         auto convert = std::make_shared<ov::op::v0::Convert>(matmul, ov::element::f32);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{convert}, ov::ParameterVector{input1});
         manager.register_pass<FullyConnectedConvertFusion>();
     }
     {
@@ -66,6 +66,6 @@ TEST_F(TransformationTestsF, FullyConnectedConvertFusionTest2) {
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto matmul = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }

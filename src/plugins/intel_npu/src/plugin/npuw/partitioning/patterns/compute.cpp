@@ -186,18 +186,18 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
             if (fake_convert_iter != node_to_output.end()) {
                 auto matched_fake_convert = fake_convert_iter->second.get_node_shared_ptr();
                 node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
-            }
 
-            auto transpose_iter = node_to_output.find(transpose);
-            if (transpose_iter != node_to_output.end()) {
-                auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
-                node_to_gptr->at(matched_transpose)->isolate(isol_tag);
-            }
+                auto transpose_iter = node_to_output.find(transpose);
+                if (transpose_iter != node_to_output.end()) {
+                    auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
+                    node_to_gptr->at(matched_transpose)->isolate(isol_tag);
+                }
 
-            auto reshape_iter = node_to_output.find(reshape);
-            if (reshape_iter != node_to_output.end()) {
-                auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
-                node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+                auto reshape_iter = node_to_output.find(reshape);
+                if (reshape_iter != node_to_output.end()) {
+                    auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
+                    node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+                }
             }
         }
 
@@ -261,18 +261,18 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
             if (fake_convert_iter != node_to_output.end()) {
                 auto matched_fake_convert = fake_convert_iter->second.get_node_shared_ptr();
                 node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
-            }
 
-            auto transpose_iter = node_to_output.find(transpose);
-            if (transpose_iter != node_to_output.end()) {
-                auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
-                node_to_gptr->at(matched_transpose)->isolate(isol_tag);
-            }
+                auto transpose_iter = node_to_output.find(transpose);
+                if (transpose_iter != node_to_output.end()) {
+                    auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
+                    node_to_gptr->at(matched_transpose)->isolate(isol_tag);
+                }
 
-            auto reshape_iter = node_to_output.find(reshape);
-            if (reshape_iter != node_to_output.end()) {
-                auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
-                node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+                auto reshape_iter = node_to_output.find(reshape);
+                if (reshape_iter != node_to_output.end()) {
+                    auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
+                    node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+                }
             }
         }
 
@@ -459,6 +459,72 @@ RMSNorm2::RMSNorm2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, 
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(multiply, "TagRMSNorm2"), std::move(callback));
+}
+
+RMSNorm3::RMSNorm3(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto hadd = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), opp::any_input()});
+    auto power = opp::wrap_type<ov::op::v1::Power>({hadd, opp::any_input()});
+    auto reduce = opp::wrap_type<ov::op::v1::ReduceMean>({power, opp::any_input()});
+    auto cadd = opp::wrap_type<ov::op::v1::Add>({reduce, opp::any_input()});
+    auto sqrt = opp::wrap_type<ov::op::v0::Sqrt>({cadd});
+    auto div = opp::wrap_type<ov::op::v1::Divide>({hadd, sqrt});
+    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({div, opp::any_input()});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_hadd = node_to_output.at(hadd).get_node_shared_ptr();
+        auto matched_power = node_to_output.at(power).get_node_shared_ptr();
+        auto matched_reduce = node_to_output.at(reduce).get_node_shared_ptr();
+        auto matched_cadd = node_to_output.at(cadd).get_node_shared_ptr();
+        auto matched_sqrt = node_to_output.at(sqrt).get_node_shared_ptr();
+        auto matched_div = node_to_output.at(div).get_node_shared_ptr();
+        auto matched_multiply = node_to_output.at(multiply).get_node_shared_ptr();
+
+        node_to_gptr->at(matched_hadd)->isolate(isol_tag);
+        node_to_gptr->at(matched_power)->isolate(isol_tag);
+        node_to_gptr->at(matched_reduce)->isolate(isol_tag);
+        node_to_gptr->at(matched_cadd)->isolate(isol_tag);
+        node_to_gptr->at(matched_sqrt)->isolate(isol_tag);
+        node_to_gptr->at(matched_div)->isolate(isol_tag);
+        node_to_gptr->at(matched_multiply)->isolate(isol_tag);
+
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(multiply, "TagRMSNorm3"), std::move(callback));
+}
+
+RMSNorm4::RMSNorm4(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto power = opp::wrap_type<ov::op::v1::Power>({opp::any_input(), opp::any_input()});
+    auto reduce = opp::wrap_type<ov::op::v1::ReduceMean>({power, opp::any_input()});
+    auto cadd = opp::wrap_type<ov::op::v1::Add>({reduce, opp::any_input()});
+    auto sqrt = opp::wrap_type<ov::op::v0::Sqrt>({cadd});
+    auto div = opp::wrap_type<ov::op::v1::Divide>({opp::any_input(), sqrt});
+
+    auto node_to_gptr = snapshot->getNodeToGroupMap();
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_power = node_to_output.at(power).get_node_shared_ptr();
+        auto matched_reduce = node_to_output.at(reduce).get_node_shared_ptr();
+        auto matched_cadd = node_to_output.at(cadd).get_node_shared_ptr();
+        auto matched_sqrt = node_to_output.at(sqrt).get_node_shared_ptr();
+        auto matched_div = node_to_output.at(div).get_node_shared_ptr();
+
+        node_to_gptr->at(matched_power)->isolate(isol_tag);
+        node_to_gptr->at(matched_reduce)->isolate(isol_tag);
+        node_to_gptr->at(matched_cadd)->isolate(isol_tag);
+        node_to_gptr->at(matched_sqrt)->isolate(isol_tag);
+        node_to_gptr->at(matched_div)->isolate(isol_tag);
+
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(div, "TagRMSNorm4"), std::move(callback));
 }
 
 // TODO: visualize

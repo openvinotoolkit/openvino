@@ -4,7 +4,12 @@
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"

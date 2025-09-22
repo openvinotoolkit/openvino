@@ -199,7 +199,7 @@ struct OVMockAllocator {
         return impl->allocate(b, a);
     }
 
-    void deallocate(void* ptr, size_t b, size_t a) {
+    void deallocate(void* ptr, size_t b, size_t a) noexcept {
         impl->deallocate(ptr, b, a);
     }
     bool is_equal(const OVMockAllocator& other) const {
@@ -435,6 +435,13 @@ TEST_F(OVTensorTest, canSetShape) {
         ASSERT_EQ(origShape, t.get_shape());
         ASSERT_EQ(orig_data, t.data());
     }
+
+    // set shape bigger than maximum allocation size
+    {
+        constexpr auto max_dim = std::numeric_limits<size_t>::max();
+        OV_EXPECT_THROW(t.set_shape(Shape({max_dim, 2})), ov::Exception, _);
+        OV_EXPECT_THROW(t.set_shape(Shape({3, max_dim / 8})), ov::Exception, _);
+    }
 }
 
 TEST_F(OVTensorTest, canSetShapeStringTensor) {
@@ -464,6 +471,12 @@ TEST_F(OVTensorTest, canSetShapeStringTensor) {
         OV_ASSERT_NO_THROW(t.set_shape(origShape));
         ASSERT_EQ(origShape, t.get_shape());
         ASSERT_EQ(orig_data, t.data());
+    }
+
+    // set shape bigger than maximum allocation size
+    {
+        constexpr auto max_dim = std::numeric_limits<size_t>::max();
+        OV_EXPECT_THROW(t.set_shape(Shape({3, max_dim / 80})), ov::Exception, _);
     }
 }
 
@@ -931,6 +944,15 @@ TEST_F(OVTensorTest, createReadOnlyViewFromNullptr) {
     OV_EXPECT_THROW(Tensor(ov::element::i32, ov::Shape{10}, static_cast<const void*>(nullptr)), ov::Exception, _);
 }
 
+TEST_F(OVTensorTest, createAllocationOverflow) {
+    OV_EXPECT_THROW(Tensor(element::i32, Shape{std::numeric_limits<size_t>::max()}),
+                    Exception,
+                    HasSubstr("Cannot allocate memory"));
+    OV_EXPECT_THROW(Tensor(element::i32, Shape{std::numeric_limits<size_t>::max(), 2}),
+                    Exception,
+                    HasSubstr("Cannot allocate memory"));
+}
+
 struct TestParams {
     ov::Shape src_shape;
     ov::Strides src_strides;
@@ -1085,9 +1107,7 @@ void compare_tensors(const ov::Tensor& src, const ov::Tensor& dst) {
 }  // namespace
 
 TEST_P(OVTensorTestCopy, copy_to) {
-    ov::element::Type type;
-    TestParams p;
-    std::tie(type, p) = GetParam();
+    const auto& [type, p] = GetParam();
     // Source tensors
     ov::Tensor full_src_tensor;
     ov::Tensor src_tensor;

@@ -4,7 +4,7 @@
 
 #include "low_precision/align_quantization_intervals.hpp"
 #include <memory>
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "low_precision/create_attribute.hpp"
 #include "low_precision/propagate_through_precision_preserved.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"

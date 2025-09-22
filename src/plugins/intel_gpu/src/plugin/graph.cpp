@@ -92,10 +92,12 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
     IstreamAttributeVisitor<cldnn::BinaryInputBuffer> visitor(ib);
     m_config.visit_attributes(visitor);
     m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
+    m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});
     m_config.finalize(context.get(), nullptr);
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
-    imported_prog->load(ib);
+    // Not passing MODEL_PTR through m_config because values in m_config are immutable after config finalization.
+    imported_prog->load(ib, config.get_model(), config.get_weightless_attr());
     build(imported_prog);
 }
 
@@ -243,6 +245,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "fully_connected", "FullyConnected" },
                 { "gather", "Gather" },
                 { "gemm", "Gemm" },
+                { "gru_seq", "GRU_Seq" },
                 { "input_layout", "Input" },
                 { "lrn", "LRN" },
                 { "lstm_cell", "LSTM_Cell" },

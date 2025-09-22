@@ -6,14 +6,19 @@
 
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <cassert>
 #include <common/primitive_attr.hpp>
-#include <common/primitive_desc_iface.hpp>
-#include <common/primitive_iface.hpp>
+#include <common/primitive_hashing_utils.hpp>
+#include <common/utils.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <utility>
+#include <vector>
 
+#include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -23,13 +28,18 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -110,8 +120,8 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
 
 DnnlMemoryDescPtr DnnlFCPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                                   [[maybe_unused]] const DnnlMemoryDescPtr& dstDesc,
-                                                                  bool weightsNonTransposed) {
-    if (!weightsNonTransposed) {
+                                                                  const FCAttrs& attrs) {
+    if (!attrs.weightsNonTransposed) {
         return srcDesc;
     }
 
@@ -128,7 +138,7 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
                                                   const ov::element::Type weightsType,
                                                   const ov::intel_cpu::Config::ModelType modelType) {
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        if (one_of(inputType, f32, bf16) && one_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1)) {
+        if (any_of(inputType, f32, bf16) && any_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1)) {
             return true;
         }
 
@@ -136,7 +146,7 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
             // f16c kernel saves memory footprint with additional decompression computational overhead
             // which is only meaningful on LLM with small batch-size.
             // TODO: fall-back to use f32 weights on large batch-size
-            if (inputType == f32 && one_of(weightsType, f16, bf16)) {
+            if (inputType == f32 && any_of(weightsType, f16, bf16)) {
                 return true;
             }
         }
@@ -166,11 +176,11 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     // For dynamic quantization, VNNI accumulation requires weight to be unsigned.
     // To support dynamic quantization with weights symmetrically quantized as i8/i4
     // w/o zero-point, we will transform weight to u8/u4 weight with zp 128/8.
-    if (!one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4) &&
-        !((one_of(weightsDesc->getPrecision(), ov::element::i8, ov::element::i4) && !zpPtr))) {
+    if (none_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4) &&
+        !((any_of(weightsDesc->getPrecision(), ov::element::i8, ov::element::i4) && !zpPtr))) {
         return false;
     }
-    if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::dynamic)) {
+    if (zpPtr && none_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::dynamic)) {
         return false;
     }
 
@@ -181,11 +191,16 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 
     MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
     int ic = weightsDesc->getShape().getStaticDims()[1];
+
+    if (ic < static_cast<int>(simdWidth)) {
+        return false;
+    }
+
     if (scalesPtr && scalesPtr->getShape().getRank() != 1) {
         auto scalesDims = scalesPtr->getShape().getStaticDims();
         auto groupsNum = scalesDims[1];
         size_t groupSize = ic / groupsNum;
-        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+        if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;
         }
     }
@@ -194,7 +209,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         auto zpDims = zpPtr->getShape().getStaticDims();
         int groupsNum = zpDims[1];
         size_t groupSize = ic / groupsNum;
-        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+        if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;
         }
     }
@@ -203,7 +218,6 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 }
 
 static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
-                                               const PostOps& postOps,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context,
                                                bool useDynamicQuantization) {
@@ -215,10 +229,10 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
     const auto& dims = reshapeDownToRank<2>(originalDims);
 
     auto isINT8 =
-        one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
+        any_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
-    DnnlPostOpsComposer dnnlpoc(postOps,
+    DnnlPostOpsComposer dnnlpoc(attrs.postOps,
                                 context->getEngine(),
                                 dims,
                                 dims.size() - 1,
@@ -227,30 +241,26 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                 memory,
                                 outputDataType,
                                 {},
-                                false,
+                                PostOpsMode::Original,
                                 false);
 
-    if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
-        auto dstPrc = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getPrecision();
+    if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
+        auto dstPrc = it->second->getPrecision();
         if (dstPrc != f8e8m0 || useDynamicQuantization) {
             dstPrc = ov::element::f32;
         }
 
-        dnnlpoc.appendDecompressionScalesLegacy(memory.at(ARG_WEI | ARG_ATTR_SCALES),
-                                                !attrs.weightsNonTransposed,
-                                                dstPrc);
+        dnnlpoc.appendDecompressionScalesLegacy(it->second, !attrs.weightsNonTransposed, dstPrc);
     }
 
-    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+    if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
-        dnnlpoc.appendDecompressionZeroPointsLegacy(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS),
-                                                    !attrs.weightsNonTransposed,
-                                                    dstPrc);
+        dnnlpoc.appendDecompressionZeroPointsLegacy(it->second, !attrs.weightsNonTransposed, dstPrc);
     }
 
     if (useDynamicQuantization) {
         auto wei_precision = weiDesc->getPrecision();
-        bool is_symmetric_weights = (wei_precision == ov::element::i8) || (wei_precision == ov::element::i4);
+        bool is_symmetric_weights = any_of(wei_precision, ov::element::i8, ov::element::i4);
         if (is_symmetric_weights) {
             // dynamic Quantization needs unsigned quantized weights, conversion from i8/i4 to u8/u4 by adding 128/8
             // introduces 128/8 as zero-points.
@@ -306,7 +316,7 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
                 wdt = memory::data_type::u4;
             }
         }
-    } else if (indt == dnnl::memory::data_type::u8 || indt == dnnl::memory::data_type::s8) {
+    } else if (any_of(indt, dnnl::memory::data_type::u8, dnnl::memory::data_type::s8)) {
         wdt = memory::data_type::s8;
     }
 
@@ -386,7 +396,6 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
 }
 
 DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs& attrs,
-                                                                  const PostOps& postOps,
                                                                   const MemoryArgs& memory,
                                                                   const ExecutorContext::CPtr& context,
                                                                   const bool cacheWeights) {
@@ -402,7 +411,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
         useWeightsDecompression &&
         useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc, memory);
 
-    const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
+    const auto postOpData = createPrimitiveAttrs(attrs, memory, context, useDynamicQuantization);
 
     if (!cacheWeights) {
         return std::make_shared<DnnlShapeAgnosticData>(postOpData);
@@ -437,7 +446,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
     const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
     auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
 
-    originalWeightsDesc = makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc, attrs.weightsNonTransposed);
+    originalWeightsDesc = makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc, attrs);
 
     // ignore the result since we just need to put the packed weights into the cache
     (void)utils::prepareWeightsMemory(originalWeightsDesc,

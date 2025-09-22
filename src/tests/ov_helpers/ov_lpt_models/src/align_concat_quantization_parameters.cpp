@@ -4,12 +4,15 @@
 
 #include "ov_lpt_models/align_concat_quantization_parameters.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include <ov_ops/type_relaxed.hpp>
 
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/max_pool.hpp"
 
 namespace ov {
 namespace builder {

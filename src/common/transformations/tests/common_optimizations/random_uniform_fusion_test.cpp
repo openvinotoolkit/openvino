@@ -11,7 +11,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/random_uniform.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
@@ -29,7 +33,7 @@ TEST_F(TransformationTestsF, RandomUniformMulFusing) {
         auto mul_const = opset8::Constant::create(element::f32, Shape{1, 1, 1}, {30.0});
         auto mul = std::make_shared<opset8::Multiply>(ru, mul_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         manager.register_pass<ov::pass::RandomUniformFusion>();
     }
@@ -40,7 +44,7 @@ TEST_F(TransformationTestsF, RandomUniformMulFusing) {
         auto max_const = opset8::Constant::create(element::f32, Shape{}, {30.0});
         auto ru = std::make_shared<opset8::RandomUniform>(input, min_const, max_const, element::f32, 100, 200);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{ru}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{ru}, ParameterVector{input});
     }
 }
 
@@ -54,7 +58,7 @@ TEST_F(TransformationTestsF, RandomUniformAddFusing) {
         auto add_const = opset8::Constant::create(element::f32, Shape{1, 1, 1, 1}, {-10.0});
         auto add = std::make_shared<opset8::Add>(ru, add_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{input});
 
         manager.register_pass<ov::pass::RandomUniformFusion>();
     }
@@ -65,7 +69,7 @@ TEST_F(TransformationTestsF, RandomUniformAddFusing) {
         auto ru_min_const = opset8::Constant::create(element::f32, Shape{}, {-10.0});
         auto ru = std::make_shared<opset8::RandomUniform>(input, ru_min_const, ru_max_const, element::f32, 100, 200);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{ru}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{ru}, ParameterVector{input});
     }
 }
 
@@ -80,7 +84,7 @@ TEST_F(TransformationTestsF, RandomUniformWithConvertMulFusing) {
         auto mul_const = opset8::Constant::create(element::f16, Shape{}, {30.0});
         auto mul = std::make_shared<opset8::Multiply>(conv, mul_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         manager.register_pass<ov::pass::RandomUniformFusion>();
     }
@@ -93,7 +97,7 @@ TEST_F(TransformationTestsF, RandomUniformWithConvertMulFusing) {
         auto ru = std::make_shared<opset8::RandomUniform>(input, min_const, max_const, element::f32, 100, 200);
         auto conv = std::make_shared<opset8::Convert>(ru, element::f16);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv}, ParameterVector{input});
     }
 }
 
@@ -108,7 +112,7 @@ TEST_F(TransformationTestsF, RandomUniformWithConvertAddFusing) {
         auto add_const = opset8::Constant::create(element::f16, Shape{}, {-10.0});
         auto add = std::make_shared<opset8::Add>(conv, add_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{input});
 
         manager.register_pass<ov::pass::RandomUniformFusion>();
     }
@@ -121,7 +125,7 @@ TEST_F(TransformationTestsF, RandomUniformWithConvertAddFusing) {
         auto ru = std::make_shared<opset8::RandomUniform>(input, ru_min_const, ru_max_const, element::f32, 100, 200);
         auto conv = std::make_shared<opset8::Convert>(ru, element::f16);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv}, ParameterVector{input});
     }
 }
 
@@ -135,7 +139,7 @@ TEST_F(TransformationTestsF, RandomUniformFusingInvalidRUType) {
         auto mul_const = opset8::Constant::create(element::i32, Shape{}, {30});
         auto mul = std::make_shared<opset8::Multiply>(ru, mul_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         manager.register_pass<ov::pass::RandomUniformFusion>();
     }
@@ -149,7 +153,7 @@ TEST_F(TransformationTestsF, RandomUniformFusingInvalidRUType) {
         auto mul_const = opset8::Constant::create(element::i32, Shape{}, {30});
         auto mul = std::make_shared<opset8::Multiply>(ru, mul_const);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
     }
 }
 
@@ -163,7 +167,7 @@ TEST_F(TransformationTestsF, RandomUniformFusingInvalidConstShape) {
         auto mul_const = opset8::Constant::create(element::f32, Shape{3}, {30, 20, 15});
         auto mul = std::make_shared<opset8::Multiply>(ru, mul_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         manager.register_pass<ov::pass::RandomUniformFusion>();
     }
@@ -177,6 +181,6 @@ TEST_F(TransformationTestsF, RandomUniformFusingInvalidConstShape) {
         auto mul_const = opset8::Constant::create(element::f32, Shape{3}, {30, 20, 15});
         auto mul = std::make_shared<opset8::Multiply>(ru, mul_const);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
     }
 }

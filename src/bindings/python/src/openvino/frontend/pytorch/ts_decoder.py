@@ -26,8 +26,15 @@ from openvino.frontend.pytorch.utils import (
 from openvino import opset11 as ops
 from openvino.frontend.pytorch import quantized, patch_model
 from openvino.frontend.pytorch.module_extension import ModuleExtension
+from openvino.frontend.pytorch.patch_functions import FunctionsPatcher
+
 
 log = logging.getLogger(__name__)
+
+
+# A marker for a special type of conversion extension that is inlined in Trampoline class
+class InlineConversionExtension:
+    pass
 
 
 class TorchScriptPythonDecoder(Decoder):
@@ -167,8 +174,9 @@ class TorchScriptPythonDecoder(Decoder):
                 if trace_kwargs is None:
                     trace_kwargs = {}
                 try:
-                    scripted = torch.jit.trace(
-                        pt_module, **input_parameters, strict=False, **trace_kwargs)
+                    with FunctionsPatcher():
+                        scripted = torch.jit.trace(
+                            pt_module, **input_parameters, strict=False, **trace_kwargs)
                 finally:
                     if patched:
                         quantized.unpatch_quantized(pt_module)
@@ -212,7 +220,7 @@ class TorchScriptPythonDecoder(Decoder):
         raw_input = self._raw_input(index)
         return self.get_shape_for_value(raw_input)
 
-    def get_input_strides(self, index: int) -> typing.List[int]:
+    def get_input_strides(self, index: int) -> list[int]:
         raw_input = self._raw_input(index)
         if isinstance(raw_input, torch.Value):
             inp_type = raw_input.type()
@@ -341,14 +349,17 @@ class TorchScriptPythonDecoder(Decoder):
         self.m_decoders.append(decoder)
         return decoder
 
-    def get_op_type(self) -> str:
+    def get_op_extension(self):
         assert isinstance(
             self.graph_element, torch.Node), "Function can be called only when self.graph_element is of type torch.Node"
         if self.graph_element.kind() == "prim::PythonOp" and callable(getattr(self.graph_element, "pyobj", None)):
             pyobj = self.graph_element.pyobj()
             trampoline = getattr(pyobj, "__self__", None)
-            target_extension = getattr(trampoline, "target_extension", None)
+            return trampoline, getattr(trampoline, "target_extension", None)
 
+    def get_op_type(self) -> str:
+        if op_extension := self.get_op_extension():
+            trampoline, target_extension = op_extension
             if isinstance(target_extension, ModuleExtension):
                 target_op = target_extension.target_op
                 if callable(target_op):
@@ -570,7 +581,7 @@ class TorchScriptPythonDecoder(Decoder):
 
     @staticmethod
     def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):
-        # Function replaces prim::Constant containing List of Tensors with
+        # Function replaces prim::Constant containing list of Tensors with
         # prim::ListConstruct containing prim::Constant Tensors.
         assert isinstance(
             graph, torch.Graph), "Function can be called only with parameters of type torch.Graph."
@@ -615,3 +626,24 @@ class TorchScriptPythonDecoder(Decoder):
             const_input.node().moveBefore(node)
             const_input.node().copyMetadata(node)
             node.output().replaceAllUsesWith(const_input)
+
+    def has_converter(self):
+        if op_extension := self.get_op_extension():
+            _, target_extension = op_extension
+            return isinstance(target_extension, InlineConversionExtension)
+        return False
+
+    def convert(self, node_context):
+        if op_extension := self.get_op_extension():
+            trampoline, target_extension = op_extension
+            assert isinstance(target_extension, InlineConversionExtension)
+            try:
+                return trampoline.convert(node_context)
+            except Exception as e:
+                log.error("Exception happened during calling of custom "
+                          "converter for PyTorch operation. PyTorch Script "
+                          "code: %s", self.graph_element, exc_info=e)
+                raise
+        raise AssertionError("PyTorch FrontEnd Internal Error: `converter` "
+                             "method of TorchScriptPythonDecoder is called "
+                             "for node that has no custom converter")

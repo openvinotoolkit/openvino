@@ -87,6 +87,15 @@ static constexpr ov::Property<bool> compiler_dynamic_quantization{"NPU_COMPILER_
 static constexpr ov::Property<bool> qdq_optimization{"NPU_QDQ_OPTIMIZATION"};
 
 /**
+ * @brief [Only for NPU compiler]
+ * Type: boolean
+ * This option enables additional optimizations to improve performance for QDQ format models, quantized using ONNX
+ * Runtime
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> qdq_optimization_aggressive{"NPU_QDQ_OPTIMIZATION_AGGRESSIVE"};
+
+/**
  * @brief [Only for NPU plugin]
  * Type: std::bool
  * Set turbo on or off. The turbo mode, where available, provides a hint to the system to maintain the
@@ -126,6 +135,15 @@ static constexpr ov::Property<bool> bypass_umd_caching{"NPU_BYPASS_UMD_CACHING"}
  * This option allows to delay loading the weights until inference is created
  */
 static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows running inferences in async mode sequentially in the order in which they are started to optimize
+ * host scheduling.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
 
 }  // namespace intel_npu
 }  // namespace ov

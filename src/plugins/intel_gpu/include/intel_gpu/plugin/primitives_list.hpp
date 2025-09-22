@@ -188,6 +188,7 @@ REGISTER_FACTORY(v4, CTCLoss);
 // REGISTER_FACTORY(v4, Range);
 
 // ------------------------------ Supported v5 ops ------------------------------ //
+REGISTER_FACTORY(v5, GRUSequence);
 REGISTER_FACTORY(v5, HSigmoid);
 REGISTER_FACTORY(v5, LogSoftmax);
 REGISTER_FACTORY(v5, LSTMSequence);
@@ -198,7 +199,6 @@ REGISTER_FACTORY(v5, Loop);
 
 // ----------------------------- Unsupported v5 ops ----------------------------- //
 // REGISTER_FACTORY(v5, BatchNormInference);
-// REGISTER_FACTORY(v5, GRUSequence);
 // REGISTER_FACTORY(v5, RNNSequence);
 
 // ------------------------------ Supported v6 ops ------------------------------ //
@@ -279,6 +279,12 @@ REGISTER_FACTORY(v15, SearchSorted);
 REGISTER_FACTORY(v15, STFT);
 REGISTER_FACTORY(v15, Col2Im);
 
+// ------------------------------ Supported v16 ops ----------------------------- //
+REGISTER_FACTORY(v16, ISTFT);
+REGISTER_FACTORY(v16, SparseFillEmptyRows);
+REGISTER_FACTORY(v16, AvgPool);
+REGISTER_FACTORY(v16, OneHot);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
 REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
@@ -302,3 +308,6 @@ REGISTER_FACTORY(internal, IndirectSDPA);
 REGISTER_FACTORY(internal, RoPE);
 REGISTER_FACTORY(internal, DynamicQuantize);
 REGISTER_FACTORY(internal, PagedAttentionExtension);
+REGISTER_FACTORY(internal, LoraSubgraph);
+REGISTER_FACTORY(internal, LoraSubgraphFused);
+REGISTER_FACTORY(internal, VLSDPA);

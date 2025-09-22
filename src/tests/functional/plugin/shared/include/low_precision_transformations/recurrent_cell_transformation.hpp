@@ -41,7 +41,6 @@ typedef std::tuple<
     std::vector<ov::PartialShape>,
     std::vector<ov::Shape>,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     bool, // use precision transparent operations
     RecurrentCellTransformationParam
 >RecurrentCellTransformationParams;
@@ -50,7 +49,7 @@ class RecurrentCellTransformation :
     public testing::WithParamInterface<RecurrentCellTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<RecurrentCellTransformationParams>& obj);
 
 protected:
     void SetUp() override;

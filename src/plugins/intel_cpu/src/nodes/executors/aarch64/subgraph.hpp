@@ -4,6 +4,13 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "cpu_memory.h"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "nodes/executors/subgraph.hpp"
 
 namespace ov::intel_cpu {
@@ -21,20 +28,26 @@ public:
 
 class SubgraphStaticExecutor : public SubgraphExecutor, public SubgraphStaticBaseExecutor {
 public:
-    template <typename T, typename... Args>
-    SubgraphStaticExecutor(T&& first, Args&&... rest)
-        : SubgraphExecutor(std::forward<T>(first), std::forward<Args>(rest)...),
-          SubgraphStaticBaseExecutor() {}
+    template <typename... Args>
+    SubgraphStaticExecutor(const std::shared_ptr<ov::intel_cpu::CPURuntimeConfig>& config,
+                           const std::set<size_t>& external_ptrs_idces,
+                           size_t in_num,
+                           Args&&... rest)
+        : SubgraphExecutor(config, std::forward<Args>(rest)...),
+          SubgraphStaticBaseExecutor(external_ptrs_idces, in_num) {}
 
     void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 };
 
 class SubgraphDynamicSpecializedExecutor : public SubgraphExecutor, public SubgraphDynamicSpecializedBaseExecutor {
 public:
-    template <typename T, typename... Args>
-    SubgraphDynamicSpecializedExecutor(T&& first, Args&&... rest)
-        : SubgraphExecutor(std::forward<T>(first), std::forward<Args>(rest)...),
-          SubgraphDynamicSpecializedBaseExecutor(std::forward<T>(first)) {}
+    template <typename... Args>
+    SubgraphDynamicSpecializedExecutor(const std::shared_ptr<ov::intel_cpu::CPURuntimeConfig>& config,
+                                       const std::set<size_t>& external_ptrs_idces,
+                                       size_t in_num,
+                                       Args&&... rest)
+        : SubgraphExecutor(config, std::forward<Args>(rest)...),
+          SubgraphDynamicSpecializedBaseExecutor(config, external_ptrs_idces, in_num) {}
 
     void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 };

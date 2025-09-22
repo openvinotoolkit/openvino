@@ -15,6 +15,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/concat.hpp"
 
 
 namespace {
@@ -29,12 +30,8 @@ class ConvStaticConcatDynamicGPUTestDynamic : public testing::WithParamInterface
                                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convStaticConcatDynamicGPUTestDynamicParamsSet>& obj) {
-        std::vector<InputShape> inputShape;
-        ov::element::Type model_type;
-        std::string targetDevice;
-
         convStaticConcatDynamicGPUTestDynamicParamsSet basicParamsSet = obj.param;
-        std::tie(inputShape, model_type, targetDevice) = basicParamsSet;
+        const auto& [inputShape, model_type, targetDevice] = basicParamsSet;
 
         std::ostringstream result;
         result << "IS_Dynamic=";
@@ -54,10 +51,9 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> inputShape;
-        ov::element::Type model_type;
         convStaticConcatDynamicGPUTestDynamicParamsSet basicParamsSet = this->GetParam();
-        std::tie(inputShape, model_type, targetDevice) = basicParamsSet;
+        const auto& [inputShape, model_type, _targetDevice] = basicParamsSet;
+        targetDevice = _targetDevice;
 
         init_input_shapes(inputShape);
 

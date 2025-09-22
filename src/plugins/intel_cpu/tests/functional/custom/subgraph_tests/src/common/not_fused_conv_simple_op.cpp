@@ -43,7 +43,7 @@ protected:
         const auto postOpCandidate = ov::test::utils::make_eltwise(conv, sharedNode, utils::EltwiseTypes::ADD);
         const auto secondConsumpt = ov::test::utils::make_eltwise(inputParams[1], sharedNode, utils::EltwiseTypes::ADD);
 
-        NodeVector results{postOpCandidate, secondConsumpt};
+        OutputVector results{postOpCandidate, secondConsumpt};
         function = std::make_shared<ov::Model>(results, inputParams, "NotFusedConvSimpleOp");
     }
 };

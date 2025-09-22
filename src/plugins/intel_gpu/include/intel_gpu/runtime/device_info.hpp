@@ -45,6 +45,44 @@ struct gfx_version {
         return std::tie(l.major, l.minor, l.revision)
                < std::tie(r.major, r.minor, r.revision); // same order
     }
+
+    friend bool operator >= (const gfx_version& l, const gfx_version& r)  {
+        return std::tie(l.major, l.minor, l.revision)
+               >= std::tie(r.major, r.minor, r.revision); // same order
+    }
+
+    friend bool operator <= (const gfx_version& l, const gfx_version& r)  {
+        return std::tie(l.major, l.minor, l.revision)
+               <= std::tie(r.major, r.minor, r.revision); // same order
+    }
+
+    bool operator==(const gfx_version& other) {
+        return major == other.major &&
+               minor == other.minor &&
+               revision == other.revision;
+    }
+
+    bool operator!=(const gfx_version& other) {
+        return !(*this == other);
+    }
+};
+
+struct pci_bus_info {
+    uint32_t pci_domain = 0;
+    uint32_t pci_bus = 0;
+    uint32_t pci_device = 0;
+    uint32_t pci_function = 0;
+
+    bool operator==(const pci_bus_info& other) {
+        return pci_domain == other.pci_domain &&
+               pci_bus == other.pci_bus &&
+               pci_device == other.pci_device &&
+               pci_function == other.pci_function;
+    }
+
+    bool operator!=(const pci_bus_info& other) {
+        return !(*this == other);
+    }
 };
 
 /// @brief Information about the device properties and capabilities.
@@ -72,6 +110,7 @@ struct device_info {
     bool supports_queue_families;               ///< Does engine support cl_intel_command_queue_families extension.
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
     bool supports_intel_planar_yuv;             ///< Does engine support cl_intel_planar_yuv extension.
+    bool supports_work_group_collective_functions; ///< Does engine support CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT.
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
@@ -96,6 +135,9 @@ struct device_info {
     uint32_t num_eus_per_sub_slice;             ///< Number of execution units per subslice
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
     uint32_t num_ccs;                           ///< Number of compute command streamers
+    uint32_t sub_device_idx;                    ///< Index of sub-device
+
+    pci_bus_info pci_info;                      ///< PCI bus information for the device
 
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device

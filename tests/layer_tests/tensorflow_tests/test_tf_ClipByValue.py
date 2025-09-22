@@ -42,9 +42,8 @@ class TestClipByValue(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_clip_by_value_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_legacy_frontend):
+    def test_clip_by_value_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(
             *self.create_clip_by_value_net(**params), ie_device,
-            precision, temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+            precision, temp_dir=temp_dir, ir_version=ir_version,
             **params)

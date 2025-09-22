@@ -53,10 +53,9 @@ class TestGRUBlockCell(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_gru_block_cell(self, batch_size, input_size, hidden_size,
-                            ie_device, precision, ir_version, temp_dir,
-                            use_legacy_frontend):
+                            ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("Skip TF GRUBlockCell test on GPU")
         self._test(*self.create_gru_block_cell(batch_size, input_size, hidden_size),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=1e-3)
+                   custom_eps=1e-3)

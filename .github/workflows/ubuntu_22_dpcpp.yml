@@ -1,8 +1,13 @@
 name: Linux (Ubuntu 22.04, Python 3.11, Intel DPC++ Compiler)
 on:
   workflow_dispatch:
-  pull_request:
-  merge_group:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+  # pull_request:
+  # merge_group:
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -45,20 +50,26 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    if: "!needs.smart_ci.outputs.skip_workflow"
     runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
         - /mount:/mount
     outputs:
-      images: "${{ steps.handle_docker.outputs.images }}"
+      images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
     steps:
+      - name: Set mock output images if pipeline should be skipped
+        if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
+        id: mock_image
+        run: echo "images={\"ov_build\":{\"ubuntu_22_04_x64_dpcpp\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         id: handle_docker
         with:
           images: |
@@ -69,10 +80,11 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_dpcpp }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_dpcpp }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'ubuntu_22_04_dpcpp'
@@ -80,6 +92,7 @@ jobs:
       build-debian-packages: false
       build-contrib: false
       build-rpm-packages: false
+      target-branch: ${{ inputs.target-branch }}
       cmake-options: >- 
             -G 'Ninja Multi-Config'
             -DENABLE_CPPLINT=OFF

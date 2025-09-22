@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <cstring>
 #include <numeric>
 #include <sstream>
@@ -58,7 +59,40 @@ std::string to_lower(const std::string& s);
 
 std::string to_upper(const std::string& s);
 
-size_t hash_combine(const std::vector<size_t>& list);
+inline size_t hash_combine(size_t val, const size_t seed) {
+    return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
+
+inline size_t hash_combine(const std::vector<size_t>& list) {
+    size_t seed = 0;
+    for (size_t v : list) {
+        seed ^= hash_combine(v, seed);
+    }
+    return seed;
+}
+
+inline size_t hash_combine(std::initializer_list<size_t>&& list) {
+    size_t seed = 0;
+    for (size_t v : list) {
+        seed ^= hash_combine(v, seed);
+    }
+    return seed;
+}
+
+constexpr uint64_t u64_hash_combine(uint64_t h, uint64_t k) {
+    // Hash combine formula from boost for uint64_t.
+    constexpr uint64_t m = 0xc6a4a7935bd1e995;
+    constexpr int r = 47;
+
+    k *= m;
+    k ^= k >> r;
+    k *= m;
+
+    h ^= k;
+    h *= m;
+
+    return h + 0xe6546b64;
+}
 
 /**
  * @brief trim from start (in place)
@@ -180,13 +214,90 @@ constexpr std::array<std::conditional_t<std::is_void_v<T>, std::common_type_t<Ar
     return {std::forward<Args>(args)...};
 }
 
-#if defined(_WIN32)
-bool may_i_use_dynamic_code();
+/**
+ * @brief A custom stream buffer that provides read-only access to a string view.
+ *
+ * This class inherits from `std::streambuf` and is designed to facilitate
+ * input operations directly on a `std::string_view` without copying the
+ * underlying string data. It allows for efficient reading and seeking
+ * operations within the string view.
+ *
+ * @note This stream buffer is intended for input operations only.
+ * @see pyopenvino/utils/utils.hpp for a similar implementation
+ */
+class StringViewStreamBuf : public std::streambuf {
+public:
+    explicit StringViewStreamBuf(std::string_view sv) {
+        char* begin = const_cast<char*>(sv.data());
+        setg(begin, begin, begin + sv.size());
+    }
+
+protected:
+    pos_type seekoff(off_type off,
+                     std::ios_base::seekdir dir,
+                     std::ios_base::openmode which = std::ios_base::in) override {
+        if (which != std::ios_base::in) {
+            return off_type(-1);
+        }
+
+        switch (dir) {
+        case std::ios_base::beg:
+            setg(eback(), eback() + off, egptr());
+            break;
+        case std::ios_base::end:
+            setg(eback(), egptr() + off, egptr());
+            break;
+        case std::ios_base::cur:
+            setg(eback(), gptr() + off, egptr());
+            break;
+        default:
+            return off_type(-1);
+        }
+        if (gptr() < eback() || gptr() > egptr())
+            return off_type(-1);
+
+        return gptr() - eback();
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(pos, std::ios_base::beg, which);
+    }
+};
+
+/**
+ * @brief Multiplies two integral values
+ *
+ * The result value is not valid if overflow detected.
+ *
+ * @param T       Type of values to multiply. Must be an integral type.
+ * @param x       First value to multiply.
+ * @param y       Second value to multiply.
+ * @param result  Reference to store result value.
+ * @return True if overflow occurs, false otherwise
+ */
+template <class T>
+constexpr bool mul_overflow(T x, T y, T& result) {
+    static_assert(std::is_integral_v<T>, "T must be an integral type");
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_mul_overflow(x, y, &result);
 #else
-constexpr bool may_i_use_dynamic_code() {
-    return true;
-}
+    constexpr auto max = std::numeric_limits<T>::max();
+
+    if constexpr (std::is_unsigned_v<T>) {
+        if (y > 0 && x > max / y) {
+            return true;
+        }
+    } else {
+        constexpr auto min = std::numeric_limits<T>::lowest();
+        if ((x > 0 && y > 0 && x > max / y) || (x > 0 && y < 0 && y < min / x) || (x < 0 && y > 0 && x < min / y) ||
+            (x < 0 && y < 0 && x < max / y)) {
+            return true;
+        }
+    }
+    result = x * y;
+    return false;
 #endif
+}
 
 }  // namespace util
 }  // namespace ov

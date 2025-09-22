@@ -12,10 +12,7 @@ namespace ov::intel_cpu {
 
 class ACLLowpFullyConnectedExecutor : public ACLCommonExecutor {
 public:
-    ACLLowpFullyConnectedExecutor(const FCAttrs& attrs,
-                                  const PostOps& postOps,
-                                  const MemoryArgs& memory,
-                                  const ExecutorContext::CPtr& context);
+    ACLLowpFullyConnectedExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
     static bool supports(const FCConfig& config);
 
@@ -36,7 +33,7 @@ protected:
 
 private:
     arm_compute::GEMMInfo gemmInfo;
-    arm_compute::WeightFormat expectedWeightFormat;
+    arm_compute::WeightFormat expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
     arm_compute::TensorInfo weiTensorInfo;
 
     MemoryCPtr packedWeights;

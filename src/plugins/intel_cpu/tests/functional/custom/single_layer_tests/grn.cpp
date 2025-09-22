@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/grn.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -20,15 +21,8 @@ class GRNLayerCPUTest : public testing::WithParamInterface<GRNCPUTestParams>,
                         virtual public SubgraphBaseTest,
                         public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GRNCPUTestParams> obj) {
-        ov::element::Type netPrecision;
-        ov::element::Type inPrc, outPrc;
-        InputShape inputShape;
-        float bias;
-        std::string targetDevice;
-
-        std::tie(netPrecision, inPrc, outPrc, inputShape, bias, targetDevice) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<GRNCPUTestParams>& obj) {
+        const auto& [netPrecision, inPrc, outPrc, inputShape, bias, targetDevice] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
@@ -46,13 +40,8 @@ public:
 
 protected:
     void SetUp() override {
-        ov::element::Type netPrecision;
-        ov::element::Type inPrc, outPrc;
-        InputShape inputShape;
-        float bias;
-
-        std::tie(netPrecision, inPrc, outPrc, inputShape, bias, targetDevice) = GetParam();
-
+        const auto& [netPrecision, inPrc, outPrc, inputShape, bias, _targetDevice] = GetParam();
+        targetDevice = _targetDevice;
         init_input_shapes({inputShape});
 
         ov::ParameterVector paramsIn;

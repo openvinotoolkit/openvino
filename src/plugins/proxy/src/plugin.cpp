@@ -16,6 +16,7 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
@@ -265,7 +266,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     }
     if (proxy_config_was_changed) {
         // need initialization of hidden devices
-        std::lock_guard<std::mutex> lock(m_init_devs_mutex);
+        std::lock_guard<std::shared_mutex> lock(m_init_devs_mutex);
         m_init_devs = false;
     }
 
@@ -493,6 +494,21 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
                                                       context);
 }
 
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(const ov::Tensor& model,
+                                                                    const ov::AnyMap& properties) const {
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(const ov::Tensor& model,
+                                                                    const ov::SoPtr<ov::IRemoteContext>& context,
+                                                                    const ov::AnyMap& properties) const {
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, context, properties);
+}
+
 std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
     std::vector<std::string> devices;
     const auto all_devices = get_hidden_devices();
@@ -536,10 +552,12 @@ std::vector<std::vector<std::string>> ov::proxy::Plugin::get_hidden_devices() co
     // Proxy plugin has 2 modes of matching devices:
     //  * Fallback - in this mode we report devices only for the first hidden plugin
     //  * Alias - Case when we group all devices under one common name
-    if (m_init_devs)
+    // Acquire a shared lock to allow concurrent reads of m_hidden_devices
+    if (std::shared_lock<std::shared_mutex> lock(m_init_devs_mutex); m_init_devs) {
         return m_hidden_devices;
+    }
 
-    std::lock_guard<std::mutex> lock(m_init_devs_mutex);
+    std::lock_guard<std::shared_mutex> lock(m_init_devs_mutex);
 
     if (m_init_devs)
         return m_hidden_devices;

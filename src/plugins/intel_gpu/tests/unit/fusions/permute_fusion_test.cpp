@@ -80,6 +80,14 @@ public:
         return layout{ p.permute_type, p.permute_format, p.in_shape, padding{} };
     }
 
+    layout get_dynamic_input_layout(permute_reorder_params& p) {
+        ov::PartialShape pshape = {};
+        for (size_t i = 0; i < p.permute_format.dimension(); i++) {
+            pshape.push_back(ov::Dimension::dynamic());
+        }
+        return layout{ pshape, p.permute_type, p.permute_format, padding{} };
+    }
+
     layout get_elt_input_layout(permute_reorder_params&p) {
         ov::Shape output_shape;
         auto input_shape = get_input_layout(p).get_dims();
@@ -506,9 +514,11 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv, ::t
 #define CASE_PERMUTE_REORDER_F32_0 { 1, 16, 32, 2 },   { 0, 2, 1, 3 },    { 0, 2, 1, 3 },    data_types::f32, data_types::f32, format::b_fs_yx_fsv16,  format::bfyx
 #define CASE_PERMUTE_REORDER_F32_1 { 2, 7, 9, 27 },  { 0, 2, 1, 3 },    { 0, 2, 1, 3 },    data_types::f32, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
 #define CASE_PERMUTE_REORDER_F32_2 { 1, 16, 4, 5, 16 }, { 0, 2, 3, 4, 1 }, { 0, 2, 3, 4, 1 }, data_types::f32, data_types::f32, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F32_3 { 1, 16, 32, 2 },   { 0, 2, 1, 3 },    { 0, 2, 1, 3 },    data_types::f32, data_types::f32,  format::bfyx, format::b_fs_yx_fsv16
 #define CASE_PERMUTE_REORDER_F16_0 { 1, 16, 2, 4 },     { 0, 2, 1, 3 },    { 0, 2, 1, 3 },    data_types::f16, data_types::f16, format::b_fs_yx_fsv16,  format::bfyx
 #define CASE_PERMUTE_REORDER_F16_1 { 1, 16, 4, 5, 16 }, { 0, 2, 1, 3, 4 }, { 0, 1, 2, 3, 4 }, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
 #define CASE_PERMUTE_REORDER_F16_2 { 1, 5, 1, 2, 14 },  { 0, 3, 2, 1, 4 }, { 0, 3, 2, 1, 4 }, data_types::f16, data_types::f16, format::b_fs_zyx_fsv16, format::bfzyx
+#define CASE_PERMUTE_REORDER_F16_3 { 1, 16, 2, 4 },     { 0, 2, 1, 3 },    { 0, 2, 1, 3 },    data_types::f16, data_types::f16,  format::bfyx, format::b_fs_yx_fsv16
 
 // type change
 #define CASE_PERMUTE_REORDER_S8_TO_F32_0 { 1, 15, 4, 5 },    { 0, 2, 1, 3 },    { 0, 2, 1, 3 },    data_types::i8, data_types::f32, format::b_fs_yx_fsv4,   format::bfyx
@@ -593,6 +603,28 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_redundant_reorder, ::testing::Valu
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_9, 3, 4 },
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_10, 3, 4 },
     permute_reorder_params{ CASE_PERMUTE_REORDER_TILED_F16_11, 3, 4 },
+}));
+
+class permute_redundant_reorder_dynamic : public PermuteReorderFusingTest {};
+TEST_P(permute_redundant_reorder_dynamic, basic) {
+    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_dynamic_input_layout(p)),
+        permute("permute1", input_info("input"), p.permute_order1),
+        reorder("reorder1", input_info("permute1"), p.output_format, p.output_type),    // to be fused
+        permute("permute2", input_info("reorder1"), p.permute_order2)                   // dummy last op to make reorder fused
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_redundant_reorder_dynamic, ::testing::ValuesIn(std::vector<permute_reorder_params>{
+    permute_reorder_params{ CASE_PERMUTE_REORDER_F32_3, 3, 4 },
+    permute_reorder_params{ CASE_PERMUTE_REORDER_F16_3, 3, 4 },
 }));
 
 class permute_act_reorder : public PermuteReorderFusingTest {};

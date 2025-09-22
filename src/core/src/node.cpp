@@ -168,10 +168,9 @@ void ov::Node::safe_delete(NodeVector& nodes, bool recurse) {
         if (input.has_output()) {
             // This test adds 1 to the actual count, so a count of 2 means this input is the only
             // reference to the node.
-            auto node = input.get_output().get_node();
-            if (node.use_count() == 2) {
+            if (auto node = input.get_output().get_node(); node.use_count() == 2) {
                 // Move the node from the input to nodes so we don't trigger a deep recursive delete
-                nodes.push_back(node);
+                nodes.push_back(std::move(node));
             }
             input.remove_output();
         }
@@ -551,14 +550,14 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
     // patterns
     // with sub-graph of descent nodes types.
     if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info())) {
-        OPENVINO_LOG_NODE2(matcher);
+        OPENVINO_LOG_NODE2(matcher, get_input_size());
         if (matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
             auto& pattern_map = matcher->get_pattern_value_map();
             pattern_map[shared_from_this()] = graph_value;
             OPENVINO_LOG_NODE3(matcher);
             return true;
         }
-        OPENVINO_LOG_NODE4(matcher);
+        OPENVINO_LOG_NODE4(matcher, get_input_size());
     } else {
         OPENVINO_LOG_NODE5(matcher, shared_from_this(), graph_value);
     }
@@ -728,8 +727,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         nodes.push_back(input.get_node_shared_ptr());
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
         void* data = (void*)constant->get_data_ptr();
-        auto tensor = ov::Tensor(input.get_element_type(), input.get_shape(), data);
-        input_tensors.push_back(tensor);
+        input_tensors.emplace_back(input.get_element_type(), input.get_shape(), data);
     }
 
     TensorVector output_tensors;
@@ -779,7 +777,7 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     auto id = original_id;
     visitor.on_attribute("ID", id);
     if (id != original_id) {
-        m_ref = visitor.get_registered_node(id);
+        m_ref = visitor.get_registered_node(std::move(id));
     }
     return true;
 }

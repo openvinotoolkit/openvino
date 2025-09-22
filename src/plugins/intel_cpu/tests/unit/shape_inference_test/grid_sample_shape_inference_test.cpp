@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "utils.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "grid_sample_shape_inference.hpp"
 
 using namespace ov;

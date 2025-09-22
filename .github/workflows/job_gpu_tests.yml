@@ -15,11 +15,16 @@ on:
         description: 'Runner labels by which the runner will be chosen. Example: [ "self-hosted", "igpu" ]'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Docker image in which the tests would run'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
+      options:
+        description: 'Docker options to use for the job'
+        type: string
+        required: false
+        default: ''
 
 permissions: read-all
 
@@ -27,7 +32,12 @@ jobs:
   GPU:
     timeout-minutes: 80
     runs-on: ${{ fromJSON(inputs.runner) }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /dev/dri:/dev/dri
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      options: ${{ inputs.options }}
     defaults:
       run:
         shell: bash
@@ -37,44 +47,33 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
     steps:
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+      - name: Download OpenVINO artifacts (package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          name: 'openvino_package'
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          name: 'openvino_tests'
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: |
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "GTEST_PARALLEL_SCRIPT=$GITHUB_WORKSPACE/gtest_parallel.py" >> "$GITHUB_ENV"
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Extract OpenVINO packages
         run: |
-          pushd $INSTALL_DIR
-            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          popd
-          pushd $INSTALL_TEST_DIR
-            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          popd
+            pigz -dc openvino_package.tar.gz | tar -xf - -v
+            pigz -dc openvino_tests.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Install dependencies (Linux)
         run: |
           $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-          
           apt-get update && apt-get install -y wget software-properties-common ca-certificates gpg-agent tzdata clinfo
         env:
           DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
           TZ: "Europe/London" # to prevent tzdata from waiting user input
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -131,7 +130,7 @@ jobs:
 
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: test-results-${{ inputs.test_type }}-${{ inputs.device }}

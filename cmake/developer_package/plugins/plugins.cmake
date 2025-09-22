@@ -103,10 +103,7 @@ function(ov_add_plugin)
         endforeach()
 
         if (OV_PLUGIN_ADD_CLANG_TIDY)
-            if (ENABLE_CLANG_TIDY)
-                set_target_properties(${OV_PLUGIN_NAME} PROPERTIES
-                    CXX_CLANG_TIDY "${CLANG_TIDY};--extra-arg=-Wno-unused-command-line-argument")
-            endif()
+            ov_apply_clang_tidy(TARGET ${OV_PLUGIN_NAME})
         endif()
 
         if (OV_PLUGIN_ADD_CLANG_FORMAT)

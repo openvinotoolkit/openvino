@@ -4,9 +4,16 @@
 
 #include "weights_cache.hpp"
 
+#include <atomic>
+#include <functional>
 #include <memory>
+#include <mutex>
+#include <string>
 #include <utility>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
 namespace ov::intel_cpu {
@@ -48,10 +55,7 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::findOrCreate(const std::string
                 return false;
             }
             newPtr = ptr->sharedMemory.lock();
-            if (!newPtr) {
-                return false;
-            }
-            return true;
+            return static_cast<bool>(newPtr);
         };
 
         if (!isCached()) {
@@ -74,17 +78,11 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::get(const std::string& key) co
         std::unique_lock<std::mutex> lock(guard);
         auto found = sharedWeights.find(key);
 
-        if (found == sharedWeights.end()) {
-            OPENVINO_THROW("Unknown shared memory with key ", key);
-        }
+        OPENVINO_ASSERT(found != sharedWeights.end(), "Unknown shared memory with key ", key);
         ptr = found->second;
-        if (!ptr) {
-            OPENVINO_THROW("Unknown shared memory with key ", key);
-        }
+        OPENVINO_ASSERT(ptr, "Unknown shared memory with key ", key);
         newPtr = ptr->sharedMemory.lock();
-        if (!newPtr) {
-            OPENVINO_THROW("Unknown shared memory with key ", key);
-        }
+        OPENVINO_ASSERT(newPtr, "Unknown shared memory with key ", key);
     }
     return std::make_shared<SharedMemory>(ptr->valid.load(std::memory_order_relaxed)
                                               ? std::unique_lock<std::mutex>(ptr->guard, std::defer_lock)
@@ -102,17 +100,13 @@ SocketsWeights::SocketsWeights() {
 
 WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) {
     auto found = _cache_map.find(socket_id);
-    if (found == _cache_map.end()) {
-        OPENVINO_THROW("Unknown socket id ", socket_id);
-    }
+    OPENVINO_ASSERT(found != _cache_map.end(), "Unknown socket id ", socket_id);
     return found->second;
 }
 
 const WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) const {
     auto found = _cache_map.find(socket_id);
-    if (found == _cache_map.end()) {
-        OPENVINO_THROW("Unknown socket id ", socket_id);
-    }
+    OPENVINO_ASSERT(found != _cache_map.end(), "Unknown socket id ", socket_id);
     return found->second;
 }
 

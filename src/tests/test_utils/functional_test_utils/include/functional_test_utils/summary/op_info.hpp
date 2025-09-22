@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/ops.hpp"
-#include "openvino/openvino.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace test {

@@ -5,6 +5,7 @@
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/cum_sum.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -29,7 +30,7 @@ namespace test {
 
 class NonInputInPlaceTest : public testing::WithParamInterface<ElementType>, virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ElementType> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ElementType>& obj) {
         std::ostringstream result;
         result << "NonInputInPlaceTest_inPrc=outPrc=" << obj.param;
         return result.str();

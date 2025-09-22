@@ -4,7 +4,23 @@
 
 #include "utils.hpp"
 
+#include <utils/general_utils.h>
+#include <xbyak/xbyak.h>
+
+#include <algorithm>
+#include <climits>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <set>
+#include <type_traits>
+#include <vector>
+
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu {
 
@@ -31,13 +47,12 @@ inline snippets::Reg Xbyak2SnippetsReg(const Xbyak::Reg& xb_reg) {
 }
 
 template <cpu_isa_t isa,
-          std::enable_if_t<dnnl::impl::utils::one_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core),
-                           bool> = true>
+          std::enable_if_t<any_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core), bool> = true>
 struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;
         auto push_if_live = [&live_regs, &regs_to_spill](Xbyak::Reg&& reg) {
-            if (live_regs.empty() || live_regs.count(Xbyak2SnippetsReg(reg))) {
+            if (live_regs.empty() || (live_regs.count(Xbyak2SnippetsReg(reg)) != 0U)) {
                 regs_to_spill.emplace_back(reg);
             }
         };
@@ -48,8 +63,8 @@ struct regs_to_spill {
             }
         }
 
-        for (int i = 0; i < cpu_isa_traits<isa>::n_vregs; ++i) {
-            push_if_live(typename cpu_isa_traits<isa>::Vmm(i));
+        for (int i = 0; i < cpu_isa_traits_t<isa>::n_vregs; ++i) {
+            push_if_live(typename cpu_isa_traits_t<isa>::Vmm(i));
         }
 
         const int num_k_mask = isa == cpu_isa_t::avx512_core ? 8 : 0;
@@ -103,27 +118,30 @@ size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,
     return aux_idx;
 }
 
-EmitABIRegSpills::EmitABIRegSpills(jit_generator* h_arg) : h(h_arg), isa(get_isa()) {}
+EmitABIRegSpills::EmitABIRegSpills(jit_generator_t* h_arg) : h(h_arg), isa(get_isa()) {}
 
 EmitABIRegSpills::~EmitABIRegSpills() {
     OPENVINO_ASSERT(spill_status, "postamble or preamble is missed");
     OPENVINO_ASSERT(rsp_status, "rsp_align or rsp_restore is missed");
 }
 
-void EmitABIRegSpills::preamble(const std::set<snippets::Reg>& live_regs) {
-    OPENVINO_ASSERT(spill_status, "Attempt to spill ABI registers twice in a row");
-    // all regs to spill according to ABI
-    m_regs_to_spill = get_regs_to_spill(isa, live_regs);
-    for (const auto& reg : m_regs_to_spill) {
+size_t EmitABIRegSpills::compute_memory_buffer_size(const std::vector<Xbyak::Reg>& regs) {
+    size_t needed_buffer_size = 0;
+    for (const auto& reg : regs) {
         const auto reg_bit_size = reg.getBit();
-        OPENVINO_ASSERT(reg_bit_size % 8 == 0, "Unexpected reg bit size");
-        m_bytes_to_spill += reg_bit_size / 8;
+        OPENVINO_ASSERT(reg_bit_size % CHAR_BIT == 0, "Unexpected reg bit size");
+        needed_buffer_size += reg_bit_size / CHAR_BIT;
     }
-    h->sub(h->rsp, m_bytes_to_spill);
-    uint32_t byte_stack_offset = 0;
-    for (const auto& reg : m_regs_to_spill) {
-        Xbyak::Address addr = h->ptr[h->rsp + byte_stack_offset];
-        byte_stack_offset += reg.getBit() / 8;
+    return needed_buffer_size;
+}
+
+void EmitABIRegSpills::store_regs_to_memory(dnnl::impl::cpu::x64::jit_generator_t* h,
+                                            const std::vector<Xbyak::Reg>& regs_to_store,
+                                            Xbyak::Reg memory_ptr_reg) {
+    uint32_t memory_ptr_offset = 0;
+    for (const auto& reg : regs_to_store) {
+        Xbyak::Address addr = h->ptr[memory_ptr_reg + memory_ptr_offset];
+        memory_ptr_offset += reg.getBit() / CHAR_BIT;
         switch (reg.getKind()) {
         case Xbyak::Reg::REG:
             h->mov(addr, reg);
@@ -144,17 +162,28 @@ void EmitABIRegSpills::preamble(const std::set<snippets::Reg>& live_regs) {
             OPENVINO_THROW("Unhandled Xbyak reg type in conversion");
         }
     }
+}
+
+void EmitABIRegSpills::preamble(const std::set<snippets::Reg>& live_regs) {
+    OPENVINO_ASSERT(spill_status, "Attempt to spill ABI registers twice in a row");
+    // all regs to spill according to ABI
+    m_regs_to_spill = get_regs_to_spill(isa, live_regs);
+    m_bytes_to_spill = compute_memory_buffer_size(m_regs_to_spill);
+    h->sub(h->rsp, m_bytes_to_spill);
+    store_regs_to_memory(h, m_regs_to_spill, h->rsp);
     // Update the status
     spill_status = false;
 }
 
-void EmitABIRegSpills::postamble() {
-    OPENVINO_ASSERT(!spill_status, "Attempt to restore ABI registers that were not spilled");
-    uint32_t byte_stack_offset = m_bytes_to_spill;
-    for (size_t i = m_regs_to_spill.size(); i > 0; i--) {
-        const auto& reg = m_regs_to_spill[i - 1];
-        byte_stack_offset -= reg.getBit() / 8;
-        Xbyak::Address addr = h->ptr[h->rsp + byte_stack_offset];
+void EmitABIRegSpills::load_regs_from_memory(dnnl::impl::cpu::x64::jit_generator_t* h,
+                                             const std::vector<Xbyak::Reg>& regs_to_load,
+                                             Xbyak::Reg memory_ptr_reg,
+                                             uint32_t memory_byte_size) {
+    uint32_t byte_stack_offset = memory_byte_size;
+    for (size_t i = regs_to_load.size(); i > 0; i--) {
+        const auto& reg = regs_to_load[i - 1];
+        byte_stack_offset -= reg.getBit() / CHAR_BIT;
+        Xbyak::Address addr = h->ptr[memory_ptr_reg + byte_stack_offset];
         switch (reg.getKind()) {
         case Xbyak::Reg::REG:
             h->mov(reg, addr);
@@ -175,8 +204,14 @@ void EmitABIRegSpills::postamble() {
             OPENVINO_THROW("Unhandled Xbyak reg type in conversion");
         }
     }
+}
+
+void EmitABIRegSpills::postamble() {
+    OPENVINO_ASSERT(!spill_status, "Attempt to restore ABI registers that were not spilled");
+    load_regs_from_memory(h, m_regs_to_spill, h->rsp, m_bytes_to_spill);
     h->add(h->rsp, m_bytes_to_spill);
     m_regs_to_spill.clear();
+    m_bytes_to_spill = 0;
     // Update the status
     spill_status = true;
 }

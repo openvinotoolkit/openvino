@@ -159,7 +159,8 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     }
 
     if ((ofmt == format::bs_fs_fsv8_bsv8 || ofmt == format::os_i_osv8__ai8 || ofmt == format::os_i_osv16__ai8 || ofmt == format::os_i_osv16 ||
-        ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
+        ofmt == format::bfzyx || ifmt == format::bfzyx || ifmt == format::bzyxf ||
+        ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
         ofmt == format::bs_fs_zyx_bsv16_fsv32 || ifmt == format::bs_fs_zyx_bsv16_fsv32 ||
         ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
@@ -185,6 +186,8 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
 #ifdef ENABLE_ONEDNN_FOR_GPU
         auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(desc->weights_reorder_params);
         if (onednn_weights_params && input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc)) {
+            auto shape_consistent = onednn::keep_weights_reorder_shape_consistent(input_layout, onednn_weights_params->_out_desc);
+            OPENVINO_ASSERT(shape_consistent, "[GPU] Input shape and output shape of weight reorder should be same.");
             onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(input_layout);
         }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -284,11 +287,13 @@ void reorder_inst::update_output_memory() {
     if (!dependencies().front().first->outputs_allocated())
         return;
 
+    GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
+                           << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
     if (static_cast<bool>(_outputs[0]) &&
-        _node->get_program().get_config().get_enable_memory_pool()) {
-        _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+        get_node().get_program().get_config().get_enable_memory_pool()) {
+        _network.get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
     }
 
     if (requires_reinterpret()) {

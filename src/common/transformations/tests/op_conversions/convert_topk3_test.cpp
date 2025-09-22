@@ -12,9 +12,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -109,6 +110,6 @@ TEST_F(TransformationTestsF, ConvertTopK3I64Output1) {
         auto convert = std::make_shared<opset2::Convert>(topk->output(1), element::i64);
 
         // due to the 'compare_functions' limitation we will check only one output
-        model_ref = std::make_shared<ov::Model>(NodeVector{convert}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{convert}, ParameterVector{input});
     }
 }

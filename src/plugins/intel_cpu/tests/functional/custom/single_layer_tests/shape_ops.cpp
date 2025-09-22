@@ -8,13 +8,17 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
 
-enum class shapeNodeType { Reshape, Squeeze, Unsqueeze, ReshapeWithNonZero };
+enum class shapeNodeType : uint8_t { Reshape, Squeeze, Unsqueeze, ReshapeWithNonZero };
 
 inline std::ostream& operator<<(std::ostream& os, shapeNodeType type) {
     switch (type) {
@@ -50,15 +54,8 @@ class ShapeOpsCPUTest : public testing::WithParamInterface<shapeOpsParams>,
                         virtual public SubgraphBaseTest,
                         public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<shapeOpsParams> obj) {
-        inputDescription inpDesc;
-        ov::test::utils::InputLayerType secondType;
-        shapeNodeType nodeType;
-        ov::element::Type prc;
-        bool specialZero;
-        element::Type_t tmpSecondInPrc;
-        std::tie(inpDesc, secondType, nodeType, prc, tmpSecondInPrc, specialZero) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<shapeOpsParams>& obj) {
+        const auto& [inpDesc, secondType, nodeType, prc, tmpSecondInPrc, specialZero] = obj.param;
         std::ostringstream result;
         result << nodeType << "_";
         result << "IS=";
@@ -134,14 +131,8 @@ protected:
     void SetUp() override {
         idx = 0;
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        inputDescription inpDesc;
-        ov::test::utils::InputLayerType secondType;
-        shapeNodeType nodeType;
-        ov::element::Type prc;
-        bool specialZero;
-        std::tie(inpDesc, secondType, nodeType, prc, secondInPrc, specialZero) = this->GetParam();
-
+        const auto& [inpDesc, secondType, nodeType, prc, _secondInPrc, specialZero] = this->GetParam();
+        secondInPrc = _secondInPrc;
         if (nodeType == shapeNodeType::ReshapeWithNonZero) {
             isWithNonZero = true;
             // the input of nonZero is FP32, but the output of nonZero is i32,

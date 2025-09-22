@@ -58,11 +58,9 @@ class TestSwitchMerge(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_merge_eliminating_several_cond_flows(self, params, cond_value, x_type, ie_device, precision, ir_version,
-                                                  temp_dir,
-                                                  use_legacy_frontend):
+                                                  temp_dir):
         self._test(*self.merge_eliminating_several_cond_flows_net(**params, cond_value=cond_value, x_type=x_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestSwitchMergeWithVariablePredicate(CommonTFLayerTest):
@@ -101,10 +99,6 @@ class TestSwitchMergeWithVariablePredicate(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_switch_merge_with_variable_predicate(self, x_shape, cond_shape, cond_value,
-                                                  ie_device, precision, ir_version, temp_dir,
-                                                  use_legacy_frontend):
-        if ie_device == 'GPU':
-            pytest.skip("156244: accuracy error on GPU")
+                                                  ie_device, precision, ir_version, temp_dir):
         self._test(*self.switch_merge_with_variable_predicate_net(x_shape, cond_shape, cond_value),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

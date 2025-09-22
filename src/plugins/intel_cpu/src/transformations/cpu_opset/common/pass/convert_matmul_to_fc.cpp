@@ -4,16 +4,41 @@
 
 #include "convert_matmul_to_fc.hpp"
 
-#include "itt.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <numeric>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/fully_connected.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);
@@ -51,7 +76,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto rank_b = shape_b.rank().get_length();
 
         // Transformation to FC is not supported for 1D inputs
-        if (rank_a == 1 || rank_b == 1) {
+        if (any_of(1, rank_a, rank_b)) {
             return false;
         }
 
@@ -71,7 +96,8 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         auto get_aligned_shapes =
             [shape_a, shape_b, rank_a, rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
-            ov::PartialShape shape_a_aligned(shape_a), shape_b_aligned(shape_b);
+            ov::PartialShape shape_a_aligned(shape_a);
+            ov::PartialShape shape_b_aligned(shape_b);
             size_t max_size = std::max(rank_a, rank_b);
             for (size_t i = 0, cnt = max_size - rank_a; i < cnt; ++i) {
                 shape_a_aligned.insert(shape_a_aligned.begin(), 1);
@@ -125,18 +151,16 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             return transpose;
         };
 
-        bool success = true;
-        ov::PartialShape shape_a_aligned, shape_b_aligned;
-        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes();
+        auto [success, shape_a_aligned, shape_b_aligned] = get_aligned_shapes();
         if (!success) {
             return false;
         }
 
-        auto aligned_a_rank = shape_a_aligned.rank(), aligned_b_rank = shape_b_aligned.rank();
-        if (aligned_a_rank.is_dynamic() || aligned_b_rank.is_dynamic() || aligned_a_rank.get_length() < 2 ||
-            aligned_b_rank.get_length() < 2) {
-            OPENVINO_THROW("MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
-        }
+        auto aligned_a_rank = shape_a_aligned.rank();
+        auto aligned_b_rank = shape_b_aligned.rank();
+        OPENVINO_ASSERT(aligned_a_rank.is_static() && aligned_b_rank.is_static() && aligned_a_rank.get_length() >= 2 &&
+                            aligned_b_rank.get_length() >= 2,
+                        "MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
 
         // Weights normalization
         if (!matmul->get_transpose_b()) {
@@ -148,7 +172,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
-        auto bias = std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0});
         new_ops.push_back(bias);
 
         auto fc = std::make_shared<ov::op::internal::FullyConnected>(fc_input_a,

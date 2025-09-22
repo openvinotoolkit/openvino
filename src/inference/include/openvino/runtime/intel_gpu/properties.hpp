@@ -33,6 +33,12 @@ namespace intel_gpu {
 static constexpr Property<uint64_t, PropertyMutability::RO> device_total_mem_size{"GPU_DEVICE_TOTAL_MEM_SIZE"};
 
 /**
+ * @brief Read-only property which defines max size of memory object allocation in bytes
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RO> device_max_alloc_mem_size{"GPU_DEVICE_MAX_ALLOC_MEM_SIZE"};
+
+/**
  * @brief Read-only property to get microarchitecture identifier in major.minor.revision format
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
@@ -125,6 +131,15 @@ static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SI
 static constexpr Property<bool> enable_sdpa_optimization{"GPU_ENABLE_SDPA_OPTIMIZATION"};
 
 /**
+ * @brief Turning on this key enables LoRA operation,
+ * otherwise the graph will remain in its original form with the decomposed LoRA subgraph.
+ * Enabling LoRA operation may provide performance improvements, but has stricter restrictions:
+ * LoRA rank must be less than or equal to 256 and divisible by 16.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> enable_lora_operation{"GPU_ENABLE_LORA_OPERATION"};
+
+/**
  * @brief Turning on this property enables kernels reuse between implementations, resulting in a lower memory footprint.
  * However, as a drawback, OpenCL set_arguments() call will be made more often, resulting in higher host pressure
  * and slower execution in some host-bottleneck cases.
@@ -132,6 +147,16 @@ static constexpr Property<bool> enable_sdpa_optimization{"GPU_ENABLE_SDPA_OPTIMI
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<bool> enable_kernels_reuse{"GPU_ENABLE_KERNELS_REUSE"};
+
+/**
+ * @brief This property defines maximum group size for dynamic quantization optimization
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * If dynamic_quantization_group_size is larger than this max value, dynamic quantization will be disabled.
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{
+    "GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
+
 }  // namespace hint
 
 /**

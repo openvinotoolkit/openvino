@@ -8,19 +8,15 @@
 #include <vector>
 
 #include "ov_lpt_models/reduce.hpp"
+#include "openvino/op/reduce_max.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string ReduceMaxTransformation::getTestCaseName(const testing::TestParamInfo<ReduceMaxTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ReduceMaxTransformationParam param;;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
+    auto [netPrecision, inputShape, device, param] = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" <<
            param.fakeQuantize << (param.keepDims ? "_keepDims_" : "") << "_reduce_axis_";
     for (const auto& elem : param.constantValues) {
         result << elem << "_";
@@ -30,11 +26,8 @@ std::string ReduceMaxTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void ReduceMaxTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ReduceMaxTransformationParam param;;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
+    auto [netPrecision, inputShape, device, param] = GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
@@ -56,7 +49,7 @@ void ReduceMaxTransformation::SetUp() {
 void ReduceMaxTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<4>(GetParam());
+    const auto params = std::get<3>(GetParam());
     const auto actualType = get_runtime_precision(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }

@@ -8,6 +8,7 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/ctc_greedy_decoder.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -24,11 +25,7 @@ class CTCGreedyDecoderLayerGPUTest
        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ctcGreedyDecoderParams>& obj) {
-        ov::element::Type model_type;
-        InputShape input_shape;
-        std::string targetDevice;
-        bool merge_repeated;
-        std::tie(model_type, input_shape, merge_repeated, targetDevice) = obj.param;
+        const auto& [model_type, input_shape, merge_repeated, targetDevice] = obj.param;
 
         std::ostringstream result;
         const char separator = '_';
@@ -47,10 +44,8 @@ public:
     }
 protected:
     void SetUp() override {
-        ov::element::Type model_type;
-        InputShape input_shape;
-        bool merge_repeated;
-        std::tie(model_type, input_shape, merge_repeated, targetDevice) = GetParam();
+        const auto& [model_type, input_shape, merge_repeated, _targetDevice] = GetParam();
+        targetDevice = _targetDevice;
         inputDynamicShapes = {input_shape.first, {}};
         for (size_t i = 0; i < input_shape.second.size(); ++i) {
             targetStaticShapes.push_back({input_shape.second[i], {}});

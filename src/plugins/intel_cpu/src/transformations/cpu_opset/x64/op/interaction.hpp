@@ -4,7 +4,13 @@
 
 #pragma once
 
+#include <memory>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov::intel_cpu {
@@ -15,9 +21,9 @@ public:
 
     InteractionNode() = default;
 
-    InteractionNode(const OutputVector& args);
+    explicit InteractionNode(const OutputVector& args);
 
-    InteractionNode(const NodeVector& args);
+    explicit InteractionNode(const NodeVector& args);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 

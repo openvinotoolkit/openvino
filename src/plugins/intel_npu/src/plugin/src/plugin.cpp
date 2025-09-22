@@ -15,11 +15,12 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "metadata.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/serialization.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -34,11 +35,14 @@ namespace {
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
+constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
+constexpr std::string_view XML_EXTENSION = ".xml";
+constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
  * @details Using an "ov::Model" object to create the "CompiledModel" is the preferred way of using the OV API.
- * This path allows making use of the already written funtions/attributes for handling the I/O infromation.
+ * This path allows making use of the already written functions/attributes for handling the I/O information.
  *
  * Note that a stored compiled model does not hold the original IR model within it. The only related information
  * which may be extracted is the original model's "parameter"/"result" nodes. Thus, we need to build a dummy model
@@ -51,10 +55,11 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
                                               const std::vector<IODescriptor>& outputDescriptors) {
     ov::ParameterVector parameters;
-    ov::NodeVector results;
+    ov::ResultVector results;
 
     for (const IODescriptor& inputDescriptor : inputDescriptors) {
-        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
+        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
+            inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
             continue;
         }
 
@@ -73,7 +78,8 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
     for (const IODescriptor& outputDescriptor : outputDescriptors) {
-        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor) {
+        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
+            outputDescriptor.isInitOutputWeights) {
             continue;
         }
 
@@ -86,40 +92,12 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
                                                           : outputDescriptor.shapeFromCompiler,
             outputDescriptor.outputTensorNames);
 
-        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
+        auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-        results.push_back(std::move(result));
     }
 
     return std::make_shared<ov::Model>(results, parameters);
-}
-
-/**
- * @brief Setting batching mode
- * @details  In the case of older drivers, we force batching to compiler mode since it is not
- * supported. Othwersie set it tu AUTO if this wasn't set by the user
- * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
- * @param config A configuration map.
- */
-void set_batch_config(bool isBatchingSupported, FilteredConfig& config) {
-    if (!isBatchingSupported) {
-        if (config.has<BATCH_MODE>()) {
-            if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
-                OPENVINO_THROW("Batching on plugin is not supported with this driver version");
-            }
-        }
-
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::COMPILER;
-        config.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    }
-
-    if (!config.has<BATCH_MODE>()) {
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::AUTO;
-        config.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    }
 }
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
@@ -144,7 +122,7 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
     }
 }
 
-static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig base_conf, const ov::AnyMap& local_conf) {
+static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
     // first look if provided config changes compiler type
     auto it = local_conf.find(std::string(COMPILER_TYPE::key()));
     if (it != local_conf.end()) {
@@ -153,6 +131,59 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig base
     }
     // if there is no compiler_type provided = use base_config value
     return base_conf.get<COMPILER_TYPE>();
+}
+
+/**
+ * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
+ * thrown. The weights separation flow in its current state cannot work without this attribuite.
+ */
+void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
+    for (const auto& ov_node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(ov_node)) {
+            continue;
+        }
+
+        if (auto it = ov_node->get_rt_info().find(ov::WeightlessCacheAttribute::get_type_info_static());
+            it != ov_node->get_rt_info().end()) {
+            return;
+        }
+    }
+
+    OPENVINO_THROW("No \"WeightlessCacheAttribute\" has been found in any of the model's Constant nodes. This "
+                   "attribute is required for running the \"weights separation\" flow.");
+}
+
+std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
+                                                      ov::AnyMap& properties,
+                                                      std::shared_ptr<const ov::IPlugin> pluginSO) {
+    // If was exported via NPUW
+    auto stream_start_pos = stream.tellg();
+    ov::npuw::s11n::IndicatorType serialization_indicator;
+    ov::npuw::s11n::read(stream, serialization_indicator);
+    if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+        ov::npuw::s11n::IndicatorType compiled_model_indicator;
+        ov::npuw::s11n::read(stream, compiled_model_indicator);
+        stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+
+        if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+            // Properties are required for ov::weights_path
+            return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
+        } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+            // Properties are required for ov::weights_path
+            return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
+        } else {
+            OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+        }
+    }
+    stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+
+    // Drop NPUW properties if there are any
+    for (auto it = properties.begin(); it != properties.end(); ++it) {
+        if (it->first.find("NPUW") != it->first.npos) {
+            properties.erase(it->first);
+        }
+    }
+    return nullptr;
 }
 
 }  // namespace
@@ -203,11 +234,13 @@ void Plugin::init_options() {
         auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
         std::string o_name = dummyopt.key().data();           \
         _options->add<OPT_TYPE>();                            \
-        _globalConfig.enable(o_name, false);                  \
+        _globalConfig.enable(std::move(o_name), false);       \
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
     REGISTER_OPTION(CACHE_DIR);
+    REGISTER_OPTION(CACHE_MODE);
+    REGISTER_OPTION(COMPILED_BLOB);
     REGISTER_OPTION(DEVICE_ID);
     REGISTER_OPTION(NUM_STREAMS);
     REGISTER_OPTION(PERF_COUNT);
@@ -223,7 +256,6 @@ void Plugin::init_options() {
     REGISTER_OPTION(COMPILATION_MODE_PARAMS);
     REGISTER_OPTION(DMA_ENGINES);
     REGISTER_OPTION(TILES);
-    REGISTER_OPTION(DPU_GROUPS);
     REGISTER_OPTION(COMPILATION_MODE);
     REGISTER_OPTION(COMPILER_TYPE);
     REGISTER_OPTION(PLATFORM);
@@ -238,26 +270,80 @@ void Plugin::init_options() {
     REGISTER_OPTION(RUN_INFERENCES_SEQUENTIALLY);
     REGISTER_OPTION(COMPILER_DYNAMIC_QUANTIZATION);
     REGISTER_OPTION(QDQ_OPTIMIZATION);
+    REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
     REGISTER_OPTION(STEPPING);
     REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(MODEL_PTR);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
+    REGISTER_OPTION(TURBO);
+    REGISTER_OPTION(WEIGHTLESS_BLOB);
+    REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
+    REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
+
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
-            REGISTER_OPTION(TURBO);
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
-    }
-
-    filter_config_by_compiler_support(_globalConfig);
-
-    if (_backend) {
+        // register backend options
         _backend->registerOptions(*_options);
     }
 
     // parse again env_variables to update registered configs which have env vars set
     _globalConfig.parseEnvVars();
+
+    // filter out unsupported options
+    filter_config_by_compiler_support(_globalConfig);
+
+    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
+    // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
+    REGISTER_OPTION(NPU_USE_NPUW);
+    REGISTER_OPTION(NPUW_DEVICES);
+    REGISTER_OPTION(NPUW_SUBMODEL_DEVICE);
+    REGISTER_OPTION(NPUW_WEIGHTS_BANK);
+    REGISTER_OPTION(NPUW_WEIGHTS_BANK_ALLOC);
+    REGISTER_OPTION(NPUW_ONLINE_PIPELINE);
+    REGISTER_OPTION(NPUW_ONLINE_AVOID);
+    REGISTER_OPTION(NPUW_ONLINE_ISOLATE);
+    REGISTER_OPTION(NPUW_ONLINE_NO_FOLD);
+    REGISTER_OPTION(NPUW_ONLINE_MIN_SIZE);
+    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCKS);
+    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCK_SIZE);
+    REGISTER_OPTION(NPUW_FOLD);
+    REGISTER_OPTION(NPUW_CWAI);
+    REGISTER_OPTION(NPUW_DQ);
+    REGISTER_OPTION(NPUW_DQ_FULL);
+    REGISTER_OPTION(NPUW_PMM);
+    REGISTER_OPTION(NPUW_SLICE_OUT);
+    REGISTER_OPTION(NPUW_SPATIAL);
+    REGISTER_OPTION(NPUW_SPATIAL_NWAY);
+    REGISTER_OPTION(NPUW_SPATIAL_DYN);
+    REGISTER_OPTION(NPUW_F16IC);
+    REGISTER_OPTION(NPUW_HOST_GATHER);
+    REGISTER_OPTION(NPUW_DCOFF_TYPE);
+    REGISTER_OPTION(NPUW_DCOFF_SCALE);
+    REGISTER_OPTION(NPUW_FUNCALL_FOR_ALL);
+    REGISTER_OPTION(NPUW_FUNCALL_ASYNC);
+    REGISTER_OPTION(NPUW_UNFOLD_IREQS);
+    REGISTER_OPTION(NPUW_LLM);
+    REGISTER_OPTION(NPUW_LLM_BATCH_DIM);
+    REGISTER_OPTION(NPUW_LLM_SEQ_LEN_DIM);
+    REGISTER_OPTION(NPUW_LLM_MAX_PROMPT_LEN);
+    REGISTER_OPTION(NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
+    REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
+    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
+    REGISTER_OPTION(NPUW_LLM_CACHE_ROPE);
+    REGISTER_OPTION(NPUW_LLM_PREFILL_CHUNK_SIZE);
+    REGISTER_OPTION(NPUW_LLM_SHARED_HEAD);
+    REGISTER_OPTION(NPUW_LLM_MAX_LORA_RANK);
+    REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
+    REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_GENERATE_HINT);
+    REGISTER_OPTION(NPUW_LLM_GENERATE_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_GENERATE_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -336,6 +422,14 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
         // update enable flag
         cfg.enable(key, isEnabled);
     });
+
+    // Special case for NPU_TURBO which might not be supported by compiler, but driver will still use it
+    // if it exists in config = driver supports it
+    // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
+    // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
+    if (_backend && _backend->isCommandQueueExtSupported()) {
+        cfg.enable(ov::intel_npu::turbo.name(), true);
+    }
 }
 
 FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
@@ -370,17 +464,22 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
         });
     }
     // secondly, in the new config provided by user
+    std::map<std::string, std::string> cfgs_to_set;
     for (const auto& [key, value] : rawConfig) {
         if (!localConfig.hasOpt(key)) {
             // not a known config key
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
+            } else {
+                localConfig.addOrUpdateInternal(key, value);
             }
+        } else {
+            cfgs_to_set.emplace(key, value);
         }
     }
 
     // 3. If all good so far, update values
-    localConfig.update(rawConfig, mode);
+    localConfig.update(cfgs_to_set, mode);
     return localConfig;
 }
 
@@ -436,14 +535,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
+    update_log_level(localPropertiesMap);
+
     // create compiler
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
-    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
-    update_log_level(localPropertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
@@ -460,14 +560,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    set_batch_config(_backend == nullptr ? false : _backend->isBatchingSupported(), localConfig);
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) &&
+        !localConfig.has(ov::intel_npu::batch_mode.name())) {
+        std::stringstream strStream;
+        strStream << ov::intel_npu::BatchMode::AUTO;
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    }
 
-    if (!model->get_variables().empty()) {
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) && !model->get_variables().empty()) {
         if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
             OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on the plugin");
         }
-
-        _logger.info("The batching will be handled by the compiler due to states found inside the IR");
 
         std::stringstream strStream;
         strStream << ov::intel_npu::BatchMode::COMPILER;
@@ -499,13 +602,34 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    auto originalModel = model->clone();
-
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
+
+    if (localConfig.isAvailable(ov::intel_npu::weightless_blob.name()) && !localConfig.get<CACHE_DIR>().empty()) {
+        // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the
+        // size of the binary object
+        const bool cacheModeOptimizeSize = (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE);
+        if (localConfig.get<WEIGHTLESS_BLOB>() && !cacheModeOptimizeSize) {
+            _logger.warning("The cache mode was not set to \"optimize size\" but the \"WEIGHTLESS_BLOB\" configuration "
+                            "option was set to true. Weights separation WILL NOT be performed in this case.");
+        } else if (!localConfig.get<WEIGHTLESS_BLOB>() && cacheModeOptimizeSize) {
+            _logger.warning("The cache mode was set to \"optimize size\" but the \"WEIGHTLESS_BLOB\" configuration "
+                            "option was set to false. Weights separation WILL be performed in this case.");
+        }
+
+        localConfig.update({{ov::intel_npu::weightless_blob.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
+    }
+
     std::shared_ptr<intel_npu::IGraph> graph;
+
     try {
         _logger.debug("performing compile");
-        graph = compiler->compile(model->clone(), localConfig);
+
+        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+            graph = compiler->compile(model->clone(), localConfig);
+        } else {
+            check_weightless_cache_attribute_occurrence(model);
+            graph = compiler->compileWS(model->clone(), localConfig);
+        }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -540,118 +664,55 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
-    return std::make_shared<RemoteContextImpl>(_backend, _globalConfig, remoteProperties);
+    return std::make_shared<RemoteContextImpl>(_backend, remoteProperties);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
-    return std::make_shared<RemoteContextImpl>(_backend, _globalConfig);
+    return std::make_shared<RemoteContextImpl>(_backend);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
-    // If was exported via NPUW
-    auto stream_start_pos = stream.tellg();
-    ov::npuw::s11n::IndicatorType serialization_indicator;
-    ov::npuw::s11n::read(stream, serialization_indicator);
-    if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
-        // Properties are required for ov::weights_path
-        return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
-    }
-    stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
-
-    // Drop NPUW properties if there are any
-    ov::AnyMap npu_plugin_properties;
-    for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW") == it->first.npos) {
-            npu_plugin_properties.insert(*it);
-        }
+    if (properties.find(ov::hint::compiled_blob.name()) != properties.end()) {
+        _logger.warning("ov::hint::compiled_blob is no longer supported for import_model(stream) API! Please use new "
+                        "import_model(tensor) API instead.");
     }
 
-    std::shared_ptr<ov::AlignedBuffer> modelBuffer;
-    // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
-    if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
-        blob_it != npu_plugin_properties.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        modelBuffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                     compiled_blob.get_byte_size(),
-                                                                     compiled_blob);
-        npu_plugin_properties.erase(blob_it);
+    auto npu_plugin_properties = properties;
+    // NPUW properties from npu_plugin_properties will be erased if import_model_npuw returns nullptr
+    auto compiledModel = import_model_npuw(stream, npu_plugin_properties, shared_from_this());
+    if (compiledModel) {
+        return compiledModel;
     }
-
-    CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
-
-    const auto propertiesMap = any_copy(npu_plugin_properties);
-    OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
-    _logger.setLevel(localConfig.get<LOG_LEVEL>());
-    const auto platform =
-        utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
-                                      localConfig.get<DEVICE_ID>(),
-                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
-    localConfig.update({{ov::intel_npu::platform.name(), platform}});
-    auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
-
-    set_batch_config(_backend == nullptr ? false : _backend->isBatchingSupported(), localConfig);
-
-    const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
-    if (!loadedFromCache) {
-        _logger.warning(
-            "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
-    }
-
-    OV_ITT_TASK_NEXT(PLUGIN_IMPORT_MODEL, "parse");
-
-    std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
-        uint64_t graphSize;
-        const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
+        const bool skipCompatibility =
+            npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end() &&
+            npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>() == true;
+        std::unique_ptr<MetadataBase> metadata = nullptr;
+        size_t blobSize = MetadataBase::getFileSize(stream);
         if (!skipCompatibility) {
-            auto storedMeta = read_metadata_from(stream);
-            if (!storedMeta->is_compatible()) {
+            // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
+            // passes compatibility checks.
+            metadata = read_metadata_from(stream);
+            if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
-            graphSize = storedMeta->get_blob_size();
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-            graphSize = MetadataBase::getFileSize(stream);
+            blobSize = metadata->get_blob_size();
         }
-
-        std::unique_ptr<BlobContainer> blobPtr;
-
-        if (modelBuffer == nullptr) {
-            std::vector<uint8_t> blob(graphSize);
-            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-            if (!stream) {
-                OPENVINO_THROW("Failed to read data from stream!");
-            }
-            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
-
-            blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
-        } else {
-            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
+        ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+        ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
+        if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+            OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
-
-        auto graph = compiler->parse(std::move(blobPtr), localConfig);
-        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
-
-        const std::shared_ptr<ov::Model> modelDummy =
-            create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
-
-        compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
+        stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
+        return parse(tensor, std::move(metadata), npu_plugin_properties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
         OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
     }
-
-    OV_ITT_TASK_SKIP(PLUGIN_IMPORT_MODEL);
-
-    return compiledModel;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
@@ -665,12 +726,62 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
     return import_model(stream, properties);
 }
 
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiled_blob,
+                                                         const ov::AnyMap& properties) const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
+
+    // Need to create intermediate istream for NPUW
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
+    std::istream stream{&buffer};
+
+    auto npu_plugin_properties = properties;
+    // NPUW properties from npu_plugin_properties will be erased if import_model_npuw returns nullptr
+    auto compiledModel = import_model_npuw(stream, npu_plugin_properties, shared_from_this());
+    if (compiledModel) {
+        return compiledModel;
+    }
+
+    try {
+        const bool skipCompatibility =
+            npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end() &&
+            npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>() == true;
+        std::unique_ptr<MetadataBase> metadata = nullptr;
+        size_t blobSize = compiled_blob.get_byte_size();
+        if (!skipCompatibility) {
+            metadata = read_metadata_from(compiled_blob);
+            if (!metadata->is_compatible()) {
+                OPENVINO_THROW("Incompatible blob version!");
+            }
+            blobSize = metadata->get_blob_size();
+        }
+        const ov::Tensor roiTensor(compiled_blob,
+                                   ov::Coordinate{0},
+                                   ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
+        return parse(roiTensor, std::move(metadata), npu_plugin_properties);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("Can't import network: ", ex.what());
+    } catch (...) {
+        OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
+    }
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiled_blob,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
+    return import_model(compiled_blob, properties);
+}
+
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    update_log_level(propertiesMap);
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -689,6 +800,116 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     return supportedOpsMap;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
+                                                  std::unique_ptr<MetadataBase> metadata,
+                                                  const ov::AnyMap& properties) const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
+    CompilerAdapterFactory compilerAdapterFactory;
+    const auto propertiesMap = any_copy(properties);
+    update_log_level(propertiesMap);
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
+
+    OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
+    auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
+    _logger.setLevel(localConfig.get<LOG_LEVEL>());
+    const auto platform =
+        utils::getCompilationPlatform(localConfig.get<PLATFORM>(),
+                                      localConfig.get<DEVICE_ID>(),
+                                      _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+    localConfig.update({{ov::intel_npu::platform.name(), platform}});
+    auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
+
+    const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
+    if (!loadedFromCache) {
+        _logger.warning(
+            "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
+    }
+
+    uint64_t mainSize = tensorBig.get_byte_size();
+    std::optional<std::vector<uint64_t>> initSizes;
+
+    if (metadata) {
+        size_t accumulator = 0;
+        initSizes = metadata->get_init_sizes();
+        mainSize = initSizes.has_value()
+                       ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
+                       : metadata->get_blob_size();
+    } else {
+        _logger.info("Blob compatibility check skipped.");
+    }
+
+    ov::Tensor tensorMain(tensorBig,
+                          ov::Coordinate{0},
+                          ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
+
+    std::shared_ptr<const ov::Model> originalModel;
+    std::vector<ov::Tensor> tensorsInits;
+    const bool weightsSeparationEnabled = initSizes.has_value();
+
+    if (weightsSeparationEnabled) {
+        // Read the init compiled models as well
+        size_t cursorPosition = mainSize;
+        for (uint64_t initSize : initSizes.value()) {
+            ov::Tensor tensorInit(tensorBig, ov::Coordinate{cursorPosition}, ov::Coordinate{cursorPosition + initSize});
+            tensorsInits.push_back(tensorInit);
+            cursorPosition += initSize;
+        }
+
+        // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
+        if (properties.count(ov::hint::model.name())) {
+            try {
+                originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+            } catch (const ov::AssertFailure&) {
+                try {
+                    originalModel = std::const_pointer_cast<const ov::Model>(
+                        properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
+                } catch (const ov::Exception&) {
+                    OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
+                                   "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
+                }
+            }
+        } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
+            const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
+            const size_t weightsPathLength = weightsPath.length();
+            std::string xmlPath = weightsPath;
+
+            if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
+                weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION) == 0) {
+                xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                WEIGHTS_EXTENSION.length(),
+                                XML_EXTENSION);
+            } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
+                       weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
+                                           ONNX_EXTENSION.length(),
+                                           ONNX_EXTENSION)) {
+                OPENVINO_THROW("Invalid path to the weights: ",
+                               weightsPath,
+                               ". A \".bin\" or \".onnx\" extension was expected.");
+            }
+
+            originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
+        } else {
+            OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+        }
+
+        check_weightless_cache_attribute_occurrence(originalModel);
+    }
+
+    auto graph = compiler->parse(std::move(tensorMain),
+                                 localConfig,
+                                 weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
+                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
+    graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+    const std::shared_ptr<ov::Model> modelDummy =
+        create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+
+    OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
+
+    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

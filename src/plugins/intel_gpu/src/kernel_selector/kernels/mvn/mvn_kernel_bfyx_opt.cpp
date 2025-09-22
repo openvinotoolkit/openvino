@@ -135,7 +135,19 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
                               "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
             }
         }
-        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED);
+
+        auto boundary_check = BoundaryCheck::DISABLED;
+        if (params.has_dynamic_tensors()) {
+            boundary_check = BoundaryCheck::ENABLED;
+        } else {
+            for (const auto& fused_op : params.fused_ops) {
+                if (!fused_op.output_tensor.SameDims(params.outputs[0])) {
+                    boundary_check = BoundaryCheck::ENABLED;
+                    break;
+                }
+            }
+        }
+        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, boundary_check);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 

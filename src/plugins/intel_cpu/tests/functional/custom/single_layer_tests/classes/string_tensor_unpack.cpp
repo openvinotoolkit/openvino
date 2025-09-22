@@ -7,30 +7,24 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/precision_support.h"
+#include "openvino/op/string_tensor_unpack.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
 namespace StringTensorUnpack {
-std::string StringTensorUnpackLayerCPUTest::getTestCaseName(testing::TestParamInfo<StringTensorUnpackLayerCPUTestParamsSet> obj) {
-        StringTensorUnpackLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        std::string td;
-        StringTensorUnpackSpecificParams StringTensorUnpackPar;
-        std::tie(StringTensorUnpackPar, td) = basicParamsSet;
-
-        InputShape inputShape;
-        std::tie(inputShape) = StringTensorUnpackPar;
-        std::ostringstream result;
-
-        result << ov::test::utils::partialShape2str({ inputShape.first }) << "_";
-        result << "TS=";
-        result << "(";
-        for (const auto& targetShape : inputShape.second) {
-            result << ov::test::utils::vec2str(targetShape) << "_";
-        }
+std::string StringTensorUnpackLayerCPUTest::getTestCaseName(const testing::TestParamInfo<StringTensorUnpackLayerCPUTestParamsSet>& obj) {
+    const auto& [basicParamsSet, cpuParams] = obj.param;
+    const auto& [StringTensorUnpackPar, td] = basicParamsSet;
+    const auto& [inputShape] = StringTensorUnpackPar;
+    std::ostringstream result;
+    result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
+    result << "TS=";
+    result << "(";
+    for (const auto& targetShape : inputShape.second) {
+        result << ov::test::utils::vec2str(targetShape) << "_";
+    }
         result << ")";
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -51,23 +45,16 @@ void StringTensorUnpackLayerCPUTest::generate_inputs(const std::vector<ov::Shape
     }
 
 void StringTensorUnpackLayerCPUTest::SetUp() {
-        StringTensorUnpackLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        StringTensorUnpackSpecificParams StringTensorUnpackParams;
-        std::tie(StringTensorUnpackParams, targetDevice) = basicParamsSet;
-
-        InputShape dataInputShape;
-        std::tie(dataInputShape) = StringTensorUnpackParams;
-
-        init_input_shapes({dataInputShape});
-        auto dataParameter = std::make_shared<ov::op::v0::Parameter>(ov::element::string, inputDynamicShapes[0]);
-        auto StringTensorUnpack = std::make_shared<ov::op::v15::StringTensorUnpack>(dataParameter);
-
-        ov::ParameterVector params{ dataParameter };
-        function = makeNgraphFunction(ov::element::string, params, StringTensorUnpack, "StringTensorUnpack");
+    const auto& [basicParamsSet, cpuParams] = this->GetParam();
+    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+    const auto& [StringTensorUnpackParams, _targetDevice] = basicParamsSet;
+    targetDevice = _targetDevice;
+    const auto& [dataInputShape] = StringTensorUnpackParams;
+    init_input_shapes({dataInputShape});
+    auto dataParameter = std::make_shared<ov::op::v0::Parameter>(ov::element::string, inputDynamicShapes[0]);
+    auto StringTensorUnpack = std::make_shared<ov::op::v15::StringTensorUnpack>(dataParameter);
+    ov::ParameterVector params{dataParameter};
+    function = makeNgraphFunction(ov::element::string, params, StringTensorUnpack, "StringTensorUnpack");
 }
 
 TEST_P(StringTensorUnpackLayerCPUTest, CompareWithRefs) {

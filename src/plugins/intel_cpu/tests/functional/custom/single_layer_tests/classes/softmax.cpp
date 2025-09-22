@@ -5,6 +5,7 @@
 #include "softmax.hpp"
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/softmax.hpp"
 
 using namespace CPUTestUtils;
 
@@ -12,13 +13,7 @@ namespace ov {
 namespace test {
 
 std::string SoftMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<softmaxCPUTestParams>& obj) {
-    CPUSpecificParams cpuParams;
-    ElementType inType;
-    SoftMaxConfig config;
-    std::string targetDevice;
-    ov::AnyMap additionalConfig;
-    std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = obj.param;
-
+    const auto& [inType, config, targetDevice, cpuParams, additionalConfig] = obj.param;
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
     result << "IS=" << ov::test::utils::partialShape2str({config.inputShape.first}) << "_";
@@ -42,11 +37,8 @@ std::string SoftMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<so
 }
 
 void SoftMaxLayerCPUTest::SetUp() {
-    ElementType inType;
-    SoftMaxConfig config;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = this->GetParam();
+    const auto& [inType, config, _targetDevice, cpuParams, additionalConfig] = this->GetParam();
+    targetDevice = _targetDevice;
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;

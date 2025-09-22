@@ -105,6 +105,14 @@ size_t Tensor::get_byte_size() const {
     OV_TENSOR_STATEMENT(return _impl->get_byte_size(););
 }
 
+void* Tensor::data() {
+    OV_TENSOR_STATEMENT(return _impl->data());
+}
+
+void* Tensor::data() const {
+    OV_TENSOR_STATEMENT(return const_cast<void*>(std::as_const(*_impl).data()););
+}
+
 void* Tensor::data(const element::Type& element_type) {
     OV_TENSOR_STATEMENT(return _impl->data(element_type));
 }
@@ -141,7 +149,7 @@ ov::Shape calc_static_shape_for_file(const std::filesystem::path& file_name,
     auto rank = partial_shape_copy.rank();
     OPENVINO_ASSERT(rank.is_static(), "Rank cannot be dynamic");
     std::vector<size_t> dynamic_dimension_numbers;
-    size_t slice_size = 1;
+    typename Dimension::value_type slice_size = 1;
     for (size_t id = 0; id < partial_shape_copy.size(); ++id) {
         if (partial_shape_copy[id].is_dynamic()) {
             dynamic_dimension_numbers.push_back(id);
@@ -178,6 +186,14 @@ void read_tensor_data(const std::filesystem::path& file_name, Tensor& tensor, si
     std::ifstream fin(file_name, std::ios::binary);
     fin.seekg(offset);
     auto bytes_to_read = tensor.get_byte_size();
+
+    OPENVINO_ASSERT(bytes_to_read <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()),
+                    "Cannot read ",
+                    bytes_to_read,
+                    " bytes from ",
+                    file_name,
+                    ", because the value exceeds std::streamsize limit");
+
     fin.read(static_cast<char*>(tensor.data()), bytes_to_read);
     OPENVINO_ASSERT(static_cast<size_t>(fin.gcount()) == bytes_to_read,
                     "Cannot read ",

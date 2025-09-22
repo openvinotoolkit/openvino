@@ -10,6 +10,7 @@
 #include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/clamp.hpp"
 
 namespace ov {
 namespace pass {
@@ -36,7 +37,7 @@ bool ClampTransformation::transform(ov::pass::pattern::Matcher& m) {
         return false;
     }
 
-    const std::shared_ptr<Node> clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
+    const auto clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(clamp, defaultPrecisions);
 
     const bool moveSubtract = dequantization.subtract == nullptr ? false : NetworkHelper::isScalarLike(dequantization.subtractConstant);
@@ -46,6 +47,7 @@ bool ClampTransformation::transform(ov::pass::pattern::Matcher& m) {
     }
 
     const auto newClamp = ov::as_type_ptr<ov::opset1::Clamp>(moveDequantizationAfter(clamp, dequantization, false, moveSubtract));
+    OPENVINO_ASSERT(newClamp != nullptr, "ClampTransformation: failed to move dequantization after Clamp");
 
     std::shared_ptr<ov::opset1::Clamp> replacement;
     {

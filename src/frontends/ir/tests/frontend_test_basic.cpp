@@ -79,7 +79,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11) {
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -140,7 +140,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11_undefined_precisoin) {
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -201,7 +201,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v11_dynamic_precisoin) {
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -262,7 +262,7 @@ TEST_F(IRFrontendTests, elementary_model_reading_v10) {
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -469,7 +469,7 @@ TEST_P(IRFrontendMMapTests, model_with_weights_reading_from_disk) {
         transpose->set_friendly_name("Transpose0321");
         auto result = std::make_shared<ov::opset1::Result>(transpose);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -548,7 +548,7 @@ TEST_P(IRFrontendMMapTests, model_with_lp_weights_reading_from_disk) {
         transpose->set_friendly_name("Add_4");
         auto result = std::make_shared<ov::opset1::Result>(transpose);
         result->set_friendly_name("Result_5");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -616,7 +616,7 @@ TEST_F(IRFrontendTests, model_without_weights_reading_from_disk) {
         parameter->set_friendly_name("input");
         auto result = std::make_shared<ov::opset1::Result>(parameter);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()
@@ -1135,7 +1135,7 @@ TEST_F(IRFrontendTests, not_opset1) {
         shapeof->set_friendly_name("shapeof");
         auto result = std::make_shared<ov::opset1::Result>(shapeof);
         result->set_friendly_name("output");
-        modelRef = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{parameter});
+        modelRef = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{parameter});
     }
 
     const auto fc = FunctionsComparator::with_default()

@@ -200,7 +200,7 @@ private:
                                                                                                  params.spatialBinsY,
                                                                                                  params.transStd,
                                                                                                  params.partSize);
-            return std::make_shared<ov::Model>(NodeVector{DeformablePSROIPooling},
+            return std::make_shared<ov::Model>(OutputVector{DeformablePSROIPooling},
                                                ParameterVector{input, rois, offsets});
         } else {
             const auto DeformablePSROIPooling = std::make_shared<op::v1::DeformablePSROIPooling>(input,
@@ -213,7 +213,7 @@ private:
                                                                                                  params.spatialBinsY,
                                                                                                  params.transStd,
                                                                                                  params.partSize);
-            return std::make_shared<ov::Model>(NodeVector{DeformablePSROIPooling}, ParameterVector{input, rois});
+            return std::make_shared<ov::Model>(OutputVector{DeformablePSROIPooling}, ParameterVector{input, rois});
         }
     }
 };

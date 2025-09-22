@@ -6,74 +6,69 @@
 
 #include <cstdint>
 #include <memory>
-#include <transformations/utils/gen_pattern.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
-using namespace ov::gen_pattern;
+
+using namespace ov::pass;
+using namespace ov::op;
 
 ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
     : m_config(config),
       m_update_shape_func(std::move(func)) {
     MATCHER_SCOPE(ConvertPagedAttnInputs);
 
-    auto Q = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto K = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto V = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto key_cache_0 = makePattern<ov::op::v0::Parameter>({});
-    auto value_cache_0 = makePattern<ov::op::v0::Parameter>({});
-    auto past_lens = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto subsequence_begins = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto block_indices = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto block_indices_begins = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto scale = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto sliding_window = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto alibi_slopes = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto max_context_len = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto rotated_block_indices = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto rotation_deltas = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
-    auto rotation_trig_lut = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
+    auto Q = pattern::any_input(pattern::has_static_rank());
+    auto K = pattern::any_input(pattern::has_static_rank());
+    auto V = pattern::any_input(pattern::has_static_rank());
+    auto key_cache_0 = pattern::wrap_type<v0::Parameter>({});
+    auto value_cache_0 = pattern::wrap_type<v0::Parameter>({});
+    auto past_lens = pattern::any_input(pattern::has_static_rank());
+    auto subsequence_begins = pattern::any_input(pattern::has_static_rank());
+    auto block_indices = pattern::any_input(pattern::has_static_rank());
+    auto block_indices_begins = pattern::any_input(pattern::has_static_rank());
+    auto scale = pattern::any_input(pattern::has_static_rank());
+    auto sliding_window = pattern::any_input(pattern::has_static_rank());
+    auto alibi_slopes = pattern::any_input(pattern::has_static_rank());
+    auto max_context_len = pattern::any_input(pattern::has_static_rank());
+    auto score_aggregation_window = pattern::any_input(pattern::has_static_rank());
+    auto rotated_block_indices = pattern::any_input(pattern::has_static_rank());
+    auto rotation_deltas = pattern::any_input(pattern::has_static_rank());
+    auto rotation_trig_lut = pattern::any_input(pattern::has_static_rank());
+    auto xattention_threshold = pattern::any_input(pattern::has_static_rank());
+    auto xattention_block_size = pattern::any_input(pattern::has_static_rank());
+    auto xattention_stride = pattern::any_input(pattern::has_static_rank());
 
-    auto pa_1 = makePattern<op::PagedAttentionExtension>({Q,
-                                                          K,
-                                                          V,
-                                                          key_cache_0,
-                                                          value_cache_0,
-                                                          past_lens,
-                                                          subsequence_begins,
-                                                          block_indices,
-                                                          block_indices_begins,
-                                                          scale,
-                                                          sliding_window,
-                                                          alibi_slopes,
-                                                          max_context_len});
-
-    auto pa_2 = makePattern<op::PagedAttentionExtension>({Q,
-                                                          K,
-                                                          V,
-                                                          key_cache_0,
-                                                          value_cache_0,
-                                                          past_lens,
-                                                          subsequence_begins,
-                                                          block_indices,
-                                                          block_indices_begins,
-                                                          scale,
-                                                          sliding_window,
-                                                          alibi_slopes,
-                                                          max_context_len,
-                                                          rotated_block_indices,
-                                                          rotation_deltas,
-                                                          rotation_trig_lut});
-    auto result = pa_1 | pa_2;
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    auto result = pattern::wrap_type<op::PagedAttentionExtension>({Q,
+                                                                   K,
+                                                                   V,
+                                                                   key_cache_0,
+                                                                   value_cache_0,
+                                                                   past_lens,
+                                                                   subsequence_begins,
+                                                                   block_indices,
+                                                                   block_indices_begins,
+                                                                   scale,
+                                                                   sliding_window,
+                                                                   alibi_slopes,
+                                                                   max_context_len,
+                                                                   score_aggregation_window,
+                                                                   rotated_block_indices,
+                                                                   rotation_deltas,
+                                                                   rotation_trig_lut,
+                                                                   xattention_threshold,
+                                                                   xattention_block_size,
+                                                                   xattention_stride});
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
-        auto key_cache = ov::as_type_ptr<ov::op::v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
-        auto value_cache = ov::as_type_ptr<ov::op::v0::Parameter>(pa_op->get_input_node_shared_ptr(4));
+        auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
+        auto value_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(4));
         auto format_cache_precision = [](ov::element::Type cache_precision, ov::element::Type infer_precision) {
             return cache_precision == ov::element::f16 && infer_precision == ov::element::bf16 ? infer_precision
                                                                                                : cache_precision;
@@ -143,7 +138,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
         return status;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
 

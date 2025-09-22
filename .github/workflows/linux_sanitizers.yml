@@ -1,4 +1,4 @@
-name: Linux Sanitizers (Ubuntu 20.04, Python 3.9)
+name: Linux Sanitizers (Ubuntu 22.04, Python 3.11)
 on:
   schedule:
     # run daily at 00:00
@@ -14,6 +14,10 @@ on:
         description: 'Filter for func_tests.'
         required: false
         default: '*smoke*'
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
     paths:
     - '.github/workflows/linux_sanitizers.yml'
@@ -26,7 +30,7 @@ concurrency:
 permissions: read-all
 
 env:
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   BUILD_DIR: /__w/openvino/openvino/openvino_build
   OPENVINO_REPO: /__w/openvino/openvino/openvino
   INSTALL_TEST_DIR: /__w/openvino/openvino/openvino_install/tests/
@@ -115,14 +119,6 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
-      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
-      SCCACHE_LOG: warn
-      SCCACHE_AZURE_KEY_PREFIX: sanitizers_lin_${{ matrix.SANITIZER }}_master
-      SCCACHE_CACHE_SIZE: 50G
 
     steps:
       - name: Clone OpenVINO
@@ -164,9 +160,6 @@ jobs:
       #
       # Build
       #
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
-             
       - name: CMake configure - OpenVINO
         run: |
           cmake \
@@ -188,6 +181,7 @@ jobs:
             -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_WHEEL=OFF \
+            -DENABLE_FASTER_BUILD=ON \
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
@@ -195,10 +189,7 @@ jobs:
       - name: Cmake build - OpenVINO
         run: |
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
-          
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
-        
+
       - name: Cmake install - OpenVINO
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
@@ -224,17 +215,9 @@ jobs:
       #
       # Upload build artifacts
       #
-      - name: Upload sccache log
-        if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
-        with:
-          name: sccache_log_${{ matrix.SANITIZER }}
-          path: ${{ env.SCCACHE_ERROR_LOG }}
-          if-no-files-found: 'error'
-
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -242,7 +225,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -270,13 +253,13 @@ jobs:
       
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -487,7 +470,7 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
           name: unit-test-results-cpp_${{ matrix.SANITIZER }}
@@ -530,14 +513,14 @@ jobs:
 
       - name: Download OpenVINO package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -579,7 +562,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         with:
           name: func-test-results-cpp_${{ matrix.SANITIZER }}

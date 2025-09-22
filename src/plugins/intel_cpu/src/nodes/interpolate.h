@@ -4,30 +4,38 @@
 
 #pragma once
 
+#include <cassert>
+#include <common/primitive_attr.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
 #include "executors/interpolate.hpp"
-#include "executors/interpolate_list.hpp"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-#define MAX_INPUT_INTERPOLATE 8
-
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct jit_interpolate_config_params {
-    InterpolateLayoutType layout;
-    InterpolateMode mode;
+    InterpolateLayoutType layout = InterpolateLayoutType::planar;
+    InterpolateMode mode = InterpolateMode::nearest;
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    int src_data_size;
-    int dst_data_size;
-    int indices_size;
-    int spatial_dim_size;
-    int C, ID, IH, IW, OD, OH, OW;
+    int src_data_size = 0;
+    int dst_data_size = 0;
+    int indices_size = 0;
+    int spatial_dim_size = 0;
+    int C = 0, ID = 0, IH = 0, IW = 0, OD = 0, OH = 0, OW = 0;
     // for pillow
-    int filterLenX;
-    int filterLenY;
-    int* bound;
+    int filterLenX = 0;
+    int filterLenY = 0;
+    int* bound = nullptr;
 };
 
 struct jit_interpolate_call_args {
@@ -42,18 +50,17 @@ struct jit_interpolate_call_args {
 };
 
 struct jit_uni_interpolate_kernel {
-    void (*ker_)(const jit_interpolate_call_args*);
+    void (*ker_)(const jit_interpolate_call_args*) = nullptr;
 
-    void operator()(const jit_interpolate_call_args* args) {
+    void operator()(const jit_interpolate_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
     explicit jit_uni_interpolate_kernel(jit_interpolate_config_params jcp, const dnnl_primitive_attr& attr)
-        : ker_(nullptr),
-          jcp_(jcp),
+        : jcp_(jcp),
           attr_(attr) {}
-    virtual ~jit_uni_interpolate_kernel() {}
+    virtual ~jit_uni_interpolate_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -70,10 +77,9 @@ public:
     static constexpr size_t SIZE_OR_SCALE_ID_V11 = 1;
     static constexpr size_t AXES_ID_V11 = 2;
     static constexpr int CUBIC_GRID_LEN = 4;
-    static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0f;
-    static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
+    static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0F;
+    static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0F;
 
-public:
     Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
@@ -99,26 +105,18 @@ public:
 private:
     bool is_version11 = true;
     InterpolateAttrs interpAttrs;
-    // Some FEs or preprocessing step resize spatial dimension for tensor with NHWC layout memory,
-    // but imported as planar layout[abcd] with axis[1,2] for convenience. In this case, for pillow modes without pad
-    // for now, nhwc layout path and the kernel(nhwc layout executor) can be used for this planar layout and axis
-    // settings(NCHWAsNHWC is true) to get higher perf with
-    // 1. logical shape alignment [abcd-nhwc] to [adbc-nchw].
-    // 2. axis alignment [1,2] to [2,3].
-    // 3. config planar layout support and treated it as channel_first layout.
-    bool NCHWAsNHWC = false;
     size_t dataRank = 0;
 
     class InterpolateExecutorBase {
     public:
         InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
-                                const VectorDims& srcDims,
-                                const VectorDims& dstDims,
+                                VectorDims srcDims,
+                                VectorDims dstDims,
                                 const std::vector<float>& dataScales);
 
         virtual void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) = 0;
         virtual ~InterpolateExecutorBase() = default;
-        VectorDims getSrcDimPad5d() const {
+        [[nodiscard]] VectorDims getSrcDimPad5d() const {
             return srcDimPad5d;
         }
 
@@ -148,8 +146,8 @@ private:
                             float cubicCoeff,
                             InterpolateLayoutType layout);
 
-        float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-        int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+        [[nodiscard]] float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
+        static int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode);
         void linearOnnxCF(int outCoord,
                           float scale,
                           int inShape,
@@ -158,7 +156,7 @@ private:
                           int& index1,
                           float& weight0,
                           float& weight1);
-        std::vector<float> getCubicCoeffs(float mantissa, float a);
+        static std::vector<float> getCubicCoeffs(float mantissa, float a);
         static float getPillowBilinearCoeffs(float m);
         static float getPillowBicubicCoeffs(float m);
         inline void create_pillow_working_buf(InterpolateLayoutType layout);
@@ -174,7 +172,7 @@ private:
         int spatialDimSize;
         std::vector<int> auxTable;
         std::vector<uint8_t> pillow_working_buf;
-        size_t m_threads_num = 0lu;
+        size_t m_threads_num = 0LU;
     };
     std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
 
@@ -268,7 +266,6 @@ private:
                              int OH,
                              int OW);
 
-    private:
         std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
     };
 
@@ -280,7 +277,8 @@ private:
                                const std::vector<float>& _dataScales)
             : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, _dataScales),
               antialias(interpAttrs.antialias),
-              dataScales(_dataScales) {}
+              dataScales(_dataScales),
+              refInterpAttrs(interpAttrs) {}
 
         void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) override;
 
@@ -315,13 +313,15 @@ private:
                                  int kernel_width,
                                  bool antialias);
         void pillowRef(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+        void
+        pillowRefNCHWAsNHWC(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
 
         static float getValue(const uint8_t* base, size_t offset, ov::element::Type prec);
         static void setValue(uint8_t* base, size_t offset, float value, ov::element::Type prec);
 
-    private:
         bool antialias;
         std::vector<float> dataScales;
+        InterpolateAttrs refInterpAttrs;
     };
 
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims);
@@ -330,7 +330,7 @@ private:
                                           const std::vector<int>& padBegin,
                                           const std::vector<int>& padEnd);
     std::vector<float> getScales(const VectorDims& srcDimPad, const VectorDims& dstDim);
-    static size_t getSpatialDimsNum(const Dim rank);
+    static size_t getSpatialDimsNum(const std::vector<float>& scales);
 
     bool hasPad = false;
 
@@ -338,6 +338,8 @@ private:
     std::vector<int> axes;
     std::vector<float> scales;
     bool isScaleConstant = false;
+
+    std::vector<int> conversion5DMap;
 
     // 6 ptrs for each quantization, 2 ptrs for each depth_wise
     std::vector<const void*> postOpsDataPtrs;
@@ -351,6 +353,4 @@ private:
     std::shared_ptr<InterpolateExecutor> aclExecPtr = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

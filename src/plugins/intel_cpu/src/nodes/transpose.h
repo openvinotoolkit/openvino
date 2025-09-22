@@ -4,17 +4,21 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utility>
-#include <vector>
 
-#include "common/permute_kernel.h"
-#include "executors/transpose_list.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "node.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Transpose : public Node {
 public:
@@ -25,18 +29,18 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] bool created() const override;
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
-    const VectorDims& getOrder() const {
+    [[nodiscard]] const VectorDims& getOrder() const {
         return order;
     }
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void prepareParams() override;
 
     void setOptimized(bool isOptimized) {
@@ -57,13 +61,11 @@ private:
 
     bool isInputOrderConst = false;
 
-    static constexpr size_t INPUT_DATA_IDX = 0lu;
-    static constexpr size_t INPUT_ORDER_IDX = 1lu;
+    static constexpr size_t INPUT_DATA_IDX = 0LU;
+    static constexpr size_t INPUT_ORDER_IDX = 1LU;
 
     bool performAsReorder = false;
     bool isOptimized = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

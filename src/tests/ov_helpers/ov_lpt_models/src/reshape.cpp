@@ -3,9 +3,9 @@
 //
 
 #include "ov_lpt_models/reshape.hpp"
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace ov {
 namespace builder {

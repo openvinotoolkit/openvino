@@ -212,6 +212,8 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     KernelData kd = KernelData::Default<reorder_weights_params>(params);
     reorder_weights_params& newParams = *static_cast<reorder_weights_params*>(kd.params.get());
+    newParams.original_input_rank = params.original_input_rank;
+    newParams.original_output_rank = params.original_output_rank;
 
     DispatchData dispatchData;
 

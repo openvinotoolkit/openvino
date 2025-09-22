@@ -166,7 +166,11 @@ bool should_dynamic_quantize(const fully_connected_params& params) {
                                << ", W:" << kernel_selector::toString(params.weights.GetDType())
                                << "), Format(W:" << kernel_selector::toString(params.weights.GetLayout())
                                << ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v
-                               << ", Y: " << params.inputs[0].Y().v << std ::endl;
+                               << ", Y: " << params.inputs[0].Y().v
+                               << ", X: " << params.inputs[0].X().v
+                               << ", input_b: " << input_b
+                               << ", input_f: " << input_f
+                               << std ::endl;
         return true;
     }
 
@@ -280,7 +284,7 @@ DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(cons
 
 bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     auto& fc_params = static_cast<const fully_connected_params&>(params);
@@ -292,36 +296,36 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     // but we need to ensure that batch pitch preserves alignment.
     if (input.GetDType() == Datatype::F16) {
         if (input.Batch().pitch % 2 != 0 && (input.Batch().v > 1 || fc_params.is_shape_agnostic))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         // for 3d case we have to check feature alignment as well
         if (output.GetLayout() == DataLayout::bfyx && input.Feature().pitch % 2 != 0 && (input.Feature().v > 1 || fc_params.is_shape_agnostic))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // Dynamic kernel doesn't support dynamic weights yet
     if (fc_params.is_shape_agnostic && input.is_dynamic()) {
         if (get_input_bf_size(fc_params).second == 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (input.GetLayout() == DataLayout::bfyx) {
         // Padding on input is not supported.
         // TODO: Enable by mirroring the padding in weights.
         if (input.X().pad.Total() != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         if (input.Y().pad.Total() != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // We don't support 4d output
     if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx) {
         if (input.X().v > 1)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     auto wt = weights.GetDType();
     if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0 || weights.OFM().v % 2 != 0)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;
@@ -841,24 +845,24 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
             size_t quantize_grp_size = get_dynamic_quantize_group_size(prim_params);
             size_t output_batch = get_output_aligned_bf_size(prim_params, false).first;
-
             // Get index of the added shape-agnostic kernel
-            int kernel_offset = 0;
-            if (kd.kernels.size() == 3)
-                kernel_offset = 1;  // quantize kernel exists
+            // [optional:dyn_quant kernel] | default kernel | [optional:slm kernel]
+            int32_t quantize_kernel_idx = (kd.internalBuffers.empty()) ? -1 : 0;
+            int32_t default_kernel_idx = quantize_kernel_idx + 1;
+            int32_t slm_kernel_idx = (static_cast<int32_t>(kd.kernels.size()) > default_kernel_idx + 1) ? default_kernel_idx + 1 : -1;
 
             // Choose one of the two shape agnostic kernels: N == added kernel number
             // - kd.kernels[N-1] for batches <= 240 (default version)
             // - kd.kernels[N] for batches >= 256 (slm version)
             const auto default_alignment = 16;
             // We can use SLM version if `output_batch + default_alignment > min_slm_size(256)` because memory and batch are aligned (whether 16 or 64 elements)
-            const auto execute_type = (output_batch + default_alignment > min_slm_size) ? KernelType::SLM : KernelType::DEFAULT;
-            const auto execute_kernel_idx = ((execute_type == KernelType::SLM) ? 1 : 0) + kernel_offset;
-            const auto skip_kernel_idx = ((execute_type == KernelType::SLM) ? 0 : 1) + kernel_offset;
-
+            const auto execute_type = ((slm_kernel_idx >= 0) && (output_batch + default_alignment > min_slm_size)) ? KernelType::SLM : KernelType::DEFAULT;
+            const auto execute_kernel_idx = (execute_type == KernelType::SLM) ? slm_kernel_idx : default_kernel_idx;
+            const auto skip_kernel_idx = (execute_type == KernelType::SLM) ? default_kernel_idx : slm_kernel_idx;
 
             // Check default or SLM version FC, and disable remain version
-            kd.kernels[skip_kernel_idx].skip_execution = true;
+            if (skip_kernel_idx >= 0)
+                kd.kernels[skip_kernel_idx].skip_execution = true;
 
             GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_type == KernelType::SLM ? "SLM" : "Default") << " shape-agnostic kernel version "
                                     << "will be used for batch size = " << output_batch << "\n";
@@ -874,12 +878,12 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             else
                 OPENVINO_ASSERT(input.Feature().pad.Total(true) == 0, "[GPU] Invalid padding in f axis observed in FC bf tiled.");
 
-            if (!kd.internalBuffers.empty()) {
+            if (quantize_kernel_idx >= 0) {
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
                 if (execute_type == KernelType::DEFAULT) {
-                    kd.kernels[0].skip_execution = true;
+                    kd.kernels[quantize_kernel_idx].skip_execution = true;
                 } else {
-                    kd.kernels[0].skip_execution = false;
+                    kd.kernels[quantize_kernel_idx].skip_execution = false;
                     size_t input_f = get_input_bf_size(prim_params).second;
                     size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
                     OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");

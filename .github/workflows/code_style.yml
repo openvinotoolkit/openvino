@@ -9,7 +9,7 @@ permissions: read-all
 
 jobs:
   clang-format:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
       pull-requests: write
@@ -19,10 +19,11 @@ jobs:
         with:
           submodules: 'true'
 
-      - name: Install clang-format-15
+      - name: Install clang-format-18
         run: |
-          sudo apt update
-          sudo apt --assume-yes install clang-format-15
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
 
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
@@ -35,18 +36,15 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@a3026c6020837c23b61a79d12db223a00df19e6a # v1.19.0
+        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
           fail_level: error
           filter_mode: nofilter
-          exclude: |
-              "*/thirdparty/*"
-              "./temp/*"
 
   clang-format-aarch64:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
       pull-requests: write
@@ -55,10 +53,13 @@ jobs:
         with:
           submodules: 'true'
 
-      - name: Install clang-format-15 and cross-compilation dependencies
+      - name: Install clang-format-18 and cross-compilation dependencies
         run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
           sudo apt update
-          sudo apt --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons clang-format-15
+          sudo apt --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons
 
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
@@ -71,15 +72,47 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@a3026c6020837c23b61a79d12db223a00df19e6a # v1.19.0
+        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
           fail_level: error
           filter_mode: nofilter
-          exclude: |
-              "*/thirdparty/*"
-              "./temp/*"
+
+  clang-format-riscv64:
+    runs-on: ubuntu-24.04
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: 'true'
+
+      - name: Install clang-format-18 and cross-compilation dependencies
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
+          sudo apt update
+          sudo apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu
+
+      # Run cmake with extra options to cover as much source code as possible:
+      # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
+      - name: CMake configure
+        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
+
+      - name: Create code style diff
+        run: cmake --build build_riscv64 --target clang_format_fix_all -j8
+
+      - name: suggester / clang-format
+        if: startsWith(github.event_name, 'pull_request')
+        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          level: warning
+          fail_level: error
+          filter_mode: nofilter
 
   ShellCheck:
     runs-on: ubuntu-22.04
@@ -106,7 +139,7 @@ jobs:
       # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
         if: always()
-        uses: reviewdog/action-shellcheck@5ebd09ddbe2ebb471646ce234c6c8dd18663ca7c # v1.30.0
+        uses: reviewdog/action-shellcheck@4c07458293ac342d477251099501a718ae5ef86e # v1.32.0
         with:
           level: style
           reporter: github-pr-review

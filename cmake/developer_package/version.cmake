@@ -62,11 +62,12 @@ macro(ov_parse_ci_build_number repo_root)
         set(CI_BUILD_NUMBER $ENV{CI_BUILD_NUMBER})
     endif()
 
-    if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)\-([0-9]+)\-.*")
+    if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)(\.([0-9]+))?\-([0-9]+)\-.*")
         set(OpenVINO_VERSION_MAJOR ${CMAKE_MATCH_1})
         set(OpenVINO_VERSION_MINOR ${CMAKE_MATCH_2})
         set(OpenVINO_VERSION_PATCH ${CMAKE_MATCH_3})
-        set(OpenVINO_VERSION_BUILD ${CMAKE_MATCH_4})
+        set(OpenVINO_VERSION_TWEAK ${CMAKE_MATCH_5}) # optional, the 4th version number is not used in OpenVINO, but it is used in OpenVINO extensions
+        set(OpenVINO_VERSION_BUILD ${CMAKE_MATCH_6})
         set(the_whole_version_is_defined_by_ci ON)
     elseif(CI_BUILD_NUMBER MATCHES "^[0-9]+$")
         set(OpenVINO_VERSION_BUILD ${CI_BUILD_NUMBER})
@@ -98,7 +99,8 @@ macro(ov_parse_ci_build_number repo_root)
         endforeach()
 
         foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
-            if(DEFINED ${var} AND NOT ${var} EQUAL ${var}_HPP)
+            # Starting from CMake 4.0, version variables are set to "" if not defined by project(). See policy CMP0048.
+            if(${var} AND NOT ${var} EQUAL ${var}_HPP)
                 message(FATAL_ERROR "${var} parsed from CI_BUILD_NUMBER (${${var}}) \
                     and from openvino/core/version.hpp (${${var}_HPP}) are different")
             else()

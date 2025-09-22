@@ -8,22 +8,21 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPrecision() {
     MATCHER_SCOPE(MarkRopeInputsToKeepInMixedPrecision);
     using namespace ov::pass::pattern;
-    using namespace ov::gen_pattern;
     auto cos_tab = any_input();
     auto sin_tab = any_input();
-    auto rope = makePattern<ov::op::internal::RoPE>({any_input(), cos_tab, sin_tab});
+    auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), cos_tab, sin_tab});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto cos_input_node = pattern_map.at(cos_tab).get_node();
         auto sin_input_node = pattern_map.at(sin_tab).get_node();

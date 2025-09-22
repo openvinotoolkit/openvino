@@ -4,8 +4,8 @@
 
 import io
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict
-from typing import Type as TypingType
+from typing import Any, Union, Optional
+from collections.abc import Iterator
 from pathlib import Path
 import traceback  # noqa: F811
 
@@ -14,7 +14,7 @@ from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import Node, Tensor, Type
+from openvino._pyopenvino import Node, Tensor, Type, RTMap, TensorVector
 
 from openvino.utils.data_helpers import (
     OVDict,
@@ -43,32 +43,7 @@ class ModelMeta(type):
 class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if not args and not kwargs:
-
-            constructors = [
-                "1. openvino.Model(other: openvino.Model)"
-                "2. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], name: str = '')",
-                "3. openvino.Model(results: list[openvino.Node], parameters: list[openvino.op.Parameter], name: str = '')",
-                "4. openvino.Model(result: openvino.Node, parameters: list[openvino.op.Parameter], name: str = '')",
-                "5. openvino.Model(results: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
-                "6. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], name: str = '')",
-                "7. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
-                "8. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], \
-                                   variables: list[openvino.op.util.Variable], name: str = '')",
-                "9. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
-                "10. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], \
-                                    variables: list[openvino.op.util.Variable], name: str = '')",
-                "11. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], \
-                                    variables: list[openvino.op.util.Variable], name: str = '')",
-                "12. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], \
-                                    variables: list[openvino.op.util.Variable], name: str = '')",
-                "13. openvino.Model(results: list[openvino.op.Result], parameters: list[openvino.op.Parameter], \
-                                    variables: list[openvino.op.util.Variable], name: str = '')",
-                "14. openvino.Model(results: list[openvino.Output], parameters: list[openvino.op.Parameter], \
-                                    variables: list[openvino.op.util.Variable], name: str = '')",
-            ]
-
-            constructor_info = "\n".join(f"  - {ctor}" for ctor in constructors)
-            raise ValueError(f"Model cannot be instantiated without arguments.\n\nAvailable constructors:\n{constructor_info}")
+            self.__model = ModelBase()
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
                 self.__model = ModelBase(args[0])
@@ -92,7 +67,7 @@ class Model(object, metaclass=ModelMeta):
     def __copy__(self) -> "Model":
         raise TypeError("Cannot copy 'openvino.Model'. Please, use deepcopy instead.")
 
-    def __deepcopy__(self, memo: Dict) -> "Model":
+    def __deepcopy__(self, memo: dict) -> "Model":
         """Returns a deepcopy of Model.
 
         :return: A copy of Model.
@@ -103,7 +78,7 @@ class Model(object, metaclass=ModelMeta):
     def __enter__(self) -> "Model":
         return self
 
-    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:  # noqa: F811
+    def __exit__(self, exc_type: type[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:  # noqa: F811
         del self.__model
         self.__model = None
 
@@ -113,6 +88,17 @@ class Model(object, metaclass=ModelMeta):
     def __dir__(self) -> list:
         wrapper_methods = ["__copy__", "__deepcopy__", "__dict__", "__enter__", "__exit__", "__getattr__", "__weakref__"]
         return dir(self.__model) + wrapper_methods
+
+    def evaluate(
+        self,
+        output_tensors: Union[list[Tensor], TensorVector],
+        input_tensors: Union[list[Tensor], TensorVector],
+        evaluation_context: Optional[RTMap] = None,
+    ) -> bool:
+        outputs = output_tensors if isinstance(output_tensors, TensorVector) else TensorVector(output_tensors)
+        inputs = input_tensors if isinstance(input_tensors, TensorVector) else TensorVector(input_tensors)
+        context = evaluation_context if evaluation_context is not None else RTMap()
+        return self.__model.evaluate(outputs, inputs, context)
 
 
 class InferRequest(_InferRequestWrapper):
@@ -277,7 +263,7 @@ class InferRequest(_InferRequestWrapper):
         """Gets all outputs tensors of this InferRequest.
 
         :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.ConstOutput, numpy.array]
+        :rtype: dict[openvino.ConstOutput, numpy.array]
         """
         return OVDict(super().results)
 
@@ -311,8 +297,8 @@ class CompiledModel(CompiledModelBase):
     def query_state(self) -> None:
         """Gets state control interface for the underlaying infer request.
 
-        :return: List of VariableState objects.
-        :rtype: List[openvino.VariableState]
+        :return: list of VariableState objects.
+        :rtype: list[openvino.VariableState]
         """
         if self._infer_request is None:
             self._infer_request = self.create_infer_request()
@@ -467,7 +453,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
     a simple pipeline.
     """
 
-    def __iter__(self) -> Iterable[InferRequest]:
+    def __iter__(self) -> Iterator[InferRequest]:
         """Allows to iterate over AsyncInferQueue.
 
         Resulting objects are guaranteed to work with read-only methods like getting tensors.
@@ -475,7 +461,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         will put the parent AsyncInferQueue object in an invalid state.
 
         :return: a generator that yields InferRequests.
-        :rtype: Iterable[openvino.InferRequest]
+        :rtype: collections.abc.Iterable[openvino.InferRequest]
         """
         return (InferRequest(x) for x in super().__iter__())
 
@@ -565,7 +551,7 @@ class Core(CoreBase):
         self,
         model: Union[str, bytes, object, io.BytesIO],
         weights: Union[object, str, bytes, Tensor, io.BytesIO] = None,
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[dict[str, Any]] = None
     ) -> Model:
         config = {} if config is None else config
         if isinstance(model, Model):
@@ -584,7 +570,7 @@ class Core(CoreBase):
         self,
         model: Union[Model, str, Path],
         device_name: Optional[str] = None,
-        config: Optional[Dict[str, Any]] = None,
+        config: Optional[dict[str, Any]] = None,
         *,
         weights: Optional[bytes] = None,
     ) -> CompiledModel:
@@ -638,7 +624,7 @@ class Core(CoreBase):
             self,
             model: Model,
             device_name: str,
-            config: Optional[Dict[str, Any]] = None,
+            config: Optional[dict[str, Any]] = None,
     ) -> dict:
         return super().query_model(model._Model__model,
                                    device_name,
@@ -648,7 +634,7 @@ class Core(CoreBase):
         self,
         model_stream: bytes,
         device_name: str,
-        config: Optional[Dict[str, Any]] = None,
+        config: Optional[dict[str, Any]] = None,
     ) -> CompiledModel:
         """Imports a compiled model from a previously exported one.
 
@@ -701,7 +687,7 @@ class Core(CoreBase):
 def compile_model(
     model: Union[Model, str, Path],
     device_name: Optional[str] = "AUTO",
-    config: Optional[Dict[str, Any]] = None,
+    config: Optional[dict[str, Any]] = None,
 ) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 

@@ -7,6 +7,11 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov::test;
 

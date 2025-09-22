@@ -152,6 +152,44 @@ inline std::ostream& operator<<(std::ostream& out, const BatchMode& fmt) {
 
 /**
  * @brief [Only for NPU Plugin]
+ * Default is "ITERATIVE".
+ * Switches between different implementations of the "weights separation" feature.
+ */
+enum class WSVersion {
+    ONE_SHOT = 0,
+    ITERATIVE = 1,
+};
+
+inline std::ostream& operator<<(std::ostream& out, const WSVersion& wsVersion) {
+    switch (wsVersion) {
+    case WSVersion::ONE_SHOT: {
+        out << "ONE_SHOT";
+    } break;
+    case WSVersion::ITERATIVE: {
+        out << "ITERATIVE";
+    } break;
+    default: {
+        OPENVINO_THROW("Unsupported value for the weights separation version:", wsVersion);
+    }
+    }
+    return out;
+}
+
+inline std::istream& operator>>(std::istream& is, WSVersion& wsVersion) {
+    std::string str;
+    is >> str;
+    if (str == "ONE_SHOT") {
+        wsVersion = WSVersion::ONE_SHOT;
+    } else if (str == "ITERATIVE") {
+        wsVersion = WSVersion::ITERATIVE;
+    } else {
+        OPENVINO_THROW("Unsupported value for the weights separation version:", str);
+    }
+    return is;
+}
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: string, default is MODEL.
  * Type of profiling to execute. Can be Model (default) or INFER (based on npu timestamps)
  * @note Configuration API v 2.0
@@ -258,13 +296,6 @@ static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MOD
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: integer, default is None
- * Number of DPU groups
- */
-static constexpr ov::Property<int64_t> dpu_groups{"NPU_DPU_GROUPS"};
-
-/**
- * @brief [Only for NPU Plugin]
  * Type: integer, default is -1
  * Sets the number of DMA engines that will be used to execute the model.
  */
@@ -297,6 +328,34 @@ static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"
  * Possible values: "AUTO", "PLUGIN", "COMPILER".
  */
 static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
+
+/**
+ * @brief [Experimental, only for NPU Plugin]
+ * Type: enum. Default is "ITERATIVE".
+ *
+ * The value stored in this entry indicates which implementation of the "weights separation" feature will be used.
+ * Note: NPU_COMPILER_TYPE = DRIVER & NPU_SEPARATE_WEIGHTS_VERSION = ONE_SHOT are not compatible.
+ */
+static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_WEIGHTS_VERSION"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: bool. Default is "false".
+ *
+ * This option enables/disables the "weights separation" feature. If enabled, the result of compilation will be a binary
+ * object stripped of a significant amount of weights. Before running the model, these weights need to be provided by
+ * external means.
+ */
+static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
+
+/**
+ * @brief [Experimental, only for NPU Plugin]
+ * Type: integer.
+ *
+ * Used for communicating a state to the compiler when compiling a model using the compiler-in-driver interfaces. This
+ * takes effect only when weights separation is enabled and "NPU_SEPARATE_WEIGHTS_VERSION" is set to "ITERATIVE".
+ */
+static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
 
 /**
  * @brief [Only for NPU Plugin]
@@ -353,15 +412,6 @@ static constexpr ov::Property<std::string, ov::PropertyMutability::RO> backend_n
  * Available values: enable-partial-workload-management=true/false
  */
 static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKEND_COMPILATION_PARAMS"};
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: boolean, default is false.
- * This option allows to run inferences sequentially, in the order in which they were created
- * @note Experimental property, for now it only works in very specific scenarios. We need driver updates before we can
- * implement a robust solution for in-order execution
- */
-static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
 
 /**
  * @brief [Only for NPU Plugin]

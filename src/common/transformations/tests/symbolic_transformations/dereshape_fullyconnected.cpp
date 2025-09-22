@@ -35,7 +35,7 @@ TEST_F(TransformationTestsF, DeReshapeFC) {
             make_shared<v0::Concat>(OutputVector{batch_dims, v0::Constant::create(element::i64, {1}, {80})}, 0);
         auto out_reshape = make_shared<v1::Reshape>(matmul, pattern, false);
 
-        model = make_shared<Model>(NodeVector{out_reshape}, ParameterVector{data, second_input});
+        model = make_shared<Model>(OutputVector{out_reshape}, ParameterVector{data, second_input});
         manager.register_pass<pass::SymbolicOptimizations>();
     }
     {
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, DeReshapeFC) {
         auto second_input = make_shared<v0::Parameter>(element::f32, Shape{40, 80});
         auto matmul = make_shared<v0::MatMul>(data, second_input);
 
-        model_ref = make_shared<Model>(NodeVector{matmul}, ParameterVector{data, second_input});
+        model_ref = make_shared<Model>(OutputVector{matmul}, ParameterVector{data, second_input});
     }
 }
 
@@ -63,7 +63,7 @@ TEST_F(TransformationTestsF, DeReshapeFCWithConvert) {
             make_shared<v0::Concat>(OutputVector{batch_dims, v0::Constant::create(element::i64, {1}, {80})}, 0);
         auto out_reshape = make_shared<v1::Reshape>(matmul, pattern, false);
 
-        model = make_shared<Model>(NodeVector{out_reshape}, ParameterVector{data, second_input});
+        model = make_shared<Model>(OutputVector{out_reshape}, ParameterVector{data, second_input});
         manager.register_pass<pass::SymbolicOptimizations>();
     }
     {
@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, DeReshapeFCWithConvert) {
         auto second_input = make_shared<v0::Parameter>(element::f32, Shape{40, 80});
         auto matmul = make_shared<v0::MatMul>(convert, second_input);
 
-        model_ref = make_shared<Model>(NodeVector{matmul}, ParameterVector{data, second_input});
+        model_ref = make_shared<Model>(OutputVector{matmul}, ParameterVector{data, second_input});
     }
 }
 
@@ -90,7 +90,7 @@ TEST_F(TransformationTestsF, DeReshapeFCNegative) {
         auto pattern = v0::Constant::create(element::i64, {3}, {4, -1, 80});
         auto out_reshape = make_shared<v1::Reshape>(matmul, pattern, false);
 
-        model = make_shared<Model>(NodeVector{out_reshape}, ParameterVector{data, second_input});
+        model = make_shared<Model>(OutputVector{out_reshape}, ParameterVector{data, second_input});
         manager.register_pass<pass::SymbolicOptimizations>();
     }
 }

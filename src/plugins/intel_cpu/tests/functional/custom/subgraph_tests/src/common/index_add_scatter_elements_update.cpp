@@ -1,13 +1,24 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -44,7 +55,7 @@ class IndexAddTest : public testing::WithParamInterface<IndexAddTestParams>,
                      virtual public ov::test::SubgraphBaseTest,
                      public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<IndexAddTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<IndexAddTestParams>& obj) {
         auto shapes_ss = [](const InputShape& shape) {
             std::stringstream ss;
             ss << "_IS=(" << ov::test::utils::partialShape2str({shape.first}) << ")_TS=";
@@ -52,24 +63,15 @@ public:
                 ss << "{" << ov::test::utils::vec2str(shape.second[j]) << "}";
             return ss;
         };
-
-        InputsAndAxis shapes_desc;
-        std::vector<InputShape> input_shapes;
-        int axis;
-        v12::ScatterElementsUpdate::Reduction reduceMode;
-        ov::element::Type data_type, indices_type;
-        float alpha;
-        bool dynamic;
-
-        std::tie(shapes_desc, reduceMode, data_type, indices_type, alpha, dynamic) = obj.param;
-        std::tie(input_shapes, axis) = shapes_desc;
+        const auto& [shapes_desc, reduceMode, data_type, indices_type, alpha, dynamic] = obj.param;
+        const auto& [input_shapes, axis] = shapes_desc;
         std::ostringstream result;
         result << "InputShape=" << shapes_ss(input_shapes.at(0)).str() << "_";
         result << "UpdateShape=" << ov::test::utils::vec2str(input_shapes.at(1).second) << "_";
         result << "Axis=" << axis << "_";
         result << "ReduceMode=" << as_string(reduceMode) << "_";
-        result << "modelType=" << data_type.to_string() << "_";
-        result << "idxType=" << indices_type.to_string() << "_";
+        result << "modelType=" << ov::element::Type(data_type).to_string() << "_";
+        result << "idxType=" << ov::element::Type(indices_type).to_string() << "_";
         result << "alpha=" << alpha;
         result << "dynamic=" << dynamic;
         return result.str();
@@ -82,29 +84,17 @@ protected:
 
         constexpr size_t DATA_INPUT_IDX = 0;
         constexpr size_t UPDATES_INPUT_IDX = 1;
-
-        InputsAndAxis shapes_desc;
-        std::vector<InputShape> input_shapes;
-        int axis;
-
-        v12::ScatterElementsUpdate::Reduction reduceMode;
-        float alpha_value;
-        bool dynamic;
-
-        ov::element::Type data_type, indices_type;
         std::string target_device;
-        std::tie(shapes_desc, reduceMode, data_type, indices_type, alpha_value, dynamic) = this->GetParam();
-        std::tie(input_shapes, axis) = shapes_desc;
-
+        const auto& [shapes_desc, reduceMode, data_type, indices_type, alpha_value, dynamic] = this->GetParam();
+        const auto& [input_shapes, axis] = shapes_desc;
         if (ov::element::bf16 == data_type || ov::element::f16 == data_type) {
-            configuration.insert({ov::hint::inference_precision.name(), data_type});
+            configuration.insert({ov::hint::inference_precision.name(), ov::element::Type(data_type)});
             abs_threshold = 0.01f;
             rel_threshold = 0.01f;
         }
 
         init_input_shapes(input_shapes);
 
-        //
         normalized_axis = axis < 0 ? axis + inputDynamicShapes.at(DATA_INPUT_IDX).rank().get_length(): axis;
 
         if (dynamic) {
@@ -241,8 +231,8 @@ private:
     std::shared_ptr<Node> get_node_axes_range(const Output<Node>& x) {
         auto start = std::make_shared<opset10::Constant>(element::i32, Shape{}, 0);
         auto step = std::make_shared<opset10::Constant>(element::i32, Shape{}, 1);
-        Output<Node> reduced_rank;
-        std::tie(std::ignore, reduced_rank) = get_shape_rank(x, true);
+        const auto& [_ignore, reduced_rank] = get_shape_rank(x, true);
+        std::ignore = _ignore;
         return std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32);
     }
 

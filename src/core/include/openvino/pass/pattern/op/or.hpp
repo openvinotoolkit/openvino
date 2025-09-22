@@ -7,7 +7,8 @@
 #include "openvino/core/node.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 
-namespace ov::pass::pattern::op {
+namespace ov::pass {
+namespace pattern::op {
 /// A submatch on the graph value is performed on each input to the Or; the match
 /// succeeds on the first match. Otherwise the match fails.
 class OPENVINO_API Or : public Pattern {
@@ -22,4 +23,7 @@ public:
                      const Output<Node>& pattern_value,
                      const Output<Node>& graph_value) override;
 };
-}  // namespace ov::pass::pattern::op
+}  // namespace pattern::op
+OPENVINO_API std::shared_ptr<Node> operator|(const Output<Node>& lhs, const Output<Node>& rhs);
+OPENVINO_API std::shared_ptr<Node> operator|(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs);
+}  // namespace ov::pass

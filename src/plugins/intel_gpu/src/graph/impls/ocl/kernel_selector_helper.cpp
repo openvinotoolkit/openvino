@@ -50,6 +50,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <chrono>
 
 namespace {
 using namespace cldnn;
@@ -70,10 +71,8 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
 namespace cldnn {
 
 bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
-    // Skip check for Windows as CM frontend is a component of Intel GPU driver
-#ifdef WIN32
-    return true;
-#else
+    // Even though CM frontend is a component of Intel GPU driver on Windows, the version
+    // may still be incompatible to existing CM kernels.
     auto device = e.get_device().get();
 
     static std::mutex m;
@@ -87,9 +86,11 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
     // This program checks if cm sources can be jitted by current IGC version
     const char* kernel_code = R""""(
-        #include <cm/cm.h>
-        #include <cm/cmtl.h>
-
+        static_assert(__cplusplus >= 201703L);
+        static_assert(CM_HAS_DPAS);
+        CM_INLINE uint64_t dummy() {
+            return ((uint64_t)0L);
+        }
         extern "C" _GENX_MAIN_ void cm_check(half *x [[type("svmptr_t")]]) {
             unsigned int id = cm_linear_global_id();
         }
@@ -99,6 +100,20 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     kernel_string->options = " -cmc ";
     kernel_string->entry_point = "cm_check";
     kernel_string->batch_compilation = true;
+    kernel_string->language = kernel_language::CM;
+
+    if (device->get_info().arch >= gpu_arch::xe2) {
+        const char* check_lsc_code = R""""(
+            static_assert(CM_HAS_LSC_UNTYPED_2D);
+            lsc::block_2d_desc<uint,1,1,1> b((uint64_t)0UL, 8, 8, 8, 0, 0);
+            )"""";
+        kernel_string->str.append(check_lsc_code);
+    }
+
+    // Add timestamp to avoid IGC uses a cached cm_check kernel.
+    auto timestamp = std::chrono::high_resolution_clock::now()
+                .time_since_epoch().count();
+    kernel_string->options += " -DSEED=" + to_string(timestamp);
 
     try {
         cldnn::kernel_impl_params dummy_params;
@@ -109,9 +124,7 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     } catch (std::exception&) {
         cache[device] = false;
     }
-
     return cache.at(device);
-#endif
 }
 
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
@@ -829,9 +842,14 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
     }
 }
 
-kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset) {
+
+kernel_selector::n_dims compute_tensor_dimensions(const layout& l,
+                                                    const size_t num_channels,
+                                                    const tensor view_offset) {
     const auto& pad = l.data_padding;
+    const auto& dynamic_pad_dims = layout::format_sizes(pad._dynamic_dims_mask, l.format);
     const auto& vals_original = l.get_partial_shape();
+    const auto& add_offsets = view_offset.sizes(l.format);
 
     // legacy get_tensor().sizes() impl return dims in external order, so we need to transpose dims
     ov::PartialShape vals_ordered;
@@ -842,13 +860,10 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
         else
             vals_ordered.push_back(vals_original[axis_order[i]]);
     }
-    const auto& add_offsets = view_offset.sizes(l.format);
     const auto& lower_pad = layout::format_sizes(pad._lower_size, l.format);
     const auto& upper_pad = layout::format_sizes(pad._upper_size, l.format);
-    const auto& dynamic_pad_dims = layout::format_sizes(pad._dynamic_dims_mask, l.format);
-    const auto ks_layout = to_data_layout(l.format);
-    kernel_selector::n_dims vec(kernel_selector::DataTensor::ChannelsCount(ks_layout));
 
+    kernel_selector::n_dims vec(num_channels);
     size_t pitch = 1;
     for (size_t i = 0; i < vec.size(); i++) {
         const size_t tensor_index = vec.size() - 1 - i;
@@ -869,22 +884,31 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
         pitch *= (reserved_in_mem_count + lp + up);
     }
 
+    return vec;
+}
+
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset) {
+    const auto ks_layout = to_data_layout(l.format);
+    auto vec = compute_tensor_dimensions(l, kernel_selector::DataTensor::ChannelsCount(ks_layout), view_offset);
     return kernel_selector::data_tensor(vec, to_data_type(l.data_type), ks_layout);
 }
 
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped) {
-    const auto& t = l.get_tensor().sizes(l.format);
     const auto ks_type = to_weights_type(l.data_type);
     const auto ks_layout = to_weights_layout(l.format, is_grouped);
-    std::vector<size_t> vec(kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
-
-    for (size_t i = 0; i < vec.size(); i++) {
-        const size_t tensor_index = t.size() - 1 - i;
-        const auto d = t[tensor_index];
-        vec[i] = static_cast<size_t>(d);
+    if (l.data_padding) {
+        auto vec = compute_tensor_dimensions(l, kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
+        return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
+    } else {
+        const auto& t = l.get_tensor().sizes(l.format);
+        std::vector<size_t> vec(kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
+        for (size_t i = 0; i < vec.size(); i++) {
+            const size_t tensor_index = t.size() - 1 - i;
+            const auto d = t[tensor_index];
+            vec[i] = static_cast<size_t>(d);
+        }
+        return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
     }
-
-    return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
 }
 
 layout from_weights_tensor(const kernel_selector::weights_tensor& l) {
@@ -1135,6 +1159,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supports_intel_subgroups_char = device_info.supports_intel_subgroups_char;
     params.engineInfo.supports_intel_required_subgroup_size = device_info.supports_intel_required_subgroup_size;
     params.engineInfo.supports_image = device_info.supports_image;
+    params.engineInfo.supports_work_group_collective_functions = device_info.supports_work_group_collective_functions;
 
     params.engineInfo.supports_imad = device_info.supports_imad;
     params.engineInfo.supports_immad = device_info.supports_immad;

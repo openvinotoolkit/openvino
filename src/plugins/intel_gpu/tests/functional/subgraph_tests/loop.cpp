@@ -12,6 +12,10 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -37,23 +41,8 @@ class DynamicShapeLoopTest : public testing::WithParamInterface<DynamicShapeLoop
                              virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DynamicShapeLoopParams> &obj) {
-        bool static_iter_num;
-        bool static_continue_cond;
-        int64_t max_iter_num;
-        int64_t dynamic_exit;
-        int64_t axis;
-        int64_t start_value;
-        InputShape data_shapes;
-        ov::element::Type model_type;
-        std::string targetDevice;
-        auto args_pack = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-        std::tie(
-            static_continue_cond,
-            args_pack,
-            start_value,
-            data_shapes,
-            model_type,
-            targetDevice) = obj.param;
+        const auto& [static_continue_cond, args_pack, start_value, data_shapes, model_type, targetDevice] = obj.param;
+        const auto [static_iter_num, max_iter_num, dynamic_exit, axis] = args_pack;
 
         std::ostringstream result;
         result << "static_iter_num=" << std::to_string(static_iter_num) << "_";
@@ -100,7 +89,7 @@ protected:
             model_type,
             targetDevice) = GetParam();
 
-        const auto inputShape = data_shapes.first;
+        const auto& inputShape = data_shapes.first;
         const auto scalarShape = ov::Shape{};
         init_input_shapes({data_shapes, data_shapes});
 
@@ -314,27 +303,8 @@ class DynamicShapeLoopDynamicInputTest : public testing::WithParamInterface<Dyna
                                          virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DynamicShapeLoopDynamicInputParams> &obj) {
-        bool static_iter_num;
-        bool static_continue_cond;
-        bool freeze_input;
-        int64_t max_iter_num;
-        int64_t dynamic_exit;
-        int64_t axis;
-        int64_t start_value;
-        InputShape data_shapes;
-        InputShape constant_shapes;
-        ov::element::Type model_type;
-        std::string targetDevice;
-        auto args_pack = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-        std::tie(
-            static_continue_cond,
-            args_pack,
-            start_value,
-            data_shapes,
-            constant_shapes,
-            model_type,
-            targetDevice,
-            freeze_input) = obj.param;
+        const auto& [static_continue_cond, args_pack, start_value, data_shapes, constant_shapes, model_type, targetDevice, freeze_input] = obj.param;
+        const auto [static_iter_num, max_iter_num, dynamic_exit, axis] = args_pack;
 
         std::ostringstream result;
         result << "static_iter_num=" << std::to_string(static_iter_num) << "_";
@@ -386,7 +356,7 @@ protected:
             targetDevice,
             freeze_input) = GetParam();
 
-        const auto inputShape = data_shapes.first;
+        const auto& inputShape = data_shapes.first;
         const auto scalarShape = ov::Shape{};
         init_input_shapes({data_shapes, data_shapes, constant_shapes});
 

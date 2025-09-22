@@ -5,7 +5,9 @@
 #include <gtest/gtest.h>
 #include "custom_shape_infer.hpp"
 #include <memory>
-#include "openvino/op/ops.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/strided_slice.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -33,14 +35,8 @@ public:
         STRIDE = 2,
     };
     static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceParams>& obj) {
-        unit_test::ShapeVector tmp_input_shapes;
-        std::vector<std::vector<int32_t>> tmp_data;
-        std::vector<int64_t> tmp_begin_mask;
-        std::vector<int64_t> tmp_end_mask;
-        std::vector<int64_t> tmp_new_axis_mask;
-        std::vector<int64_t> tmp_shrink_axis_mask;
-        StaticShape tmp_exp_shape;
-        std::tie(tmp_input_shapes, tmp_data, tmp_begin_mask, tmp_end_mask, tmp_new_axis_mask, tmp_shrink_axis_mask, tmp_exp_shape) = obj.param;
+        const auto& [tmp_input_shapes, tmp_data, tmp_begin_mask, tmp_end_mask, tmp_new_axis_mask, tmp_shrink_axis_mask,
+                     tmp_exp_shape] = obj.param;
         std::ostringstream result;
         result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
         result << "begin" << ov::test::utils::vec2str(tmp_data[BEGIN]) << "_";

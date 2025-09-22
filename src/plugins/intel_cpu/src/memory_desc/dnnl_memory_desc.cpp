@@ -4,11 +4,20 @@
 
 #include "dnnl_memory_desc.h"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <common/memory_desc.hpp>
 #include <common/memory_desc_wrapper.hpp>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <string>
 
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -17,9 +26,7 @@ DnnlMemoryDesc::DnnlMemoryDesc(const dnnl::memory::desc& desc) : DnnlMemoryDesc(
 DnnlMemoryDesc::DnnlMemoryDesc(const_dnnl_memory_desc_t cdesc)
     : MemoryDesc(Shape(DnnlExtensionUtils::convertToVectorDims(cdesc->dims, cdesc->ndims)), Dnnl),
       desc(DnnlExtensionUtils::clone_desc(cdesc)) {
-    if (getFormatKind() == dnnl::memory::format_kind::any) {
-        OPENVINO_THROW("Unexpected: Memory format any is prohibited!");
-    }
+    OPENVINO_ASSERT(getFormatKind() != dnnl::memory::format_kind::any, "Unexpected: Memory format any is prohibited!");
 }
 
 ov::element::Type DnnlMemoryDesc::getPrecision() const {
@@ -38,7 +45,7 @@ MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec
 
 bool DnnlMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     if (MemoryDescType::Dnnl & rhs.getType()) {
-        auto* dnnMemDesc = rhs.as<DnnlMemoryDesc>();
+        const auto* dnnMemDesc = rhs.as<DnnlMemoryDesc>();
         return isCompatible(*dnnMemDesc);
     }
     return false;
@@ -77,9 +84,7 @@ std::string DnnlMemoryDesc::serializeFormat() const {
 }
 
 size_t DnnlMemoryDesc::getMaxMemSize() const {
-    if (shape.isDynamic()) {
-        OPENVINO_THROW("Can't compute max mem size for DnnlMemoryDesc with dynamic shape");
-    }
+    OPENVINO_ASSERT(!shape.isDynamic(), "Can't compute max mem size for DnnlMemoryDesc with dynamic shape");
 
     return getCurrentMemSize();
 }

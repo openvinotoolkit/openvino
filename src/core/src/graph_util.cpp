@@ -158,11 +158,11 @@ void replace_node(const std::shared_ptr<Node>& target, const OutputVector& repla
     //         Change I's connected upstream output to O_rep
     for (size_t i = 0; i < target->get_output_size(); i++) {
         auto& replacement_value = replacement_values.at(i);
-        auto replacement_node = replacement_value.get_node_shared_ptr();
-        if (replacement_nodes.find(replacement_node) == replacement_nodes.end()) {
+        if (auto&& replacement_node = replacement_value.get_node_shared_ptr();
+            replacement_nodes.find(replacement_node) == replacement_nodes.end()) {
             replacement_node->add_node_control_dependents(target);
             replacement_node->add_node_control_dependencies(target);
-            replacement_nodes.insert(replacement_node);
+            replacement_nodes.insert(std::move(replacement_node));
         }
         target->output(i).replace(replacement_values.at(i));
     }
@@ -227,7 +227,7 @@ std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node
         if (!result) {
             OPENVINO_THROW("Results should be of type ov::op::v0::Result");
         }
-        cloned_results.push_back(result);
+        cloned_results.push_back(std::move(result));
     }
     SinkVector cloned_sinks;
     for (const auto& node : func.get_sinks()) {
@@ -304,15 +304,17 @@ bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::sh
 }
 
 void serialize(const std::shared_ptr<const ov::Model>& m,
-               const std::string& xml_path,
-               const std::string& bin_path,
+               const std::filesystem::path& xml_path,
+               const std::filesystem::path& bin_path,
                ov::pass::Serialize::Version version) {
     ov::pass::Manager manager("Serialize");
     manager.register_pass<ov::pass::Serialize>(xml_path, bin_path, version);
     manager.run_passes(std::const_pointer_cast<ov::Model>(m));
 }
 
-void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& output_model, bool compress_to_fp16) {
+void save_model(const std::shared_ptr<const ov::Model>& m,
+                const std::filesystem::path& output_model,
+                bool compress_to_fp16) {
     auto cloned = m->clone();
     if (compress_to_fp16) {
         // TODO: Implement on-the-fly compression in pass::Serialize, Ticket: 145380

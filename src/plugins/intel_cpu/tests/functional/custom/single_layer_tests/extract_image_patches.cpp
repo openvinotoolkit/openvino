@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/extractimagepatches.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -19,15 +20,8 @@ class ExtractImagePatchesLayerCPUTest : public testing::WithParamInterface<extra
                                         virtual public SubgraphBaseTest,
                                         public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<extractImagePatchesParams> obj) {
-        InputShape inputShapes;
-        ElementType inputPrecision;
-        ov::Shape kernelSize;
-        ov::Strides strides;
-        ov::Shape rates;
-        ov::op::PadType padType;
-        std::tie(inputShapes, inputPrecision, kernelSize, strides, rates, padType) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<extractImagePatchesParams>& obj) {
+        const auto& [inputShapes, inputPrecision, kernelSize, strides, rates, padType] = obj.param;
         std::ostringstream result;
         result << "netPRC=" << inputPrecision << "_"
                << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -45,14 +39,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        InputShape inputShapes;
-        ElementType inputPrecision;
-        ov::Shape kernelSize;
-        ov::Strides strides;
-        ov::Shape rates;
-        ov::op::PadType padType;
-        std::tie(inputShapes, inputPrecision, kernelSize, strides, rates, padType) = this->GetParam();
-
+        const auto& [inputShapes, inputPrecision, kernelSize, strides, rates, padType] = this->GetParam();
         selectedType = makeSelectedTypeStr("ref_any", inputPrecision);
         if (inputPrecision == ElementType::bf16) {
             rel_threshold = 1e-2;

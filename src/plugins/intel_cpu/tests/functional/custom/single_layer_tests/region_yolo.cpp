@@ -4,6 +4,7 @@
 
 #include "utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/region_yolo.hpp"
 
 using namespace CPUTestUtils;
 
@@ -30,17 +31,9 @@ using regionYoloParamsTuple = std::tuple<InputShape,             // Input Shape
 class RegionYoloCPULayerTest : public testing::WithParamInterface<regionYoloParamsTuple>,
                                virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<regionYoloParamsTuple> obj) {
-        InputShape inputShape;
-        regionYoloAttributes attributes;
-        std::vector<int64_t> mask;
-        ov::test::ElementType inpPrecision;
-        ov::test::ElementType outPrecision;
-        std::string targetName;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShape, attributes, mask, inpPrecision, outPrecision, additionalConfig, targetName) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<regionYoloParamsTuple>& obj) {
+        const auto& [inputShape, attributes, mask, inpPrecision, outPrecision, additionalConfig, targetName] =
+            obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "classes=" << attributes.classes << "_";
@@ -56,15 +49,8 @@ public:
     }
 protected:
     void SetUp() override {
-        InputShape inputShape;
-        regionYoloAttributes attributes;
-        std::vector<int64_t> mask;
-        ov::test::ElementType inPrc;
-        ov::test::ElementType outPrc;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShape, attributes, mask, inPrc, outPrc, additionalConfig, targetDevice) = this->GetParam();
-
+        const auto& [inputShape, attributes, mask, inPrc, outPrc, additionalConfig, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
         if (inPrc == ov::test::ElementType::bf16) {
             // ticket #72342
             rel_threshold = 0.02;

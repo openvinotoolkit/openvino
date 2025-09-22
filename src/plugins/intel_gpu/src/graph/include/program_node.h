@@ -12,6 +12,7 @@
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 
 #include <set>
@@ -207,9 +208,15 @@ public:
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 
-    std::unordered_set<size_t> get_memory_dependencies() const;
-    void add_memory_dependency(size_t);
+    const std::unordered_set<uint32_t>& get_memory_dependencies() const;
+
     void add_memory_dependency(std::vector<size_t>);
+    void add_memory_dependency(const program_node& node);
+
+    // At least the following scenarios are not allocating from memory pool:
+    // 1. constant nodes
+    // 2. read_value nodes that are optimized out to reuse from Variables.
+    bool may_use_mempool() const { return !(is_constant() || (is_type<read_value>() && optimized)); }
 
     template <class PType>
     bool have_user_with_type() const {
@@ -497,7 +504,7 @@ protected:
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::unordered_set<size_t> memory_dependencies;
+    std::unordered_set<uint32_t> memory_dependencies;
 
     impl_types impl_type = impl_types::any;
     impl_types forced_impl_type = impl_types::any;

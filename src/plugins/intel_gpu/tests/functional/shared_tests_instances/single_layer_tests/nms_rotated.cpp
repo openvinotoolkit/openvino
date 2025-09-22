@@ -7,6 +7,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/op/nms_rotated.hpp"
 
 namespace ov {
 namespace test {

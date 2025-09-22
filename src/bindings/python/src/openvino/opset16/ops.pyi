@@ -11,7 +11,7 @@ import typing
 """
 Factory functions for ops added to openvino opset16.
 """
-__all__ = ['Node', 'NodeInput', 'as_nodes', 'identity', 'istft', 'nameable_op', 'partial', 'segment_max']
+__all__: list[str] = ['Node', 'NodeInput', 'as_nodes', 'identity', 'istft', 'nameable_op', 'partial', 'segment_max', 'sparse_fill_empty_rows']
 def identity(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Identity operation is used as a placeholder. It creates a copy of the input to forward to the output.
@@ -47,6 +47,20 @@ def segment_max(*args, **kwargs) -> openvino._pyopenvino.Node:
         :param name: Optional name for the node.
     
         :return: The new node performing SegmentMax operation.
+        
+    """
+def sparse_fill_empty_rows(*args, **kwargs) -> openvino._pyopenvino.Node:
+    """
+    Fills empty rows of an input sparse tensor with a default value.
+    
+        :param values: 1D tensor containing the values to be inserted at the specified indices.
+        :param dense_shape: 1D tensor indicating the shape of the 2D dense tensor.
+        :param indices: 2D tensor indicating the positions at which values are placed.
+        :param default_value: A scalar value to be inserted into empty rows.
+        :param name: Optional name for the node.
+    
+        :return: The new node performing SparseFillEmptyRows operation with three outputs:
+                 [output_indices, output_values, empty_row_indicator]
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]

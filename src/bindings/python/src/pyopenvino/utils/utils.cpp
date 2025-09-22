@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include <pybind11/stl.h>
+#include <pybind11/stl/filesystem.h>
 
 #include <map>
 #include <set>
@@ -237,6 +238,9 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::SchedulingCoreType>());
     } else if (any.is<std::set<ov::hint::ModelDistributionPolicy>>()) {
         return py::cast(any.as<std::set<ov::hint::ModelDistributionPolicy>>());
+    } else if (any.is<std::shared_ptr<const ov::Model>>()) {
+        auto model = std::const_pointer_cast<ov::Model>(any.as<std::shared_ptr<const ov::Model>>());
+        return py::cast(model);
     } else if (any.is<ov::hint::ExecutionMode>()) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
@@ -292,30 +296,33 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             // Wrapped to sp due-to we need to hold GIL upon destruction of python function
             auto py_encrypt = std::shared_ptr<py::function>(new py::function(std::move(property_list[0])),
                                                             [](py::function* py_encrypt) {
-                                                                py::gil_scoped_acquire acquire;
+                                                                ConditionalGILScopedAcquire acquire;
                                                                 delete py_encrypt;
                                                             });
             auto py_decrypt = std::shared_ptr<py::function>(new py::function(std::move(property_list[1])),
                                                             [](py::function* py_decrypt) {
-                                                                py::gil_scoped_acquire acquire;
+                                                                ConditionalGILScopedAcquire acquire;
                                                                 delete py_decrypt;
                                                             });
 
             std::function<std::string(const std::string&)> encrypt_func =
                 [py_encrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
-                py::gil_scoped_acquire acquire;
+                ConditionalGILScopedAcquire acquire;
                 return (*py_encrypt)(py::bytes(in_str)).cast<std::string>();
             };
 
             std::function<std::string(const std::string&)> decrypt_func =
                 [py_decrypt](const std::string& in_str) -> std::string {
                 // Acquire GIL, execute Python function
-                py::gil_scoped_acquire acquire;
+                ConditionalGILScopedAcquire acquire;
                 return (*py_decrypt)(py::bytes(in_str)).cast<std::string>();
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
+        } else if (property.first == ov::hint::model.name()) {
+            auto model = Common::utils::convert_to_model(property.second);
+            properties_to_cpp[property.first] = std::static_pointer_cast<const ov::Model>(model);
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }
@@ -381,8 +388,7 @@ void deprecation_warning(const std::string& function_name,
 }
 
 void raise_not_implemented() {
-    auto error_message = py::detail::c_str(std::string("This function is not implemented."));
-    PyErr_SetString(PyExc_NotImplementedError, error_message);
+    PyErr_SetString(PyExc_NotImplementedError, "This function is not implemented.");
     throw py::error_already_set();
 }
 
@@ -399,6 +405,21 @@ bool py_object_is_any_map(const py::object& py_obj) {
 ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
     OPENVINO_ASSERT(py_object_is_any_map(py_obj), "Unsupported attribute type.");
     ov::AnyMap return_value = {};
+    for (auto& item : py::cast<py::dict>(py_obj)) {
+        std::string key = py::cast<std::string>(item.first);
+        py::object value = py::cast<py::object>(item.second);
+        if (py_object_is_any_map(value)) {
+            return_value[key] = Common::utils::py_object_to_any_map(value);
+        } else {
+            return_value[key] = Common::utils::py_object_to_any(value);
+        }
+    }
+    return return_value;
+}
+
+std::unordered_map<std::string, ov::Any> py_object_to_unordered_any_map(const py::object& py_obj) {
+    OPENVINO_ASSERT(py_object_is_any_map(py_obj), "Unsupported attribute type.");
+    std::unordered_map<std::string, ov::Any> return_value = {};
     for (auto& item : py::cast<py::dict>(py_obj)) {
         std::string key = py::cast<std::string>(item.first);
         py::object value = py::cast<py::object>(item.second);
@@ -555,7 +576,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return std::shared_ptr<py::object>(new py::object(py_obj), [](py::object* py_obj_reference) {
-            py::gil_scoped_acquire acquire;
+            ConditionalGILScopedAcquire acquire;
             delete py_obj_reference;
         });
     }
@@ -563,10 +584,25 @@ ov::Any py_object_to_any(const py::object& py_obj) {
 }
 std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
     auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
-        py::gil_scoped_acquire acquire;
+        ConditionalGILScopedAcquire acquire;
         delete c;
     });
     return callback_sp;
+}
+
+std::filesystem::path to_fs_path(const py::object& path) {
+    // import pathlib.Path
+    py::object Path = py::module_::import("pathlib").attr("Path");
+
+    if (py::isinstance(path, Path) || py::isinstance<py::str>(path) || py::isinstance<py::bytes>(path)) {
+        return path.cast<std::filesystem::path>();
+    }
+
+    std::stringstream str;
+    str << "Path: '" << path << "'"
+        << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
+           "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
+    OPENVINO_THROW(str.str());
 }
 };  // namespace utils
 };  // namespace Common

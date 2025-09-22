@@ -8,6 +8,11 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/swish.hpp"
 
 namespace ov {
 namespace test {
@@ -99,7 +104,7 @@ protected:
         auto gate_up = std::make_shared<ov::op::v1::Multiply>(gate_act, up_proj);
         auto output = std::make_shared<ov::op::v0::MatMul>(gate_up, down_weight, false, true);
 
-        function = std::make_shared<ov::Model>(ov::NodeVector{output}, ov::ParameterVector{src});
+        function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{src});
     }
 
     void check_results() {

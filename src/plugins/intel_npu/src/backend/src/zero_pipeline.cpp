@@ -12,31 +12,39 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-#include "zero_remote_tensor.hpp"
 
 namespace intel_npu {
-
 Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const std::shared_ptr<IGraph>& graph,
-                   const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-                   const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors)
-    : _graph(graph),
+                   const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
+                   const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+                   size_t batch_size)
+    : _init_structs(init_structs),
+      _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
-      _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
+      _number_of_command_lists(batch_size),
       _logger("Pipeline", _config.get<LOG_LEVEL>()) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
-    _logger.debug("Pipeline - initialize started");
 
-    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>(),
+    _logger.debug("Pipeline - initialize started, number_of_command_lists %i", _number_of_command_lists);
+
+    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        _graph->resize_last_submitted_event(_number_of_command_lists);
+    }
+
+    OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
+                        _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
                     "In-order execution doesn't work in case synchronization of the inferences is done using events");
 
     if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
         auto profiling_pool =
-            std::make_shared<zeroProfiling::ProfilingPool>(init_structs, _graph, zeroProfiling::POOL_SIZE);
-        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(init_structs, 0);
+            std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
+        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
 
         if (profiling_pool->create()) {
             _profiling_query->create(profiling_pool);
@@ -44,14 +52,16 @@ Pipeline::Pipeline(const Config& config,
 
         if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
             _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
-            _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(init_structs, _config.get<LOG_LEVEL>());
+            _npu_profiling =
+                std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
         }
     }
 
-    if (!_sync_output_with_fences || _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (!_sync_output_with_fences || (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+                                      _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
         _event_pool =
-            std::make_shared<EventPool>(init_structs->getDevice(),
-                                        init_structs->getContext(),
+            std::make_shared<EventPool>(_init_structs->getDevice(),
+                                        _init_structs->getContext(),
                                         _number_of_command_lists ? static_cast<uint32_t>(_number_of_command_lists) : 1);
 
         _events.reserve(_number_of_command_lists);
@@ -63,7 +73,7 @@ Pipeline::Pipeline(const Config& config,
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(init_structs, _graph->get_command_queue_group_ordinal()));
+            std::make_unique<CommandList>(_init_structs, _graph->get_command_queue_group_ordinal()));
     }
 
     if (_sync_output_with_fences) {
@@ -75,34 +85,26 @@ Pipeline::Pipeline(const Config& config,
     }
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
+        _logger.debug("Pipeline - set args for command list number: %zu", i);
         size_t io_index = 0;
         for (const auto& desc : graph->get_input_descriptors()) {
-            if (input_tensors.at(io_index).size() > 1) {
-                void* data = nullptr;
-                auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors.at(io_index).at(i));
-                if (remote_tensor == nullptr) {
-                    data = input_tensors.at(io_index).at(i)->data();
-                } else {
-                    data = remote_tensor->get_original_memory();
-                }
+            if (isMainInputWeightsName(desc.info.name)) {
+                // These values were set while running the "WeightlessGraph::init" method
+                continue;
+            }
 
-                graph->set_argument_value(desc.idx, data);
+            if (input_tensors.at(io_index).size() > 1) {
+                _logger.debug("Pipeline - set args for input index: %zu", io_index);
+
+                graph->set_argument_value(desc.idx, input_tensors.at(io_index).at(i)->data());
 
                 ++io_index;
                 continue;
             }
 
-            void* data = nullptr;
-            auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors.at(io_index).at(0));
-            if (remote_tensor == nullptr) {
-                data = input_tensors.at(io_index).at(0)->data();
-            } else {
-                data = remote_tensor->get_original_memory();
-            }
-
             graph->set_argument_value(
                 desc.idx,
-                static_cast<unsigned char*>(data) +
+                static_cast<unsigned char*>(input_tensors.at(io_index).at(0)->data()) +
                     (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
 
             ++io_index;
@@ -110,22 +112,15 @@ Pipeline::Pipeline(const Config& config,
 
         io_index = 0;
         for (const auto& desc : graph->get_output_descriptors()) {
-            void* data = nullptr;
-            auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(output_tensors.at(io_index));
-            if (remote_tensor == nullptr) {
-                data = output_tensors.at(io_index)->data();
-            } else {
-                data = remote_tensor->get_original_memory();
-            }
-
             graph->set_argument_value(
                 desc.idx,
-                static_cast<unsigned char*>(data) +
+                static_cast<unsigned char*>(output_tensors.at(io_index)->data()) +
                     (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists);
             ++io_index;
         }
 
-        if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendWaitOnEvent(*_command_lists.at(i));
             }
@@ -146,7 +141,8 @@ Pipeline::Pipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
         }
 
-        if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
                 _graph->get_last_submitted_event(i)->AppendEventReset(*_command_lists.at(i));
             }
@@ -167,7 +163,8 @@ Pipeline::Pipeline(const Config& config,
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
-    if (_config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         if (_id) {
             auto previousIndex = _graph->get_last_submitted_id();
 

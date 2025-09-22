@@ -9,18 +9,21 @@
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "utils/convolution_params.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
 
-std::string ConvWithZeroPointFuseSubgraphTest::getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj) {
+std::string ConvWithZeroPointFuseSubgraphTest::getTestCaseName(const testing::TestParamInfo<convConcatCPUParams>& obj) {
     std::ostringstream result;
-    nodeType type;
-    ov::Shape inputShapes;
-    std::tie(type, inputShapes) = obj.param;
-
+    const auto& [type, inputShapes] = obj.param;
     result << "Type=" << nodeType2str(type) << "_";
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
 
@@ -29,9 +32,7 @@ std::string ConvWithZeroPointFuseSubgraphTest::getTestCaseName(testing::TestPara
 
 void ConvWithZeroPointFuseSubgraphTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-    nodeType type;
-    ov::Shape inputShapes;
-    std::tie(type, inputShapes) = this->GetParam();
+    const auto& [type, inputShapes] = this->GetParam();
     pluginTypeNode = nodeType2PluginType(type);
 
     const ov::op::PadType paddingType{ov::op::PadType::EXPLICIT};

@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include <ostream>
+
 #include "libxsmm_typedefs.h"
 #include "openvino/core/except.hpp"
 
@@ -11,7 +13,7 @@ namespace ov::intel_cpu::tpp::op {
 class OpDescTPP {
 public:
     // Note: zero arity represent equation arguments
-    enum class ARITY { UNDEFINED, UNARY, BINARY, ZERO };
+    enum class ARITY : uint8_t { UNDEFINED, UNARY, BINARY, ZERO };
     OpDescTPP() = default;
     // Note: for zero arity op_type is interpreted as the argument index (op inputs and args have different order)
     OpDescTPP(ARITY arity, int arg_idx) : m_arity(arity), m_value{arg_idx}, m_flags{0} {

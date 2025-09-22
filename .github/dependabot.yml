@@ -6,6 +6,23 @@ updates:
   # Python product dependencies
   #
 
+  #
+  # Root Python dependencies (pyproject.toml)
+  #
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 10
+    assignees:
+      - "p-wysocki"
+      - "akuporos"
+      - "rkazants"
+      - "mryzhov"
+    versioning-strategy: increase-if-necessary
+
   # Python API, Frontends
   - package-ecosystem: pip
     directory: "/src/bindings/python/"
@@ -20,7 +37,6 @@ updates:
       - "rkazants"
       - "ceciliapeng2011"
       - "meiyang-intel"
-      - "jane-intel"
     versioning-strategy: increase-if-necessary
 
   # Tests
@@ -130,7 +146,7 @@ updates:
     assignees:
       - "akashchi"
       - "mryzhov"
-      - "ilya-lavrenov"
+      - "akladiev"
     open-pull-requests-limit: 3
 
   # Docker images
@@ -146,5 +162,5 @@ updates:
     assignees:
       - "akashchi"
       - "mryzhov"
-      - "ilya-lavrenov"
+      - "akladiev"
     open-pull-requests-limit: 3

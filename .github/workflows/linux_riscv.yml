@@ -1,6 +1,11 @@
 name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -16,7 +21,7 @@ concurrency:
 permissions: read-all
 
 env:
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -55,19 +60,25 @@ jobs:
   Docker:
     needs: Smart_CI
     runs-on: aks-linux-4-cores-16gb-docker-build
-    if: "!needs.smart_ci.outputs.skip_workflow"
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
         - /mount:/mount
     outputs:
-      images: "${{ steps.handle_docker.outputs.images }}"
+      images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
     steps:
+      - name: Set mock output images if pipeline should be skipped
+        if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
+        id: mock_image
+        run: echo "images={\"ov_build\":{\"ubuntu_22_04_riscv\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         id: handle_docker
         with:
           images: |
@@ -78,6 +89,7 @@ jobs:
 
   Build:
     needs: [Smart_CI, Docker]
+    if: ${{ github.event_name != 'merge_group' && needs.Smart_CI.outputs.skip_workflow != 'True' }}
     timeout-minutes: 150
     defaults:
       run:
@@ -100,8 +112,6 @@ jobs:
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
-
-    if: ${{ github.event_name != 'merge_group' }}
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -201,6 +211,7 @@ jobs:
             -DENABLE_SYSTEM_SNAPPY=ON \
             -DENABLE_SYSTEM_PUGIXML=ON \
             -DBUILD_SHARED_LIBS=OFF \
+            -DTHREADING=OMP \
             -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_C_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_VERBOSE_MAKEFILE=ON \

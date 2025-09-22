@@ -19,6 +19,8 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/matmul.hpp"
 
 namespace ov {
 namespace pass {
@@ -148,16 +150,13 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
 } // namespace
 
 bool ReshapeTransformation::transform(ov::pass::pattern::Matcher &m) {
-    std::shared_ptr<ov::opset1::Reshape> reshape = ov::as_type_ptr<ov::opset1::Reshape>(m.get_match_root());
-    if (NetworkHelper::isConstantPath(reshape)) {
+    const auto layer = m.get_match_root();
+    if (!canBeTransformed(layer) || NetworkHelper::isConstantPath(layer)) {
         return false;
     }
 
-    if (!canBeTransformed(reshape)) {
-        return false;
-    }
-
-    reshape = ov::as_type_ptr<ov::opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
+    const auto reshape = ov::as_type_ptr<ov::opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(layer, defaultPrecisions));
+    OPENVINO_ASSERT(reshape != nullptr, "ReshapeTransformation: failed to separate Reshape in standalone branch");
     reshapeDequantizationConstant(reshape, defaultPrecisions);
     const auto newOperation = moveDequantizationAfter(reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0));
 

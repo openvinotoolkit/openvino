@@ -32,7 +32,7 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     auto m_transpose_perm = pattern::wrap_type<ov::op::v0::Constant>();
     auto m_transpose = pattern::wrap_type<ov::op::v1::Transpose>({m_fq, m_transpose_perm});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();

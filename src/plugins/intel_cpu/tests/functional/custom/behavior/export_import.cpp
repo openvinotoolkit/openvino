@@ -8,8 +8,10 @@
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-
-#include <openvino/opsets/opset9.hpp>
+#include "openvino/opsets/opset9_decl.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 
 namespace {
 
@@ -28,7 +30,7 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     auto add = ov::test::utils::make_eltwise(matmul, add_const, ov::test::utils::EltwiseTypes::ADD);
     auto softmax = std::make_shared<ov::opset9::Softmax>(add);
 
-    ov::NodeVector results{softmax};
+    ov::OutputVector results{softmax};
     return std::make_shared<ov::Model>(results, params, "MatMulModel");
 }
 
@@ -36,9 +38,7 @@ TEST_P(ExportOptimalNumStreams, OptimalNumStreams) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto original_model = MakeMatMulModel();
     ov::Core core;
-    std::string device_name;
-    std::vector<ov::AnyMap> properties;
-    std::tie(device_name, properties) = GetParam();
+    const auto& [device_name, properties] = GetParam();
     auto original_properties_input = properties[0];
     auto new_properties_input = properties[1];
 

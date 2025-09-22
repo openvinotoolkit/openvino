@@ -4,19 +4,48 @@
 
 #include "infer_request.h"
 
+#include <cstddef>
+#include <exception>
+#include <functional>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <string_view>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
 #include "async_infer_request.h"
+#include "compiled_model.h"
+#include "cpu_memory.h"
+#include "cpu_tensor.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "edge.h"
 #include "itt.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/memory_state_base.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "proxy_mem_blk.h"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/ngraph_utils.hpp"
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
@@ -55,9 +84,9 @@ void SyncInferRequest::create_infer_request() {
 void SyncInferRequest::redefine_memory_for_input_nodes(Graph& graph) {
     for (const auto& input_port : m_input_ports_map) {
         auto inputNode = graph.getInputNodeByIndex(input_port.first);
-        OPENVINO_ASSERT(inputNode, "CPU execution graph doesn't contain output node with index: ", input_port.first);
+        OPENVINO_ASSERT(inputNode, "CPU execution graph doesn't contain input node with index: ", input_port.first);
         if (inputNode->isDynamicNode()) {
-            auto tensor = get_tensor(input_port.second);
+            const auto& tensor = get_tensor_ptr(input_port.second);
             inputNode->redefineOutputMemory({tensor->get_shape()});
         }
     }
@@ -67,7 +96,7 @@ void SyncInferRequest::update_external_tensor_ptrs() {
     // Update it due to batched_tensors case will update input tensor
     for (const auto& input : m_input_ports_map) {
         if (m_input_external_ptr.find(input.first) != m_input_external_ptr.end()) {
-            auto tensor = get_tensor(input.second);
+            const auto& tensor = get_tensor_ptr(input.second);
             m_input_external_ptr[input.first] = tensor;
         }
     }
@@ -124,9 +153,7 @@ void SyncInferRequest::infer() {
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
     auto&& graph = m_compiled_model.graph();
-    if (!graph.IsReady()) {
-        OPENVINO_THROW("Graph is not ready!");
-    }
+    OPENVINO_ASSERT(graph.IsReady(), "Graph is not ready!");
     std::vector<ov::ProfilingInfo> perfMap;
     graph.GetPerfData(perfMap);
     return perfMap;
@@ -134,7 +161,7 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 
 static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& tensor) {
     auto mem = edge->getMemoryPtr();
-    OPENVINO_ASSERT(mem != nullptr, "Edge with name '", *edge, "' doesn't have allocated memory object.");
+    OPENVINO_ASSERT(mem, "Edge with name '", *edge, "' doesn't have allocated memory object.");
 
     if (tensor->get_element_type() == element::string) {
         auto memBlock = dynamic_cast<StringMemory*>(mem.get())->getStringMemoryBlockPtr();
@@ -164,19 +191,16 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     for (auto& it : m_input_external_ptr) {
         auto inputNodePtr = graph.getInputNodeByIndex(it.first);
         OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", it.first);
-        if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data())) {
+        if (inputNodePtr->getDstDataAtPort(0) == it.second->data()) {
             continue;
         }
-        auto& childEdges = inputNodePtr->getChildEdges();
+        const auto& childEdges = inputNodePtr->getChildEdges();
         // Perform checks that the user's memory will not be modified
         bool canBeInPlace = true;
-        for (auto& childEdge : childEdges) {
+        for (const auto& childEdge : childEdges) {
             auto ce = childEdge.lock();
-            if (!ce) {
-                OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
-            }
-
-            auto& child = ce->getChild();
+            OPENVINO_ASSERT(ce, "Node ", inputNodePtr->getName(), " contains empty child edge");
+            const auto& child = ce->getChild();
 
             if (child->isConstant()) {
                 canBeInPlace = false;
@@ -201,7 +225,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
             }
         }
         if (canBeInPlace) {
-            for (auto& edge : childEdges) {
+            for (const auto& edge : childEdges) {
                 auto e = edge.lock();
                 if (!e) {
                     OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
@@ -216,7 +240,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
         OPENVINO_ASSERT(output, "Cannot find output tensor with index: ", it.first);
         auto parentEdge = output->getParentEdgeAt(0);
         void* const outputRawPtr = parentEdge->getMemory().getData();
-        if (outputRawPtr == static_cast<void*>(it.second->data())) {
+        if (outputRawPtr == it.second->data()) {
             continue;
         }
 
@@ -236,13 +260,10 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
                 break;
             }
 
-            auto& parentEdges = parent->getParentEdges();
-            for (auto& edge : parentEdges) {
+            const auto& parentEdges = parent->getParentEdges();
+            for (const auto& edge : parentEdges) {
                 auto e = edge.lock();
-                if (!e) {
-                    OPENVINO_THROW("Node ", parent->getName(), " contains empty parent edge");
-                }
-
+                OPENVINO_ASSERT(e, "Node ", parent->getName(), " contains empty parent edge");
                 if (parent_port == parent->inPlaceInputPort(e->getOutputNum())) {
                     parent = e->getParent();
                     parent_port = e->getInputNum();
@@ -340,9 +361,7 @@ const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, const ov::SoPtr<ov::ITensor>& in_tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
-    if (!in_tensor) {
-        OPENVINO_THROW("Failed to set empty tensor for port!");
-    }
+    OPENVINO_ASSERT(in_tensor, "Failed to set empty tensor for port!");
     auto port = get_internal_port(in_port);
     auto tensor = in_tensor;
 
@@ -367,25 +386,23 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 
         const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
-        if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
-            OPENVINO_THROW("Can't set the input tensor with index: ",
-                           input_index,
-                           ", because the model input (shape=",
-                           shape,
-                           ") and the tensor (shape=",
-                           vec2str(tensor->get_shape()),
-                           ") are incompatible");
-        }
+        OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())),
+                        "Can't set the input tensor with index: ",
+                        input_index,
+                        ", because the model input (shape=",
+                        shape,
+                        ") and the tensor (shape=",
+                        vec2str(tensor->get_shape()),
+                        ") are incompatible");
 
-        if (!isDynamic && ov::shape_size(shape.to_shape()) != tensor->get_size()) {
-            OPENVINO_THROW("Can't set input tensor with index: ",
-                           input_index,
-                           ", because the model input size = ",
-                           ov::shape_size(shape.to_shape()),
-                           " and the tensor size = ",
-                           tensor->get_size(),
-                           " are different.");
-        }
+        OPENVINO_ASSERT(isDynamic || ov::shape_size(shape.to_shape()) == tensor->get_size(),
+                        "Can't set input tensor with index: ",
+                        input_index,
+                        ", because the model input size = ",
+                        ov::shape_size(shape.to_shape()),
+                        " and the tensor size = ",
+                        tensor->get_size(),
+                        " are different.");
 
         auto&& graph = m_compiled_model.graph();
 
@@ -409,35 +426,32 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     } else {
         auto output_index = port_found.idx;
         const auto netOutPrc = port.get_element_type();
-        if (netOutPrc != tensor->get_element_type()) {
-            OPENVINO_THROW("ParameterMismatch: Failed to set tensor for output with precision: ",
-                           tensor->get_element_type(),
-                           ", if model output tensor precision is: ",
-                           netOutPrc);
-        }
+        OPENVINO_ASSERT(netOutPrc == tensor->get_element_type(),
+                        "ParameterMismatch: Failed to set tensor for output with precision: ",
+                        tensor->get_element_type(),
+                        ", if model output tensor precision is: ",
+                        netOutPrc);
 
         const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
 
-        if (!shape.compatible(ov::PartialShape(tensor->get_shape())) && tensor->get_size() != 0) {
-            OPENVINO_THROW("Can't set the output tensor with index: ",
-                           output_index,
-                           ", because the model output tensor (shape=",
-                           shape,
-                           ") and the current tensor (shape=",
-                           vec2str(tensor->get_shape()),
-                           ") are incompatible");
-        }
+        OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_size() == 0,
+                        "Can't set the output tensor with index: ",
+                        output_index,
+                        ", because the model output tensor (shape=",
+                        shape,
+                        ") and the current tensor (shape=",
+                        vec2str(tensor->get_shape()),
+                        ") are incompatible");
 
-        if (!isDynamic && ov::shape_size(shape.to_shape()) != tensor->get_size()) {
-            OPENVINO_THROW("Can't set the output tensor with index: ",
-                           output_index,
-                           ", because the model output size = ",
-                           ov::shape_size(shape.to_shape()),
-                           " and the currernt tensor size = ",
-                           tensor->get_size(),
-                           " are different.");
-        }
+        OPENVINO_ASSERT(isDynamic || ov::shape_size(shape.to_shape()) == tensor->get_size(),
+                        "Can't set the output tensor with index: ",
+                        output_index,
+                        ", because the model output size = ",
+                        ov::shape_size(shape.to_shape()),
+                        " and the currernt tensor size = ",
+                        tensor->get_size(),
+                        " are different.");
 
         auto&& graph = m_compiled_model.graph();
 
@@ -515,9 +529,15 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
             // WA, due to the transformations and constant folding, shape inference of the resulting model may
             // have static shapes, while they are dynamic in the initial representation
-            const auto& shape = graph_shape.isDynamic()
-                                    ? port_shape
-                                    : (port_shape.is_dynamic() ? graph_shape.toPartialShape() : port_shape);
+            const auto shape = [&]() -> ov::PartialShape {
+                if (graph_shape.isDynamic()) {
+                    return port_shape;
+                }
+                if (port_shape.is_dynamic()) {
+                    return graph_shape.toPartialShape();
+                }
+                return port_shape;
+            }();
 
             const bool isDynamic = shape.is_dynamic();
             tensor = ov::ISyncInferRequest::get_tensor(port);
@@ -577,15 +597,12 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
             }
         }
     }
-    if (!tensor) {
-        OPENVINO_THROW("Cannot find tensor with index: ", port_index);
-    }
-    return;
+    OPENVINO_ASSERT(tensor, "Cannot find tensor with index: ", port_index);
 }
 
 void SyncInferRequest::push_input_data(Graph& graph) {
     for (auto& input : m_input_ports_map) {
-        auto tensor = get_tensor(input.second);
+        const auto& tensor = get_tensor_ptr(input.second);
         graph.PushInputData(input.first, tensor);
     }
 }
@@ -621,8 +638,8 @@ void SyncInferRequest::sub_streams_infer() {
 
     if (!requests.empty()) {
         for (const auto& output : outputs) {
-            auto tensor = requests[0]->get_tensor(output);
-            set_tensor(output, tensor);
+            auto tensor = get_tensor(output);
+            requests[0]->set_tensor(output, tensor);
         }
         for (size_t i = 0; i < requests_num; i++) {
             for (auto& input : inputs) {
@@ -631,14 +648,47 @@ void SyncInferRequest::sub_streams_infer() {
             }
 
             requests[i]->set_callback([message]([[maybe_unused]] const std::exception_ptr& ptr) {
-                ov::threading::MessageInfo msg_info;
-                msg_info.msg_type = ov::threading::MsgType::CALL_BACK;
+                ov::threading::MessageInfo msg_info{ov::threading::MsgType::CALL_BACK};
                 message->send_message(msg_info);
             });
         }
         for (size_t i = 0; i < requests_num; i++) {
             requests[i]->start_async();
         }
+    }
+}
+
+void SyncInferRequest::check_tensors() const {
+    // more lightweight and straight forward version specific for cpu
+    auto check_tensor =
+        [](const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor, const std::string_view& type) {
+            OPENVINO_ASSERT(tensor);
+            OPENVINO_ASSERT(port.get_element_type() == tensor->get_element_type(),
+                            "The tensor element type is not corresponding with output element type (",
+                            tensor->get_element_type(),
+                            " != ",
+                            port.get_element_type());
+
+            const bool is_dynamic = port.get_partial_shape().is_dynamic();
+            OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
+                            "The ",
+                            type,
+                            " tensor size is not equal to the model ",
+                            type,
+                            " type: got ",
+                            tensor->get_shape(),
+                            " expecting ",
+                            port.get_shape(),
+                            ".");
+            // we don't need to perform null check, the plugin graph will do it for us
+        };
+
+    for (auto&& item : m_input_ports_map) {
+        check_tensor(item.second, get_tensor_ptr(item.second), "input");
+    }
+
+    for (auto&& item : m_output_ports_map) {
+        check_tensor(item.second, m_outputs.at(item.first), "output");
     }
 }
 

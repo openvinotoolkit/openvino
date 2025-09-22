@@ -4,18 +4,22 @@
 
 #pragma once
 
-#include <oneapi/dnnl/dnnl_types.h>
-
+#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
-#include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
 
@@ -36,8 +40,8 @@ class DnnlConvolutionPrimitive {
 
         dnnl::primitive_attr attr;
 
-        bool fcSemantic;
-        bool nonConstantWeights;
+        bool fcSemantic = false;
+        bool constantWeights = true;
 
         [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
@@ -62,23 +66,23 @@ public:
     DnnlConvolutionPrimitive(const Key& key,
                              const dnnl::engine& engine,
                              const std::vector<impl_desc_type>& implPriorities,
-                             const impl_desc_type defaultImplType);
+                             impl_desc_type defaultImplType);
 
     void execute(dnnl_primitive_args& primArgs);
 
-    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
@@ -88,20 +92,22 @@ public:
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
-                                                            bool weightsNonTransposed);
+                                                            const ConvAttrs& attrs);
+
+    static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                            const DnnlMemoryDescPtr& dstDesc,
+                                                            const FCAttrs& attrs);
 
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const ConvAttrs& attrs,
-                                                            const PostOps& postOps,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
-                                                            const bool cacheWeights);
+                                                            bool cacheWeights);
 
     // create shape agnostic data using FC attributes (1x1 Convolution as FC executor)
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& fcAttrs,
-                                                            const PostOps& postOps,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
-                                                            const bool cacheWeights);
+                                                            bool cacheWeights);
 
     static std::shared_ptr<DnnlConvolutionPrimitive> create(const MemoryArgs& memory,
                                                             const ConvAttrs& attrs,

@@ -10,11 +10,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string TwoInputsAndOutputs::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams> obj) {
-    std::vector<InputShape> inputShapes;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string TwoInputsAndOutputs::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams>& obj) {
+    const auto& [inputShapes, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < inputShapes.size(); ++i) {
@@ -31,26 +28,26 @@ std::string TwoInputsAndOutputs::getTestCaseName(testing::TestParamInfo<ov::test
 }
 
 void TwoInputsAndOutputs::SetUp() {
-    std::vector<InputShape> inputShape;
-    std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShape);
     auto f = ov::test::snippets::TwoInputsAndOutputsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
     abs_threshold = 5e-7;
 }
 
 void TwoInputsAndOutputsWithReversedOutputs::SetUp() {
-    std::vector<InputShape> inputShape;
-    std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShape);
     auto f = ov::test::snippets::TwoInputsAndOutputsWithReversedOutputsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
     abs_threshold = 5e-7;
 }
 

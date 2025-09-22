@@ -8,8 +8,8 @@
 
 #include "compare.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape_util.hpp"
-#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -39,7 +39,7 @@ size_t ITensor::get_size() const {
 }
 
 size_t ITensor::get_byte_size() const {
-    return element::get_memory_size(get_element_type(), get_size());
+    return util::get_memory_size(get_element_type(), get_size());
 }
 
 bool ITensor::is_continuous() const {
@@ -188,9 +188,4 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
         dst_idx = update_index(cur_pos, dst_strides);
     }
 }
-
-void* ITensor::data(const element::Type& type) {
-    return const_cast<void*>(static_cast<const ITensor*>(this)->data(type));
-}
-
 }  // namespace ov

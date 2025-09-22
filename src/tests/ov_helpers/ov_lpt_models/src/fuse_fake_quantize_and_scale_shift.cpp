@@ -4,8 +4,14 @@
 
 #include "ov_lpt_models/fuse_fake_quantize_and_scale_shift.hpp"
 
-#include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 namespace ov {
 namespace builder {

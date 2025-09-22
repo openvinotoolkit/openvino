@@ -43,9 +43,9 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
     auto pad_upper = layout::format_sizes(in_pad._upper_size, default_format);
     auto pad_mask = layout::format_sizes(in_pad._dynamic_dims_mask, default_format);
 
-    std::vector<int32_t> update_pad_lower;
-    std::vector<int32_t> update_pad_upper;
-    std::vector<int32_t> update_pad_mask;
+    std::vector<ov::Dimension::value_type> update_pad_lower;
+    std::vector<ov::Dimension::value_type> update_pad_upper;
+    std::vector<ov::Dimension::value_type> update_pad_mask;
 
     if (mode == reshape::reshape_mode::unsqueeze) {
         update_pad_lower = pad_lower;
@@ -153,7 +153,8 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     auto input_layout = impl_param.get_input_layout(0);
 
     auto& memory_deps = impl_param.memory_deps;
-    // On program build stage for the cases with pattern being stored in a runtime tensor
+
+    // For the cases with pattern being stored in a runtime tensor on program build stage
     // we return output_partial_shape taken from the original model intead of something like PartialShape::dynamic(rank)
     // as ngraph may refine output shape using interval arithmetic
     if ((memory_deps.empty() && prim->output_pattern.empty()) || input_layout.is_dynamic()) {
@@ -237,6 +238,29 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
         output_format = node.get_preferred_output_fmt();
     }
 
+    auto areVectorsCompatible = [](const ov::Shape& vec1, const ov::Shape& vec2) -> bool {
+        std::unordered_map<size_t, size_t> countMap1, countMap2;
+
+        for (auto num : vec1) {
+            if (num != 1)
+                countMap1[num]++;
+        }
+        for (auto num : vec2) {
+            if (num != 1)
+                countMap2[num]++;
+        }
+
+        return countMap1 == countMap2;
+    };
+
+    auto candidate_layout = layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size()), out_pad};
+    if ((!node.is_dynamic()) && areVectorsCompatible(impl_param.get_output_layout().get_shape(), output_shapes[0].get_shape())) {
+        if (impl_param.get_output_layout().format != output_format && !candidate_layout.compatible(input_layout)) {
+            if (!impl_param.get_output_layout(false).compatible(candidate_layout))
+                output_format = impl_param.get_output_layout().format;
+        }
+    }
+
     auto new_out_pad = out_pad;
     if (new_out_pad == padding())
         new_out_pad = impl_param.get_output_layout(0).data_padding;
@@ -313,15 +337,15 @@ void reshape_inst::update_output_memory() {
         return;
 
     build_deps();  // reshape need deps
-    if (node->get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
+    if (get_node().get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
         return;
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
     if (static_cast<bool>(_outputs[0]) &&
-        _node->get_program().get_config().get_enable_memory_pool()) {
-        _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+        get_node().get_program().get_config().get_enable_memory_pool()) {
+        _network.get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
     }
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
     _mem_allocated = false;

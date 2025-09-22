@@ -9,6 +9,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/reshape.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -30,12 +33,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<SplitReshapeEltwiseTestParams>& obj) {
         SplitReshapeEltwiseTestParams test_params = obj.param;
         std::ostringstream result;
-        std::vector<InputShape> input_shapes;
-        size_t axis;
-        ov::element::Type precision;
-        std::string target_device;
 
-        std::tie(input_shapes, axis, precision, target_device) = test_params;
+        const auto& [input_shapes, axis, precision, target_device] = test_params;
         result << "IS=";
         for (const auto& shape : input_shapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
@@ -68,10 +67,9 @@ protected:
 
     void SetUp() override {
         SplitReshapeEltwiseTestParams test_params = this->GetParam();
-        std::vector<InputShape> input_shapes;
-        size_t axis;
-        ov::element::Type model_type;
-        std::tie(input_shapes, axis, model_type, targetDevice) = test_params;
+
+        const auto& [input_shapes, axis, model_type, _targetDevice] = test_params;
+        targetDevice = _targetDevice;
 
         init_input_shapes(input_shapes);
 

@@ -32,7 +32,7 @@ Installing OpenVINO Runtime with Conan Package Manager
    .. code-block:: sh
 
       [requires]
-      openvino/2025.1.0
+      openvino/2025.3.0
       [generators]
       CMakeDeps
       CMakeToolchain

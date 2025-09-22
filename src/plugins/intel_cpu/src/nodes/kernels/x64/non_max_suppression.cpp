@@ -4,8 +4,16 @@
 
 #include "non_max_suppression.hpp"
 
-#include <memory>
+#include <xbyak/xbyak.h>
 
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cstddef>
+
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl;
@@ -22,8 +30,12 @@ void NonMaxSuppression<isa>::generate() {
     load_scalar_emitter =
         std::make_unique<jit_load_emitter>(this, isa, ov::element::f32, ov::element::f32, scalar_step);
 
-    exp_injector.reset(
-        new x64::jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f, data_type::f32));
+    exp_injector.reset(new x64::jit_uni_eltwise_injector_t<isa>(this,
+                                                                dnnl::impl::alg_kind::eltwise_exp,
+                                                                0.F,
+                                                                0.F,
+                                                                1.F,
+                                                                data_type::f32));
 
     this->preamble();
 
@@ -351,11 +363,10 @@ void NonMaxSuppression<isa>::suppressed_by_score() {
 template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::iou(int ele_num) {
     auto load = [&](Xbyak::Reg64 reg_src, Vmm vmm_dst) {
-        if (ele_num != scalar_step && ele_num != vector_step) {
-            OPENVINO_THROW("NMS JIT implementation supports load emitter with only element count scalar_step or "
-                           "vector_step! Get: ",
-                           ele_num);
-        }
+        OPENVINO_ASSERT(any_of(ele_num, scalar_step, vector_step),
+                        "NMS JIT implementation supports load emitter with only element count scalar_step or "
+                        "vector_step! Get: ",
+                        ele_num);
 
         const auto& load_emitter = ele_num == 1 ? load_scalar_emitter : load_vector_emitter;
         load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())},

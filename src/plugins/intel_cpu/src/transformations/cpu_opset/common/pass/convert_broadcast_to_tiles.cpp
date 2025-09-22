@@ -4,18 +4,32 @@
 
 #include "convert_broadcast_to_tiles.hpp"
 
-#include "itt.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     MATCHER_SCOPE(ConvertBroadcastToTiles);
-    auto broadcast = ov::pass::pattern::wrap_type<ov::opset1::Broadcast>();
+    auto broadcast = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>();
 
     ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
-        auto broadcast = ov::as_type_ptr<ov::opset1::Broadcast>(m.get_match_root());
+        auto broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
         }
@@ -25,8 +39,8 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             return false;
         }
 
-        auto shape_node = ov::as_type_ptr<ov::opset1::Constant>(broadcast->input_value(1).get_node_shared_ptr());
-        auto axes_node = ov::as_type_ptr<ov::opset1::Constant>(broadcast->input_value(2).get_node_shared_ptr());
+        auto shape_node = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
+        auto axes_node = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(2).get_node_shared_ptr());
         if (!shape_node || !axes_node) {
             return false;
         }
@@ -61,8 +75,8 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             } else {
                 return false;
             }
-            auto shape_const = std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{shape.size()}, shape);
-            auto reshape = std::make_shared<ov::opset1::Reshape>(data_node, shape_const, true);
+            auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{shape.size()}, shape);
+            auto reshape = std::make_shared<ov::op::v1::Reshape>(data_node, shape_const, true);
             new_ops.push_back(reshape);
             last_node = reshape;
             input_shape = shape;
@@ -72,7 +86,8 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         auto input_shape_it = input_shape.rbegin();
         auto output_shape_it = output_shape.rbegin();
         while (output_shape_it != output_shape.rend() && input_shape_it != input_shape.rend()) {
-            int64_t in_dim = *input_shape_it, out_dim = *output_shape_it;
+            int64_t in_dim = *input_shape_it;
+            int64_t out_dim = *output_shape_it;
             if (in_dim != out_dim) {
                 if (in_dim != 1) {
                     return false;
@@ -85,8 +100,8 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
             ++input_shape_it;
         }
 
-        auto const_node = std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{dims_count}, dims);
-        auto tile = register_new_node<ov::opset1::Tile>(last_node, const_node);
+        auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{dims_count}, dims);
+        auto tile = register_new_node<ov::op::v0::Tile>(last_node, const_node);
         new_ops.push_back(tile);
         tile->set_friendly_name(broadcast->get_friendly_name());
 

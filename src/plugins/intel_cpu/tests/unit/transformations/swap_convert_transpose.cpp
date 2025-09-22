@@ -7,8 +7,8 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include <transformations/cpu_opset/common/pass/swap_convert_transpose.hpp>
 #include <transformations/init_node_info.hpp>
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 
@@ -35,7 +35,7 @@ TEST_F(SwapConvertTransposeTest, SwapConvertTranspose) {
         auto transpose = std::make_shared<ov::op::v1::Transpose>(convert, transpose_const);
         transpose->set_friendly_name(transpose_name);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{transpose}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{transpose}, ov::ParameterVector{input});
         manager.register_pass<ov::intel_cpu::SwapConvertTranspose>();
     }
     {
@@ -49,7 +49,7 @@ TEST_F(SwapConvertTransposeTest, SwapConvertTranspose) {
         transpose->set_friendly_name(transpose_name + "_original");
         convert->set_friendly_name(transpose_name);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{convert}, ov::ParameterVector{input});
     }
 }
 
@@ -73,7 +73,7 @@ TEST_F(SwapConvertTransposeTest, SwapConvertTransposeImpossible) {
         auto transpose1 = std::make_shared<ov::op::v1::Transpose>(convert, transpose1_const);
         transpose1->set_friendly_name(transpose_name + "_1");
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{transpose0, transpose1}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{transpose0, transpose1}, ov::ParameterVector{input});
         manager.register_pass<ov::intel_cpu::SwapConvertTranspose>();
     }
 }

@@ -4,6 +4,14 @@
 
 #include "interaction.hpp"
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::InteractionNode::InteractionNode(const OutputVector& args) : Op(args) {
@@ -51,7 +59,6 @@ void ov::intel_cpu::InteractionNode::validate_and_infer_types() {
     output_shape[0] = batch;
     output_shape[1] = output_feature_size;
     set_output_type(0, output_type, output_shape);
-    return;
 }
 
 bool ov::intel_cpu::InteractionNode::visit_attributes(ov::AttributeVisitor& visitor) {

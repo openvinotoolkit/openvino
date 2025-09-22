@@ -52,7 +52,6 @@ class aten_prod_dim_dtype(torch.nn.Module):
 
 class TestProd(PytorchLayerTest):
     def _prepare_input(self, input_shape=(2), dtype=torch.float32):
-        import numpy as np
         return (torch.randn(*input_shape).to(dtype).numpy(),)
 
     @pytest.mark.parametrize("shape", [(1,),
@@ -66,6 +65,8 @@ class TestProd(PytorchLayerTest):
     @pytest.mark.parametrize("has_dim,keepdims", [(False, None), (True, True), (True, False)])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_prod(self, ie_device, precision, ir_version, shape, dtype, in_dtype, has_dim, keepdims):
         if dtype is not None:
             if has_dim:

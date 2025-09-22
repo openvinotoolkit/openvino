@@ -4,13 +4,30 @@
 
 #include "eye.h"
 
-#include <utility>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <utils/bfloat16.hpp>
+#include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/eye.hpp"
-#include "shape_inference/shape_inference.hpp"
-#include "utils/bfloat16.hpp"
+#include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 using namespace ov::intel_cpu;
@@ -35,17 +52,17 @@ Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     }
     outType = op->get_output_element_type(0);
     withBatchShape = (op->get_input_size() == 4);
-    if (!one_of(outType, ov::element::f32, ov::element::bf16, ov::element::i32, ov::element::i8, ov::element::u8)) {
-        THROW_CPU_NODE_ERR("doesn't support demanded output precision");
+    if (none_of(outType, ov::element::f32, ov::element::bf16, ov::element::i32, ov::element::i8, ov::element::u8)) {
+        CPU_NODE_THROW("doesn't support demanded output precision");
     }
 }
 
 void Eye::getSupportedDescriptors() {
-    if (!one_of(getParentEdges().size(), 3u, 4u)) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
+    if (none_of(getParentEdges().size(), 3U, 4U)) {
+        CPU_NODE_THROW("has incorrect number of input edges: ", getParentEdges().size());
     }
     if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
+        CPU_NODE_THROW("has incorrect number of output edges: ", getChildEdges().size());
     }
 }
 
@@ -93,7 +110,7 @@ void Eye::executeSpecified() {
     const int64_t shift = getDiagIndex();
     auto outPtr = getDstMemoryAtPort(0);
     if (!outPtr || !outPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Destination memory is undefined.");
+        CPU_NODE_THROW("Destination memory is undefined.");
     }
     T* dst = outPtr->getDataAs<T>();
 
@@ -108,20 +125,22 @@ void Eye::executeSpecified() {
     const size_t onesPerBatchNum =
         static_cast<size_t>(shift > 0 ? std::min(countByColumns, static_cast<int64_t>(rowNum))
                                       : std::min(countByRows, static_cast<int64_t>(colNum)));
-    const auto dataShift = static_cast<size_t>(shift >= 0 ? shift : -shift * colNum);
+    const auto dataShift = (shift >= 0 ? shift : -shift * colNum);
 
     if (spatialSize >= l2CacheSize) {
         parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
-            size_t start = 0, end = 0;
+            size_t start = 0;
+            size_t end = 0;
             splitter(elementsCount, nthr, ithr, start, end);
-            memset(dst + start, 0, (end - start) * sizeof(T));
+            std::fill(dst + start, dst + end, static_cast<T>(0));
         });
         if (onesPerBatchNum == 0) {
             return;
         }
         for (size_t bShift = 0; bShift < batchVolume * spatialCount; bShift += spatialCount) {
             parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
-                size_t start = 0, end = 0;
+                size_t start = 0;
+                size_t end = 0;
                 splitter(onesPerBatchNum, nthr, ithr, start, end);
                 for (size_t j = start; j < end; j++) {
                     dst[dataShift + j * (colNum + 1) + bShift] = static_cast<T>(1);
@@ -130,9 +149,10 @@ void Eye::executeSpecified() {
         }
     } else {
         parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
-            size_t start = 0, end = 0;
+            size_t start = 0;
+            size_t end = 0;
             splitter(batchVolume, nthr, ithr, start, end);
-            memset(dst + start * spatialCount, 0, (end - start) * spatialSize);
+            std::fill(dst + start * spatialCount, dst + end * spatialCount, static_cast<T>(0));
             if (onesPerBatchNum == 0) {
                 return;
             }

@@ -19,6 +19,8 @@
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/convolution.hpp"
 
 namespace ov {
 namespace pass {
@@ -116,12 +118,16 @@ bool ConvolutionBackpropDataTransformation::transform(ov::pass::pattern::Matcher
         }
         auto inputs = convolutionBackpropData->input_values();
         inputs[0] = dequantization.multiply->input_value(0);
-        const auto copyNode = convolutionBackpropData->clone_with_new_inputs(inputs);
+        const auto copyNode = ov::as_type_ptr<ov::opset1::ConvolutionBackpropData>(
+            convolutionBackpropData->clone_with_new_inputs(inputs));
+        OPENVINO_ASSERT(copyNode != nullptr,
+                        "ConvolutionBackpropDataTransformation: failed to clone ConvolutionBackpropData");
 
-        const auto relaxedConvolutionBackpropData = std::make_shared<ov::op::TypeRelaxed<ov::opset1::ConvolutionBackpropData>>(
-            *ov::as_type_ptr<ov::opset1::ConvolutionBackpropData>(copyNode),
-            std::vector<element::Type>{deqPrecision, deqPrecision},
-            std::vector<element::Type>{deqPrecision});
+        const auto relaxedConvolutionBackpropData =
+            std::make_shared<ov::op::TypeRelaxed<ov::opset1::ConvolutionBackpropData>>(
+                *copyNode,
+                std::vector<element::Type>{deqPrecision, deqPrecision},
+                std::vector<element::Type>{deqPrecision});
 
         const auto newMultiplyAfterConst = foldConvert(
             std::make_shared<ov::opset1::Constant>(dequantization.multiplyConstant->get_element_type(),

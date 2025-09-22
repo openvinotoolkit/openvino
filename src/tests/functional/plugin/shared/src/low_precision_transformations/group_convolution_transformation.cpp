@@ -15,17 +15,11 @@
 
 namespace LayerTestsDefinitions {
 std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::pair<ov::PartialShape, ov::Shape> inputShapes;
-    GroupConvolutionTransformationParam param;
-    bool addPrecisionPreserved;
-    std::tie(netPrecision, targetDevice, params, inputShapes, param, addPrecisionPreserved) = obj.param;
+    auto [netPrecision, device, inputShapes, param, addPrecisionPreserved] = obj.param;
 
     std::ostringstream result;
     result <<
-           get_test_case_name_by_params(netPrecision, inputShapes.first, targetDevice, params) << "_" <<
+           get_test_case_name_by_params(netPrecision, inputShapes.first, device) << "_" <<
            inputShapes.first.rank().get_length() << "D_" <<
         inputShapes.first << "_" <<
         inputShapes.second << "_" <<
@@ -39,12 +33,8 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
 }
 
 void GroupConvolutionTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::pair<ov::PartialShape, ov::Shape> inputShapes;
-    GroupConvolutionTransformationParam param;
-    bool addPrecisionPreserved;
-    std::tie(netPrecision, targetDevice, params, inputShapes, param, addPrecisionPreserved) = this->GetParam();
+    auto [netPrecision, device, inputShapes, param, addPrecisionPreserved] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShapes.first);
 
@@ -66,12 +56,12 @@ void GroupConvolutionTransformation::SetUp() {
 void GroupConvolutionTransformation::run() {
     LayerTransformation::run();
 
-    const auto param = std::get<4>(GetParam());
+    const auto param = std::get<3>(GetParam());
     if (!param.layerName.empty()) {
         const auto actualPrecision = get_runtime_precision_by_type(param.layerName);
         auto expectedPrecision = param.expectedKernelType;
-        if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
-            expectedPrecision = "FP16";
+        if (expectedPrecision == "f32" && std::get<0>(GetParam()) == ov::element::f16) {
+            expectedPrecision = "f16";
         }
         EXPECT_EQ(actualPrecision, expectedPrecision);
     }

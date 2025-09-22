@@ -16,6 +16,8 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace {
 typedef std::tuple<
@@ -33,10 +35,7 @@ protected:
 };
 
 std::string InferRequestIOPrecision::getTestCaseName(const testing::TestParamInfo<newtworkParams> &obj) {
-    ov::element::Type model_type;
-    ov::Shape shape;
-    std::string targetDevice;
-    std::tie(model_type, shape, targetDevice) = obj.param;
+    const auto& [model_type, shape, targetDevice] = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -46,9 +45,8 @@ std::string InferRequestIOPrecision::getTestCaseName(const testing::TestParamInf
 }
 
 void InferRequestIOPrecision::SetUp() {
-    ov::element::Type model_type;
-    ov::Shape shape;
-    std::tie(model_type, shape, targetDevice) = GetParam();
+    const auto& [model_type, shape, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     float clamp_min = model_type.is_signed() ? -5.f : 0.0f;
     float clamp_max = 5.0f;
@@ -62,7 +60,7 @@ void InferRequestIOPrecision::SetUp() {
                                                        {},
                                                        {clamp_min, clamp_max});
 
-    function = std::make_shared<ov::Model>(ov::NodeVector{activation}, params);
+    function = std::make_shared<ov::Model>(ov::OutputVector{activation}, params);
 }
 
 TEST_P(InferRequestIOPrecision, Inference) {

@@ -5,6 +5,8 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/select.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -21,11 +23,8 @@ class BF16ConvertSaturation : public testing::WithParamInterface<selectParams>,
                               virtual public SubgraphBaseTest,
                               public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<selectParams> obj) {
-        InputShape shapes;
-        ElementType precision;
-        std::tie(shapes, precision) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<selectParams>& obj) {
+        const auto& [shapes, precision] = obj.param;
         std::ostringstream result;
         result << "Condition_prc_" << ElementType::boolean << "_Then_Else_prc_" << precision << "_";
         result << "IS=(" << shapes.first << ")_TS=(";
@@ -41,9 +40,7 @@ protected:
     void SetUp() override {
         abs_threshold = 0;
         targetDevice = ov::test::utils::DEVICE_CPU;
-        InputShape shapes;
-        ElementType precision;
-        std::tie(shapes, precision) = this->GetParam();
+        const auto& [shapes, precision] = this->GetParam();
         init_input_shapes({shapes});
         std::tie(inFmts, outFmts, priority, selectedType) = emptyCPUSpec;
         selectedType = makeSelectedTypeStr(getPrimitiveType(), ov::element::i8);

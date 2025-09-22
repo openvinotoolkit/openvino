@@ -4,14 +4,17 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
-#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
+// clang-format off
 /**
  * @interface SplitLoops
  * @brief If Unified Loop `loop_1` has larger increment but the same works amount of Unified loop `loop_2`, that follows loop_1, then split loop_2
@@ -28,17 +31,13 @@ namespace pass {
  *                                                     Split_loop_1_end (wa = 128, inc = 32)
  * @ingroup snippets
  */
+// clang-format on
 
 class SplitLoops : public RangedPass {
 public:
     OPENVINO_RTTI("SplitLoops", "", RangedPass)
     SplitLoops() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
-
-private:
-    static bool can_be_split(const UnifiedLoopInfoPtr& current, const UnifiedLoopInfoPtr& target);
-
-    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment);
 
     /**
      * @interface TransformInnerSplitLoop
@@ -53,9 +52,10 @@ private:
         bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
         std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
     };
+
+private:
+    static bool can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const UnifiedLoopInfoPtr& loop_to_fuse);
+    static void split(LinearIR& linear_ir, size_t loop_to_split_id, size_t outer_increment);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

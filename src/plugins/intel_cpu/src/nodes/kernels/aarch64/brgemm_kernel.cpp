@@ -5,11 +5,27 @@
 
 #include "brgemm_kernel.hpp"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/c_types_map.hpp>
+#include <cpu/aarch64/brgemm/brgemm.hpp>
+#include <cpu/aarch64/brgemm/brgemm_types.hpp>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cpu/aarch64/matmul/brgemm_matmul_utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <openvino/core/except.hpp>
+#include <tuple>
 
 #include "dnnl_extension_utils.h"
-#include "utils/cpu_utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu::aarch64;
 using namespace dnnl::impl;
@@ -20,9 +36,13 @@ using namespace dnnl::impl::cpu::aarch64::matmul;
 namespace ov::intel_cpu {
 
 static size_t getVlen() {
-    return mayiuse(sve_512)   ? cpu_isa_traits<sve_512>::vlen
-           : mayiuse(sve_256) ? cpu_isa_traits<sve_256>::vlen
-                              : cpu_isa_traits<sve_128>::vlen;
+    if (mayiuse(sve_512)) {
+        return cpu_isa_traits<sve_512>::vlen;
+    }
+    if (mayiuse(sve_256)) {
+        return cpu_isa_traits<sve_256>::vlen;
+    }
+    return cpu_isa_traits<sve_128>::vlen;
 }
 
 BrgemmKernel::BrgemmKernel(size_t M,
@@ -57,17 +77,38 @@ BrgemmKernel::BrgemmKernel(size_t M,
             for (size_t n = 0; n < 2; n++) {
                 auto& brgemmCtx = brgCtxs[getBrgIdx(m, k, n)];
 
-                auto M_ = m ? M_tail : M < M_blk ? 0 : M_blk;
-                auto N_ = n ? N_tail : N - N_tail;
-                auto K_ = k ? K_tail : K - K % K_blk;
-                auto beta = (b_accumulate || (k && brgCtxs[getBrgIdx(m, 0, n)].K != 0)) ? 1.0f : 0.0f;
+                auto [M_, N_, K_] = [&]() {
+                    size_t M_ = [&]() {
+                        if (m) {
+                            return M_tail;
+                        }
+                        return this->M < M_blk ? 0 : M_blk;
+                    }();
+
+                    size_t N_ = [&]() {
+                        if (n) {
+                            return N_tail;
+                        }
+                        return N - N_tail;
+                    }();
+
+                    size_t K_ = [&]() {
+                        if (k) {
+                            return K_tail;
+                        }
+                        return K - K % K_blk;
+                    }();
+
+                    return std::make_tuple(M_, N_, K_);
+                }();
+                auto beta = (b_accumulate || (k && brgCtxs[getBrgIdx(m, 0, n)].K != 0)) ? 1.0F : 0.0F;
 
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
-                brgemmCtx.LDA = k ? K_blk : lda;
+                brgemmCtx.LDA = k ? K_blk : this->lda;
                 brgemmCtx.LDB = b_transposed ? rnd_up(N, N_blk) : ldb;  // b_transposed needs copy
-                brgemmCtx.LDC = ldc;
+                brgemmCtx.LDC = this->ldc;
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
                 brgemmCtx.beta = beta;
@@ -101,18 +142,25 @@ BrgemmKernel::BrgemmKernel(size_t M,
     }
 }
 
-const size_t BrgemmKernel::get_scratch_a_size() const {
+size_t BrgemmKernel::get_scratch_a_size() const {
     return packedASize;
 }
 
-const size_t BrgemmKernel::get_scratch_b_size() const {
+size_t BrgemmKernel::get_scratch_b_size() const {
     return packedBSize;
 }
 
 void BrgemmKernel::init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel) {
     brgemm_t brgDesc;
-    cpu_isa_t isa;
-    isa = mayiuse(sve_512) ? cpu_isa_t::sve_512 : mayiuse(sve_256) ? cpu_isa_t::sve_256 : cpu_isa_t::sve_128;
+    cpu_isa_t isa = [&]() {
+        if (mayiuse(sve_512)) {
+            return cpu_isa_t::sve_512;
+        }
+        if (mayiuse(sve_256)) {
+            return cpu_isa_t::sve_256;
+        }
+        return cpu_isa_t::sve_128;
+    }();
     auto status = brgemm_desc_init(&brgDesc,
                                    isa,
                                    brgemm_addr,
@@ -121,7 +169,7 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::
                                    ctx.transpose_a,
                                    ctx.transpose_b,
                                    brgemm_row_major,
-                                   1.f,
+                                   1.F,
                                    ctx.beta,
                                    ctx.LDA,
                                    ctx.LDB,
@@ -168,9 +216,15 @@ void BrgemmKernel::init_brgemm_copy_a(
     // copied A has the same precision of original
     brgCopyKernelConf.tr_a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
-    brgCopyKernelConf.isa = mayiuse(sve_512)   ? cpu_isa_t::sve_512
-                            : mayiuse(sve_256) ? cpu_isa_t::sve_256
-                                               : cpu_isa_t::sve_128;
+    brgCopyKernelConf.isa = [&]() {
+        if (mayiuse(sve_512)) {
+            return cpu_isa_t::sve_512;
+        }
+        if (mayiuse(sve_256)) {
+            return cpu_isa_t::sve_256;
+        }
+        return cpu_isa_t::sve_128;
+    }();
 
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
 }
@@ -207,9 +261,15 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.tr_b_dt_sz =
         DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
-    brgCopyKernelConf.isa = mayiuse(sve_512)   ? cpu_isa_t::sve_512
-                            : mayiuse(sve_256) ? cpu_isa_t::sve_256
-                                               : cpu_isa_t::sve_128;
+    brgCopyKernelConf.isa = []() {
+        if (mayiuse(sve_512)) {
+            return cpu_isa_t::sve_512;
+        }
+        if (mayiuse(sve_256)) {
+            return cpu_isa_t::sve_256;
+        }
+        return cpu_isa_t::sve_128;
+    }();
 
     brgCopyKernelConf.has_zero_point_a = false;
     brgCopyKernelConf.has_zero_point_b = false;
@@ -221,13 +281,13 @@ void BrgemmKernel::init_brgemm_copy_b(
 }
 
 void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
-    auto ptr_b = reinterpret_cast<uint8_t*>(b);
-    auto ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
+    auto* ptr_b = reinterpret_cast<uint8_t*>(b);
+    auto* ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
     if (brgCopyBKernel) {
         for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
             auto N_stride = b_transposed ? ldb : 1;
-            auto pCopyKernel0In = ptr_b + nb * N_blk * inType.size() * N_stride;
-            auto pCopyKernel0Out = ptr_scartch_b + nb * N_blk * kBlkStep * inType.size();
+            auto* pCopyKernel0In = ptr_b + nb * N_blk * inType.size() * N_stride;
+            auto* pCopyKernel0Out = ptr_scartch_b + nb * N_blk * kBlkStep * inType.size();
 
             auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
 
@@ -245,11 +305,18 @@ void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
     }
 }
 
-void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a) {
-    auto ptr_A = reinterpret_cast<uint8_t*>(a);
-    auto ptr_C = reinterpret_cast<uint8_t*>(c);
-    auto ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
-    auto ptr_scartch_b = reinterpret_cast<uint8_t*>(b);
+void BrgemmKernel::executeGemm(bool is_M_tail,
+                               void* a,
+                               void* b,
+                               void* c,
+                               [[maybe_unused]] void* d,
+                               [[maybe_unused]] float* scale_b,
+                               void* wsp,
+                               void* scratch_a) {
+    auto* ptr_A = reinterpret_cast<uint8_t*>(a);
+    auto* ptr_C = reinterpret_cast<uint8_t*>(c);
+    auto* ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
+    auto* ptr_scartch_b = reinterpret_cast<uint8_t*>(b);
     uint8_t* ptr_a_tail = nullptr;
 
     size_t brgIdx0 = getBrgIdx(0, 0, 0);
@@ -259,8 +326,8 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
     if (brgCopyAKernel) {
         // only copy tailed data;
         size_t K_offset = K < K_blk ? 0 : K0_step0 * inType.size();
-        auto pCopyKernelIn = ptr_A + K_offset;
-        auto pCopyKernelOut = ptr_scartch_a;
+        auto* pCopyKernelIn = ptr_A + K_offset;
+        auto* pCopyKernelOut = ptr_scartch_a;
 
         auto ctx = jit_brgemm_matmul_copy_a_t::ctx_t();
 
@@ -285,11 +352,11 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
             size_t mIdx = is_M_tail ? 1 : 0;
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
-                auto local_a_ptr = k > 0 ? ptr_a_tail : ptr_A;
+                auto* local_a_ptr = k > 0 ? ptr_a_tail : ptr_A;
                 auto B_stride = (k * count_K + n * count_N * kBlkStep) * inType.size();
-                auto weight_ptr = ptr_scartch_b + B_stride;
+                auto* weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
-                auto out_ptr = ptr_C + C_stride;
+                auto* out_ptr = ptr_C + C_stride;
                 callBrgemm(brgemmCtx, brgKernels[getBrgIdx(mIdx, k, n)], local_a_ptr, weight_ptr, out_ptr, wsp);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
@@ -303,20 +370,6 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
     }
 }
 
-void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
-    auto ptr_A = reinterpret_cast<uint8_t*>(a);
-    auto ptr_B = reinterpret_cast<uint8_t*>(b);
-    auto ptr_C = reinterpret_cast<uint8_t*>(c);
-
-    copy_buffer_b(ptr_B, scratch_b);
-
-    for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
-        const bool is_M_tail = (M - mb * M_blk < M_blk);
-        auto ptr_a = ptr_A + (mb * M_blk * lda) * inType.size();
-        auto ptr_c = ptr_C + (mb * M_blk * ldc) * ov::element::f32.size();
-        executeGemm(is_M_tail, ptr_a, scratch_b, wsp, ptr_c, scratch_a);
-    }
-}
 void BrgemmKernel::callBrgemm([[maybe_unused]] brgemmCtx& ctx,
                               std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel,
                               const void* pin0,

@@ -37,11 +37,9 @@ class TestInv(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_inv_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                         use_legacy_frontend):
+    def test_inv_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_inv_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 class TestComplexInv(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -80,9 +78,7 @@ class TestComplexInv(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_inv(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_legacy_frontend):
+    def test_complex_inv(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(
             *self.create_complex_inv_net(**params),
-            ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend)
+            ie_device, precision, ir_version, temp_dir=temp_dir)

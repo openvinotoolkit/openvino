@@ -4,14 +4,30 @@
 
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <algorithm>
+#include <common/c_types_map.hpp>
 #include <common/memory_desc_wrapper.hpp>
+#include <common/utils.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <iterator>
+#include <memory>
+#include <numeric>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <string>
+#include <vector>
 
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -99,19 +115,16 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
         return;
     }
 
-    if (order.size() != blockedDims.size()) {
-        OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc, order and blocked dims must have equals size");
-    }
+    OPENVINO_ASSERT(order.size() == blockedDims.size(),
+                    "Can not construct DnnlBlockedMemoryDesc, order and blocked dims must have equals size");
 
-    if (!offsetPaddingToData.empty() && offsetPaddingToData.size() != order.size()) {
-        OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc, offsetPaddingToData must have equal size with order "
-                       "and blocked dims");
-    }
+    OPENVINO_ASSERT(offsetPaddingToData.empty() || offsetPaddingToData.size() == order.size(),
+                    "Can not construct DnnlBlockedMemoryDesc, offsetPaddingToData must have equal size with order "
+                    "and blocked dims");
 
-    if (!strides.empty() && strides.size() != order.size()) {
-        OPENVINO_THROW(
-            "Can not construct DnnlBlockedMemoryDesc, strides must have equal size with order and blocked dims");
-    }
+    OPENVINO_ASSERT(
+        strides.empty() || strides.size() == order.size(),
+        "Can not construct DnnlBlockedMemoryDesc, strides must have equal size with order and blocked dims");
 
     if (std::any_of(order.begin(), order.end(), [](size_t val) {
             return val == Shape::UNDEFINED_DIM;
@@ -119,8 +132,12 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
         OPENVINO_THROW("DnnlBlockedMemoryDesc doesn't support undefined order.");
     }
 
+    if (blockedDims.size() < shape.getRank()) {
+        OPENVINO_THROW("Can't create DnnlBlockedMemoryDesc. Blocked dims has rank less than planar dims");
+    }
+
     if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) {
-            return val == Shape::UNDEFINED_DIM || val == 0;
+            return any_of(val, Shape::UNDEFINED_DIM, 0U);
         })) {
         OPENVINO_THROW("DnnlBlockedMemoryDesc doesn't support undefined or zero blockedDims.");
     }
@@ -131,9 +148,9 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
 
     auto lastIter = order.begin() + outer_ndims;
     for (size_t dim = 0; dim < outer_ndims; dim++) {
-        if (std::find(order.begin(), lastIter, dim) == lastIter) {
-            OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc because of incorrect order: ", vec2str(order));
-        }
+        OPENVINO_ASSERT(std::find(order.begin(), lastIter, dim) != lastIter,
+                        "Can not construct DnnlBlockedMemoryDesc because of incorrect order: ",
+                        vec2str(order));
     }
 
     size_t inner_ndims = order.size() - dims.size();
@@ -153,24 +170,23 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
 
         // TODO: That's strong constrains and can be mitigated. IE::TensorDesc allow to transpose blocked dims
         //       and may be we can achieve correct "descending strides" form which allow conversion.
-        if (!is_descending_strides) {
-            OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc from strides: ", vec2str(strides));
-        }
+        OPENVINO_ASSERT(is_descending_strides,
+                        "Can not construct DnnlBlockedMemoryDesc from strides: ",
+                        vec2str(strides));
     }
 
     if (!strides.empty() && !emptyDesc && std::none_of(strides.begin(), strides.end(), [](size_t x) {
             return Shape::UNDEFINED_DIM == x;
         })) {
-        bool inner_block_are_dense = one_of(strides.back(), 0u, 1u);  // stride 1 - is dense case, 0 - broad casted
+        bool inner_block_are_dense = any_of(strides.back(), 0U, 1U);  // stride 1 - is dense case, 0 - broad casted
         for (size_t i = outer_ndims; i < strides.size() - 1; i++) {
             inner_block_are_dense &= (strides[i] == strides[i + 1] * blockedDims[i + 1]);
         }
 
-        if (!inner_block_are_dense) {
-            OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc from strides: ",
-                           vec2str(strides),
-                           " inner blocks are not dense.");
-        }
+        OPENVINO_ASSERT(inner_block_are_dense,
+                        "Can not construct DnnlBlockedMemoryDesc from strides: ",
+                        vec2str(strides),
+                        " inner blocks are not dense.");
     }
 
     // Fill general memory desc fields
@@ -187,10 +203,9 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
                 return pad == 0;
             });
 
-        if (!inner_pad_offsets_is_zero) {
-            OPENVINO_THROW("Can not construct DnnlBlockedMemoryDesc, inner pad offsets is not zero: ",
-                           vec2str(offsetPaddingToData));
-        }
+        OPENVINO_ASSERT(inner_pad_offsets_is_zero,
+                        "Can not construct DnnlBlockedMemoryDesc, inner pad offsets is not zero: ",
+                        vec2str(offsetPaddingToData));
         auto dnnlPaddedOffsets = DnnlExtensionUtils::convertToDnnlDims(offsetPaddingToData);
         std::copy(dnnlPaddedOffsets.begin(), dnnlPaddedOffsets.begin() + outer_ndims, desc.get()->padded_offsets);
     } else {
@@ -235,10 +250,8 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
                                              dnnl::memory::format_tag format)
     : MemoryDesc(shape, DnnlBlocked) {
     using namespace dnnl;
-    if (format == memory::format_tag::any || format == memory::format_tag::undef) {
-        OPENVINO_THROW("Unexpected: Can't create dnnl::desc with any or undef format");
-    }
-
+    OPENVINO_ASSERT(none_of(format, memory::format_tag::any, memory::format_tag::undef),
+                    "Unexpected: Can't create dnnl::desc with any or undef format");
     const auto& dims = shape.getDims();
     if (format == memory::format_tag::x && shape.getRank() == 0) {
         desc = dnnl::memory::desc(dnnl::memory::dims(1, 1), dataType, format);
@@ -264,20 +277,20 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
-    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc);
     }
-    if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc);
     }
     return false;
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
-    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc, cmpMask);
     }
-    if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc, cmpMask);
     }
     return false;
@@ -305,7 +318,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMa
         return true;
     }
 
-    if (one_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any)) {
+    if (any_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any)) {
         return false;
     }
 
@@ -324,9 +337,8 @@ static VectorDims extractOrder(const dnnl::memory::desc& desc) {
     const auto dims = desc.get_dims();
     dnnl::impl::memory_desc_wrapper descWrapped(desc.get());
 
-    if (descWrapped.has_runtime_dims_or_strides()) {
-        OPENVINO_THROW("Unexpected: Cannot calculate order from undefined dims or strides");
-    }
+    OPENVINO_ASSERT(!descWrapped.has_runtime_dims_or_strides(),
+                    "Unexpected: Cannot calculate order from undefined dims or strides");
 
     const auto& blk_desc = descWrapped.blocking_desc();
 
@@ -365,14 +377,12 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const_dnnl_memory_desc_t cdesc)
     : MemoryDesc(DnnlExtensionUtils::convertToVectorDims(cdesc->dims, cdesc->ndims), DnnlBlocked) {
     desc = dnnl::memory::desc(DnnlExtensionUtils::clone_desc(cdesc));
 
-    if (desc.get_format_kind() == dnnl::memory::format_kind::any) {
-        OPENVINO_THROW("Unexpected: Memory format any is prohibited!");
-    }
+    OPENVINO_ASSERT(desc.get_format_kind() != dnnl::memory::format_kind::any,
+                    "Unexpected: Memory format any is prohibited!");
 
     dnnl::impl::memory_desc_wrapper descWrapped(desc.get());
-    if (!descWrapped.is_blocking_desc()) {
-        OPENVINO_THROW("Unexpected: Can't create DnnlBlockedMemoryDesc from not blocking desc");
-    }
+    OPENVINO_ASSERT(descWrapped.is_blocking_desc(),
+                    "Unexpected: Can't create DnnlBlockedMemoryDesc from not blocking desc");
 
     order = extractOrder(desc);
 
@@ -425,11 +435,7 @@ bool DnnlBlockedMemoryDesc::isBlockedCFormat(size_t blk_size) const {
             return false;
         }
     }
-    if (blk_size != UNREACHABLE_DIM && static_cast<int64_t>(blk_size) != desc.get_inner_blks()[0]) {
-        return false;
-    }
-
-    return true;
+    return blk_size == UNREACHABLE_DIM || static_cast<int64_t>(blk_size) == desc.get_inner_blks()[0];
 }
 
 bool DnnlBlockedMemoryDesc::isTailCFormat() const {
@@ -442,10 +448,7 @@ bool DnnlBlockedMemoryDesc::isTailCFormat() const {
     if (!std::is_sorted(order.begin(), --order.end())) {
         return false;
     }
-    if (order.back() != 1) {
-        return false;
-    }
-    return true;
+    return order.back() == 1;
 }
 
 template <class Dest, class Src>
@@ -472,9 +475,9 @@ static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc,
     auto innerIdxs = clonedDesc.get_inner_idxs();
 
     auto retCode = dnnl::impl::fill_blocked(*clonedDesc.get(), perm, innerBlks, innerIdxs);
-    if (retCode != dnnl::impl::status::success) {
-        OPENVINO_THROW("Can not clone DnnlBlockedMemoryDesc with dims: ", dims2str(dims));
-    }
+    OPENVINO_ASSERT(retCode == dnnl::impl::status::success,
+                    "Can not clone DnnlBlockedMemoryDesc with dims: ",
+                    dims2str(dims));
     // dnnl::impl::fill_blocked always set offset0 to 0
     // so we need to restore actual value
     clonedDesc.get()->offset0 = offsetPadding;
@@ -483,11 +486,12 @@ static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc,
 }
 
 MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) const {
-    if (std::any_of(dims.begin(), dims.end(), [](size_t x) {
-            return Shape::UNDEFINED_DIM == x;
-        })) {
-        OPENVINO_THROW("Can't clone desc if new dims are undefined");
-    }
+    OPENVINO_ASSERT(std::none_of(dims.begin(),
+                                 dims.end(),
+                                 [](size_t x) {
+                                     return Shape::UNDEFINED_DIM == x;
+                                 }),
+                    "Can't clone desc if new dims are undefined");
 
     // TODO [DS]: add stride recalculation for strided blobs
     for (int i = strides.size() - 2; i >= 0; i--) {
@@ -510,10 +514,8 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
         return false;
     }
 
-    if (desc.get_format_kind() != dnnl::memory::format_kind::blocked ||
-        refDesc.get_format_kind() != dnnl::memory::format_kind::blocked) {
-        OPENVINO_THROW("DnnlMemoryDesc::isSame is not implemented for non blocked memory format");
-    }
+    OPENVINO_ASSERT(all_of(dnnl::memory::format_kind::blocked, desc.get_format_kind(), refDesc.get_format_kind()),
+                    "DnnlMemoryDesc::isSame is not implemented for non blocked memory format");
 
     auto actualBlkDesc = desc.get()->format_desc.blocking;
     auto refBlkDesc = refDesc.get()->format_desc.blocking;
@@ -533,8 +535,8 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
         }
     }
 
-    auto actualStrides = desc.get()->format_desc.blocking.strides;
-    auto refStrides = refDesc.get()->format_desc.blocking.strides;
+    auto* actualStrides = desc.get()->format_desc.blocking.strides;
+    auto* refStrides = refDesc.get()->format_desc.blocking.strides;
 
     VectorDims actualOrder(desc.get()->ndims);
     {
@@ -579,10 +581,7 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
         });
     }
 
-    if (actualOrder != refOrder) {
-        return false;
-    }
-    return true;
+    return actualOrder == refOrder;
 }
 
 size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
@@ -709,9 +708,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewPrecision(const ov::element::Ty
 void DnnlBlockedMemoryDesc::recomputeDefaultStrides() {
     const auto& rank = getShape().getRank();
 
-    if (order.size() != blockedDims.size()) {
-        OPENVINO_THROW("Can't recompute stride: order size != blocked dims size");
-    }
+    OPENVINO_ASSERT(order.size() == blockedDims.size(), "Can't recompute stride: order size != blocked dims size");
 
     auto& oneDnnStrides = desc.get()->format_desc.blocking.strides;
     if (getShape().hasZeroDims()) {
@@ -735,22 +732,19 @@ void DnnlBlockedMemoryDesc::recomputeDefaultStrides() {
 
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc, const Shape& shape)
     : MemoryDesc(shape, DnnlBlocked) {
-    if (mdesc.get_format_kind() == dnnl::memory::format_kind::any) {
-        OPENVINO_THROW("Unexpected: Memory format any is prohibited!");
-    }
+    OPENVINO_ASSERT(mdesc.get_format_kind() != dnnl::memory::format_kind::any,
+                    "Unexpected: Memory format any is prohibited!");
 
     dnnl::impl::memory_desc_wrapper descWrapped(mdesc.get());
-    if (!descWrapped.is_blocking_desc()) {
-        OPENVINO_THROW("Unexpected: Can't create DnnlBlockedMemoryDesc from not blocking desc");
-    }
+    OPENVINO_ASSERT(descWrapped.is_blocking_desc(),
+                    "Unexpected: Can't create DnnlBlockedMemoryDesc from not blocking desc");
 
-    if (!shape.isCompatible(DnnlExtensionUtils::convertToVectorDims(mdesc.get_dims()))) {
-        OPENVINO_THROW("ParameterMismatch: Can not create DnnlBlockedMemoryDesc. memory::desc dims: ",
-                       vec2str(mdesc.get_dims()),
-                       " are incompatible with provided shape: ",
-                       shape.toString(),
-                       ".");
-    }
+    OPENVINO_ASSERT(shape.isCompatible(DnnlExtensionUtils::convertToVectorDims(mdesc.get_dims())),
+                    "ParameterMismatch: Can not create DnnlBlockedMemoryDesc. memory::desc dims: ",
+                    vec2str(mdesc.get_dims()),
+                    " are incompatible with provided shape: ",
+                    shape.toString(),
+                    ".");
 
     order = extractOrder(mdesc);
 

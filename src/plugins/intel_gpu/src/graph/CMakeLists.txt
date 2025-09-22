@@ -16,7 +16,11 @@ foreach(SUBDIR IN LISTS SUBDIRS)
     endif()
 endforeach()
 
-set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os -Wno-suggest-override>>)
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os -Wno-suggest-override>>)
+else()
+    set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
+endif()
 set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
                         $<BUILD_INTERFACE:${INCLUDE_DIR}>
                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -78,7 +82,7 @@ macro(ov_gpu_add_backend_target)
 
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
-        target_include_directories(${ARG_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
+        target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
         add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
     endif()
 endmacro()
@@ -127,6 +131,8 @@ ov_add_target(
         run_codegen_test
     ADD_CPPLINT
 )
+
+ov_build_target_faster(${TARGET_NAME} PCH)
 
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 

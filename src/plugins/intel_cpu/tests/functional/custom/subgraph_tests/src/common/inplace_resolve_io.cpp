@@ -6,6 +6,11 @@
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 /*
 The main purpose of the tests is to test cyclic inplace resolution in order to make sure that output edges are referenced whenever possible.
@@ -21,8 +26,8 @@ class InplaceResolveIOTestBase : public testing::WithParamInterface<VectorShapes
                                  virtual public ov::test::SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<VectorShapes> obj) {
-        VectorShapes& inputShapes = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<VectorShapes>& obj) {
+        const VectorShapes& inputShapes = obj.param;
 
         std::ostringstream result;
         result << "IS=";

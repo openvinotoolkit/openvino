@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_helpers.h"
 #include "to_string_utils.h"
+#include "eltwise_inst.h"
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
 
@@ -411,6 +412,19 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
     return is_weights_dep;
 }
 
+static bool need_align_shape_for_numpy_broadcast(program_node* predecessor, program_node* successor, format output_format) {
+    if (successor->is_type<eltwise>()) {
+        auto& elt_suc = successor->as<eltwise>();
+        if (elt_suc.need_align_for_numpy_broadcast(predecessor->get_output_layout())) {
+            GPU_DEBUG_TRACE_DETAIL << " Skip add reorder in reorder_in_dir for numpy broadcast " << successor->id()
+                                    << output_format.to_string() << std::endl;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
@@ -435,6 +449,9 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
         out_layout.format = get_target_input_format(lo, fmt_map, successor, predecessor);
         if (in_layout.format == out_layout.format)
+            continue;
+
+        if (need_align_shape_for_numpy_broadcast(predecessor, successor, out_layout.format))
             continue;
 
         GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << get_node(next)->id() << " ## "
@@ -808,7 +825,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
                 auto activation_desc = fused_desc.typed_desc<activation>();
                 if (activation_desc->activation_function == cldnn::activation_func::relu_negative_slope &&
-                    !activation_desc->additional_params_input.empty()) {
+                    activation_desc->additional_params_input.is_valid()) {
                     const auto expected_dt = data_types::f32;
                     const auto dep_idx = fused_desc.outer_dep_start_idx;
                     const auto orig_layout = node->get_dependency(dep_idx).get_output_layout();
@@ -863,51 +880,6 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     static size_t idx = 0;
                     const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
                     auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), gemm_layout.get_shape(),
-                                                                            ov::AxisSet{}, ov::op::BroadcastType::NUMPY);
-
-                    auto& broadcast_node = p.get_or_create(broadcast_prim);
-                    p.add_intermediate(broadcast_node, *node, fused_prim.outer_dep_start_idx, true);
-                    broadcast_node.recalc_output_layouts(false);
-                }
-            }
-        } else if (node->is_type<fully_connected>() && node->get_preferred_impl_type() == impl_types::onednn) {
-            for (const auto& fused_prim : node->get_fused_primitives()) {
-                if (fused_prim.is_type<eltwise>() &&
-                    one_of(fused_prim.typed_desc<eltwise>()->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})) {
-                    auto fc_layout = node->get_output_layout();
-                    auto& data = node->get_dependency(fused_prim.outer_dep_start_idx);
-                    auto data_layout = data.get_output_layout();
-
-                    if (fc_layout.is_dynamic() || data_layout.is_dynamic())
-                        continue;
-
-                    // fc_b     | fc_f      | data_b    | data_f    | broadcast condition
-                    // ---------+-----------+-----------+-----------+--------------------
-                    // 1        | 1         | 1         | 1         | no broadcast
-                    // 1        | 1         | 1         | N         | N/A
-                    // 1        | 1         | N         | 1         | N/A
-                    // 1        | 1         | N         | N         | N/A
-                    // 1        | N         | 1         | 1         | implicit broadcast
-                    // 1        | N         | 1         | N         | no broadcast
-                    // 1        | N         | N         | 1         | N/A
-                    // 1        | N         | N         | N         | N/A
-                    // N        | 1         | 1         | 1         | implicit broadcast
-                    // N        | 1         | 1         | N         | N/A
-                    // N        | 1         | N         | 1         | no broadcast
-                    // N        | 1         | N         | N         | N/A
-                    // N        | N         | 1         | 1         | implicit broadcast
-                    // N        | N         | 1         | N         | explicit broadcast
-                    // N        | N         | N         | 1         | explicit broadcast
-                    // N        | N         | N         | N         | no broadcast
-                    if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
-                        (data_layout.batch() == 1 && data_layout.feature() == 1) ||
-                        (fc_layout.count() == data_layout.count())) {
-                        continue;
-                    }
-
-                    static size_t idx = 0;
-                    const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
-                    auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), fc_layout.get_shape(),
                                                                             ov::AxisSet{}, ov::op::BroadcastType::NUMPY);
 
                     auto& broadcast_node = p.get_or_create(broadcast_prim);

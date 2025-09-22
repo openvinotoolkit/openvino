@@ -39,6 +39,23 @@ inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
+inline int32_t pack_4bit_avx2_reduction(__m256i ymm) {
+    __m256i mask = _mm256_set1_epi32(0xF);
+    ymm = _mm256_and_si256(ymm, mask);
+
+    __m256i shifts = _mm256_set_epi32(28, 24, 20, 16, 12, 8, 4, 0);
+    ymm = _mm256_sllv_epi32(ymm, shifts);
+
+    __m128i low = _mm256_castsi256_si128(ymm);
+    __m128i high = _mm256_extracti128_si256(ymm, 1);
+    low = _mm_add_epi32(low, high);
+
+    low = _mm_add_epi32(low, _mm_srli_si128(low, 8));
+    low = _mm_add_epi32(low, _mm_srli_si128(low, 4));
+
+    return _mm_cvtsi128_si32(low);
+}
+
 // NOTE: This routine implements the NEW ORDER
 #    define avx2_i4toi8(vinput, vout0, vout1)                                         \
         {                                                                             \
@@ -250,7 +267,7 @@ void ov::npuw::util::XARCH::unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
 
     auto unpack_body = [pSrc, pDst](size_t index, size_t stride) {
         size_t halfStride = stride >> 1;
-        int8_t const* pSrcLocal = pSrc + halfStride * index;
+        const int8_t* pSrcLocal = pSrc + halfStride * index;
         int8_t* pDstLocal = pDst + stride * index;
 
         for (size_t j = 0; j < stride; j += 64) {
@@ -314,7 +331,7 @@ void ov::npuw::util::XARCH::unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
     }
     UNPACK_SAVE_TICK();
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -356,7 +373,7 @@ void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
     // bool tailOnly = total < 64;
 
     auto unpack_body = [pSrc, pDst](size_t index) {
-        int8_t const* pSrcLocal = pSrc + 32 * index;
+        const int8_t* pSrcLocal = pSrc + 32 * index;
         int16_t* pDstLocal = pDst + 64 * index;
 
         __m256i inv = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
@@ -454,7 +471,7 @@ void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -510,8 +527,8 @@ void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& fro
         // number of vectorized operations per scale
         size_t elementsPerScaleVectorized = elementsPerScale / 64;
 
-        int8_t const* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
-        int8_t const* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        const int8_t* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        const int8_t* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
         int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
 
         // if it is last iteration current stride can be smaller - lets check that
@@ -611,7 +628,7 @@ void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& fro
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -724,7 +741,7 @@ void ov::npuw::util::XARCH::unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -788,7 +805,7 @@ void ov::npuw::util::XARCH::unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
         pDst += 64;  // note pDst is int16_t
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -853,8 +870,8 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
         // number of vectorized operations per scale
         size_t elementsPerScaleVectorized = elementsPerScale / 64;
 
-        uint8_t const* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
-        int8_t const* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        const uint8_t* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        const int8_t* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
         int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
 
         // if it is last iteration current stride can be smaller - lets check that
@@ -880,7 +897,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
 
                 // loading 256 bit u4 into unalligned memory , so 64 elements
                 // cannot use aligned version here like _mm256_load_si256 - segfault even on unit tests
-                __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<__m256i const*>(pSrcLocal));
+                __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
 
                 // unpacking with interleaving
                 __m256i vht = _mm256_and_si256(xmmData, himask);
@@ -930,7 +947,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
 
                 pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
                 pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
-            }                     // for(index)
+            }  // for(index)
             pSclLocal += scale_elem_type.size();
         }  // for(sindex)
     };
@@ -969,7 +986,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1032,9 +1049,9 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
         // number of vectorized operations per scale
         size_t elementsPerScaleVectorized = elementsPerScale / 64;
 
-        uint8_t const* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
-        int8_t const* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
-        uint8_t const* pZerLocal = pZer + zerop_elem_type.size() * sindex * stride / 2;
+        const uint8_t* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        const int8_t* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        const uint8_t* pZerLocal = pZer + zerop_elem_type.size() * sindex * stride / 2;
         int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
 
         // if it is last iteration current stride can be smaller - lets check that
@@ -1061,7 +1078,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
 
                 // loading 256 bit u4 into unalligned memory , so 64 elements
                 // cannot use aligned version here like _mm256_load_si256 - segfault even on unit tests
-                __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<__m256i const*>(pSrcLocal));
+                __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
 
                 // unpacking with interleaving
                 __m256i vht = _mm256_and_si256(xmmData, himask);
@@ -1111,7 +1128,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
 
                 pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
                 pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
-            }                     // for(index)
+            }  // for(index)
             pSclLocal += scale_elem_type.size();
             if (sindex % 2 == 1) {
                 pZerLocal += zerop_elem_type.size();
@@ -1153,7 +1170,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1254,7 +1271,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1302,7 +1319,7 @@ void ov::npuw::util::XARCH::unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
         pDst += 8;
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1344,7 +1361,7 @@ void ov::npuw::util::XARCH::unpack_i8f16_scale(const ov::SoPtr<ov::ITensor>& fro
         pScl += scale_elem_type.size();
     }  // sindex
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1398,7 +1415,7 @@ void ov::npuw::util::XARCH::unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
         pZrp++;
     }  // sindex
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1413,17 +1430,18 @@ ov::Tensor ov::npuw::util::XARCH::to_f16(const ov::Tensor& t) {
 #if defined(HAVE_AVX2)
     const float* psrc = t.data<float>();
     uint8_t* pdst = static_cast<uint8_t*>(tnew.data());
+    const std::size_t nblocks = t.get_size() / 8;
 
-    for (std::size_t i = 0; i < t.get_size() / 8; i++) {
-        __m256 vsrc = _mm256_loadu_ps(psrc);
+    ov::parallel_for(nblocks, [&](std::size_t i) {
+        const float* psrc_block = psrc + i * 8;
+        uint8_t* pdst_block = pdst + i * 16;  // 8 * 2 bytes for f16
+        __m256 vsrc = _mm256_loadu_ps(psrc_block);
         __m128i vout = _mm256_cvtps_ph(vsrc, _MM_FROUND_TO_NEAREST_INT);
-        __m128i* pout = reinterpret_cast<__m128i*>(pdst);
+        __m128i* pout = reinterpret_cast<__m128i*>(pdst_block);
         _mm_storeu_si128(pout, vout);
-        psrc += 8;        // offset in sizeof(float)
-        pdst += (8 * 2);  // offset in bytes
-    }
+    });
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
     return tnew;
 }
@@ -1471,5 +1489,135 @@ void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& fro
     }
 #else
     from->copy_to(to._ptr);
+#endif
+}
+
+void ov::npuw::util::XARCH::transpose_i4(const uint8_t* src, uint8_t* dst, size_t rows, size_t cols) {
+#if defined(HAVE_AVX2)
+    size_t c_step = 8;
+    size_t r_step = 8;
+
+    size_t cols32 = cols / c_step;
+    size_t rows32 = rows / r_step;
+
+    // lambda: get int32 pointer for each row of src.
+    auto get_src_int32 = [&](size_t r, size_t c, size_t i) {
+        return reinterpret_cast<const int32_t*>(&src[(r * r_step + i) * (cols / 2)])[c];
+    };
+    // lambda: get int32 pointer for each column of dst.
+    auto get_dst_int32 = [&](size_t r, size_t c, size_t i) {
+        return reinterpret_cast<int32_t*>(&dst[(c * c_step + i) * (rows / 2)]) + r;
+    };
+
+    // Main block processing.
+    for (size_t c = 0; c < cols32; ++c) {
+        for (size_t r = 0; r < rows32; ++r) {
+            // For each row of src, recalculate the pointer.
+            __m256i column = _mm256_set_epi32(get_src_int32(r, c, 7),
+                                              get_src_int32(r, c, 6),
+                                              get_src_int32(r, c, 5),
+                                              get_src_int32(r, c, 4),
+                                              get_src_int32(r, c, 3),
+                                              get_src_int32(r, c, 2),
+                                              get_src_int32(r, c, 1),
+                                              get_src_int32(r, c, 0));
+
+            for (int i = 0; i < 8; ++i) {
+                __m256i shifted = _mm256_srli_epi32(column, 4 * i);
+                *get_dst_int32(r, c, i) = pack_4bit_avx2_reduction(shifted);
+            }
+        }
+    }
+
+    size_t tail_cols = cols % c_step;
+    size_t tail_rows = rows % r_step;
+
+    auto naive_transpose = [&](size_t r_start, size_t r_end, size_t c_start, size_t c_end) {
+        for (size_t r = r_start; r < r_end; ++r) {
+            for (size_t c = c_start; c < c_end; ++c) {
+                size_t src_idx = r * cols + c;
+                uint8_t val = (src[src_idx / 2] >> ((src_idx % 2) * 4)) & 0x0F;
+                size_t dst_idx = c * rows + r;
+                dst[dst_idx / 2] &= (dst_idx % 2 == 0) ? 0xF0 : 0x0F;
+                dst[dst_idx / 2] |= (dst_idx % 2 == 0) ? (val & 0x0F) : ((val & 0x0F) << 4);
+            }
+        }
+    };
+
+    if (tail_cols > 0) {
+        naive_transpose(0, rows - tail_rows, cols - tail_cols, cols);
+    }
+    if (tail_rows > 0) {
+        naive_transpose(rows - tail_rows, rows, 0, cols - tail_cols);
+    }
+    if (tail_cols > 0 && tail_rows > 0) {
+        naive_transpose(rows - tail_rows, rows, cols - tail_cols, cols);
+    }
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::transpose_f16(const uint16_t* src, uint16_t* dst, size_t rows, size_t cols) {
+#if defined(HAVE_AVX2)
+    const size_t blockSize = 16;  // AVX2 can handle 8 floats per register.
+    ov::parallel_for(cols, [&](size_t c) {
+        size_t r = 0;
+        for (; r + blockSize <= rows; r += blockSize) {
+            // Gather 8 elements from column j, rows i..i+7
+            __m256i gathered = _mm256_set_epi16(src[(r + 15) * cols + c],
+                                                src[(r + 14) * cols + c],
+                                                src[(r + 13) * cols + c],
+                                                src[(r + 12) * cols + c],
+                                                src[(r + 11) * cols + c],
+                                                src[(r + 10) * cols + c],
+                                                src[(r + 9) * cols + c],
+                                                src[(r + 8) * cols + c],
+                                                src[(r + 7) * cols + c],
+                                                src[(r + 6) * cols + c],
+                                                src[(r + 5) * cols + c],
+                                                src[(r + 4) * cols + c],
+                                                src[(r + 3) * cols + c],
+                                                src[(r + 2) * cols + c],
+                                                src[(r + 1) * cols + c],
+                                                src[(r + 0) * cols + c]);
+
+            // Store this column as a row in transposed matrix
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst + c * rows + r), gathered);
+        }
+        for (; r < rows; ++r) {
+            dst[c * rows + r] = src[r * cols + c];
+        }
+    });
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t rows, size_t cols) {
+#if defined(HAVE_AVX2)
+    const size_t blockSize = 8;  // AVX2 can handle 8 floats per register.
+    ov::parallel_for(cols, [&](size_t c) {
+        size_t r = 0;
+        for (; r + blockSize <= rows; r += blockSize) {
+            // Gather 8 elements from column j, rows i..i+7
+            __m256 gathered = _mm256_set_ps(src[(r + 7) * cols + c],
+                                            src[(r + 6) * cols + c],
+                                            src[(r + 5) * cols + c],
+                                            src[(r + 4) * cols + c],
+                                            src[(r + 3) * cols + c],
+                                            src[(r + 2) * cols + c],
+                                            src[(r + 1) * cols + c],
+                                            src[(r + 0) * cols + c]);
+
+            // Store this column as a row in transposed matrix
+            _mm256_storeu_ps(&dst[c * rows + r], gathered);
+        }
+        for (; r < rows; ++r) {
+            dst[c * rows + r] = src[r * cols + c];
+        }
+    });
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }

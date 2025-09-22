@@ -6,9 +6,9 @@
 
 #include <iostream>
 // Todo: Replace remarks with DEBUG_CAPS
-class logstreambuf: public std::streambuf {
+class logstreambuf : public std::streambuf {
 public:
-    static const int threshold {50};
+    static const int threshold{50};
 };
 
 template <typename T>
@@ -16,5 +16,5 @@ static inline auto remark(T x) -> std::ostream& {
     static logstreambuf nostreambuf;
     static std::ostream nocout(&nostreambuf);
 
-    return ((x >= logstreambuf::threshold)? std::cout << "Remark: " : nocout);
+    return ((x >= logstreambuf::threshold) ? std::cout << "Remark: " : nocout);
 }

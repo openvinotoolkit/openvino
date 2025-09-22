@@ -20,7 +20,11 @@ public:
 
     ~USMHostTensor() override = default;
 
+    void* data() override;
+    void* data(const element::Type& element_type) override;
+    const void* data() const override;
     const void* data(const element::Type& element_type) const override;
+
     const element::Type& get_element_type() const override;
 
     const Shape& get_shape() const override;

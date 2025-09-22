@@ -5,13 +5,14 @@
 #include "custom/single_layer_tests/classes/convolution.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
+#include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
 namespace Convolution {
-OPENVINO_SUPPRESS_DEPRECATED_START
+
 /* ============= Convolution (Gemm 1D) ============= */
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_FP32,
                          ConvolutionLayerCPUTest,
@@ -162,7 +163,7 @@ std::vector<InputShape> inputShapes_Reorder_2D = {
         }
 };
 
-const std::vector<fusingSpecificParams> fusingParamsSet_reorder{
+const std::vector<ExtraOperationsParams> fusingParamsSet_reorder{
         emptyFusingSpec,
         fusingReluScaleShift,
         fusingAddPerChannel

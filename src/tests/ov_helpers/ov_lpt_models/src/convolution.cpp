@@ -4,7 +4,7 @@
 
 #include "ov_lpt_models/convolution.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include <ov_ops/type_relaxed.hpp>
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
@@ -16,6 +16,8 @@
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace ov::pass::low_precision;
 

@@ -4,15 +4,26 @@
 
 #pragma once
 
+#include <libxsmm_typedefs.h>
+
+#include <memory>
+
 #include "descriptor.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/op.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "snippets/op/powerstatic.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/shape_types.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov::intel_cpu::tpp::op {

@@ -56,7 +56,7 @@ protected:
         const auto rhs = std::make_shared<ov::op::v0::Parameter>(rhsType, rhsShape);
         const auto lhs_converted = std::make_shared<ov::op::v0::Convert>(lhs, alignType);
         const auto rhs_converted = std::make_shared<ov::op::v0::Convert>(rhs, alignType);
-        return std::make_shared<ov::Model>(ov::NodeVector{lhs_converted, rhs_converted},
+        return std::make_shared<ov::Model>(ov::OutputVector{lhs_converted, rhs_converted},
                                            ov::ParameterVector{lhs, rhs},
                                            "Reference");
     }

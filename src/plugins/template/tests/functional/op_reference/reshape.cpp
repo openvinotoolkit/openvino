@@ -136,7 +136,7 @@ private:
             in,
             op::v0::Constant::create(element::Type_t::u64, {expected_shape.size()}, expected_shape),
             zero_flag);
-        return std::make_shared<Model>(NodeVector{reshape}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{reshape}, ParameterVector{in});
     }
 };
 
@@ -189,7 +189,7 @@ private:
             reshape2,
             op::v0::Constant::create(element::Type_t::u64, {expected_shape.size()}, expected_shape),
             zero_flag);
-        return std::make_shared<Model>(NodeVector{reshape3}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{reshape3}, ParameterVector{in});
     }
 };
 

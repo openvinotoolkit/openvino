@@ -4,8 +4,21 @@
 
 #include "brgemm_generic.hpp"
 
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <sstream>
+#include <string>
+#include <tuple>
+
 #include "common/utils.hpp"
-#include "dnnl_extension_utils.h"
+#include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
 #define PRINT(X) ss << #X << " = " << (X) << "\n"
@@ -15,11 +28,11 @@
 namespace ov::intel_cpu {
 
 bool BrgemmGenericKernelConfig::is_completed() const {
-    return !one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
+    return none_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
 }
 
 bool BrgemmGenericKernelConfig::is_empty() const {
-    return everyone_is(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC, m_beta);
+    return all_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC, m_beta);
 }
 
 bool BrgemmGenericKernelConfig::operator==(const BrgemmGenericKernelConfig& rhs) const {
@@ -35,7 +48,7 @@ void BrgemmGenericKernelConfig::update(int64_t M,
                                        float beta) {
     // If M/N/K is zero, it means that Brgemm won't be executed (in Loop with work_amount = 0, for example)
     // To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (one_of(0, M, N, K)) {
+    if (any_of(0, M, N, K)) {
         m_M = 0;
         m_N = 0;
         m_K = 0;
@@ -115,7 +128,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
     const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     const auto& input_pds = expr->get_input_port_descriptors();
     const auto& output_pds = expr->get_output_port_descriptors();
-    OV_CPU_JIT_EMITTER_ASSERT((input_pds.size() == 2 || input_pds.size() == 3) && output_pds.size() == 1,
+    OV_CPU_JIT_EMITTER_ASSERT(input_pds.size() >= 2 && output_pds.size() == 1,
                               "Invalid number of in/out port descriptors");
 
     const auto& in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
@@ -137,7 +150,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
     const auto& loop_ids = expr->get_loop_ids();
     const auto& loop_manager = linear_ir->get_loop_manager();
     auto get_loop_info = [&]() {
-        OPENVINO_ASSERT(loop_idx < loop_ids.size(), "Loop is missed");
+        assert(loop_idx < loop_ids.size() && "Loop is missed");
         return loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids[loop_idx++]);
     };
 
@@ -173,8 +186,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
             return p.get_dim_idx() == 0 && p.is_processed();
         };
-        OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_processed() &&
-                            std::all_of(in_ports.cbegin() + 1, in_ports.cend(), check_port) && out_ports.size() == 1 &&
+        OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_processed() && check_port(in_ports[1]) &&
                             check_port(out_ports.back()),
                         "Incorrect Loop by Brgemm dimension N");
         N = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
@@ -196,9 +208,8 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         const auto& out_ports = current_expanded_loop_info->get_output_ports();
         // Quick validation check: Should we check that port is really Brgemm port?
         OPENVINO_ASSERT(in_ports.size() >= 2 && in_ports.front().get_dim_idx() == 0 &&
-                            in_ports.front().is_processed() && in_ports.back().get_dim_idx() == 1 &&
-                            in_ports.back().is_processed() && out_ports.size() == 1 &&
-                            !out_ports.front().is_processed(),
+                            in_ports.front().is_processed() && in_ports[1].get_dim_idx() == 1 &&
+                            in_ports[1].is_processed() && out_ports.size() == 1 && !out_ports.front().is_processed(),
                         "Incorrect Loop by Brgemm dimension K");
         K = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[0]->set_subtensor_dim(0, K);

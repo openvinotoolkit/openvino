@@ -61,11 +61,6 @@ def pytest_addoption(parser):
         action="store",
         help="Version of IR to generate by Model Optimizer")
     parser.addoption(
-        "--use_legacy_frontend",
-        required=False,
-        action="store_true",
-        help="Use Model Optimizer with legacy FrontEnd")
-    parser.addoption(
         "--tflite",
         required=False,
         action="store_true",
@@ -76,12 +71,6 @@ def pytest_addoption(parser):
 def ir_version(request):
     """Fixture function for command-line option."""
     return request.config.getoption('ir_version')
-
-
-@pytest.fixture(scope="session")
-def use_legacy_frontend(request):
-    """Fixture function for command-line option."""
-    return request.config.getoption('use_legacy_frontend')
 
 
 @pytest.fixture(scope="session")

@@ -1,6 +1,11 @@
-name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
+name: Linux ARM64 (Ubuntu 22.04, Python 3.11)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -17,7 +22,7 @@ permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -53,43 +58,52 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    if: "!needs.smart_ci.outputs.skip_workflow"
     runs-on: aks-linux-4-cores-8gb-arm-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
         - /mount:/mount
     outputs:
-      images: "${{ steps.handle_docker.outputs.images }}"
+      images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
     steps:
+      - name: Set mock output images if pipeline should be skipped
+        if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
+        id: mock_image
+        run: echo "images={\"ov_test\":{\"ubuntu_22_04_arm64\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_arm64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_20_04_arm64
-            ov_test/ubuntu_20_04_arm64
+            ov_build/ubuntu_22_04_arm64
+            ov_test/ubuntu_22_04_arm64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.Smart_CI.outputs.changed_components }}
 
   Build:
     needs: [ Docker, Smart_CI ]
+    if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
-      os: 'ubuntu_20_04'
+      os: 'ubuntu_22_04'
       arch: 'arm64'
       build-js: true
       build-contrib: true
       build-debian-packages: false
       build-rpm-packages: false
+      build-additional-python-packages: true
+      target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_CPPLINT=OFF
@@ -109,7 +123,7 @@ jobs:
     uses: ./.github/workflows/job_debian_packages.yml
     with:
       runner: 'aks-linux-4-cores-8gb-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
 
   Samples:
     needs: [ Build, Docker, Smart_CI ]
@@ -117,7 +131,7 @@ jobs:
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-8-cores-16gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   JS_API:
@@ -127,18 +141,19 @@ jobs:
     uses: ./.github/workflows/job_openvino_js.yml
     with:
       runner: 'aks-linux-4-cores-8gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
-    if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
-        fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
+    # if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
+    #     fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
+    if: ${{ 'false' }} # 168858
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
-      sccache-azure-key-prefix: 'ubuntu20_aarch64_onnxruntime'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
+      sccache-azure-key-prefix: 'ubuntu22_aarch64_onnxruntime'
 
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
@@ -147,9 +162,10 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-16gb-arm'
       shell: bash
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
+      target-branch: ${{ inputs.target-branch }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   CXX_Unit_Tests:
@@ -158,9 +174,9 @@ jobs:
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-8-cores-16gb-arm'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: 'ubuntu_20_04'
+      os: 'ubuntu_22_04'
 
   Python_Unit_Tests:
     name: Python unit tests
@@ -168,7 +184,7 @@ jobs:
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-8-cores-16gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -178,7 +194,7 @@ jobs:
     uses: ./.github/workflows/job_python_api_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -188,7 +204,7 @@ jobs:
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -198,7 +214,17 @@ jobs:
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
+  Pytorch_FX_Layer_Tests:
+    name: Pytorch FX Layer Tests
+    needs: [ Build, Docker, Smart_CI ]
+    uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb-arm'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -208,7 +234,7 @@ jobs:
     uses: ./.github/workflows/job_jax_layer_tests.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -221,7 +247,7 @@ jobs:
       # Additional investigation needed why CPU functional tests are failing on v6 VM size's version,
       # so leave it as it is for now
       runner: 'aks-linux-16-cores-arm'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       python-version: '3.11'
       scope: ${{ github.event_name == 'workflow_dispatch' && 'nightly' || 'smoke' }}
 
@@ -234,7 +260,7 @@ jobs:
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       model_scope: 'precommit'
 
   PyTorch_Models_Tests:
@@ -245,12 +271,12 @@ jobs:
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       model_scope: 'precommit'
 
   Overall_Status:
     name: ci/gha_overall_status_linux_arm64
-    needs: [Smart_CI, Build, Debian_Packages, Samples, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests,
+    needs: [Smart_CI, Build, Debian_Packages, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests,
             TensorFlow_Models_Tests, PyTorch_Models_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest

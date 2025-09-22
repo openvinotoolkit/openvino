@@ -38,6 +38,12 @@ public:
     const std::vector<PatternSymbolValue>& g() const;
 
     bool operator==(const PatternSymbolValue& other) const;
+    bool operator!=(const PatternSymbolValue& other) const;
+
+    template <typename T, typename std::enable_if_t<std::is_constructible_v<PatternSymbolValue, T>>* = nullptr>
+    static std::vector<PatternSymbolValue> make_value_vector(const std::vector<T>& v) {
+        return {v.begin(), v.end()};
+    }
 
 private:
     bool is_valid() const;
@@ -93,7 +99,7 @@ public:
             m_name = std::move(name);
     }
 
-    bool operator()(PatternSymbolMap& m, const Output<Node>& output) const;
+    bool operator()(Matcher* m, const Output<Node>& output) const;
     bool operator()(const std::shared_ptr<Node>& node) const;
     bool operator()(const Output<Node>& output) const;
 

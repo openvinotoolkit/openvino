@@ -6,11 +6,11 @@
 
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 bool hasHardwareSupport(const ov::element::Type& precision);
 ov::element::Type defaultFloatPrecision();
+bool hasIntDotProductSupport();
+bool hasInt8MMSupport();
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

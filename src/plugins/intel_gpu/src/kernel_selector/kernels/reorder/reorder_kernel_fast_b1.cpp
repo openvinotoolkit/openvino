@@ -44,16 +44,16 @@ ParamsKey ReorderKernelFastBatch1::GetSupportedKey() const {
 
 bool ReorderKernelFastBatch1::Validate(const Params& p) const {
     if (!ReorderKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
 
     if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

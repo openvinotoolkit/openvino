@@ -28,7 +28,7 @@ struct DefaultAllocator {
         }
     }
 
-    void deallocate(void* handle, const size_t bytes, const size_t alignment) {
+    void deallocate(void* handle, const size_t bytes, const size_t alignment) noexcept {
         if (alignment == alignof(max_align_t)) {
             ::operator delete(handle);
         } else {
@@ -67,11 +67,19 @@ Allocator::Allocator(const Allocator& other, const std::shared_ptr<void>& so) : 
         OPENVINO_ASSERT(false, "Unexpected exception");                  \
     }
 
+#define OV_ALLOCATOR_NO_THROW_STATEMENT(...) \
+    try {                                    \
+        if (_impl) {                         \
+            __VA_ARGS__;                     \
+        }                                    \
+    } catch (...) {                          \
+    }
+
 void* Allocator::allocate(const size_t bytes, const size_t alignment) {
     OV_ALLOCATOR_STATEMENT(return _impl->allocate(bytes, alignment));
 }
-void Allocator::deallocate(void* handle, const size_t bytes, const size_t alignment) {
-    OV_ALLOCATOR_STATEMENT(_impl->deallocate(handle, bytes, alignment));
+void Allocator::deallocate(void* handle, const size_t bytes, const size_t alignment) noexcept {
+    OV_ALLOCATOR_NO_THROW_STATEMENT(_impl->deallocate(handle, bytes, alignment));
 }
 bool Allocator::operator==(const Allocator& other) const {
     OV_ALLOCATOR_STATEMENT({

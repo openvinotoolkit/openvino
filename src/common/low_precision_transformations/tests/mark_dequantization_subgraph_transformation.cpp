@@ -1,18 +1,28 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/convert_precision.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/gather.hpp"
 
 using namespace ov;
 
@@ -766,5 +776,259 @@ TEST_F(TransformationTestsF, MarkDequantizationTransformationFoldSubConst) {
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkup) {
+    // After KeepDequantizationPrecision all Convert, Subtract, and Multiply nodes
+    // are marked with the 'disable_fp16_compression' attribute
+
+    auto quantization_dt = element::u16;
+    auto dequantization_dt = element::f32;
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
+        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+        auto scale = opset10::Constant::create(dequantization_dt, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto add = std::make_shared<opset10::Add>(parameter, multiply);
+        model = std::make_shared<ov::Model>(ov::OutputVector{add});
+    }
+
+    manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt});
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
+        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
+        disable_fp16_compression(convert);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        disable_fp16_compression(convert_on_zero_point);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+        disable_fp16_compression(subtract);
+        auto scale = opset10::Constant::create(dequantization_dt, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        disable_fp16_compression(multiply);
+        auto add = std::make_shared<opset10::Add>(parameter, multiply);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{add});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkupNonConst) {
+    // KeepDequantizationPrecision pass should not match the specified subgraph,
+    // as it only targets constant weights, scales, and zero points.
+
+    auto quantization_dt = element::u16;
+    auto dequantization_dt = element::f32;
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
+        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+        auto scale = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto add = std::make_shared<opset10::Add>(parameter, multiply);
+        model = std::make_shared<ov::Model>(ov::OutputVector{add});
+    }
+
+    manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt});
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFolding) {
+    // This test uses the legacy TransformationTests class because ConvertPrecision pass
+    // internally inserts additional nodes for data type consistency, which causes the
+    // check_unique_names() function to fail with a "Tensor name: N is missing in ..." error.
+    // Once this issue is fixed, the test should be migrated to the new TransformationTestsF infrastructure.
+
+    // After KeepDequantizationPrecision all Convert, Subtract, and Multiply nodes
+    // are marked with the 'disable_fp16_compression' attribute, and dequantization subgraph is folded
+    // during Constant Folding (called from ConvertPrecision pass), using f32 data type for constants.
+
+    std::shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    auto quantization_dt = element::u16;
+    auto dequantization_dt = element::f32;
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
+        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+        auto scale = opset10::Constant::create(dequantization_dt, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto add = std::make_shared<opset10::Add>(parameter, multiply);
+        model = std::make_shared<ov::Model>(ov::OutputVector{add});
+
+        const auto keep_precision_sensitive_in_fp32 = true;
+        manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt});
+        manager.register_pass<pass::ConvertPrecision>(element::f32, element::f16, type_to_fuse_map{}, keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(element::f16, Shape{1});
+        auto input_decompress_to_f32 = std::make_shared<opset10::Convert>(parameter, element::f32);
+        auto weights = opset10::Constant::create(dequantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto add = std::make_shared<opset10::Add>(input_decompress_to_f32, weights);
+        auto add_compressed_to_f16 = std::make_shared<opset10::Convert>(add, element::f16);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{add_compressed_to_f16});
+    }
+
+    auto func_comparator = FunctionsComparator::with_default();
+    auto result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFoldingWithConvert) {
+    // This test uses the legacy TransformationTests class because ConvertPrecision pass
+    // internally inserts additional nodes for data type consistency, which causes the
+    // check_unique_names() function to fail with a "Tensor name: N is missing in ..." error.
+    // Once this issue is fixed, the test should be migrated to the new TransformationTestsF infrastructure.
+
+    // After KeepDequantizationPrecision all Convert, Subtract, and Multiply nodes
+    // are marked with the 'disable_fp16_compression' attribute, and dequantization subgraph is folded
+    // during Constant Folding (called from ConvertPrecision pass), using f32 data type and finally
+    // converted to the f16 data type.
+
+    std::shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    auto quantization_dt = element::u16;
+    auto dequantization_dt = element::f32;
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
+        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+        auto scale = opset10::Constant::create(dequantization_dt, Shape{}, {0.2});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto add = std::make_shared<opset10::Add>(parameter, multiply);
+        model = std::make_shared<ov::Model>(ov::OutputVector{add});
+
+        const auto keep_precision_sensitive_in_fp32 = true;
+        const auto add_precision_sensitive_convert = true;
+        manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt}, add_precision_sensitive_convert);
+        manager.register_pass<pass::ConvertPrecision>(element::f32, element::f16, type_to_fuse_map{}, keep_precision_sensitive_in_fp32);
+        manager.run_passes(model);
+    }
+
+    {
+        auto weights_dt = element::f16;
+        auto parameter = std::make_shared<opset10::Parameter>(element::f16, Shape{1});
+        auto weights = opset10::Constant::create(weights_dt, Shape{4, 16, 1, 1}, {3});
+        auto add = std::make_shared<opset10::Add>(parameter, weights);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{add});
+    }
+
+    auto func_comparator = FunctionsComparator::with_default();
+    auto result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+inline std::shared_ptr<Model> make_gather_model(element::Type data_type,
+                                                element::Type indices_type,
+                                                bool use_data_convert,
+                                                bool use_indices_convert,
+                                                bool indices_as_param,
+                                                bool reference_model = false) {
+    using op::v0::Constant;
+    using op::v0::Convert;
+    using op::v0::Parameter;
+    using op::v8::Gather;
+
+    ParameterVector params;
+
+    std::shared_ptr<Node> data = std::make_shared<Constant>(data_type, Shape{4}, 2);
+    if (reference_model)
+        enable_keep_const_precision(data);
+    if (use_data_convert) {
+        data = std::make_shared<Convert>(data, element::f32);
+        if (reference_model)
+            disable_constant_folding(data);
+    }
+
+    std::shared_ptr<Node> indices;
+    if (indices_as_param) {
+        params.push_back(std::make_shared<Parameter>(indices_type, Shape{3}));
+        indices = params.back();
+    } else {
+        indices = std::make_shared<Constant>(indices_type, Shape{3}, 1);
+    }
+    if (reference_model)
+        enable_keep_const_precision(indices);
+
+    if (use_indices_convert) {
+        indices = std::make_shared<Convert>(indices, element::i32);
+        if (reference_model)
+            disable_constant_folding(indices);
+    }
+
+    auto axis = std::make_shared<Constant>(element::i64, Shape{1}, 0);
+    auto gather = std::make_shared<Gather>(data, indices, axis);
+    if (reference_model)
+        disable_constant_folding(gather);
+
+    return std::make_shared<Model>(OutputVector{gather}, params);
+}
+
+TEST_F(TransformationTestsF, MarkGatherSubgraph) {
+    auto data_type = element::f8e4m3;
+    auto indices_type = element::u4;
+
+    model = make_gather_model(data_type, indices_type, true, true, false);
+    model_ref = make_gather_model(data_type, indices_type, true, true, false, true);
+
+    manager.register_pass<pass::MarkGatherSubgraph>(
+        element::TypeVector{element::f8e4m3, element::f16},
+        element::TypeVector{element::u4, element::u8}
+    );
+
+    manager.register_pass<pass::ConstantFolding>();
+    precisions_map map = {
+        {data_type, element::f32},
+        {indices_type, element::i32},
+    };
+    manager.register_pass<pass::ConvertPrecision>(map);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, MarkGatherSubgraph_IndicesAsParam) {
+    auto data_type = element::f8e4m3;
+    auto indices_type = element::u4;
+
+    model = make_gather_model(data_type, indices_type, true, true, true);
+    model_ref = make_gather_model(data_type, indices_type, true, true, true, true);
+
+    manager.register_pass<pass::MarkGatherSubgraph>(
+        element::TypeVector{element::f8e4m3, element::f16},
+        element::TypeVector{element::u4, element::u8}
+    );
+
+    manager.register_pass<pass::ConstantFolding>();
+    precisions_map map = {
+        {data_type, element::f32},
+        {indices_type, element::i32},
+    };
+    manager.register_pass<pass::ConvertPrecision>(map);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }

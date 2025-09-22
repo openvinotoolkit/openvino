@@ -7,23 +7,23 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "zero_memory.hpp"
 #include "zero_profiling.hpp"
 #include "zero_tensor.hpp"
 
 namespace intel_npu {
 
-struct Pipeline {
+struct Pipeline final {
 public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
              const std::shared_ptr<IGraph>& graph,
-             const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-             const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors);
+             const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
+             const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
+             size_t batch_size = 1);
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
-    virtual ~Pipeline() = default;
+    ~Pipeline() = default;
 
     void push();
     void pull();
@@ -35,6 +35,7 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
 protected:
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;
     const uint32_t _id;

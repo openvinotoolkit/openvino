@@ -11,8 +11,15 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -22,7 +29,7 @@ using namespace ov;
 std::shared_ptr<ov::Model> buildInputGraph(int64_t axis, int64_t group, const ::PartialShape& p) {
     auto input = std::make_shared<::opset3::Parameter>(::element::f32, p);
     auto shuffle_channels = std::make_shared<::opset3::ShuffleChannels>(input, axis, group);
-    return std::make_shared<::Model>(::NodeVector{shuffle_channels}, ::ParameterVector{input});
+    return std::make_shared<::Model>(::OutputVector{shuffle_channels}, ::ParameterVector{input});
 }
 
 TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis0) {
@@ -52,7 +59,7 @@ TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis0) {
                                               ::opset2::Constant::create(element::i64, Shape({3}), {1, 0, 2}));
     auto reshape_back = std::make_shared<::opset2::Reshape>(transpose->output(0), original_shape->output(0), false);
 
-    model_ref = std::make_shared<::Model>(::NodeVector{reshape_back}, ::ParameterVector{input});
+    model_ref = std::make_shared<::Model>(::OutputVector{reshape_back}, ::ParameterVector{input});
 }
 
 TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis1) {
@@ -83,7 +90,7 @@ TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis1) {
                                               ::opset2::Constant::create(element::i64, Shape({4}), {0, 2, 1, 3}));
     auto reshape_back = std::make_shared<::opset2::Reshape>(transpose->output(0), original_shape->output(0), false);
 
-    model_ref = std::make_shared<::Model>(::NodeVector{reshape_back}, ::ParameterVector{input});
+    model_ref = std::make_shared<::Model>(::OutputVector{reshape_back}, ::ParameterVector{input});
 }
 
 TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis2) {
@@ -114,7 +121,7 @@ TEST_F(TransformationTestsF, ConvertShuffleChannelsAxis2) {
                                               ::opset2::Constant::create(element::i64, Shape({4}), {0, 2, 1, 3}));
     auto reshape_back = std::make_shared<::opset2::Reshape>(transpose->output(0), original_shape->output(0), false);
 
-    model_ref = std::make_shared<::Model>(::NodeVector{reshape_back}, ::ParameterVector{input});
+    model_ref = std::make_shared<::Model>(::OutputVector{reshape_back}, ::ParameterVector{input});
 }
 
 TEST_F(TransformationTestsF, ConvertShuffleChannelsLastAxis) {
@@ -144,5 +151,5 @@ TEST_F(TransformationTestsF, ConvertShuffleChannelsLastAxis) {
                                               ::opset2::Constant::create(element::i64, Shape({3}), {0, 2, 1}));
     auto reshape_back = std::make_shared<::opset2::Reshape>(transpose->output(0), original_shape->output(0), false);
 
-    model_ref = std::make_shared<::Model>(::NodeVector{reshape_back}, ::ParameterVector{input});
+    model_ref = std::make_shared<::Model>(::OutputVector{reshape_back}, ::ParameterVector{input});
 }

@@ -68,7 +68,7 @@ TEST_P(LSTMCellFusionTestSuite, SubgraphFusedToLSTMCell) {
         auto Ht = std::make_shared<op::v1::Multiply>(std::make_shared<op::v0::Tanh>(Ct), ot);
         auto C_abs = std::make_shared<op::v0::Abs>(Ct);
         auto H_abs = std::make_shared<op::v0::Abs>(Ht);
-        model = std::make_shared<Model>(NodeVector{H_abs, C_abs}, ParameterVector{X, H, C});
+        model = std::make_shared<Model>(OutputVector{H_abs, C_abs}, ParameterVector{X, H, C});
         manager.register_pass<ov::pass::LSTMCellFusion>();
     }
 
@@ -102,7 +102,7 @@ TEST_P(LSTMCellFusionTestSuite, SubgraphFusedToLSTMCell) {
                                                             std::vector<std::string>{"sigmoid", "tanh", "tanh"});
         auto C_abs = std::make_shared<op::v0::Abs>(lstm_cell->output(1));
         auto H_abs = std::make_shared<op::v0::Abs>(lstm_cell->output(0));
-        model_ref = std::make_shared<Model>(NodeVector{H_abs, C_abs}, ParameterVector{X, H, C});
+        model_ref = std::make_shared<Model>(OutputVector{H_abs, C_abs}, ParameterVector{X, H, C});
         manager.register_pass<ov::pass::LSTMCellFusion>();
     }
 
@@ -247,7 +247,7 @@ TEST_P(LSTMCellFusionWithSplitWeights, SubgraphFusedToLSTMCell) {
         auto c_neg = std::make_shared<op::v0::Negative>(ct);
         auto h_abs = std::make_shared<op::v0::Abs>(ht);
 
-        model = std::make_shared<Model>(NodeVector{h_abs, c_neg}, ParameterVector{x, h, c});
+        model = std::make_shared<Model>(OutputVector{h_abs, c_neg}, ParameterVector{x, h, c});
         manager.register_pass<ov::pass::LSTMCellFusion>();
     }
 
@@ -279,7 +279,7 @@ TEST_P(LSTMCellFusionWithSplitWeights, SubgraphFusedToLSTMCell) {
         auto c_neg = std::make_shared<op::v0::Negative>(lstm_cell->output(1));
         auto h_abs = std::make_shared<op::v0::Abs>(lstm_cell->output(0));
 
-        model_ref = std::make_shared<Model>(NodeVector{h_abs, c_neg}, ParameterVector{x, h, c});
+        model_ref = std::make_shared<Model>(OutputVector{h_abs, c_neg}, ParameterVector{x, h, c});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);

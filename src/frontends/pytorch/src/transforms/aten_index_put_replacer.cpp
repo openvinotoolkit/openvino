@@ -46,13 +46,12 @@ Output<Node> generate_zeros_with_convertlike(ov::pass::NodeRegistry& rg,
 }  // namespace
 
 AtenIndexPutReplacer::AtenIndexPutReplacer() {
-    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(
+        fw_node_predicate({"aten::index_put_", "aten.index_put.default"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto index_op = cast_fw_node(m.get_match_root(), {"aten::index_put_", "aten.index_put.default"});
-        if (!index_op) {
-            return false;
-        }
+        auto index_op = m.get_match_root();
+
         NodeVector rt_copy_from;
         ov::pass::NodeRegistry rg;
         auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
@@ -64,19 +63,23 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         auto input_shape = rg.make<v3::ShapeOf>(input, element::i32);
         auto indices = index_op->input_value(1);
         auto values = index_op->input_value(2);
-        auto acc_const = ov::util::get_constant_from_source(index_op->input_value(3));
-        if (!acc_const) {
-            add_exception_to_fw_node(index_op, "aten::index_put_: non constant accumulate input is not supported.");
-            return false;
+
+        bool accumulate = false;
+        if (index_op->get_input_size() > 3) {
+            auto acc_const = ov::util::get_constant_from_source(index_op->input_value(3));
+            if (!acc_const) {
+                add_exception_to_fw_node(index_op, "aten::index_put_: non constant accumulate input is not supported.");
+                return false;
+            }
+            accumulate = acc_const->cast_vector<bool>()[0];
         }
-        bool accumulate = acc_const->cast_vector<bool>()[0];
 
         int64_t indices_list_len;
         OutputVector indices_inputs;
         if (auto listconstruct = cast_fw_node(indices.get_node_shared_ptr(), "prim::ListConstruct")) {
             rt_copy_from.push_back(listconstruct);
             indices_inputs = listconstruct->input_values();
-            indices_list_len = indices_inputs.size();
+            indices_list_len = static_cast<int64_t>(indices_inputs.size());
         } else {
             auto indices_partial_shape = indices.get_partial_shape();
             if (!indices_partial_shape.rank().is_static()) {
@@ -99,6 +102,86 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         if (indices_list_len == 0) {
             replace_node(index_op, values.get_node_shared_ptr());
             return true;
+        }
+
+        // it is possible to have None values among indices_inputs, for example, tensor[:, 2, :, :] = update
+        // None value corresponds to `:` that means to update all slices by this dimension
+        // compute permutation vector so that all None's are moved to the tail like tensor[2, :, :, :] = update
+        // so that it will be possible to use ScatterNDUpdate operation
+        std::vector<int64_t> dims_with_none_idx;
+        std::vector<int64_t> dims_with_value_idx;
+        ov::OutputVector indices_inputs_without_nones;
+        for (int64_t idx = 0; idx < indices_list_len; ++idx) {
+            if (is_none_node(indices_inputs[idx])) {
+                dims_with_none_idx.push_back(idx);
+            } else {
+                dims_with_value_idx.push_back(idx);
+                indices_inputs_without_nones.push_back(indices_inputs[idx]);
+            }
+        }
+
+        // In some exported graphs, when index_put_ is used with None indices, shape of values
+        // might be missing the first dimension of 1. For example, a value shape can be provided
+        // as (x,y,z) instead of (1,x,y,z). Both cases are valid for aten.index_put_.default.
+        auto input_rank = input.get_partial_shape().rank();
+        auto values_rank = values.get_partial_shape().rank();
+        if (static_cast<int64_t>(dims_with_none_idx.size()) > 0 && input_rank.is_static() && values_rank.is_static() &&
+            input_rank.get_length() > 1 && input_rank.get_length() == values_rank.get_length() + 1 &&
+            static_cast<int64_t>(dims_with_none_idx.size()) == indices_list_len - 1 &&
+            !(is_none_node(indices_inputs[indices_list_len - 1]))) {
+            values = rg.make<v0::Unsqueeze>(values, const_0);
+        }
+
+        std::vector<int64_t> perm_vector_before;
+        std::vector<int64_t> perm_vector_after;
+        if (static_cast<int64_t>(dims_with_none_idx.size()) == indices_list_len) {
+            // if there is an expression: tensor[:, :, :] = update
+            // the whole tensor is replaced with update
+            replace_node(index_op, values.get_node_shared_ptr());
+            return true;
+        } else if (dims_with_none_idx.size() > 0 &&
+                   (indices_list_len - dims_with_none_idx[0]) != static_cast<int64_t>(dims_with_none_idx.size())) {
+            // None indices are not placed in the tail, i.e. tensor[2, 10, :, 4, :] = update
+            // so we need to transpose input tensor to place None indices to the tail
+            // like tensor[2, 10, 4, :, :] = update
+            if (!input.get_partial_shape().rank().is_static()) {
+                // We support only lists of tensors with static number of elements.
+                add_exception_to_fw_node(
+                    index_op,
+                    "aten::index_put_: input of dynamic rank with None indices not in the tail is not supported.");
+                return false;
+            }
+            auto input_rank = input.get_partial_shape().rank().get_length();
+            // initial values for both permutation vectors
+            // [0, 1, ..., rank - 1]
+            perm_vector_before.resize(input_rank);
+            std::iota(perm_vector_before.begin(), perm_vector_before.end(), 0);
+            perm_vector_after.resize(input_rank);
+            std::iota(perm_vector_after.begin(), perm_vector_after.end(), 0);
+
+            int64_t num_not_nones = static_cast<int64_t>(dims_with_value_idx.size());
+            for (int64_t idx = 0; idx < num_not_nones; ++idx) {
+                perm_vector_before[idx] = dims_with_value_idx[idx];
+                perm_vector_after[dims_with_value_idx[idx]] = idx;
+            }
+            int64_t num_nones = static_cast<int64_t>(dims_with_none_idx.size());
+            for (int64_t idx = 0; idx < num_nones; ++idx) {
+                perm_vector_before[idx + num_not_nones] = dims_with_none_idx[idx];
+                perm_vector_after[dims_with_none_idx[idx]] = idx + num_not_nones;
+            }
+        }
+
+        // truncate indices with None values
+        indices_inputs = indices_inputs_without_nones;
+        indices_list_len = static_cast<int64_t>(indices_inputs.size());
+
+        if (!perm_vector_before.empty()) {
+            // since None values moved to that tail dimensions
+            // it is required to adjust input and update tensors by dimension transposing
+            auto perm_before = v0::Constant::create(element::i64, Shape{perm_vector_before.size()}, perm_vector_before);
+            input = rg.make<v1::Transpose>(input, perm_before);
+            input_shape = rg.make<v3::ShapeOf>(input, element::i32);
+            values = rg.make<v1::Transpose>(values, perm_before);
         }
 
         auto const_indices_list_len = v0::Constant::create(element::i32, Shape{1}, {indices_list_len});
@@ -156,7 +239,6 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                 auto dim_0_correct_type = (rg.make<v1::ConvertLike>(dim_0, index));
                 index = rg.make<v1::Add>(index, dim_0_correct_type);
                 index = rg.make<v1::Mod>(index, dim_0_correct_type);
-
                 broadcast_index_shape = rg.make<v3::ShapeOf>(index, element::i32);
                 index = rg.make<v0::Unsqueeze>(index, const_neg_1);
             }
@@ -175,6 +257,12 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         } else {
             result = rg.make<v3::ScatterNDUpdate>(input, index, values);
         }
+
+        if (!perm_vector_after.empty()) {
+            auto perm_after = v0::Constant::create(element::i64, Shape{perm_vector_after.size()}, perm_vector_after);
+            result = rg.make<v1::Transpose>(result, perm_after);
+        }
+
         copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
         replace_node(index_op, result);
         return true;

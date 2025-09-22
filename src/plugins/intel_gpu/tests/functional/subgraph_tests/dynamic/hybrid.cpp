@@ -14,6 +14,9 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -58,25 +61,15 @@ class MatmulWeightsDecompressionQuantizeConvolution : public testing::WithParamI
                                                       virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string get_test_case_name(testing::TestParamInfo<MatmulWeightsDecompressionQuantizeConvolutionParams> obj) {
-        ShapeParams shape_params;
-        ov::element::Type weights_precision;
-        ov::element::Type activations_precision;
-        bool transpose;
-        bool decompression_sub;
-        bool reshape_on_decompression;
-        bool extra_multiply;
-        bool per_tensor_zp;
-        uint64_t dyn_quan_group_size;
-
-        std::tie(shape_params,
-                 weights_precision,
-                 activations_precision,
-                 transpose,
-                 decompression_sub,
-                 reshape_on_decompression,
-                 extra_multiply,
-                 per_tensor_zp,
-                 dyn_quan_group_size) = obj.param;
+        const auto& [shape_params,
+                     weights_precision,
+                     activations_precision,
+                     transpose,
+                     decompression_sub,
+                     reshape_on_decompression,
+                     extra_multiply,
+                     per_tensor_zp,
+                     dyn_quan_group_size] = obj.param;
 
         std::ostringstream result;
         result << "data_shape=";
@@ -128,7 +121,7 @@ protected:
         reshape->set_friendly_name("reshape");
 
         auto conv = init_quantized_convolution_subgraph(reshape);
-        return std::make_shared<ov::Model>(ov::NodeVector{conv}, params, "MatmulWeightsDecompressionQuantizeConvolution");
+        return std::make_shared<ov::Model>(ov::OutputVector{conv}, params, "MatmulWeightsDecompressionQuantizeConvolution");
     }
 
     std::shared_ptr<ov::Node> init_compressed_weights_subgraph(const ov::Shape& weights_shape,
@@ -288,25 +281,15 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        ShapeParams shape_params;
-        ov::element::Type weights_precision;
-        ov::element::Type activations_precision;
-        bool transpose_weights;
-        bool decompression_sub;
-        bool reshape_on_decompression;
-        bool extra_multiply;
-        bool per_tensor_zp;
-        uint64_t dyn_quan_group_size;
-
-        std::tie(shape_params,
-                 weights_precision,
-                 activations_precision,
-                 transpose_weights,
-                 decompression_sub,
-                 reshape_on_decompression,
-                 extra_multiply,
-                 per_tensor_zp,
-                 dyn_quan_group_size) = GetParam();
+        const auto& [shape_params,
+                     weights_precision,
+                     activations_precision,
+                     transpose_weights,
+                     decompression_sub,
+                     reshape_on_decompression,
+                     extra_multiply,
+                     per_tensor_zp,
+                     dyn_quan_group_size] = GetParam();
 
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 

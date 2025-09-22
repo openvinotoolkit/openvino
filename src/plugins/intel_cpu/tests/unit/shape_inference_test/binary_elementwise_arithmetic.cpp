@@ -5,10 +5,19 @@
 #include <gtest/gtest.h>
 
 #include "utils.hpp"
-#include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/static_shape.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

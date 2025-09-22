@@ -12,8 +12,15 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -61,7 +68,7 @@ TEST_F(TransformationTestsF, ShapeSubGraphTestGatherv7) {
         auto concat = std::make_shared<opset7::Concat>(OutputVector{unsqueeze_1, unsqueeze_2, const_1, const_2}, 0);
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
-        model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
         manager.register_pass<ov::pass::SimplifyShapeOfSubGraph>();
     }
     {
@@ -76,7 +83,7 @@ TEST_F(TransformationTestsF, ShapeSubGraphTestGatherv7) {
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather_1, const_1, const_2}, 0);
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
-        model_ref = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
     }
 }
 
@@ -101,7 +108,7 @@ TEST_F(TransformationTestsF, ShapeSubGraphTestGatherv8) {
         auto concat = std::make_shared<opset7::Concat>(OutputVector{unsqueeze_1, unsqueeze_2, const_1, const_2}, 0);
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
-        model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
         manager.register_pass<ov::pass::SimplifyShapeOfSubGraph>();
     }
     {
@@ -116,7 +123,7 @@ TEST_F(TransformationTestsF, ShapeSubGraphTestGatherv8) {
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather_1, const_1, const_2}, 0);
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
-        model_ref = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
     }
 }
 
@@ -138,14 +145,14 @@ TEST_F(TransformationTestsF, ShapeNopSubGraphTestGatherv7) {
         auto concat = std::make_shared<opset7::Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
-        model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
         manager.register_pass<ov::pass::SimplifyShapeOfSubGraph>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
         auto shape_op_1 = std::make_shared<opset7::ShapeOf>(data);
         auto reshape = std::make_shared<opset7::Reshape>(data, shape_op_1, false);
-        model_ref = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
     }
 }
 
@@ -167,14 +174,14 @@ TEST_F(TransformationTestsF, ShapeNopSubGraphTestGatherv8) {
         auto concat = std::make_shared<opset7::Concat>(OutputVector{unsqueeze_1, unsqueeze_2}, 0);
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, false);
-        model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
         manager.register_pass<ov::pass::SimplifyShapeOfSubGraph>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
         auto shape_op_1 = std::make_shared<opset7::ShapeOf>(data);
         auto reshape = std::make_shared<opset7::Reshape>(data, shape_op_1, false);
-        model_ref = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
     }
 }
 
@@ -192,7 +199,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNegative) {
         auto concat = std::make_shared<opset7::Concat>(OutputVector{constant_1, constant_2, unsqueeze}, 0);
 
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
-        model = std::make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
         manager.register_pass<ov::pass::GroupedGatherElimination>();
     }
 }
@@ -211,7 +218,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNotCompatibleIndiciesSameSi
 
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather_1, gather_2}, 0);
 
-        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<pass::GroupedGatherElimination>();
     }
     {
@@ -226,7 +233,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNotCompatibleIndiciesSameSi
 
         auto gather = std::make_shared<opset8::Gather>(shape_op, joint_indices, axis);
 
-        model_ref = std::make_shared<Model>(NodeVector{gather}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data});
     }
 }
 
@@ -244,7 +251,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNotCompatibleIndiciesCanCon
 
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather_1, gather_2}, 0);
 
-        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<pass::GroupedGatherElimination>();
     }
     {
@@ -259,7 +266,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNotCompatibleIndiciesCanCon
 
         auto gather = std::make_shared<opset8::Gather>(shape_op, joint_indices, axis);
 
-        model_ref = std::make_shared<Model>(NodeVector{gather}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data});
     }
 }
 
@@ -277,7 +284,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNotCompatibleIndiciesCanCon
 
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather_1, gather_2}, 0);
 
-        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<pass::GroupedGatherElimination>();
     }
     {
@@ -292,7 +299,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNotCompatibleIndiciesCanCon
 
         auto gather = std::make_shared<opset8::Gather>(shape_op, joint_indices, axis);
 
-        model_ref = std::make_shared<Model>(NodeVector{gather}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data});
     }
 }
 
@@ -310,7 +317,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationCompatibleIndicies_1) {
 
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather_1, gather_2}, 0);
 
-        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<pass::GroupedGatherElimination>();
     }
     {
@@ -321,7 +328,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationCompatibleIndicies_1) {
 
         auto gather = std::make_shared<opset8::Gather>(shape_op, joint_indices, axis);
 
-        model_ref = std::make_shared<Model>(NodeVector{gather}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data});
     }
 }
 
@@ -339,7 +346,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationCompatibleIndicies_2) {
 
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather_1, gather_2}, 0);
 
-        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<pass::GroupedGatherElimination>();
     }
     {
@@ -350,7 +357,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationCompatibleIndicies_2) {
 
         auto gather = std::make_shared<opset8::Gather>(shape_op, joint_indices, axis);
 
-        model_ref = std::make_shared<Model>(NodeVector{gather}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{gather}, ParameterVector{data});
     }
 }
 
@@ -368,7 +375,7 @@ TEST_F(TransformationTestsF, GroupedGatherEliminationNotCompatibleIndiciesCannot
 
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather_1, gather_2}, 0);
 
-        model = std::make_shared<Model>(NodeVector{concat}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data});
         manager.register_pass<pass::GroupedGatherElimination>();
     }
 }
@@ -385,7 +392,7 @@ TEST_F(TransformationTestsF, ConcatAbsCombo) {
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather, minus_one, one, minus_one}, 0);
         auto abs = std::make_shared<opset7::Abs>(concat);
 
-        model = std::make_shared<Model>(NodeVector{abs}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{data});
         manager.register_pass<pass::AbsSinking>();
     }
     {
@@ -398,7 +405,7 @@ TEST_F(TransformationTestsF, ConcatAbsCombo) {
         auto one2 = opset7::Constant::create(element::i64, {1}, {1});
         auto concat = std::make_shared<opset7::Concat>(OutputVector{gather, one0, one1, one2}, 0);
 
-        model_ref = std::make_shared<Model>(NodeVector{concat}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data});
     }
 }
 
@@ -409,7 +416,7 @@ TEST_F(TransformationTestsF, SingleAbsOnShape) {
         auto shape_op = std::make_shared<opset7::ShapeOf>(data);
         auto abs = std::make_shared<opset7::Abs>(shape_op);
 
-        model = std::make_shared<Model>(NodeVector{abs}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{data});
         manager.register_pass<pass::AbsSinking>();
     }
     {
@@ -426,7 +433,40 @@ TEST_F(TransformationTestsF, AbsInTheUnknown) {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
         auto abs = std::make_shared<opset7::Abs>(data);
 
-        model = std::make_shared<Model>(NodeVector{abs}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{data});
         manager.register_pass<pass::AbsSinking>();
     }
 }
+
+// Parameterized test for AbsSinking with constants
+struct AbsSinkingConstantTestParams {
+    std::vector<int64_t> values;
+    std::string test_name;
+};
+
+class AbsSinkingConstantTest : public TransformationTestsF,
+                               public ::testing::WithParamInterface<AbsSinkingConstantTestParams> {};
+
+TEST_P(AbsSinkingConstantTest, AbsSinkingSkipsConstants) {
+    // Test that AbsSinking does NOT process constants (leaves them for ConstantFolding)
+    const auto& params = GetParam();
+
+    {
+        auto constant = op::v0::Constant::create(element::i64, {params.values.size()}, params.values);
+        auto abs_op = std::make_shared<op::v0::Abs>(constant);
+
+        model = std::make_shared<Model>(OutputVector{abs_op}, ParameterVector{});
+        manager.register_pass<pass::AbsSinking>();
+    }
+
+    // Reference model should be identical since AbsSinking skips constants
+    model_ref = model->clone();
+}
+
+INSTANTIATE_TEST_SUITE_P(AbsSinkingConstantTests,
+                         AbsSinkingConstantTest,
+                         ::testing::Values(AbsSinkingConstantTestParams{{-1, -2, 4}, "negative_values"},
+                                           AbsSinkingConstantTestParams{{1, 2}, "positive_values"}),
+                         [](const ::testing::TestParamInfo<AbsSinkingConstantTestParams>& info) {
+                             return info.param.test_name;
+                         });

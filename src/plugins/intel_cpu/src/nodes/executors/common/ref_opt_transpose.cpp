@@ -4,7 +4,19 @@
 
 #include "ref_opt_transpose.hpp"
 
+#include <cstddef>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/common/ref_opt_transpose.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 namespace {
@@ -17,7 +29,7 @@ struct TransposeContext {
 
 template <typename T>
 void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = srcMemPtr->getDataAs<const T>();
+    const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
@@ -36,7 +48,7 @@ void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dst
 
 template <typename T>
 void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = srcMemPtr->getDataAs<const T>();
+    const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
@@ -58,7 +70,7 @@ void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& ds
 
 template <typename T>
 void transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = srcMemPtr->getDataAs<const T>();
+    const auto* const src_data = srcMemPtr->getDataAs<const T>();
     auto dst_data = dstMemPtr->getDataAs<T>();
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
@@ -111,9 +123,9 @@ void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, con
               TransposeOptimizedEmitter,
               ctx,
               dataSize,
-              OV_CASE(1u, element_type_traits<ov::element::u8>::value_type),
-              OV_CASE(2u, element_type_traits<ov::element::u16>::value_type),
-              OV_CASE(4u, element_type_traits<ov::element::i32>::value_type));
+              OV_CASE(1U, element_type_traits<ov::element::u8>::value_type),
+              OV_CASE(2U, element_type_traits<ov::element::u16>::value_type),
+              OV_CASE(4U, element_type_traits<ov::element::i32>::value_type));
 }
 
 bool RefOptimizedTransposeExecutor::init([[maybe_unused]] const TransposeParams& transposeParams,

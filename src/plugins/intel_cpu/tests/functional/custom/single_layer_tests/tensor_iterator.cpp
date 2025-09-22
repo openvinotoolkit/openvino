@@ -5,6 +5,8 @@
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 
 using namespace ov;
 using namespace test;
@@ -16,12 +18,8 @@ using TensorIteratorParams = typename std::tuple<std::vector<InputShape>,       
 class TensorIteratorCPUTest : public testing::WithParamInterface<TensorIteratorParams>,
                               virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TensorIteratorParams> obj) {
-        std::vector<InputShape> shapes;
-        ov::op::RecurrentSequenceDirection direction;
-        ElementType inType;
-        std::tie(shapes, direction, inType) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<TensorIteratorParams>& obj) {
+        const auto& [shapes, direction, inType] = obj.param;
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {
             result << "Input" << i << "_";
@@ -38,11 +36,7 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> shapes;
-        ov::op::RecurrentSequenceDirection direction;
-        ElementType inType;
-        std::tie(shapes, direction, inType) = this->GetParam();
-
+        const auto& [shapes, direction, inType] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 

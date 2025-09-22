@@ -26,6 +26,9 @@ public:
     static std::string compute_hash(const std::string& modeStr,
                                     const ov::Tensor& data,
                                     const ov::AnyMap& compileOptions);
+    static std::string compute_hash(const std::shared_ptr<const ov::Model>& model,
+                                    const std::filesystem::path& model_path,
+                                    const ov::AnyMap& compileOptions);
 };
 
 class CompiledBlobHeader final {
@@ -52,6 +55,8 @@ public:
     friend std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header);
 
     friend std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header);
+
+    void read_from_buffer(const char* buffer, size_t buffer_size, size_t& pos);
 };
 
 }  // namespace ov

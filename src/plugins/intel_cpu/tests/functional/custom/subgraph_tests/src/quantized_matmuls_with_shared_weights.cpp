@@ -9,11 +9,14 @@
 #include "common_test_utils/node_builders/reshape.hpp"
 #include "openvino/openvino.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace test {
 
-enum class FQInterval { U8, I8 };
+enum class FQInterval : uint8_t { U8, I8 };
 inline std::ostream& operator<<(std::ostream& os, FQInterval interval) {
     switch (interval) {
     case FQInterval::U8:
@@ -39,11 +42,7 @@ class QuantizedMatMulsWithSharedWeightsTest
       virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QuantizedMatMulsWithSharedWeightsParans>& obj) {
-        InputShape shape1;
-        InputShape shape2;
-        FQInterval interval1;
-        FQInterval interval2;
-        std::tie(shape1, shape2, interval1, interval2) = obj.param;
+        const auto& [shape1, shape2, interval1, interval2] = obj.param;
         std::ostringstream result;
         result << "IS1=" << shape1 << "IS2=" << shape2 << "FQInterval1=" << interval1 << "FQInterval2=" << interval2;
         return result.str();
@@ -52,12 +51,7 @@ public:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
         abs_threshold = 1e-4;
-
-        InputShape shape1;
-        InputShape shape2;
-        FQInterval interval1;
-        FQInterval interval2;
-        std::tie(shape1, shape2, interval1, interval2) = this->GetParam();
+        const auto& [shape1, shape2, interval1, interval2] = this->GetParam();
         init_input_shapes({shape1, shape2});
 
         const auto weights = ov::test::utils::make_constant(ov::element::i8, {16, 16});

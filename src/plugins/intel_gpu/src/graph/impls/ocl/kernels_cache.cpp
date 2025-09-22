@@ -213,13 +213,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             current_batch.has_microkernels |= kernel_string->has_microkernels;
 
-            // TODO: Technically, microkernels doesn't require specific headers, but we don't want to include
-            // some headers to all batches as it may lead to compilation error on some driver versions.
-            // Need to generalize work with headers to include only necessary parts
-            if (current_batch.has_microkernels) {
-                current_batch.source.insert(current_batch.source.begin(), current_batch.micro_headers.begin(), current_batch.micro_headers.end());
-            }
-
             current_batch.source.push_back(std::move(full_code));
             current_batch.kernels_counter++;
         }
@@ -527,6 +520,8 @@ bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
     auto kernel = casted->get_handle();
     try {
         auto casted_dev = dynamic_cast<ocl::ocl_device*>(_device.get());
+        OPENVINO_ASSERT(casted_dev != nullptr, "device is nullptr");
+
         auto device = casted_dev->get_device();
         cl::Context ctx(device);
 

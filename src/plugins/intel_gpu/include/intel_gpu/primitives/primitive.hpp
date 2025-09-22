@@ -52,7 +52,7 @@ struct input_info {
     }
 
     primitive_id pid;
-    int32_t idx;
+    int32_t idx;    // output port index of primitive
     struct cmp {
         bool operator() (const input_info a, const input_info b) {
             if (a.pid < b.pid) {
@@ -86,7 +86,7 @@ struct input_info {
     }
 };
 
-static inline std::ostream& operator<< (std::ostream& os, input_info& info) {
+static inline std::ostream& operator<< (std::ostream& os, const input_info& info) {
     os << info.to_string();
     return os;
 }
@@ -143,8 +143,11 @@ public:
     /// @brief Returns copy of all input info on which this primitive depends - inputs, weights, biases, etc.
     std::vector<input_info> dependencies() const {
         auto result = input;
-        auto deps = get_dependencies();
-        for (auto& dep : deps) result.push_back(dep);
+
+        auto dependencies_map = get_dependencies_map();
+        for (const auto& dep : dependencies_map)
+            result.push_back(*dep.second);
+
         return result;
     }
 
@@ -208,7 +211,7 @@ public:
     const primitive_type_id type;
 
     /// @brief Primitive's id.
-    const primitive_id id;
+    primitive_id id;
 
     /// @brief Name of original ov operation.
     std::string origin_op_name;
@@ -236,6 +239,8 @@ public:
     size_t num_outputs;
 
     virtual const std::string& get_type_info() const = 0;
+    virtual std::shared_ptr<primitive> clone() const = 0;
+
     virtual void save(BinaryOutputBuffer& ob) const {
         ob << type_string();
         ob << id;
@@ -259,7 +264,7 @@ public:
         std::string type_str;
         ib >> type_str;
         *const_cast<primitive_type_id*>(&type) = prim_map_storage::instance().get_type_id(type_str);
-        ib >> *const_cast<primitive_id*>(&id);
+        ib >> id;
         ib >> origin_op_name;
         ib >> origin_op_type_name;
         ib >> output_paddings;
@@ -297,8 +302,49 @@ public:
         }
     }
 
+    /// @brief Returns mutable reference to input dependency at given index.
+    input_info& get_dependency(size_t idx) {
+        if (idx < input.size())
+            return input[idx];
+
+        auto dependencies_map = get_dependencies_map();
+        OPENVINO_ASSERT(dependencies_map.count(idx) > 0,
+                        "[GPU] Requested index ",
+                        std::to_string(idx),
+                        " exceeds total dependencies count (",
+                        std::to_string(input.size() + dependencies_map.size()),
+                        ") for ",
+                        id,
+                        " primitive");
+
+        // get_dependencies_map() returns `const input_info*` for general read-only access.
+        // However since the current function is non-const and the object itself is not actually const,
+        // we can safely cast away constness to return a mutable reference.
+        // This avoids duplicating the dependencies logic while preserving const correctness.
+        return *const_cast<input_info*>(dependencies_map[idx]);
+    }
+
+    /// @brief Returns const reference to input dependency at given index.
+    const input_info& get_dependency(size_t idx) const {
+        if (idx < input.size())
+            return input[idx];
+
+        auto dependencies_map = get_dependencies_map();
+        OPENVINO_ASSERT(dependencies_map.count(idx) > 0,
+                        "[GPU] Requested index ",
+                        std::to_string(idx),
+                        " exceeds total dependencies count (",
+                        std::to_string(input.size() + dependencies_map.size()),
+                        ") for",
+                        id,
+                        " primitive");
+
+        return *dependencies_map[idx];
+    }
+
 protected:
-    virtual std::vector<input_info> get_dependencies() const { return {}; }
+    /// @brief This method returns additional dependencies those are not maintained from primitive::input.
+    virtual std::map<size_t, const input_info*> get_dependencies_map() const { return {}; }
     class condition;
     friend struct primitive_info;
 };
@@ -306,6 +352,10 @@ protected:
 /// @brief base class for all primitives implementations.
 template <class PType>
 class primitive_base : public primitive {
+public:
+    std::shared_ptr<PType> typed_clone() const { return std::make_shared<PType>(static_cast<const PType &>(*this)); }
+    std::shared_ptr<primitive> clone() const override { return typed_clone(); };
+
 protected:
     explicit primitive_base(const primitive_id& id,
                             const std::vector<input_info>& input,

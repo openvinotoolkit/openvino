@@ -21,6 +21,7 @@
 
 #include "simple_low_precision_transformer.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace {
 
@@ -119,9 +120,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<SeparateInStandaloneBranchTransformationParams> obj) {
-        ov::Shape shapes;
-        SeparateInStandaloneBranchTransformationTestValues testValues;
-        std::tie(shapes, testValues) = obj.param;
+        const auto& [shapes, testValues] = obj.param;
 
         std::stringstream ss;
         ss << shapes << "_" << testValues;

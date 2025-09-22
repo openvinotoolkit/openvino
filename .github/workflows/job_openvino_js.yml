@@ -7,11 +7,16 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Docker image to use for the job'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
+      nodejs-version:
+        description: 'NodeJS version to setup. E.g., "22"'
+        type: string
+        required: false
+        default: "21"
 
 permissions: read-all
 
@@ -20,15 +25,19 @@ jobs:
     name: OpenVINO JS API
     timeout-minutes: 10
     runs-on: ${{ inputs.runner }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
     defaults:
       run:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      OPENVINO_JS_DIR: ${{ github.workspace }}/openvino/src/bindings/js
-      OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
-      NODE_VERSION: 21
+      OPENVINO_JS_DIR: ${{ github.workspace }}/src/bindings/js/node
+      OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/src/bindings/js/node/bin
+      NODE_VERSION: ${{ inputs.nodejs-version }}
       DISPLAY: ':99'
     steps:
       - name: Fetch OpenVINO JS sources
@@ -37,49 +46,39 @@ jobs:
         with:
           sparse-checkout: |
             src/bindings/js
-          path: 'openvino'
       
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install pigz
 
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: |
-          echo "OPENVINO_JS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js" >> "$GITHUB_ENV"
-          echo "OPENVINO_JS_LIBS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js/node/bin" >> "$GITHUB_ENV"
-
       - name: Download OpenVINO artifacts (JS)
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_[js]*
-          path: ${{ env.OPENVINO_JS_LIBS_DIR }}
+          name: openvino_node_npm_package
+          path: ${{ env.OPENVINO_JS_DIR }}
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: pigz -dc openvino_js_package.tar.gz | tar -xf - -C ${OPENVINO_JS_LIBS_DIR}
-        working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
+        run: pigz -dc openvino_node_npm_package.tar.gz | tar -xf - -v
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        if: runner.os != 'Linux' # Node is already installed in the Docker image
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Configure OpenVINO JS API
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm i
 
       - name: Test OpenVINO JS API
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test
 
       - name: Install electron deps and run Xvfb
         if: runner.os == 'Linux'
-        run: |
-          apt-get update && apt-get install -y xvfb libgtk-3-0 libgbm1
-          Xvfb "$DISPLAY" &
+        run: Xvfb "$DISPLAY" &
 
       - name: E2E of openvino-node package
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test:e2e

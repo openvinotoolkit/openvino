@@ -7,6 +7,9 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 using namespace CPUTestUtils;
 
@@ -19,10 +22,7 @@ class RemoveUselessBF16ConvertCPUTest : public testing::WithParamInterface<Remov
                                         public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
-        ElementType inType;
-        InputShape inputShape;
-        ov::AnyMap additionalConfig;
-        std::tie(inType, inputShape, additionalConfig) = obj.param;
+        const auto& [inType, inputShape, additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "Prc=" << inType;
@@ -36,10 +36,7 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        InputShape inputShape;
-        ov::AnyMap additionalConfig;
-        std::tie(inType, inputShape, additionalConfig) = this->GetParam();
+        const auto& [inType, inputShape, additionalConfig] = this->GetParam();
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         targetDevice = ov::test::utils::DEVICE_CPU;
         std::tie(inFmts, outFmts, priority, selectedType) =
@@ -69,10 +66,7 @@ class RemoveUselessConvertCPUTest : public testing::WithParamInterface<RemoveCon
                                     public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
-        ElementType inType;
-        InputShape inputShape;
-        ov::AnyMap additionalConfig;
-        std::tie(inType, inputShape, additionalConfig) = obj.param;
+        const auto& [inType, inputShape, additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "Prc=" << inType;
@@ -86,10 +80,7 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        InputShape inputShape;
-        ov::AnyMap additionalConfig;
-        std::tie(inType, inputShape, additionalConfig) = this->GetParam();
+        const auto& [inType, inputShape, additionalConfig] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({inputShape});

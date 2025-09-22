@@ -117,7 +117,7 @@ private:
                                                                                                        featureMap,
                                                                                                        im_info,
                                                                                                        params.attrs);
-        return std::make_shared<Model>(NodeVector{ExperimentalPGG}, ParameterVector{priors, featureMap, im_info});
+        return std::make_shared<Model>(OutputVector{ExperimentalPGG}, ParameterVector{priors, featureMap, im_info});
     }
 };
 

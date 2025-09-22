@@ -31,12 +31,14 @@ name: macOS (Python 3.11)
 ==> ./merge_queue_stub.yml <==
 ==> ./debian_10_arm.yml <==
 name: Debian 10 ARM
-==> ./android_arm64.yml <==
-name: Android ARM64 with vcpkg
+==> ./android.yml <==
+name: Android
 ==> ./code_style.yml <==
 name: Code Style
 ==> ./manylinux_2014.yml <==
 name: Manylinux 2014
+==> ./manylinux_2_28.yml <==
+name: Manylinux 2_28
 ==> ./linux_arm64.yml <==
 name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
 ==> ./dev_cpu_linux_snippets_libxsmm.yml <==
@@ -55,8 +57,6 @@ name: Code snippets
 name: Linux (Ubuntu 20.04, Python 3.9)
 ==> ./linux_riscv.yml <==
 name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
-==> ./android_x64.yml <==
-name: Android x64
 ==> ./workflow_rerunner.yml <==
 name: Rerun Workflow with Known Errors
 ==> ./linux_sanitizers.yml <==

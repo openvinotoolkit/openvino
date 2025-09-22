@@ -19,6 +19,8 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/compilation_context.hpp"
+#include "openvino/util/file_util.hpp"
 #include "plugin.hpp"
 #include "auto_schedule.hpp"
 #include "auto_compiled_model.hpp"
@@ -78,7 +80,6 @@ namespace auto_plugin {
 std::shared_ptr<std::mutex> Plugin::m_mtx = std::make_shared<std::mutex>();
 std::shared_ptr<std::map<unsigned int, std::list<std::string>>> Plugin::m_priority_map =
     std::make_shared<std::map<unsigned int, std::list<std::string>>>();
-
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -93,6 +94,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
+                                                         const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
@@ -304,14 +316,17 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type {get_device_name()};
     } else if (name == ov::device::capabilities.name()) {
-        std::vector<std::string> device_list = arguments.count(ov::device::priorities.name())
-                                                   ? m_plugin_config.parse_priorities_devices(
-                                                         arguments.at(ov::device::priorities.name()).as<std::string>())
+        if (arguments.count(ov::device::priorities.name())) {
+            // By default, all devices are assumed to support caching ability when Core checks caching ability for AUTO.
+            return std::vector<std::string>{ov::device::capability::EXPORT_IMPORT};
+        }
+        std::string priorities = m_plugin_config.get_property(ov::device::priorities.name()).as<std::string>();
+        std::vector<std::string> device_list = !priorities.empty()
+                                                   ? m_plugin_config.parse_priorities_devices(priorities)
                                                    : get_core()->get_available_devices();
+
         std::vector<std::string> capabilities;
         for (auto const& device : device_list) {
-            if (device[0] == '-')
-                continue;
             try {
                 auto dev_capabilities = get_core()->get_property(device, ov::device::capabilities);
                 capabilities.insert(capabilities.end(), dev_capabilities.begin(), dev_capabilities.end());
@@ -409,7 +424,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     // and set filter configure
     auto auto_s_context = std::make_shared<ScheduleContext>();
     ov::AnyMap filter_property;
-    auto str_devices = get_device_list(full_property);
+    auto str_devices = get_device_list(full_property, model, model_path);
+    // in case startup or runtime fallback is set caused by cache blob checking, we need to set the property
+    if (full_property.count(ov::intel_auto::enable_startup_fallback.name())) {
+        load_config.set_property(ov::intel_auto::enable_startup_fallback(
+            full_property.at(ov::intel_auto::enable_startup_fallback.name()).as<bool>()));
+    }
+    if (full_property.count(ov::intel_auto::enable_runtime_fallback.name())) {
+        load_config.set_property(ov::intel_auto::enable_runtime_fallback(
+            full_property.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()));
+    }
     // fill in the context for auto
     if (load_config.get_property(ov::enable_profiling)) {
         filter_property.insert({ov::enable_profiling(true)});
@@ -694,7 +718,9 @@ void Plugin::register_priority(const unsigned int& priority, const std::string& 
     }
 }
 
-std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
+std::string Plugin::get_device_list(ov::AnyMap& properties,
+                                    const std::shared_ptr<const ov::Model>& model,
+                                    const std::string& model_path) const {
     std::string all_devices;
     std::string device_architecture;
     auto device_list_config = properties.find(ov::device::priorities.name());
@@ -708,10 +734,56 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
         return "";
     };
     std::vector<std::string> devices_merged;
+    bool enable_startup_cpu = properties.count(ov::intel_auto::enable_startup_fallback.name())
+                                  ? properties.at(ov::intel_auto::enable_startup_fallback.name()).as<bool>()
+                                  : true;
+    bool enable_runtime_cpu = properties.count(ov::intel_auto::enable_runtime_fallback.name())
+                                  ? properties.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
+                                  : true;
+    bool is_cumulative_tput =
+        get_device_name() != "AUTO" ||
+        (properties.count(ov::hint::performance_mode.name()) &&
+         properties.at(ov::hint::performance_mode.name()).as<std::string>() == "CUMULATIVE_THROUGHPUT");
     if (device_list_config != properties.end() && !(device_list_config->second.as<std::string>().empty())) {
         auto priorities = device_list_config->second;
         // parsing the string and splitting the comma-separated tokens
-        std::vector<std::string> devices_to_be_merged = m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
+        std::vector<std::string> devices_to_be_merged =
+            m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
+        std::size_t num_blob_files = 0;
+        std::string cache_dir = properties.count(ov::cache_dir.name())
+                                    ? properties.at(ov::cache_dir.name()).as<std::string>()
+                                    : get_core()->get_property("", ov::cache_dir);
+        bool if_need_cache_check =
+            !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) && !cache_dir.empty();
+        if (if_need_cache_check) {
+            for (auto&& device : devices_to_be_merged) {
+                ov::DeviceIDParser parsed{device};
+                if (parsed.get_device_name().find("CPU") != std::string::npos)
+                    continue;
+                // check if cached model exists for other devices
+                auto dev_properties = get_core()->get_supported_property(parsed.get_device_name(), properties);
+                dev_properties = get_core()->create_compile_config(parsed.get_device_name(), dev_properties);
+                std::string blobId;
+
+                if (model)
+                    blobId = ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(model),
+                                                          dev_properties);
+                else
+                    blobId = ov::ModelCache::compute_hash(model_path, dev_properties);
+                std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
+                bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
+                num_blob_files += is_blob_file_exist;
+                LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
+                              device.c_str(),
+                              is_blob_file_exist ? "found" : "not found",
+                              cached_model_path.c_str());
+            }
+
+            if (enable_startup_cpu && num_blob_files) {
+                LOG_DEBUG_TAG("Disabling CPU fallback as a cached blob file was found for a device in the candidate "
+                              "list. AUTO will work as pass-through mode.");
+            }
+        }
         std::vector<std::string> devices_to_be_deleted(devices_to_be_merged.size());
         const auto& iterDel = std::copy_if(devices_to_be_merged.begin(),
                                            devices_to_be_merged.end(),
@@ -765,17 +837,16 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties) const {
                 std::vector<std::string> device_list = {};
                 try {
                     if (parsed.get_device_name().find("CPU") != std::string::npos) {
-                        bool enable_startup_cpu =
-                            properties.count(ov::intel_auto::enable_startup_fallback.name())
-                                ? properties.at(ov::intel_auto::enable_startup_fallback.name()).as<bool>()
-                                : true;
-                        bool enable_runtime_cpu =
-                            properties.count(ov::intel_auto::enable_runtime_fallback.name())
-                                ? properties.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
-                                : true;
-                        // Skip to load CPU device if both startup and runtime fallback are disabled
-                        if (!enable_startup_cpu && !enable_runtime_cpu)
+                        // Disable CPU if any blob files found
+                        if (num_blob_files) {
+                            properties[ov::intel_auto::enable_startup_fallback.name()] = false;
+                            properties[ov::intel_auto::enable_runtime_fallback.name()] = false;
                             continue;
+                        }
+                        // Disable CPU if enable_startup_cpu and enable_runtime_cpu are both disabled
+                        if (!enable_startup_cpu && !enable_runtime_cpu) {
+                            continue;
+                        }
                     }
                     auto device_id_list = get_core()
                                               ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})

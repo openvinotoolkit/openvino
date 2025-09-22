@@ -82,7 +82,7 @@ std::shared_ptr<ov::Model> create_if_model(bool condition) {
     auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
     if_result->set_friendly_name("if_result");
 
-    return std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+    return std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
 }
 
 TEST(TransformationTests, UnrollIfCondIsTrue) {
@@ -170,7 +170,7 @@ TEST(TransformationTests, UnrollIfWithSplitInput) {
         if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -187,7 +187,7 @@ TEST(TransformationTests, UnrollIfWithSplitInput) {
             std::make_shared<ov::op::v1::Split>(X, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}), 2);
         auto mul_op = std::make_shared<ov::op::v1::Multiply>(split->output(1), Y);
         auto if_result = std::make_shared<ov::op::v0::Result>(mul_op);
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -215,7 +215,7 @@ TEST(TransformationTests, UnrollNestedIfThenBody) {
         if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::UnrollIf>();
@@ -252,7 +252,7 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
         if_op->set_output(then_op_result, else_op_result);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
-        f = std::make_shared<ov::Model>(NodeVector{if_result}, ParameterVector{data});
+        f = std::make_shared<ov::Model>(OutputVector{if_result}, ParameterVector{data});
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -268,7 +268,7 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
                                                              ov::op::v0::Constant::create(element::i32, {1}, {0}),
                                                              ov::op::v0::Constant::create(element::i32, {2}, {1, 2}));
         auto if_result = std::make_shared<ov::op::v0::Result>(X->output(1));
-        f_ref = std::make_shared<ov::Model>(NodeVector{if_result}, ParameterVector{data});
+        f_ref = std::make_shared<ov::Model>(OutputVector{if_result}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -336,7 +336,7 @@ TEST(TransformationTests, UnrollIfInsideIf) {
         if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
         auto if_result = std::make_shared<ov::op::v0::Result>(if_op);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(ov::OutputVector{if_result}, ov::ParameterVector{X, Y});
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::PushConstantToSubgraph>();

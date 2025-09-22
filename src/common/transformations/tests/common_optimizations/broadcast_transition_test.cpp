@@ -11,7 +11,15 @@
 
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 
 using namespace ov;
 using namespace testing;
@@ -136,14 +144,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<BroadcastTransitionParams>& obj) {
-        ov::element::Type precision;
-        ov::Shape input_shape;
-        ov::Shape target_shape;
-        ov::op::BroadcastType bcast_mode;
-        BroadcastVersion bcast_version;
-        ov::test::utils::EltwiseTypes eltwise_type;
-        size_t idx;
-        std::tie(precision, input_shape, target_shape, bcast_mode, bcast_version, eltwise_type, idx) = obj.param;
+        const auto& [precision, input_shape, target_shape, bcast_mode, bcast_version, eltwise_type, idx] = obj.param;
 
         std::ostringstream result;
         result << eltwise_type << "_prc=" << precision << "_IS=" << input_shape << "_TS=" << target_shape
@@ -154,14 +155,8 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        ov::element::Type precision;
-        ov::Shape input_shape;
-        ov::Shape target_shape;
-        ov::op::BroadcastType bcast_mode;
-        BroadcastVersion bcast_version;
-        ov::test::utils::EltwiseTypes eltwise_type;
-        size_t idx;
-        std::tie(precision, input_shape, target_shape, bcast_mode, bcast_version, eltwise_type, idx) = GetParam();
+
+        const auto& [precision, input_shape, target_shape, bcast_mode, bcast_version, eltwise_type, idx] = GetParam();
 
         manager.register_pass<ov::pass::BroadcastTransition>();
         model = getOriginal(precision, input_shape, target_shape, bcast_mode, bcast_version, eltwise_type, idx);

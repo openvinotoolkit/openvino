@@ -4,9 +4,18 @@
 
 #include "load_convert.hpp"
 
-#include "snippets/itt.hpp"
+#include <cstddef>
+#include <memory>
 
-using namespace std;
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/memory_access.hpp"
+
 using namespace ov;
 
 intel_cpu::LoadConvertSaturation::LoadConvertSaturation(const Output<Node>& x,

@@ -15,7 +15,7 @@
 #include <openvino/runtime/compiled_model.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
@@ -107,7 +107,7 @@ private:
         auto constant = ov::test::utils::make_constant(precision, ov::Shape{4096, 1024});
         auto custom_op = std::make_shared<UnsupportedTestOperation>(constant);
 
-        ov::NodeVector results{custom_op};
+        ov::OutputVector results{custom_op};
         return std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "CustomOpModel");
     }
 };

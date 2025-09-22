@@ -4,11 +4,13 @@
 
 #include "dnnl.h"
 
-#include <dnnl_debug.h>
+#include <oneapi/dnnl/dnnl_debug.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
 #include <cassert>
 #include <cpu/platform.hpp>
 #include <cstring>
+#include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 

@@ -6,8 +6,10 @@
 
 #include <string>
 
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -23,6 +25,10 @@ bool is_set(const std::size_t sub_idx,
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
 ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node>& node);
+
+// In case of working with memory which will be detached later (Constant will be freed),
+// we need to explicitly create a tensor which owns the memory during the execution.
+ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 
@@ -55,6 +61,9 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
             const UnpackOptions& unpack_options = UnpackOptions{true, 16, false});
 
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
+void gather_cb4(const ov::SoPtr<ov::ITensor>& src,
+                const ov::SoPtr<ov::ITensor>& idx,
+                const ov::SoPtr<ov::ITensor>& dst);
 
 using View = std::vector<std::size_t>;
 ov::SoPtr<ov::ITensor> view(const ov::SoPtr<ov::ITensor>& src, const View& from, const View& to);
@@ -151,6 +160,28 @@ void non_parallel_for(std::size_t count, F&& f) {
         f(idx);
     }
 }
+
+template <class CountedType>
+struct Unique {
+    static std::string name() {
+        static std::size_t counter = 0u;
+        return std::string(CountedType::name) + "_" + std::to_string(counter++);
+    }
+};
+
+using TensorPtr = ov::SoPtr<ov::ITensor>;
+TensorPtr allocMem(const ov::element::Type type,
+                   const ov::Shape& shape,
+                   const std::string& device,
+                   const std::shared_ptr<const ov::IPlugin>& plugin);
+
+bool matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix);
+
+bool matchLoRAMatMulAString(const std::string& input);
+
+bool matchLoRAMatMulBString(const std::string& input);
+
+bool matchLoRAMatMulAlphaString(const std::string& input);
 
 }  // namespace util
 }  // namespace npuw

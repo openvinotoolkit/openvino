@@ -4,7 +4,6 @@
 import os
 import tempfile
 import unittest
-from typing import Tuple, List
 
 import numpy as np
 import pytest
@@ -736,7 +735,7 @@ def create_pytorch_module_with_compressed_int8_constant(tmp_dir):
 def create_pytorch_module_with_nested_inputs(tmp_dir):
     class PTModel(torch.nn.Module):
 
-        def forward(self, z: Tuple[torch.Tensor, torch.Tensor]):
+        def forward(self, z: tuple[torch.Tensor, torch.Tensor]):
             z1, z2 = z
             zeros1 = torch.zeros((1, 1))
             zeros2 = torch.zeros((1, 5, 1))
@@ -761,7 +760,7 @@ def create_pytorch_module_with_nested_inputs(tmp_dir):
 def create_pytorch_module_with_nested_inputs_compress_to_fp16_default(tmp_dir):
     class PTModel(torch.nn.Module):
 
-        def forward(self, z: Tuple[torch.Tensor, torch.Tensor]):
+        def forward(self, z: tuple[torch.Tensor, torch.Tensor]):
             z1, z2 = z
             zeros1 = torch.zeros((1, 1))
             zeros2 = torch.zeros((1, 5, 1))
@@ -787,7 +786,7 @@ def create_pytorch_module_with_nested_inputs_compress_to_fp16_default(tmp_dir):
 def create_pytorch_module_with_nested_inputs2(tmp_dir):
     class PTModel(torch.nn.Module):
 
-        def forward(self, x: torch.Tensor, z: Tuple[torch.Tensor, torch.Tensor]):
+        def forward(self, x: torch.Tensor, z: tuple[torch.Tensor, torch.Tensor]):
             z1, z2 = z
             zeros1 = torch.zeros((1, 1))
             zeros2 = torch.zeros((1, 5, 1))
@@ -815,7 +814,7 @@ def create_pytorch_module_with_nested_inputs2(tmp_dir):
 def create_pytorch_module_with_nested_inputs3(tmp_dir):
     class PTModel(torch.nn.Module):
 
-        def forward(self, z: Tuple[torch.Tensor, torch.Tensor], x: torch.Tensor):
+        def forward(self, z: tuple[torch.Tensor, torch.Tensor], x: torch.Tensor):
             z1, z2 = z
             zeros1 = torch.zeros((1, 1))
             zeros2 = torch.zeros((1, 5, 1))
@@ -843,7 +842,7 @@ def create_pytorch_module_with_nested_inputs3(tmp_dir):
 def create_pytorch_module_with_nested_inputs4(tmp_dir):
     class PTModel(torch.nn.Module):
 
-        def forward(self, x: torch.Tensor, z: Tuple[torch.Tensor, torch.Tensor], y: torch.Tensor):
+        def forward(self, x: torch.Tensor, z: tuple[torch.Tensor, torch.Tensor], y: torch.Tensor):
             z1, z2 = z
             zeros1 = torch.zeros((1, 1))
             zeros2 = torch.zeros((1, 5, 1))
@@ -874,7 +873,7 @@ def create_pytorch_module_with_nested_inputs4(tmp_dir):
 def create_pytorch_module_with_nested_inputs5(tmp_dir):
     class PTModel(torch.nn.Module):
 
-        def forward(self, x: torch.Tensor, z: Tuple[torch.Tensor, torch.Tensor], y: torch.Tensor):
+        def forward(self, x: torch.Tensor, z: tuple[torch.Tensor, torch.Tensor], y: torch.Tensor):
             z1, z2 = z
             zeros1 = torch.zeros((1, 1))
             zeros2 = torch.zeros((1, 5, 1))
@@ -904,7 +903,7 @@ def create_pytorch_module_with_nested_inputs5(tmp_dir):
 def create_pytorch_module_with_nested_inputs6(tmp_dir):
     class PTModel(torch.nn.Module):
 
-        def forward(self, x: torch.Tensor, y: torch.Tensor = None, z: Tuple[torch.Tensor, torch.Tensor] = None):
+        def forward(self, x: torch.Tensor, y: torch.Tensor = None, z: tuple[torch.Tensor, torch.Tensor] = None):
             z1, z2 = z
             zeros1 = torch.zeros((1, 1))
             zeros2 = torch.zeros((1, 5, 1))
@@ -933,7 +932,7 @@ def create_pytorch_module_with_nested_inputs6(tmp_dir):
 
 def create_pytorch_module_with_nested_list_and_single_input(tmp_dir):
     class PTModel(torch.nn.Module):
-        def forward(self, x: List[torch.Tensor]):
+        def forward(self, x: list[torch.Tensor]):
             x0 = x[0]
             x0 = torch.cat([x0, torch.zeros(1, 1)], 1)
             return x0 + torch.ones((1, 1))
@@ -1167,7 +1166,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_import_from_memory(self, create_model, ie_device, precision, ir_version,
-                                   temp_dir, use_legacy_frontend):
+                                   temp_dir):
         fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
 
         test_params = {'input_model': fw_model}
@@ -1183,7 +1182,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_mo_import_from_memory_negative(self, create_model, exception,
                                             ie_device, precision, ir_version,
-                                            temp_dir, use_legacy_frontend):
+                                            temp_dir):
         fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
 
         test_params = {'input_model': fw_model}
@@ -1341,7 +1340,7 @@ class TestPytorchConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_conversion_params(self, params, ie_device, precision, ir_version,
-                               temp_dir, use_legacy_frontend):
+                               temp_dir):
         fw_model = params['fw_model']
         test_params = params['params_test']
         ref_model = params['ref_model']
@@ -1413,7 +1412,7 @@ class TestConvertModelForPyTorchModelOnDisk(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_convert_model_for_pytorch_model_on_disk(self, create_model, model_format,
                                                      ie_device, precision, ir_version,
-                                                     temp_dir, use_legacy_frontend):
+                                                     temp_dir):
         fw_model, graph_ref, ovc_params = eval(create_model)(temp_dir)
 
         with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
@@ -1494,7 +1493,7 @@ class TestOVCForExportedProgramOnDisk(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_ovc_for_exported_program_on_disk(self, create_model,
                                               ie_device, precision, ir_version,
-                                              temp_dir, use_legacy_frontend):
+                                              temp_dir):
         fw_model, graph_ref, ovc_params = eval(create_model)(temp_dir)
         example_input = ovc_params['example_input']
         del ovc_params['example_input']
