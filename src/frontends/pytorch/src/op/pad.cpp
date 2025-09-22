@@ -61,8 +61,10 @@ OutputVector translate_pad_common(const NodeContext& context,
                 tensors.push_back(left);
             }
             if (pad_l < 0 || pad_r < 0) {
-                const auto start = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_l < 0 ? -pad_l : 0}));
-                const auto end = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_r < 0 ? pad_r : 0}));
+                const auto start =
+                    context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_l < 0 ? -pad_l : 0}));
+                const auto end =
+                    context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_r < 0 ? pad_r : 0}));
                 const auto middle = context.mark_node(std::make_shared<v8::Slice>(cur, start, end, step, axes));
                 tensors.push_back(middle);
             } else {
@@ -98,7 +100,8 @@ OutputVector translate_pad_common(const NodeContext& context,
         pads_short_len = std::move(c_node);
     }
     const auto pads_start_idx = context.mark_node(std::make_shared<v1::Add>(pads_short_len, neg_one));
-    const auto pad_idx_range = context.mark_node(std::make_shared<v4::Range>(pads_start_idx, neg_one, neg_one, element::i32));
+    const auto pad_idx_range =
+        context.mark_node(std::make_shared<v4::Range>(pads_start_idx, neg_one, neg_one, element::i32));
     pads_begin_short = context.mark_node(std::make_shared<v8::Gather>(pads_begin_short, pad_idx_range, zero));
     pads_end_short = context.mark_node(std::make_shared<v8::Gather>(pads_end_short, pad_idx_range, zero));
 
