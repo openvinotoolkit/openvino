@@ -51,6 +51,11 @@ on:
         type: boolean
         required: false
         default: false
+      build-samples:
+        description: 'Whether to build samples (C & C++)'
+        type: boolean
+        required: false
+        default: false
       build-additional-python-packages:
         description: 'Whether to build additional, i.e., non-system Python packages. Should have Python 3.9-3.13 installed'
         type: boolean
@@ -209,6 +214,7 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${DEVELOPER_PACKAGE_DIR} --component developer_package
 
       - name: Build & Install Samples (C & C++)
+        if: ${{ inputs.build-samples }}
         run: |
           ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_TEST_DIR} -b ${BUILD_DIR}/cpp_samples
           ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_TEST_DIR} -b ${BUILD_DIR}/c_samples
