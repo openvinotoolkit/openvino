@@ -82,7 +82,7 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
             expr_ref->visit_attributes(compare_expr_attr.get_ref_reader());
             expr->visit_attributes(compare_expr_attr.get_cmp_reader());
             if (!compare_expr_attr.equal()) {
-                return Result::error("Comparison of attributes failed for exprs " + name(node) + ", " + name(node_ref) +
+                return Result::error("Comparison of attributes failed for exprs " + name(node_ref) + ", " + name(node) +
                 " [cmp status (ref vs target): " + to_str(compare_expr_attr) + "]");
             }
             if (node_attrs_comparison_disabled)
