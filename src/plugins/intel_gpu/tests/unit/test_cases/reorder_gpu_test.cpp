@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/layout.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -15,6 +14,7 @@
 #include "intel_gpu/primitives/permute.hpp"
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/random_uniform.hpp>
+#include "intel_gpu/runtime/layout.hpp"
 
 #include "reorder_inst.h"
 
