@@ -162,6 +162,9 @@ protected:
     MS m_ms_unpack;
     ov::npuw::perf::Profile<MS> m_profile;
 
+    using B = ov::npuw::perf::counter<uint64_t, ov::npuw::perf::Bytes>;
+    ov::npuw::perf::Profile<B> m_footprint;
+
     std::string profile_tag(std::size_t idx) const;
 
     // Various name/dump formatting methods

@@ -25,7 +25,10 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
     }
     // (un) comment if (not) needed
     m_profile.report_on_die = true;
-    m_profile.area = m_npuw_model->m_name;
+    m_profile.area = m_npuw_model->m_name + "/performance";
+
+    m_footprint.report_on_die = true;
+    m_footprint.area = m_npuw_model->m_name + "/memory";
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
@@ -288,7 +291,9 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
                                                           const std::string& device) {
-    return ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    auto ptr = ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    m_footprint[device] += ptr->get_byte_size();
+    return ptr;
 }
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const ov::Node>& node,

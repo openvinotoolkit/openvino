@@ -23,6 +23,11 @@ struct MSec {
     constexpr static const char* name = "ms";
 };
 
+struct Bytes {
+    constexpr static const char* name = "MB";
+    constexpr static float scaler = 1024.0*1024;
+};
+
 template <typename T, typename U>
 class metric {
     std::vector<T> records;
@@ -76,11 +81,52 @@ public:
         const char* units = U::name;
         os << std::left << std::setw(20) << (m.name.empty() ? std::string("<unnamed timer>") : m.name);
         if (m.enabled) {
-            os << "[ avg = " << m.avg() << units
-               << ", med = " << m.med() << units
-               << " in " << m.vmin << ".." << m.vmax << units
+            os << "[ avg = " << m.avg() << " " << units
+               << ", med = " << m.med() << " " << units
+               << " in " << m.vmin << ".." << m.vmax << " " << units
                << " range over " << m.records.size() << " records"
                << ", total = " << m.total << units << " ]";
+        } else {
+            os << "[ disabled ]";
+        }
+        return os;
+    }
+};
+
+template <typename T, typename U>
+class counter {
+    T total = 0;
+    std::size_t calls = 0;
+    std::string name;
+    bool enabled = false;
+
+public:
+    counter() = default;
+    counter(counter&& c)
+        : total(std::move(c.total)), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {
+    }
+
+    explicit counter(const std::string &named, bool active = false)
+        : name(named), enabled(active) {
+    }
+
+    void enable() {
+        enabled = true;
+    }
+
+    void operator+=(T&& t) {
+        if (enabled) {
+            total += t;
+            calls++;
+        }
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const counter<T, U>& c) {
+        const char* units = U::name;
+        os << std::left << std::setw(20) << (c.name.empty() ? std::string("<unnamed counter>") : c.name);
+        if (c.enabled) {
+            os << "[ " << static_cast<decltype(U::scaler) >(c.total) / U::scaler
+               << " " << units << " total in " << c.calls << " records ]";
         } else {
             os << "[ disabled ]";
         }
@@ -103,6 +149,9 @@ struct Profile {
     }
 
     void report() const {
+        if (metrics.empty()) {
+            return;
+        }
         if (!area.empty()) {
             std::cout << area << ":" << std::endl;
         } else {
