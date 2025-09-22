@@ -208,10 +208,10 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${DEVELOPER_PACKAGE_DIR} --component developer_package
 
-      - name: Build Samples (C & C++)
+      - name: Build & Install Samples (C & C++)
         run: |
-          $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
-          $INSTALL_DIR/samples/c/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/c_samples
+          ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_TEST_DIR} -b ${BUILD_DIR}/cpp_samples
+          ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_TEST_DIR} -b ${BUILD_DIR}/c_samples
 
       - name: Install Python wheels for the main Python
         if: ${{ ! inputs.build-additional-python-packages }}
