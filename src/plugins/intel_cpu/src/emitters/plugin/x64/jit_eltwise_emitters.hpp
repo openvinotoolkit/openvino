@@ -961,8 +961,8 @@ public:
     jit_clamp_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       ov::element::Type exec_prc = ov::element::f32,
-                      float alpha = 0.0f,
-                      float beta = 0.0f);
+                      float alpha = 0.0F,
+                      float beta = 0.0F);
     jit_clamp_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       const std::shared_ptr<ov::Node>& n);

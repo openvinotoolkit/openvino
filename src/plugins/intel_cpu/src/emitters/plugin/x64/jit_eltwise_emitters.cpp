@@ -2959,19 +2959,8 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
                                      float alpha,
                                      float beta)
     : jit_emitter(host, host_isa, exec_prc) {
-    // TODO: Duplicate code and abstract a method
-    switch (exec_prc_) {
-    case element::i32:
-        minimum = static_cast<int>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int>::min()));
-        maximum = static_cast<int>(std::min<int64_t>(static_cast<int64_t>(beta), std::numeric_limits<int>::max()));
-        break;
-    case element::f32:
-        minimum = x64::float2int(alpha);
-        maximum = x64::float2int(beta);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
-    }
+    minimum = x64::float2int(alpha);
+    maximum = x64::float2int(beta);
     prepare_table();
 }
 
@@ -3026,7 +3015,7 @@ void jit_clamp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
 std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}, {element::i32, element::i32}};
+    return {{element::f32}, {element::i32}};
 }
 
 void jit_clamp_emitter::register_table_entries() {
