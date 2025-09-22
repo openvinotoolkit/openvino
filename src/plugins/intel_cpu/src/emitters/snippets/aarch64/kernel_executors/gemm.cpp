@@ -15,6 +15,7 @@
 #include "emitters/snippets/brgemm_generic.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -105,8 +106,8 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const
                                dst_ptr,
                                dst_stride_row,
                                dst_stride_col,
-                               std::numeric_limits<float>::lowest(),
-                               std::numeric_limits<float>::max());
+                               std::numeric_limits<ov::float16>::lowest(),
+                               std::numeric_limits<ov::float16>::max());
         }
         return;
     }
