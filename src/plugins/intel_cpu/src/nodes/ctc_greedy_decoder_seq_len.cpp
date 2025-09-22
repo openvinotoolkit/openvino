@@ -95,7 +95,6 @@ void CTCGreedyDecoderSeqLen::execute([[maybe_unused]] const dnnl::stream& strm) 
     const auto* sequenceLengths = getSrcDataAtPortAs<const int>(SEQUENCE_LENGTH_INDEX);
     auto* decodedClasses = getDstDataAtPortAs<int>(DECODED_CLASSES_INDEX);
     auto* decodedClassesLength = getDstDataAtPortAs<int>(DECODED_CLASSES_LENGTH_INDEX);
-    const auto& cpu_parallel = context->getCpuParallel();
 
     const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
     ;
@@ -170,7 +169,7 @@ void CTCGreedyDecoderSeqLen::execute([[maybe_unused]] const dnnl::stream& strm) 
 
     parallel_nt(0, threadBody);
 
-    cpu_parallel->parallel_for(B, [&](size_t b) {
+    parallel_nt(B, [&](size_t b, int nthr) {
         int prevClassIdx = -1;
         size_t outputIndex = b * T;
         const size_t actualSeqLen = sequenceLengths[b];

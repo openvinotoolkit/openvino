@@ -36,6 +36,7 @@ public:
         return 0;
     }
     void parallel_for(int n, const std::function<void(int, int)>& fn) override {
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             tbb::parallel_for(0, n, [&](int ithr) {
                 fn(ithr, n);
@@ -50,6 +51,7 @@ public:
                 tbb::static_partitioner());
         }
     }
+#endif
 };
 
 dnnl::stream make_stream(const dnnl::engine& engine, const std::shared_ptr<ThreadPool>& thread_pool = nullptr);

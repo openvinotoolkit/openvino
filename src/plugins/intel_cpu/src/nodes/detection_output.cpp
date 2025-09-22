@@ -402,7 +402,7 @@ void DetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
 
         int detectionsTotal = 0;
-        detectionsTotal = parallel_sum(classesNum, detectionsTotal, [&](size_t c) -> int {
+        detectionsTotal = cpu_parallel->parallel_sum(classesNum, detectionsTotal, [&](size_t c) -> int {
             return detectionsData[n * classesNum + c];
         });
 
