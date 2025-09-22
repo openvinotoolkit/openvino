@@ -37,6 +37,7 @@ public:
     Stage::Ptr pa_multi_token = make_stage<PagedAttentionGeneratorMultiToken>();
     Stage::Ptr xattn_estimate_gemmqk = make_stage<XAttentionEstimateGEMMQK>();
     Stage::Ptr xattn_estimate_find_block = make_stage<XAttentionEstimateFindBlock>();
+    Stage::Ptr xattn_estimate_post_proc = make_stage<XAttentionEstimatePostProc>();
 
     PagedAttentionCmImpl(): PrimitiveImplCM(PagedAttentionImplementationManager::get_type_info_static()) {
         m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
@@ -53,6 +54,7 @@ public:
         if (xattn_block_size > 1) {
             add_stage(xattn_estimate_gemmqk, params);
             add_stage(xattn_estimate_find_block, params);
+            add_stage(xattn_estimate_post_proc, params);
         }
     }
 
@@ -124,6 +126,7 @@ public:
                     pa_id++;
                 }
 #endif
+                res_event = {execute_stage(res_event, instance, xattn_estimate_post_proc)};
             }
             res_event = {execute_stage(res_event, instance, pa_multi_token)};
         } else if (rt_params->stage == PagedAttentionStage::GENERATE) {
@@ -202,6 +205,11 @@ public:
 
                 auto count_elements_mask = static_cast<int64_t>(desc->heads_num * q_block_pad * k_block_pad);
                 internal_buffers.emplace_back(count_elements_mask, ov::element::boolean);        // 4: sparse_block_mask
+
+                const uint32_t MERGED_Q_NUM = 2; // TODO
+                const uint32_t q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
+                auto count_elements_mask_merged = static_cast<int64_t>(desc->heads_num * q_block_pad_merged * k_block_pad);
+                internal_buffers.emplace_back(count_elements_mask_merged, ov::element::boolean);  // 5: sparse_block_mask_wg
             }
         }
 
