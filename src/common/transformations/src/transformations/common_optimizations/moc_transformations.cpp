@@ -96,6 +96,8 @@
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
+#include "transformations/common_optimizations/fuse_moe.hpp"
+
 using namespace ov::element;
 
 static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
@@ -249,6 +251,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, NonZeroHorizontalFusion)
     ADD_MATCHER(common_fusions, AdaptivePoolToReduce)
     ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
+    ADD_MATCHER(common_fusions, FuseMOEUnified)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     REGISTER_PASS(manager, SDPAFusion)
