@@ -9,8 +9,6 @@
 
 #include <regex>
 
-#include "intel_npu/utils/zero/zero_utils.hpp"
-
 #ifdef _WIN32
 namespace {
 constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;
@@ -303,11 +301,6 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
     log.debug("ZeroInitStructsHolder initialize complete");
-
-    // Obtain compiler-in-driver properties
-    compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &compiler_properties);
-    THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
 
     // Discover if standard allocation is supported
     ze_device_external_memory_properties_t external_memory_properties_desc = {};

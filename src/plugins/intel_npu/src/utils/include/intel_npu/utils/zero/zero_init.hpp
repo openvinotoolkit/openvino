@@ -14,6 +14,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 
 namespace intel_npu {
 /**
@@ -54,6 +55,10 @@ public:
         return ZE_MAKE_VERSION(compiler_properties.compilerVersion.major, compiler_properties.compilerVersion.minor);
     }
     inline ze_device_graph_properties_t getCompilerProperties() const {
+        // Obtain compiler-in-driver properties
+        compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+        auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &compiler_properties);
+        THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
         return compiler_properties;
     }
     inline uint32_t getMutableCommandListExtVersion() const {
@@ -104,7 +109,7 @@ private:
 
     ze_api_version_t ze_drv_api_version = {};
 
-    ze_device_graph_properties_t compiler_properties = {};
+    mutable ze_device_graph_properties_t compiler_properties = {};
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
