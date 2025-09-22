@@ -169,7 +169,7 @@ void CTCGreedyDecoderSeqLen::execute([[maybe_unused]] const dnnl::stream& strm) 
 
     parallel_nt(0, threadBody);
 
-    parallel_nt(B, [&](size_t b, int nthr) {
+    parallel_nt(B, [&](size_t b, int) {
         int prevClassIdx = -1;
         size_t outputIndex = b * T;
         const size_t actualSeqLen = sequenceLengths[b];
