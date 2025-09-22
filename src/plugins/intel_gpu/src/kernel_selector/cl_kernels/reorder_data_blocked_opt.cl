@@ -36,9 +36,9 @@ KERNEL(reorder_blocked_opt)(
             size_t total_size = (size_t)OUTPUT_BATCH_NUM * (size_t)OUTPUT_BATCH_PITCH;
             if ((opt_size + ELEMENTS_NUM) != total_size) {
                 unroll_for (uint i = 0; i < (total_size - opt_size) ; ++i) {
-                    output[opt_size + i] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER,
-                                                                                input[opt_size + i],
-                                                                                ACTIVATION_PARAMS_TYPED));
+                    output[opt_size + i] = ACTIVATION_TYPED(OUTPUT_REORDER,
+                                                            TO_OUTPUT_REORDER_TYPE(input[opt_size + i]),
+                                                            ACTIVATION_PARAMS_TYPED);
                 }
                 return;
             }
@@ -47,9 +47,9 @@ KERNEL(reorder_blocked_opt)(
 
     OUTPUT_VEC_TYPE res[ARRAY_SIZE];
     unroll_for (uint i = 0; i < ARRAY_SIZE ; ++i) {
-        res[i] = TO_OUTPUT_TYPED_VECTOR(ACTIVATION_TYPED(OUTPUT_REORDER,
-                                                     VLOAD_N(global_id * ARRAY_SIZE + i, input),
-                                                     ACTIVATION_PARAMS_TYPED));
+        res[i] = ACTIVATION_TYPED(OUTPUT_REORDER,
+                                    TO_OUTPUT_TYPED_VECTOR(VLOAD_N(global_id * ARRAY_SIZE + i, input)),
+                                    ACTIVATION_PARAMS_TYPED);
     }
 
     unroll_for (uint i = 0; i < ARRAY_SIZE ; ++i) {
