@@ -13,11 +13,10 @@
 #    include <climits>
 #    include <cstddef>
 #    include <cstdint>
-#    include <iostream>
-#    include <sstream>
 #    include <type_traits>
 
 #    include "cpu/aarch64/jit_generator.hpp"
+#    include "emitters/plugin/common/debug_utils.hpp"
 #    include "utils/general_utils.h"
 
 namespace ov::intel_cpu::aarch64 {
@@ -60,51 +59,6 @@ constexpr uintptr_t to_uintptr(std::nullptr_t) {
 
 }  // namespace
 
-template <typename T>
-void RegPrinter::print_reg_prc(const char* name, const char* orig_name, T* ptr) {
-    std::stringstream ss;
-    if (name) {
-        ss << name << " | ";
-    }
-    ss << orig_name << ": ";
-    if (std::is_floating_point_v<T>) {
-        ss << *ptr;
-    } else {
-        if (std::is_signed_v<T>) {
-            ss << static_cast<int64_t>(*ptr);
-        } else {
-            ss << static_cast<uint64_t>(*ptr);
-        }
-    }
-    ss << '\n';
-    std::cout << ss.str();
-}
-
-template <typename PRC_T, size_t vlen>
-void RegPrinter::print_vmm_prc(const char* name, const char* orig_name, PRC_T* ptr) {
-    std::stringstream ss;
-    if (name) {
-        ss << name << " | ";
-    }
-    ss << orig_name << ": {";
-
-    constexpr size_t elems = vlen / sizeof(PRC_T);
-    for (size_t idx = 0; idx < elems; ++idx) {
-        if (idx != 0) {
-            ss << ", ";
-        }
-        if constexpr (std::is_floating_point_v<PRC_T>) {
-            ss << ptr[idx];
-        } else if constexpr (std::is_signed_v<PRC_T>) {
-            ss << static_cast<int64_t>(ptr[idx]);
-        } else {
-            ss << static_cast<uint64_t>(ptr[idx]);
-        }
-    }
-    ss << "}" << '\n';
-    std::cout << ss.str();
-}
-
 template <typename PRC_T, typename REG_T, typename PrinterFunc>
 void RegPrinter::print_reg_common(jit_generator_t& h, const REG_T& reg, const char* name, PrinterFunc printer) {
     preamble(h);
@@ -139,13 +93,13 @@ void RegPrinter::print_reg_common(jit_generator_t& h, const REG_T& reg, const ch
 
 template <typename PRC_T, typename REG_T>
 void RegPrinter::print_vmm(jit_generator_t& h, const REG_T& vmm, const char* name) {
-    auto printer = &print_vmm_prc<PRC_T, RegPrinter::vec_len>;
+    auto printer = &ov::intel_cpu::debug_utils::print_vmm_prc<PRC_T, RegPrinter::vec_len>;
     print_reg_common<PRC_T>(h, vmm, name, printer);
 }
 
 template <typename PRC_T, typename REG_T>
 void RegPrinter::print_reg(jit_generator_t& h, const REG_T& reg, const char* name) {
-    auto printer = &print_reg_prc<PRC_T>;
+    auto printer = &ov::intel_cpu::debug_utils::print_reg_prc<PRC_T>;
     print_reg_common<PRC_T>(h, reg, name, printer);
 }
 
@@ -222,13 +176,6 @@ template void RegPrinter::print<int, XReg>(jit_generator_t& h, XReg reg, const c
 template void RegPrinter::print<float, WReg>(jit_generator_t& h, WReg reg, const char* name);
 template void RegPrinter::print<int, WReg>(jit_generator_t& h, WReg reg, const char* name);
 
-template void RegPrinter::print_vmm_prc<float, RegPrinter::vec_len>(const char* name,
-                                                                    const char* orig_name,
-                                                                    float* ptr);
-template void RegPrinter::print_vmm_prc<int, RegPrinter::vec_len>(const char* name, const char* orig_name, int* ptr);
-
-template void RegPrinter::print_reg_prc<float>(const char* name, const char* orig_name, float* ptr);
-template void RegPrinter::print_reg_prc<int>(const char* name, const char* orig_name, int* ptr);
 }  // namespace ov::intel_cpu::aarch64
 
 #endif  // CPU_DEBUG_CAPS
