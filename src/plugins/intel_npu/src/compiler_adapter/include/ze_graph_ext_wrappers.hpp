@@ -17,8 +17,6 @@
 
 namespace intel_npu {
 
-using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
-
 struct GraphDescriptor {
     GraphDescriptor(ze_graph_handle_t handle = nullptr, bool memoryPersistent = false);
 

@@ -3,7 +3,10 @@
 //
 
 #pragma once
+#include <ze_graph_ext.h>
+
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -17,12 +20,12 @@
  */
 namespace intel_npu::driver_compiler_utils {
 
-// TODO interface and inheritance
+using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
+
 class IRSerializerBase {
 public:
     IRSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
-                     const uint16_t compilerMajorVersion,
-                     const uint16_t compilerMinorVersion,
+                     const ze_graph_compiler_version_info_t compilerVersion,
                      const uint32_t supportedOpset = 11);
 
     virtual SerializedIR serialize() = 0;
@@ -37,10 +40,8 @@ protected:
 class IRSerializerWithWeightsCopy : public IRSerializerBase {
 public:
     IRSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
-                                const uint16_t compilerMajorVersion,
-                                const uint16_t compilerMinorVersion,
-                                const uint32_t supportedOpset = 11)
-        : IRSerializerBase(origModel, compilerMajorVersion, compilerMinorVersion, supportedOpset){};
+                                const ze_graph_compiler_version_info_t compilerVersion,
+                                const uint32_t supportedOpset = 11);
 
     SerializedIR serialize() override;
 
@@ -67,10 +68,8 @@ private:
 class IRSerializerWithoutWeightsCopy : public IRSerializerBase {
 public:
     IRSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
-                                   const uint16_t compilerMajorVersion,
-                                   const uint16_t compilerMinorVersion,
-                                   const uint32_t supportedOpset = 11)
-        : IRSerializerBase(origModel, compilerMajorVersion, compilerMinorVersion, supportedOpset){};
+                                   const ze_graph_compiler_version_info_t compilerVersion,
+                                   const uint32_t supportedOpset = 11);
 
     SerializedIR serialize() override;
 
@@ -79,12 +78,11 @@ private:
 
     void serializeModelToStream(std::ostream& stream);
 
-    /**
-     * @brief Get size of xml and weights from model
-     */
     void countModelSize();
 
-    size_t _serializedModelSize = 0;
+    uint64_t _serializedModelSize = 0;
 };
+
+static std::mutex rtInfoMutex;
 
 }  // namespace intel_npu::driver_compiler_utils

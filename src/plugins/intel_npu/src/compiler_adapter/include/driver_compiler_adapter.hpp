@@ -13,6 +13,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "ir_serializer.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
@@ -21,17 +22,20 @@ class DriverCompilerAdapter final : public ICompilerAdapter {
 public:
     DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
 
-    std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
+                                    const FilteredConfig& config) const override;
 
-    std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model, const Config& config) const override;
+    std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model,
+                                      const FilteredConfig& config) const override;
 
     std::shared_ptr<IGraph> parse(
         ov::Tensor mainBlob,
-        const Config& config,
+        const FilteredConfig& config,
         std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
         const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const override;
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
+                              const FilteredConfig& config) const override;
 
     std::vector<std::string> get_supported_options() const override;
 
@@ -56,12 +60,12 @@ private:
      */
     std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) const;
 
-    SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                             ze_graph_compiler_version_info_t compilerVersion,
-                             const uint32_t supportedOpsetVersion,
-                             const bool useBetterModelSerialization) const;
+    driver_compiler_utils::SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                                                    ze_graph_compiler_version_info_t compilerVersion,
+                                                    const uint32_t supportedOpsetVersion,
+                                                    const bool useBetterModelSerialization) const;
 
-    std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t compilerVersion) const;
+    std::string serializeConfig(const FilteredConfig& config, ze_graph_compiler_version_info_t compilerVersion) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;

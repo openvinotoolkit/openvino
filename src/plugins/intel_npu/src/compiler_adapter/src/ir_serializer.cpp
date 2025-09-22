@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <istream>
-#include <mutex>
 #include <streambuf>
 
 #include "intel_npu/xml_serializer.hpp"
@@ -41,11 +40,10 @@ void checkedMemcpy(void* destination, size_t destinationSize, const void* source
 namespace intel_npu::driver_compiler_utils {
 
 IRSerializerBase::IRSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
-                                   const uint16_t compilerMajorVersion,
-                                   const uint16_t compilerMinorVersion,
+                                   const ze_graph_compiler_version_info_t compilerVersion,
                                    const uint32_t supportedOpset)
-    : _logger("IRSerializer", Logger::global().level()),
-      _compilerVersion(compilerMajorVersion, compilerMinorVersion),
+    : _logger("IRSerializerBase", Logger::global().level()),
+      _compilerVersion(compilerVersion),
       _supportedOpset(supportedOpset) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
@@ -57,6 +55,20 @@ IRSerializerBase::IRSerializerBase(const std::shared_ptr<const ov::Model>& origM
         _logger.info("Clone model for offset smaller than 11");
     }
 }
+
+IRSerializerWithWeightsCopy::IRSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                                         const ze_graph_compiler_version_info_t compilerVersion,
+                                                         const uint32_t supportedOpset)
+    : IRSerializerBase(origModel, compilerVersion, supportedOpset) {
+    _logger.setName("IRSerializerWithWeightsCopy");
+};
+
+IRSerializerWithoutWeightsCopy::IRSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                                               const ze_graph_compiler_version_info_t compilerVersion,
+                                                               const uint32_t supportedOpset)
+    : IRSerializerBase(origModel, compilerVersion, supportedOpset) {
+    _logger.setName("IRSerializerWithoutWeightsCopy");
+};
 
 void IRSerializerWithWeightsCopy::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
     _logger.debug("serializeModelToStream");
@@ -83,8 +95,6 @@ void IRSerializerWithWeightsCopy::serializeModelToStream(std::ostream& xml, std:
     const auto useIndicesForIOMetadata = "use_indices_for_io_metadata";
 
     // We modify the original model object here therefore a mutex is required
-    static std::mutex rtInfoMutex;
-
     {
         std::lock_guard<std::mutex> lock(rtInfoMutex);
 
@@ -124,8 +134,6 @@ void IRSerializerWithoutWeightsCopy::serializeModelToStream(std::ostream& stream
     const auto useIndicesForIOMetadata = "use_indices_for_io_metadata";
 
     // We modify the original model object here therefore a mutex is required
-    static std::mutex rtInfoMutex;
-
     {
         std::lock_guard<std::mutex> lock(rtInfoMutex);
 
@@ -252,46 +260,33 @@ SerializedIR IRSerializerWithWeightsCopy::serialize() {
 SerializedIR IRSerializerWithoutWeightsCopy::serialize() {
     countModelSize();
 
-    // Contract between adapter and compiler in driver
-    const uint32_t maxNumberOfElements = 10;
-
-    const uint32_t numberOfInputData = 2;
-    const uint64_t serializedModelSize = static_cast<uint64_t>(_serializedModelSize);
-
-    if (serializedModelSize >= std::numeric_limits<uint64_t>::max()) {
+    if (_serializedModelSize >= std::numeric_limits<uint64_t>::max()) {
         OPENVINO_THROW("The serialized model is too big to process. Size: ",
-                       serializedModelSize,
+                       _serializedModelSize,
                        " >= ",
                        std::numeric_limits<uint64_t>::max());
     }
 
-    const uint64_t sizeOfSerializedIR =
-        sizeof(_compilerVersion) + sizeof(numberOfInputData) + sizeof(serializedModelSize) + serializedModelSize;
+    const uint64_t sizeOfSerializedIR = sizeof(_compilerVersion) + sizeof(_serializedModelSize) + _serializedModelSize;
 
     // use array to avoid vector's memory zero-ing overhead
     std::shared_ptr<uint8_t> buffer(new uint8_t[sizeOfSerializedIR], std::default_delete<uint8_t[]>());
     uint8_t* serializedIR = buffer.get();
 
-    uint64_t offset = 0;
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &_compilerVersion, sizeof(_compilerVersion));
-    offset += sizeof(_compilerVersion);
+    checkedMemcpy(serializedIR, sizeOfSerializedIR, &_compilerVersion, sizeof(_compilerVersion));
 
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
-    offset += sizeof(numberOfInputData);
+    uint64_t offset = sizeof(_compilerVersion);
     checkedMemcpy(serializedIR + offset,
                   sizeOfSerializedIR - offset,
-                  &serializedModelSize,
-                  sizeof(serializedModelSize));
-    offset += sizeof(serializedModelSize);
-    // xml data is filled in serializeModel()
-    uint64_t serializedModelOffset = offset;
-    offset += serializedModelSize;
+                  &_serializedModelSize,
+                  sizeof(_serializedModelSize));
+    offset += sizeof(_serializedModelSize);
 
-    serializeModelToBuffer(serializedIR + serializedModelOffset);
+    serializeModelToBuffer(serializedIR + offset);
 
-    OPENVINO_ASSERT(offset == sizeOfSerializedIR);
+    OPENVINO_ASSERT(offset + _serializedModelSize == sizeOfSerializedIR);
 
-    return std::make_pair(sizeOfSerializedIR, buffer);
+    return SerializedIR(sizeOfSerializedIR, buffer);
 }
 
 }  // namespace intel_npu::driver_compiler_utils
