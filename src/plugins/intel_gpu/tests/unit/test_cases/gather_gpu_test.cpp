@@ -2235,6 +2235,55 @@ TEST(gather_single_axis, simple_Baxis) {
     ASSERT_EQ(crop_prim->can_be_optimized(), false);
 }
 
+TEST(gather_not_optimized_out, static_model) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto input_b = 819, input_f = 4;
+    layout input0_layout = layout{ { input_b, input_f }, data_types::f32, format::bfyx };
+    layout input1_layout = layout{ { input_b, input_f }, data_types::f32, format::bfyx };
+    layout input2_layout = layout{ { input_b }, data_types::f32, format::bfyx };
+
+    auto input0 = engine.allocate_memory(input0_layout);
+    auto input1 = engine.allocate_memory(input1_layout); // Dictionary
+    auto input2 = engine.allocate_memory(input2_layout); // Indexes
+
+    int64_t axis = 0;
+    auto input_0_data = rg.generate_random_2d<float>(input_b, input_f, -1, 1);
+    auto input_0_data_flat = flatten_2d(format::bfyx, input_0_data);
+    auto input_1_data = rg.generate_random_2d<float>(input_b, input_f, -1, 1);
+    auto input_1_data_flat = flatten_2d(format::bfyx, input_1_data);
+    auto input_2_data = rg.generate_random_1d<float>(input_b, -1, 1);
+
+    set_values(input0, input_0_data_flat);
+    set_values(input1, input_1_data_flat);
+    set_values(input2, input_2_data);
+
+    topology topology(
+        input_layout("input", input0->get_layout()),
+        input_layout("InputDictionary", input1->get_layout()),
+        input_layout("InputText", input2->get_layout()),
+        gather("gather", input_info("InputDictionary"), input_info("InputText"), axis, 2,
+               ov::Shape{static_cast<long unsigned int>(input_b), static_cast<long unsigned int>(input_f)
+               }),
+        concatenation("concat", { input_info("gather"), input_info("input") }, 0, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input0);
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+
+    auto outputs = network.execute();
+
+    auto crop_prim = network.get_primitive("gather");
+    ASSERT_EQ(crop_prim->can_be_optimized(), false);
+}
+
 class gather_gpu_tests: public ::testing::Test {
 public:
     void test_compressed_scale_zp(bool is_caching_test) {
