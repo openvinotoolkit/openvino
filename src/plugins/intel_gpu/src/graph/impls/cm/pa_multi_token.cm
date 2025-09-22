@@ -16,7 +16,7 @@
  *******************************************************************************/
 
 namespace KERNEL_NAME {
-#include "cm_sdpa_common.hpp"
+#include "cm_pa_common.hpp"
 
 #ifdef CM_HAS_LSC_UNTYPED_2D
 #define USE_LSC 1
