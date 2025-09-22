@@ -25,7 +25,10 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
     }
     // (un) comment if (not) needed
     m_profile.report_on_die = true;
-    m_profile.area = m_npuw_model->m_name;
+    m_profile.area = m_npuw_model->m_name + "/performance";
+
+    m_footprint.report_on_die = true;
+    m_footprint.area = m_npuw_model->m_name + "/memory";
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
@@ -288,7 +291,9 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
                                                           const std::string& device) {
-    return ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    auto ptr = ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    m_footprint[device] += ptr->get_byte_size();
+    return ptr;
 }
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const ov::Node>& node,
@@ -706,7 +711,12 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
             if (do_copy && ov::shape_size(shape) > 0) {
                 // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
                 const auto &dst = r->get_tensor(iport);
+                const auto old_ptr = dst->data();
                 dst->set_shape(shape);
+                const auto new_ptr = dst->data();
+                if (old_ptr != new_ptr) {
+                    m_footprint[*comp_model_desc.device_it] += dst->get_byte_size();
+                }
                 LOG_DEBUG("Do copy: " << shape << "...");
                 view->copy_to(dst._ptr);
             } else if (do_copy && ov::shape_size(shape) == 0) {
