@@ -173,7 +173,14 @@ protected:
     void dump_output_tensors(std::size_t idx);
 
     // Quick-and-dirty profiling
-    ov::npuw::perf::metric<float, ov::npuw::perf::MSec> m_ms_unpack;
+    using MS = ov::npuw::perf::metric<float, ov::npuw::perf::MSec>;
+    MS m_ms_unpack;
+    ov::npuw::perf::Profile<MS> m_profile;
+
+    using B = ov::npuw::perf::counter<uint64_t, ov::npuw::perf::Bytes>;
+    ov::npuw::perf::Profile<B> m_footprint;
+
+    std::string profile_tag(std::size_t idx) const;
 
     // Various name/dump formatting methods
     // TODO: These methods should probably go to CompiledModel

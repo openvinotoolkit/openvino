@@ -633,7 +633,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
 
     // 1.5: Do attention prologue if needed
     if (is_dynamic) {
-        function_prologue_attn(real_idx, idx);
+        m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&](){
+            function_prologue_attn(real_idx, idx);
+        });
     }
 
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
@@ -706,7 +708,6 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
             set_or_copy(view);
         } else if (this_case == attention::Selector::Case::PREFILL) {
             // Use our in-graph synthesized mask
-            // FIXME: get the right dim
             if (m_cached_attention_mask.has_value()) {
                 // All sub models are sharing the same attention mask, we can use the cached attention
                 // mask directly to avoid redundant tensor copy
@@ -717,31 +718,28 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
             // Handle attention mask concatenation for SDPA:
             // The attention mask is composed with 2 parts:
             // The 1st part is for the "present", which is at the tail: starting from past_len to context_len
-            // The 2nd part is for the "past", whichi is at the beginning: starting from 0 to past_len
+            // The 2nd part is for the "past", which is at the beginning: starting from 0 to past_len
             auto full_mask_shape = graph_mask->get_shape();
             auto actual_mask_shape = full_mask_shape;
             actual_mask_shape[kv_dim] = present_len + past_len;
-            // allocate device memory for actual attention mask
-            auto device = *comp_model_desc.device_it;
-            auto new_attn_mask_tensor = ov::npuw::util::allocMem(graph_mask->get_element_type(),
-                                                                 actual_mask_shape,
-                                                                 device,
-                                                                 m_npuw_model->get_plugin());
+
+            // Reshape the input to the proper shape
+            const auto& dst = r->get_tensor(mask_iport);
+            dst->set_shape(actual_mask_shape);
 
             // Copy "present" attention mask
-            const auto& present_dst_view = ov::npuw::util::view(new_attn_mask_tensor, kv_dim, past_len, present_len);
+            const auto& present_dst_view = ov::npuw::util::view(dst, kv_dim, past_len, present_len);
             const auto& present_src_view =
                 ov::npuw::util::view(graph_mask, kv_dim, full_mask_shape[kv_dim] - present_len, present_len);
             present_src_view->copy_to(present_dst_view._ptr);
 
             // Copy "past" attention mask
             if (past_len > 0) {
-                const auto& past_dst_view = ov::npuw::util::view(new_attn_mask_tensor, kv_dim, 0, past_len);
+                const auto& past_dst_view = ov::npuw::util::view(dst, kv_dim, 0, past_len);
                 const auto& past_src_view = ov::npuw::util::view(graph_mask, kv_dim, 0, past_len);
                 past_src_view->copy_to(past_dst_view._ptr);
             }
-            m_subrequests[real_idx]->set_tensor(mask_iport, new_attn_mask_tensor);
-            m_cached_attention_mask = new_attn_mask_tensor;
+            m_cached_attention_mask = dst;
         } else {
             NPUW_ASSERT(false && "Reached the unreachable code");
         }

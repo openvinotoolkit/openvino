@@ -51,6 +51,37 @@ struct Attention {
 
 namespace compiled {
 
+namespace {
+template <typename T>
+void prepare_mask(ov::SoPtr<ov::ITensor> tensor) {
+    NPUW_ASSERT(tensor->is_continuous());
+    ov::npuw::util::fill_tensor<T>(tensor, 0);
+
+    // Initialize the top-right triangle with -inf
+    const auto shape = tensor->get_shape();
+    NPUW_ASSERT(shape.size() == 4);
+    NPUW_ASSERT(shape[0] == 1);
+    NPUW_ASSERT(shape[1] == 1);
+
+    const auto q_size = shape[2];
+    const auto ctx_size = shape[3];
+    for (std::size_t i = 0; i < q_size - 1; i++) {
+        T* pRow = tensor->data<T>() + i*ctx_size;
+        for (std::size_t j = ctx_size - q_size + i; j < ctx_size; j++) {
+            pRow[j] = std::numeric_limits<T>::lowest();
+        }
+    }
+
+    // for a matrix like below where i = -inf (of type T)
+    // <-past -> < q >
+    // 000000000 0iiii
+    // 000000000 00iii
+    // 000000000 000ii
+    // 000000000 0000i
+    // 000000000 00000
+}
+} // anonymous namespace
+
 // Compile-time attention information. Not much different from the above
 struct Attention {
     std::size_t query_size = 0u;
@@ -83,10 +114,10 @@ struct Attention {
 
         switch (mask_type) {
         case ov::element::f16:
-            ov::npuw::util::fill_tensor<ov::float16>(ov::get_tensor_impl(attend_all), 0);
+            prepare_mask<ov::float16>(ov::get_tensor_impl(attend_all));
             break;
         case ov::element::f32:
-            ov::npuw::util::fill_tensor<float>(ov::get_tensor_impl(attend_all), 0);
+            prepare_mask<float>(ov::get_tensor_impl(attend_all));
             break;
         default:
             OPENVINO_THROW("Dynamic attenion mask type ", mask_type, " is not supported yet");
