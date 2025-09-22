@@ -107,6 +107,7 @@
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "utils/cpp/bit_cast.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
@@ -322,8 +323,19 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
              if (clampOp->get_input_element_type(0).is_integral_number()) {
                  // according to spec, when Clamp has integer element type, min and max mist be converted to
                  // integer
-                 alpha_ = std::ceil(alpha_);
-                 beta_ = std::floor(beta_);
+                 double temp_alpha = std::ceil(clampOp->get_min());
+                 double temp_beta = std::floor(clampOp->get_max());
+                 if (clampOp->get_input_element_type(0).is_signed()) {
+                     temp_alpha = std::max(temp_alpha, static_cast<double>(std::numeric_limits<int32_t>::min()));
+                     temp_beta = std::min(temp_beta, static_cast<double>(std::numeric_limits<int32_t>::max()));
+                     alpha_ = ov::intel_cpu::bit_cast<float>(static_cast<int32_t>(temp_alpha));
+                     beta_ = ov::intel_cpu::bit_cast<float>(static_cast<int32_t>(temp_beta));
+                 } else {
+                     temp_alpha = std::max(temp_alpha, 0.0);
+                     temp_beta = std::min(temp_beta, static_cast<double>(std::numeric_limits<uint32_t>::max()));
+                     alpha_ = ov::intel_cpu::bit_cast<float>(static_cast<uint32_t>(temp_alpha));
+                     beta_ = ov::intel_cpu::bit_cast<float>(static_cast<uint32_t>(temp_beta));
+                 }
              }
              node.m_attrs.data.alpha = alpha_;
              node.m_attrs.data.beta = beta_;
