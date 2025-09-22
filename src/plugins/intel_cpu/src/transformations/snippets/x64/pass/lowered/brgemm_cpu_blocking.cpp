@@ -50,7 +50,7 @@ std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmCPUBlocking::DummyPass:
 LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear_ir,
                                                                 const LinearIR::constExprIt& brgemm_it) {
     const auto& brgemm_expr = brgemm_it->get();
-    const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
+    const auto wsp_expr = brgemm_expr->get_input_expr_ptr(2);
     const auto wsp_buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(wsp_expr);
     OPENVINO_ASSERT(wsp_buffer && wsp_buffer->is_independent_memory(), "Incorrect Scratchpad buffer for Brgemm AMX");
     // If scratchpad with temp memory is not explicitly before Brgemm, need to move to there.
