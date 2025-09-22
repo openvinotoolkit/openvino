@@ -7,10 +7,7 @@
 #include <iostream>
 
 #include "openvino/openvino.hpp"
-#include "npuw/compiled_model.hpp"
-#include "npuw/just_sync_infer_request.hpp"
 #include "model_generator/model_generator.hpp"
-#include "plugin.hpp"
 
 // FIXME: parametrize all the tests below
 
@@ -22,6 +19,9 @@ TEST(SetTensor, RemoteTensorOutputJust) {
     if (std::find(core_devices.begin(), core_devices.end(), "NPU") == core_devices.end()) {
         GTEST_SKIP() << "No available devices.";
     }
+
+    // Device
+    const std::string device = "NPU";
 
     // Create model
     ModelGenerator mg;
@@ -37,31 +37,38 @@ TEST(SetTensor, RemoteTensorOutputJust) {
     std::iota(data.begin(), data.end(), 1);
 
     // Create the remote tensor output
-    auto npu_context = ov_core.get_default_context("NPU");
+    auto npu_context = ov_core.get_default_context(device);
     auto output = npu_context.create_host_tensor(element_type, output_tensor_shape);
 
     // Initialize remote input with non-zero data
     ov::Tensor values(element_type, output_tensor_shape, data.data());
     values.copy_to(output);
 
-    // Create plugin object
-    auto plugin = std::make_shared<intel_npu::Plugin>();
+    // NPUW config
+    ov::AnyMap config = {
+        {"NPU_USE_NPUW", "YES"},
+        {"NPUW_FUNCALL_FOR_ALL", "YES"},
+        {"NPUW_DEVICES", "NPU"},
+        {"NPUW_FOLD" , "YES"}
+    };
 
     // Compile NPUW
-    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, ov::AnyMap{});
+    auto compiled = ov_core.compile_model(model, device, config);
 
     // Create infer request
-    std::shared_ptr<ov::ISyncInferRequest> request;
-    request = std::make_shared<ov::npuw::JustInferRequest>(compiled);
+    auto request = compiled.create_infer_request();
 
     // Set remote io
-    request->set_tensor(compiled->outputs()[0], ov::get_tensor_impl(output));
+    request.set_tensor(compiled.outputs()[0], output);
+
+    // Infer
+    request.infer();
 
     // Check output tensor is not zero
-    auto output_tensor = request->get_tensor(compiled->outputs()[0]);
+    auto output_tensor = request.get_tensor(compiled.outputs()[0]);
 
-    auto check_non_zero = [](const ov::npuw::util::TensorPtr& t, size_t size) {
-        int32_t* tdata = t->data<int32_t>();
+    auto check_non_zero = [](const ov::Tensor& t, size_t size) {
+        int32_t* tdata = t.data<int32_t>();
         for (size_t i = 0; i < size; ++i) {
             if (tdata[i] == 0) {
                 return false;
