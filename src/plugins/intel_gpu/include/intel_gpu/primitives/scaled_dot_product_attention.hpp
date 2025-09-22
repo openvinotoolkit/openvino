@@ -11,6 +11,18 @@ namespace cldnn {
 
 struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_attention> {
     CLDNN_DECLARE_PRIMITIVE(scaled_dot_product_attention)
+    enum ScaledDotProductAttentionInputIdx {
+        QUERY = 0,
+        KEY = 1,
+        VALUE = 2,
+        ATTN_MASK = 3,
+        SCALE = 4,
+        SINK = 5,
+        KEY_SCALES = 6,
+        KEY_ZP = 7,
+        VALUE_SCALES = 8,
+        VALUE_ZP = 9
+    };
 
     using QuantizationAttributes = ov::op::internal::DynamicQuantize::Attributes;
 
@@ -18,7 +30,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
 
     /// @brief Constructs scaled_dot_product_attention primitive.
     /// @param id This primitive id.
-    /// @param inputs Input data primitives id (query, keys, values, [attention_mask], [scale], [keys scales], [keys zp], [values scales], [values zp]).
+    /// @param inputs Input data primitives id (query, keys, values, [attention_mask], [scale], [sink], [keys scales], [keys zp], [values scales], [values zp]).
     /// @param is_causal If true, assumes causal attention masking. In this case attention_mask input is ignored.
     scaled_dot_product_attention(const primitive_id& id,
                                  const std::vector<cldnn::input_info> inputs,
@@ -50,13 +62,15 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                     quantization_attributes.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
                     data_inputs_num -= 2; // zp
             }
-            has_attn_mask_input = data_inputs_num > 3;
-            has_scale_input = data_inputs_num > 4;
+            has_attn_mask_input = data_inputs_num > ScaledDotProductAttentionInputIdx::ATTN_MASK;
+            has_scale_input = data_inputs_num > ScaledDotProductAttentionInputIdx::SCALE;
+            has_sink_input = data_inputs_num > ScaledDotProductAttentionInputIdx::SINK;
         }
 
     bool is_causal = false;
     bool has_attn_mask_input = false;
     bool has_scale_input = false;
+    bool has_sink_input = false;
     int64_t indirect_axis = -1;
 
     bool is_kv_compressed = false;
@@ -75,6 +89,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         seed = hash_combine(seed, is_causal);
         seed = hash_combine(seed, has_attn_mask_input);
         seed = hash_combine(seed, has_scale_input);
+        seed = hash_combine(seed, has_sink_input);
         seed = hash_combine(seed, indirect_axis);
         seed = hash_range(seed, input_q_transpose_order.begin(), input_q_transpose_order.end());
         seed = hash_range(seed, input_k_transpose_order.begin(), input_k_transpose_order.end());
@@ -109,6 +124,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         return is_causal == rhs_casted.is_causal &&
                has_attn_mask_input == rhs_casted.has_attn_mask_input &&
                has_scale_input == rhs_casted.has_scale_input &&
+               has_sink_input == rhs_casted.has_sink_input &&
                indirect_axis == rhs_casted.indirect_axis &&
                input_q_transpose_order == rhs_casted.input_q_transpose_order &&
                input_k_transpose_order == rhs_casted.input_k_transpose_order &&
@@ -132,6 +148,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ob << is_kv_compressed;
         ob << has_attn_mask_input;
         ob << has_scale_input;
+        ob << has_sink_input;
         ob << indirect_axis;
         ob << input_q_transpose_order;
         ob << input_k_transpose_order;
@@ -160,6 +177,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ib >> is_kv_compressed;
         ib >> has_attn_mask_input;
         ib >> has_scale_input;
+        ib >> has_sink_input;
         ib >> indirect_axis;
         ib >> input_q_transpose_order;
         ib >> input_k_transpose_order;
