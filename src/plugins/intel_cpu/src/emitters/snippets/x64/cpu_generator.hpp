@@ -12,6 +12,7 @@
 
 #include "cache/multi_cache.h"
 #include "cpu/x64/jit_generator.hpp"
+#include "emitters/snippets/common/compiled_snippet_cpu.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "snippets/emitter.hpp"
@@ -24,15 +25,7 @@
 
 namespace ov::intel_cpu {
 
-class CompiledSnippetCPU : public snippets::CompiledSnippet {
-    const std::unique_ptr<const dnnl::impl::cpu::x64::jit_generator_t> h_compiled;
-
-public:
-    [[nodiscard]] const uint8_t* get_code() const override;
-    [[nodiscard]] size_t get_code_size() const override;
-    [[nodiscard]] bool empty() const override;
-    explicit CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator_t> h);
-};
+using CompiledSnippetCPU = ov::intel_cpu::CompiledSnippetCPUCommon<dnnl::impl::cpu::x64::jit_generator_t>;
 
 class CPUTargetMachine : public snippets::TargetMachine {
 public:

@@ -10,7 +10,6 @@
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <set>
 #include <utility>
@@ -212,23 +211,6 @@ public:
 };
 
 namespace intel_cpu::aarch64 {
-
-CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h)
-    : h_compiled(std::move(h)) {
-    OPENVINO_ASSERT(h_compiled && h_compiled->jit_ker(), "Got invalid jit generator or kernel was nopt compiled");
-}
-
-const uint8_t* CompiledSnippetCPU::get_code() const {
-    return h_compiled->jit_ker();
-}
-
-size_t CompiledSnippetCPU::get_code_size() const {
-    return h_compiled->getSize();
-}
-
-bool CompiledSnippetCPU::empty() const {
-    return get_code_size() == 0;
-}
 
 CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
     : TargetMachine(std::make_shared<CPURuntimeConfigurator>(cache)),

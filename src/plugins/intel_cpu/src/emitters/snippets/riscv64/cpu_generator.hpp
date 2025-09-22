@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "cache/multi_cache.h"
+#include "emitters/snippets/common/compiled_snippet_cpu.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
@@ -20,16 +21,7 @@
 
 namespace ov::intel_cpu::riscv64 {
 
-class CompiledSnippetCPU : public snippets::CompiledSnippet {
-public:
-    explicit CompiledSnippetCPU(std::unique_ptr<ov::intel_cpu::riscv64::jit_generator_t> h);
-    [[nodiscard]] const uint8_t* get_code() const override;
-    [[nodiscard]] size_t get_code_size() const override;
-    [[nodiscard]] bool empty() const override;
-
-private:
-    const std::unique_ptr<const ov::intel_cpu::riscv64::jit_generator_t> h_compiled;
-};
+using CompiledSnippetCPU = ov::intel_cpu::CompiledSnippetCPUCommon<ov::intel_cpu::riscv64::jit_generator_t>;
 
 class CPUTargetMachine : public snippets::TargetMachine {
 public:
