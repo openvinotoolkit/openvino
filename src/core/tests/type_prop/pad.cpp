@@ -289,10 +289,10 @@ TYPED_TEST_P(PadTest, pad_begin_and_end_dynamic) {
     set_shape_symbols(end_shape);
 
     auto arg = make_shared<op::v0::Parameter>(element::f32, arg_shape);
-    auto s_begin = make_shared<op::v0::Parameter>(element::i32, begin_shape);
-    auto s_end = make_shared<op::v0::Parameter>(element::i32, end_shape);
+    auto begin = make_shared<op::v0::Parameter>(element::i32, begin_shape);
+    auto end = make_shared<op::v0::Parameter>(element::i32, end_shape);
 
-    auto pad = this->make_op(arg, s_begin, s_end, op::PadMode::CONSTANT);
+    auto pad = this->make_op(arg, begin, end, op::PadMode::CONSTANT);
 
     EXPECT_EQ(pad->get_output_partial_shape(0), PartialShape({-1, -1, -1, -1, -1}));
     EXPECT_THAT(get_shape_symbols(pad->get_output_partial_shape(0)), Each(nullptr));
