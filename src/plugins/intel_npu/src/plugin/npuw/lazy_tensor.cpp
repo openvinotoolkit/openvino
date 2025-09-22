@@ -30,9 +30,12 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
 
     auto rt_info = m_node->get_rt_info();
     auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-    NPUW_ASSERT(weightless_cache_attr != rt_info.end() &&
-                "Constant node doesn't have WeightlessCacheAttribute! Likely a new node introduced by some pass.");
-    m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+    if (weightless_cache_attr != rt_info.end()) {
+        m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+    } else {
+        LOG_ERROR("Constant node doesn't have WeightlessCacheAttribute! Likely a new node was introduced by some pass. "
+                  "The import of such model will fail!");
+    }
 }
 
 std::size_t Const::hash() const {
