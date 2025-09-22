@@ -9,30 +9,57 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/util/common_util.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-class ConvAndFQ : virtual public SubgraphBaseTest, public CPUTestsBase {
+
+typedef std::tuple<
+        InputShape,                        // input shape
+        element::Type,                     // input precision
+        std::vector<std::vector<float>>,   // quantize intervals
+        std::string                        // device name
+> ConvAndFQTestParams;
+
+class ConvAndFQ : public testing::WithParamInterface<ConvAndFQTestParams>,
+                  virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvAndFQTestParams>& obj) {
+        const auto& [inputShape, inputPrecision, quantizeIntervals, targetName] = obj.param;
+        std::ostringstream results;
+
+        results << "IS=" << inputShape << "_InPRC=" << inputPrecision
+                << "_Intervals=";
+        for (const auto& vecInt : quantizeIntervals) {
+            results << ov::util::vector_to_string(vecInt) << ",";
+        }
+        results << "targetDevice=" << targetName;
+
+        return results.str();
+    }
+
+protected:
     void SetUp() override {
+        const auto& [inputShape, inputPrecision, quantizeIntervals, targetName] = this->GetParam();
         abs_threshold = 4e-3f;
-        targetDevice = ov::test::utils::DEVICE_CPU;
-
+        targetDevice = targetName;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
-        const auto precision = element::f32;
-        const auto input_static_shape = Shape{4, 3, 2, 2};
-
-        auto in_shapes = static_shapes_to_test_representation({input_static_shape});
-        init_input_shapes({in_shapes});
+        init_input_shapes({inputShape});
         ov::ParameterVector input_params{
-            std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape(input_static_shape))};
+            std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[0])};
 
-        auto fq_before = ov::test::utils::make_fake_quantize(input_params[0], precision, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+        auto fq_before = ov::test::utils::make_fake_quantize(input_params[0],
+                                                             inputPrecision,
+                                                             256,
+                                                             {},
+                                                             quantizeIntervals[0],
+                                                             quantizeIntervals[1],
+                                                             quantizeIntervals[2],
+                                                             quantizeIntervals[3]);
 
-        auto weights_shape = Shape{4, 3, 2, 2};
-        auto weights = utils::make_constant(element::i8, weights_shape, ov::test::utils::InputGenerateData(0, 2, 1));
+        auto weights = utils::make_constant(element::i8, {4, 3, 2, 2});
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
         auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
 
@@ -47,7 +74,7 @@ public:
             const op::PadType paddingType = op::PadType::EXPLICIT;
             conv = ov::test::utils::make_convolution(fq_before,
                                                      multiply,
-                                                     precision,
+                                                     inputPrecision,
                                                      kernelSize,
                                                      strides,
                                                      padBegin,
@@ -57,14 +84,21 @@ public:
                                                      numOutChannels);
         }
 
-        auto fq_after = ov::test::utils::make_fake_quantize(conv, precision, 256, {}, {-1.28}, {1.27}, {-1.28}, {1.27});
+        auto fq_after = ov::test::utils::make_fake_quantize(conv,
+                                                            inputPrecision,
+                                                            256,
+                                                            {},
+                                                            quantizeIntervals[0],
+                                                            quantizeIntervals[1],
+                                                            quantizeIntervals[2],
+                                                            quantizeIntervals[3]);
 
         auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
-        auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, element::f32);
-        auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(element::f32, {1, 1}, {0.1}));
+        auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, inputPrecision);
+        auto multiply_mm = std::make_shared<op::v1::Multiply>(convert_mm, op::v0::Constant::create(inputPrecision, {1, 1}, {0.1}));
         const auto matMul = std::make_shared<ov::op::v0::MatMul>(fq_after, multiply_mm, false, false);
 
-        function = makeNgraphFunction(precision, input_params, matMul, "ConvFQ");
+        function = makeNgraphFunction(inputPrecision, input_params, matMul, "ConvFQ");
     }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
@@ -80,11 +114,29 @@ public:
         }
 };
 
-namespace {
-TEST_F(ConvAndFQ, smoke_ConvAndFQ_CPU) {
+TEST_P(ConvAndFQ, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
+
+namespace {
+
+std::vector<InputShape> inputShapes{{{}, {{4, 3, 2, 2}}},
+                                    {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
+
+std::vector<std::vector<std::vector<float>>> quantizeIntervals{
+    {{-1.28f}, {1.27f}, {-1.28f}, {1.27f}},
+    {{0.f}, {2.55f}, {0.f}, {2.55f}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU,
+                         ConvAndFQ,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(quantizeIntervals),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQ::getTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov

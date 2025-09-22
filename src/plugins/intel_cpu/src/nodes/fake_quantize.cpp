@@ -1515,7 +1515,6 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         }
         return impl_desc_type::ref;
     }();
-
     if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
 

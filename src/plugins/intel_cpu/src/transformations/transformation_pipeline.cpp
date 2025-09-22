@@ -988,8 +988,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         lptManager,
         [&](const_node_ptr& node) -> bool {
             auto eltwise = node->get_input_node_shared_ptr(0);
-            if (ov::is_type<ov::op::v1::Multiply>(eltwise) &&
-                FakeQuantizeTransformation::checkElementwise(eltwise)) {
+            if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
                 return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
             }
             return false;
