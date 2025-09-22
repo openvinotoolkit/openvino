@@ -577,7 +577,8 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_im
     const auto &dev_info = get_node().get_program().get_engine().get_device_info();
 
     // The target HW of this patch is limited because of performance concern
-    if ((dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) || dev_info.gfx_ver.major >= 20) {
+    // if ((dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) || dev_info.gfx_ver.major >= 20) {
+    if (get_network()._has_range && ((dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) || dev_info.gfx_ver.major >= 20)) {
         // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
         // i.e. predecessor node was supposed be increased already
         if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
@@ -634,6 +635,8 @@ bool primitive_inst::is_reusable_memory_allocation(const layout& required_layout
     // 2. 특수한 케이스들은 재활용 불가능
     if (get_node().is_type<input_layout>() ||
         get_node().is_type<kv_cache>() ||
+        get_node().is_type<gather>() ||
+        get_node().is_type<dynamic_quantize>() ||
         is_output_buffer) {
         return false;
     }

@@ -210,6 +210,7 @@ public:
 #else
     int64_t get_current_iteration_num() { const int64_t NOT_AVAILABLE=-112233; return NOT_AVAILABLE; }
 #endif
+    bool _has_range = false;
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<primitive_inst*>>;

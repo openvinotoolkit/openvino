@@ -178,6 +178,19 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     validate_primitives();
     preallocate_shape_info_buffers();
     add_default_output_chains();
+
+    const char* disable_poc_env = std::getenv("DISABLE_POC");
+    // Check for actual range primitives
+    for (auto& inst : _exec_order) {
+        if (inst->get_node().is_type<range>()) {
+            _has_range = true;
+            break;
+        }
+    }
+
+    if (disable_poc_env && std::string(disable_poc_env) == "1") {
+        _has_range = true;
+    }
 }
 
 network::network(program::ptr program, bool is_internal, bool is_primary_stream)
@@ -762,21 +775,7 @@ bool network::has_event(const primitive_id& id) const {
 void network::execute_impl(const std::vector<event::ptr>& events) {
     set_arguments();
 
-    bool has_range = false;
-    const char* disable_poc_env = std::getenv("DISABLE_POC");
-    // Check for actual range primitives
-    for (auto& inst : _exec_order) {
-        if (inst->get_node().is_type<range>()) {
-            has_range = true;
-            break;
-        }
-    }
-
-    if (disable_poc_env && std::string(disable_poc_env) == "1") {
-        has_range = true;
-    }
-
-    if (_is_dynamic && !has_range) {
+    if (_is_dynamic && !_has_range) {
         // Fallback to original execution if no subgraphs
         // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
         const bool needs_flushing = _is_dynamic;
