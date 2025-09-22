@@ -59,6 +59,7 @@
 #include "selective_build.h"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
+#include "transformations/common_optimizations/cast_to_convert.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
@@ -72,7 +73,6 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
-#include "transformations/common_optimizations/cast_to_convert.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
@@ -652,7 +652,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                              convert_input_output_precision);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::CastToConvert);
+    // manager.register_pass<ov::pass::Serialize>("model_before_cast_to_convert.xml","model_before_cast_to_convert.bin");
+    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::CastToConvert);
+    // manager.register_pass<ov::pass::Serialize>("model_after_cast_to_convert.xml","model_after_cast_to_convert.bin");
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
