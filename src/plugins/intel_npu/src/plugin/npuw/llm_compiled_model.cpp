@@ -972,6 +972,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
+    // Handle attention hints. FIXME: Maybe it makes sense to make those
+    // mutually exclusive with the precise configuration sections as well
+    const ov::AnyMap dyn_attn_opts = {
+        { "NPUW_ONLINE_PIPELINE", "REP" },
+        { "NPUW_ONLINE_ISOLATE", "ATTN" },
+        { "NPUW_ONLINE_KEEP_BLOCK_SIZE", "4" },
+        { "NPUW_UNFOLD_IREQS", "NO" },
+    };
+    const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    if (::intel_npu::npuw::llm::AttentionHint::DYNAMIC == prefill_attn_hint) {
+        merge_config_with(prefill_config, dyn_attn_opts);
+    }
+    const auto generate_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>();
+    if (::intel_npu::npuw::llm::AttentionHint::DYNAMIC == generate_attn_hint) {
+        merge_config_with(generate_config, dyn_attn_opts);
+    }
+
     if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
         LOG_DEBUG("Caching preROPE ");
         const uint32_t CACHE_ROPE_START = 2048;
@@ -1409,6 +1426,8 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE, get),
                           BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString),
+                          BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
+                          BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get)});
 #undef BIND
 }
