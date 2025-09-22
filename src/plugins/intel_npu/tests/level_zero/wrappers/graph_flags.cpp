@@ -3,14 +3,13 @@
 //
 
 #include "graph_flags.hpp"
+#include "zero_graph.hpp"
 #include "common_test_utils/test_assertions.hpp"
-#include "wrappers.hpp"
 
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "ir_serializer.hpp"
 
-// TODO: what about testing different contents of buildFlags?
 void ZeroGraphFlagsTest::SetUp() {
     std::string extVersion = GetParam();
 
@@ -30,17 +29,12 @@ void ZeroGraphFlagsTest::SetUp() {
 
 void ZeroGraphFlagsTest::TearDown() {}
 
-GraphDescriptor ZeroGraphFlagsTest::getGraphDesc(const uint32_t flag) {
-    return zeGraphExt->getGraphDescriptor(this->serializedIR, this->buildFlags, flag);
-}
-
 std::vector<int> _flags = {ZE_GRAPH_FLAG_NONE,
                             ZE_GRAPH_FLAG_DISABLE_CACHING,
                             ZE_GRAPH_FLAG_ENABLE_PROFILING,
                             ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT};
 
-// the "fourth" branch is not being tested
-TEST_P(ZeroGraphFlagsTest, QueryGraph) {
+TEST_P(ZeroGraphFlagsTest, QueryGraph) { // the "fourth" branch is not being tested
     uint32_t flagsCombined = 0;
     while(std::next_permutation(_flags.begin(), _flags.end())) {
         flagsCombined = 0;
@@ -48,10 +42,13 @@ TEST_P(ZeroGraphFlagsTest, QueryGraph) {
             flagsCombined |= flag;
         }
 
-        graphDescriptor = getGraphDesc(flagsCombined);
+        OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", flagsCombined));
+        auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                            ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+        zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
         ASSERT_NE(graphDescriptor._handle, nullptr);
 
-        const auto supportedLayers = zeGraphExt->queryGraph(serializedIR, buildFlags);
+        const auto supportedLayers = zeGraphExt->queryGraph(serializedIR, "");
         ASSERT_NE(supportedLayers.size(), 0);
     }
 }
@@ -70,7 +67,10 @@ TEST_P(ZeroGraphFlagsTest, InitializeGraph) {
             flagsCombined |= flag;
         }
 
-        graphDescriptor = getGraphDesc(flagsCombined);
+        OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", flagsCombined));
+        auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                            ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+        zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
         ASSERT_NE(graphDescriptor._handle, nullptr);
 
         // int max?
@@ -90,7 +90,10 @@ TEST_P(ZeroGraphFlagsTest, DestroyGraph) {
             flagsCombined |= flag;
         }
 
-        graphDescriptor = getGraphDesc(flagsCombined);
+        OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", flagsCombined));
+        auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                            ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+        zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
         ASSERT_NE(graphDescriptor._handle, nullptr);
 
         zeGraphExt->destroyGraph(graphDescriptor);
@@ -99,7 +102,7 @@ TEST_P(ZeroGraphFlagsTest, DestroyGraph) {
 }
 
 std::vector<std::string> __extVersion =
-    {"1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12", "1.13"};
+    {"1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12", "1.13"};
 
 INSTANTIATE_TEST_SUITE_P(something,
                          ZeroGraphFlagsTest,

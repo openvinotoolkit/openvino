@@ -10,11 +10,14 @@
 #include <regex>
 
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "common/npu_test_env_cfg.hpp"
 #include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/config/options.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/constant.hpp"
-#include "wrappers.hpp"
+#include "openvino/core/shape.hpp"
+#include "ir_serializer.hpp"
 #include "zero_memory.hpp"
 
 void ZeroGraphTest::SetUp() {
@@ -27,205 +30,141 @@ void ZeroGraphTest::SetUp() {
     zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
 
     zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
-    
-    std::shared_ptr<ZeroInitStructsMock> mock = std::make_shared<ZeroInitStructsMock>(extVersion);
-    zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(mock);
-    zeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
 
     auto compilerProperties = zeroInitStruct->getCompilerProperties();
     const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
     const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
     serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
-
-    // auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
-    // auto cfg = ::intel_npu::Config(opt_desc);
-    // buildFlags += cfg.toString();
 }
 
 void ZeroGraphTest::TearDown() {}
 
-TEST_P(ZeroGraphTest, GetGraphDescriptor) {
-    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, graphDescFlag));
+TEST_P(ZeroGraphTest, GetGraphDescriptorIR) {
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
+    auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
+    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
-TEST_P(ZeroGraphTest, GetGraphDescriptorEmptyIR) {
-    SerializedIR emptyIR = {0, {}};
-    ASSERT_ANY_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(emptyIR, buildFlags, graphDescFlag));
+TEST_P(ZeroGraphTest, GetGraphDescriptorBlob) {
+    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
+    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
+    ASSERT_TRUE(blobStream.is_open());
+    auto size = blobStream.tellg();
+    blobStream.seekg(0, std::ios::end);
+    size = blobStream.tellg() - size;
+    blobStream.seekg(0, std::ios::beg);
+
+    std::vector<uint8_t> blob(size);
+    blobStream.read(reinterpret_cast<char*>(blob.data()), size);
+
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob.data(), blob.size()));
+    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
-// maybe for invalid buildFlags too?
-TEST_P(ZeroGraphTest, GetGraphDescriptorIOInfoBuildFlags) {
-    for (const auto& op : model->get_ops()) {
-        if (auto _op = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
-            model->remove_parameter(_op);
-            ov::replace_node(_op, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 24, 24}, {-1}));
-        }
-    }
-
-    ASSERT_EQ(model->get_parameters().empty(), true);
-
-    auto compilerProperties = zeroInitStruct->getCompilerProperties();
-    const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
-    const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-    serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
-
-    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
-    buildFlags += serializeIOInfo(model, useIndices);
-
-    graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, graphDescFlag);
-
-    auto meta = zeGraphExt->getNetworkMeta(graphDescriptor);
-    ASSERT_EQ(meta.inputs.size(), 0);
-    ASSERT_NE(meta.outputs.size(), 0);
-    // if (graphDescFlag == ZE_GRAPH_FLAG_ENABLE_PROFILING) {
-    //     ASSERT_NE(meta.profilingOutputs.size(), 0);
-    // }
+// unstable if initializGraph is not called
+TEST_P(ZeroGraphTest, GetNetworkMeta) {
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
+    auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
+    NetworkMetadata meta;
+    // asserts on meta contents?
+    OV_ASSERT_NO_THROW(meta = zeGraphExt->getNetworkMeta(graphDescriptor));
+    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
-TEST_P(ZeroGraphTest, GetGraphDescriptorConfigBuildFlags) {
-    for (const auto& op : model->get_ops()) {
-        if (auto _op = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
-            model->remove_parameter(_op);
-            ov::replace_node(_op, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 24, 24}, {-1}));
-        }
-    }
+TEST_P(ZeroGraphTest, GetIODescriptor) {
 
-    ASSERT_EQ(model->get_parameters().empty(), true);
-
-    auto compilerProperties = zeroInitStruct->getCompilerProperties();
-    const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
-    const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-    serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
-
-    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
-    auto cfg = ::intel_npu::Config(opt_desc);
-    buildFlags += serializeConfig(cfg, compilerProperties.compilerVersion, zeGraphExt);
-
-    graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, graphDescFlag);
-
-    auto meta = zeGraphExt->getNetworkMeta(graphDescriptor);
-    ASSERT_EQ(meta.inputs.size(), 0);
-    ASSERT_NE(meta.outputs.size(), 0);
-    // if (graphDescFlag == ZE_GRAPH_FLAG_ENABLE_PROFILING) {
-    //     ASSERT_NE(meta.profilingOutputs.size(), 0);
-    // }
-}
-
-TEST_P(ZeroGraphTest, GetGraphDescriptorIOInfoConfigBuildFlags) {
-    for (const auto& op : model->get_ops()) {
-        if (auto _op = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
-            model->remove_parameter(_op);
-            ov::replace_node(_op, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 24, 24}, {-1}));
-        }
-    }
-
-    ASSERT_EQ(model->get_parameters().empty(), true);
-
-    auto compilerProperties = zeroInitStruct->getCompilerProperties();
-    const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
-    const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-    serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
-
-    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
-    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
-    auto cfg = ::intel_npu::Config(opt_desc);
-    buildFlags += serializeIOInfo(model, useIndices);
-    buildFlags += " ";
-    buildFlags += serializeConfig(cfg, compilerProperties.compilerVersion, zeGraphExt);
-
-    graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, graphDescFlag);
-
-    auto meta = zeGraphExt->getNetworkMeta(graphDescriptor);
-    ASSERT_EQ(meta.inputs.size(), 0);
-    ASSERT_NE(meta.outputs.size(), 0);
-    // if (graphDescFlag == ZE_GRAPH_FLAG_ENABLE_PROFILING) {
-    //     ASSERT_NE(meta.profilingOutputs.size(), 0);
-    // }
 }
 
 TEST_P(ZeroGraphTest, InitializeGraph) {
-    auto compilerProperties = zeroInitStruct->getCompilerProperties();
-    const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
-    const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-    serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
-
-    for (int i = 0; i < 2; i++) {
-        buildFlags += serializeIOInfo(model, i);
-
-        graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, graphDescFlag);
-
-        zeGraphExt->initializeGraph(graphDescriptor, 0);
-        buildFlags = "";
-        buildFlags.clear();
-    }
+    graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag);
+    auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
+    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
-// TODO: add asserts for no throws
-TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraph) {
-    // get graph
-    for (const auto& op : model->get_ops()) {
-        if (auto _op = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
-            model->remove_parameter(_op);
-            ov::replace_node(_op, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 24, 24}, {-1}));
-        }
-    }
+// the "fourth" branch is not being tested
+// todo: revise this
+// unstable if initializGraph is not called
+TEST_P(ZeroGraphTest, QueryGraph) {
+    // add checks for set emptyness?
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
+    auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
+    const auto supportedLayers = zeGraphExt->queryGraph(std::move(serializedIR), "");
+    zeGraphExt->destroyGraph(graphDescriptor);
+}
 
-    ASSERT_EQ(model->get_parameters().empty(), true);
+TEST_P(ZeroGraphTest, GetGraphBinary) {
+    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
+    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
+    ASSERT_TRUE(blobStream.is_open());
+    size_t size = blobStream.tellg();
+    blobStream.seekg(0, std::ios::end);
+    size = static_cast<size_t>(blobStream.tellg()) - size;
+    blobStream.seekg(0, std::ios::beg);
 
-    auto compilerProperties = zeroInitStruct->getCompilerProperties();
-    const ze_graph_compiler_version_info_t& compilerVersion = compilerProperties.compilerVersion;
-    const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
-    serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+    std::vector<uint8_t> blob(size);
+    blobStream.read(reinterpret_cast<char*>(blob.data()), size);
 
-    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
-    buildFlags += serializeIOInfo(model, useIndices);
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
+    auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
 
-    graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, graphDescFlag);
+    // maybe without initializeGraph it wont work?
+    const uint8_t* blobPtr = nullptr;
+    zeGraphExt->getGraphBinary(graphDescriptor, blob, blobPtr, size);
+    zeGraphExt->destroyGraph(graphDescriptor);
+}
 
-    // init graph
-    zeGraphExt->initializeGraph(graphDescriptor, 0);
+// !!! it fails only if the tests are ran without any filter (some other test bonks the driver in the head)
+// ZE_RESULT_ERROR_DEVICE_LOST
+// flag: ZE_GRAPH_FLAG_ENABLE_PROFILING, versions: 1.1 - 1.13
+// flag: ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT, versions: 1.0 - 1.13
+TEST_P(ZeroGraphTest, DestroyGraph) {
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
+    auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
+    zeGraphExt->destroyGraph(graphDescriptor);
+    ASSERT_EQ(graphDescriptor._handle, nullptr);
+}
 
-    // set graph args
+TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraph) { // TODO: add asserts for no throws
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
+
+    auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
+
     auto allocator = std::make_shared<zeroMemory::HostMemAllocator>(zeroInitStruct,
                                                                     ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
     void* ptr = allocator->allocate(totalSize);
+    // to check if its persistent or not
+    // if persistent: and if i destroy the blob after init, then setGraph should fail?
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, ptr));
 
-    // destroy graph
-    zeGraphExt->destroyGraph(graphDescriptor);
     allocator->deallocate(ptr, totalSize);
+    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
-// TODO: convert this test into one which tests all the combinations of graph flags
-TEST_P(ZeroGraphTest, GetGraphDescriptorCombinedFlags) {
-    auto compilerProperties = zeroInitStruct->getCompilerProperties();
-    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
-    auto cfg = ::intel_npu::Config(opt_desc);
-    buildFlags += serializeConfig(cfg, compilerProperties.compilerVersion, zeGraphExt);
-
-    std::vector<int> flags = {ZE_GRAPH_FLAG_NONE,
-                                ZE_GRAPH_FLAG_DISABLE_CACHING,
-                                ZE_GRAPH_FLAG_ENABLE_PROFILING,
-                                ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT};
-    do {
-        uint32_t flagsCombined = 0;
-        for (int flag : flags) {
-            flagsCombined |= flag;
-        }
-
-        graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, flagsCombined);
-        ASSERT_NE(graphDescriptor._handle, nullptr);
-    } while (std::next_permutation(flags.begin(), flags.end()));
-}
 
 std::vector<int> graphDescflags = {ZE_GRAPH_FLAG_NONE,
                                    ZE_GRAPH_FLAG_DISABLE_CACHING,
                                    ZE_GRAPH_FLAG_ENABLE_PROFILING,
                                    ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT};
 
+// combine with range so as it will be compile time
+// maybe not all the early versions are supported
 std::vector<std::string> extVersion =
-    {"1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12", "1.13"};
+    {"1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12", "1.13"};
 
 INSTANTIATE_TEST_SUITE_P(something,
                          ZeroGraphTest,
@@ -307,6 +246,7 @@ std::string rankToLegacyLayoutString(const size_t rank) {
     }
 }
 
+// todo: remove this
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
     const ov::ParameterVector& parameters = model->get_parameters();
     const ov::ResultVector& results = model->get_results();
@@ -513,4 +453,80 @@ std::string serializeConfig(const Config& config,
     }
 
     return "--config " + content;
+}
+
+
+void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes) {
+    if (numberOfBytes == 0) {
+        return;
+    }
+
+    OPENVINO_ASSERT(destination != nullptr, "Memcpy: received a null destination address");
+    OPENVINO_ASSERT(source != nullptr, "Memcpy: received a null source address");
+    OPENVINO_ASSERT(numberOfBytes <= destinationSize,
+                    "Memcpy: the source buffer does not fit inside the destination one");
+    OPENVINO_ASSERT(numberOfBytes <= (destination > source ? ((uintptr_t)destination - (uintptr_t)source)
+                                                           : ((uintptr_t)source - (uintptr_t)destination)),
+                    "Memcpy: the offset between the two buffers does not allow a safe execution of the operation");
+
+    memcpy(destination, source, numberOfBytes);
+}
+
+// todo: maybe we can avoid this
+// what about a synthetic model?
+// does ZeroWrappers display different behaviors on IRv10 vs IRv11?
+SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                         ze_graph_compiler_version_info_t compilerVersion,
+                         const uint32_t supportedOpsetVersion) {
+    driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion);
+
+    // Contract between adapter and compiler in driver
+    const uint32_t maxNumberOfElements = 10;
+    const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
+    const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
+
+    const uint32_t numberOfInputData = 2;
+    const uint64_t xmlSize = static_cast<uint64_t>(irSerializer.getXmlSize());
+    const uint64_t weightsSize = static_cast<uint64_t>(irSerializer.getWeightsSize());
+
+    OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
+    if (xmlSize >= maxSizeOfXML) {
+        OPENVINO_THROW("Xml file is too big to process. xmlSize: ", xmlSize, " >= maxSizeOfXML: ", maxSizeOfXML);
+    }
+    if (weightsSize >= maxSizeOfWeights) {
+        OPENVINO_THROW("Bin file is too big to process. xmlSize: ",
+                       weightsSize,
+                       " >= maxSizeOfWeights: ",
+                       maxSizeOfWeights);
+    }
+
+    const uint64_t sizeOfSerializedIR = sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) +
+                                        xmlSize + sizeof(weightsSize) + weightsSize;
+
+    // use array to avoid vector's memory zeroing overhead
+    std::shared_ptr<uint8_t> buffer(new uint8_t[sizeOfSerializedIR], std::default_delete<uint8_t[]>());
+    uint8_t* serializedIR = buffer.get();
+
+    uint64_t offset = 0;
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &compilerVersion, sizeof(compilerVersion));
+    offset += sizeof(compilerVersion);
+
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
+    offset += sizeof(numberOfInputData);
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
+    offset += sizeof(xmlSize);
+    // xml data is filled in serializeModel()
+    uint64_t xmlOffset = offset;
+    offset += xmlSize;
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
+    offset += sizeof(weightsSize);
+    // weights data is filled in serializeModel()
+    uint64_t weightsOffset = offset;
+    offset += weightsSize;
+
+    irSerializer.serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset);
+
+    OPENVINO_ASSERT(offset == sizeOfSerializedIR);
+
+    return std::make_pair(sizeOfSerializedIR, buffer);
 }

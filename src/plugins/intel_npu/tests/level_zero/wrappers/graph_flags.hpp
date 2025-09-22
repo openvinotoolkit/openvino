@@ -28,8 +28,6 @@ public:
 
     std::shared_ptr<ov::Model> model;
 
-    std::string buildFlags;
-
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
         std::string version = obj.param;
         return "extVersion=" + version;

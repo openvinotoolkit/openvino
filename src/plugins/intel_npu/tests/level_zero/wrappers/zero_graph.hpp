@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/runtime/core.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
 
@@ -30,6 +31,8 @@ protected:
     void TearDown() override;
 
 public:
+    ov::Core core;
+
     std::shared_ptr<ZeroInitStructsMock> zeroInitMock;
     
     std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
@@ -42,7 +45,7 @@ public:
 
     std::shared_ptr<ov::Model> model;
 
-    std::string buildFlags;
+    ov::CompiledModel compiled_model;
 
     std::string extVersion;
 
@@ -65,3 +68,9 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
 std::string serializeConfig(const Config& config,
                             ze_graph_compiler_version_info_t compilerVersion,
                             const std::shared_ptr<intel_npu::ZeGraphExtWrappers> zeGraphExt);
+
+SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                         ze_graph_compiler_version_info_t compilerVersion,
+                         const uint32_t supportedOpsetVersion);
+
+void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes);
