@@ -20,7 +20,7 @@ CPU
    .. tab-item:: Supported Hardware
 
       * Intel® Core™ Ultra Series 1 and Series 2
-      * Intel® Xeon® 6 processor (preview)
+      * Intel® Xeon® 6 processor
       * Intel Atom® Processor X Series
       * Intel Atom® processor with Intel® SSE4.2 support
       * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
@@ -32,7 +32,7 @@ CPU
 
       * Windows 11, 64-bit
       * Windows 10, 64-bit
-      * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+) (preview support)
+      * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+)
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * macOS 12.6 and above, 64-bit and ARM64
