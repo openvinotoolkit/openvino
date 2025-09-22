@@ -323,11 +323,6 @@ void SyncInferRequest::check_tensors() const {
     }
 }
 
-void SyncInferRequest::add_state(const IODescriptor& descriptor, const size_t tensorIndex) const {
-    _variableStates.push_back(
-        std::make_shared<VariableState>(descriptor.nameFromCompiler, get_user_input(tensorIndex)));
-}
-
 bool SyncInferRequest::is_batched_input(size_t idx) const {
     return _userInputTensors.at(idx).size() > 1;
 }

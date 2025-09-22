@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/zero_tensor/zero_tensor_run.hpp"
+#include "internal/backend/zero_tensor_tests.hpp"
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
@@ -13,8 +13,8 @@ using namespace ov::test::behavior;
 
 const std::vector<ov::AnyMap> configsInferRequestRunTests = {{}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-                         ZeroTensorRunTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         ZeroTensorTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
-                         ZeroTensorRunTests::getTestCaseName);
+                         ZeroTensorTests::getTestCaseName);
