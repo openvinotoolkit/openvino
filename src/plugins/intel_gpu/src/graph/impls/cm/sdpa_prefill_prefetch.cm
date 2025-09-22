@@ -576,9 +576,7 @@ void sdpa_kernel_lsc_prefetch(
     svmptr_t q_base [[type("svmptr_t")]],
     svmptr_t k_base [[type("svmptr_t")]],
     svmptr_t v_base [[type("svmptr_t")]],
-    svmptr_t o_base [[type("svmptr_t")]],
-    int k_after_padding,
-    int v_after_padding) {
+    svmptr_t o_base [[type("svmptr_t")]]) {
 
 #if CMFLA_OUTPUT_BHLS
     constexpr uint o_pitch = (1 * head_size * sizeof(half));
@@ -587,13 +585,8 @@ void sdpa_kernel_lsc_prefetch(
 #endif
     constexpr uint q_pitch =  (num_heads * head_size * sizeof(half));
 
-#if CMFLA_KV_PADDING
-    uint k_pitch = ((num_kv_heads * head_size + k_after_padding) * sizeof(half));
-    uint v_pitch = ((num_kv_heads * head_size + v_after_padding) * sizeof(half));
-#else
     constexpr uint k_pitch = (num_kv_heads * head_size * sizeof(half));
     constexpr uint v_pitch = is_v_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) :  k_pitch;
-#endif
 
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;
@@ -777,9 +770,7 @@ void sdpa_kernel(
     uint q_off,
     uint k_off,
     uint v_off,
-    uint o_off,
-    int k_after_padding,
-    int v_after_padding) {
+    uint o_off) {
 
     // constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
     // constexpr uint q_pitch = is_qkv_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) : o_pitch;
@@ -791,17 +782,9 @@ void sdpa_kernel(
     constexpr uint o_pitch = (num_heads * head_size * sizeof(half));
 #endif
 
-
     constexpr uint q_pitch =  (num_heads * head_size * sizeof(half));
-
-#if CMFLA_KV_PADDING
-    uint k_pitch = ((num_kv_heads * head_size + k_after_padding) * sizeof(half));
-    uint v_pitch = ((num_kv_heads * head_size + v_after_padding) * sizeof(half));
-#else
     constexpr uint k_pitch = (num_kv_heads * head_size * sizeof(half));
     constexpr uint v_pitch = is_v_fused ? ((num_heads + num_kv_heads*2) * head_size * sizeof(half)) :  k_pitch;
-#endif
-
 
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;
@@ -1002,9 +985,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     SurfaceIndex val [[type("buffer_t")]],
     SurfaceIndex output [[type("buffer_t")]],
 #endif
-    int seqlen,
-    int k_after_padding,
-    int v_after_padding
+    int seqlen
     ) {
     constexpr int is_causal = CMFLA_IS_CAUSAL;
     constexpr int num_heads = CMFLA_NUM_HEADS;
@@ -1094,9 +1075,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                                 reinterpret_cast<svmptr_t>(query + q_offset),
                                 reinterpret_cast<svmptr_t>(key + k_offset),
                                 reinterpret_cast<svmptr_t>(value + v_offset),
-                                reinterpret_cast<svmptr_t>(output + o_offset),
-                                k_after_padding,
-                                v_after_padding);
+                                reinterpret_cast<svmptr_t>(output + o_offset));
 #else
     sdpa_kernel<is_causal, num_heads, num_kv_heads, head_size, CMFLA_V_FUSED>(
                                 slm_K,
@@ -1114,8 +1093,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                                 q_offset * sizeof(half),
                                 k_offset * sizeof(half),
                                 v_offset * sizeof(half),
-                                o_offset * sizeof(half),
-                                k_after_padding,
-                                v_after_padding);
+                                o_offset * sizeof(half));
 #endif
 }

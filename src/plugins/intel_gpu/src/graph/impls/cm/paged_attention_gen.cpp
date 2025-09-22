@@ -172,10 +172,6 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
             jit.make("CMFLA_OUTPUT_BHLS", 1);
         }
 
-        // jit.make("HEAD_SIZE", k_head_size);
-        // jit.make("HEADS_NUM", q_num_head);
-        // jit.make("KV_HEADS_NUM", k_num_head);
-
         // std::cout << "PagedAttentionGeneratorBase::get_jit_constants: q_num_head = " << q_num_head
         //           << ", k_head_size = " << k_head_size << ", k_num_head = " << k_num_head << std::endl;
         // std::cout << "new_params.get_input_layout(0) = " << new_params.get_input_layout(0).to_string() << std::endl;
@@ -189,16 +185,10 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
         jit.make("CMFLA_NUM_KV_HEADS", k_num_head);
 
         // std::cout << "q_num_head: " << q_num_head << ", k_head_size: " << k_head_size << ", k_num_head: " << k_num_head
-        //           << ", not_need_output_transpose = " << not_need_output_transpose << ", is_qwen3_vl = " << is_qwen3_vl << std::endl;
+        //           << ", need_output_transpose = " << !not_need_output_transpose << ", is_qwen3_vl = " << is_qwen3_vl << std::endl;
     }
-    // jit.make("WG_SIZE_HINT", WG_SIZE);
-
     // auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
     // jit.make("XE_ARCH", xe_arch);
-
-    // auto split_size = get_kv_split_size(xe_arch);
-    // jit.make("KV_STEP", split_size.first);
-    // jit.make("WG_SIZE", WG_SIZE);
     return jit;
 }
 
@@ -213,8 +203,8 @@ Arguments PagedAttentionSDPAGeneratorMultiToken::get_arguments_desc(const kernel
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
     args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_len
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // kv_len
-    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // v_before_padding
+    // args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // k_after_padding
+    // args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // v_after_padding
 
     return args;
 }
@@ -223,38 +213,8 @@ JitConstants PagedAttentionSDPAGeneratorMultiToken::get_jit_constants(const kern
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
 
     if (params.is_type<paged_attention>()) {
-        jit.make("FULL_ATTENTION_MASK", 0);
+        jit.make("CMFLA_IS_CAUSAL", 1);
     } else {
-        auto is_dynamic_padding = [](const layout& layout) {
-            const auto& data_padding = layout.data_padding;
-
-            auto dynamic_str = data_padding._dynamic_dims_mask.to_string();
-            if (dynamic_str.find('1') != std::string::npos) {
-                return true;  // return true if dynamic padding exists
-            }
-            return false;
-        };
-        // std::cout << "params.get_input_layout(0) = " << params.get_input_layout(0).to_string() << std::endl;
-        // std::cout << "params.get_input_layout(1) = " << params.get_input_layout(1).to_string() << std::endl;
-        // std::cout << "params.get_input_layout(2) = " << params.get_input_layout(2).to_string() << std::endl;
-
-        // size_t query_dynamic_padding = is_dynamic_padding(params.get_input_layout(0));
-        size_t key_dynamic_padding = is_dynamic_padding(params.get_input_layout(1));
-        size_t value_dynamic_padding = is_dynamic_padding(params.get_input_layout(2));
-        // std::cout << "query_dynamic_padding = " << query_dynamic_padding << " , value_dynamic_padding = " << value_dynamic_padding
-        //           << " , key_dynamic_padding = " << key_dynamic_padding << std::endl;
-
-        if (key_dynamic_padding && value_dynamic_padding) {
-            jit.make("CMFLA_KV_PADDING", 1);
-            jit.make("CMFLA_V_FUSED", 0);
-        } else if (value_dynamic_padding) {
-            jit.make("CMFLA_V_FUSED", 1);
-            jit.make("CMFLA_KV_PADDING", 0);
-        } else {
-            jit.make("CMFLA_KV_PADDING", 0);
-            jit.make("CMFLA_V_FUSED", 0);
-        }
-
         auto is_qwen3_vl = is_qwen3_vl_dynamic_layout(params.get_input_layout(0));
         if (is_qwen3_vl) {
             jit.make("CMFLA_IS_CAUSAL", 0);
@@ -263,6 +223,29 @@ JitConstants PagedAttentionSDPAGeneratorMultiToken::get_jit_constants(const kern
         }
     }
 
+    auto is_dynamic_padding = [](const layout& layout) {
+        const auto& data_padding = layout.data_padding;
+
+        auto dynamic_str = data_padding._dynamic_dims_mask.to_string();
+        if (dynamic_str.find('1') != std::string::npos) {
+            return true;  // return true if dynamic padding exists
+        }
+        return false;
+    };
+    // std::cout << "params.get_input_layout(0) = " << params.get_input_layout(0).to_string() << std::endl;
+    // std::cout << "params.get_input_layout(1) = " << params.get_input_layout(1).to_string() << std::endl;
+    // std::cout << "params.get_input_layout(2) = " << params.get_input_layout(2).to_string() << std::endl;
+    // size_t query_dynamic_padding = is_dynamic_padding(params.get_input_layout(0));
+    size_t key_dynamic_padding = is_dynamic_padding(params.get_input_layout(1));
+    size_t value_dynamic_padding = is_dynamic_padding(params.get_input_layout(2));
+    // std::cout << "query_dynamic_padding = " << query_dynamic_padding << " , value_dynamic_padding = " << value_dynamic_padding
+    //           << " , key_dynamic_padding = " << key_dynamic_padding << std::endl;
+
+    if (value_dynamic_padding && !key_dynamic_padding) {
+        jit.make("CMFLA_V_FUSED", 1);
+    } else {
+        jit.make("CMFLA_V_FUSED", 0);
+    }
     // for (auto& it : jit) {
     //     std::cout << "\tjit[" << it.name << "] = " << it.value << std::endl;
     // }
@@ -276,7 +259,6 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
         auto& scalars = kd.params.scalars;
 
         size_t heads_num = 1, batch = 1, q_len = 1;
-        size_t k_after_padding = 0, v_after_padding = 0;
         if (params.is_type<paged_attention>()) {
             auto desc = params.typed_desc<paged_attention>();
             // auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
@@ -329,6 +311,7 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
             // };
 
             // // [1, 8, 2778, 128] --> [1, 8, 2907, 128], k_after_padding = 129
+            // size_t k_after_padding = 0, v_after_padding = 0;
             // k_after_padding = get_simple_padding(params.get_input_layout(1));
             // v_after_padding = get_simple_padding(params.get_input_layout(2));
 
@@ -374,25 +357,13 @@ DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func()
 
         // std::cout << "GWS = [" << batch << ", " << heads_num << ", " << q_threads << "], LWS = [1, 1, " << WG_SIZE << "], q_len = " << q_len
         //           << ", q_step = " << q_step << ", q_group_size = " << q_group_size
-        //           << ", is_qwen3_vl = " << is_qwen3_vl_dynamic_layout(params.get_input_layout(0)) << ", k_after_padding = " << k_after_padding
-        //           << ", v_after_padding = " << v_after_padding << std::endl;
+        //           << ", is_qwen3_vl = " << is_qwen3_vl_dynamic_layout(params.get_input_layout(0)) << std::endl;
 
         wgs.global = {batch, heads_num, q_threads};
         wgs.local = {1, 1, WG_SIZE};
 
-        // std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: "
-        //           << "out_shape: " << params.output_layouts[0].get_shape().to_string() << ", batch: " << batch << ", heads_num: " << heads_num << ",
-        //           q_threads: " << q_threads
-        //           << ", q_len: " << q_len << ", q_step: " << q_step << std::endl;
-
-        // auto& value_layout = params.input_layouts[2];
-        // std::cout << "PagedAttentionGeneratorMultiToken::get_dispatch_data_func: "
-        //           << "value_layout: " << value_layout.to_string() << ", v_before_padding: " << v_before_padding << std::endl;
-
-        // Prefill stage: kv_len == q_len
-        // auto kv_len = q_len;
-        // std::vector<size_t> scaler_value = {q_len, q_len, v_before_padding};
-        std::vector<size_t> scaler_value = {q_len, k_after_padding, v_after_padding};
+        std::vector<size_t> scaler_value = {q_len};
+        // std::vector<size_t> scaler_value = {q_len, k_after_padding, v_after_padding};
         scalars.resize(scaler_value.size());
         for (size_t i = 0; i < scaler_value.size(); ++i) {
             scalars[i].t = ScalarDescriptor::Types::INT32;
