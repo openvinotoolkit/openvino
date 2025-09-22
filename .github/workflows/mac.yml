@@ -46,6 +46,8 @@ jobs:
 
   Smart_CI:
     runs-on: ubuntu-latest
+    env:
+      RUBY_TCP_NO_FAST_FALLBACK: 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
       changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
