@@ -63,7 +63,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 return;
             auto idx_rank = impl_params->get_input_layout(1).get_partial_shape().size();
 
-            if (idx_rank != 1) {
+            if (idx_rank != 1 || !node.is_dynamic()) {
                 return;
             }
             auto axis = impl_params->typed_desc<gather>()->axis;
