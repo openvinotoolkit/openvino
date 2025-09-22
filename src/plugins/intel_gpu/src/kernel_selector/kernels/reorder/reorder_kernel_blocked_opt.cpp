@@ -7,8 +7,9 @@
 
 namespace kernel_selector {
 static constexpr size_t preferred_vec_size = 8;
-static constexpr size_t preferred_array_size = 32;
-static inline size_t GetGroupSize(const DataTensor& tensor);
+static inline size_t GetGroupSize(const reorder_params& params);
+static inline size_t CalculateTotalWorkItemCount(const reorder_params& params);
+static inline int GetPerferredArraySize(const DataTensor& tensor);
 
 ParamsKey ReorderKernelBlockedOpt::GetSupportedKey() const {
     ParamsKey k;
@@ -34,8 +35,6 @@ ParamsKey ReorderKernelBlockedOpt::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
@@ -70,7 +69,7 @@ ParamsKey ReorderKernelBlockedOpt::GetSupportedKey() const {
 
 ReorderKernelBase::DispatchData ReorderKernelBlockedOpt::SetDefault(const reorder_params& params) const {
     DispatchData dispatchData;
-    dispatchData.gws = {GetGroupSize(params.inputs[0]), 1, 1};
+    dispatchData.gws = {GetGroupSize(params), 1, 1};
     dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
@@ -82,9 +81,6 @@ bool ReorderKernelBlockedOpt::Validate(const Params& p) const {
         return false;
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
-    if (GetGroupSize(params.inputs[0]) == 1)
-        return false;
-
     if (!params.fused_ops.empty())
         return false;
 
@@ -137,8 +133,13 @@ JitConstants ReorderKernelBlockedOpt::GetJitConstants(const reorder_params& para
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
 
     jit.AddConstant(MakeJitConstant("VEC_SIZE", preferred_vec_size));
-    jit.AddConstant(MakeJitConstant("ARRAY_SIZE", preferred_array_size));
-    jit.AddConstant(MakeJitConstant("ELEMENTS_NUM", preferred_vec_size * preferred_array_size));
+    jit.AddConstant(MakeJitConstant("ARRAY_SIZE", GetPerferredArraySize(params.inputs[0])));
+    jit.AddConstant(MakeJitConstant("ELEMENTS_NUM", preferred_vec_size * GetPerferredArraySize(params.inputs[0])));
+
+    if (SimpleLayout(params.inputs[0].GetLayout()))
+        jit.AddConstant(MakeJitConstant("LEFTOVER", 1));
+    else
+        jit.AddConstant(MakeJitConstant("LEFTOVER", 0));
 
     return jit;
 }
@@ -164,9 +165,97 @@ KernelsPriority ReorderKernelBlockedOpt::GetKernelsPriority(const Params& /*para
     return FORCE_PRIORITY_1;
 }
 
-static inline size_t GetGroupSize(const DataTensor& tensor) {
-    size_t size = tensor.PhysicalSize();
-    size_t each_item = (preferred_vec_size * preferred_array_size);
-    return (Align(size, each_item) / each_item);
+static inline size_t GetGroupSize(const reorder_params& params) {
+    size_t size = CalculateTotalWorkItemCount(params);
+    size_t each_item = (preferred_vec_size * GetPerferredArraySize(params.inputs[0]));
+    size_t calc_size = size / each_item;
+    calc_size = ((size % each_item == 0) ? calc_size : calc_size + 1);
+    GPU_DEBUG_TRACE_DETAIL << "Reorder opt kernel update : total elements size " << size << " each work-item takes " << each_item << " calc_size gws " << calc_size << std::endl;
+    return calc_size;
+}
+
+static inline int GetPerferredArraySize(const DataTensor& tensor) {
+    auto layout = tensor.GetLayout();
+    switch (layout) {
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_zyx_fsv16:
+        return 2;
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::b_fs_zyx_fsv32:
+        return 4;
+    case DataLayout::bs_fs_yx_bsv32_fsv16:
+    case DataLayout::bs_fs_yx_bsv16_fsv16:
+    case DataLayout::bs_fs_zyx_bsv32_fsv16:
+    case DataLayout::bs_fs_zyx_bsv16_fsv16:
+    case DataLayout::bs_fs_yx_bsv32_fsv32:
+    case DataLayout::bs_fs_yx_bsv16_fsv32:
+    case DataLayout::bs_fs_zyx_bsv32_fsv32:
+    case DataLayout::bs_fs_zyx_bsv16_fsv32:
+    default:
+        return 32;
+    }
+
+    return 1;
+}
+
+static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
+    auto layout = tensor.GetLayout();
+    switch (layout) {
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_zyx_fsv16:
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::b_fs_zyx_fsv32:
+        return 1;
+    case DataLayout::bs_fs_yx_bsv16_fsv32:
+    case DataLayout::bs_fs_yx_bsv16_fsv16:
+    case DataLayout::bs_fs_zyx_bsv16_fsv32:
+    case DataLayout::bs_fs_zyx_bsv16_fsv16:
+        return 16;
+    case DataLayout::bs_fs_yx_bsv32_fsv32:
+    case DataLayout::bs_fs_yx_bsv32_fsv16:
+    case DataLayout::bs_fs_zyx_bsv32_fsv32:
+    case DataLayout::bs_fs_zyx_bsv32_fsv16:
+        return 32;
+    default:
+        return 1;
+    }
+
+    return 1;
+}
+
+static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
+    auto layout = tensor.GetLayout();
+    switch (layout) {
+    case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::b_fs_zyx_fsv16:
+    case DataLayout::bs_fs_yx_bsv32_fsv16:
+    case DataLayout::bs_fs_yx_bsv16_fsv16:
+    case DataLayout::bs_fs_zyx_bsv32_fsv16:
+    case DataLayout::bs_fs_zyx_bsv16_fsv16:
+        return 16;
+    case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::b_fs_zyx_fsv32:
+    case DataLayout::bs_fs_yx_bsv32_fsv32:
+    case DataLayout::bs_fs_yx_bsv16_fsv32:
+    case DataLayout::bs_fs_zyx_bsv32_fsv32:
+    case DataLayout::bs_fs_zyx_bsv16_fsv32:
+        return 32;
+    default:
+        return 1;
+    }
+
+    return 1;
+}
+
+static inline size_t CalculateTotalWorkItemCount(const reorder_params& params) {
+    auto feature = Align(params.outputs[0].Feature().v, GetInnerFeatureBlockSize(params.outputs[0]));
+    auto batch = Align(params.outputs[0].Batch().v, GetInnerBatchBlockSize(params.outputs[0]));
+    size_t spatial = 0;
+    if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5)
+        spatial = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v;
+    else
+        spatial = params.outputs[0].X().v * params.outputs[0].Y().v;
+
+    return (feature * batch * spatial);
 }
 }  // namespace kernel_selector

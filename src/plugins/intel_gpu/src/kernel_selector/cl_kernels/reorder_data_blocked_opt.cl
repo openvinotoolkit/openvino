@@ -30,18 +30,20 @@ KERNEL(reorder_blocked_opt)(
 {
     const uint global_id = get_global_id(0);
 
-    if (global_id == get_global_size(0) - 1) {
-        size_t opt_size = global_id * (size_t)ELEMENTS_NUM;
-        size_t total_size = (size_t)OUTPUT_BATCH_NUM * (size_t)OUTPUT_BATCH_PITCH;
-        if ((opt_size + ELEMENTS_NUM) != total_size) {
-            unroll_for (uint i = 0; i < (total_size - opt_size) ; ++i) {
-                output[opt_size + i] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER,
-                                                                            input[opt_size + i],
-                                                                            ACTIVATION_PARAMS_TYPED));
+    #if LEFTOVER
+        if (global_id == get_global_size(0) - 1) {
+            size_t opt_size = global_id * (size_t)ELEMENTS_NUM;
+            size_t total_size = (size_t)OUTPUT_BATCH_NUM * (size_t)OUTPUT_BATCH_PITCH;
+            if ((opt_size + ELEMENTS_NUM) != total_size) {
+                unroll_for (uint i = 0; i < (total_size - opt_size) ; ++i) {
+                    output[opt_size + i] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER,
+                                                                                input[opt_size + i],
+                                                                                ACTIVATION_PARAMS_TYPED));
+                }
+                return;
             }
-            return;
         }
-    }
+    #endif
 
     OUTPUT_VEC_TYPE res[ARRAY_SIZE];
     unroll_for (uint i = 0; i < ARRAY_SIZE ; ++i) {

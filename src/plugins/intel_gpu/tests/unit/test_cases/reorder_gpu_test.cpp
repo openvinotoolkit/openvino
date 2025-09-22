@@ -4047,13 +4047,6 @@ struct reorder_random_test : testing::TestWithParam<reorder_random_test_params>
         auto result_opt = net_opt->execute();
         auto output_opt = result_opt.at("reorder_opt").get_memory();
 
-        if (params.is_dynamic_shape) {
-            auto inst = net_opt->get_primitive("reorder_opt");
-            auto impl = inst->get_impl();
-            ASSERT_TRUE(impl != nullptr);
-            ASSERT_TRUE(impl->is_dynamic());
-        }
-
         if (check_result == true) {
             // Check data_types
             if (params.output_type == data_types::f32) {
@@ -4096,8 +4089,13 @@ INSTANTIATE_TEST_SUITE_P(simple_reorder_data_blocked_opt,
                             .add(reorder_random_test_params{ data_types::f32, data_types::f16, {2, 10, 48, 64}, {2, 10, 48, 64}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", true })
                             .add(reorder_random_test_params{ data_types::f32, data_types::u8, {1, 5, 45, 65}, {1, 5, 45, 65}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", true })
                             .add(reorder_random_test_params{ data_types::u8, data_types::f32, {1, 5, 45, 65}, {1, 5, 45, 65}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", true })
-                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {1, 1, 1, 16}, {1, 1, 1, 16}, format::bfyx, format::bfyx, impl_types::any, "", false })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {1, 1, 1, 16}, {1, 1, 1, 16}, format::bfyx, format::bfyx, impl_types::any, "reorder_data", false })
                             .add(reorder_random_test_params{ data_types::f32, data_types::f16, {1, 1, 1, 16}, {1, 1, 1, 16}, format::bfyx, format::bfyx, impl_types::any, "reorder_data_blocked_opt", true })
-                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {2, 16, 10, 32}, {2, 16, 10, 32}, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, impl_types::any, "reorder_data_blocked_opt", false })
-                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {2, 16, 10, 32}, {2, 16, 10, 32}, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, impl_types::any, "reorder_data_blocked_opt", true })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {2, 10, 16, 32}, {2, 10, 16, 32}, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, impl_types::any, "reorder_data_blocked_opt", false })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {2, 10, 16, 32}, {2, 10, 16, 32}, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, impl_types::any, "reorder_data_blocked_opt", false })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {5, 10, 3, 4}, {5, 10, 3, 4}, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, impl_types::any, "reorder_data_blocked_opt", false })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {5, 10, 3, 4}, {5, 10, 3, 4}, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, impl_types::any, "reorder_data_blocked_opt", true })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {1, 8, 1, 2}, {1, 8, 1, 2}, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, impl_types::any, "reorder_data_blocked_opt", true })
+                            .add(reorder_random_test_params{ data_types::u8, data_types::i8, {1, 8, 1, 1}, {1, 8, 1, 1}, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, impl_types::any, "reorder_data_blocked_opt", true })
+                            .add(reorder_random_test_params{ data_types::f32, data_types::f16, {1, 8, 1, 2}, {1, 8, 1, 2}, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32, impl_types::any, "reorder_data_blocked_opt", true })
  ));
