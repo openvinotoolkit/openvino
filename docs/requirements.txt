@@ -4,9 +4,9 @@ attrs==25.3.0
 Babel==2.17.0
 beautifulsoup4==4.13.5
 breathe==4.36.0
-certifi==2024.7.4
+certifi==2025.8.3
 colorama==0.4.6
-Cython==3.1.2
+Cython==3.1.4
 docutils==0.21.2
 idna==3.10
 imagesize==1.4.1
@@ -24,7 +24,7 @@ packaging==25.0
 pluggy==1.6.0
 pydata-sphinx-theme==0.14.4
 Pygments==2.19.2
-pyparsing==3.0.9
+pyparsing==3.2.4
 pytest==8.4.1
 pytest-html==3.1.1; python_version < "3.10"
 pytest-metadata==1.11.0; python_version < "3.10"
@@ -33,7 +33,7 @@ pytest-metadata==3.1.1; python_version >= "3.10"
 py>=1.11.0
 pytz==2022.7
 pyyaml==6.0.2
-requests==2.32.4
+requests==2.32.5
 six==1.17.0
 snowballstemmer==3.0.1
 soupsieve==2.8
