@@ -152,8 +152,7 @@ std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& i
         auto convertOutput = *convertOutputOpt;
 
         if (reorderWithoutConvert) {
-            dnnl::stream loc_stream =
-                make_stream(output->getPrimitive().get_engine(), context->getThreadPool());
+            dnnl::stream loc_stream = make_stream(output->getPrimitive().get_engine(), context->getThreadPool());
             reorderWithoutConvert.execute(
                 loc_stream,
                 {{DNNL_ARG_FROM, convertOutput->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
