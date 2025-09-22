@@ -134,4 +134,12 @@ public:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 };
 
+class XAttentionEstimatePostProc : public XAttentionEstimateGeneratorBase {
+public:
+    XAttentionEstimatePostProc() : XAttentionEstimateGeneratorBase("xattn_post_proc") {}
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+};
+
 }  // namespace ov::intel_gpu::cm

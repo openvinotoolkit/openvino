@@ -429,8 +429,10 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence_begins
 
     const size_t block_size = get_xattn_block_size(params);
-    if (block_size > 1)
+    if (block_size > 1) {
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // sparse_block_mask
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});  // sparse_block_mask_wg
+    }
 
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
@@ -941,6 +943,76 @@ DispatchDataFunc XAttentionEstimateFindBlock::get_dispatch_data_func() const {
         }
         scalars[scaler_value.size()].t = ScalarDescriptor::Types::FLOAT32;  // the last is for thresh with f32 dtype
         scalars[scaler_value.size()].v.f32 = static_cast<float>(xattn_thresh);
+    }};
+}
+
+//-----------------------------------------------------------------------------------------------------------------
+// XAttention Estimate post_proc generator
+//-----------------------------------------------------------------------------------------------------------------
+JitConstants XAttentionEstimatePostProc::get_jit_constants(const kernel_impl_params& params) const {
+    auto jit = XAttentionEstimateGeneratorBase::get_jit_constants(params);
+
+    jit.make("MERGED_Q_NUM", 2);  // TODO
+
+    return jit;
+}
+
+Arguments XAttentionEstimatePostProc::get_arguments_desc(const kernel_impl_params& params) const {
+    Arguments args;
+
+    // inputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // block_mask
+
+    // outputs
+    args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});  // block_mask_merged
+
+    // scalar
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // q_stride_pad
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // q_block_pad
+    args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // k_block_pad
+
+    return args;
+}
+
+DispatchDataFunc XAttentionEstimatePostProc::get_dispatch_data_func() const {
+    return DispatchDataFunc{[&](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+        assert(!params.is_dynamic());
+        auto& wgs = kd.params.workGroups;
+
+        const auto desc = params.typed_desc<paged_attention>();
+
+        assert(rt_params != nullptr);
+
+        const size_t block_size = get_xattn_block_size(params);
+        const size_t heads_num = desc->heads_num;
+
+        auto out_shape = params.output_layouts[0].get_shape();
+        const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
+        const size_t q_len = out_shape[0];
+        const uint32_t M = static_cast<uint32_t>(q_len / STRIDE);   //# will slient drop the tails which is less than `stride`
+        const uint32_t N = static_cast<uint32_t>(kv_len / STRIDE);
+        const size_t q_stride_pad = round_up_to(M, BLOCK_WG_M);
+        const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+
+        const uint32_t sum_per_token_in_block = static_cast<uint32_t>(block_size / STRIDE);
+        const uint32_t k_block_in_group = static_cast<uint32_t>(BLOCK_WG_N / sum_per_token_in_block);
+        const uint32_t k_block_pad = k_block_in_group * N_kq_groups;
+        const uint32_t q_block_pad = ceil_div(q_len, block_size);
+
+        const uint32_t MERGED_Q_NUM = 2; // TODO
+        const uint32_t q_block_pad_merged = ceil_div(q_block_pad, MERGED_Q_NUM);
+
+        wgs.global = {q_block_pad_merged, heads_num, 1};
+        wgs.local = {1, 1, 1};
+
+        auto& scalars = kd.params.scalars;
+        std::vector<size_t> scaler_value = {q_stride_pad, q_block_pad, k_block_pad};
+        scalars.resize(scaler_value.size());
+
+        for (size_t i = 0; i < scaler_value.size(); ++i) {
+            scalars[i].t = ScalarDescriptor::Types::UINT32;
+            scalars[i].v.u32 = static_cast<uint32_t>(scaler_value[i]);
+        }
     }};
 }
 

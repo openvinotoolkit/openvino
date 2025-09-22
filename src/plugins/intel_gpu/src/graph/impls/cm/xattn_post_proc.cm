@@ -1,0 +1,61 @@
+/*******************************************************************************
+ * Copyright (c) 2022-2025 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+namespace KERNEL_NAME {
+#include "estimate.hpp"
+
+// NOTE: q_stride_pad / TOKEN_IN_BLOCK <= q_block_pad, case for q_stride_pad / TOKEN_IN_BLOCK < q_block_pad:
+//       query = 256*16+1, then
+//       q_stride_pad = 256
+//       q_stride_pad / TOKEN_IN_BLOCK = 32
+//       q_block_pad = div_up(256*16+1, 128) = 33
+// _GENX_MAIN_ void post_proc_mask(
+extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR, svmptr_t merged_block_mask ATTR, uint q_stride_pad, uint q_block_pad, uint k_block_pad) {
+    // block_mask:                [b, hq, q_block_pad, k_block_pad]
+    // merged_block_mask:         [b, hq, q_block_pad/MERGED_Q_NUM, k_block_pad]
+    // global:                    [q_block_pad/MERGED_Q_NUM, hq, b]
+    const int TOKEN_IN_BLOCK = BLOCK_SIZE / STRIDE;
+    const int TOKEN_SHARE_MAX = BLOCK_SHARE_MAX / TOKEN_IN_BLOCK;
+    uint m_mereged = cm_group_id(0);
+    uint hq = cm_group_id(1);
+    uint b = cm_group_id(2);
+    block_mask += (b * HQ + hq) * q_block_pad * k_block_pad;
+    merged_block_mask += (b * HQ + hq) * cm_group_count(0) * k_block_pad;
+    merged_block_mask += m_mereged * k_block_pad;
+    block_mask += m_mereged * MERGED_Q_NUM * k_block_pad;
+    vector<uchar, 32> one = 1;
+    // q is not inside mask, aka q=1~15 which is less than param `stride`
+    //for (int i = 0; i < MERGED_Q_NUM; i++) {
+    //    auto q_stride_cur = m_mereged * MERGED_Q_NUM + i;
+    //    if (q_stride_cur >= q_stride_pad / TOKEN_IN_BLOCK && q_stride_cur < q_block_pad) {
+    //        for (int j = 0; j < k_block_pad; j += 32) {
+    //            cm_ptr_store<int, 32 / 4>((int*)block_mask, j + i * k_block_pad, one.format<int>());
+    //        }
+    //    }
+    //}
+    for (int j = 0; j < k_block_pad; j += 32) {
+        vector<uchar, 32> new_mask = cm_ptr_load<int, 8>((int*)block_mask, j).format<uchar>();
+        for (int i = 1; i < MERGED_Q_NUM; i++) {
+            if (m_mereged * MERGED_Q_NUM + i < q_stride_pad / TOKEN_IN_BLOCK) {
+                vector<uchar, 32> cur_mask = cm_ptr_load<int, 8>((int*)block_mask, j + i * k_block_pad).format<uchar>();
+                new_mask &= cur_mask;
+            }
+        }
+        cm_ptr_store<int, 32 / 4>((int*)merged_block_mask, j, new_mask.format<int>());
+    }
+}
+
+}  // NAMESPACE
