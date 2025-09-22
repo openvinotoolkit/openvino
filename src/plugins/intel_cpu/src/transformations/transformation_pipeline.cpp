@@ -652,9 +652,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                              convert_input_output_precision);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
-    // manager.register_pass<ov::pass::Serialize>("model_before_cast_to_convert.xml","model_before_cast_to_convert.bin");
-    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::CastToConvert);
-    // manager.register_pass<ov::pass::Serialize>("model_after_cast_to_convert.xml","model_after_cast_to_convert.bin");
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::CastToConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);

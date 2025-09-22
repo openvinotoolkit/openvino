@@ -65,9 +65,12 @@ auto el_type_i32 = std::pair<std::string, detail::AttrAny>({"element_type", "i32
 auto el_type_f32 = std::pair<std::string, detail::AttrAny>({"element_type", "f32"});
 
 // Convert ops attributes:
-auto dest_type_i64 = std::pair<std::string, detail::AttrAny>({"destination_type", "i64"});
-auto dest_type_f32 = std::pair<std::string, detail::AttrAny>({"destination_type", "f32"});
-auto dest_type_f16 = std::pair<std::string, detail::AttrAny>({"destination_type", "f16"});
+auto dest_type_i64 =
+    std::map<std::string, detail::AttrAny>{{"destination_type", "i64"}, {"no_clamp", false}, {"use_rounding", false}};
+auto dest_type_f32 =
+    std::map<std::string, detail::AttrAny>{{"destination_type", "f32"}, {"no_clamp", false}, {"use_rounding", false}};
+auto dest_type_f16 =
+    std::map<std::string, detail::AttrAny>{{"destination_type", "f16"}, {"no_clamp", false}, {"use_rounding", false}};
 
 // Other attributes:
 auto numpy_broadcast = std::pair<std::string, detail::AttrAny>({"auto_broadcast", "numpy"});
@@ -416,10 +419,13 @@ public:
                                               const std::shared_ptr<Node>& max_context_len) {
         auto shape_of = makeOP<opset3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
         auto cur_len = makeOP<v8::Gather>({shape_of, 1ll, 0ll}, {{"batch_dims", 0}});
-        auto cur_len_i32 = makeOP<v0::Convert>({cur_len}, {{"destination_type", "i32"}});
+        auto cur_len_i32 =
+            makeOP<v0::Convert>({cur_len}, {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
 
         auto past_len = makeOP<v1::Subtract>({max_context_len, cur_len_i32}, {numpy_broadcast});
-        auto past_len_i32 = makeOP<v0::Convert>({past_len}, {{"destination_type", "i32"}});
+        auto past_len_i32 =
+            makeOP<v0::Convert>({past_len},
+                                {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
         return makeOP<v1::Reshape>({past_len_i32, {1}}, {special_zero_true});
     }
 

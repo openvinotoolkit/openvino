@@ -308,7 +308,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_expand_context_dependent_model) {
                                 0.9255966544151306f,
                                 0.07103605568408966f});
     test_case.add_input<int64_t>(Shape{3}, {1, 4, 3});
-    test_case.add_expected_output<int32_t>(Shape{}, {2}); // res=1.56138, cast to int(2)
+    test_case.add_expected_output<int32_t>(Shape{}, {1});
     test_case.run();
 }
 
@@ -3031,10 +3031,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_erf) {
     const auto model = convert_model("erf.onnx");
 
     Inputs inputs;
-    inputs.emplace_back(ov::test::NDArray<float, 2>{
-        {-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()},
-        {-3.141592f, 0.0f},
-        {0.5f, 1.0f}}.get_vector());
+    inputs.emplace_back(
+        ov::test::NDArray<float, 2>{{-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()},
+                                    {-3.141592f, 0.0f},
+                                    {0.5f, 1.0f}}
+            .get_vector());
 
     const std::vector<float> expected_output =
         ov::test::NDArray<float, 2>{{-1.0f, 1.0f}, {-0.99999112f, 0.0f}, {0.52049988f, 0.84270079f}}.get_vector();
