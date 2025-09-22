@@ -51,9 +51,6 @@ public:
 
     void handle_set_remote_input(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor);
 
-    // Used by tests only
-    std::size_t get_input_allocated_size() const;
-
     // Query APIs - some default implementations here
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
