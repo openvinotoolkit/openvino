@@ -170,7 +170,8 @@ static inline size_t GetGroupSize(const reorder_params& params) {
     size_t each_item = (preferred_vec_size * GetPerferredArraySize(params.inputs[0]));
     size_t calc_size = size / each_item;
     calc_size = ((size % each_item == 0) ? calc_size : calc_size + 1);
-    GPU_DEBUG_TRACE_DETAIL << "Reorder opt kernel update : total elements size " << size << " each work-item takes " << each_item << " calc_size gws " << calc_size << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "Reorder opt kernel update : total elements size " << size << " each work-item takes "
+                            << each_item << " calc_size gws " << calc_size << std::endl;
     return calc_size;
 }
 
