@@ -50,8 +50,8 @@ public:
                 },
                 tbb::static_partitioner());
         }
-    }
 #endif
+    }
 };
 
 dnnl::stream make_stream(const dnnl::engine& engine, const std::shared_ptr<ThreadPool>& thread_pool = nullptr);
