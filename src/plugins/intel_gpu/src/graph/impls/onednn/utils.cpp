@@ -817,50 +817,26 @@ bool is_supported_pad(const layout& layout) {
     return (no_spatial_padding && no_batch_padding);
 }
 
-int onednn_post_ops_fusing_helpers::get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
+int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
                                                                 const std::function<layout(int32_t)>& get_input_layout,
                                                                 int32_t slope_input_idx) {
-    auto data_layout = get_output_layout();
+    auto output_layout = get_output_layout();
     auto slope_layout = get_input_layout(slope_input_idx);
     auto input_layout = get_input_layout(0);
-    auto data_shape = data_layout.get_shape();
+    auto output_shape = output_layout.get_shape();
     auto slope_shape = slope_layout.get_shape();
     auto input_shape = input_layout.get_shape();
-    int ndims = slope_shape.size() == 1 ? static_cast<int>(input_shape.size()) : static_cast<int>(slope_shape.size());
 
     bool is_scalar = true;
-    bool is_per_tensor = true;
     for (size_t i = 0; i < slope_shape.size(); i++) {
         if (slope_shape[i] != 1)
             is_scalar = false;
-        if (slope_shape[i] != data_shape[i])
-            is_per_tensor = false;
     }
 
     if (is_scalar)
-        return get_default_mask(post_op_dnnl_policy_type::COMMON, ndims);
-    else if (slope_shape.size() != 1 && is_per_tensor)
-        return get_default_mask(post_op_dnnl_policy_type::PER_TENSOR, ndims);
+        return (1 << 0);
     else
-        return get_default_mask(post_op_dnnl_policy_type::PER_OC, ndims);
+        return (1 << 1);
 }
-
-int onednn_post_ops_fusing_helpers::get_default_mask(post_op_dnnl_policy_type policy, int ndims) {
-    switch (policy) {
-        case post_op_dnnl_policy_type::PER_DIM_0: return (1 << 0);
-        case post_op_dnnl_policy_type::PER_OC:
-        case post_op_dnnl_policy_type::PER_DIM_1: return (1 << 1);
-        case post_op_dnnl_policy_type::PER_OCIC:
-        case post_op_dnnl_policy_type::PER_DIM_01: return (1 << 0) + (1 << 1);
-        case post_op_dnnl_policy_type::PER_DIM_2: return (1 << 2);
-        case post_op_dnnl_policy_type::PER_DIM_3: return (1 << 3);
-        case post_op_dnnl_policy_type::PER_TENSOR:
-            OPENVINO_ASSERT(ndims > 0 && ndims <= DNNL_MAX_NDIMS, "ndims is bigger than DNNL_MAX_NDIMS.");
-            return (1 << ndims) - 1;
-        case post_op_dnnl_policy_type::COMMON: return 0;
-        default: OPENVINO_THROW("Incorrect post_op_dnnl_policy_type");
-    }
-}
-
 }  // namespace onednn
 }  // namespace cldnn
