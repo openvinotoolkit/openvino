@@ -220,7 +220,7 @@ static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _gra
     }
 }
 
-static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle_t hContext, const void* ptr) {
+static inline uint64_t get_l0_context_memory_allocation_id(ze_context_handle_t hContext, const void* ptr) {
     ze_memory_allocation_properties_t desc = {};
     desc.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
     auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
@@ -228,12 +228,12 @@ static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle
         if (desc.id) {
             if ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_DEVICE) ||
                 (desc.type == ZE_MEMORY_TYPE_SHARED)) {
-                return true;
+                return desc.id;
             }
         }
     }
 
-    return false;
+    return 0;
 }
 
 }  // namespace zeroUtils

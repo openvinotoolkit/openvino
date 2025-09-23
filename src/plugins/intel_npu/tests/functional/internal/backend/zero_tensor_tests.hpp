@@ -101,19 +101,19 @@ TEST_P(ZeroTensorTests, AllocateDeleteAllocateZeroTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     auto shape = Shape{1, 2, 2, 2};
+    
     auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element_type, shape, true);
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    zero_tensor->data()));
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), zero_tensor->data()));
 
     zero_tensor = {};
     zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, element_type, shape, false);
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    zero_tensor->data()));
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), zero_tensor->data()));
 
     void* address = zero_tensor->data();
     zero_tensor = {};
-    ASSERT_FALSE(
-        ::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(), address));
+    ASSERT_FALSE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), address));
 }
 
 TEST_P(ZeroTensorTests, CheckSetSmallerShape) {
@@ -136,8 +136,8 @@ TEST_P(ZeroTensorTests, CheckSetSmallerShape) {
     EXPECT_EQ(new_shape_size, zero_tensor->get_size());
     EXPECT_EQ(new_shape_size * element_type.size(), zero_tensor->get_byte_size());
     EXPECT_EQ(data, zero_tensor->data());
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    zero_tensor->data()));
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), zero_tensor->data()));
 }
 
 TEST_P(ZeroTensorTests, CheckSetBiggerShape) {
@@ -160,8 +160,8 @@ TEST_P(ZeroTensorTests, CheckSetBiggerShape) {
         EXPECT_EQ(new_shape_size, zero_tensor->get_size());
         EXPECT_EQ(new_shape_size * element_type.size(), zero_tensor->get_byte_size());
         ASSERT_TRUE(zero_tensor->memory_address_changed());
-        ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                        zero_tensor->data()));
+        ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                                zero_tensor->data()));
     } else {
         ASSERT_THROW(zero_tensor->set_shape(new_shape), ov::Exception);
     }
@@ -314,8 +314,8 @@ TEST_P(ZeroTensorTests, CopyZeroTensorAndKeepAlive) {
     EXPECT_EQ(zero_tensor->get_size(), copy_zero_tensor->get_size());
 
     zero_tensor = {};
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    copy_zero_tensor->data()));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                            copy_zero_tensor->data()));
     ASSERT_THROW(copy_zero_tensor->set_shape({1, 20, 20, 20}), ov::Exception);
 }
 
@@ -336,8 +336,8 @@ TEST_P(ZeroTensorTests, CopyHostTensorAndKeepAlive) {
     EXPECT_EQ(host_tensor->get_size(), copy_zero_tensor->get_size());
 
     host_tensor = {};
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    copy_zero_tensor->data()));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                            copy_zero_tensor->data()));
     ASSERT_THROW(copy_zero_tensor->set_shape({1, 20, 20, 20}), ov::Exception);
 }
 
@@ -359,8 +359,8 @@ TEST_P(ZeroTensorTests, CopyRemoteTensorAndKeepAlive) {
     EXPECT_EQ(remote_tensor->get_size(), copy_zero_tensor->get_size());
 
     remote_tensor = {};
-    ASSERT_TRUE(::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(init_struct->getContext(),
-                                                                                    copy_zero_tensor->data()));
+    ASSERT_TRUE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(),
+                                                                            copy_zero_tensor->data()));
     ASSERT_THROW(copy_zero_tensor->set_shape({1, 20, 20, 20}), ov::Exception);
 }
 
@@ -381,6 +381,152 @@ TEST_P(ZeroTensorTests, CopyRemoteTensorFromAnotherContextThrow) {
     ASSERT_THROW(
         auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, remote_tensor_impl, npu_config),
         ::intel_npu::ZeroTensorException);
+}
+
+TEST_P(ZeroTensorTests, CheckStandardAllocation) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 64, 64, 64};
+
+    // shape size is aligned to standard page size, align address as well
+    auto data =
+        static_cast<float*>(::operator new(ov::shape_size(shape) * sizeof(ov::element::f32), std::align_val_t(4096)));
+    auto default_tensor = make_tensor(ov::element::f32, shape, data);
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor;
+    OV_ASSERT_NO_THROW(zero_tensor =
+                           std::make_shared<::intel_npu::ZeroTensor>(init_struct, default_tensor, npu_config));
+
+    ::operator delete(data, std::align_val_t(4096));
+}
+
+TEST_P(ZeroTensorTests, UseSameStandardAllocationMultipleTimes) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 64, 64, 64};
+
+    // shape size is aligned to standard page size, align address as well
+    auto data =
+        static_cast<float*>(::operator new(ov::shape_size(shape) * sizeof(ov::element::f32), std::align_val_t(4096)));
+    auto default_tensor = make_tensor(ov::element::f32, shape, data);
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor0;
+    OV_ASSERT_NO_THROW(zero_tensor0 =
+                           std::make_shared<::intel_npu::ZeroTensor>(init_struct, default_tensor, npu_config));
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), default_tensor->data()));
+
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor1;
+    OV_ASSERT_NO_THROW(zero_tensor1 =
+                           std::make_shared<::intel_npu::ZeroTensor>(init_struct, default_tensor, npu_config));
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), default_tensor->data()));
+
+    zero_tensor0 = {};
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), default_tensor->data()));
+
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor2;
+    OV_ASSERT_NO_THROW(zero_tensor2 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, zero_tensor1, npu_config));
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), default_tensor->data()));
+
+    zero_tensor1 = {};
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), default_tensor->data()));
+
+    zero_tensor2 = {};
+    ASSERT_FALSE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), default_tensor->data()));
+
+    ::operator delete(data, std::align_val_t(4096));
+}
+
+TEST_P(ZeroTensorTests, UseRangePointerFromAlreadyImportedStandardAllocation) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 64, 64, 64};
+
+    // shape size is aligned to standard page size, align address as well
+    auto data =
+        static_cast<float*>(::operator new(ov::shape_size(shape) * sizeof(ov::element::f32), std::align_val_t(4096)));
+    auto default_tensor = make_tensor(ov::element::f32, shape, data);
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor0;
+    OV_ASSERT_NO_THROW(zero_tensor0 =
+                           std::make_shared<::intel_npu::ZeroTensor>(init_struct, default_tensor, npu_config));
+
+    auto smaller_shape = Shape{1, 2, 2, 2};
+    auto smaller_tensor = make_tensor(ov::element::f32, smaller_shape, data + 16);
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor1;
+    OV_ASSERT_NO_THROW(zero_tensor1 =
+                           std::make_shared<::intel_npu::ZeroTensor>(init_struct, smaller_tensor, npu_config));
+
+    EXPECT_EQ(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), zero_tensor0->data()),
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), zero_tensor1->data()));
+    EXPECT_EQ(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), default_tensor->data()),
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), smaller_tensor->data()));
+    EXPECT_EQ(default_tensor->data(), zero_tensor0->data());
+    EXPECT_EQ(smaller_tensor->data(), zero_tensor1->data());
+    EXPECT_NE(zero_tensor0->data(), zero_tensor1->data());
+    EXPECT_EQ(static_cast<void*>(static_cast<float*>(zero_tensor0->data()) + 16), zero_tensor1->data());
+
+    ::operator delete(data, std::align_val_t(4096));
+}
+
+TEST_P(ZeroTensorTests, UseRangeOutOfBoundsPointerFromAlreadyImportedStandardAllocation) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 64, 64, 64};
+
+    // shape size is aligned to standard page size, align address as well
+    auto data =
+        static_cast<float*>(::operator new(ov::shape_size(shape) * sizeof(ov::element::f32), std::align_val_t(4096)));
+    auto default_tensor = make_tensor(ov::element::f32, shape, data);
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor0;
+    OV_ASSERT_NO_THROW(zero_tensor0 =
+                           std::make_shared<::intel_npu::ZeroTensor>(init_struct, default_tensor, npu_config));
+
+    auto different_shape = Shape{1, 64, 64, 64};
+    auto different_tensor = make_tensor(ov::element::f32, different_shape, data + 16);
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor1;
+    if (init_struct->isExternalMemoryStandardAllocationSupported()) {
+        ASSERT_THROW(
+            zero_tensor1 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, different_tensor, npu_config),
+            ::intel_npu::ZeroTensorException);
+    } else {
+        OV_ASSERT_NO_THROW(zero_tensor1 =
+                               std::make_shared<::intel_npu::ZeroTensor>(init_struct, different_tensor, npu_config));
+    }
+
+    ::operator delete(data, std::align_val_t(4096));
+}
+
+TEST_P(ZeroTensorTests, UseBiggerMemoryFromAlreadyImportedStandardAllocation) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 64, 64, 64};
+
+    // shape size is aligned to standard page size, align address as well
+    auto data =
+        static_cast<float*>(::operator new(ov::shape_size(shape) * sizeof(ov::element::f32), std::align_val_t(4096)));
+
+    auto smaller_shape = Shape{1, 16, 16, 16};
+    auto smaller_tensor = make_tensor(ov::element::f32, smaller_shape, data);
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor0;
+    OV_ASSERT_NO_THROW(zero_tensor0 =
+                           std::make_shared<::intel_npu::ZeroTensor>(init_struct, smaller_tensor, npu_config));
+
+    auto bigger_tensor = make_tensor(ov::element::f32, shape, data);
+    std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor1;
+    if (init_struct->isExternalMemoryStandardAllocationSupported()) {
+        ASSERT_THROW(zero_tensor1 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, bigger_tensor, npu_config),
+                     ::intel_npu::ZeroTensorException);
+    } else {
+        OV_ASSERT_NO_THROW(zero_tensor1 =
+                               std::make_shared<::intel_npu::ZeroTensor>(init_struct, bigger_tensor, npu_config));
+    }
+
+    ::operator delete(data, std::align_val_t(4096));
 }
 
 using ZeroTensorTestsCheckDataType = ZeroTensorTests;

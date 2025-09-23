@@ -5,6 +5,7 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 
 #include <ze_command_queue_npu_ext.h>
+#include <ze_mem_import_system_memory_ext.h>
 
 #include <regex>
 
@@ -307,6 +308,17 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
     auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &compiler_properties);
     THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+
+    // Discover if standard allocation is supported
+    ze_device_external_memory_properties_t external_memory_properties_desc = {};
+    external_memory_properties_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
+    auto res = zeDeviceGetExternalMemoryProperties(device_handle, &external_memory_properties_desc);
+    if (res == ZE_RESULT_SUCCESS) {
+        if (external_memory_properties_desc.memoryAllocationImportTypes &
+            ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
+            _external_memory_standard_allocation_supported = true;
+        }
+    }
 }
 
 const std::shared_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstance() {
