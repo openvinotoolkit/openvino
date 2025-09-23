@@ -393,7 +393,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             ov::PropertyName{ov::inference_num_threads.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::threads_per_stream.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::cache_header_align.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::cache_header_alignment.name(), ov::PropertyMutability::RO},
         };
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices

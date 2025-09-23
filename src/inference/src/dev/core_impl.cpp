@@ -273,7 +273,7 @@ std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
 }
 
 void insert_padding(std::ostream& os, size_t pad) {
-    constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
+    constexpr std::size_t STANDARD_PAGE_SIZE = 4096;  // [bytes]
     static const char zeros[STANDARD_PAGE_SIZE] = {0};
     while (pad > 0) {
         size_t chunk = std::min(pad, sizeof(zeros));
@@ -1525,9 +1525,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
 
                 // add padding
                 uint32_t header_size_alignment{};
-                if (device_supports_internal_property(plugin, ov::internal::cache_header_align.name())) {
+                if (device_supports_internal_property(plugin, ov::internal::cache_header_alignment.name())) {
                     header_size_alignment =
-                        plugin.get_property(ov::internal::cache_header_align.name(), {}).as<uint32_t>();
+                        plugin.get_property(ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
                 }
                 if (header_size_alignment) {
                     size_t bytes_written = static_cast<size_t>(end - start);

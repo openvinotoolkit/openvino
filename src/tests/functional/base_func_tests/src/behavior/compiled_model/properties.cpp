@@ -89,21 +89,9 @@ TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {
 TEST(CacheHeaderAlignmentTests, CacheHeaderPaddingAndAlignment) {
     ov::Core core;
     // Pick first device supporting alignment property
-    std::string device_with_align;
-    uint32_t align = 0;
-    for (auto& d : core.get_available_devices()) {
-        try {
-            align = core.get_property(d, ov::internal::cache_header_align.name(), {}).as<uint32_t>();
-            if (align) {
-                device_with_align = d;
-                break;
-            }
-        } catch (...) {
-        }
-    }
-    if (device_with_align.empty()) {
-        GTEST_SKIP() << "No device with cache_header_align property";
-    }
+    const std::string device_with_alignment{"TEMPLATE"};
+    const uint32_t alignment =
+        core.get_property(device_with_alignment, ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
 
     auto p = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
     auto relu = std::make_shared<ov::op::v0::Relu>(p);
@@ -111,12 +99,12 @@ TEST(CacheHeaderAlignmentTests, CacheHeaderPaddingAndAlignment) {
     auto model = std::make_shared<ov::Model>(ov::ResultVector{r}, ov::ParameterVector{p});
 
     auto cache_dir =
-        std::string("cache_align_") + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+        std::string("cache_alignment_") + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
     ov::test::utils::createDirectory(cache_dir);
     core.set_property(ov::cache_dir(cache_dir));
 
     // Generate cache blob
-    auto compiled = core.compile_model(model, device_with_align);
+    auto compiled = core.compile_model(model, device_with_alignment);
     ASSERT_FALSE(compiled.get_property(ov::loaded_from_cache));
 
     auto blobs = ov::test::utils::listFilesWithExt(cache_dir, "blob");
@@ -126,14 +114,14 @@ TEST(CacheHeaderAlignmentTests, CacheHeaderPaddingAndAlignment) {
     std::ifstream ifs(blob_path, std::ios::binary);
     ASSERT_TRUE(ifs.is_open());
     std::vector<uint8_t> data((std::istreambuf_iterator<char>(ifs)), {});
-    ASSERT_GT(data.size(), align) << "Blob too small";
+    ASSERT_GT(data.size(), alignment) << "Blob too small";
 
     // Find end of header
     auto it_nl = std::find(data.begin(), data.end(), '\n');
     ASSERT_NE(it_nl, data.end()) << "No newline in header";
     size_t header_len = (it_nl - data.begin()) + 1;
 
-    size_t pad_expected = (align - (header_len % align)) % align;
+    size_t pad_expected = (alignment - (header_len % alignment)) % alignment;
     ASSERT_LE(header_len + pad_expected, data.size());
 
     for (size_t i = 0; i < pad_expected; ++i) {
@@ -141,7 +129,7 @@ TEST(CacheHeaderAlignmentTests, CacheHeaderPaddingAndAlignment) {
     }
 
     size_t binary_start = header_len + pad_expected;
-    ASSERT_EQ(binary_start % align, 0U) << "Binary start not aligned";
+    ASSERT_EQ(binary_start % alignment, 0U) << "Binary start not aligned";
 
     size_t probe = std::min<size_t>(32, data.size() - binary_start);
     bool any_non_zero = false;
