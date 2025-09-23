@@ -497,7 +497,9 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
         }
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
 
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+        NPUW_ASSERT(kvcache_desc.v_tensors_transposed_pre == kvcache_desc.v_tensors_transposed_gen && "Implement copy in different layouts!");
+
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed_pre)
                                  ? 3u
                                  : kvcache_desc.dim;
 
@@ -557,7 +559,8 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
     std::shared_ptr<ov::IAsyncInferRequest> request,
     std::unordered_map<std::string, ov::Output<const ov::Node>> in_ports,
     std::unordered_map<std::string, ov::Output<const ov::Node>> out_ports,
-    uint32_t num_tokens) {
+    uint32_t num_tokens,
+    bool v_transposed) {
     LOG_DEBUG("Store computed key and values for passed number of tokens in the input kv-cache"
               " layers.");
     LOG_BLOCK();
@@ -573,7 +576,7 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
             continue;
         }
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed)
                                  ? 3u
                                  : kvcache_desc.dim;
         auto dst_slice = make_tensor_slice(dst_tensor,
@@ -706,7 +709,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         update_kvcache_for(m_prefill_request,
                            m_prefill_in_ports,
                            m_prefill_out_ports,
-                           static_cast<uint32_t>(current_prompts_len));
+                           static_cast<uint32_t>(current_prompts_len),
+                           kvcache_desc.v_tensors_transposed_pre);
 
         // Update attention mask for the next iteration
         std::copy_n(attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
@@ -848,7 +852,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         LOG_DEBUG("Calling inference for LM head model asynchronously");
         m_lm_head_request->start_async();
         if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
-            update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, input_tokens_len);
+            update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, input_tokens_len, kvcache_desc.v_tensors_transposed_gen);
         }
         m_lm_head_request->wait();
         LOG_DEBUG("Calling inference for LM head model -- done.");
@@ -856,7 +860,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
     } else {
         if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
-            update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, input_tokens_len);
+            update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, input_tokens_len, kvcache_desc.v_tensors_transposed_gen);
         }
 
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
