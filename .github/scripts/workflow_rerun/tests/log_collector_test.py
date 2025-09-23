@@ -9,6 +9,7 @@ import os
 import unittest
 import tempfile
 from pathlib import Path
+from datetime import datetime
 
 from github import Github, Auth
 
@@ -26,7 +27,14 @@ class LogCollectorTest(unittest.TestCase):
         self.github = Github(auth=Auth.Token(token=os.environ.get('GITHUB_TOKEN')))
         self.gh_repo = self.github.get_repo(full_name_or_id='openvinotoolkit/openvino')
         # Use the logs of the most recent successfull pipeline
-        self.wf_run = self.gh_repo.get_workflow_runs(status='success')[0]
+        # Its "created_at" time should be withing 60 days - the log retention window
+        self.wf_run = None
+        for run in self.gh_repo.get_workflow_runs(status='success'):
+            if (datetime.now(run.created_at.tzinfo) - run.created_at).days < 45:
+                self.wf_run = run
+                break
+        if not self.wf_run:
+            raise RuntimeError('No suitable workflow run found for testing')
         print(f'Workflow run for testing: {self.wf_run}', flush=True)
 
     def test_log_collection(self) -> None:
