@@ -12,6 +12,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(paged_attention)
 
 constexpr size_t paged_attention::block_size;
+constexpr size_t paged_attention::block_size_xattn;
 
 layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*node*/, kernel_impl_params const& impl_param) {
     auto out_layout = impl_param.get_input_layout(0);
@@ -39,7 +40,10 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     const auto& key_cache_quant_mode = impl_param.get_program().get_config().get_key_cache_quant_mode();
     bool key_cache_compressed = impl_param.get_input_layout(key_cache_idx).data_type == ov::element::i8 ||
                                 impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8;
-    auto expected_block_size = paged_attention::block_size;
+    size_t expected_block_size = paged_attention::block_size;
+    if (desc->has_xattention) {
+        expected_block_size = paged_attention::block_size_xattn;
+    }
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
         expected_block_size += 4;
     }
