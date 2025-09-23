@@ -272,16 +272,6 @@ std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
     return it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
 }
 
-void insert_padding(std::ostream& os, size_t pad) {
-    constexpr std::size_t STANDARD_PAGE_SIZE = 4096;  // [bytes]
-    static const char zeros[STANDARD_PAGE_SIZE] = {0};
-    while (pad > 0) {
-        size_t chunk = std::min(pad, sizeof(zeros));
-        os.write(zeros, chunk);
-        pad -= chunk;
-    }
-}
-
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -1533,7 +1523,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                     size_t bytes_written = static_cast<size_t>(end - start);
                     size_t pad = (header_size_alignment - (bytes_written % header_size_alignment)) %
                                  header_size_alignment;  // 0 if already aligned
-                    insert_padding(networkStream, pad);
+                    std::fill_n(std::ostream_iterator<char>(networkStream), pad, 0);
                 }
 
                 compiled_model->export_model(networkStream);
