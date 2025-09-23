@@ -39,7 +39,8 @@ using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
 EquationTppEmitter::EquationTppEmitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : TppEmitter(h, isa, expr),
+    : jit_emitter(h, isa),
+      TppEmitter(h, isa, expr),
       m_num_inputs(expr->get_input_count()) {
     const auto& eq_tpp = ov::as_type_ptr<tpp::op::EquationTPP>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(eq_tpp, "Invalid TPP node type detected");

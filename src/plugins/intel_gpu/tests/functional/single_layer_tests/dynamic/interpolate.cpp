@@ -38,7 +38,7 @@ using InterpolateLayerGPUTestParamsSet = std::tuple<InterpolateSpecificParams,
 class InterpolateLayerGPUTest : public testing::WithParamInterface<InterpolateLayerGPUTestParamsSet>,
                                 virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerGPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<InterpolateLayerGPUTestParamsSet>& obj) {
         std::map<std::string, std::string> additionalConfig;
         const auto& [specificParams, shapeParams, prec, useInterpolateV11] = obj.param;
 

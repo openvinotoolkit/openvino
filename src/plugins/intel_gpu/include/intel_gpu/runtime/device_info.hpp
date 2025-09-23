@@ -46,6 +46,16 @@ struct gfx_version {
                < std::tie(r.major, r.minor, r.revision); // same order
     }
 
+    friend bool operator >= (const gfx_version& l, const gfx_version& r)  {
+        return std::tie(l.major, l.minor, l.revision)
+               >= std::tie(r.major, r.minor, r.revision); // same order
+    }
+
+    friend bool operator <= (const gfx_version& l, const gfx_version& r)  {
+        return std::tie(l.major, l.minor, l.revision)
+               <= std::tie(r.major, r.minor, r.revision); // same order
+    }
+
     bool operator==(const gfx_version& other) {
         return major == other.major &&
                minor == other.minor &&

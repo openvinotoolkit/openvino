@@ -50,7 +50,7 @@ public:
 
     std::vector<ov::ProfilingInfo> m_profiling_info;
 
-    static std::string getTestCaseName(testing::TestParamInfo<AutoBatchRequestTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<AutoBatchRequestTestParams>& obj) {
         const auto& [batch_size, element_type] = obj.param;
 
         std::string res;
