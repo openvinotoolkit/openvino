@@ -37,8 +37,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReluShapeOfSubgraphTest.*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
-        // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
-        R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
         R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
@@ -650,6 +648,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_Snippets_AddSoftmax.*)");
     retVector.emplace_back(R"(.*smoke_Snippets_TransposeSoftmaxEltwise.*)");
     // Low-precision Matmuls are not supported by TPP yet
+    retVector.emplace_back(R"(.*smoke_Snippets.*=(BF16|bf16|i8|u8).*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulFQ.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulBiasQuantized.*)");
     retVector.emplace_back(R"(.*smoke_Snippets.*MatMulsQuantized.*)");

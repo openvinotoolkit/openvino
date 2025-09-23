@@ -84,6 +84,7 @@
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_upgrade.hpp"
+#include "transformations/op_conversions/convert_one_hot_v16_to_v1.hpp"
 #include "transformations/op_conversions/convert_pad12_downgrade.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
@@ -120,6 +121,7 @@
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
+#include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
@@ -188,6 +190,9 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, UniqueDecomposition)
     decomp->set_name("ov::pass::CommonDecompositions");
 
+    REGISTER_PASS(manager, NopElimination, true)
+    REGISTER_PASS(manager, DeReshapeMatMul)
+    REGISTER_PASS(manager, DeReshapeFullyConnected)
     // CF is required after all decompositions
     REGISTER_PASS(manager, ConstantFolding)
 
@@ -237,6 +242,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertScatterNDUpdate15ToScatterNDUpdate3)
     REGISTER_PASS(manager, ConvertSliceScatter)
     REGISTER_PASS(manager, ConvertSqueeze15ToSqueeze0)
+    REGISTER_PASS(manager, ConvertOneHot16To1)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
