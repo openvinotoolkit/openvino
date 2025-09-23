@@ -39,7 +39,8 @@ struct paged_attention : public primitive_base<paged_attention> {
         SINKS = 20,
     };
 
-    static constexpr size_t block_size = 256;
+    static constexpr size_t block_size = 16;
+    static constexpr size_t block_size_xattn = 256;
 
     paged_attention() : primitive_base("", {}) {}
 
