@@ -271,6 +271,17 @@ std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
     const auto it = config.find(ov::cache_model_path.name());
     return it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
 }
+
+void insert_padding(std::ostream& os, size_t pad) {
+    constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
+    static const char zeros[STANDARD_PAGE_SIZE] = {0};
+    while (pad > 0) {
+        size_t chunk = std::min(pad, sizeof(zeros));
+        os.write(zeros, chunk);
+        pad -= chunk;
+    }
+}
+
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -1485,16 +1496,6 @@ bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
         return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
     } catch (const ov::NotImplemented&) {
         return false;
-    }
-}
-
-void insert_padding(std::ostream& os, size_t pad) {
-    constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
-    static const char zeros[STANDARD_PAGE_SIZE] = {0};
-    while (pad > 0) {
-        size_t chunk = std::min(pad, sizeof(zeros));
-        os.write(zeros, chunk);
-        pad -= chunk;
     }
 }
 
