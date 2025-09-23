@@ -17,6 +17,8 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"

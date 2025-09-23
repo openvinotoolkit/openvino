@@ -7,28 +7,14 @@
 #    pragma warning(disable : 4244)
 #endif
 
-#include <algorithm>
-#include <cassert>
-#include <cfloat>
 #include <climits>
-#include <cmath>
-#include <cstdlib>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <map>
-#include <memory>
 #include <sstream>
-#include <string>
-#include <utility>
 
 #include "openvino/core/log_util.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset2_decl.hpp"
@@ -39,7 +25,6 @@
 #include "openvino/opsets/opset7_decl.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
@@ -48,7 +33,6 @@ namespace ov {
 namespace gen_pattern {
 
 #ifdef CPU_DEBUG_CAPS
-
 template <typename... Args>
 static inline void _verbose_log(Args&&... args) {
     std::stringstream ss;
@@ -69,93 +53,6 @@ static bool matcher_verbose_enabled() {
 #else
 #    define _VERBOSE_LOG(...)
 #endif
-
-namespace detail {
-inline std::vector<std::string> split_string(const std::string& s, const std::string& delimiter) {
-    std::vector<std::string> ret;
-    size_t pos = 0, pos_next;
-    std::string token;
-    while ((pos_next = s.find(delimiter, pos)) != std::string::npos) {
-        token = s.substr(pos, pos_next - pos);
-        ret.push_back(token);
-        pos = pos_next + 1;
-    }
-    // return whole string if no delimiter if found
-    token = s.substr(pos, pos_next);
-    ret.push_back(token);
-    return ret;
-}
-}  // namespace detail
-
-struct values_info {
-    values_info(const char* pattern_list = nullptr) {
-        if (pattern_list == nullptr || pattern_list[0] == 0) {
-            all_type_pshape.clear();
-            return;
-        }
-        auto pattern_vector = detail::split_string(pattern_list, " ");
-        for (auto& pattern : pattern_vector) {
-            if (pattern[0] == '[') {
-                all_type_pshape.emplace_back(ov::element::dynamic, ov::PartialShape(pattern));
-            } else {
-                auto sep = pattern.find("[");
-                if (sep != std::string::npos) {
-                    // ele_type[p_shape]
-                    all_type_pshape.emplace_back(ov::element::Type(pattern.substr(0, sep)),
-                                                 ov::PartialShape(pattern.substr(sep)));
-                } else {
-                    // ele_type
-                    all_type_pshape.emplace_back(ov::element::Type(pattern), ov::PartialShape::dynamic());
-                }
-            }
-        }
-    }
-
-    size_t size() {
-        return all_type_pshape.size();
-    }
-    const std::pair<ov::element::Type, ov::PartialShape>& operator[](int index) {
-        return all_type_pshape[index];
-    }
-
-    //-------------------------------------------------------------
-    bool predicate(const ov::Output<ov::Node>& value) const {
-        if (all_type_pshape.empty())
-            return true;
-        auto index = value.get_index();
-        if (index >= all_type_pshape.size()) {
-            _VERBOSE_LOG("* mismatched vtype : value from output port ",
-                         index,
-                         ", but only ",
-                         all_type_pshape.size(),
-                         " ports are expected!");
-            return false;
-        }
-        auto& item = all_type_pshape[index];
-        if (!item.first.compatible(value.get_element_type()) || !item.second.compatible(value.get_partial_shape())) {
-            _VERBOSE_LOG("* mismatched vtype between value & pattern : ",
-                         value.get_element_type(),
-                         value.get_partial_shape(),
-                         "vs",
-                         item.first,
-                         item.second);
-            return false;
-        }
-        return true;
-    }
-
-    std::string to_string() {
-        std::stringstream ss;
-        const char* sep = "";
-        for (auto& t : all_type_pshape) {
-            ss << sep << t.first << t.second;
-            sep = ";";
-        }
-        return ss.str();
-    }
-
-    std::vector<std::pair<ov::element::Type, ov::PartialShape>> all_type_pshape;
-};
 
 namespace detail {
 // AttrAny is simple wrapper of Any to provide some constructor
@@ -475,16 +372,6 @@ struct PatternNode {
         });
     }
 
-    PatternNode(values_info vt) {
-        node = ov::pass::pattern::any_input([vt](const Output<Node>& value) {
-            if (!vt.predicate(value)) {
-                _VERBOSE_LOG("*mismatched PatternNode ", value);
-                return false;
-            }
-            _VERBOSE_LOG(" matched PatternNode ", value);
-            return true;
-        });
-    }
     PatternNode(const std::shared_ptr<Node>& node) : node(node) {}
     PatternNode(const std::shared_ptr<ov::op::v0::Parameter>& node) : node(node) {}
     PatternNode(const std::shared_ptr<ov::pass::pattern::op::Or>& pattern)
@@ -495,25 +382,22 @@ struct PatternNode {
     PatternNode(float v) : node(std::make_shared<ov::op::v0::Constant>(element::from<float>(), Shape({}), v)) {}
     PatternNode(long long v) : node(std::make_shared<ov::op::v0::Constant>(element::from<int64_t>(), Shape({}), v)) {}
 
-    PatternNode(std::initializer_list<int> v, values_info vi = nullptr) {
-        node = ConstVector(std::vector<int>(v), vi);
+    PatternNode(std::initializer_list<int> v) {
+        node = ConstVector(std::vector<int>(v));
     }
-    PatternNode(std::initializer_list<float> v, values_info vi = nullptr) {
-        node = ConstVector(std::vector<float>(v), vi);
+    PatternNode(std::initializer_list<float> v) {
+        node = ConstVector(std::vector<float>(v));
     }
-    PatternNode(std::initializer_list<long> v, values_info vi = nullptr) {
-        node = ConstVector(std::vector<int64_t>(v.begin(), v.end()), vi);
+    PatternNode(std::initializer_list<long> v) {
+        node = ConstVector(std::vector<int64_t>(v.begin(), v.end()));
     }
-    PatternNode(std::initializer_list<long long> v, values_info vi = nullptr) {
-        node = ConstVector(std::vector<int64_t>(v.begin(), v.end()), vi);
+    PatternNode(std::initializer_list<long long> v) {
+        node = ConstVector(std::vector<int64_t>(v.begin(), v.end()));
     }
 
     // 1d const tensor or scalar
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value, bool>::type = true>
-    static std::shared_ptr<Node> ConstVector(const std::vector<T>& vec, values_info vi = nullptr) {
-        if (vi.size() > 0)
-            return std::make_shared<ov::op::v0::Constant>(vi[0].first, vi[0].second.to_shape(), vec);
-        // initializer_list w/o value_info means to create normal 1D vector
+    static std::shared_ptr<Node> ConstVector(const std::vector<T>& vec) {
         return std::make_shared<ov::op::v0::Constant>(element::from<T>(), Shape({vec.size()}), vec);
     }
 };
