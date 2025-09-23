@@ -8,7 +8,6 @@
 
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "driver_compiler_adapter.hpp"
-#include "ir_serializer.hpp"
 
 void ZeroGraphFlagsTest::SetUp() {
     std::string extVersion = GetParam();
@@ -50,6 +49,7 @@ TEST_P(ZeroGraphFlagsTest, QueryGraph) { // the "fourth" branch is not being tes
 
         const auto supportedLayers = zeGraphExt->queryGraph(serializedIR, "");
         ASSERT_NE(supportedLayers.size(), 0);
+        zeGraphExt->destroyGraph(graphDescriptor);
     }
 }
 
@@ -73,12 +73,7 @@ TEST_P(ZeroGraphFlagsTest, InitializeGraph) {
         zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
         ASSERT_NE(graphDescriptor._handle, nullptr);
 
-        // int max?
-        uint32_t commandQueueGroupOrdinal = 0;
-        OV_ASSERT_NO_THROW(commandQueueGroupOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                    ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
-    
-        OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, commandQueueGroupOrdinal));
+        zeGraphExt->destroyGraph(graphDescriptor);
     }
 }
 

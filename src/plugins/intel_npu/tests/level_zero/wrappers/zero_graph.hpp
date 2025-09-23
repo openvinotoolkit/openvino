@@ -31,8 +31,6 @@ protected:
     void TearDown() override;
 
 public:
-    ov::Core core;
-
     std::shared_ptr<ZeroInitStructsMock> zeroInitMock;
     
     std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
