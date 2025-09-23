@@ -335,9 +335,6 @@ void Plugin::init_options() {
     // parse again env_variables to update registered configs which have env vars set
     _globalConfig.parseEnvVars();
 
-    // filter out unsupported options
-    filter_config_by_compiler_support(_globalConfig);
-
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
     REGISTER_OPTION(NPU_USE_NPUW);
@@ -395,6 +392,8 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_GENERATE_ATTENTION_HINT);
     REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
+
+    _globalConfig.enableAll();
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -486,6 +485,11 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
 FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                          const std::unique_ptr<ICompilerAdapter>& compiler,
                                          OptionMode mode) const {
+    if (_globalConfig.empty()) {
+        // filter out unsupported options
+        filter_config_by_compiler_support(_globalConfig);
+    }
+
     update_log_level(rawConfig);
     // create a copy of the global config
     FilteredConfig localConfig = _globalConfig;
@@ -535,7 +539,19 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
-    // 1. Check for compiler change
+    if (properties.empty()) {
+        return;
+    }
+
+    // 1. Check if configs have been populated
+    if (_globalConfig.empty()) {
+        // filter out unsupported options
+        filter_config_by_compiler_support(_globalConfig);
+        // 2. Reset properties for the new options
+        _properties->registerProperties();
+    }
+
+    // 2. Check for compiler change
     if (properties.count(std::string(COMPILER_TYPE::key())) != 0) {
         // Compiler change detected
         // Set new compiler in _globalConfig
@@ -549,10 +565,10 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         }
     }
 
-    // 2. Set the property via Properties interface
+    // 3. Set the property via Properties interface
     _properties->set_property(properties);
 
-    // 3. Extra hooks
+    // 4. Extra hooks
     // Update log level if it was provided
     if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
         Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
@@ -566,6 +582,14 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     auto npu_plugin_properties = arguments;
     exclude_model_ptr_from_map(npu_plugin_properties);
+    if (_globalConfig.empty() && _globalConfig.hasOpt(name)) {
+        if (_globalConfig.getOpt(name).mode() != OptionMode::RunTime) {
+            // filter out unsupported options
+            filter_config_by_compiler_support(_globalConfig);
+            // 2. Reset properties for the new options
+            _properties->registerProperties();
+        }
+    }
     return _properties->get_property(name, npu_plugin_properties);
 }
 
