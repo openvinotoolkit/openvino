@@ -15,12 +15,6 @@
 namespace opp = ov::pass::pattern;
 
 namespace {
-template <typename T>
-std::shared_ptr<ov::Node> makeConst(const ov::element::Type& type,
-                                    const ov::Shape& shape,
-                                    const std::vector<T>& values) {
-    return std::make_shared<ov::op::v0::Constant>(type, shape, values);
-}
 // TODO: copied from common tests
 static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
                                         const std::shared_ptr<ov::Node> inverse_frequencies) {
@@ -48,8 +42,8 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
             psin[k + rotary_ndims / 2] = psin[k];
         }
     }
-    auto Cos = makeConst(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_cos);
-    auto Sin = makeConst(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_sin);
+    auto Cos = ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_cos);
+    auto Sin = ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_sin);
 
     return {Cos, Sin};
 }
