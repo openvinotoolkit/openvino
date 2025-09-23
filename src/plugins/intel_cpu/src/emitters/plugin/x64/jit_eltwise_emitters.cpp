@@ -2367,10 +2367,11 @@ void jit_soft_sign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     auto vmm_aux = Vmm(aux_vec_idxs[0]);
 
-    h->uni_vmovups(vmm_aux, vmm_src); // y = x
-    h->uni_vandps(vmm_dst, vmm_src, table_val("positive_mask")); // x = abs(x)
-    h->uni_vaddps(vmm_dst, vmm_dst, table_val("one")); // x++
-    h->uni_vdivps(vmm_dst, vmm_aux, vmm_dst); // y = y/x
+    // y = x; x = abs(x); x++; y = y/x
+    h->uni_vmovups(vmm_aux, vmm_src);
+    h->uni_vandps(vmm_dst, vmm_src, table_val("positive_mask"));
+    h->uni_vaddps(vmm_dst, vmm_dst, table_val("one"));
+    h->uni_vdivps(vmm_dst, vmm_aux, vmm_dst);
 }
 
 void jit_soft_sign_emitter::register_table_entries() {
