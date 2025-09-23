@@ -401,7 +401,7 @@ TEST(RTInfoSerialization, user_data) {
 
     model->set_friendly_name("UserDataTest");
 
-    const auto prefix = std::string{"[UserData]"};
+    const auto prefix = std::string{"user_data"};
     const auto add_info = [&prefix](const std::shared_ptr<Node>& node, const std::string& value) {
         node->set_friendly_name("node_" + value);
         node->get_rt_info()[prefix + "node_info_" + value] = "v_" + value;
@@ -414,7 +414,7 @@ TEST(RTInfoSerialization, user_data) {
 
     auto& one_rti = one->get_rt_info();
     one_rti[prefix] = "stand alone prefix not saved";
-    one_rti["[User Data] a name"] = "non predefined prefix not saved";
+    one_rti["User_data name"] = "non predefined prefix not saved";
     one_rti["b name"] = "missing prefix not saved";
 
     std::stringstream model_ss, weights_ss;
@@ -442,12 +442,12 @@ TEST(RTInfoSerialization, user_AnyMap) {
 		<layer id="1" name="abs" type="Abs" version="opset1">
 			<rt_info>
 				<user_data name="AnyMap" version="">
-					<user_data name="[User Data]" value="non predefined prefix saved as is" version="" />
+					<user_data name="User_data" value="non predefined prefix saved as is" version="" />
+					<user_data name="a" value="b" version="" />
+					<user_data name="i" value="7" version="" />
 					<user_data name="nested" version="">
 						<user_data name="c" value="d" version="" />
 					</user_data>
-					<user_data name="a" value="b" version="" />
-					<user_data name="i" value="7" version="" />
 					<user_data name="x" value="3.14" version="" />
 				</user_data>
 			</rt_info>
@@ -491,7 +491,7 @@ TEST(RTInfoSerialization, user_AnyMap) {
     abs->set_friendly_name("abs");
     result->set_friendly_name("result");
 
-    const auto prefix = std::string{"[UserData]"};
+    const auto prefix = std::string{"user_data"};
     const auto empty = AnyMap{};
     const auto nested = AnyMap{{"c", "d"}};
     abs->get_rt_info()[prefix + "AnyMap"] = AnyMap{{"a", "b"},
@@ -499,7 +499,7 @@ TEST(RTInfoSerialization, user_AnyMap) {
                                                    {"i", 7},
                                                    {"x", 3.14},
                                                    {prefix + "nested", nested},
-                                                   {"[User Data]", "non predefined prefix saved as is"}};
+                                                   {"User_data", "non predefined prefix saved as is"}};
 
     std::stringstream model_ss, weights_ss;
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
@@ -516,7 +516,7 @@ TEST(RTInfoSerialization, nullptr_no_throw) {
     const auto abs = std::make_shared<op::v0::Abs>(data);
     const auto result = std::make_shared<op::v0::Result>(abs);
 
-    const auto prefix = std::string{"[UserData]"};
+    const auto prefix = std::string{"user_data"};
     abs->get_rt_info()[prefix + "bare"] = ov::Any{nullptr};
     abs->get_rt_info()[prefix + "void*"] = ov::Any{static_cast<void*>(nullptr)};
     abs->get_rt_info()[prefix + "shared_ptr"] = ov::Any{std::shared_ptr<void>{}};

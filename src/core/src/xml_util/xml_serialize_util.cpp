@@ -309,13 +309,14 @@ bool is_exec_graph(const ov::Model& model) {
     }
     return false;
 }
+constexpr std::string_view rt_info_user_data_tag{"user_data"};
 
 bool append_custom_rt_info(pugi::xml_node& node,
                            const std::string& key,
                            const ov::Any& data,
                            bool prefix_needed = true) {
     const auto escaped_prefix =
-        std::regex_replace(std::string{rt_map_user_data_prefix}, std::regex(R"([\.\*\+\?\|\[\]\\])"), R"(\$&)");
+        std::regex_replace(std::string{rt_info_user_data_tag}, std::regex(R"([\.\*\+\?\|\[\]\\])"), R"(\$&)");
     const auto prefix_pattern = escaped_prefix + "(.+)";
     std::smatch match;
     std::string name;
@@ -329,7 +330,7 @@ bool append_custom_rt_info(pugi::xml_node& node,
     if (name.empty()) {
         return false;
     }
-    auto custom_node = node.append_child(rt_info_user_data_xml_tag.data());
+    auto custom_node = node.append_child(rt_info_user_data_tag.data());
     custom_node.append_attribute("name").set_value(name.c_str());
     bool appended = false;
 
@@ -1142,7 +1143,7 @@ std::string get_ir_precision_name(const element::Type& precision) {
 }
 
 std::string rt_info_get_user_name(const std::string& custom_name) {
-    return std::string{util::rt_map_user_data_prefix} + custom_name;
+    return std::string{util::rt_info_user_data_tag} + custom_name;
 }
 
 Any& rt_info_get_user_data(AnyMap& rt_map, const std::string& custom_name) {

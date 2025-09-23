@@ -103,9 +103,6 @@ public:
     void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override;
 };  // class XmlSerializer
 
-static inline constexpr std::string_view rt_map_user_data_prefix{"[UserData]"};
-static inline constexpr std::string_view rt_info_user_data_xml_tag{"user_data"};
-
 OPENVINO_API std::string rt_info_get_user_name(const std::string& custom_name);
 OPENVINO_API Any& rt_info_get_user_data(AnyMap& rt_map, const std::string& custom_name);
 OPENVINO_API const Any& rt_info_get_user_data(const AnyMap& rt_map, const std::string& custom_name);
