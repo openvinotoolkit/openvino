@@ -367,11 +367,21 @@ inline bool less_or_equal(double a, double b) {
 }
 
 template <typename T>
+inline constexpr bool is_ov_integral =
+    std::is_same_v<T, char> || std::is_same_v<T, int8_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, int32_t> ||
+    std::is_same_v<T, int64_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> ||
+    std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t>;
+
+template <typename T>
 inline bool value_is_out_of_limits(T value, bool upper_bound_check) {
-    bool out_of_limits = std::isnan(value) || std::isinf(value);
-    out_of_limits |=
-        upper_bound_check ? value >= std::numeric_limits<T>::max() : value <= std::numeric_limits<T>::lowest();
-    return out_of_limits;
+    if constexpr (is_ov_integral<T>) {
+        return false;
+    } else {
+        bool out_of_limits = std::isnan(value) || std::isinf(value);
+        out_of_limits |=
+            upper_bound_check ? value >= std::numeric_limits<T>::max() : value <= std::numeric_limits<T>::lowest();
+        return out_of_limits;
+    }
 }
 
 template <typename T1, typename T2>
