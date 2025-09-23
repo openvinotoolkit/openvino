@@ -368,6 +368,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 set(PCH_EXCLUDE_FILES
     src/emitters/plugin/x64/debug_capabilities.cpp
+    src/emitters/plugin/aarch64/debug_capabilities.cpp
     src/nodes/executors/printers.cpp
     src/emitters/snippets/x64/jit_debug_emitter.cpp
     src/emitters/snippets/x64/jit_debug_emitter.cpp
