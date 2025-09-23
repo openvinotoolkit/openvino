@@ -391,16 +391,20 @@ void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
         __m256i vout0, vout1;
         avx2_i4toi8(inv, &vout0, &vout1);
 
-        __m128i mask = _mm_set_epi64x(0x0, 0xFFFFFFFFFFFFFFFF);
+        __m128i lo0 = _mm256_castsi256_si128(vout0);
+        __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+        __m128i lo1 = _mm256_castsi256_si128(vout1);
+        __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
+
         __m128i i8vecs[8] = {
-            _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
-            _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
-            _mm_and_si128(_mm256_extracti128_si256(vout0, 1), mask),
-            _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout0, 1), 8), mask),
-            _mm_and_si128(_mm256_castsi256_si128(vout1), mask),
-            _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout1), 8), mask),
-            _mm_and_si128(_mm256_extracti128_si256(vout1, 1), mask),
-            _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout1, 1), 8), mask),
+            _mm_unpacklo_epi64(lo0, lo0),
+            _mm_srli_si128(lo0, 8),
+            _mm_unpacklo_epi64(hi0, hi0),
+            _mm_srli_si128(hi0, 8),
+            _mm_unpacklo_epi64(lo1, lo1),
+            _mm_srli_si128(lo1, 8),
+            _mm_unpacklo_epi64(hi1, hi1),
+            _mm_srli_si128(hi1, 8),
         };
 
         __m128i vresults[8] = {avx2_i8tof16(i8vecs[0]),
@@ -548,16 +552,20 @@ void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& fro
                 __m256i vout0, vout1;
                 avx2_i4toi8(inv, &vout0, &vout1);
 
-                __m128i mask = _mm_set_epi64x(0x0, 0xFFFFFFFFFFFFFFFF);
+                __m128i lo0 = _mm256_castsi256_si128(vout0);
+                __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+                __m128i lo1 = _mm256_castsi256_si128(vout1);
+                __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
+
                 __m128i i8vecs[8] = {
-                    _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
-                    _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
-                    _mm_and_si128(_mm256_extracti128_si256(vout0, 1), mask),
-                    _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout0, 1), 8), mask),
-                    _mm_and_si128(_mm256_castsi256_si128(vout1), mask),
-                    _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout1), 8), mask),
-                    _mm_and_si128(_mm256_extracti128_si256(vout1, 1), mask),
-                    _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout1, 1), 8), mask),
+                    _mm_unpacklo_epi64(lo0, lo0),
+                    _mm_srli_si128(lo0, 8),
+                    _mm_unpacklo_epi64(hi0, hi0),
+                    _mm_srli_si128(hi0, 8),
+                    _mm_unpacklo_epi64(lo1, lo1),
+                    _mm_srli_si128(lo1, 8),
+                    _mm_unpacklo_epi64(hi1, hi1),
+                    _mm_srli_si128(hi1, 8),
                 };
 
                 __m128i vresults[8] = {avx2_i8tof16(i8vecs[0], svec),
@@ -669,16 +677,20 @@ void ov::npuw::util::XARCH::unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
                     __m256i vout0, vout1;
                     avx2_i4toi8(vinput, &vout0, &vout1);
 
-                    __m128i mask = _mm_set_epi64x(0x0, 0xFFFFFFFFFFFFFFFF);
+                    __m128i lo0 = _mm256_castsi256_si128(vout0);
+                    __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+                    __m128i lo1 = _mm256_castsi256_si128(vout1);
+                    __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
+
                     __m128i i8vecs[8] = {
-                        _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
-                        _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
-                        _mm_and_si128(_mm256_extracti128_si256(vout0, 1), mask),
-                        _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout0, 1), 8), mask),
-                        _mm_and_si128(_mm256_castsi256_si128(vout1), mask),
-                        _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout1), 8), mask),
-                        _mm_and_si128(_mm256_extracti128_si256(vout1, 1), mask),
-                        _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout1, 1), 8), mask),
+                        _mm_unpacklo_epi64(lo0, lo0),
+                        _mm_srli_si128(lo0, 8),
+                        _mm_unpacklo_epi64(hi0, hi0),
+                        _mm_srli_si128(hi0, 8),
+                        _mm_unpacklo_epi64(lo1, lo1),
+                        _mm_srli_si128(lo1, 8),
+                        _mm_unpacklo_epi64(hi1, hi1),
+                        _mm_srli_si128(hi1, 8),
                     };
 
                     const float* pScl_iter = pScl + w + W * c;
@@ -766,16 +778,20 @@ void ov::npuw::util::XARCH::unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
         __m256i vout0, vout1;
         avx2_i4toi8(vinput, &vout0, &vout1);
 
-        __m128i mask = _mm_set_epi64x(0x0, 0xFFFFFFFFFFFFFFFF);
+        __m128i lo0 = _mm256_castsi256_si128(vout0);
+        __m128i hi0 = _mm256_extracti128_si256(vout0, 1);
+        __m128i lo1 = _mm256_castsi256_si128(vout1);
+        __m128i hi1 = _mm256_extracti128_si256(vout1, 1);
+
         __m128i i8vecs[8] = {
-            _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
-            _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
-            _mm_and_si128(_mm256_extracti128_si256(vout0, 1), mask),
-            _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout0, 1), 8), mask),
-            _mm_and_si128(_mm256_castsi256_si128(vout1), mask),
-            _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout1), 8), mask),
-            _mm_and_si128(_mm256_extracti128_si256(vout1, 1), mask),
-            _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout1, 1), 8), mask),
+            _mm_unpacklo_epi64(lo0, lo0),
+            _mm_srli_si128(lo0, 8),
+            _mm_unpacklo_epi64(hi0, hi0),
+            _mm_srli_si128(hi0, 8),
+            _mm_unpacklo_epi64(lo1, lo1),
+            _mm_srli_si128(lo1, 8),
+            _mm_unpacklo_epi64(hi1, hi1),
+            _mm_srli_si128(hi1, 8),
         };
 
         __m128i vresults[8] = {avx2_i8tof16(i8vecs[0]),
