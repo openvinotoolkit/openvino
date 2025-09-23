@@ -20,13 +20,18 @@ from common.source_description import FilesStorage, UseCaseFiles
 from __version__ import __version__
 
 
-def get_valid_command_arguments(loader):
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("-m", "--model", help="Path to a model file", type=Path)
+def get_valid_command_arguments(available_inference_providers):
+    parser = argparse.ArgumentParser(prog="multi-provider-inference-tool",
+                                     description='''
+This tool enables launching neural network model inference using different AI framework providers
+and produces inference artifacts as blobs and metadata.
+As necessary input arguments, it requires a path to a neural model to launch inference, a provider name and input files description.''',
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("-m", "--model", help="Location of a file specifying a neural model", type=Path)
     parser.add_argument(
         "-p",
         "--provider",
-        help="An inference provider, available:\n\t" +'\n\t'.join(loader.get_avaialable_providers()),
+        help="An inference provider, available:\n\t" +'\n\t'.join(available_inference_providers),
         default=None,
     )
     parser.add_argument("-i", "--inputs", help=FilesStorage.source_description)
@@ -125,7 +130,7 @@ if __name__ == "__main__":
         print(f"ERROR: The application is inoperable, error: {ex}", file=sys.stderr)
         exit(-1)
 
-    args = get_valid_command_arguments(loader)
+    args = get_valid_command_arguments(loader.get_avaialable_providers())
 
     # instantiate a specific inference provider and compile a model
     ctx = loader.create_provider_ctx(args.provider)

@@ -66,8 +66,8 @@ def initialize_provider_result_data(provider_name, deserialized_model_tensors_de
         provider_result["outputs"].append(output_name)
     return provider_result
 
-def get_comparison_profiver_output_files_result_data(ref_provider_output_blob_file_data, provider_to_cmp_output_blob_file_data):
-    provider_to_cmp_output_blob_file_data["std_correlation"] = bin_diff.compare_blobs(ref_provider_output_blob_file_data["path"], provider_to_cmp_output_blob_file_data["path"])
+def get_comparison_profiver_output_files_result_data(ref_provider_output_blob_file_data, provider_to_cmp_output_blob_file_data, datatype):
+    provider_to_cmp_output_blob_file_data["std_correlation"] = bin_diff.compare_blobs(ref_provider_output_blob_file_data["path"], provider_to_cmp_output_blob_file_data["path"], datatype)
     return provider_to_cmp_output_blob_file_data
 
 def get_comparison_provider_output_result_data(ref_provider_name, ref_provider_output_data, provider_to_cmp_name, provider_to_cmp_output_data):
@@ -86,7 +86,7 @@ def get_comparison_provider_output_result_data(ref_provider_name, ref_provider_o
     for f in ref_provider_output_data["files"]:
         if f in provider_to_cmp_output_data["data"].keys():
             try:
-                provider_to_cmp_output_data["data"][f] = get_comparison_profiver_output_files_result_data(ref_provider_output_data["data"][f], provider_to_cmp_output_data["data"][f])
+                provider_to_cmp_output_data["data"][f] = get_comparison_profiver_output_files_result_data(ref_provider_output_data["data"][f], provider_to_cmp_output_data["data"][f], ref_provider_output_data["element_type"])
             except RuntimeError as ex:
                 provider_to_cmp_output_data["status"].append(f"Cannot compare the file: {f}, err: {ex}")
         else:
@@ -169,7 +169,20 @@ def multi_provider_result_comparator(ref_provider, providers_to_compare, model_p
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(prog="multi-provider-blobs-comparator",
+                                     description='''
+This auxiliary utility conducts N-way comparisons of inference artifacts produced by N-providers.
+The output is JSON data representing a hierarchical tree with node.
+Each top level node specifies providers whose outputs artifacts are compared with each other.
+each middele-layer nodes represents outputs of neural model, restored from output artifacts, which are also compared with each other.
+Leafs of the tree enclose metrics gathered for thsese model outputs.
+Note: that metrics are collected and represented for model ouputs which were considered relevant.
+If a metric cannot be solved due to model output irrelevance, the Nan value will be stored.
+The term "relevance" means that outputs have the same shapes, element lypes and layouts.
+If these relevance conditions are not met for one or more model outputs, they will be listed in a special leaf type called "not_found_data".
+This allows to track inconsistency happens during model processing by different providers.
+As necessary input arguments, it requires both a name of a reference provider and names of providers to compare to that reference.''',
+                                     formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument(
         "ref_provider",
         help="The name of a referecnce provider",
