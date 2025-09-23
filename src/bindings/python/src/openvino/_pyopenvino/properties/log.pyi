@@ -5,7 +5,7 @@ import typing
 """
 openvino.properties.log submodule that simulates ov::log
 """
-__all__ = ['Level', 'level']
+__all__: list[str] = ['Level', 'level']
 class Level:
     """
     Members:

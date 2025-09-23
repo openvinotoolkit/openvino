@@ -31,8 +31,16 @@ protected:
         auto desc = params.typed_desc<scaled_dot_product_attention>();
 
         jit.add(make_type_jit_constants("ACCUMULATOR", get_accumulator_type(params)));
-        jit.make("NUM_KV_HEADS", -1);
 
+        size_t data_inputs_num = get_data_inputs_num(*desc);
+        size_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
+        if (data_inputs_num > attn_mask_idx) {
+            jit.make("HAS_ATTN_MASK_INPUT", 1);
+        }
+        size_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
+        if (data_inputs_num > scale_idx) {
+            jit.make("HAS_SCALE_INPUT", 1);
+        }
         return jit;
     }
 

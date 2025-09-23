@@ -20,18 +20,6 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
 
-#define NotSupportQuery(T) (T <= ZE_GRAPH_EXT_VERSION_1_2)
-
-// ext version == 1.3 && 1.4, support API (pfnQueryNetworkCreate, pfnQueryNetworkDestroy,
-// pfnQueryNetworkGetSupportedLayers)
-#define SupportAPIGraphQueryNetworkV1(T) (T == ZE_GRAPH_EXT_VERSION_1_3 || T == ZE_GRAPH_EXT_VERSION_1_4)
-
-// ext version >= 1.5, support API (pfnCreate2, pfnQueryNetworkCreate2, pfnQueryContextMemory)
-#define SupportAPIGraphQueryNetworkV2(T) ((!NotSupportQuery(T) && !SupportAPIGraphQueryNetworkV1(T)))
-
-// For ext version >= 1.5, pfnCreate2 api is avaible
-#define NotSupportGraph2(T) (T < ZE_GRAPH_EXT_VERSION_1_5)
-
 // A bug inside the driver makes the "pfnGraphGetArgumentMetadata" call not safe for use prior to
 // "ze_graph_dditable_ext_1_6_t".
 // See: E#117498
@@ -41,7 +29,9 @@
 
 namespace intel_npu {
 
-GraphDescriptor::GraphDescriptor(ze_graph_handle_t handle, void* data) : _handle(handle), _data(data) {}
+GraphDescriptor::GraphDescriptor(ze_graph_handle_t handle, bool memoryPersistent)
+    : _handle(handle),
+      _memoryPersistent(memoryPersistent) {}
 
 ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
     : _zeroInitStruct(zeroInitStruct),
@@ -51,32 +41,16 @@ ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHold
                  ZE_MAJOR_VERSION(_graphExtVersion),
                  ZE_MINOR_VERSION(_graphExtVersion));
     _logger.debug("capabilities:");
-    _logger.debug("-SupportQuery: %d", !NotSupportQuery(_graphExtVersion));
-    _logger.debug("-SupportAPIGraphQueryNetworkV1: %d", SupportAPIGraphQueryNetworkV1(_graphExtVersion));
-    _logger.debug("-SupportAPIGraphQueryNetworkV2 :%d", SupportAPIGraphQueryNetworkV2(_graphExtVersion));
-    _logger.debug("-SupportpfnCreate2 :%d", !NotSupportGraph2(_graphExtVersion));
+    _logger.debug("-SupportQuery: %d", true);
+    _logger.debug("-SupportAPIGraphQueryNetworkV1: %d", true);
+    _logger.debug("-SupportAPIGraphQueryNetworkV2 :%d", true);
+    _logger.debug("-SupportpfnCreate2 :%d", true);
     _logger.debug("-SupportArgumentMetadata :%d", !NotSupportArgumentMetadata(_graphExtVersion));
     _logger.debug("-UseCopyForNativeBinary :%d", UseCopyForNativeBinary(_graphExtVersion));
 }
 
 ZeGraphExtWrappers::~ZeGraphExtWrappers() {
     _logger.debug("Obj destroyed");
-}
-
-bool ZeGraphExtWrappers::releaseCpuVa(void* data) {
-    _logger.debug("destroyGraph - perform zeMemFree");
-
-    auto result = zeMemFree(_zeroInitStruct->getContext(), data);
-    if (ZE_RESULT_SUCCESS != result) {
-        _logger.error("failed to free L0 memory result: %s, code %#X - %s",
-                      ze_result_to_string(result).c_str(),
-                      uint64_t(result),
-                      ze_result_to_description(result).c_str());
-
-        return false;
-    }
-
-    return true;
 }
 
 void ZeGraphExtWrappers::destroyGraph(GraphDescriptor& graphDescriptor) {
@@ -90,12 +64,6 @@ void ZeGraphExtWrappers::destroyGraph(GraphDescriptor& graphDescriptor) {
                           uint64_t(result));
         } else {
             graphDescriptor._handle = nullptr;
-        }
-
-        if (graphDescriptor._data != nullptr) {
-            if (releaseCpuVa(graphDescriptor._data)) {
-                graphDescriptor._data = nullptr;
-            }
         }
     }
 }
@@ -217,12 +185,6 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
 std::unordered_set<std::string> ZeGraphExtWrappers::getQueryResultFromSupportedLayers(
     ze_result_t result,
     ze_graph_query_network_handle_t& hGraphQueryNetwork) const {
-    if (NotSupportQuery(_graphExtVersion)) {
-        OPENVINO_THROW("pfnQueryNetworkGetSupportedLayers not supported for ",
-                       ZE_MAJOR_VERSION(_graphExtVersion),
-                       ".",
-                       ZE_MINOR_VERSION(_graphExtVersion));
-    }
     // Get the size of query result
     _logger.debug("getQueryResultFromSupportLayers - perform pfnQueryNetworkGetSupportedLayers to get size");
     size_t size = 0;
@@ -250,70 +212,38 @@ std::unordered_set<std::string> ZeGraphExtWrappers::getQueryResultFromSupportedL
 
 std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                                                const std::string& buildFlags) const {
-    // ext version >= 1.5, support API (pfnCreate2, pfnQueryNetworkCreate2, pfnQueryContextMemory)
-    // ext version == 1.3 && 1.4, support API (pfnQueryNetworkCreate, pfnQueryNetworkDestroy,
-    // pfnQueryNetworkGetSupportedLayers)
-    // For ext version < 1.3, query is not supported
-    ze_result_t result = ZE_RESULT_SUCCESS;
-    if (NotSupportQuery(_graphExtVersion)) {
-        // For ext version < 1.3, query is unsupported, return empty result and add debug log here
-        _logger.warning("queryGraph - Driver version is less than 1.3, queryNetwork is unsupported.");
-        return std::unordered_set<std::string>();
-    } else if (SupportAPIGraphQueryNetworkV1(_graphExtVersion)) {
-        // For ext version == 1.3 && == 1.4, query is supported, calling querynetwork api in
-        // _zeroInitStruct->getGraphDdiTable()
-        ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
+    // For ext version >= 1.5
+    ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
-        // For ext version == 1.3 && == 1.4
-        ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                                nullptr,
-                                ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                                serializedIR.first,
-                                serializedIR.second.get(),
-                                buildFlags.c_str()};
+    // For ext version >= 1.5
+    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                              nullptr,
+                              ZE_GRAPH_FORMAT_NGRAPH_LITE,
+                              serializedIR.first,
+                              serializedIR.second.get(),
+                              buildFlags.c_str(),
+                              ZE_GRAPH_FLAG_NONE};
 
-        // Create querynetwork handle
-        _logger.debug("For ext of 1.3 and 1.4 - perform pfnQueryNetworkCreate");
-        result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkCreate(_zeroInitStruct->getContext(),
-                                                                           _zeroInitStruct->getDevice(),
-                                                                           &desc,
-                                                                           &hGraphQueryNetwork);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkCreate", result, _zeroInitStruct->getGraphDdiTable());
+    // Create querynetwork handle
+    _logger.debug("For ext larger than 1.4 - perform pfnQueryNetworkCreate2");
+    ze_result_t result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkCreate2(_zeroInitStruct->getContext(),
+                                                                                    _zeroInitStruct->getDevice(),
+                                                                                    &desc,
+                                                                                    &hGraphQueryNetwork);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkCreate2", result, _zeroInitStruct->getGraphDdiTable());
 
-        return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
-    } else if (SupportAPIGraphQueryNetworkV2(_graphExtVersion)) {
-        // For ext version >= 1.5
-        ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
+    return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
 
-        // For ext version >= 1.5
-        ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                                  nullptr,
-                                  ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                                  serializedIR.first,
-                                  serializedIR.second.get(),
-                                  buildFlags.c_str(),
-                                  ZE_GRAPH_FLAG_NONE};
-
-        // Create querynetwork handle
-        _logger.debug("For ext larger than 1.4 - perform pfnQueryNetworkCreate2");
-        result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkCreate2(_zeroInitStruct->getContext(),
-                                                                            _zeroInitStruct->getDevice(),
-                                                                            &desc,
-                                                                            &hGraphQueryNetwork);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkCreate2", result, _zeroInitStruct->getGraphDdiTable());
-
-        return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
-    }
     _logger.warning("queryGraph - Driver version is %d.%d, queryNetwork is unsupported.",
                     ZE_MAJOR_VERSION(_graphExtVersion),
                     ZE_MINOR_VERSION(_graphExtVersion));
     return std::unordered_set<std::string>();
 }
 
-void* ZeGraphExtWrappers::importCpuVa(void* data, size_t size, const uint32_t flags) const {
+bool ZeGraphExtWrappers::canCpuVaBeImported(void* data, size_t size, const uint32_t flags) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 13) ||
         !utils::memory_and_size_aligned_to_standard_page_size(data, size)) {
-        return nullptr;
+        return false;
     }
 
     ze_device_external_memory_properties_t externalMemorydDesc = {};
@@ -322,69 +252,33 @@ void* ZeGraphExtWrappers::importCpuVa(void* data, size_t size, const uint32_t fl
     auto res = zeDeviceGetExternalMemoryProperties(_zeroInitStruct->getDevice(), &externalMemorydDesc);
     if ((res != ZE_RESULT_SUCCESS) ||
         ((externalMemorydDesc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) == 0)) {
-        return nullptr;
+        return false;
     }
 
-    _ze_external_memory_import_system_memory_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
-                                                                nullptr,
-                                                                data,
-                                                                size};
-
-    void* importedNpuData = nullptr;
-
-    ze_host_mem_alloc_desc_t memAllocDesc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, flags};
-    res =
-        zeMemAllocHost(_zeroInitStruct->getContext(), &memAllocDesc, size, utils::STANDARD_PAGE_SIZE, &importedNpuData);
-
-    if (res == ZE_RESULT_SUCCESS) {
-        return importedNpuData;
-    }
-
-    _logger.debug("Got an error when importing a CPUVA: %s, code %#X - %s",
-                  ze_result_to_string(res).c_str(),
-                  uint64_t(res),
-                  ze_result_to_description(res).c_str());
-    return nullptr;
+    return true;
 }
 
 GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                                        const std::string& buildFlags,
                                                        const uint32_t& flags) const {
+    // For ext version >= 1.5, calling pfnCreate2 api in _zeroInitStruct->getGraphDdiTable()
+    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                              nullptr,
+                              ZE_GRAPH_FORMAT_NGRAPH_LITE,
+                              serializedIR.first,
+                              serializedIR.second.get(),
+                              buildFlags.c_str(),
+                              flags};
+
+    _logger.debug("getGraphDescriptor - perform pfnCreate2");
+    // Create querynetwork handle
     ze_graph_handle_t graphHandle = nullptr;
-    if (NotSupportGraph2(_graphExtVersion)) {
-        // For ext version <1.5, calling pfnCreate api in _zeroInitStruct->getGraphDdiTable()
-        ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                                nullptr,
-                                ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                                serializedIR.first,
-                                serializedIR.second.get(),
-                                buildFlags.c_str()};
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate2(_zeroInitStruct->getContext(),
+                                                                 _zeroInitStruct->getDevice(),
+                                                                 &desc,
+                                                                 &graphHandle);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
 
-        _logger.debug("getGraphDescriptor - perform pfnCreate");
-        // Create querynetwork handle
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate(_zeroInitStruct->getContext(),
-                                                                    _zeroInitStruct->getDevice(),
-                                                                    &desc,
-                                                                    &graphHandle);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _zeroInitStruct->getGraphDdiTable());
-    } else {
-        // For ext version >= 1.5, calling pfnCreate2 api in _zeroInitStruct->getGraphDdiTable()
-        ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                                  nullptr,
-                                  ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                                  serializedIR.first,
-                                  serializedIR.second.get(),
-                                  buildFlags.c_str(),
-                                  flags};
-
-        _logger.debug("getGraphDescriptor - perform pfnCreate2");
-        // Create querynetwork handle
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate2(_zeroInitStruct->getContext(),
-                                                                     _zeroInitStruct->getDevice(),
-                                                                     &desc,
-                                                                     &graphHandle);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
-    }
     return GraphDescriptor{graphHandle};
 }
 
@@ -397,9 +291,9 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t bl
 
     uint32_t flags = 0;
 
-    void* npuMemory = importCpuVa(blobData, blobSize, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+    bool setPersistentFlag = canCpuVaBeImported(blobData, blobSize, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
 
-    if (npuMemory) {
+    if (setPersistentFlag) {
         _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT");
         flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
     }
@@ -420,7 +314,7 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t bl
                                                                  &graphHandle);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
 
-    return GraphDescriptor{graphHandle, npuMemory};
+    return GraphDescriptor{graphHandle, setPersistentFlag};
 }
 
 /**
@@ -591,6 +485,17 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
         return {};
     }
+
+#ifdef _WIN32
+    // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
+    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                         ZE_NPU_DRIVER_OPTIONS,
+                                                                         "NO_THROW_ON_UNSUPPORTED_FEATURE",
+                                                                         nullptr) != ZE_RESULT_SUCCESS) {
+        return {};
+    }
+#endif
+
     // 1. ask driver for size of compiler supported options list
     _logger.debug("pfnCompilerGetSupportedOptions - obtain string size");
     size_t str_size = 0;
@@ -639,6 +544,17 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
     if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
         return false;
     }
+
+#ifdef _WIN32
+    // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
+    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                         ZE_NPU_DRIVER_OPTIONS,
+                                                                         "NO_THROW_ON_UNSUPPORTED_FEATURE",
+                                                                         nullptr) != ZE_RESULT_SUCCESS) {
+        return false;
+    }
+#endif
+
     const char* optname_ch = optname.c_str();
     auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
                                                                                    ZE_NPU_COMPILER_OPTIONS,
@@ -653,6 +569,32 @@ bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerIsOptionSupported", result, _zeroInitStruct->getGraphDdiTable());
     }
     return false;
+}
+
+bool ZeGraphExtWrappers::isTurboOptionSupported(const ze_graph_compiler_version_info_t& compilerVersion) const {
+#ifdef _WIN32
+    // Driver shall return NO_THROW_ON_UNSUPPORTED_FEATURE as supported to go further here
+    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                         ZE_NPU_DRIVER_OPTIONS,
+                                                                         "NO_THROW_ON_UNSUPPORTED_FEATURE",
+                                                                         nullptr) != ZE_RESULT_SUCCESS) {
+        if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 21)) {
+            return false;
+        }
+
+        return true;
+    }
+#endif
+
+    bool is_supported = false;
+    try {
+        is_supported = isOptionSupported("NPU_TURBO");
+    } catch (...) {
+        // mute it, not critical
+        is_supported = false;
+    }
+
+    return is_supported;
 }
 
 }  // namespace intel_npu

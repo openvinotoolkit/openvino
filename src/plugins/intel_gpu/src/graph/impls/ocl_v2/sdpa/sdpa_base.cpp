@@ -205,16 +205,12 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
     if (params.is_type<scaled_dot_product_attention>()) {
         const auto& desc = params.typed_desc<scaled_dot_product_attention>();
         auto data_inputs_num = get_data_inputs_num(*desc);
-        const size_t attn_mask_id = 3;
 
         jit.make("IS_CAUSAL", desc->is_causal);
-        if (desc->attn_mask_val.has_value()) {
-            jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", desc->attn_mask_val.value());
-            jit.make("HAS_ATTN_MASK_INPUT", 0);
-        } else {
-            jit.make("HAS_ATTN_MASK_INPUT", data_inputs_num > attn_mask_id);
+        if (desc->has_sink_input) {
+            jit.make("SINK_DATA_T", to_ocl_type(params.input_layouts[5].data_type));
+            jit.make("HAS_SINK_INPUT", 1);
         }
-
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
         GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
@@ -295,7 +291,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
 
         LayoutJitter k_jitter(updated_params.input_layouts[1], in_offsets_map.at(1));
-        jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
+        jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_k_transpose_order)));
 
         const auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
         const auto q_num_head = get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order);

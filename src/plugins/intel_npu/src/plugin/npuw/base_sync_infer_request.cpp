@@ -6,6 +6,9 @@
 
 #include "compiled_model.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
@@ -156,6 +159,11 @@ void ov::npuw::IBaseInferRequest::set_tensor(const ov::Output<const ov::Node>& p
     // Assigning via .at() to ensure it is a known port
     // assert(persistent)
     m_port_to_tensor.at(port).tensor = tensor;
+
+    // Check if setting input tensor
+    if (m_port_to_tensor.at(port).persistent) {
+        handle_set_remote_input(port, tensor);
+    }
 }
 
 std::vector<ov::SoPtr<ov::ITensor>> ov::npuw::IBaseInferRequest::get_tensors(
@@ -172,6 +180,36 @@ void ov::npuw::IBaseInferRequest::check_tensors() const {
     // Ignore `check_tensor` of inputs and outputs of Hetero Compiled Model because
     // `m_tensors` are not allocated
     return;
+}
+
+void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const ov::Node>& port,
+                                                          const ov::SoPtr<ov::ITensor>& tensor) {
+    for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
+        if (m_npuw_model->inputs()[i] == port) {
+            // This is a tricky case:
+            // 1) We already stored an input tensor ptr in m_input_allocated via FMM
+            // 2) We got an input tensor from outside
+            // Later in runtime we rely on m_input_allocated to check if the memory is
+            // allocated internally to prevent the copy. Here we need to check if the memory
+            // is properly allocated externally, to prevent runtime copy as well.
+            // Also we can get a strided remote tensor. In this case the copy cannot be avoided for now.
+            if (m_npuw_model->global_mem_device() == "NPU") {
+                auto remote_ctx =
+                    m_npuw_model->get_plugin()->get_core()->get_default_context(m_npuw_model->global_mem_device())._ptr;
+                auto zrh = remote_ctx->get_property().at(ov::intel_npu::l0_context.name());
+                if (::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(
+                        static_cast<ze_context_handle_t>(zrh.as<void*>()),
+                        tensor->data())) {
+                    if (tensor->is_continuous()) {
+                        m_input_allocated.insert(tensor->data());
+                    } else {
+                        LOG_WARN("Strided remote tensor is not supported on the device! Expect worse performance due "
+                                 "to CPU runtime copy.");
+                    }
+                }
+            }
+        }
+    }
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::IBaseInferRequest::query_state() const {
@@ -239,13 +277,7 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
                                                           const std::string& device) {
-    if (device == "CPU" || ov::shape_size(shape) == 0) {
-        return ov::get_tensor_impl(ov::Tensor(type, shape));
-    }
-
-    auto remote_ctx = m_npuw_model->get_plugin()->get_core()->get_default_context(device)._ptr;
-    auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
-    return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
+    return ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
 }
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const ov::Node>& node,
