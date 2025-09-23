@@ -2235,7 +2235,7 @@ TEST(gather_single_axis, simple_Baxis) {
     ASSERT_EQ(crop_prim->can_be_optimized(), false);
 }
 
-TEST(gather_not_optimized_out, static_model) {
+TEST(gather_not_optimized_out, allow_new_shape_infer_resulting_in_idx_rank_eq_1) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
