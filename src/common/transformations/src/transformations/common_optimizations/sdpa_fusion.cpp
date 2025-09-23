@@ -391,7 +391,7 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
 
         for (size_t i = 0; i < vec.size(); ++i) {
             auto pshape = vec[i].get_partial_shape();
-            int diff = supported_rank - static_cast<int>(pshape.size());
+            int diff = static_cast<int>(supported_rank - pshape.size());
             if (diff > 0) {
                 std::vector<size_t> axes(diff, 0);
                 std::iota(axes.begin(), axes.end(), 0);
@@ -576,7 +576,7 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
 
         for (size_t i = 0; i < vec.size(); ++i) {
             auto pshape = vec[i].get_partial_shape();
-            int diff = supported_rank - static_cast<int>(pshape.size());
+            int diff = static_cast<int>(supported_rank - pshape.size());
             if (diff > 0) {
                 std::vector<size_t> axes(diff, 0);
                 std::iota(axes.begin(), axes.end(), 0);
