@@ -68,6 +68,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRounding,
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          PoolingLayerTest::getTestCaseName);
 
+/* ========== Explicit Pad has wrong padding for onednn pooling primitive ========== */
+const auto maxPool_ExplicitWrongPadding_Params = ::testing::Combine(
+    ::testing::Values(ov::test::utils::PoolingTypes::MAX),
+    ::testing::Values(std::vector<size_t>({3, 3})),
+    ::testing::Values(std::vector<size_t>({2, 2})),
+    ::testing::Values(std::vector<size_t>({0, 0})),
+    ::testing::Values(std::vector<size_t>({0, 0})),
+    ::testing::Values(ov::op::RoundingType::CEIL),
+    ::testing::Values(ov::op::PadType::EXPLICIT),
+    ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
+);
+
+const std::vector<ov::Shape> inputShapeModelLarge = {{1, 64, 256, 512}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitWrongPadding,
+                         PoolingLayerTest,
+                         ::testing::Combine(maxPool_ExplicitWrongPadding_Params,
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeModelLarge)),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         PoolingLayerTest::getTestCaseName);
+
 ////* ========== Avg Pooling ========== */
 /* +========== Explicit Pad Ceil Rounding ========== */
 const auto avgPoolExplicitPadCeilRoundingParams = ::testing::Combine(
