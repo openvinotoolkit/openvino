@@ -308,9 +308,10 @@ Properties::Properties(const PropertiesType pType,
       _metrics(metrics),
       _backend(backend) {}
 
-void Properties::registerProperties() {
+void Properties::registerProperties(const std::function<void(FilteredConfig&)>& supportedPropertiesCb) {
     // Reset
     _properties.clear();
+    _supportedProperties.clear();
 
     switch (_pType) {
     case PropertiesType::PLUGIN:
@@ -325,7 +326,14 @@ void Properties::registerProperties() {
     }
 
     // 2.3. Common metrics (exposed same way by both Plugin and CompiledModel)
-    REGISTER_SIMPLE_METRIC(ov::supported_properties, true, _supportedProperties);
+    REGISTER_CUSTOM_METRIC(ov::supported_properties,
+                           true,
+                           ([this, supportedPropertiesCb](const Config& /* unusedConfig */) {
+                               if (supportedPropertiesCb != nullptr) {
+                                   supportedPropertiesCb(_config);
+                               }
+                               return _supportedProperties;
+                           }));
 
     // 3. Populate supported properties list
     // ========
