@@ -2291,3 +2291,59 @@ INSTANTIATE_TEST_SUITE_P(reduce_scalar_output_f16_f16,
                             TestParamType_general_reduce_gpu(1, 1, 1, 1, 1024, 1, format::bfyx, reduce_mode::min, {3, 2, 1, 0},  "reduce_simple_to_scalar", false, data_types::f16, false, data_types::f16),
                             TestParamType_general_reduce_gpu(1, 1, 1, 1, 1025, 1, format::bfyx, reduce_mode::min, {3, 2, 1, 0},  "reduce_simple_to_scalar", false, data_types::f16, false, data_types::f16)
                         ), general_reduce_gpu::PrintToStringParamName);
+
+TEST(reduce_f32_fw_gpu, large_buffer) {
+    auto engine = create_test_engine();
+    engine->set_enable_large_allocations(true);
+
+    size_t s0 = 16384;
+    size_t s1 = 256 * (256 + 128);
+    ov::Shape sz_8gb = { 1, 1, s1, s0 }; // *4 bytes;
+    size_t peak_mem_usage = (ov::shape_size(sz_8gb) + s0) * sizeof(float);
+    if (engine->get_device_info().max_global_mem_size < peak_mem_usage)
+        GTEST_SKIP();
+
+    layout in_l = { sz_8gb, data_types::f32, format::bfyx };
+
+    auto config = get_test_default_config(*engine);
+    ov::intel_gpu::ImplementationDesc reduce_impl = {format::bfyx, "", impl_types::any};
+    if (engine->get_device_info().supports_immad) {
+        reduce_impl.impl_type = impl_types::onednn;
+    } else {
+        reduce_impl.impl_type = impl_types::ocl;
+    }
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
+
+    topology topology(input_layout("input", in_l),
+                      reduce("reduce", input_info("input"), reduce_mode::mean, {2}, true));
+    network network(*engine, topology, config);
+    auto input = network.get_output_memory("input");
+    {
+        mem_lock<float, mem_lock_type::write> l(input, get_test_stream());
+        const size_t test_size = ov::shape_size(sz_8gb);
+        for (size_t i = 0; i < test_size; i++) {
+            l[i] = static_cast<float>(i) / s0;
+        }
+    }
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output_memory = outputs.at("reduce").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.get_linear_size(), s0);
+
+    // ensure that single 8GB buffer is allocated
+    ASSERT_EQ(engine->get_max_used_device_memory(), peak_mem_usage);
+
+    size_t sum = s1 * (s1 - 1) / 2;
+    float mean = static_cast<float>(sum) / static_cast<float>(s1);
+    for (size_t i = 0; i < s0; i++) {
+        ASSERT_NEAR(mean, output_ptr[i], 1.0f);
+    }
+}
