@@ -717,8 +717,13 @@ JitConstants XAttentionEstimateGeneratorBase::get_jit_constants(const kernel_imp
     //# loop order walks HQ first and the step is WALK_HQ, 1 means not walk HQ, 2 means walks 2 heads first. Valid value: 1, 2, 4...
     jit.make("WALK_HQ", desc->heads_num != desc->kv_heads_num ? 2 : 1);
     jit.make("IS_CAUSAL", 1);
-    jit.make("USE_INT8", 0);
-    jit.make("HEAD_SIZE_KEY", desc->k_head_size);
+    if (get_kv_compressed(params)) {
+        jit.make("USE_INT8", 1);
+        jit.make("HEAD_SIZE_KEY", desc->k_head_size + 2 * 2);
+    } else {
+        jit.make("USE_INT8", 0);
+        jit.make("HEAD_SIZE_KEY", desc->k_head_size);
+    }
     jit.make("SOFTMAX_TYPE", "float");
 
     // for (auto& it : jit) {
