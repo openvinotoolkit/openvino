@@ -5,7 +5,6 @@
 #include "openvino/xml_util/xml_serialize_util.hpp"
 
 #include <pugixml.hpp>
-#include <regex>
 
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
@@ -309,21 +308,17 @@ bool is_exec_graph(const ov::Model& model) {
     }
     return false;
 }
+
 constexpr std::string_view rt_info_user_data_tag{"user_data"};
 
 bool append_custom_rt_info(pugi::xml_node& node,
                            const std::string& key,
                            const ov::Any& data,
                            bool prefix_needed = true) {
-    const auto escaped_prefix =
-        std::regex_replace(std::string{rt_info_user_data_tag}, std::regex(R"([\.\*\+\?\|\[\]\\])"), R"(\$&)");
-    const auto prefix_pattern = escaped_prefix + "(.+)";
-    std::smatch match;
     std::string name;
-    if (std::regex_match(key, match, std::regex{prefix_pattern})) {
-        if (match.size() > 1) {
-            name = match[1];
-        }
+    constexpr auto tag_sz = rt_info_user_data_tag.size();
+    if (key.compare(0, tag_sz, rt_info_user_data_tag) == 0) {
+        name = key.substr(tag_sz);
     } else if (!prefix_needed) {
         name = key;
     }
@@ -589,13 +584,8 @@ void XmlSerializer::append_rt_info(pugi::xml_node& node, ov::RTMap& attributes) 
                     rt_node.remove_child(attribute_node);
                 }
             }
-        }
-    }
-    if (!m_deterministic) {
-        for (const auto& item : attributes) {
-            if (!item.second.is<ov::RuntimeAttribute>()) {
-                has_attrs = append_custom_rt_info(rt_node, item.first, item.second) || has_attrs;
-            }
+        } else if (!m_deterministic) {
+            has_attrs = append_custom_rt_info(rt_node, item.first, item.second) || has_attrs;
         }
     }
     if (!has_attrs) {

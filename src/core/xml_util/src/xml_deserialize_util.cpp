@@ -26,7 +26,6 @@
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
-#include "openvino/xml_util/xml_serialize_util.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
 namespace ov::util {
