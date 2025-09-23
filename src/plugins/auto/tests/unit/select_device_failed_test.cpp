@@ -26,7 +26,7 @@ using ConfigParams = std::tuple<bool,                       // if can continue t
 
 class AutoLoadFailedTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [continueRun,
                      thrExcWheSelect,
                      configModel,

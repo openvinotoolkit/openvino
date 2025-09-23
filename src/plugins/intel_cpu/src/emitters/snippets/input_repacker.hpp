@@ -28,7 +28,7 @@ struct InputRepacker {
                   VectorDims in_offsets,
                   VectorDims out_offsets);
 
-    template <class T = InputRepackerKernel, std::enable_if_t<std::is_base_of_v<InputRepackerKernel, T>, bool> = true>
+    template <class T = InputRepackerKernel, typename = std::enable_if_t<std::is_base_of_v<InputRepackerKernel, T>>>
     [[nodiscard]] std::shared_ptr<const T> kernel() const {
         const auto ker = std::dynamic_pointer_cast<const T>(m_kernel);
         OPENVINO_ASSERT(ker, "Kernel is empty!");
