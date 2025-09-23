@@ -6,8 +6,10 @@
 
 #include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils/common.hpp"
 
@@ -24,18 +26,21 @@ ov::OutputVector identity(const ov::frontend::onnx::Node& node) {
     // in some cases like:
     //   Input->Identity->Result
     ov::Output<ov::Node> input = node.get_ov_inputs().at(0);
-    const auto& start = v0::Constant::create(element::i64, {1}, {0});
     auto input_shape = input.get_partial_shape();
-    bool need_squeeze = (input_shape.rank().is_dynamic() || input_shape.rank().get_length() == 0);
-    const auto& end = v0::Constant::create(element::i64, {1}, {std::numeric_limits<int64_t>::max()});
-    const auto& step = v0::Constant::create(element::i64, {1}, {1});
-    if (need_squeeze) {
-        input = std::make_shared<v0::Unsqueeze>(input, v0::Constant::create(element::i64, {1}, {0}));
+
+    ov::Output<ov::Node> input_order;
+    ov::Output<ov::Node> output;
+    if (input_shape.rank().is_dynamic() || input_shape.rank().get_length() == 0) {
+        input_order = v0::Constant::create(element::i64, {0}, {0});
+        input = std::make_shared<v1::Transpose>(input, input_order);
+    } else {
+        std::vector<int64_t> ref_values(input_shape.rank().get_length());
+        std::iota(ref_values.begin(), ref_values.end(), 0);
+        uint64_t rank_len = input_shape.rank().get_length();
+        input_order = v0::Constant::create(element::i64, {rank_len}, ref_values);
     }
-    ov::Output<ov::Node> output = std::make_shared<v8::Slice>(input, start, end, step);
-    if (need_squeeze) {
-        output = std::make_shared<v15::Squeeze>(output, v0::Constant::create(element::i64, {1}, {0}));
-    }
+    output = std::make_shared<v1::Transpose>(input, input_order);
+
     return {output};
 }
 ONNX_OP("Identity", OPSET_SINCE(1), ai_onnx::opset_1::identity);
