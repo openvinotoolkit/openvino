@@ -196,10 +196,6 @@ bool OptionsDesc::has(std::string_view key) const {
     return false;
 }
 
-bool Config::empty() const {
-    return _impl.empty();
-}
-
 std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     std::vector<std::string> res;
     res.reserve(_impl.size());

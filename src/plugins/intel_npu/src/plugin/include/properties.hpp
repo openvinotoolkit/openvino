@@ -37,7 +37,7 @@ public:
      * - it will register metric-based properties, with data from the metrics interface
      * - at the end it populates supported_properties with the now dynamically registered public properties
      */
-    void registerProperties();
+    void registerProperties(const std::function<void(FilteredConfig&)>& supportedPropertiesCb = nullptr);
 
     /**
      * @brief Get the values of a property in a map
