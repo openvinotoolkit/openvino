@@ -450,6 +450,8 @@ public:
 
     bool has(std::string key) const;
 
+    bool empty() const;
+
     template <class Opt>
     typename Opt::ValueType get() const;
 
