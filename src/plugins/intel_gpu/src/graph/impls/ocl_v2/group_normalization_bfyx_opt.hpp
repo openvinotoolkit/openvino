@@ -40,8 +40,13 @@ struct GroupNormalizationBfyxOpt : public GroupNormalizationBase {
         };
 
         const auto& in0_layout = node.get_input_layout(0);
+        const auto& in1_layout = node.get_input_layout(1);
+        const auto& in2_layout = node.get_input_layout(2);
         const auto& out_layout = node.get_output_layout(0);
-        if (!one_of(in0_layout.format, supported_input_fmts) || !one_of(out_layout.format, supported_output_fmts)) {
+        if (!(one_of(in0_layout.format, supported_input_fmts) ||
+              one_of(in1_layout.format, supported_input_fmts) ||
+              one_of(in2_layout.format, supported_input_fmts)) ||
+            !one_of(out_layout.format, supported_output_fmts)) {
             return false;
         }
 
