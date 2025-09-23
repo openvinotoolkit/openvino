@@ -9,10 +9,11 @@
 #include <common_test_utils/test_assertions.hpp>
 
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
-#include "zero_memory.hpp"
 
 void ZeroGraphTest::SetUp() {
     std::tie(graphDescFlag, extVersion) = GetParam();
@@ -132,15 +133,14 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraph) { // TODO: add asserts for no 
                                                                         ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
     zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
 
-    auto allocator = std::make_shared<zeroMemory::HostMemAllocator>(zeroInitStruct,
-                                                                    ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
-    void* ptr = allocator->allocate(totalSize);
+    void* ptr = nullptr;
+    OV_ASSERT_NO_THROW(ptr = allocate_zero_memory(zeroInitStruct, totalSize, utils::STANDARD_PAGE_SIZE));
     // to check if its persistent or not
     // if persistent: and if i destroy the blob after init, then setGraph should fail?
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, ptr));
 
-    allocator->deallocate(ptr, totalSize);
+    OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, ptr));
     zeGraphExt->destroyGraph(graphDescriptor);
 }
 
@@ -238,4 +238,32 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
     OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
     return std::make_pair(sizeOfSerializedIR, buffer);
+}
+
+void* allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const size_t bytes, const size_t alignment) noexcept {
+    size_t size = bytes + alignment - (bytes % alignment);
+
+    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED};
+    void* data = nullptr;
+    auto result = intel_npu::zeMemAllocHost(init_structs->getContext(), &desc, size, alignment, &data);
+
+    if (result == ZE_RESULT_SUCCESS) {
+        return data;
+    } else {
+        OPENVINO_THROW("L0 zeMemAllocHost result: %s, code %#X - %s",
+                      ze_result_to_string(result).c_str(),
+                      uint64_t(result),
+                      ze_result_to_description(result).c_str());
+        return nullptr;
+    }
+}
+
+void deallocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, void* handle) noexcept {
+    auto result = intel_npu::zeMemFree(init_structs->getContext(), handle);
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 zeMemFree result: %s, code %#X - %s",
+                      ze_result_to_string(result).c_str(),
+                      uint64_t(result),
+                      ze_result_to_description(result).c_str());
+    }
 }

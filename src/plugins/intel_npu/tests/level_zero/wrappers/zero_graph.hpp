@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/runtime/core.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
 
@@ -43,8 +42,6 @@ public:
 
     std::shared_ptr<ov::Model> model;
 
-    ov::CompiledModel compiled_model;
-
     std::string extVersion;
 
     int graphDescFlag;
@@ -57,18 +54,12 @@ public:
     }
 };
 
-std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precision);
-
-std::string rankToLegacyLayoutString(const size_t rank);
-
-std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
-
-std::string serializeConfig(const Config& config,
-                            ze_graph_compiler_version_info_t compilerVersion,
-                            const std::shared_ptr<intel_npu::ZeGraphExtWrappers> zeGraphExt);
-
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          ze_graph_compiler_version_info_t compilerVersion,
                          const uint32_t supportedOpsetVersion);
 
 void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes);
+
+void* allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const size_t bytes, const size_t alignment) noexcept;
+
+void deallocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, void* handle) noexcept;
