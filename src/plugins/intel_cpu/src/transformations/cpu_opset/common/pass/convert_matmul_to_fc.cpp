@@ -26,8 +26,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/subtract.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "openvino/op/multiply.hpp"
+#    include "openvino/op/subtract.hpp"
+#endif
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -70,6 +72,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             }
         }
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         auto is_3d_decompression_path = [](const std::shared_ptr<Node>& root) {
             std::shared_ptr<Node> multiply_node = ov::as_type_ptr<ov::op::v1::Multiply>(root);
             if (!multiply_node) {
@@ -102,6 +105,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         if (is_3d_decompression_path(fc_input_b.get_node_shared_ptr())) {
             return false;
         }
+#endif
 
         auto shape_a = fc_input_a.get_partial_shape();
         auto shape_b = fc_input_b.get_partial_shape();
@@ -126,6 +130,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         // 3-d case:
         //   [1,2,3] --> node::fc --> dnnl::inner-product
         //   [2,3,4] --> node::fc --> dnnl::matmul
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         if (std::count_if(shape_b.begin(),
                           shape_b.end(),
                           [](const ov::Dimension& x) {
@@ -134,6 +139,13 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             shape_b.size() > 3) {
             return false;
         }
+#else
+        if (std::count_if(shape_b.begin(), shape_b.end(), [](const ov::Dimension& x) {
+                return x != 1;
+            }) > 2) {
+            return false;
+        }
+#endif
         /*
          *  get_aligned_shapes function align two input shapes to have the same size and
          *  the same batch dimensions (last two dimensions are not comparable).
@@ -166,6 +178,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             //   [2,1,1,4] --> node::matmul
             //   [1,1,2,4] --> node::fc
             //   [2,3,4] --> node::fc --> dnnl::matmul
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
             if (max_size > 3) {
                 for (size_t i = 0; i < max_size - 2; ++i) {
                     if (shape_b_aligned[i] != 1) {
@@ -173,6 +186,15 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                     }
                 }
             }
+#else
+            for (size_t i = 0; i < max_size - 2; ++i) {
+                if (shape_b_aligned[i] == 1) {
+                    shape_b_aligned[i] = shape_a_aligned[i];
+                } else {
+                    return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
+                }
+            }
+#endif
             return std::make_tuple(true, std::move(shape_a_aligned), std::move(shape_b_aligned));
         };
 
