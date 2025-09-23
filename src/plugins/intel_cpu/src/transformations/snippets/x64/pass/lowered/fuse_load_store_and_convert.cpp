@@ -106,9 +106,6 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(
                                                                                 store->get_count(),
                                                                                 store->get_offset());
     } else if (ov::is_type<snippets::op::ConvertTruncation>(convert)) {
-        if (convert->get_use_rounding()) {
-            return false;
-        }
         store_convert = std::make_shared<ov::intel_cpu::StoreConvertTruncation>(parent_output,
                                                                                 convert->get_destination_type(),
                                                                                 store->get_count(),

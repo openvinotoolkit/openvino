@@ -73,7 +73,6 @@ private:
 
     bool is_i8_and_u8_case() const;
     void register_table_entries() override;
-    bool m_use_rounding;
 };
 
 // This emitter is covered by the common dnnl behavior. The implementation uses a "saturation" conversion.

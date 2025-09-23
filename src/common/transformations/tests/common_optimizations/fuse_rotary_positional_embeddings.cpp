@@ -1375,9 +1375,7 @@ TEST_P(ConvertToROPETest, ConvertToROPE_Qwen_PagedAttention) {
 
         // Prepare rotary embedding table and gather by position
         auto rotary_emp = makeConst(element::f32, {1, 4096, 1, 128}, {1});
-        auto pos_i32 =
-            makeOP<opset1::Convert>({position_ids},
-                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
+        auto pos_i32 = makeOP<opset1::Convert>({position_ids}, {{"destination_type", "i32"}});
         auto pos_reshaped = makeOP<opset1::Reshape>({pos_i32, {-1, 1}}, {{"special_zero", false}});
         auto gathered = makeOP<opset8::Gather>({rotary_emp, pos_reshaped, 1}, {{"batch_dims", 0}});
         auto gathered_reshape = makeOP<opset1::Reshape>({gathered, {-1, 1, 1, 128}}, {{"special_zero", false}});
@@ -1415,9 +1413,7 @@ TEST_P(ConvertToROPETest, ConvertToROPE_Qwen_PagedAttention) {
         auto rotary_emp_sin = makeConst(element::f32, {1, 4096, 1, 128}, {1});
         auto rotary_emp_cos = makeConst(element::f32, {1, 4096, 1, 128}, {1});
         auto position_ids = std::make_shared<opset1::Parameter>(element::i64, PartialShape{-1, -1});
-        auto pos_i32 =
-            makeOP<opset1::Convert>({position_ids},
-                                    {{"destination_type", "i32"}, {"no_clamp", false}, {"use_rounding", false}});
+        auto pos_i32 = makeOP<opset1::Convert>({position_ids}, {{"destination_type", "i32"}});
         auto pos_reshaped = makeOP<opset1::Reshape>({pos_i32, {-1, 1}}, {{"special_zero", false}});
         auto rope = makeOP<ov::op::internal::RoPE>({input, rotary_emp_sin, rotary_emp_cos, pos_reshaped},
                                                    {{"config.slice_start", slice_start},

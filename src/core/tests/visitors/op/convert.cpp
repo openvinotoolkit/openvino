@@ -22,7 +22,7 @@ TEST(attributes, convert_op_v0) {
     NodeBuilder builder(convert, {data});
 
     // attribute count
-    const auto expected_attr_count = 3;
+    const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
     // destination_type attribute

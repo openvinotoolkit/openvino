@@ -36,8 +36,9 @@ namespace ov::intel_cpu::node {
 bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto convert = ov::as_type_ptr<const ov::op::v0::Convert>(op);
-        if (!convert) {
-            errorMessage = "Only opset1 Convert operation is supported";
+        const auto convert16 = ov::as_type_ptr<const ov::op::v16::Convert>(op);
+        if (!convert && !convert16) {
+            errorMessage = "Only opset1 and opset16 Convert operation is supported";
             return false;
         }
 
@@ -62,9 +63,12 @@ Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     }
 
     auto convert = ov::as_type_ptr<const ov::op::v0::Convert>(op);
-    convertParams.origPrc = convert->get_destination_type();
-    convertParams.no_clamp = convert->get_no_clamp();
-    convertParams.use_rounding = convert->get_use_rounding();
+    auto convert16 = ov::as_type_ptr<const ov::op::v16::Convert>(op);
+    convertParams.origPrc = convert16 ? convert16->get_destination_type() : convert->get_destination_type();
+    if (convert16) {
+        convertParams.no_clamp = convert16->get_no_clamp();
+        convertParams.use_rounding = convert16->get_use_rounding();
+    }
 }
 
 Convert::Convert(const Shape& shape,

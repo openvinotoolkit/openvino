@@ -26,14 +26,14 @@ ov::pass::CastToConvert::CastToConvert() {
 
     auto reshape = wrap_type<v1::Reshape>({any_input(), any_input()});
     auto reducemean = wrap_type<v1::ReduceMean>({reshape, any_input()});
-    auto convert = wrap_type<v0::Convert>({reducemean});
+    auto convert = wrap_type<v16::Convert>({reducemean});
     auto result = wrap_type<v0::Result>({convert});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto convert_node = pattern_map.at(convert).get_node_shared_ptr();
-        auto convert_op = ov::as_type_ptr<v0::Convert>(convert_node);
+        auto convert_op = ov::as_type_ptr<v16::Convert>(convert_node);
         if (!convert_op)
             return false;
 
@@ -42,7 +42,7 @@ ov::pass::CastToConvert::CastToConvert() {
 
         auto input = convert_op->input_value(0);
         auto dest_type = convert_op->get_destination_type();
-        auto new_convert = std::make_shared<v0::Convert>(input, dest_type, false, false);
+        auto new_convert = std::make_shared<v0::Convert>(input, dest_type);
         new_convert->set_friendly_name(convert_op->get_friendly_name());
         copy_runtime_info(convert_op, new_convert);
         replace_node(convert_op, new_convert);

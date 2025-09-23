@@ -712,8 +712,21 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
                 jit_convert(src + offset, tmp, current_batch_size);  // fp16 -> fp32
-                for (size_t j = 0; j < current_batch_size; ++j) {    // fp32 -> dst_t
-                    dst[offset + j] = static_cast<dst_t>(std::max(std::min(tmp[j], ubound), lbound));
+                if (!ctx.no_clamp && !ctx.use_rounding) {
+                    for (size_t j = 0; j < current_batch_size; ++j) {  // fp32 -> dst_t
+                        dst[offset + j] = static_cast<dst_t>(std::max(std::min(tmp[j], ubound), lbound));
+                    }
+                } else {
+                    for (size_t j = 0; j < current_batch_size; ++j) {  // fp32 -> dst_t
+                        if (ctx.no_clamp) {
+                            dst[offset + j] =
+                                static_cast<dst_t>(ctx.use_rounding ? std::round(tmp[j]) : std::trunc(tmp[j]));
+                        } else {
+                            dst[offset + j] = static_cast<dst_t>(
+                                ctx.use_rounding ? std::round(std::max(std::min(tmp[j], ubound), lbound))
+                                                 : std::trunc(std::max(std::min(tmp[j], ubound), lbound)));
+                        }
+                    }
                 }
             });
         } else if (ctx.interimPrc.is_real()) {

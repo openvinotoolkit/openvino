@@ -337,14 +337,22 @@ bool convert_function_precision(ov::pass::PassBase& pass,
             auto& result = results[i];
             if (result->get_input_element_type(0) != orig_result_types[i]) {
                 auto result_input = result->input_value(0);
-                bool no_clamp = false;
-                bool use_rounding = false;
-                if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(result_input.get_node_shared_ptr())) {
-                    no_clamp = convert->get_no_clamp();
-                    use_rounding = convert->get_use_rounding();
+
+                auto convert_v0 = ov::as_type_ptr<ov::op::v0::Convert>(result_input.get_node_shared_ptr());
+                auto convert_v16 = ov::as_type_ptr<ov::op::v16::Convert>(result_input.get_node_shared_ptr());
+                if (!convert_v0 && !convert_v16) {
+                    continue;
                 }
-                const auto convert =
-                    std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i], no_clamp, use_rounding);
+
+                std::shared_ptr<ov::Node> convert;
+                if (convert_v16) {
+                    convert = std::make_shared<ov::op::v16::Convert>(result_input,
+                                                                     orig_result_types[i],
+                                                                     convert_v16->get_no_clamp(),
+                                                                     convert_v16->get_use_rounding());
+                } else {
+                    convert = std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i]);
+                }
 
                 auto convert_f_name = result_input.get_node()->get_friendly_name();
                 if (names_compatibility_mode) {
@@ -439,6 +447,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
 
     type_to_fuse_map type_to_fuse{
         {ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert},
+        {ov::op::v16::Convert::get_type_info_static(), fuse_type_to_convert},
         {ov::op::v3::ShapeOf::get_type_info_static(), fuse_type_to_shapeof},
         {ov::op::v6::Assign::get_type_info_static(),
          m_store_original_precision_as_rt_attribute ? store_original_type_as_attribute : wrap_into_original_type},
@@ -639,6 +648,7 @@ bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
             for (auto& input : param_consumers) {
                 const auto consumer = input.get_node();
                 if (ov::is_type<ov::op::v0::Result>(consumer) || ov::is_type<ov::op::v0::Convert>(consumer) ||
+                    ov::is_type<ov::op::v16::Convert>(consumer) ||
                     // TODO: refactor after ngraph op defined
                     // The fourth and fifth inputs are kvcache and should be directly connected to parameters
                     (consumer->get_type_name() == std::string("PagedAttentionExtension") &&
@@ -705,6 +715,10 @@ bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precision
         return false;
     const auto& to = it->second;
     if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+        convert->set_convert_element_type(to);
+        return true;
+    }
+    if (auto convert = ov::as_type_ptr<ov::op::v16::Convert>(node)) {
         convert->set_convert_element_type(to);
         return true;
     }

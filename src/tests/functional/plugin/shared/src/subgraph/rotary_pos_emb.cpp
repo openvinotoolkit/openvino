@@ -480,9 +480,7 @@ std::shared_ptr<ov::Model> RoPETestQwen7bStridedSlice::buildROPE_QWen7b(bool spe
                                                     1,
                                                 }),
                                                 {-1});
-    auto Constant_296840 = makeOP<opset1::Convert>(
-        {Constant_296840_compressed},
-        {{"destination_type", element_type.to_string()}, {"no_clamp", false}, {"use_rounding", false}});
+    auto Constant_296840 = makeOP<opset1::Convert>({Constant_296840_compressed}, {{"destination_type", element_type.to_string()}});
     auto neg_Multiply_499 =
         makeOP<opset1::Multiply>({ListUnpack_496_Squeeze_0, Constant_296840}, {{"auto_broadcast", "numpy"}});
     auto ListUnpack_496_Squeeze = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(0), -2});
@@ -1034,9 +1032,7 @@ std::shared_ptr<ov::Model> RoPETestQwen7bSlice::buildROPE_Qwen7b(bool specialRes
                                                     1,
                                                 }),
                                                 {-1});
-    auto Constant_296840 = makeOP<opset1::Convert>(
-        {Constant_296840_compressed},
-        {{"destination_type", element_type.to_string()}, {"no_clamp", false}, {"use_rounding", false}});
+    auto Constant_296840 = makeOP<opset1::Convert>({Constant_296840_compressed}, {{"destination_type", element_type.to_string()}});
     auto neg_Multiply_499 =
         makeOP<opset1::Multiply>({ListUnpack_496_Squeeze_0, Constant_296840}, {{"auto_broadcast", "numpy"}});
     auto ListUnpack_496_Squeeze = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(0), -2});

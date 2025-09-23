@@ -18,7 +18,7 @@ ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
     int64_t target_type = node.get_attribute_value<int64_t>("to");
     ov::element::Type elem_type = common::get_ov_element_type(target_type);
 
-    return {std::make_shared<v0::Convert>(data, elem_type, true, true)};
+    return {std::make_shared<v16::Convert>(data, elem_type, true, true)};
 }
 
 ONNX_OP("Cast", OPSET_SINCE(1), ai_onnx::opset_1::cast);

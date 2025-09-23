@@ -36,13 +36,8 @@ ov::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToConve
             const auto root = m.get_match_root();
             const auto convert = ov::as_type_ptr<ov::opset1::Convert>(root);
             OPENVINO_ASSERT(convert, "Convert op is invalid");
-
-            auto convert_truncation = convert->get_use_rounding()
-                                          ? std::make_shared<op::ConvertTruncation>(convert->get_input_source_output(0),
-                                                                                    convert->get_destination_type(),
-                                                                                    true)
-                                          : std::make_shared<op::ConvertTruncation>(convert->get_input_source_output(0),
-                                                                                    convert->get_destination_type());
+            auto convert_truncation = std::make_shared<op::ConvertTruncation>(convert->get_input_source_output(0),
+                                                                              convert->get_destination_type());
             convert_truncation->set_friendly_name(convert->get_friendly_name());
             ov::copy_runtime_info(convert, convert_truncation);
             ov::replace_node(convert, convert_truncation);
