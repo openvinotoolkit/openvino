@@ -233,13 +233,22 @@ jobs:
 
       - name: Prepare CPU test artifacts
         run: |
-          mkdir -p android_tests
+          mkdir -p android_tests/bin/intel64/Release
+          mkdir -p android_tests/lib
 
           # Install tests using cmake install
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix android_tests --component tests
 
+          # Check if we need to move test binaries to expected location
+          if [ -d "android_tests/tests" ]; then
+            echo "Moving tests from android_tests/tests/ to android_tests/bin/intel64/Release/"
+            find android_tests/tests -name "*cpu*test*" -type f -exec cp {} android_tests/bin/intel64/Release/ \;
+          fi
+
+          # Also copy any libraries that were installed
+          find android_tests -name "*.so*" -type f -exec cp {} android_tests/bin/intel64/Release/ \; 2>/dev/null || echo "No .so files from cmake install"
+
           # Copy TBB libraries
-          mkdir -p android_tests/lib
           find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} android_tests/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
 
           # Copy NDK C++ shared library
