@@ -19,6 +19,19 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/gather.hpp"
+#include <openvino/core/graph_util.hpp>
+#include <openvino/op/shape_of.hpp>
+#include <openvino/op/convert.hpp>
+#include <openvino/op/concat.hpp>
+#include <openvino/op/broadcast.hpp>
+#include "openvino/op/gather.hpp"
+#include <openvino/core/graph_util.hpp>
+#include <openvino/op/shape_of.hpp>
+#include <openvino/op/convert.hpp>
+#include <openvino/op/concat.hpp>
+#include <openvino/op/broadcast.hpp>
+#include <openvino/pass/constant_folding.hpp>
 
 using namespace ov;
 using namespace ov::op;
@@ -384,7 +397,56 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     auto m = std::make_shared<Matcher>(multiply_pattern, "KeepDequantizationPrecision");
     this->register_matcher(m, callback);
 }
+ov::pass::markStatefulSubgraph::markStatefulSubgraph() {
 
+    MATCHER_SCOPE(markStatefulSubgraph);
+    auto param_m = wrap_type<ov::op::v0::Parameter>();
+    auto convert_param_m = wrap_type < ov::op::v0::Convert>(param_m);
+    auto output_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{param_m, convert_param_m});
+    auto shapeof_m = pattern::wrap_type<ov::op::v3::ShapeOf>({output_m});
+    auto const_gather_1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_gather_2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto Gather_m = ov::pass::pattern::wrap_type<ov::op::v1::Gather>({shapeof_m, const_gather_1_m, const_gather_2_m});
+    auto const_concat_1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_concat_2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_concat_3_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto Concat_m =
+        ov::pass::pattern::wrap_type<ov::op::v0::Concat>({Gather_m, const_concat_1_m, const_concat_2_m, const_concat_3_m
+    });
+    auto const_broadcast_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto broadcast_m_2 = ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>({const_broadcast_m, Concat_m});
+    auto broadcast_m_3 = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>({const_broadcast_m, Concat_m});
+    auto broadcast_output_m = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{ broadcast_m_2, broadcast_m_3});
+   
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto& pm = m.get_pattern_map();
+        if (pattern_map.count(convert_param_m) > 0) {
+            auto convert_param = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(convert_param_m).get_node_shared_ptr());
+            ov::disable_constant_folding(pm.at(convert_param_m));
+        }
+        if (pattern_map.count(param_m) > 0) {
+            auto param =
+                ov::as_type_ptr<ov::op::v0::Parameter>(pattern_map.at(param_m).get_node_shared_ptr());
+            ov::disable_constant_folding(pm.at(param_m));
+        }
+        auto shapeof = ov::as_type_ptr<ov::op::v3::ShapeOf>(pattern_map.at(shapeof_m).get_node_shared_ptr());
+        ov::disable_constant_folding(pm.at(shapeof_m));
+        auto gather = ov::as_type_ptr<ov::op::v1::Gather>(pattern_map.at(Gather_m).get_node_shared_ptr());
+        ov::disable_constant_folding(pm.at(Gather_m));
+        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(Concat_m).get_node_shared_ptr());
+        ov::disable_constant_folding(pm.at(Concat_m));
+        auto broadcast =ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_output_m).get_node_shared_ptr());
+        ov::disable_constant_folding(pm.at(broadcast_output_m));
+        
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(broadcast_output_m, "MarkStatefulMatcher");
+    this->register_matcher(m, callback);
+
+}
 ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& table_values_precisions,
                                                  const element::TypeVector& indices_precisions) {
     MATCHER_SCOPE(MarkGatherSubgraph);

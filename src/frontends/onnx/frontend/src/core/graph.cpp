@@ -34,8 +34,6 @@
 #include <openvino/op/broadcast.hpp>
 #include <openvino/pass/constant_folding.hpp>
 
-
-
 using namespace ov;
 using namespace ::ONNX_NAMESPACE;
 
@@ -43,10 +41,6 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace detail {
-
-
-
-
 bool common_node_for_all_outputs(const ov::OutputVector& outputs) {
     const auto first_out_node = outputs.at(0).get_node();
     bool ret = std::all_of(std::next(std::begin(outputs)),
@@ -230,6 +224,13 @@ bool model_has_input_output_name(const std::shared_ptr<ov::Model>& model, const 
     return false;
 }
 
+int index_of_model_input_output(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    for (auto i = 0; i < model->inputs().size(); i++) {
+        if (model->inputs().at(i).get_any_name() == name)
+            return i;
+    }
+    return 0;
+}
 std::vector<std::shared_ptr<ov::Node>> get_input_nodes(const std::shared_ptr<ov::Node>& node) {
     std::vector<std::shared_ptr<ov::Node>> inputs;
     for (const auto& input : node->inputs()) {
@@ -244,7 +245,6 @@ std::unordered_set<std::shared_ptr<ov::Node>> find_dependent_nodes(
     const std::shared_ptr<ov::Model>& model,
     const std::unordered_set<std::shared_ptr<ov::Node>>& sources) {
     std::unordered_set<std::shared_ptr<ov::Node>> result = sources;
-
     for (const auto& node : model->get_ordered_ops()) {
         auto input_nodes = get_input_nodes(node);
         for (const auto& input_node : input_nodes) {
@@ -254,7 +254,6 @@ std::unordered_set<std::shared_ptr<ov::Node>> find_dependent_nodes(
             }
         }
     }
-
     return result;
 }
 std::vector<std::shared_ptr<ov::Node>> get_shape_of_ops(const std::shared_ptr<ov::Model>& model) {
@@ -284,29 +283,23 @@ std::vector<std::shared_ptr<ov::Node>> get_read_value_ops(const std::shared_ptr<
     }
     return result;
 }
-
-
 std::vector<std::shared_ptr<ov::Node>> find_output_nodes_of_dependent_subgraph(
     const std::shared_ptr<ov::Model>& model,
     const std::unordered_set<std::shared_ptr<ov::Node>>& sources) {
     // Get "other" inputs: parameters + ReadValue + ShapeOf, excluding sources
     std::unordered_set<std::shared_ptr<ov::Node>> other_inputs(model->get_parameters().begin(),
                                                                model->get_parameters().end());
-
     for (const auto& node : get_read_value_ops(model)) {
         other_inputs.insert(node);
     }
     for (const auto& node : get_shape_of_ops(model)) {
         other_inputs.insert(node);
     }
-
     for (const auto& source : sources) {
         other_inputs.erase(source);
     }
-
     auto other_nodes = find_dependent_nodes(model, other_inputs);
     auto source_dependent_nodes = find_dependent_nodes(model, sources);
-
     // Subgraph nodes that depend only on sources
     std::unordered_set<std::shared_ptr<ov::Node>> subgraph_nodes;
     for (const auto& node : source_dependent_nodes) {
@@ -314,7 +307,6 @@ std::vector<std::shared_ptr<ov::Node>> find_output_nodes_of_dependent_subgraph(
             subgraph_nodes.insert(node);
         }
     }
-
     // Find nodes on the boundary (with consumers outside the subgraph)
     std::vector<std::shared_ptr<ov::Node>> edge_nodes;
     for (const auto& node : subgraph_nodes) {
@@ -326,18 +318,14 @@ std::vector<std::shared_ptr<ov::Node>> find_output_nodes_of_dependent_subgraph(
             }
         }
     }
-
     return edge_nodes;
 }
 
 
 void insert_state_for_nodes(std::shared_ptr<ov::Model> model, const std::vector<std::shared_ptr<ov::Node>>& nodes) {
     
-
     // Flatten the list of outputs for all nodes in the input 'nodes'
-
     std::vector<ov::Output<ov::Node>> outputs;
-    
     for (const auto& node : nodes) {
         const auto& node_outputs = node->outputs();
         for (auto out : node_outputs)
@@ -345,36 +333,26 @@ void insert_state_for_nodes(std::shared_ptr<ov::Model> model, const std::vector<
         //outputs.insert( node_outputs.begin(), node_outputs.end());
         
     }
-    
-    
     // Iterate through each output and create ReadValue-Assign pair
     for (const auto& output : outputs) {
         // Get the consumers of the current output
         //auto consumers = output->output(0).get_target_inputs();
         auto consumers = output.get_target_inputs();
-
         // Use get_any_name (FIXME: Not always reliable if tensor has no name)
         std::string variable_id = output.get_any_name();
-        
-
         // Create ReadValue operation
         //auto read_value = std::make_shared<ov::op::v6::ReadValue>(output, variable_id);
-
         const auto& var_name = output.get_any_name();
         auto variable = std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{output.get_partial_shape(), output.get_element_type(), var_name});
-        
         // Create ReadValue
         auto read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
-
         // Replace all consumers of the output with the new read_value
         for (auto& consumer : consumers) {
             consumer.replace_source_output(read_value->output(0));
         }
-
         // Create Assign operation to store the value
         auto assign = std::make_shared<ov::op::v6::Assign>(read_value->output(0), variable);
-
         // Add the assign operation to the model
         model->add_sinks({assign});
     }
@@ -382,10 +360,9 @@ void insert_state_for_nodes(std::shared_ptr<ov::Model> model, const std::vector<
 }
 
 void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& model) {
-    
+
     const auto& params = model->get_parameters();
     const auto& results = model->get_results();
-    
     std::vector<std::string> past_keys;
     std::vector<std::string> past_values;
     std::vector<std::string> present_keys;
@@ -397,26 +374,25 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
     std::string param_name;
     size_t input_id_index = 0;
     bool input_id_found = false;
-    
     if (model_has_input_output_name(model, "beam_idx")) {
         throw std::runtime_error("Model already has fused cache");
     }
     std::string main_input_name = model_has_input_output_name(model, "input_ids") ? "input_ids" : "input_hidden_states";
     found_input_id =
         model_has_input_output_name(model, "input_ids") || model_has_input_output_name(model, "input_hidden_states");
+    if (model_has_input_output_name(model, "input_ids"))
+        size_t input_id_index = index_of_model_input_output(model, "input_ids");
+    else if (model_has_input_output_name(model, "input_hidden_states"))
+        size_t input_id_index = index_of_model_input_output(model, "input_hidden_states");
     PartialShape input_batch_shape = model->input(main_input_name).get_partial_shape();
     Dimension batch_dim = input_batch_shape[0];
     beam_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{batch_dim});
     beam_idx->set_friendly_name("beam_idx");
-
     // Add name to output tensor (via tensor pointer)
     beam_idx->output(0).get_tensor().add_names({"beam_idx"});
-
     // Add the parameter to the model
     model->add_parameters({beam_idx});
-    
     for (auto i = 0; i < params.size(); i++) {
-       
         //iterate over all inputs and make a list of all KV ops
         auto param_name = params.at(i)->output(0).get_any_name();
         size_t found_past_keys = param_name.find("past_keys");
@@ -425,115 +401,82 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
         size_t found_past_key_phi3 = param_name.find(".key");
         size_t found_past_value_phi3 = param_name.find(".value");
         auto batch_dim = 0; 
-        
         auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, std::vector<int64_t>({batch_dim}));
-
         if (found_past_keys != std::string::npos) {
             past_keys.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
                 auto gather_op = std::make_shared<ov::op::v1::Gather>(params.at(i), beam_idx, axis);
-                ov::pass::disable_constant_folding(gather_op);
                 for (auto consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
-               
         }
-            
         if (found_past_values != std::string::npos) {
             past_values.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
                 auto gather_op = std::make_shared<ov::op::v1::Gather>(params.at(i), beam_idx, axis);
-                ov::pass::disable_constant_folding(gather_op);
                 for (auto consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
         }
-            
         if (found_past != std::string::npos && found_past_key_phi3 != std::string::npos) {
             past_keys.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
                 auto gather_op = std::make_shared<ov::op::v1::Gather>(params.at(i), beam_idx, axis);
-                ov::pass::disable_constant_folding(gather_op);
                 for (auto consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
         }
-            
         if (found_past != std::string::npos && found_past_value_phi3 != std::string::npos) {
             past_values.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
                 auto gather_op = std::make_shared<ov::op::v1::Gather>(params.at(i), beam_idx, axis);
-                ov::pass::disable_constant_folding(gather_op);
                 for (auto consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
         }
             
     }
-            
-
      for(auto i = 0; i < results.size(); i++){
         auto res_name = results.at(i)->output(0).get_any_name();
         size_t found_present_keys = res_name.find("present_keys");
         size_t found_present_values = res_name.find("present_values");
-
         size_t found_present = res_name.find("present");
         size_t found_key = res_name.find(".key");
         size_t found_value = res_name.find(".value");
-
          if (found_present_keys != std::string::npos )
             present_keys.push_back(res_name);
          if (found_present_values != std::string::npos )
              present_values.push_back(res_name);
-
         if (found_present != std::string::npos && found_key != std::string::npos)
             present_keys.push_back(res_name);
         if (found_present != std::string::npos && found_value != std::string::npos)
             present_values.push_back(res_name);
     }
-    
     std::map<std::string, std::string> param_res_names;
-    
     OPENVINO_ASSERT(past_values.size() == past_keys.size());
     OPENVINO_ASSERT(present_keys.size() == present_values.size());
     for (auto i = 0; i < past_keys.size(); i++) {
         param_res_names.insert({past_keys[i], present_keys[i]});
         param_res_names.insert({past_values[i], present_values[i]});
     }
-    
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::MakeStateful>(param_res_names);
     manager.run_passes(model);
-   
+
     
     if (found_input_id) {
-        std::cout << params.at(input_id_index)->get_friendly_name() << std::endl;
         auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(params.at(input_id_index));
-        std::cout << shapeOf->get_output_partial_shape(0) << std::endl;
-        std::cout << params.at(input_id_index)->get_type_info() << std::endl;
-        std::cout << params.at(input_id_index)->output(0).get_any_name() << std::endl;
-        if (params.at(input_id_index)->get_type_info() == ov::op::v0::Convert::get_type_info_static())
-            ov::pass::disable_constant_folding(params.at(input_id_index));
-        ov::pass::disable_constant_folding(shapeOf);
         auto axis = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({0}));
-        ov::pass::disable_constant_folding(axis);
         auto index = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({0}));
-        ov::pass::disable_constant_folding(index);
         auto gather_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({0}));
-        ov::pass::disable_constant_folding(gather_axis);
         auto batch = std::make_shared<ov::op::v1::Gather>(shapeOf, index, gather_axis);
-        ov::pass::disable_constant_folding(batch);
         std::vector<int> dims;
         auto batch_dim = 0;
-
-        
-        
         for (auto op : model->get_ops()) {
-            
             std::string str1 = "ReadValue";
             if (str1.compare(op->get_type_name()) == 0) {
                 std::vector<std::shared_ptr<ov::Node>> processed_dims;
@@ -545,25 +488,18 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
                 }
                
                 for (auto i = 1; i < dims.size(); i++) {
-                    if (dims[1] != 0) {
+                    if (dims[i] != 0) {
                         auto dim_tensor = ov::op::v0::Constant::create(ov::element::i64, {1}, {dims[i]});
-                        ov::pass::disable_constant_folding(dim_tensor);
                         processed_dims.push_back(dim_tensor);
                     } else {
                         auto dim_tensor = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-                        ov::pass::disable_constant_folding(dim_tensor);
                         processed_dims.push_back(dim_tensor);  // Placeholder for dynamic dimension
                     }
                 }               
                 auto shape = std::make_shared<ov::op::v0::Concat>(processed_dims, 0);
-                ov::pass::disable_constant_folding(shape);
                 const auto broadcast_const = ov::op::v0::Constant::create(op->get_output_element_type(0), Shape{}, {0});
-                ov::pass::disable_constant_folding(broadcast_const);
                 auto broadcast = std::make_shared<ov::op::v3::Broadcast>(broadcast_const, shape);
-                ov::pass::disable_constant_folding(broadcast);
-                
                 op->set_arguments(OutputVector{broadcast});
-                ov::pass::disable_constant_folding(op);
                 processed_dims.clear();
                 dims.clear();
             }
@@ -571,19 +507,14 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
         }
         //model->validate_nodes_and_infer_types();
     }
-    
     if (model_has_input_output_name(model, "encoder_hidden_states")) {
         auto encoder_input = model->input("encoder_hidden_states").get_node_shared_ptr();
-
         // Find dependent output nodes of the subgraph
         std::unordered_set<std::shared_ptr<ov::Node>> sources = {encoder_input};
         auto output_nodes = find_output_nodes_of_dependent_subgraph(model, sources);
         // Insert ReadValue/Assign stateful ops for those outputs
         insert_state_for_nodes(model, output_nodes);
     }
-
-    
-    
 }
 
 /*

@@ -133,5 +133,13 @@ public:
                        const element::TypeVector& indices_precisions);
 };
 
+class TRANSFORMATIONS_API markStatefulSubgraph : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("markStatefulSubgraph")
+    markStatefulSubgraph();
+                       
+};
+
+
 }  // namespace pass
 }  // namespace ov
