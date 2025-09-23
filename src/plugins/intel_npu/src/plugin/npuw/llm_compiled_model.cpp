@@ -922,15 +922,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     decompose_GQA(prefill_model, true);
     decompose_GQA(kvcache_model, false);
 
+    const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    const auto generate_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>();
+    const bool prefill_attn_dyn = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+    const bool generate_attn_dyn = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         LOG_DEBUG("Check and apply opt layout");
         LOG_BLOCK();
-        if (ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
-            NPUW_ASSERT(ov::npuw::util::optimize_value_tensors(prefill_model, true));
-            m_kvcache_desc.v_tensors_transposed = true;
-        } else {
-            LOG_DEBUG("vtensors optimisation not applied");
+        // Only optimize V tensors for static attention types
+        if (!generate_attn_dyn && ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
+            LOG_DEBUG("V-tensors tranposed in generate model");
+            m_kvcache_desc.v_tensors_transposed_gen = true;
+        }
+        if (!prefill_attn_dyn && ov::npuw::util::optimize_value_tensors(prefill_model, true)) {
+            LOG_DEBUG("V-tensors tranposed in prefill model");
+            m_kvcache_desc.v_tensors_transposed_pre = true;
         }
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
@@ -980,12 +988,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         { "NPUW_ONLINE_KEEP_BLOCK_SIZE", "4" },
         { "NPUW_UNFOLD_IREQS", "NO" },
     };
-    const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
-    if (::intel_npu::npuw::llm::AttentionHint::DYNAMIC == prefill_attn_hint) {
+    if (prefill_attn_dyn) {
         merge_config_with(prefill_config, dyn_attn_opts);
     }
-    const auto generate_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>();
-    if (::intel_npu::npuw::llm::AttentionHint::DYNAMIC == generate_attn_hint) {
+    if (generate_attn_dyn) {
         merge_config_with(generate_config, dyn_attn_opts);
     }
 
@@ -1126,7 +1132,8 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.num_stored_tokens);
         write(model_stream, m_kvcache_desc.dim);
         write(model_stream, m_kvcache_desc.max_generation_token_len);
-        write(model_stream, m_kvcache_desc.v_tensors_transposed);
+        write(model_stream, m_kvcache_desc.v_tensors_transposed_pre);
+        write(model_stream, m_kvcache_desc.v_tensors_transposed_gen); // FIXME: bump required
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
@@ -1335,7 +1342,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
         read(model_stream, compiled->m_kvcache_desc.dim);
         read(model_stream, compiled->m_kvcache_desc.max_generation_token_len);
-        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
+        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_pre);
+        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_gen); // FIXME: bump required!
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
