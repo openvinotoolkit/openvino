@@ -342,6 +342,7 @@ protected:
 };
 
 TEST_P(MatmulWeightsDecompressionQuantizeConvolution, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     check_results();
 }
