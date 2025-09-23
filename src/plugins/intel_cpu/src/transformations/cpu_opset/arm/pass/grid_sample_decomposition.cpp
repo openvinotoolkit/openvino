@@ -99,6 +99,8 @@ struct Ctx {
     std::shared_ptr<Node> y_norm = nullptr;
     // Data as NHWC for GatherND
     std::shared_ptr<Node> data_nhwc = nullptr;
+    // Original data (NCHW)
+    std::shared_ptr<Node> data_nchw = nullptr;
 };
 
 // ---- small helpers ----
@@ -169,6 +171,38 @@ std::shared_ptr<Node> gather_hw_nhwc(const Ctx& ctx,
 
     auto indices = std::make_shared<op::v0::Concat>(OutputVector{b_exp, y_exp, x_exp}, -1);
     return std::make_shared<op::v8::GatherND>(ctx.data_nhwc, indices, 0);
+}
+
+// Gather from NCHW by (b, c, y, x) using batch_dims=2 and indices [y, x]
+std::shared_ptr<Node> gather_hw_nchw(const Ctx& ctx,
+                                     const std::shared_ptr<Node>& x_coord,
+                                     const std::shared_ptr<Node>& y_coord) {
+    auto x_i32 = std::make_shared<op::v0::Convert>(x_coord, element::i32);
+    auto y_i32 = std::make_shared<op::v0::Convert>(y_coord, element::i32);
+
+    // Target shape [N, C, H_out, W_out]
+    auto n_1d = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, ctx.i32_0);
+    auto c_1d = std::make_shared<op::v0::Unsqueeze>(ctx.c_dim, ctx.i32_0);
+    auto h_1d = std::make_shared<op::v0::Unsqueeze>(ctx.h_out, ctx.i32_0);
+    auto w_1d = std::make_shared<op::v0::Unsqueeze>(ctx.w_out, ctx.i32_0);
+    auto tgt_shape = std::make_shared<op::v0::Concat>(OutputVector{n_1d, c_1d, h_1d, w_1d}, 0);
+
+    // Broadcast x,y from [N, H_out, W_out] -> [N, C, H_out, W_out]
+    auto expand_nc_axis = [&](const std::shared_ptr<Node>& t) -> std::shared_ptr<Node> {
+        auto t_nhw = std::make_shared<op::v0::Unsqueeze>(t, ctx.i32_1);  // [N,1,H,W]
+        return std::make_shared<op::v3::Broadcast>(t_nhw, tgt_shape);
+    };
+
+    auto x_bc = expand_nc_axis(x_i32);
+    auto y_bc = expand_nc_axis(y_i32);
+
+    // Indices shape [N, C, H_out, W_out, 2] with last dim [y, x]
+    auto y_exp = std::make_shared<op::v0::Unsqueeze>(y_bc, ctx.i32_neg1);
+    auto x_exp = std::make_shared<op::v0::Unsqueeze>(x_bc, ctx.i32_neg1);
+    auto indices = std::make_shared<op::v0::Concat>(OutputVector{y_exp, x_exp}, -1);
+
+    // Data is NCHW as-provided (no transpose)
+    return std::make_shared<op::v8::GatherND>(ctx.data_nchw, indices, 2);
 }
 
 // Reflection helpers (continuous/indexed)
@@ -406,59 +440,91 @@ std::shared_ptr<Node> build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridS
     dx = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, dx);
     dy = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, dy);
 
-    // cubic weights (a = -0.75)
+    // cubic weights (a = -0.75), match OV reference cubic_coeffs formulation exactly
     auto a = op::v0::Constant::create(ctx.calc_type, {}, {-0.75F});
     auto c3 = op::v0::Constant::create(ctx.calc_type, {}, {3.0F});
     auto c4 = op::v0::Constant::create(ctx.calc_type, {}, {4.0F});
     auto c5 = op::v0::Constant::create(ctx.calc_type, {}, {5.0F});
     auto c8 = op::v0::Constant::create(ctx.calc_type, {}, {8.0F});
 
-    auto cubic_weight = [&](const std::shared_ptr<Node>& t) -> std::shared_ptr<Node> {
-        auto t0 = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(t, ctx.c0), ctx.c2);
-        auto t2 = std::make_shared<op::v1::Multiply>(t0, t0);
-        auto t3 = std::make_shared<op::v1::Multiply>(t2, t0);
-        auto ap2 = std::make_shared<op::v1::Add>(a, ctx.c2);
-        auto ap3 = std::make_shared<op::v1::Add>(a, c3);
+    auto dx_p1 = std::make_shared<op::v1::Add>(dx, ctx.c1);           // dx + 1
+    auto one_m_dx = std::make_shared<op::v1::Subtract>(ctx.c1, dx);    // 1 - dx
+    auto two_m_dx = std::make_shared<op::v1::Subtract>(ctx.c2, dx);    // 2 - dx
 
-        auto f01_in = std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, t0), ap3);
-        auto f01 = std::make_shared<op::v1::Add>(std::make_shared<op::v1::Multiply>(f01_in, t2), ctx.c1);
+    auto dx2 = std::make_shared<op::v1::Multiply>(dx, dx);
+    auto dx_p1_2 = std::make_shared<op::v1::Multiply>(dx_p1, dx_p1);
+    auto one_m_dx_2 = std::make_shared<op::v1::Multiply>(one_m_dx, one_m_dx);
+    auto two_m_dx_2 = std::make_shared<op::v1::Multiply>(two_m_dx, two_m_dx);
 
-        auto five_a = std::make_shared<op::v1::Multiply>(c5, a);
-        auto eight_a = std::make_shared<op::v1::Multiply>(c8, a);
-        auto four_a = std::make_shared<op::v1::Multiply>(c4, a);
-        auto f12_in1 = std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(a, t0), five_a);
-        auto f12_in2 = std::make_shared<op::v1::Add>(std::make_shared<op::v1::Multiply>(f12_in1, t0), eight_a);
-        auto f12 = std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(f12_in2, t0), four_a);
+    // v0 = ((A*(dx+1) - 5A) * (dx+1) + 8A) * (dx+1) - 4A
+    auto a_dx_p1 = std::make_shared<op::v1::Multiply>(a, dx_p1);
+    auto a5 = std::make_shared<op::v1::Multiply>(c5, a);
+    auto term_v0_1 = std::make_shared<op::v1::Subtract>(a_dx_p1, a5);
+    auto term_v0_2 = std::make_shared<op::v1::Add>(
+        std::make_shared<op::v1::Multiply>(term_v0_1, dx_p1), std::make_shared<op::v1::Multiply>(c8, a));
+    std::shared_ptr<Node> w_x0 = std::make_shared<op::v1::Subtract>(
+        std::make_shared<op::v1::Multiply>(term_v0_2, dx_p1), std::make_shared<op::v1::Multiply>(c4, a));
 
-        auto cond1 = std::make_shared<op::v1::LessEqual>(t0, ctx.c1);
-        auto cond2 = std::make_shared<op::v1::Less>(t0, ctx.c2);
-        return std::make_shared<op::v1::Select>(cond1, f01, std::make_shared<op::v1::Select>(cond2, f12, ctx.c0));
-    };
+    // v1 = ((A + 2) * dx - (A + 3)) * dx * dx + 1
+    auto ap2 = std::make_shared<op::v1::Add>(a, ctx.c2);
+    auto ap3 = std::make_shared<op::v1::Add>(a, c3);
+    std::shared_ptr<Node> w_x1 = std::make_shared<op::v1::Add>(
+        std::make_shared<op::v1::Multiply>(
+            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, dx), ap3), dx2),
+        ctx.c1);
 
-    auto t_x0 = std::make_shared<op::v1::Add>(ctx.c1, dx);
-    auto t_x1 = dx;
-    auto t_x2 = std::make_shared<op::v1::Subtract>(ctx.c1, dx);
-    auto t_x3 = std::make_shared<op::v1::Subtract>(ctx.c2, dx);
+    // v2 = ((A + 2) * (1 - dx) - (A + 3)) * (1 - dx)^2 + 1
+    std::shared_ptr<Node> w_x2 = std::make_shared<op::v1::Add>(
+        std::make_shared<op::v1::Multiply>(
+            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, one_m_dx), ap3), one_m_dx_2),
+        ctx.c1);
 
-    auto w_x0 = cubic_weight(t_x0);
-    auto w_x1 = cubic_weight(t_x1);
-    auto w_x2 = cubic_weight(t_x2);
-    auto w_x3 = cubic_weight(t_x3);
+    // v3 = ((A * (2 - dx) - 5A) * (2 - dx) + 8A) * (2 - dx) - 4A
+    auto a_two_m_dx = std::make_shared<op::v1::Multiply>(a, two_m_dx);
+    auto term_v3_1 = std::make_shared<op::v1::Subtract>(a_two_m_dx, a5);
+    auto term_v3_2 = std::make_shared<op::v1::Add>(
+        std::make_shared<op::v1::Multiply>(term_v3_1, two_m_dx), std::make_shared<op::v1::Multiply>(c8, a));
+    std::shared_ptr<Node> w_x3 = std::make_shared<op::v1::Subtract>(
+        std::make_shared<op::v1::Multiply>(term_v3_2, two_m_dx), std::make_shared<op::v1::Multiply>(c4, a));
 
     w_x0 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x0);
     w_x1 = std::make_shared<op::v1::Select>(w_is_one, ctx.c1, w_x1);
     w_x2 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x2);
     w_x3 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x3);
 
-    auto t_y0 = std::make_shared<op::v1::Add>(ctx.c1, dy);
-    auto t_y1 = dy;
-    auto t_y2 = std::make_shared<op::v1::Subtract>(ctx.c1, dy);
-    auto t_y3 = std::make_shared<op::v1::Subtract>(ctx.c2, dy);
+    auto dy_p1 = std::make_shared<op::v1::Add>(dy, ctx.c1);           // dy + 1
+    auto one_m_dy = std::make_shared<op::v1::Subtract>(ctx.c1, dy);    // 1 - dy
+    auto two_m_dy = std::make_shared<op::v1::Subtract>(ctx.c2, dy);    // 2 - dy
 
-    auto w_y0 = cubic_weight(t_y0);
-    auto w_y1 = cubic_weight(t_y1);
-    auto w_y2 = cubic_weight(t_y2);
-    auto w_y3 = cubic_weight(t_y3);
+    auto dy2 = std::make_shared<op::v1::Multiply>(dy, dy);
+    auto dy_p1_2 = std::make_shared<op::v1::Multiply>(dy_p1, dy_p1);
+    auto one_m_dy_2 = std::make_shared<op::v1::Multiply>(one_m_dy, one_m_dy);
+    auto two_m_dy_2 = std::make_shared<op::v1::Multiply>(two_m_dy, two_m_dy);
+
+    // y weights per OV reference cubic_coeffs(dy)
+    auto a_dy_p1 = std::make_shared<op::v1::Multiply>(a, dy_p1);
+    auto term_wy0_1 = std::make_shared<op::v1::Subtract>(a_dy_p1, a5);
+    auto term_wy0_2 = std::make_shared<op::v1::Add>(
+        std::make_shared<op::v1::Multiply>(term_wy0_1, dy_p1), std::make_shared<op::v1::Multiply>(c8, a));
+    std::shared_ptr<Node> w_y0 = std::make_shared<op::v1::Subtract>(
+        std::make_shared<op::v1::Multiply>(term_wy0_2, dy_p1), std::make_shared<op::v1::Multiply>(c4, a));
+
+    std::shared_ptr<Node> w_y1 = std::make_shared<op::v1::Add>(
+        std::make_shared<op::v1::Multiply>(
+            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, dy), ap3), dy2),
+        ctx.c1);
+
+    std::shared_ptr<Node> w_y2 = std::make_shared<op::v1::Add>(
+        std::make_shared<op::v1::Multiply>(
+            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, one_m_dy), ap3), one_m_dy_2),
+        ctx.c1);
+
+    auto a_two_m_dy = std::make_shared<op::v1::Multiply>(a, two_m_dy);
+    auto term_wy3_1 = std::make_shared<op::v1::Subtract>(a_two_m_dy, a5);
+    auto term_wy3_2 = std::make_shared<op::v1::Add>(
+        std::make_shared<op::v1::Multiply>(term_wy3_1, two_m_dy), std::make_shared<op::v1::Multiply>(c8, a));
+    std::shared_ptr<Node> w_y3 = std::make_shared<op::v1::Subtract>(
+        std::make_shared<op::v1::Multiply>(term_wy3_2, two_m_dy), std::make_shared<op::v1::Multiply>(c4, a));
 
     w_y0 = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, w_y0);
     w_y1 = std::make_shared<op::v1::Select>(h_is_one, ctx.c1, w_y1);
@@ -525,9 +591,10 @@ std::shared_ptr<Node> build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridS
             if (is_zeros) {
                 auto ok = std::make_shared<op::v1::LogicalAnd>(x_ok[ix], y_ok[iy]);
                 auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
-                wxy = std::make_shared<op::v1::Multiply>(wxy, mask);
+                val = std::make_shared<op::v1::Multiply>(val, std::make_shared<op::v0::Unsqueeze>(mask, ctx.i32_neg1));
             }
 
+            // Expand weight on last axis (NHWC)
             auto wexp = std::make_shared<op::v0::Unsqueeze>(wxy, ctx.i32_neg1);
             auto tap = std::make_shared<op::v1::Multiply>(val, wexp);
 
@@ -600,7 +667,10 @@ auto build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& grid_sample_op, Ct
     context.x_norm = std::make_shared<op::v8::Gather>(grid_conv, context.i32_0, context.axis_3);
     context.y_norm = std::make_shared<op::v8::Gather>(grid_conv, context.i32_1, context.axis_3);
 
-    // NCHW -> NHWC
+    // Keep references to data in both layouts for different gather strategies
+    // NCHW original
+    context.data_nchw = data.get_node_shared_ptr();
+    // NHWC via transpose
     context.data_nhwc = std::make_shared<op::v1::Transpose>(data, context.to_nhwc_perm);
     return true;
 }
