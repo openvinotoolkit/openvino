@@ -32,7 +32,9 @@ jobs:
         run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
 
       - name: Create code style diff
-        run: cmake --build build --target clang_format_fix_all -j8
+        run: |
+            cmake --build build --target clang_format_fix_all -j8
+            git diff
 
       - name: Run clang-format in-place
         run: |
