@@ -264,7 +264,12 @@ Plugin::Plugin()
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
     _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backend);
-    _properties->registerProperties();
+    _properties->registerProperties([this](FilteredConfig& filteredConfig) {
+        if (!filteredConfig.wasFiltered()) {
+            filter_config_by_compiler_support(filteredConfig);
+            _properties->registerProperties();
+        }
+    });
 }
 
 void Plugin::init_options() {
@@ -393,7 +398,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
 
-    _globalConfig.enableAll();
+    _globalConfig.enableRuntimes();
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -480,12 +485,13 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     if (_backend && _backend->isCommandQueueExtSupported()) {
         cfg.enable(ov::intel_npu::turbo.name(), true);
     }
+    cfg.setFiltered();
 }
 
 FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                          const std::unique_ptr<ICompilerAdapter>& compiler,
                                          OptionMode mode) const {
-    if (_globalConfig.empty()) {
+    if (!_globalConfig.wasFiltered()) {
         // filter out unsupported options
         filter_config_by_compiler_support(_globalConfig);
     }
@@ -544,7 +550,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     // 1. Check if configs have been populated
-    if (_globalConfig.empty()) {
+    if (!_globalConfig.wasFiltered()) {
         // filter out unsupported options
         filter_config_by_compiler_support(_globalConfig);
         // 2. Reset properties for the new options
@@ -582,7 +588,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     auto npu_plugin_properties = arguments;
     exclude_model_ptr_from_map(npu_plugin_properties);
-    if (_globalConfig.empty() && _globalConfig.hasOpt(name)) {
+    if (!_globalConfig.wasFiltered() && _globalConfig.hasOpt(name)) {
         if (_globalConfig.getOpt(name).mode() != OptionMode::RunTime) {
             // filter out unsupported options
             filter_config_by_compiler_support(_globalConfig);
