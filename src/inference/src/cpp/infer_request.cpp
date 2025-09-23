@@ -73,10 +73,9 @@ void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& te
 void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;
-        //OPENVINO_ASSERT(::getPort(port, name, {_impl->get_inputs(), _impl->get_outputs()}),
-        //                "Port for tensor name " + name + " was not found.");
-        if(getPort(port, name, { _impl->get_inputs(), _impl->get_outputs()}))
-            set_tensor(port, tensor);
+        OPENVINO_ASSERT(::getPort(port, name, {_impl->get_inputs(), _impl->get_outputs()}),
+                        "Port for tensor name " + name + " was not found.");
+        set_tensor(port, tensor);
     });
 }
 

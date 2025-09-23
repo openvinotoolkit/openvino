@@ -26,8 +26,6 @@
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/pass/make_stateful.hpp"
-#include <openvino/core/graph_util.hpp>
 
 namespace {
 
@@ -109,80 +107,8 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
 
     // 3. CF call due to detected perf degradations
     REGISTER_PASS(manager, ConstantFolding)
-    std::map<std::string, std::string> param_res_names = {{"past_values_30", "present_values_30"},
-                                                          {"past_values_29", "present_values_29"},
-                                                          {"past_values_27", "present_values_27"},
-                                                          {"past_values_26", "present_values_26"},
-                                                          {"past_values_25", "present_values_25"},
-                                                          {"past_values_24", "present_values_24"},
-                                                          {"past_values_23", "present_values_23"},
-                                                          {"past_values_22", "present_values_22"},
-                                                          {"past_values_17", "present_values_17"},
-                                                          {"past_values_13", "present_values_13"},
-                                                          {"past_values_21", "present_values_21"},
-                                                          {"past_values_16", "present_values_16"},
-                                                          {"past_values_12", "present_values_12"},
-                                                          {"past_values_20", "present_values_20"},
-                                                          {"past_values_15", "present_values_15"},
-                                                          {"past_values_11", "present_values_11"},
-                                                          {"past_values_19", "present_values_19"},
-                                                          {"past_values_14", "present_values_14"},
-                                                          {"past_values_18", "present_values_18"},
-                                                          {"past_values_10", "present_values_10"},
-                                                          {"past_values_7", "present_values_7"},
-                                                          {"past_values_6", "present_values_6"},
-                                                          {"past_values_9", "present_values_9"},
-                                                          {"past_values_8", "present_values_8"},
-                                                          {"past_values_31", "present_values_31"},
-                                                          {"past_values_5", "present_values_5"},
-                                                          {"past_values_3", "present_values_3"},
-                                                          {"past_values_2", "present_values_2"},
-                                                          {"past_values_4", "present_values_4"},
-                                                          {"past_values_1", "present_values_1"},
-                                                          {"past_values_0", "present_values_0"},
-                                                          {"past_values_28", "present_values_28"},
-
-                                                          {"past_keys_30", "present_keys_30"},
-                                                          {"past_keys_29", "present_keys_29"},
-                                                          {"past_keys_27", "present_keys_27"},
-                                                          {"past_keys_26", "present_keys_26"},
-                                                          {"past_keys_25", "present_keys_25"},
-                                                          {"past_keys_24", "present_keys_24"},
-                                                          {"past_keys_23", "present_keys_23"},
-                                                          {"past_keys_22", "present_keys_22"},
-                                                          {"past_keys_17", "present_keys_17"},
-                                                          {"past_keys_13", "present_keys_13"},
-                                                          {"past_keys_21", "present_keys_21"},
-                                                          {"past_keys_16", "present_keys_16"},
-                                                          {"past_keys_12", "present_keys_12"},
-                                                          {"past_keys_20", "present_keys_20"},
-                                                          {"past_keys_15", "present_keys_15"},
-                                                          {"past_keys_11", "present_keys_11"},
-                                                          {"past_keys_19", "present_keys_19"},
-                                                          {"past_keys_14", "present_keys_14"},
-                                                          {"past_keys_18", "present_keys_18"},
-                                                          {"past_keys_10", "present_keys_10"},
-                                                          {"past_keys_7", "present_keys_7"},
-                                                          {"past_keys_6", "present_keys_6"},
-                                                          {"past_keys_9", "present_keys_9"},
-                                                          {"past_keys_6", "present_keys_6"},
-                                                          {"past_keys_8", "present_keys_8"},
-                                                          {"past_keys_6", "present_keys_6"},
-                                                          {"past_keys_5", "present_keys_5"},
-                                                          {"past_keys_3", "present_keys_3"},
-                                                          {"past_keys_2", "present_keys_2"},
-                                                          {"past_keys_4", "present_keys_4"},
-                                                          {"past_keys_1", "present_keys_1"},
-                                                          {"past_keys_0", "present_keys_0"},
-                                                          {"past_keys_31", "present_keys_31"},
-                                                          {"past_keys_28", "present_keys_28"}
-
-    };
-
-    manager.register_pass<ov::pass::MakeStateful>(param_res_names);
-    
     manager.run_passes(model);
-    ov::save_model(model, "sample_2.xml");
+
     // 4. Restore old RT info to not affect plugin compilation
     rt_info_cache.restore(model);
 }

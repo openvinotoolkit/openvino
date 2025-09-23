@@ -3,13 +3,12 @@
 //
 
 #include "kv_cache_fusion.hpp"
-
 #include <memory>
 
 #include "intel_gpu/op/kv_cache.hpp"
+
 #include "intel_gpu/op/read_value.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "openvino/core/graph_util.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
@@ -19,13 +18,14 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/sink.hpp"
-#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
 

@@ -184,8 +184,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     // Transformations for some reason may drop output tensor names, so here we copy those from the original model
     auto new_results = cloned_model->get_results();
     auto old_results = model->get_results();
-    /* OPENVINO_ASSERT(new_results.size() == old_results.size(),
-                         "[GPU] Unexpected outputs count change in transformed model",
+    OPENVINO_ASSERT(new_results.size() == old_results.size(), "[GPU] Unexpected outputs count change in transformed model",
                                                               "Before: ", old_results.size(), " After: ", new_results.size());
     for (size_t i = 0; i < model->get_results().size(); i++) {
         auto new_res = new_results[i];
@@ -194,7 +193,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         new_res->output(0).set_names(old_res->output(0).get_names());
         new_res->set_friendly_name(old_res->get_friendly_name());
     }
-    */
+
     GPU_DEBUG_IF(!dump_path.empty()) {
         auto path_base = dump_path + "/" + cloned_model->get_name() + "_" +  "transformed_func";
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
