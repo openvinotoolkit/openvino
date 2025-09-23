@@ -1572,7 +1572,7 @@ void program_node::create_onednn_primitive_attributes(
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && fused_desc->additional_params_input.is_valid()) {
                 auto dep_idx = desc.outer_dep_start_idx;
-                auto prelu_mask = onednn::onednn_post_ops_fusing_helpers::get_prelu_mask_from_layouts(get_output_layout, get_input_layout, dep_idx);
+                auto prelu_mask = onednn::get_prelu_mask_from_layouts(get_output_layout, get_input_layout, dep_idx);
                 if (is_type<fully_connected>() && this->as<fully_connected>().get_primitive()->input_size > 2 && prelu_mask == 2)
                     prelu_mask = 4; // 3d fc has per_oc mask is 4
                 post_ops.append_prelu(prelu_mask);
