@@ -63,7 +63,18 @@ std::string ScatterElementsUpdate12LayerTest::getTestCaseName(const testing::Tes
     result << "Axis=" << axis << "_";
     result << "ReduceMode=" << as_string(reduceMode) << "_";
     result << "UseInitVal=" << useInitVal << "_";
-    result << "Indices=" << ov::test::utils::vec2str(indices_value) << "_";
+    result << "Indices=";
+    if (indices_value.size() <= 50) {
+        result << ov::test::utils::vec2str(indices_value);
+    } else {
+        result << "(";
+        for (size_t i = 0; i < 15; ++i) {
+            if (i > 0) result << ".";
+            result << indices_value[i];
+        }
+        result << "..." << indices_value.size() << "_elements)";
+    }
+    result << "_";
     result << "modelType=" << model_type.to_string() << "_";
     result << "idxType=" << indices_type.to_string() << "_";
     result << "trgDev=" << target_device;

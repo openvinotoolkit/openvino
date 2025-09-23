@@ -58,4 +58,7 @@ bool hasIntDotProductSupport() {
     return with_cpu_arm_dotprod();
 }
 
+bool hasInt8MMSupport() {
+    return with_cpu_arm_i8mm();
+}
 }  // namespace ov::intel_cpu
