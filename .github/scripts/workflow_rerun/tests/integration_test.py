@@ -33,7 +33,7 @@ class IntegrationTest(unittest.TestCase):
 
         # Even if we use "failure" for status we cannot guarantee logs containing any of the known error
         # So these tests use the logs of the most recent successfull pipeline
-        # Its "created_at" time should be withing 60 days - the log retention window
+        # Its "created_at" time should be within 60 days - the log retention window
         self.wf_run = None
         for run in self.gh_repo.get_workflow_runs(status='success'):
             if (datetime.now(run.created_at.tzinfo) - run.created_at).days < 45:
