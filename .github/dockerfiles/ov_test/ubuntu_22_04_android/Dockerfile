@@ -88,9 +88,6 @@ RUN echo "no" | avdmanager create avd \
     -c 2048M \
     --force
 
-# Set up working directory
-WORKDIR /workspace
-
 # KVM permissions setup script
 RUN echo '#!/bin/bash\n\
 echo "KERNEL==\"kvm\", GROUP=\"kvm\", MODE=\"0666\", OPTIONS+=\"static_node=kvm\"" | tee /etc/udev/rules.d/99-kvm4all.rules\n\
