@@ -69,13 +69,14 @@ ov::pass::FuseVectorizedMOE::FuseVectorizedMOE() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
-        auto experts_input_node = pm.at(tile).get_node()->input_value(0);
+        auto experts_input_node = pm.at(experts_input).get_node()->input_value(0);
+
         auto routing_weights_node = pm.at(unsqueeze_routing_weights).get_node_shared_ptr();
         auto gate_up_weight = pm.at(gate_up_matmul).get_node()->input_value(1).get_node_shared_ptr();
         auto gate_up_bias_node = pm.at(gate_up_add).get_node()->input_value(1).get_node_shared_ptr();
         auto down_proj_weight = pm.at(down_proj_matmul).get_node()->input_value(1).get_node_shared_ptr();
         auto down_proj_bias_node = pm.at(down_proj_add).get_node()->input_value(1).get_node_shared_ptr();
-        auto topk_indices_node = pm.at(router_topk_indices).get_node_shared_ptr();
+        auto topk_indices_node = pm.at(scatter_elements_update).get_node()->input_value(1);
 
         ov::OutputVector moe_inputs = {experts_input_node,
                                        routing_weights_node,
