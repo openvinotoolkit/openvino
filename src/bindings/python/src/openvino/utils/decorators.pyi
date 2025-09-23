@@ -12,7 +12,7 @@ from typing import get_origin
 import collections.abc
 import openvino._pyopenvino
 import typing
-__all__ = ['Callable', 'MultiMethod', 'Node', 'NodeInput', 'Output', 'as_node', 'as_nodes', 'binary_op', 'custom_preprocess_function', 'get_args', 'get_origin', 'nameable_op', 'overloading', 'registry', 'signature', 'unary_op', 'wraps']
+__all__: list[str] = ['Callable', 'MultiMethod', 'Node', 'NodeInput', 'Output', 'as_node', 'as_nodes', 'binary_op', 'custom_preprocess_function', 'get_args', 'get_origin', 'nameable_op', 'overloading', 'registry', 'signature', 'unary_op', 'wraps']
 class MultiMethod:
     def __call__(self, *args, **kwargs) -> typing.Any:
         ...

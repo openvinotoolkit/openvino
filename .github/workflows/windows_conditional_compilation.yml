@@ -318,7 +318,7 @@ jobs:
 
   CC_Build:
     name: Conditional Compilation
-    timeout-minutes: 25
+    timeout-minutes: 40
     needs: [Build, Smart_CI]
     defaults:
       run:

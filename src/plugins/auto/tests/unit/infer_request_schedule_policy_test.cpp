@@ -25,7 +25,7 @@ protected:
     std::vector<std::string> expectedScheDevs;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [devicesInfo, schedulePolicy, numOfInferRequests, expectedScheDevs] = obj.param;
         std::ostringstream result;
         std::string candidateDevList;
