@@ -49,32 +49,11 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
     auto input_pattern = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(3));
     auto weights_pattern = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(3));
 
-    // Predicate to check for 3D tensors (1D deconv)
-    auto is_1d_deconv = [](const ov::Output<ov::Node>& output) -> bool {
-        auto deconv = ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(output.get_node_shared_ptr());
-        if (!deconv) {
-            return false;
-        }
-
-        auto input_shape = deconv->get_input_partial_shape(0);
-        auto weights_shape = deconv->get_input_partial_shape(1);
-
-        // Only match 1D deconv (3D tensors)
-        return input_shape.rank().is_static() && input_shape.rank().get_length() == 3 &&
-               weights_shape.rank().is_static() && weights_shape.rank().get_length() == 3;
-    };
-
-    // ConvolutionBackpropData may have 2 or 3 inputs
-    auto deconv_2_inputs = ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>(
-        {input_pattern, weights_pattern},
-        [is_1d_deconv](const ov::Output<ov::Node>& output) {
-            return is_1d_deconv(output);
-        });
+    // ConvolutionBackpropData may have 2 or 3 inputs; rank_equals(3) on inputs ensures 1D case
+    auto deconv_2_inputs =
+        ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({input_pattern, weights_pattern});
     auto deconv_3_inputs = ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>(
-        {input_pattern, weights_pattern, ov::pass::pattern::any_input()},
-        [is_1d_deconv](const ov::Output<ov::Node>& output) {
-            return is_1d_deconv(output);
-        });
+        {input_pattern, weights_pattern, ov::pass::pattern::any_input()});
     auto deconv_1d = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{deconv_2_inputs, deconv_3_inputs});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -296,9 +275,8 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
             }
 
             // Ensure non-negative padding using Maximum operation
-            auto zero_const = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
-            pad_left_dyn = ov::op::util::make_try_fold<ov::op::v1::Maximum>(pad_left_dyn, zero_const);
-            pad_right_dyn = ov::op::util::make_try_fold<ov::op::v1::Maximum>(pad_right_dyn, zero_const);
+            pad_left_dyn = ov::op::util::make_try_fold<ov::op::v1::Maximum>(pad_left_dyn, zero_scalar);
+            pad_right_dyn = ov::op::util::make_try_fold<ov::op::v1::Maximum>(pad_right_dyn, zero_scalar);
             decomp_nodes.push_back(pad_left_dyn.get_node_shared_ptr());
             decomp_nodes.push_back(pad_right_dyn.get_node_shared_ptr());
 
