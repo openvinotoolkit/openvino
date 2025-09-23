@@ -4,8 +4,6 @@
 
 #include "zero_infer_request.hpp"
 
-#include <ze_mem_import_system_memory_ext.h>
-
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
