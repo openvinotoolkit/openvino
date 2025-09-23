@@ -4,8 +4,6 @@
 
 #include "zero_infer_request.hpp"
 
-#include <ze_mem_import_system_memory_ext.h>
-
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -391,7 +389,11 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             // context.
             levelZeroTensor = std::make_shared<ZeroTensor>(_initStructs, tensor, _config);
             updateCommandListArg = true;
-        } catch (const ZeroTensorException&) {
+        } catch (const ZeroTensorException& exception) {
+            _logger.debug("ZeroInferRequest::set_tensor - exception caught while trying to create a Level Zero tensor "
+                          "from the user tensor: %s",
+                          exception.what());
+
             // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
             // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
             if (_dynamicBatchValueChanged || levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
@@ -474,13 +476,16 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
             try {
                 _logger.debug("ZeroInferRequest::set_tensors - create zero tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create zero tensor");
-
                 get_level_zero_input(foundPort.idx, i) =
                     std::make_shared<ZeroTensor>(_initStructs, tensors.at(i), _config);
-            } catch (const ZeroTensorException&) {
+            } catch (const ZeroTensorException& exception) {
+                _logger.debug(
+                    "ZeroInferRequest::set_tensors - exception caught while trying to create a Level Zero tensor "
+                    "from the user tensor: %s",
+                    exception.what());
+
                 _logger.debug("ZeroInferRequest::set_tensors - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate tensor");
-
                 get_level_zero_input(foundPort.idx, i) = allocate_tensor(foundPort.idx, INPUT, batchSizeCandidate);
             }
 
