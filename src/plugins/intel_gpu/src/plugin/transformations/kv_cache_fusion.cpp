@@ -37,11 +37,13 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
     auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
     auto beam_idx = wrap_type<ov::op::v0::Parameter>();
     auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
-    auto gather_past_v1 = wrap_type<ov::op::v1::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
+    //auto gather_past_v1 = wrap_type<ov::op::v1::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
     auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
-    auto gather_convert_v1 = wrap_type<ov::op::v0::Convert>({gather_past_v1});
+    //auto gather_convert_v1 = wrap_type<ov::op::v0::Convert>({gather_past_v1});
+    //auto concat_past_input =
+    //    std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_past_v1, gather_convert, gather_convert_v1});
     auto concat_past_input =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_past_v1, gather_convert, gather_convert_v1});
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
     auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
     auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
     auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});

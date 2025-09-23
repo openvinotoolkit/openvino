@@ -406,7 +406,7 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
             past_keys.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
-                auto gather_op = std::make_shared<ov::op::v1::Gather>(params.at(i), beam_idx, axis);
+                auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
                 for (auto consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
@@ -415,7 +415,7 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
             past_values.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
-                auto gather_op = std::make_shared<ov::op::v1::Gather>(params.at(i), beam_idx, axis);
+                auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
                 for (auto consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
@@ -424,7 +424,7 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
             past_keys.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
-                auto gather_op = std::make_shared<ov::op::v1::Gather>(params.at(i), beam_idx, axis);
+                auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
                 for (auto consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
@@ -433,7 +433,7 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
             past_values.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
-                auto gather_op = std::make_shared<ov::op::v1::Gather>(params.at(i), beam_idx, axis);
+                auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
                 for (auto consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
@@ -473,7 +473,7 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
         auto axis = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({0}));
         auto index = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({0}));
         auto gather_axis = ov::op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>({0}));
-        auto batch = std::make_shared<ov::op::v1::Gather>(shapeOf, index, gather_axis);
+        auto batch = std::make_shared<ov::op::v8::Gather>(shapeOf, index, gather_axis);
         std::vector<int> dims;
         auto batch_dim = 0;
         for (auto op : model->get_ops()) {

@@ -406,7 +406,7 @@ ov::pass::markStatefulSubgraph::markStatefulSubgraph() {
     auto shapeof_m = pattern::wrap_type<ov::op::v3::ShapeOf>({output_m});
     auto const_gather_1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto const_gather_2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto Gather_m = ov::pass::pattern::wrap_type<ov::op::v1::Gather>({shapeof_m, const_gather_1_m, const_gather_2_m});
+    auto Gather_m = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({shapeof_m, const_gather_1_m, const_gather_2_m});
     auto const_concat_1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto const_concat_2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto const_concat_3_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
@@ -433,7 +433,7 @@ ov::pass::markStatefulSubgraph::markStatefulSubgraph() {
         }
         auto shapeof = ov::as_type_ptr<ov::op::v3::ShapeOf>(pattern_map.at(shapeof_m).get_node_shared_ptr());
         ov::disable_constant_folding(pm.at(shapeof_m));
-        auto gather = ov::as_type_ptr<ov::op::v1::Gather>(pattern_map.at(Gather_m).get_node_shared_ptr());
+        auto gather = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(Gather_m).get_node_shared_ptr());
         ov::disable_constant_folding(pm.at(Gather_m));
         auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(Concat_m).get_node_shared_ptr());
         ov::disable_constant_folding(pm.at(Concat_m));
