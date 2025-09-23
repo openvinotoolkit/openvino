@@ -203,8 +203,14 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
                     if (tensor->is_continuous()) {
                         m_input_allocated.insert(tensor->data());
                     } else {
-                        LOG_WARN("Strided remote tensor is not supported on the device! Expect worse performance due "
-                                 "to CPU runtime copy.");
+                        // FIXME: remove this once strided tensors are supported on the device
+                        auto allocated_continious_tensor = allocOut(port, m_npuw_model->global_mem_device());
+                        tensor->copy_to(allocated_continious_tensor._ptr);
+                        m_port_to_tensor.at(port).tensor = allocated_continious_tensor;
+                        m_input_allocated.insert(allocated_continious_tensor->data());
+                        LOG_WARN("Strided remote tensor is not supported on the device! In this case input tensor "
+                                 "passed to set_tensor() will be replcaed internally to remove runtime copy. Expect a "
+                                 "different object returned from get_tensor() for the same port.");
                     }
                 }
             }
