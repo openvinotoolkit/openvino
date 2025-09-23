@@ -16,10 +16,10 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/split.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -52,10 +52,8 @@ static ov::OutputVector makeCosSinCache(size_t max_position_embeddings, size_t r
             psin[k] = psin[k + rotary_ndims / 2] = vsin;
         }
     }
-    auto Cos =
-        makeConst(ov::element::f32, ov::Shape({1, 1, max_position_embeddings, rotary_ndims}), lut_cos);
-    auto Sin =
-        makeConst(ov::element::f32, ov::Shape({1, 1, max_position_embeddings, rotary_ndims}), lut_sin);
+    auto Cos = makeConst(ov::element::f32, ov::Shape({1, 1, max_position_embeddings, rotary_ndims}), lut_cos);
+    auto Sin = makeConst(ov::element::f32, ov::Shape({1, 1, max_position_embeddings, rotary_ndims}), lut_sin);
 
     return {Cos, Sin};
 }

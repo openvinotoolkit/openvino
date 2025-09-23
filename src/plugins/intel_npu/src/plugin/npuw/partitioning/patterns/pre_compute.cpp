@@ -42,8 +42,10 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
             psin[k + rotary_ndims / 2] = psin[k];
         }
     }
-    auto Cos = ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_cos);
-    auto Sin = ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_sin);
+    auto Cos =
+        ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_cos);
+    auto Sin =
+        ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_sin);
 
     return {Cos, Sin};
 }
