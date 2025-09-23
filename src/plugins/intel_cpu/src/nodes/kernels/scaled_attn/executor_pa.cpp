@@ -37,7 +37,6 @@
 #include "transpose_kernel.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
-#include "xattention.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
@@ -830,8 +829,7 @@ struct MHAHelper {
                               const PlainTensor& alibi_slopes,
                               float* score_output,
                               size_t q_start_idx_score,
-                              const ScoreAggregationInfo* score_info_ptr,
-                              const std::vector<PlainTensor>& masks) {
+                              const ScoreAggregationInfo* score_info_ptr) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -1514,8 +1512,7 @@ struct MHA {
                          const PlainTensor& block_indices,
                          const PlainTensor& block_indices_begins,
                          const PlainTensor& alibi_slopes,
-                         const PlainTensor& score_aggregation_window,
-                         const std::vector<PlainTensor>& masks) {
+                         const PlainTensor& score_aggregation_window) {
         auto Hk = v_cache.m_dims[1];
 
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
@@ -1769,8 +1766,7 @@ struct MHA {
                     alibi_slopes,
                     score_output,
                     q_start_idx_score,
-                    score_info_ptr,
-                    masks);
+                    score_info_ptr);
 #    endif
             }
         });
@@ -1807,8 +1803,7 @@ struct MHA {
                     const PlainTensor& block_indices,
                     const PlainTensor& block_indices_begins,
                     const PlainTensor& alibi_slopes,
-                    const PlainTensor& score_aggregation_window,
-                    const std::vector<PlainTensor>& masks) {
+                    const PlainTensor& score_aggregation_window) {
         _workitems
             .reset(query, past_lens, subsequence_begins, block_indices, block_indices_begins, _helper._block_size);
         if (output_score) {
@@ -1829,8 +1824,7 @@ struct MHA {
                             block_indices,
                             block_indices_begins,
                             alibi_slopes,
-                            score_aggregation_window,
-                            masks);
+                            score_aggregation_window);
         } else {
             _helper.exec_loop_bhl(query,
                                   present_key,
@@ -2144,27 +2138,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
     }
 
-    std::vector<PlainTensor> get_sparse_blocks(PlainTensor& q,
-                                               PlainTensor& k,
-                                               PlainTensor& past_lens,
-                                               PlainTensor& subsequence_begins,
-                                               PlainTensor& block_indices,
-                                               PlainTensor& block_indices_begins,
-                                               size_t x_attention_stride,
-                                               size_t x_attention_block_size,
-                                               float threshold) {
-        size_t num_seqs = past_lens.size(0);
-        std::vector<PlainTensor> masks(num_seqs);
-
-        // TODO: support multiple batches
-        for (size_t seq_idx = 0; seq_idx < 1; seq_idx++) {
-            if (q.size(0) > 1) {
-                masks[seq_idx] = xattn_estimate(q, k, x_attention_block_size, x_attention_stride, 1, threshold, true);
-            }
-        }
-        return masks;
-    }
-
     void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs) override {
         PlainTensor q;
         PlainTensor k;
@@ -2220,20 +2193,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              output_emb,
              output_score);
 
-        auto stride = 16;
-        auto block_size = 128;
-        auto threshold = 0.9f;
-
-        auto masks = get_sparse_blocks(q,
-                                       k,
-                                       past_lens,
-                                       subsequence_begins,
-                                       block_indices,
-                                       block_indices_begins,
-                                       stride,
-                                       block_size,
-                                       threshold);
-
         if (rotated_block_indices) {
             // Rotate kv cache currently doesn't support quantized cache.
             // for u8 it only supports compilation but throws exception in the runtime
@@ -2258,8 +2217,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 block_indices,
                 block_indices_begins,
                 alibi_slopes,
-                score_aggregation_window,
-                masks);
+                score_aggregation_window);
     }
 };
 #endif
