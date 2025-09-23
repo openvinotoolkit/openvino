@@ -379,14 +379,14 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
 
         ov::OutputVector vec = {q_node, k_node, v_node};
         // 3 is the min supported rank according to the SDPA spec
-        int64_t supported_rank = std::max(mask_input.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
+        size_t supported_rank = std::max(mask_input.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
         for (size_t i = 0; i < vec.size(); ++i) {
             auto pshape = vec[i].get_partial_shape();
             if (pshape.rank().is_dynamic()) {
                 return false;
             }
             // align all inputs
-            supported_rank = std::max(static_cast<int64_t>(pshape.size()), supported_rank);
+            supported_rank = std::max(pshape.size(), supported_rank);
         }
 
         for (size_t i = 0; i < vec.size(); ++i) {
@@ -564,14 +564,14 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
 
         ov::OutputVector vec = {q_node, k_node, v_node};
         // 3 is the min supported rank according to the SDPA spec
-        int64_t supported_rank = std::max(mask_input.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
+        size_t supported_rank = std::max(mask_input.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
         for (size_t i = 0; i < vec.size(); ++i) {
             auto pshape = vec[i].get_partial_shape();
             if (pshape.rank().is_dynamic()) {
                 return false;
             }
             // align all inputs
-            supported_rank = std::max(static_cast<int64_t>(pshape.size()), supported_rank);
+            supported_rank = std::max(pshape.size(), supported_rank);
         }
 
         for (size_t i = 0; i < vec.size(); ++i) {
