@@ -541,7 +541,7 @@ TEST_P(XAttentionBlockSelectTest, BlockSelectionIsCorrect) {
     auto test_struct = GetParam();
     ASSERT_EQ(test_struct.in_data.size(), ov::shape_size(test_struct.in_shape));
 
-    ov::reference::XAttentionBlockSelector<double> selector(test_struct.threshold, DEFAULT_THRESHOLD, DEFAULT_STRIDE);
+    ov::reference::XAttentionBlockSelector<double> selector(test_struct.threshold, DEFAULT_BLOCK_SIZE, DEFAULT_STRIDE);
     auto test_result = selector.get_block_indices_to_keep(test_struct.in_data.data(), test_struct.in_shape);
 
     EXPECT_EQ(test_result, test_struct.ref_retained_block_indices);
