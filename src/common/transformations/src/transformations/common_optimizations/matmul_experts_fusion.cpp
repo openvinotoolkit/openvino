@@ -99,7 +99,7 @@ ov::pass::FuseVectorizedMOE::FuseVectorizedMOE() {
 
         // Extract expert_beta from Clamp max attribute
         if (auto clamp_op = ov::as_type_ptr<ov::op::v0::Clamp>(pm.at(clamp).get_node_shared_ptr())) {
-            config.expert_beta = clamp_op->get_max();
+            config.expert_beta = static_cast<float>(clamp_op->get_max());
         }
 
         // Set expert_type
