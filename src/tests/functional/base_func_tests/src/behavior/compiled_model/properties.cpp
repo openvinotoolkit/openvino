@@ -98,8 +98,6 @@ TEST(CacheHeaderAlignmentTests, CacheHeaderPaddingAndAlignment) {
                      << " device is not supported or cache_header_alignment property is not defined";
     }
 
-    std::cout << "[+] Using device " << device_with_alignment << " with alignment " << alignment << std::endl;
-
     auto p = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
     auto relu = std::make_shared<ov::op::v0::Relu>(p);
     auto r = std::make_shared<ov::op::v0::Result>(relu);
