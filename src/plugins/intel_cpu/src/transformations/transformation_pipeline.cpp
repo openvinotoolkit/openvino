@@ -69,6 +69,7 @@
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
+#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -555,7 +556,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             });
         },
         ov::pass::KeepConstAndDecompression);
-
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::FuseVectorizedMOE);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
