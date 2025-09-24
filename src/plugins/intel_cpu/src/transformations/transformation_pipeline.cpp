@@ -1606,9 +1606,9 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
                 ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
-                auto child = node->get_input_node_shared_ptr(0);
-                if (ov::is_type<const ov::op::v1::Multiply>(child) && !child->inputs().empty() &&
-                    ov::is_type<const ov::op::v1::Convolution>(child->get_input_node_shared_ptr(0))) {
+                auto parent = node->get_input_node_shared_ptr(0);
+                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
+                    ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) {
                     return true;
                 }
             }
