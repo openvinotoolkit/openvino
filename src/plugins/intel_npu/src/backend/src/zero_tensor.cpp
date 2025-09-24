@@ -152,7 +152,7 @@ void ZeroTensor::update_strides() const {
 
 const ov::Strides& ZeroTensor::get_strides() const {
     OPENVINO_ASSERT(_element_type.bitwidth() >= 8,
-                    "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
+                    "Could not get strides for types with bitwidths less than 8 bit. Tensor type: ",
                     _element_type);
     std::call_once(_strides_once, &ZeroTensor::update_strides, this);
     return _strides;
