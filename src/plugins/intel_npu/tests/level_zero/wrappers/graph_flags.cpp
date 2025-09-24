@@ -42,8 +42,9 @@ TEST_P(ZeroGraphFlagsTest, QueryGraph) { // the "fourth" branch is not being tes
         }
 
         OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", flagsCombined));
-        auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                            ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+        uint32_t initCommandQueueOrdinal = 0;
+        OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                            ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
         zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
         ASSERT_NE(graphDescriptor._handle, nullptr);
 
@@ -51,10 +52,6 @@ TEST_P(ZeroGraphFlagsTest, QueryGraph) { // the "fourth" branch is not being tes
         ASSERT_NE(supportedLayers.size(), 0);
         zeGraphExt->destroyGraph(graphDescriptor);
     }
-}
-
-TEST_P(ZeroGraphFlagsTest, DISABLED_GetGraphBinary) {
-    // zeGraphExt->getGraphBinary(graphDescriptor, __, __, __);
 }
 
 // info about current tested flags inside test is not printed with getTestCaseName
@@ -68,8 +65,9 @@ TEST_P(ZeroGraphFlagsTest, InitializeGraph) {
         }
 
         OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", flagsCombined));
-        auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                            ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+        uint32_t initCommandQueueOrdinal = 0;
+        OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                            ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
         zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
         ASSERT_NE(graphDescriptor._handle, nullptr);
 
@@ -86,8 +84,9 @@ TEST_P(ZeroGraphFlagsTest, DestroyGraph) {
         }
 
         OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", flagsCombined));
-        auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                            ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+        uint32_t initCommandQueueOrdinal = 0;
+        OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                            ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
         zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
         ASSERT_NE(graphDescriptor._handle, nullptr);
 

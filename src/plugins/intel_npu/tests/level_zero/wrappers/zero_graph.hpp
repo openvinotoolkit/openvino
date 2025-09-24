@@ -6,6 +6,8 @@
 
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
+#include "common_test_utils/test_constants.hpp"
+#include "common/npu_test_env_cfg.hpp"
 
 using namespace intel_npu;
 
@@ -50,7 +52,14 @@ public:
         int flag;
         std::string version;
         std::tie(flag, version) = obj.param;
-        return "graphDescriptorFlag=" + std::to_string(flag) + "_extVersion=" + version;
+        std::string targetDevice = ov::test::utils::DEVICE_NPU;
+
+        std::ostringstream result;
+        result << "targetDevice=" << targetDevice << "_";
+        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
+        result << "graphDescriptorFlag=" + std::to_string(flag) << "_";
+        result << "extVersion=" + version;
+        return result.str();
     }
 };
 
