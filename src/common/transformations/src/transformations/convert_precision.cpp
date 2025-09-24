@@ -338,12 +338,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
             if (result->get_input_element_type(0) != orig_result_types[i]) {
                 auto result_input = result->input_value(0);
 
-                auto convert_v0 = ov::as_type_ptr<ov::op::v0::Convert>(result_input.get_node_shared_ptr());
                 auto convert_v16 = ov::as_type_ptr<ov::op::v16::Convert>(result_input.get_node_shared_ptr());
-                if (!convert_v0 && !convert_v16) {
-                    continue;
-                }
-
                 std::shared_ptr<ov::Node> convert;
                 if (convert_v16) {
                     convert = std::make_shared<ov::op::v16::Convert>(result_input,

@@ -128,7 +128,7 @@ TEST_F(OpCacheUnitTest, update_cache_by_model) {
             ASSERT_EQ(meta.get_model_info().begin()->second.this_op_cnt, 2);
             ASSERT_EQ(meta.get_model_info().begin()->second.total_op_cnt, 3);
             // max opset version for Convert - 1
-            ASSERT_EQ(meta.get_model_info().begin()->second.model_priority, 3);
+            ASSERT_EQ(meta.get_model_info().begin()->second.model_priority, 1);
             // check input_info
             ASSERT_EQ(meta.get_input_info().size(), 1);
             ASSERT_EQ(meta.get_input_info().begin()->first, "Convert-1_0");
