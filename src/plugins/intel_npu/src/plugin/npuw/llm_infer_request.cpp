@@ -9,6 +9,7 @@
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/core/parallel.hpp"
 #include "util_xarch.hpp"
 
 namespace {
@@ -107,8 +108,30 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
     }
 }
 
-void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim) {
-    if (kv_dim == 3u) {
+void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim_src, uint32_t kv_dim_dst) {
+    if (kv_dim_src != kv_dim_dst) {
+        // new case - do a generic copy for now (in fact it is a permute)
+        // Example:
+        //   kv_dim_src         kv_dim_dst
+        //       v                     v
+        // [1,8,256,128] --> [1,8,128,256]
+        const auto& src_shape = src_tensor->get_shape();
+        const auto& dst_shape = dst_tensor->get_shape();
+        NPUW_ASSERT(src_shape.size() == 4);
+        NPUW_ASSERT(dst_shape.size() == 4);
+        NPUW_ASSERT(kv_dim_src < 4);
+        NPUW_ASSERT(kv_dim_dst < 4);
+        NPUW_ASSERT(src_shape[kv_dim_src] == dst_shape[kv_dim_dst]);
+
+        std::array<int, 4> axis = {0, 1, 2, 3};
+        // Remap like 0,1,2,3 => 0,1,3,2 (see example)
+        std::swap(axis[kv_dim_src], axis[kv_dim_dst]);
+        ov::npuw::util::permute_i4d(src_tensor, dst_tensor, axis);
+        return;
+    }
+    // Old behavior
+    NPUW_ASSERT(kv_dim_src == kv_dim_dst);
+    if (kv_dim_src == 3u) {
         // Asserting that we work with last dimenston here:
         const auto& src_shape = src_tensor->get_shape();
         OPENVINO_ASSERT(src_shape.size() == 4);
@@ -117,12 +140,12 @@ void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor
         // We can then treat src_tensor as a continuous tensor of row value vectors
         // for multiple heads, while dst_tensor will still have [1, heads, d_v, seq_len!=1],
         // shape, awaiting updates at column dimension, as value vectors are columns now.
-        if (src_shape[kv_dim] == 1 && src_tensor->is_continuous()) {
+        if (src_shape[kv_dim_src] == 1 && src_tensor->is_continuous()) {
             ov::npuw::util::XARCH::copy_row_as_column(src_tensor, dst_tensor);
         } else {
             copy_columns_by_row_chunks(src_tensor, dst_tensor);
         }
-    } else if (kv_dim == 2u) {
+    } else if (kv_dim_src == 2u) {
         copy_by_planes(src_tensor, dst_tensor);
     } else {
         src_tensor->copy_to(dst_tensor._ptr);
@@ -485,7 +508,8 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-    for (std::size_t i = kStartOutputKVCacheLayers; i < kvcache_compiled->outputs().size(); ++i) {
+    ov::parallel_for(kvcache_compiled->outputs().size() - kStartOutputKVCacheLayers, [&](size_t out_idx) {
+        const std::size_t i = kStartOutputKVCacheLayers + out_idx;
         const auto& output_name = kvcache_compiled->outputs()[i].get_any_name();
         auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
 
@@ -493,15 +517,16 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
         if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
             // FIXME: Totally wrong debug message. input_name is an invalid name of input layer.
             LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
-            continue;
+            return;
         }
+        const auto is_value_tensor = output_name.find("value") != std::string::npos;
+        const auto kv_dim = [&](bool v_trans) -> uint32_t {
+            return (is_value_tensor && v_trans) ? 3u : kvcache_desc.dim;
+        };
+
+        const auto& pre_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_pre);
+        const auto& gen_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_gen);
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-
-        NPUW_ASSERT(kvcache_desc.v_tensors_transposed_pre == kvcache_desc.v_tensors_transposed_gen && "Implement copy in different layouts!");
-
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed_pre)
-                                 ? 3u
-                                 : kvcache_desc.dim;
 
         const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
         const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
@@ -520,38 +545,38 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             if (tokens_in_past_chunks > 0) {
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
                 auto prefill_past_kv_chunks =
-                    make_tensor_slice(prefill_past_kv, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                    make_tensor_slice(prefill_past_kv, pre_kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
 
                 auto kvcache_past_kv_chunks =
-                    make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                    make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
 
-                copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, kv_dim);
+                copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
             }
 
             // Copy part 2 KV results
             auto prefill_present_kv_chunk =
                 make_tensor_slice(prefill_out_tensor,
-                                  kv_dim,
+                                  pre_kv_dim,
                                   static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk),
                                   static_cast<uint32_t>(prefill_chunk_size));
 
             auto kvcache_last_kv_chunk = make_tensor_slice(kvcache_in_tensor,
-                                                           kv_dim,
+                                                           gen_kv_dim,
                                                            static_cast<uint32_t>(tokens_in_past_chunks),
                                                            kvcache_desc.num_stored_tokens);
 
-            copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, kv_dim);
+            copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, pre_kv_dim, gen_kv_dim);
         } else {
             auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
-                                                       kv_dim,
+                                                       pre_kv_dim,
                                                        kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
                                                        kvcache_desc.max_prompt_size);
 
-            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
+            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
 
-            copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, kv_dim);
+            copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, pre_kv_dim, gen_kv_dim);
         }
-    }
+    });
     LOG_DEBUG("Done.");
 }
 
@@ -591,9 +616,9 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
         OPENVINO_ASSERT(num_tokens <= src_seq_len);
         if (src_seq_len > num_tokens) {
             auto src_slice = make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
-            copy_tensor_by_dim(src_slice, dst_slice, kv_dim);
+            copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
         } else {
-            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim, kv_dim);
         }
     }
     LOG_DEBUG("Done.");
