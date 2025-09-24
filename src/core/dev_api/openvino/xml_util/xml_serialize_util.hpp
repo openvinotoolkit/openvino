@@ -8,6 +8,7 @@
 #include <map>
 #include <pugixml.hpp>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "openvino/core/type/element_type.hpp"
