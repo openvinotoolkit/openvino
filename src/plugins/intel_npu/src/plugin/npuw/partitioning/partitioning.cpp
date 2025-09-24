@@ -326,7 +326,6 @@ public:
     void saveScaleFactors(const std::string& func_name);
     void saveRepeatedConstants(const std::string& func_name);
     void saveTailDictConstants(const std::string& func_name);
-    void saveNewConstants(const std::string& func_name);
     void matchParameters(const std::string& func_name);
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
@@ -1472,40 +1471,6 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
-void Partitioner::saveNewConstants(const std::string& func_name) {
-    // Some patterns (existing and future ones) might introduce new Constants to the model when applied.
-    // When we import the model as weightless blob, new Constants have no reference to the original weights.
-    // After they get folded into Parameters and handled as LazyTensors, deserialization will fail
-    // during read_weight() function. Thus, we need to keep newly introduced constants as actual Constants.
-
-    LOG_VERB("Trying to preserve new constants for " << func_name << " in model " << model->get_friendly_name()
-                                                     << "...");
-    LOG_BLOCK();
-
-    auto& func_group = all_functions.at(func_name);
-    auto& model_group = func_group.mdls;
-
-    using CT = ov::op::v0::Constant;
-
-    for (auto&& op_node : model_group.front()->get_ordered_ops()) {
-        for (auto&& iport : op_node->inputs()) {
-            auto node = iport.get_source_output().get_node_shared_ptr();
-            // Don't care about small Constants
-            if (ov::op::util::is_constant(node) && !ov::npuw::partitioning::traits::is_tiny_scalar(node)) {
-                auto rt_info = node->get_rt_info();
-                auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-                // No reference to original weights - must be new
-                if (weightless_cache_attr == rt_info.end()) {
-                    LOG_DEBUG("[KEEP] " << node->get_friendly_name());
-                    func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
-                }
-            }
-        }
-    }  // for(n)
-
-    LOG_VERB("Done");
-}
-
 void Partitioner::matchParameters(const std::string& func_name) {
     LOG_VERB("Matching parameters for function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
@@ -2507,7 +2472,6 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.sanityCheck(func_group);
                 p.saveRepeatedConstants(func_group);
                 p.saveTailDictConstants(func_group);
-                p.saveNewConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
