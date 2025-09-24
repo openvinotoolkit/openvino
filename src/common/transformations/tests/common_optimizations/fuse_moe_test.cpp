@@ -139,7 +139,7 @@ std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
         auto down_linear_MatMul = makeOP<opset1::MatMul>({mul_Multiply, down_linear_Convert},
                                                          {{"transpose_a", false}, {"transpose_b", true}});
         auto ListUnpack_Squeeze_2 =
-            makeOP<opset1::Reshape>({ListUnpack_Split_2->output(0), {-1}}, {{"special_zero", false}});
+            makeOP<opset1::Squeeze>({ListUnpack_Split_2->output(0), {0}}, {{"special_zero", false}});
         auto index_Convert_6 = makeOP<opset1::Convert>({ListUnpack_Squeeze_2}, {{"destination_type", "i32"}});
         // self.topk * batch, index_split=shapeof(routing_weights), shape: [batch, self.topk, 1]
         auto index_Multiply_2 =

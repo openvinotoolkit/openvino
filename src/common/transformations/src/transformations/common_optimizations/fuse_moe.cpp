@@ -48,6 +48,7 @@
 #include "transformations/utils/utils.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "transformations/utils/print_model.hpp"
 
 namespace ov {
 namespace pass {
@@ -88,8 +89,10 @@ auto gen_expert_pattern(std::shared_ptr<ov::Node> final_hidden_states,
 
     // expert_mask[expert_idx]
     auto select_Gather_2 = makePattern<ov::op::v8::Gather>({expert_mask, expert_no, 0}, {{"batch_dims", 0}});
+    auto squeeze_Squeeze_7 = makePattern<opset1::Squeeze>({select_Gather_2, 0});   //  tensor_array<i64[2,?]> __module.model.layers.1.mlp/aten::squeeze/Squeeze_7(__module.model.layers.1.mlp/aten::select/Gather_7, 60)
+
     // x = torch.where(expert_mask[expert_idx]), x shape: [2, nonzero], dim0: topk, dim1: batch
-    auto ListUnpack_NonZero_2 = makePattern<ov::op::v3::NonZero>({select_Gather_2}, {{"output_type", "i64"}});
+    auto ListUnpack_NonZero_2 = makePattern<ov::op::v3::NonZero>({squeeze_Squeeze_7}, {{"output_type", "i64"}});
     // topk, batch = torch.where(expert_mask[expert_idx])
     auto ListUnpack_Split_2 = makePattern<ov::op::v1::Split>({ListUnpack_NonZero_2, 0}, {{"num_splits", 2}});
     ListUnpack_Split_2->set_output_size(2);
@@ -623,8 +626,9 @@ bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(FuseMOE);
     ov::pass::Manager manager(get_pass_config(), "FuseMOE");
 
-    manager.register_pass<ov::pass::EliminateSqueeze>();
+    // manager.register_pass<ov::pass::EliminateSqueeze>();
     // Use the unified FuseMOE transformation
+    manager.register_pass<ov::pass::PrintModel>("before_fuse_moe_pseudocode.cpp");
     manager.register_pass<ov::pass::FuseMOEUnified>();
 
     manager.run_passes(model);
