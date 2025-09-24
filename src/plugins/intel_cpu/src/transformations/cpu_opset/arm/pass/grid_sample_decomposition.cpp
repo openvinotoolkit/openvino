@@ -13,6 +13,7 @@
 
 #include <functional>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 #include "openvino/core/graph_util.hpp"
@@ -104,8 +105,31 @@ struct Ctx {
 };
 
 // ---- small helpers ----
-auto to_f32(const std::shared_ptr<Node>& input_node) -> std::shared_ptr<Node> {
+std::shared_ptr<Node> to_f32(const std::shared_ptr<Node>& input_node) {
     return std::make_shared<op::v0::Convert>(input_node, element::f32);
+}
+
+// Copy runtime info from the original node to entire subgraph feeding `output`.
+void copy_rt_to_subgraph(const std::shared_ptr<Node>& from, const std::shared_ptr<Node>& output) {
+    std::vector<std::shared_ptr<Node>> stack;
+    stack.push_back(output);
+    std::unordered_set<const Node*> visited;
+    std::vector<std::shared_ptr<Node>> subgraph_nodes;
+    while (!stack.empty()) {
+        auto node = stack.back();
+        stack.pop_back();
+        if (!node || visited.count(node.get()))
+            continue;
+        visited.insert(node.get());
+        subgraph_nodes.push_back(node);
+        for (const auto& input : node->inputs()) {
+            auto src = input.get_source_output().get_node_shared_ptr();
+            if (src) {
+                stack.push_back(src);
+            }
+        }
+    }
+    ov::copy_runtime_info(NodeVector{from}, subgraph_nodes);
 }
 
 // Normalize grid [-1, 1] to pixel coordinates (no padding/reflection here)
@@ -615,7 +639,7 @@ void init_common_constants(Ctx& context) {
 }
 
 // Unified context building: uses ShapeOf/Gather which can be folded to constants for static shapes
-auto build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& grid_sample_op, Ctx& context) -> bool {
+bool build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& grid_sample_op, Ctx& context) {
     const auto& data = grid_sample_op->input_value(0);
     const auto& grid = grid_sample_op->input_value(1);
 
@@ -657,8 +681,8 @@ auto build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& grid_sample_op, Ct
 
 // Common glue: build ctx, normalize, build mode, NHWC->NCHW, replace
 using BuildModeFn = std::function<std::shared_ptr<Node>(const Ctx&, const ov::op::v9::GridSample::Attributes&)>;
-auto decompose_impl(const std::shared_ptr<ov::op::v9::GridSample>& grid_sample_op,
-                    const BuildModeFn& build_mode_result_nhwc) -> bool {
+bool decompose_impl(const std::shared_ptr<ov::op::v9::GridSample>& grid_sample_op,
+                    const BuildModeFn& build_mode_result_nhwc) {
     Ctx context{};
     if (!build_ctx(grid_sample_op, context)) {
         return false;
@@ -685,7 +709,7 @@ auto decompose_impl(const std::shared_ptr<ov::op::v9::GridSample>& grid_sample_o
     auto result = std::make_shared<op::v1::Transpose>(result_nhwc, to_nchw);
 
     result->set_friendly_name(grid_sample_op->get_friendly_name());
-    ov::copy_runtime_info(grid_sample_op, result);
+    copy_rt_to_subgraph(grid_sample_op, result);
     ov::replace_node_update_name(grid_sample_op, result);
     return true;
 }
@@ -740,15 +764,23 @@ public:
                 attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER && !attrs.align_corners) {
                 return false;
             }
+            // NEAREST + ZEROS + align_corners=false (restrict to f32/f32)
+            if (is_f32_data && is_f32_grid && attrs.mode == op::v9::GridSample::InterpolationMode::NEAREST &&
+                attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS && !attrs.align_corners) {
+                return false;
+            }
             // For non-f32 cases in these problematic modes, explicitly convert to f32 -> GridSample -> convert back.
             if ((!is_f32_data || !is_f32_grid) && attrs.mode == op::v9::GridSample::InterpolationMode::NEAREST &&
                 (attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION ||
-                 attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER) && !attrs.align_corners) {
+                 attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER ||
+                 attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS) &&
+                !attrs.align_corners) {
                 auto data_f32 = std::make_shared<op::v0::Convert>(grid_sample->input_value(0), element::f32);
                 auto grid_f32 = std::make_shared<op::v0::Convert>(grid_sample->input_value(1), element::f32);
                 auto gs_f32 = std::make_shared<op::v9::GridSample>(data_f32, grid_f32, attrs);
                 auto out = std::make_shared<op::v0::Convert>(gs_f32, grid_sample->get_output_element_type(0));
                 out->set_friendly_name(grid_sample->get_friendly_name());
+                copy_rt_to_subgraph(grid_sample, out);
                 ov::replace_node(grid_sample, out);
                 return true;
             }
@@ -872,10 +904,17 @@ public:
                 attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER && !attrs.align_corners) {
                 return false;
             }
+            // NEAREST + ZEROS + align_corners=false (restrict to f32/f32)
+            if (is_f32_data && is_f32_grid && attrs.mode == op::v9::GridSample::InterpolationMode::NEAREST &&
+                attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS && !attrs.align_corners) {
+                return false;
+            }
             // For non-f32 cases in these problematic modes, explicitly convert to f32 -> GridSample -> convert back.
             if ((!is_f32_data || !is_f32_grid) && attrs.mode == op::v9::GridSample::InterpolationMode::NEAREST &&
                 (attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION ||
-                 attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER) && !attrs.align_corners) {
+                 attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER ||
+                 attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS) &&
+                !attrs.align_corners) {
                 auto data_f32 = std::make_shared<op::v0::Convert>(grid_sample->input_value(0), element::f32);
                 auto grid_f32 = std::make_shared<op::v0::Convert>(grid_sample->input_value(1), element::f32);
                 auto gs_f32 = std::make_shared<op::v9::GridSample>(data_f32, grid_f32, attrs);
