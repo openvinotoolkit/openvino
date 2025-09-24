@@ -901,16 +901,9 @@ GridSampleDecomposition::GridSampleDecomposition() {
     add_matcher<GridSampleDecompositionBilinearStatic>();
     add_matcher<GridSampleDecompositionBicubicStatic>();
 
-    // Allow disabling dynamic matchers via env for validation/debug
-    bool enable_dynamic = true;
-    if (const char* env_dyn = std::getenv("OV_CPU_ARM_GRID_SAMPLE_DYNAMIC")) {
-        enable_dynamic = std::string(env_dyn) != "0";
-    }
-    if (enable_dynamic) {
-        add_matcher<GridSampleDecompositionNearestDynamic>();
-        add_matcher<GridSampleDecompositionBilinearDynamic>();
-        add_matcher<GridSampleDecompositionBicubicDynamic>();
-    }
+    add_matcher<GridSampleDecompositionNearestDynamic>();
+    add_matcher<GridSampleDecompositionBilinearDynamic>();
+    add_matcher<GridSampleDecompositionBicubicDynamic>();
 }
 
 }  // namespace ov::intel_cpu
