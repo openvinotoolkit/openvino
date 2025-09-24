@@ -368,7 +368,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_ConcatSDPTransposeByChannelTest.*)");
     // Issue: 168490
     retVector.emplace_back(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)");
-
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
