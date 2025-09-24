@@ -23,6 +23,7 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <algorithm>
@@ -135,7 +136,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                     work.output_id = output_id;
                     work.p_raw_weights = pw;
                     work.quant_i8 = quantized_int8;
-                    work.is_f16 = std::is_same<T, ov::float16>::value;
+                    work.is_f16 = std::is_same_v<T, ov::float16>;
                 }
                 start_blkN += blkN;
             }
@@ -224,7 +225,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     }
 
     void execute() override {
-        static ReduceAdd2bh jit_cvt(false, std::is_same<T, ov::float16>::value);
+        static ReduceAdd2bh jit_cvt(false, std::is_same_v<T, ov::float16>);
 
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
@@ -330,7 +331,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 template <typename T>
 struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     QKVProjection* m_pnode;
-    Executor(QKVProjection* pnode) : m_pnode(pnode) {}
+    explicit Executor(QKVProjection* pnode) : m_pnode(pnode) {}
     void execute() override {}
 };
 #endif
@@ -345,7 +346,7 @@ void QKVProjection::createPrimitive() {
     }
 #endif
     if (!m_executor) {
-        THROW_CPU_NODE_ERR("Executor creation fails with precision " + rtPrecision.to_string());
+        CPU_NODE_THROW("Executor creation fails with precision " + rtPrecision.to_string());
     }
 }
 
@@ -389,9 +390,7 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    CPU_NODE_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
-                    "Unexpected rtPrecision:",
-                    rtPrecision);
+    CPU_NODE_ASSERT(any_of(rtPrecision, ov::element::bf16, ov::element::f16), "Unexpected rtPrecision:", rtPrecision);
 
     if (m_config.quantized) {
         auto weightPrecision = ov::element::i8;

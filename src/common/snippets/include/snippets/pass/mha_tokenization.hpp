@@ -11,7 +11,7 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/matcher_pass.hpp"
-#include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/tokenization_config.hpp"
 
 namespace ov::snippets::pass {
 
@@ -45,7 +45,49 @@ namespace ov::snippets::pass {
 class TokenizeMHASnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeMHASnippets");
-    TokenizeMHASnippets(const SnippetsTokenization::Config& config);
+
+    /**
+     * @interface Config
+     * @brief Configuration for TokenizeMHASnippets pass
+     * @ingroup snippets
+     */
+    struct Config : public TokenizationConfig {
+        Config(const TokenizationConfig& tokenization_config,
+               bool enable_transpose_on_output,
+               bool dyn_mha_token,
+               std::set<size_t> mha_transpose_ranks)
+            : TokenizationConfig(tokenization_config),
+              m_mha_token_enable_transpose_on_output(enable_transpose_on_output),
+              m_is_dynamic_mha_token_enabled(dyn_mha_token),
+              m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {}
+
+        [[nodiscard]] bool get_mha_token_enable_transpose_on_output() const {
+            return m_mha_token_enable_transpose_on_output;
+        }
+
+        [[nodiscard]] bool is_dynamic_mha_token_enabled() const {
+            return m_is_dynamic_mha_token_enabled;
+        }
+
+        [[nodiscard]] const std::set<size_t>& get_mha_supported_transpose_ranks() const {
+            return m_mha_supported_transpose_ranks;
+        }
+
+    private:
+        // False if Transpose on output isn't tokenized in MHA Tokenization.
+        // Otherwise, it may be fused into Subgraph if possible
+        // TODO [111813]: Remove please when the ticket 111813 is implemented
+        bool m_mha_token_enable_transpose_on_output = true;
+        // If True, MHA pattern with dynamic nodes will be tokenized
+        // Otherwise dynamic MHA won't be tokenized
+        bool m_is_dynamic_mha_token_enabled = true;
+        // Set of supported Transpose shape ranks for tokenization in MHATokenization pass.
+        // Note that in general Snippets support Transpose of any ranks.
+        // But at the moment Transpose is used only in MHA pattern where 3D and 4D tensors are supported.
+        std::set<size_t> m_mha_supported_transpose_ranks = {3, 4};
+    };
+
+    explicit TokenizeMHASnippets(const Config& config);
 
     static std::vector<int32_t> get_fusion_transpose_order(size_t rank);
     static std::vector<int32_t> get_decomposed_transpose_order(size_t rank);

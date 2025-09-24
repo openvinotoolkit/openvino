@@ -284,10 +284,8 @@ TEST_P(OVInferRequestIOTensorTest, CheckInferIsNotChangeInput) {
 }
 
 std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {
-    element::Type type;
-    std::string target_device;
-    ov::AnyMap configuration;
-    std::tie(type, target_device, configuration) = obj.param;
+    const auto& [type, _target_device, configuration] = obj.param;
+    auto target_device = _target_device;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "type=" << type << "_";
@@ -341,10 +339,7 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecisi
 }
 
 std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj) {
-    element::Type type;
-    std::string target_device;
-    AnyMap configuration;
-    std::tie(type, target_device, configuration) = obj.param;
+    const auto& [type, target_device, configuration] = obj.param;
     std::ostringstream result;
     result << "type=" << type << "_";
     result << "target_device=" << target_device << "_";

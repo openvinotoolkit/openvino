@@ -15,6 +15,7 @@
 #include "graph_context.h"
 #include "memory_state.h"
 #include "node.h"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
@@ -55,7 +56,7 @@ public:
 
     void assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx);
 
-    const std::vector<size_t> getKVCacheOrder() const {
+    std::vector<size_t> getKVCacheOrder() const {
         const auto& permute_axes = m_config.config.permute_axes;
         std::vector<size_t> real_order = m_kvstate_layout;
         if (!permute_axes.empty()) {
@@ -93,6 +94,7 @@ private:
                              MemoryPtr beam_input,
                              const PlainTensor& k_scale_zp,
                              const PlainTensor& v_scale_zp) = 0;
+        [[nodiscard]] virtual impl_desc_type implType() const = 0;
         virtual ~Executor() = default;
     };
 

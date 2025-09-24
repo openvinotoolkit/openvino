@@ -50,7 +50,7 @@ inline void changeLayoutToNH_C(const std::vector<arm_compute::TensorShape*>& _li
         }
     };
 
-    for (auto& dims : _listDims) {
+    for (const auto& dims : _listDims) {
         mover(*dims);
     }
 }
@@ -156,17 +156,21 @@ inline arm_compute::DataType precisionToAclDataType(ov::element::Type precision)
  * @param treatAs4D the flag that treats MemoryDecs as 4D shape
  * @return ComputeLibrary DataLayout or UNKNOWN if MemoryDecs layout is not mapped to DataLayout
  */
-inline arm_compute::DataLayout getAclDataLayoutByMemoryDesc(MemoryDescCPtr desc) {
+inline arm_compute::DataLayout getAclDataLayoutByMemoryDesc(const MemoryDescCPtr& desc) {
     if (desc->hasLayoutType(LayoutType::ncsp)) {
-        if (desc->getShape().getRank() <= 4)
+        if (desc->getShape().getRank() <= 4) {
             return arm_compute::DataLayout::NCHW;
-        if (desc->getShape().getRank() == 5)
+        }
+        if (desc->getShape().getRank() == 5) {
             return arm_compute::DataLayout::NCDHW;
+        }
     } else if (desc->hasLayoutType(LayoutType::nspc)) {
-        if (desc->getShape().getRank() <= 4)
+        if (desc->getShape().getRank() <= 4) {
             return arm_compute::DataLayout::NHWC;
-        if (desc->getShape().getRank() == 5)
+        }
+        if (desc->getShape().getRank() == 5) {
             return arm_compute::DataLayout::NDHWC;
+        }
     }
     return arm_compute::DataLayout::UNKNOWN;
 }

@@ -6,11 +6,10 @@
 
 #include <gtest/gtest.h>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-
 #include "common/npu_test_env_cfg.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/version.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 // models generation
 #include "openvino/op/abs.hpp"

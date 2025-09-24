@@ -36,6 +36,8 @@ namespace ov::intel_cpu {
  * function.
  *               - input "0" indicates that the function generates the optimal number of threads per stream based on
  * processors type information.
+ * @param[in]  enable_tensor_parallel is test flag used with hint_llm_distribution_policy to test data accurcy of
+ * TENSOR_PARALLEL
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
  * @param[in]  hint_llm_distribution_policy is the distribution policy for Large language models
  * @param[in]  proc_type_table is currently available candidate processors.
@@ -49,6 +51,7 @@ std::vector<std::vector<int>> get_streams_info_table(
     int input_threads,
     int input_infer_requests,
     int model_prefer_threads,
+    bool enable_tensor_parallel,
     const std::string& input_perf_hint,
     const std::set<ov::hint::ModelDistributionPolicy>& hint_model_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table);

@@ -39,6 +39,7 @@ namespace py = pybind11;
 using PyRTMap = ov::Node::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
 
 void regclass_graph_Node(py::module m) {
     py::class_<ov::Node, std::shared_ptr<ov::Node>, PyNode> node(m, "Node", py::dynamic_attr());
@@ -225,35 +226,48 @@ void regclass_graph_Node(py::module m) {
         },
         py::arg("output_values"),
         py::arg("input_values"),
-        py::arg("evaluationContext"),
+        py::arg("evaluationContext") = PyRTMap(),
         R"(
                 Evaluate the node on inputs, putting results in outputs
                 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: List[openvino.Tensor]
+                :type output_tensors: openvino.TensorVector
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: List[openvino.Tensor]
+                :type input_tensors: openvino.TensorVector
                 :param evaluation_context: Storage of additional settings and attributes that can be used
                 when evaluating the function. This additional information can be shared across nodes.
                 :type evaluation_context: openvino.RTMap
                 :rtype: bool
             )");
+
     node.def(
         "evaluate",
-        [](const ov::Node& self, ov::TensorVector& output_values, const ov::TensorVector& input_values) -> bool {
-            return self.evaluate(output_values, input_values);
+        [](const ov::Node& self,
+           py::list& output_values,
+           const py::list& input_values,
+           const ov::EvaluationContext& evaluationContext) -> bool {
+            py::object pyTensorVector = py::module_::import("openvino").attr("TensorVector");
+            auto casted_output_values = pyTensorVector(output_values).cast<ov::TensorVector>();
+            const auto casted_input_values = pyTensorVector(input_values).cast<ov::TensorVector>();
+
+            return self.evaluate(casted_output_values, casted_input_values, evaluationContext);
         },
         py::arg("output_values"),
         py::arg("input_values"),
+        py::arg("evaluationContext") = PyRTMap(),
         R"(
-                Evaluate the function on inputs, putting results in outputs
-
+                Evaluate the node on inputs, putting results in outputs
+                
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: List[openvino.Tensor]
+                :type output_tensors: openvino.TensorVector
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: List[openvino.Tensor]
+                :type input_tensors: openvino.TensorVector
+                :param evaluation_context: Storage of additional settings and attributes that can be used
+                when evaluating the function. This additional information can be shared across nodes.
+                :type evaluation_context: openvino.RTMap
                 :rtype: bool
-             )");
+            )");
+
     node.def("get_instance_id",
              &ov::Node::get_instance_id,
              R"(
@@ -289,8 +303,8 @@ void regclass_graph_Node(py::module m) {
              R"(
                  Returns list of node's inputs, in order.
 
-                 :return: List of node's inputs
-                 :rtype: List[openvino.Input]
+                 :return: list of node's inputs
+                 :rtype: list[openvino.Input]
              )");
     node.def("input_value",
              &ov::Node::input_value,
@@ -475,8 +489,8 @@ void regclass_graph_Node(py::module m) {
              R"(
                 A list containing a handle for each of this node's inputs, in order.
 
-                :return: List of node's inputs.
-                :rtype: List[openvino.Input]
+                :return: list of node's inputs.
+                :rtype: list[openvino.Input]
              )");
     node.def("output",
              (ov::Output<ov::Node>(ov::Node::*)(size_t)) & ov::Node::output,
@@ -494,8 +508,8 @@ void regclass_graph_Node(py::module m) {
              R"(
                 A list containing a handle for each of this node's outputs, in order.
 
-                :return: List of node's outputs.
-                :rtype: List[openvino.Output]
+                :return: list of node's outputs.
+                :rtype: list[openvino.Output]
              )");
     node.def("get_rt_info",
              (PyRTMap & (ov::Node::*)()) & ov::Node::get_rt_info,

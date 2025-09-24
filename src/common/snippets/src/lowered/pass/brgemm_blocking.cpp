@@ -41,7 +41,7 @@ lowered::SpecificIterationHandlers BrgemmBlockingBase::get_default_blocking_loop
 bool BrgemmBlockingBase::blocking_loop_exists(const lowered::LoopManagerPtr& loop_manager,
                                               const ExpressionPtr& brgemm_expr) {
     auto check_port = [&](const LoopPort& p) {
-        return p.get_expr_port()->get_expr() == brgemm_expr && one_of(p.get_dim_idx(), 0ul, 1ul);
+        return p.get_expr_port()->get_expr() == brgemm_expr && any_of(p.get_dim_idx(), 0UL, 1UL);
     };
     const auto& loop_ids = brgemm_expr->get_loop_ids();
     return std::any_of(loop_ids.begin(), loop_ids.end(), [&](const auto& id) {
@@ -150,8 +150,8 @@ bool BrgemmBlockingBase::mark_blocking_loops(LinearIR& linear_ir,
     }
     if (!is_full_dim_value(n_block)) {
         const std::vector<LoopPort> entries{LoopPort::create<PortType::NotProcessed>(brgemm_expr->get_input_port(0)),
-                                            LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1))};
-        const std::vector<LoopPort> exits{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0))};
+                                            LoopPort::create<PortType::Incremented>(brgemm_expr->get_input_port(1), 0)};
+        const std::vector<LoopPort> exits{LoopPort::create<PortType::Incremented>(brgemm_expr->get_output_port(0), 0)};
         mark_n_blocking(loop_manager, brgemm_it, std::next(brgemm_it), entries, exits, n_block);
     }
     if (!is_full_dim_value(m_block)) {

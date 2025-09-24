@@ -22,7 +22,9 @@ function(ov_create_acl_version_file)
     string(REGEX MATCH "v([0-9]+\\.[0-9]+\\.?[0-9]*)" ACL_VERSION "${ACL_SCONSCRIPT_FILE_CONTENT}")
     set(ACL_VERSION "${CMAKE_MATCH_1}")
 
-    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
+    # Create version file in build subdirectory where oneDNN expects it (glob pattern */arm_compute_version.embed)
+    file(MAKE_DIRECTORY "${ACL_ROOT_DIR}/build")
+    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/arm_compute_version.embed")
     file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
 endfunction()
 
@@ -141,6 +143,13 @@ function(ov_add_onednn)
         ov_create_acl_version_file()
     endif()
 
+    # Workaround for ARM compiler flag conflicts: oneDNN sets -mcpu=generic which conflicts
+    # with OpenVINO's -march=armv8.2-a+fp16 flags. Override oneDNN's arch optimization flags
+    # to prevent the conflicting -mcpu=generic flag on ARM architectures.
+    if(AARCH64 OR ARM)
+        set(DNNL_ARCH_OPT_FLAGS "" CACHE STRING "Disable oneDNN's automatic -mcpu=generic to avoid conflicts with OpenVINO ARM flags" FORCE)
+    endif()
+
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
     # install static libraries
@@ -175,7 +184,22 @@ if(ENABLE_MLAS_FOR_CPU)
 endif()
 
 if(ENABLE_SHL_FOR_CPU)
-    add_subdirectory(shl)
+    function(ov_build_shl_static)
+        ov_add_compiler_flags(-Wno-missing-declarations)
+        ov_add_compiler_flags(-Wno-unused-variable)
+        ov_add_compiler_flags(-Wno-unused-but-set-variable)
+        ov_add_compiler_flags(-Wno-strict-aliasing)
+        ov_add_compiler_flags(-Wno-return-type)
+        ov_add_compiler_flags(-Wno-unknown-pragmas)
+        ov_add_compiler_flags(-Wno-parentheses)
+        ov_add_compiler_flags(-Wno-maybe-uninitialized)
+        ov_add_compiler_flags(-Wno-unused-function)
+        ov_add_compiler_flags(-Wno-suggest-parentheses)
+        add_subdirectory(shl)
+    endfunction()
+
+    # Suppress warnings detected in SHL library build to clean up RISC-V build log.
+    ov_build_shl_static()
     ov_install_static_lib(shl ${OV_CPACK_COMP_CORE})
 endif()
 

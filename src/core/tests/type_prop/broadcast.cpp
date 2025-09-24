@@ -1349,3 +1349,13 @@ TEST(type_prop, broadcast_v3_bidirectional_tricky_partial_value_case_and_equal_p
         EXPECT_EQ(calculated, expected);
     }
 }
+
+TEST(type_prop, broadcast_v3_bidirectional_zero_dim) {
+    auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    auto target_shape = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{1}, {0});
+
+    auto bc = make_shared<ov::op::v3::Broadcast>(param, target_shape, "BIDIRECTIONAL");
+
+    ASSERT_EQ(bc->get_shape(), (ov::Shape{0}));
+    ASSERT_EQ(bc->get_broadcast_axes(), (make_pair<bool, ov::AxisSet>(true, ov::AxisSet{0})));
+}

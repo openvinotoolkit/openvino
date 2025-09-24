@@ -75,6 +75,29 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::AvgPool> 
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "AvgPoolGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::AvgPool> &node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 32});
+    const ov::Strides strides{1};
+    const ov::Strides dilations{2};
+    const ov::Shape pads_begin{0};
+    const ov::Shape pads_end{0};
+    const ov::Shape kernel{2};
+    const auto exclude_pad = false;
+    const auto rounding_type = ov::op::RoundingType::CEIL_TORCH;
+    const auto auto_pad = ov::op::PadType::SAME_LOWER;
+    const auto avgPoolNode = std::make_shared<ov::op::v16::AvgPool>(data,
+                                                                   strides,
+                                                                   dilations,
+                                                                   pads_begin,
+                                                                   pads_end,
+                                                                   kernel,
+                                                                   exclude_pad,
+                                                                   rounding_type,
+                                                                   auto_pad);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(avgPoolNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "AvgPoolGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::BatchNormInference> &node) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3});
     const auto gamma = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3});
@@ -816,6 +839,23 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::OneHot> &n
     const auto onehot = std::make_shared<ov::op::v1::OneHot>(params[0], depth, onvalue, offvalue, axes);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(onehot)};
     return std::make_shared<ov::Model>(results, params, "OneHot-1");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::OneHot>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{})};
+    const auto depth = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{3});
+    const auto onvalue = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{1});
+    const auto offvalue =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
+    const int32_t axes = 0;
+    const auto onehot = std::make_shared<ov::op::v16::OneHot>(params[0],
+                                                              depth,
+                                                              onvalue,
+                                                              offvalue,
+                                                              axes,
+                                                              op::v16::OneHot::NegativeIndicesMode::NORMALIZE);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(onehot)};
+    return std::make_shared<ov::Model>(results, params, "OneHot-16");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::PRelu> &node) {

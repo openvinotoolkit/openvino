@@ -29,7 +29,7 @@ KernelsPriority ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernels
 
 bool ExperimentalDetectronGenerateProposalsSingleImageRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     return true;
 }

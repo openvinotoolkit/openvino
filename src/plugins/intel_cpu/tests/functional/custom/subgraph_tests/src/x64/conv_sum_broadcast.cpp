@@ -34,13 +34,7 @@ class ConvSumInPlaceTest : public testing::WithParamInterface<convSumBroadcastPa
                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convSumBroadcastParamSet>& obj) {
-        InputShape convShape;
-        InputShape secondShape;
-        bool bias;
-        fusingSpecificParams fusingParams;
-        ov::AnyMap additionalConfig;
-        std::tie(convShape, secondShape, bias, fusingParams, additionalConfig) = obj.param;
-
+        const auto& [convShape, secondShape, bias, fusingParams, additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=";
         result  << ov::test::utils::partialShape2str({convShape.first, secondShape.first}) << "_";
@@ -94,14 +88,8 @@ public:
     }
 
     void SetUp() override {
-        InputShape convShape;
-        InputShape secondShape;
-        bool bias;
         CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        ov::AnyMap additionalConfig;
-        std::tie(convShape, secondShape, bias, fusingParams, additionalConfig) = this->GetParam();
-
+        const auto& [convShape, secondShape, bias, fusingParams, additionalConfig] = this->GetParam();
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         configuration.insert(additionalConfig.begin(), additionalConfig.end());

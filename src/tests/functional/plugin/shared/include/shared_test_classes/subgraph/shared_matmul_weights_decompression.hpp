@@ -6,6 +6,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -32,18 +33,20 @@ namespace test {
  *             Matmul                                                Matmul
  */
 
-using MatmulSharedWeightsDecompressionParams = std::tuple<std::string,                 // target device
-                                                          MatMulDecompressionShapeParams,
-                                                          ElementType,                 // weights precision
-                                                          ElementType,                 // decompression precision
-                                                          bool,                        // transpose on weights
-                                                          DecompressionType,           // decompression subtract type
-                                                          bool>;                       // use matmul decompression implementation
+using MatmulSharedWeightsDecompressionParams =
+    std::tuple<std::string,  // target device
+               MatMulDecompressionShapeParams,
+               ElementType,                          // weights precision
+               ElementType,                          // decompression precision
+               bool,                                 // transpose on weights
+               DecompressionType,                    // decompression subtract type
+               bool,                                 // use matmul decompression implementation
+               std::map<std::string, std::string>>;  // additional configeration
 
 class SharedMatmulWeightsDecompression : public testing::WithParamInterface<MatmulSharedWeightsDecompressionParams>,
                                          virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulSharedWeightsDecompressionParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulSharedWeightsDecompressionParams>& obj);
 
 protected:
     std::shared_ptr<ov::Model> initSubgraph(const ov::PartialShape& data_shape,

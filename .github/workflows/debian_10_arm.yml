@@ -89,7 +89,7 @@ jobs:
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.debian_10_arm }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.debian_10_arm }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'debian_10'
@@ -112,7 +112,7 @@ jobs:
         -DENABLE_LTO=ON
         -DENABLE_TESTS=ON
         -DENABLE_PYTHON=OFF
-        -DCMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake
+        -DCMAKE_TOOLCHAIN_FILE=cmake/arm.toolchain.cmake
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -139,7 +139,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_debian_10_arm
-    needs: [Smart_CI, Build, CXX_Unit_Tests]
+    needs: [Smart_CI, Build, CXX_Unit_Tests, CPU_Functional_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

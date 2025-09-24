@@ -67,6 +67,7 @@ private:
     friend class MemAccessSim;
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
+    friend class LLMInferRequest;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -100,6 +101,8 @@ private:
     void log_device_dist(ov::npuw::LogLevel log_lvl = ov::npuw::LogLevel::Info) const;
 
     void implement_properties();
+
+    bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
 
     // For full deserialization flow with weights
     void reconstruct_closure();
@@ -154,6 +157,7 @@ private:
         std::optional<std::size_t> replaced_by;
 
         Subgraph::Gather host_gather;
+        Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
@@ -194,6 +198,7 @@ private:
 
     std::unordered_map<const void*, std::size_t> m_const_to_offset;
     ov::npuw::s11n::BF16Cache m_bf16_consts;
+    ov::npuw::s11n::WeightsContext m_import_weights_ctx;
 };
 }  // namespace npuw
 }  // namespace ov

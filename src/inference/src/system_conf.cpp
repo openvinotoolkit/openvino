@@ -119,6 +119,14 @@ bool with_cpu_sve() {
     return false;
 }
 
+bool with_cpu_arm_dotprod() {
+    return false;
+}
+
+bool with_cpu_arm_i8mm() {
+    return false;
+}
+
 #else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool with_cpu_x86_sse42() {
@@ -192,6 +200,45 @@ bool with_cpu_sve() {
     return false;
 #    endif
 }
+
+bool with_cpu_arm_dotprod() {
+#    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__arm__) && defined(__aarch64__)
+    const uint32_t hwcaps = getauxval(AT_HWCAP);
+    return hwcaps & HWCAP_ASIMDDP;
+#    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__aarch64__) && defined(__arm__)
+    return false;
+#    elif defined(__aarch64__) && defined(__APPLE__)
+    int64_t result(0);
+    size_t size = sizeof(result);
+    const std::string& cap = "hw.optional.arm.FEAT_DotProd";
+    sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
+    return result > 0;
+#    else
+    return false;
+#    endif
+}
+
+bool with_cpu_arm_i8mm() {
+#    if !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__arm__) && defined(__aarch64__)
+    const uint32_t hwcaps = getauxval(AT_HWCAP);
+    return hwcaps & HWCAP2_I8MM;
+#    elif !defined(_WIN64) && !defined(BARE_METAL) && !defined(__APPLE__) && !defined(__OpenBSD__) && \
+        !defined(__aarch64__) && defined(__arm__)
+    return false;
+#    elif defined(__aarch64__) && defined(__APPLE__)
+    int64_t result(0);
+    size_t size = sizeof(result);
+    const std::string& cap = "hw.optional.arm.FEAT_I8MM";
+    sysctlbyname(cap.c_str(), &result, &size, NULL, 0);
+    return result > 0;
+#    else
+    return false;
+#    endif
+}
+
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool check_open_mp_env_vars(bool include_omp_num_threads) {

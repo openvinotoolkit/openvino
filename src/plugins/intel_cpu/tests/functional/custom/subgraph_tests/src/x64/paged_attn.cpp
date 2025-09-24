@@ -33,21 +33,18 @@
 using namespace ov::test;
 using namespace CPUTestUtils;
 using namespace ov::op;
-using namespace std;
 
 namespace ov {
 namespace test {
 using InputShapes = std::vector<InputShape>;
-using PagedAttnTestParams = std::tuple<ElementType, InputShapes>;
+using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, ov::AnyMap>;
 
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>,
                           virtual public ov::test::SubgraphBaseTest,
                           public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
-        ElementType inType;
-        InputShapes inputShapes;
-        std::tie(inType, inputShapes) = obj.param;
+        const auto& [inType, inputShapes, extendBlockIndices, additional_config] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -63,7 +60,13 @@ public:
             }
             result << ")_";
         }
-        result << "Prc=" << inType;
+        result << "Prc=" << inType << "_";
+        result << "ExtendBlockIndices=" << extendBlockIndices;
+        result << "config=(";
+        for (const auto& configEntry : additional_config) {
+            result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
+        }
+        result << ")";
 
         return result.str();
     }
@@ -107,6 +110,18 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<float>{128});
         auto score_aggregation_window =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto rotated_block_indices =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto rotation_deltas =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto rotation_trig_lut =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
+        auto xattention_threshold =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
+        auto xattention_block_size =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto xattention_stride =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
@@ -122,7 +137,13 @@ public:
                                                                                      silding_windows,
                                                                                      alibi_slopes,
                                                                                      max_context_len,
-                                                                                     score_aggregation_window});
+                                                                                     score_aggregation_window,
+                                                                                     rotated_block_indices,
+                                                                                     rotation_deltas,
+                                                                                     rotation_trig_lut,
+                                                                                     xattention_threshold,
+                                                                                     xattention_block_size,
+                                                                                     xattention_stride});
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;
@@ -208,9 +229,7 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        InputShapes inputShapes;
-        std::tie(inType, inputShapes) = this->GetParam();
+        const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -218,6 +237,8 @@ public:
             configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
             rel_threshold = 0.01f;
         }
+
+        configuration.insert(additional_config.begin(), additional_config.end());
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
 
@@ -241,7 +262,10 @@ public:
             value += stride;
         }
     }
-    virtual void generate(int idx, const bool isPagedAttn, const std::vector<ov::Shape>& targetInputStaticShapes) {
+    virtual void generate(int idx,
+                          const bool isPagedAttn,
+                          const std::vector<ov::Shape>& targetInputStaticShapes,
+                          bool extendBlockIndices) {
         inputs.clear();
         auto create_input = [this](std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == ov::element::i32) {
@@ -288,7 +312,7 @@ public:
             ov::Tensor past_lens(ov::element::i32, {batch_size_in_sequences}),
                 subsequence_begins(ov::element::i32, {batch_size_in_sequences + 1}),
                 block_indices_begins(ov::element::i32, {batch_size_in_sequences + 1}),
-                block_indices(ov::element::i32, {static_cast<size_t>(total_blocks)});
+                block_indices(ov::element::i32, {static_cast<size_t>(total_blocks == 0 ? 1 : total_blocks)});
             int32_t *past_lens_data = reinterpret_cast<int32_t*>(past_lens.data()),
                     *subsequence_begins_data = reinterpret_cast<int32_t*>(subsequence_begins.data()),
                     *block_indices_begins_data = reinterpret_cast<int32_t*>(block_indices_begins.data()),
@@ -300,7 +324,12 @@ public:
                 subsequence_begins_data[0] = 0;
                 subsequence_begins_data[1] = targetInputStaticShapes[0][0];
                 block_indices_begins_data[0] = 0;
-                block_indices_begins_data[1] = 1;
+                // test case here only has 1 block for prefill, but we allocate 2 blocks to simulate the vLLM case.
+                // To test whether we have overflow in kernels.
+                if (extendBlockIndices)
+                    block_indices_begins_data[1] = 2;
+                else
+                    block_indices_begins_data[1] = 1;
                 block_indices_data[0] = 0;
             } else {
                 past_lens_data[0] = past_len_count;
@@ -349,7 +378,7 @@ public:
 
 class PagedAttnVSSDPATest : public PagedAttnTestBase {
 public:
-    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
+    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices) {
         function = model;
         prepare();
         for (const auto& input : compiledModel.inputs()) {
@@ -373,7 +402,7 @@ public:
         std::vector<ov::Tensor> outputs;
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, true, shapes);
+            generate(idx++, true, shapes, extendBlockIndices);
             for (const auto& input : inputs) {
                 inferRequest.set_tensor(input.first, input.second);
             }
@@ -392,7 +421,7 @@ public:
         std::vector<ov::Tensor> outputs;
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, false, shapes);
+            generate(idx++, false, shapes, false);
             for (const auto& input : inputs) {
                 inferRequest.set_tensor(input.first, input.second);
             }
@@ -408,13 +437,18 @@ public:
 
 TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ElementType inType;
-    InputShapes inputShapes;
-    std::tie(inType, inputShapes) = this->GetParam();
+    const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
+    const bool isSageAttn = intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
+    if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
+        GTEST_SKIP();
     // compare the logits from paged attn and sdpa
-    auto actualOutputs = run_test(function);
+    auto actualOutputs = run_test(function, extendBlockIndices);
+    // reference model doesn't support sage attention
+    if (isSageAttn) {
+        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+    }
     auto expectedOutputs = run_ref_test(functionRefs);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
@@ -422,6 +456,8 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
 }
 
 namespace {
+const std::vector<ov::AnyMap> additional_configs = {{{ov::intel_cpu::enable_sage_attn.name(), true}},
+                                                    {{ov::intel_cpu::enable_sage_attn.name(), false}}};
 const std::vector<InputShapes> inputShapeAndReorders = {  // greedy search
     {
         // L1, B, H, S
@@ -433,7 +469,9 @@ const std::vector<InputShapes> inputShapeAndReorders = {  // greedy search
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                          PagedAttnVSSDPATest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
-                                            ::testing::ValuesIn(inputShapeAndReorders)),
+                                            ::testing::ValuesIn(inputShapeAndReorders),
+                                            ::testing::Values(true, false),
+                                            ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 
@@ -563,7 +601,7 @@ public:
         return model;
     }
 
-    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model) {
+    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices) {
         configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
         function = model;
         prepare();
@@ -588,7 +626,7 @@ public:
         std::vector<ov::Tensor> outputs;
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, true, shapes);
+            generate(idx++, true, shapes, extendBlockIndices);
             for (const auto& input : inputs) {
                 inferRequest.set_tensor(input.first, input.second);
             }
@@ -607,7 +645,7 @@ public:
         std::vector<ov::Tensor> outputs;
         int idx = 0;
         for (auto&& shapes : targetStaticShapes) {
-            generate(idx++, false, shapes);
+            generate(idx++, false, shapes, false);
             for (const auto& input : inputs) {
                 inferRequest.set_tensor(input.first, input.second);
             }
@@ -624,13 +662,18 @@ public:
 
 TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ElementType inType;
-    InputShapes inputShapes;
-    std::tie(inType, inputShapes) = this->GetParam();
+    const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
+    const bool isSageAttn = intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
+    if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
+        GTEST_SKIP();
     // compare the logits from paged attn and sdpa
-    auto actualOutputs = run_test(function);
+    auto actualOutputs = run_test(function, extendBlockIndices);
+    // reference model doesn't support sage attention, disable it
+    if (isSageAttn) {
+        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+    }
     auto expectedOutputs = run_ref_test(functionRefs);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
@@ -650,7 +693,9 @@ const std::vector<InputShapes> inputShapes = {  // greedy search
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                          PagedAttnVSMatmulTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
-                                            ::testing::ValuesIn(inputShapes)),
+                                            ::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(true, false),
+                                            ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 

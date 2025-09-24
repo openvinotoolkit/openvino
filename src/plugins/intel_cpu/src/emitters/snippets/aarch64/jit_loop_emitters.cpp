@@ -4,10 +4,16 @@
 
 #include "jit_loop_emitters.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
 #include <algorithm>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -78,7 +84,7 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
     }
 
     auto reg_work_amount = XReg(out[0]);
-    XReg reg_runtime_params = XReg(Operand::X0);
+    auto reg_runtime_params = XReg(Operand::X0);
     if (is_work_amount_dynamic) {
         XReg reg_aux = h->X_TMP_1;
         const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
@@ -127,7 +133,7 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generat
 
 ov::snippets::lowered::ExpressionPtr jit_loop_end_emitter::get_loop_begin_expr(
     const ov::snippets::lowered::ExpressionPtr& expr) {
-    auto begin_expr = expr->get_input_port_connectors().back()->get_source().get_expr();
+    auto begin_expr = expr->get_input_expr_ptr(expr->get_input_count() - 1);
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(begin_expr->get_node()),
                               "LoopEnd expression must have th last port connector to LoopBegin");
     return begin_expr;
@@ -179,7 +185,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
     auto reg_work_amount = XReg(in.back());
-    XReg reg_runtime_params = XReg(Operand::X0);
+    auto reg_runtime_params = XReg(Operand::X0);
     XReg reg_aux = h->X_TMP_1;
 
     auto apply_increments = [&](const std::vector<int64_t>& increments_vec,

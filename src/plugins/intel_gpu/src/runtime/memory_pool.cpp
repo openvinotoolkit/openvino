@@ -171,7 +171,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             !has_conflict(it->second._users, restrictions))) {
             it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
-            GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
+            ret_mem->from_memory_pool = true;
             return ret_mem;
         } else {
             ++it;
@@ -217,7 +217,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 !has_conflict(rec_list._users, restrictions)) {
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);
                 rec_list._users.insert({MEM_USER(unique_id, network_id, prim_id, ret_mem->size())});
-                GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
+                ret_mem->from_memory_pool = true;
                 return ret_mem;
             }
         }
@@ -270,30 +270,9 @@ memory::ptr memory_pool::get_memory(const layout& layout,
     GPU_DEBUG_IF(_config.get_disable_memory_reuse()) {
         do_reuse = false;
     }
-    if (do_reuse) {
-        // reusable within the same network
-        if (!layout.format.is_image() && !layout.data_padding) {
-            // non-padded buffers
-            return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset, is_dynamic);
-        } else if (!layout.format.is_image()) {
-            // padded buffers
-            return get_from_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type);
-        } else {
-            // images (reuse not yet implemented)
-            auto mem = alloc_memory(layout, type, reset);
-#ifdef GPU_DEBUG_CONFIG
-            GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
-                auto allocated_mem_size = mem->size();
-                _no_reusable_mems.push_back(
-                                        memory_record({{MEM_USER(unique_id, network_id, prim_id, allocated_mem_size)}}, mem, network_id, type));
-                total_mem_size_no_reusable += allocated_mem_size;
-                if (type == allocation_type::usm_host)
-                    mem_size_no_reusable_host += allocated_mem_size;
-            }
-#endif
-            return mem;
-        }
-    } else {
+
+    if (!do_reuse || layout.format.is_image()) {
+        // images (reuse not yet implemented)
         auto mem = alloc_memory(layout, type, reset);
 #ifdef GPU_DEBUG_CONFIG
         GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
@@ -306,6 +285,12 @@ memory::ptr memory_pool::get_memory(const layout& layout,
         }
 #endif
         return mem;
+    } else if (!layout.data_padding || is_dynamic) {
+        // non-padded buffers. For dynamic shape, use non-padded pool even if it has padding because we will reset the buffer if it is reused
+        return get_from_non_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type, reset, is_dynamic);
+    } else {
+        // padded buffers
+        return get_from_padded_pool(layout, prim_id, unique_id, network_id, restrictions, type);
     }
 }
 
@@ -387,21 +372,6 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
         }
     }
 #endif
-
-    // free up _no_reusable_pool for this network
-    {
-        auto itr = _no_reusable_pool.begin();
-
-        while (itr != _no_reusable_pool.end()) {
-            auto& record = itr->second;
-
-            if (record._network_id == network_id) {
-                itr = _no_reusable_pool.erase(itr);
-            } else {
-                itr++;
-            }
-        }
-    }
 }
 
 memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engine(&engine), _config(config) {

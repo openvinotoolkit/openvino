@@ -19,7 +19,7 @@ protected:
         } else if (typename T::RegT(0).isOPMASK()) {
             regNumber = 8;
         } else { // SIMD registers
-            regNumber = x64::cpu_isa_traits<T::IsaParam::isa>::n_vregs;
+            regNumber = x64::cpu_isa_traits_t<T::IsaParam::isa>::n_vregs;
         }
     }
 
@@ -205,7 +205,7 @@ INSTANTIATE_TYPED_TEST_SUITE_P(testIsaAndRegTypes, RegPoolTest, TestTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(testIsaAndRegTypesAvx512, RegPoolTest, TestTypesAvx512);
 
 
-const int simdRegNumber = x64::cpu_isa_traits<x64::avx2>::n_vregs;
+const int simdRegNumber = x64::cpu_isa_traits_t<x64::avx2>::n_vregs;
 const int freeGeneralRegNumber = 15;
 
 TEST(RegistersPoolTests, simd_and_general) {

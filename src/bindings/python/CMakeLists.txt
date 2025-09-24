@@ -414,37 +414,3 @@ if(OpenVINODeveloperPackage_FOUND)
 
     ov_cpack(${OV_CPACK_COMPONENTS_ALL})
 endif()
-
-# only for developers, skip on CI
-if(NOT (DEFINED ENV{CI} OR DEFINED ENV{TF_BUILD} OR DEFINED ENV{JENKINS_URL}))
-
-    # check pybind11-stubgen package
-    execute_process(COMMAND ${Python3_EXECUTABLE} -m pip show pybind11-stubgen
-                    OUTPUT_VARIABLE pybind11_stubgen_info OUTPUT_STRIP_TRAILING_WHITESPACE
-                    RESULT_VARIABLE pybind11_stubgen_result)
-    string(REGEX MATCH "Version: ([\\.0-9]+)" pybind11_stubgen_version "${pybind11_stubgen_info}")
-    if(pybind11_stubgen_result OR NOT pybind11_stubgen_version)
-        message(WARNING "pybind11-stubgen package is not installed or version is not detected. This package is necessary for developing Python API.")
-    endif()
-
-    # check pre-commit package    
-    execute_process(COMMAND ${Python3_EXECUTABLE} -m pip show pre-commit
-                    OUTPUT_VARIABLE precommit_pkg_info OUTPUT_STRIP_TRAILING_WHITESPACE
-                    RESULT_VARIABLE precommit_pkg_result)
-    string(REGEX MATCH "Version: ([\\.0-9]+)" precommit_pkg_version "${precommit_pkg_info}")
-    if(precommit_pkg_result OR NOT precommit_pkg_version)
-        message(WARNING "pre-commit package is not installed or version is not detected. This package is necessary for developing Python API.")
-    endif()
-
-    # attach the pre-commit hook for Python stub generation
-    execute_process(COMMAND pre-commit install -c "${CMAKE_CURRENT_SOURCE_DIR}/scripts/stub_generation_precommit.yaml"
-                    RESULT_VARIABLE precommit_install_result
-                    ERROR_VARIABLE precommit_install_error
-                    OUTPUT_STRIP_TRAILING_WHITESPACE
-                    ERROR_STRIP_TRAILING_WHITESPACE)
-    if(NOT precommit_install_result EQUAL "0")
-        message(WARNING "Python stub generation pre-commit hook install failed with error: ${precommit_install_error}. It is necessary for developing Python API.")
-    else()
-        message(STATUS "pre-commit hook for Python API stub generation has been installed")
-    endif()
-endif()

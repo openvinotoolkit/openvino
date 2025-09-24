@@ -31,7 +31,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <cpu/x64/cpu_isa_traits.hpp>
 #    include <cpu/x64/jit_generator.hpp>
@@ -40,9 +40,7 @@
 #    include "cpu/x64/jit_avx512_core_fp8cvt.hpp"
 #    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #    include "nodes/kernels/x64/jit_kernel.hpp"
-#elif defined(OPENVINO_ARCH_ARM64)
-#    include "cpu_memory.h"
-#    include "openvino/core/type/element_type_traits.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 namespace ov::intel_cpu {
@@ -68,26 +66,26 @@ f8_type get_f8_type() {
 }
 
 template <typename src_t, typename dst_t>
-void convert_vec(jit_generator& gen, const RegExp& src, const RegExp& dst);
+void convert_vec(jit_generator_t& gen, const RegExp& src, const RegExp& dst);
 
 template <>
-[[maybe_unused]] void convert_vec<ov::float16, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float16, float>(jit_generator_t& gen, const RegExp& src, const RegExp& dst) {
     const auto& f16vec = gen.xmm3;
     const auto& f32vec = gen.ymm4;
 
-    gen.movdqu(f16vec, gen.xword[src]);
+    gen.uni_vmovdqu(f16vec, gen.xword[src]);
     gen.vcvtph2ps(f32vec, f16vec);
     gen.vmovups(gen.yword[dst], f32vec);
 }
 
 template <>
-[[maybe_unused]] void convert_vec<float, ov::float16>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<float, ov::float16>(jit_generator_t& gen, const RegExp& src, const RegExp& dst) {
     const auto& f16vec = gen.xmm3;
     const auto& f32vec = gen.ymm4;
 
     gen.vmovups(f32vec, gen.yword[src]);
     gen.vcvtps2ph(f16vec, f32vec, 0);
-    gen.movdqu(gen.xword[dst], f16vec);
+    gen.uni_vmovdqu(gen.xword[dst], f16vec);
 }
 
 template <typename src_t, typename dst_t>
@@ -158,9 +156,9 @@ public:
 
     using fn_t = void (*)(const args_t*);
 
-    using convert_vec_t = void (*)(jit_generator&, const RegExp&, const RegExp&);
+    using convert_vec_t = void (*)(jit_generator_t&, const RegExp&, const RegExp&);
 
-    jit_convert_array(convert_vec_t convert_vec)
+    explicit jit_convert_array(convert_vec_t convert_vec)
         : jit_kernel(jit_name()),
           _convert_vec(convert_vec),
           _src_size(sizeof(src_t)),
@@ -182,7 +180,7 @@ public:
                                                                   fp8_emu_kmask_aux_,
                                                                   fp8_emu_scratch_);
         }
-        const bool is_dst_bf16 = std::is_same<dst_t, ov::intel_cpu::bfloat16_t>::value;
+        const bool is_dst_bf16 = std::is_same_v<dst_t, ov::intel_cpu::bfloat16_t>;
         if (is_dst_bf16 && mayiuse(cpu_isa_t::avx512_core)) {
             uni_vcvtneps2bf16_ = std::make_shared<jit_uni_vcvtneps2bf16>(this, cpu_isa_t::avx512_core);
         }
@@ -191,9 +189,9 @@ public:
     static fn_t get() {
         if (mayiuse(cpu_isa_t::avx2) && dnnl::impl::cpu::x64::cpu().has(Xbyak::util::Cpu::tF16C)) {
             static jit_convert_array converter(convert_vec<src_t, dst_t>);
-            auto& generator = static_cast<jit_generator&>(converter);
+            auto& generator = static_cast<jit_generator_t&>(converter);
             generator.create_kernel();
-            return (fn_t)generator.jit_ker();
+            return jit_kernel_cast<fn_t>(generator.jit_ker());
         }
         return nullptr;
     }
@@ -229,7 +227,7 @@ private:
 };
 
 template <>
-[[maybe_unused]] void convert_vec<float, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<float, ov::float8_e4m3>(jit_generator_t& gen, const RegExp& src, const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f32vec = gen.zmm4;
 
@@ -241,7 +239,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<ov::float8_e4m3, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float8_e4m3, float>(jit_generator_t& gen, const RegExp& src, const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f32vec = gen.zmm4;
 
@@ -253,7 +251,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<ov::float16, ov::float8_e4m3>(jit_generator& gen,
+[[maybe_unused]] void convert_vec<ov::float16, ov::float8_e4m3>(jit_generator_t& gen,
                                                                 const RegExp& src,
                                                                 const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
@@ -267,7 +265,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<ov::float8_e4m3, ov::float16>(jit_generator& gen,
+[[maybe_unused]] void convert_vec<ov::float8_e4m3, ov::float16>(jit_generator_t& gen,
                                                                 const RegExp& src,
                                                                 const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
@@ -281,7 +279,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator& gen,
+[[maybe_unused]] void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator_t& gen,
                                                                               const RegExp& src,
                                                                               const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
@@ -296,7 +294,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator& gen,
+[[maybe_unused]] void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator_t& gen,
                                                                               const RegExp& src,
                                                                               const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
@@ -313,7 +311,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<float, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<float, ov::float8_e5m2>(jit_generator_t& gen, const RegExp& src, const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f32vec = gen.zmm4;
 
@@ -325,7 +323,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<ov::float8_e5m2, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+[[maybe_unused]] void convert_vec<ov::float8_e5m2, float>(jit_generator_t& gen, const RegExp& src, const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f32vec = gen.zmm4;
 
@@ -337,7 +335,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<ov::float16, ov::float8_e5m2>(jit_generator& gen,
+[[maybe_unused]] void convert_vec<ov::float16, ov::float8_e5m2>(jit_generator_t& gen,
                                                                 const RegExp& src,
                                                                 const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
@@ -351,7 +349,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<ov::float8_e5m2, ov::float16>(jit_generator& gen,
+[[maybe_unused]] void convert_vec<ov::float8_e5m2, ov::float16>(jit_generator_t& gen,
                                                                 const RegExp& src,
                                                                 const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
@@ -365,7 +363,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator& gen,
+[[maybe_unused]] void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator_t& gen,
                                                                               const RegExp& src,
                                                                               const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
@@ -380,7 +378,7 @@ template <>
 }
 
 template <>
-[[maybe_unused]] void convert_vec<ov::float8_e5m2, ov::intel_cpu::bfloat16_t>(jit_generator& gen,
+[[maybe_unused]] void convert_vec<ov::float8_e5m2, ov::intel_cpu::bfloat16_t>(jit_generator_t& gen,
                                                                               const RegExp& src,
                                                                               const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
@@ -475,7 +473,7 @@ const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
         //         int64_t ubound = 9223372036854775807
         //         double  dd_ubound = static_cast<double>(ubbound)
         //         static_cast<int64_t>(dd_ubound) will return -9223372036854775808
-        if (!std::is_integral<U>::value) {
+        if (!std::is_integral_v<U>) {
             std::get<0>(_range) = static_cast<U>(std::max(static_cast<double>(std::get<0>(_range)), lbound));
             std::get<1>(_range) = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
         }
@@ -513,8 +511,8 @@ const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
                 OPENVINO_THROW("Unsupported precision");
             }
         }();
-        using ltype = std::conditional_t<std::is_floating_point<U>::value, double, int64_t>;
-        using utype = std::conditional_t<std::is_floating_point<U>::value, double, uint64_t>;
+        using ltype = std::conditional_t<std::is_floating_point_v<U>, double, int64_t>;
+        using utype = std::conditional_t<std::is_floating_point_v<U>, double, uint64_t>;
         std::get<0>(_range) =
             static_cast<U>(std::max(static_cast<ltype>(std::get<0>(_range)), static_cast<ltype>(lbound)));
         std::get<1>(_range) =
@@ -552,8 +550,8 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         // Align with the behavior of ngraph ref and jit implementation. Conversion from f8e4m3-inf
         // to float should output float-inf instead of f8e4m3-max. Proper handling of special values
         // (nan, inf, overflow) has already been assured by the conversion process.
-        if (std::is_same<src_t, ov::float8_e4m3>::value || std::is_same<src_t, ov::float8_e5m2>::value ||
-            std::is_same<dst_t, ov::float8_e4m3>::value || std::is_same<dst_t, ov::float8_e5m2>::value) {
+        if (std::is_same_v<src_t, ov::float8_e4m3> || std::is_same_v<src_t, ov::float8_e5m2> ||
+            std::is_same_v<dst_t, ov::float8_e4m3> || std::is_same_v<dst_t, ov::float8_e5m2>) {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<dst_t>(src[i]);
             });
@@ -561,7 +559,7 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
             return;
         }
 
-        if (std::is_integral<src_t>::value || ctx.interimPrc.is_real() || std::is_integral<dst_t>::value) {
+        if (std::is_integral_v<src_t> || ctx.interimPrc.is_real() || std::is_integral_v<dst_t>) {
             parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
                 dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
             });
@@ -630,7 +628,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
 
         auto [lbound, ubound] = ctx.range<src_t>();
 
-        if (std::is_integral<src_t>::value) {
+        if (std::is_integral_v<src_t>) {
             parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
@@ -644,7 +642,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
             parallel_for(iterations, [&](size_t i) {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                if (std::is_same<std::remove_cv_t<src_t>, float>::value) {  // fp32 -> fp16
+                if (std::is_same_v<std::remove_cv_t<src_t>, float>) {  // fp32 -> fp16
                     jit_convert(reinterpret_cast<const float*>(src) + offset, dst + offset, current_batch_size);
                 } else {
                     batch_type tmp;
@@ -682,7 +680,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
 
         auto [lbound, ubound] = static_cast<std::tuple<float, float>>(ctx.range<ov::float16>());
 
-        if (std::is_integral<dst_t>::value) {
+        if (std::is_integral_v<dst_t>) {
             parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
@@ -696,7 +694,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
             parallel_for(iterations, [&](size_t i) {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                if (std::is_same<std::remove_cv_t<dst_t>, float>::value) {  // fp16 -> fp32
+                if (std::is_same_v<std::remove_cv_t<dst_t>, float>) {  // fp16 -> fp32
                     jit_convert(src + offset, reinterpret_cast<float*>(dst) + offset, current_batch_size);
                 } else {
                     batch_type tmp;
@@ -878,7 +876,7 @@ struct ConvertFrom4BitContext {
 }
 
 [[maybe_unused]] static int8_t get_u4(const uint8_t& val, bool high) {
-    return high ? (val >> 4) : (val & 0xF);
+    return static_cast<int8_t>(high ? (val >> 4) : (val & 0xF));
 }
 
 template <typename T>
@@ -930,7 +928,7 @@ struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertTo4BitContext& ctx) {
         auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
             uint8_t shift = high_half ? 4 : 0;
-            return dst | (uint8_t)(val << shift);
+            return dst | static_cast<uint8_t>(val << shift);
         };
 
         auto src = static_cast<const src_t*>(ctx.srcPtr);
@@ -1032,9 +1030,7 @@ void cpu_convert(const void* srcPtr,
     if (size == 0) {
         return;
     }
-    if (srcPtr == nullptr || dstPtr == nullptr) {
-        OPENVINO_THROW("cpu_convert has null data pointer");
-    }
+    OPENVINO_ASSERT(srcPtr != nullptr && dstPtr != nullptr, "cpu_convert has null data pointer");
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
         const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
@@ -1056,37 +1052,31 @@ void cpu_convert(const void* srcPtr,
             cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
         }
     } else if (srcPrc == ov::element::u1) {
-        if (srcPrc.bitwidth() != 1) {
-            OPENVINO_THROW("cpu_convert can't convert from: ",
-                           srcPrc,
-                           " <bitsSize == ",
-                           srcPrc.bitwidth(),
-                           "> precision to: ",
-                           dstPrc,
-                           ". Not implemented.");
-        }
+        OPENVINO_ASSERT(srcPrc.bitwidth() == 1,
+                        "cpu_convert can't convert from: ",
+                        srcPrc,
+                        " <bitsSize == ",
+                        srcPrc.bitwidth(),
+                        "> precision to: ",
+                        dstPrc,
+                        ". Not implemented.");
         ConvertFromBinContext ctx{srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFromBinPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ",
-                           srcPrc,
-                           " <bitsSize == ",
-                           srcPrc.bitwidth(),
-                           "> precision to: ",
-                           dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted,
+                        "cpu_convert can't convert from: ",
+                        srcPrc,
+                        " <bitsSize == ",
+                        srcPrc.bitwidth(),
+                        "> precision to: ",
+                        dstPrc);
     } else if (srcPrc.bitwidth() == 4U) {
         ConvertFrom4BitContext ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFrom4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else if (dstPrc.bitwidth() == 4U) {
         ConvertTo4BitContext ctx{dstPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertTo4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else if (srcPrc == ov::element::f8e8m0) {
         ConvertFromByteFPContext ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu,
@@ -1094,25 +1084,19 @@ void cpu_convert(const void* srcPtr,
                   ctx,
                   std::tie(srcPrc, dstPrc),
                   INTEL_CPU_CVT_FROM_BYTE_FP_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
 #if defined(OPENVINO_ARCH_X86_64)
     } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16) &&
-               (one_of(srcPrc, ov::element::f8e4m3, ov::element::f8e5m2) ||
-                one_of(dstPrc, ov::element::f8e4m3, ov::element::f8e5m2))) {
+               (any_of(srcPrc, ov::element::f8e4m3, ov::element::f8e5m2) ||
+                any_of(dstPrc, ov::element::f8e4m3, ov::element::f8e5m2))) {
         ConvertFP8Context ctx{srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFP8Precision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FP8_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
 #endif
     } else {
         ConvertContext ctx{srcPtr, dstPtr, size, interimPrc, dstPrc, false};
         OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     }
 }
 

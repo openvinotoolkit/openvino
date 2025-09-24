@@ -84,6 +84,8 @@ protected:
 
     TensorPtr alloc_global_out(std::size_t out_idx) override;
 
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
+
     ////////////////////////////////////
     // now own API
 

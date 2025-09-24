@@ -186,6 +186,8 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
 #ifdef ENABLE_ONEDNN_FOR_GPU
         auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(desc->weights_reorder_params);
         if (onednn_weights_params && input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc)) {
+            auto shape_consistent = onednn::keep_weights_reorder_shape_consistent(input_layout, onednn_weights_params->_out_desc);
+            OPENVINO_ASSERT(shape_consistent, "[GPU] Input shape and output shape of weight reorder should be same.");
             onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(input_layout);
         }
 #endif // ENABLE_ONEDNN_FOR_GPU
@@ -285,6 +287,8 @@ void reorder_inst::update_output_memory() {
     if (!dependencies().front().first->outputs_allocated())
         return;
 
+    GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
+                           << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
     if (static_cast<bool>(_outputs[0]) &&

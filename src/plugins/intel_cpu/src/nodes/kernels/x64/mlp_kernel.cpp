@@ -4,7 +4,7 @@
 
 #include "mlp_kernel.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <cassert>
@@ -23,6 +23,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -294,10 +295,10 @@ void MKernel::generate_1x2() {
     ret();
 }
 
-class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator {
+class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(FP16ToBF16Kernel)
-    FP16ToBF16Kernel() : jit_generator("FP16ToBF16Kernel") {
+    FP16ToBF16Kernel() : jit_generator_t("FP16ToBF16Kernel") {
         create_kernel();
     }
 
@@ -316,9 +317,8 @@ public:
     }
 };
 
-template <typename Tdst>
-static std::enable_if_t<std::is_same_v<ov::bfloat16, Tdst> || std::is_same_v<ov::float16, Tdst>>
-repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
+template <typename Tdst, typename = std::enable_if_t<any_of_v<Tdst, ov::bfloat16, ov::float16>>>
+static void repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     static FP16ToBF16Kernel fp16_to_bf16;
     if (N == 16 && K == 32) {
         // SIMD optimized version
@@ -366,10 +366,10 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
         auto* psrc = src + k;
         int n = 0;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
-            *dst++ = is_k0_valid ? psrc[0] : 0;
-            *dst++ = is_k1_valid ? psrc[1] : 0;
-            *dst++ = is_k2_valid ? psrc[2] : 0;
-            *dst++ = is_k3_valid ? psrc[3] : 0;
+            *dst++ = is_k0_valid ? psrc[0] : static_cast<int8_t>(0);
+            *dst++ = is_k1_valid ? psrc[1] : static_cast<int8_t>(0);
+            *dst++ = is_k2_valid ? psrc[2] : static_cast<int8_t>(0);
+            *dst++ = is_k3_valid ? psrc[3] : static_cast<int8_t>(0);
         }
         for (; n < 16; n++) {
             *dst++ = 0;
@@ -589,7 +589,7 @@ void GateUpCombine::generate() {
     const auto zmm_up = zmm0;
     const auto ymm_dst = ymm5;
 
-    auto injector = std::make_shared<jit_uni_eltwise_injector<dnnl::impl::cpu::x64::avx512_core>>(
+    auto injector = std::make_shared<jit_uni_eltwise_injector_t<dnnl::impl::cpu::x64::avx512_core>>(
         this,
         m_act_alg,
         1.F,

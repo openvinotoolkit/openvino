@@ -89,19 +89,19 @@ public:
      */
     MemoryDescPtr cloneWithNewDims(const VectorDims& dims, bool relaxedCheck = false) const {
         if (relaxedCheck) {
-            if (getShape().getRank() != dims.size()) {
-                OPENVINO_THROW("ParameterMismatch: Can not clone with new dims, ranks mistmatch. Descriptor's rank: ",
-                               getShape().getRank(),
-                               " is incompatible with provided rank of dimensions: ",
-                               dims.size(),
-                               ".");
-            }
-        } else if (!getShape().isCompatible(dims)) {
-            OPENVINO_THROW("ParameterMismatch: Can not clone with new dims. Descriptor's shape: ",
-                           getShape().toString(),
-                           " is incompatible with provided dimensions: ",
-                           dims2str(dims),
-                           ".");
+            OPENVINO_ASSERT(getShape().getRank() == dims.size(),
+                            "ParameterMismatch: Can not clone with new dims, ranks mistmatch. Descriptor's rank: ",
+                            getShape().getRank(),
+                            " is incompatible with provided rank of dimensions: ",
+                            dims.size(),
+                            ".");
+        } else {
+            OPENVINO_ASSERT(getShape().isCompatible(dims),
+                            "ParameterMismatch: Can not clone with new dims. Descriptor's shape: ",
+                            getShape().toString(),
+                            " is incompatible with provided dimensions: ",
+                            dims2str(dims),
+                            ".");
         }
 
         return cloneWithNewDimsImp(dims);
@@ -147,24 +147,20 @@ public:
     }
 
     template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
+              typename = std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>>,
+              typename = std::enable_if_t<std::is_base_of_v<MemoryDesc, T>>>
     T* as() {
         T* casted = dynamic_cast<T*>(this);
-        if (!casted) {
-            OPENVINO_THROW("Cannot dynamically cast MemoryDesc");
-        }
+        OPENVINO_ASSERT(casted, "Cannot dynamically cast MemoryDesc");
         return casted;
     }
 
     template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
+              typename = std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>>,
+              typename = std::enable_if_t<std::is_base_of_v<MemoryDesc, T>>>
     const T* as() const {
         const T* casted = dynamic_cast<const T*>(this);
-        if (!casted) {
-            OPENVINO_THROW("Cannot dynamically cast MemoryDesc");
-        }
+        OPENVINO_ASSERT(casted, "Cannot dynamically cast MemoryDesc");
         return casted;
     }
 

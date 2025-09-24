@@ -18,12 +18,12 @@
 
 // INT8
 #include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp_qsi8cxp_interface.h"
 #include "kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi8cxp_qsi8cx_neon.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class MatMulKleidiAIExecutor : public Executor {
 public:
@@ -31,7 +31,7 @@ public:
 
     void execute(const MemoryArgs& memory) override;
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::kleidiai;
     }
 
@@ -54,7 +54,7 @@ private:
         kai_get_dst_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
         kai_get_dst_size_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
         kai_run_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla};
-    static constexpr kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel ukernel_i8{
+    static constexpr kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel ukernel_i8_dotprod{
         kai_get_m_step_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod,
         kai_get_n_step_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod,
         kai_get_mr_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod,
@@ -66,6 +66,18 @@ private:
         kai_get_dst_offset_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod,
         kai_get_dst_size_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod,
         kai_run_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod};
+    static constexpr kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel ukernel_i8_imm{
+        kai_get_m_step_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_n_step_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_mr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_nr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_kr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_sr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_lhs_packed_offset_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_rhs_packed_offset_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_dst_offset_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_dst_size_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_run_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm};
 
     const FCAttrs& m_attrs;
     const MemoryArgs& m_memoryArgs;
@@ -75,14 +87,18 @@ private:
     MemoryPtr rhsPackedMem;
     MemoryPtr lhsPackedMem;
     MemoryCPtr packedWeights;
-    size_t M, N, K;
+    size_t M = 0UL, N = 0UL, K = 0UL;
     size_t mr, nr, kr, sr;
+    // F32 Kernel block size
     static constexpr size_t BLOCK_SIZE = 8;
+    // INT8 blocking in M dimension for both packing and matmul calls
+    const kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel* ukernel_i8 = nullptr;
+    static constexpr size_t BLOCK_SIZE_M_INT8 = 16;
+    size_t packed_lhs_block_in_bytes_int8 = 0UL;
     int curNumaNode = -1;
     bool useDynamicQuant = false;
 };
 
 using MatMulKleidiAIExecutorPtr = std::shared_ptr<MatMulKleidiAIExecutor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

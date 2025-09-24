@@ -9,10 +9,7 @@
 #endif
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/visibility.hpp"
-
-#if defined(OV_CPU_WITH_ACL)
-#    include "arm_compute/core/CPP/CPPTypes.h"
-#endif
+#include "openvino/runtime/system_conf.hpp"
 
 namespace ov::intel_cpu {
 
@@ -20,8 +17,8 @@ static bool hasFP16HardwareSupport() {
 #if defined(OPENVINO_ARCH_X86_64)
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16) ||
            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
-#elif defined(OV_CPU_WITH_ACL)
-    return arm_compute::CPUInfo::get().has_fp16();
+#elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return with_cpu_neon_fp16();
 #else
     return false;
 #endif
@@ -58,11 +55,10 @@ ov::element::Type defaultFloatPrecision() {
 }
 
 bool hasIntDotProductSupport() {
-#if defined(OV_CPU_WITH_ACL)
-    return arm_compute::CPUInfo::get().has_dotprod();
-#else
-    return false;
-#endif
+    return with_cpu_arm_dotprod();
 }
 
+bool hasInt8MMSupport() {
+    return with_cpu_arm_i8mm();
+}
 }  // namespace ov::intel_cpu

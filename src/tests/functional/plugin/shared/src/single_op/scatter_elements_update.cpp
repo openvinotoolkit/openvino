@@ -16,14 +16,8 @@ std::string ScatterElementsUpdateLayerTest::getTestCaseName(const testing::TestP
         return ss;
     };
 
-    axisShapeInShape shapes_desc;
-    std::vector<InputShape> input_shapes;
-    int axis;
-    std::vector<size_t> indices_value;
-    ov::element::Type model_type, indices_type;
-    std::string target_device;
-    std::tie(shapes_desc, indices_value, model_type, indices_type, target_device) = obj.param;
-    std::tie(input_shapes, axis) = shapes_desc;
+    const auto& [shapes_desc, indices_value, model_type, indices_type, target_device] = obj.param;
+    const auto& [input_shapes, axis] = shapes_desc;
     std::ostringstream result;
     result << "InputShape=" << shapes_ss(input_shapes.at(0)).str() << "_";
     result << "IndicesShape=" << ov::test::utils::vec2str(input_shapes.at(1).second) << "_";
@@ -35,14 +29,10 @@ std::string ScatterElementsUpdateLayerTest::getTestCaseName(const testing::TestP
 }
 
 void ScatterElementsUpdateLayerTest::SetUp() {
-    axisShapeInShape shapes_desc;
-    std::vector<InputShape> input_shapes;
-    int axis;
-    std::vector<size_t> indices_value;
-    ov::element::Type model_type, indices_type;
     std::string target_device;
-    std::tie(shapes_desc, indices_value, model_type, indices_type, targetDevice) = this->GetParam();
-    std::tie(input_shapes, axis) = shapes_desc;
+    const auto& [shapes_desc, indices_value, model_type, indices_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+    const auto& [input_shapes, axis] = shapes_desc;
 
     init_input_shapes(input_shapes);
 
@@ -64,23 +54,27 @@ std::string ScatterElementsUpdate12LayerTest::getTestCaseName(const testing::Tes
         return ss;
     };
 
-    axisShapeInShape shapes_desc;
-    std::vector<InputShape> input_shapes;
-    int axis;
-    std::vector<int64_t> indices_value;
-    ov::op::v12::ScatterElementsUpdate::Reduction reduceMode;
-    bool useInitVal;
-    ov::element::Type model_type, indices_type;
-    std::string target_device;
-    std::tie(shapes_desc, indices_value, reduceMode, useInitVal, model_type, indices_type, target_device) = obj.param;
-    std::tie(input_shapes, axis) = shapes_desc;
+    const auto& [shapes_desc, indices_value, reduceMode, useInitVal, model_type, indices_type, target_device] =
+        obj.param;
+    const auto& [input_shapes, axis] = shapes_desc;
     std::ostringstream result;
     result << "InputShape=" << shapes_ss(input_shapes.at(0)).str() << "_";
     result << "IndicesShape=" << ov::test::utils::vec2str(input_shapes.at(1).second) << "_";
     result << "Axis=" << axis << "_";
     result << "ReduceMode=" << as_string(reduceMode) << "_";
     result << "UseInitVal=" << useInitVal << "_";
-    result << "Indices=" << ov::test::utils::vec2str(indices_value) << "_";
+    result << "Indices=";
+    if (indices_value.size() <= 50) {
+        result << ov::test::utils::vec2str(indices_value);
+    } else {
+        result << "(";
+        for (size_t i = 0; i < 15; ++i) {
+            if (i > 0) result << ".";
+            result << indices_value[i];
+        }
+        result << "..." << indices_value.size() << "_elements)";
+    }
+    result << "_";
     result << "modelType=" << model_type.to_string() << "_";
     result << "idxType=" << indices_type.to_string() << "_";
     result << "trgDev=" << target_device;
@@ -88,16 +82,11 @@ std::string ScatterElementsUpdate12LayerTest::getTestCaseName(const testing::Tes
 }
 
 void ScatterElementsUpdate12LayerTest::SetUp() {
-    axisShapeInShape shapes_desc;
-    std::vector<InputShape> input_shapes;
-    int axis;
-    std::vector<int64_t> indices_value;
-    ov::op::v12::ScatterElementsUpdate::Reduction reduceMode;
-    bool useInitVal;
-    ov::element::Type model_type, indices_type;
     std::string target_device;
-    std::tie(shapes_desc, indices_value, reduceMode, useInitVal, model_type, indices_type, targetDevice) = this->GetParam();
-    std::tie(input_shapes, axis) = shapes_desc;
+    const auto& [shapes_desc, indices_value, reduceMode, useInitVal, model_type, indices_type, _targetDevice] =
+        this->GetParam();
+    targetDevice = _targetDevice;
+    const auto& [input_shapes, axis] = shapes_desc;
 
     init_input_shapes(input_shapes);
 

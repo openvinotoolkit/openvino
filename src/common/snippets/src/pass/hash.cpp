@@ -34,22 +34,12 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov::snippets::pass {
 
 // helper
 namespace {
-template <typename Container>
-std::string join(const Container& c, const char* glue = ", ") {
-    std::stringstream oss;
-    const char* s = "";
-    for (const auto& v : c) {
-        oss << s << v;
-        s = glue;
-    }
-    return oss.str();
-}
-
 struct Edge {
     int from_layer = 0;
     int from_port = 0;
@@ -127,11 +117,11 @@ class RTInfoHasher : public ov::AttributeVisitor {
     uint64_t& m_rt_hash;
 
 public:
-    RTInfoHasher(uint64_t& rt_hash) : m_rt_hash(rt_hash) {}
+    explicit RTInfoHasher(uint64_t& rt_hash) : m_rt_hash(rt_hash) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         if (auto* a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
-            const auto& value = join(a->get());
+            const auto& value = ov::util::join(a->get());
             m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
         } else {
             OPENVINO_THROW("Unsupported attribute type for snippets hash generation: ", name);
@@ -155,27 +145,27 @@ public:
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int>>& adapter) override {
-        const auto& value = join(adapter.get());
+        const auto& value = ov::util::join(adapter.get());
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
-        const auto& value = join(adapter.get());
+        const auto& value = ov::util::join(adapter.get());
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint64_t>>& adapter) override {
-        const auto& value = join(adapter.get());
+        const auto& value = ov::util::join(adapter.get());
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
-        const auto& value = join(adapter.get());
+        const auto& value = ov::util::join(adapter.get());
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
-        const auto& value = join(adapter.get());
+        const auto& value = ov::util::join(adapter.get());
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
@@ -195,7 +185,7 @@ class SnippetsHasher : public ov::AttributeVisitor {
 
     template <typename T>
     std::string create_attribute_list(ov::ValueAccessor<std::vector<T>>& adapter) {
-        return join(adapter.get());
+        return ov::util::join(adapter.get());
     }
 
 public:
@@ -224,7 +214,7 @@ public:
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::element::TypeVector>>(&adapter)) {
             const auto& attrs = a->get();
-            m_hash = hash_combine(hash_combine(m_hash, name), join(attrs));
+            m_hash = hash_combine(hash_combine(m_hash, name), ov::util::join(attrs));
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::PartialShape>>(&adapter)) {
             const auto& attrs = a->get();
             auto shape_str = attrs.to_string();
@@ -273,18 +263,19 @@ public:
     }
 };
 
-std::unordered_map<ov::Node*, int> create_layer_ids(const ov::Model& model) {
+std::unordered_map<ov::Node*, int> create_layer_ids(const std::vector<std::shared_ptr<ov::Node>>& ordered_ops) {
     std::unordered_map<ov::Node*, int> layer_ids;
     int id = 0;
-    for (const auto& node : model.get_ordered_ops()) {
+    for (const auto& node : ordered_ops) {
         layer_ids[node.get()] = id++;
     }
     return layer_ids;
 }
 
-std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& layer_ids, const ov::Model& model) {
+std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& layer_ids,
+                                      const std::vector<std::shared_ptr<ov::Node>>& ordered_ops) {
     std::vector<Edge> edges;
-    for (const auto& node : model.get_ordered_ops()) {
+    for (const auto& node : ordered_ops) {
         if (ov::op::util::is_parameter(node)) {
             continue;
         }
@@ -333,12 +324,11 @@ void hash_rt_info(uint64_t& hash, const ov::Any& data) {
 void ovfunction_2_hash(uint64_t& hash, const ov::Model& model) {
     hash = hash_combine(hash, AttrType::layers);
 
-    const std::unordered_map<ov::Node*, int> layer_ids = create_layer_ids(model);
+    auto ordered_ops = model.get_ordered_ops();
+    const std::unordered_map<ov::Node*, int> layer_ids = create_layer_ids(ordered_ops);
     std::unordered_set<std::string> unique_names;
 
-    auto sorted_ops = model.get_ordered_ops();
-
-    for (const auto& n : sorted_ops) {
+    for (const auto& n : ordered_ops) {
         ov::Node* node = n.get();
         const std::string& node_type_name{node->get_type_name()};
 
@@ -406,7 +396,7 @@ void ovfunction_2_hash(uint64_t& hash, const ov::Model& model) {
         rt_info::NodeAuxRTInfoHasher{hash}.serialize(node->get_rt_info());
     }
     // <edges>
-    const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, model);
+    const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, ordered_ops);
     hash = hash_combine(hash, AttrType::edges);
     for (const auto& e : edge_mapping) {
         hash = hash_combine(hash, AttrType::edge);

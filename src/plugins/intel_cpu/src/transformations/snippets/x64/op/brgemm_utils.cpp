@@ -56,19 +56,23 @@ BrgemmConfig::BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
       m_src_dt(src_dt),
       m_wei_dt(wei_dt),
       m_orig_wei_dt(orig_wei_dt),
-      m_with_compensations(src_dt == ov::element::i8 && !one_of(m_isa, avx512_core_amx, avx2_vnni_2)),
+      m_with_compensations(src_dt == ov::element::i8 && none_of(m_isa, avx512_core_amx, avx2_vnni_2)),
       m_are_wei_constant(are_wei_constant),
       m_transposed_b(transposed_b),
-      m_are_wei_blocked(ov::intel_cpu::pass::BrgemmCPUBlocking::is_kn_blocking_supported(src_dt) && m_are_wei_constant),
+      m_are_wei_blocked(ov::intel_cpu::pass::BrgemmCPUBlocking::is_kn_blocking_supported(src_dt)),
       m_wei_k_blk(get_elems_in_vec(wei_dt)) {
-    const auto is_fp32 = src_dt == ov::element::f32 && wei_dt == ov::element::f32;
+    const auto is_fp32 = all_of(ov::element::f32, src_dt, wei_dt);
 
     // FC always requires weight repacking
     m_with_wei_repacking = !is_fp32 || transposed_b || m_are_wei_constant || m_are_wei_blocked;
 
     // TODO: Add more logic based on shapes and prc
     if (m_are_wei_blocked) {
-        m_wei_n_blk = is_superset(m_isa, avx512_core) ? 64 : 48;
+        if (m_are_wei_constant) {
+            m_wei_n_blk = is_superset(m_isa, avx512_core) ? 64 : 48;
+        } else {
+            m_wei_n_blk = is_superset(m_isa, avx512_core) ? 64 : 24;
+        }
     } else {
         switch (wei_dt) {
         case element::i8:
@@ -96,11 +100,11 @@ dnnl::impl::cpu::x64::cpu_isa_t BrgemmConfig::get_prim_isa(const ov::element::Ty
         return x;              \
     }
 
-    const auto is_fp32 = src_dt == ov::element::f32 && wei_dt == ov::element::f32;
-    const auto is_fp16 = src_dt == ov::element::f16 && wei_dt == ov::element::f16;
-    const auto is_bf16 = src_dt == ov::element::bf16 && wei_dt == ov::element::bf16;
+    const auto is_fp32 = all_of(ov::element::f32, src_dt, wei_dt);
+    const auto is_fp16 = all_of(ov::element::f16, src_dt, wei_dt);
+    const auto is_bf16 = all_of(ov::element::bf16, src_dt, wei_dt);
     const auto is_int8 =
-        ov::snippets::utils::one_of(src_dt, ov::element::i8, ov::element::u8) && wei_dt == ov::element::i8;
+        ov::snippets::utils::any_of(src_dt, ov::element::i8, ov::element::u8) && wei_dt == ov::element::i8;
     OPENVINO_ASSERT(is_fp32 || is_fp16 || is_bf16 || is_int8,
                     "Incorrect configuration: src_dt = ",
                     src_dt,
@@ -140,11 +144,11 @@ bool BrgemmConfig::is_amx() const {
 
 void BrgemmConfig::validate() const {
     OPENVINO_ASSERT(m_isa != isa_undef, "ISA is undefined");
-    OPENVINO_ASSERT(one_of(m_src_dt, element::f32, element::bf16, element::f16, element::u8, element::i8),
+    OPENVINO_ASSERT(any_of(m_src_dt, element::f32, element::bf16, element::f16, element::u8, element::i8),
                     "Brgemm doesn't support weights element type: " + m_src_dt.get_type_name());
-    OPENVINO_ASSERT(one_of(m_wei_dt, element::f32, element::bf16, element::f16, element::i8),
+    OPENVINO_ASSERT(any_of(m_wei_dt, element::f32, element::bf16, element::f16, element::i8),
                     "Brgemm doesn't support weights element type: " + m_wei_dt.get_type_name());
-    OPENVINO_ASSERT(one_of(m_orig_wei_dt, element::f32, element::bf16, element::f16, element::i8),
+    OPENVINO_ASSERT(any_of(m_orig_wei_dt, element::f32, element::bf16, element::f16, element::i8),
                     "Brgemm doesn't support weights element type: " + m_orig_wei_dt.get_type_name());
     OPENVINO_ASSERT(ov::snippets::utils::implication(m_with_compensations, !is_amx() && m_with_wei_repacking),
                     "Compensations must be only with BrgemmCopyB on non-amx platforms");
@@ -154,8 +158,8 @@ void BrgemmConfig::validate() const {
 size_t get_elems_in_vec(const ov::element::Type& precision) {
     using namespace dnnl::impl::cpu;
     OV_CPU_JIT_EMITTER_ASSERT(x64::mayiuse(x64::avx2), "doesn't support non avx512 platforms");
-    const auto vlen =
-        x64::mayiuse(avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen : x64::cpu_isa_traits<x64::avx2>::vlen;
+    const auto vlen = x64::mayiuse(avx512_core) ? x64::cpu_isa_traits_t<x64::avx512_core>::vlen
+                                                : x64::cpu_isa_traits_t<x64::avx2>::vlen;
     return vlen / precision.size();
 }
 
@@ -244,14 +248,14 @@ ov::snippets::op::Subgraph::BlockedShape get_wei_blocked_shape(const ov::snippet
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
     OPENVINO_ASSERT(ov::is_type<BrgemmCPU>(brgemm_expr->get_node()),
                     "get_copy_b_expr must be called only for BrgemmCPU node");
-    auto b_input_expr = brgemm_expr->get_input_port_connector(1)->get_source().get_expr();
+    auto b_input_expr = brgemm_expr->get_input_expr_ptr(1);
     if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node())) {
         return b_input_expr;
     }
     if (ov::is_type<RepackedWeightsBufferExpression>(b_input_expr)) {
         OPENVINO_ASSERT(b_input_expr->get_input_count() >= 1,
                         "RepackedWeightsBufferExpression on brgemm's B input must have at least one input");
-        auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();
+        auto input_buffer_expr = b_input_expr->get_input_expr_ptr(0);
         if (ov::is_type<BrgemmCopyB>(input_buffer_expr->get_node())) {
             return input_buffer_expr;
         }
