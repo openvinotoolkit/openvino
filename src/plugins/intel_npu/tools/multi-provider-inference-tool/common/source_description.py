@@ -5,17 +5,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from collections import defaultdict
-from collections.abc import Mapping
-import copy
-import enum
-import hashlib
 import json
 import os
 
-from pathlib import Path
-
-from common.converters import layout_to_str, shape_to_list
 from common.enums import InputSourceFileType
 from common.source_description_schema import InputSource
 
@@ -123,7 +115,7 @@ class UseCaseFiles:
     @staticmethod
     def parse_inputs(console_input_files_list: str):
         if console_input_files_list is None:
-            return
+            return []
 
         files_per_case = []
         file_paths_per_case = console_input_files_list.split(UseCaseFiles.use_case_separator)

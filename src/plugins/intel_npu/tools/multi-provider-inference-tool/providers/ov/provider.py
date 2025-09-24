@@ -5,22 +5,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-from collections import defaultdict
-from collections.abc import Mapping
-import math
 import numpy as np
-import os
-
-import cv2
+import openvino as ov
 
 from providers.interfaces import Context
 from providers.interfaces import Provider
 from providers.interfaces import ProviderHolder
 from common.provider_description import Config, ModelInfo, TensorInfo
 import utils
-
-import openvino as ov
-
 
 def ov_layout_to_string(layout: ov.Layout):
     return "".join(layout.to_string()[1:-1].split(","))
@@ -35,14 +27,13 @@ class OVContextBase:
         model = self.core.read_model(model_path)
         return model
 
-    def preprocess_model(self, model: ov.Model, preprocess_model_data: ModelInfo):
-        if preprocess_model_data is None:
+    def preprocess_model(self, model: ov.Model, model_preprocessing_config: ModelInfo):
+        if model_preprocessing_config is None:
             return model
 
-        # resired_shape_inputs = defaultdict(ov.PartialShape)
         desired_shape_inputs = {
             input_name: ov.PartialShape(desired_input_data["shape"])
-            for input_name, desired_input_data in preprocess_model_data.preproc_per_io.items()
+            for input_name, desired_input_data in model_preprocessing_config.preproc_per_io.items()
             if "shape" in desired_input_data.keys()
         }
         model.reshape(desired_shape_inputs)
@@ -51,7 +42,7 @@ class OVContextBase:
         for (
             input_name,
             desired_input_data,
-        ) in preprocess_model_data.preproc_per_io.items():
+        ) in model_preprocessing_config.preproc_per_io.items():
             if "layout" in desired_input_data.keys():
                 ppp.input(input_name).model().set_layout(ov.Layout(desired_input_data["layout"]))
             if "element_type" in desired_input_data.keys():
@@ -69,7 +60,7 @@ class OVContextBase:
             return model_input.get_node().get_attributes()["shape"]
         try:
             return model_input.get_shape()
-        except Exception as ex:
+        except Exception:
             pass
         return ["..."]
 
@@ -106,21 +97,21 @@ class OVContextBase:
         return info
 
     @staticmethod
-    def collect_layouts_per_io(model: ov.Model, preprocess_model_data: ModelInfo) -> dict:
+    def collect_layouts_per_io(model: ov.Model, model_preprocessing_config: ModelInfo) -> dict:
         return_layouts = {}
         for model_input in model.inputs:
             model_input_name = model_input.get_any_name()
-            if model_input_name in preprocess_model_data.preproc_per_io.keys() and "layout" in preprocess_model_data.preproc_per_io[model_input_name].keys():
-                return_layouts[model_input_name] = ov_layout_to_string(ov.Layout(preprocess_model_data.preproc_per_io[model_input_name]["layout"]))
+            if model_input_name in model_preprocessing_config.preproc_per_io.keys() and "layout" in model_preprocessing_config.preproc_per_io[model_input_name].keys():
+                return_layouts[model_input_name] = ov_layout_to_string(ov.Layout(model_preprocessing_config.preproc_per_io[model_input_name]["layout"]))
             else:
                 shape = OVContextBase.extract_shape_from_model_input(model_input)
-                return_layouts[model_input_name] = ov_layout_to_string(getLayoutByShape(shape))
+                return_layouts[model_input_name] = ov_layout_to_string(get_layout_from_shape(shape))
 
         return return_layouts
 
 
-def getLayoutByShape(shape: ov.Shape) -> ov.Layout:
-    layout_str = utils.getLayoutByShape(list(shape))
+def get_layout_from_shape(shape: ov.Shape) -> ov.Layout:
+    layout_str = utils.get_layout_from_shape(list(shape))
     return ov.Layout.scalar() if len(layout_str) == 0 else ov.Layout(layout_str)
 
 
@@ -131,14 +122,14 @@ class OVImplProvider:
         self.ctx = ctx
         self.layout_per_input = {}
 
-    def init_model(self, preprocess_model_data: ModelInfo) -> Provider:
-        self.model = self.ctx.preprocess_model(self.model, preprocess_model_data)
+    def init_model(self, model_preprocessing_config: ModelInfo) -> Provider:
+        self.model = self.ctx.preprocess_model(self.model, model_preprocessing_config)
 
         # For some reasons OV doesn't remember a layout for each input in their ov.Model
         # We need this information of a preparation input tensors phase.
-        # So that either we extract this layout from `preprocess_model_data` or
+        # So that either we extract this layout from `model_preprocessing_config` or
         # try to guess its format from model shape (legacy)
-        self.layout_per_input = self.ctx.collect_layouts_per_io(self.model, preprocess_model_data)
+        self.layout_per_input = self.ctx.collect_layouts_per_io(self.model, model_preprocessing_config)
 
     def get_model_info(self):
         info = self.ctx.get_model_info(self.model)
@@ -156,7 +147,6 @@ class OVImplProvider:
 
     def prepare_input_tensors(self, input_files):
         return_tensors = {}
-        model_input_files_input_pairs = []
         model_info = self.ctx.get_model_info(self.model)
         for model_input in self.model.inputs:
             model_input_name = model_input.get_any_name()
@@ -199,8 +189,8 @@ class OVCPUProvider(Provider):
     def name() -> str:
         return "CPU$"
 
-    def create_model(self, preprocess_model_data: ModelInfo, provider_config: Config) -> Provider:
-        self.impl.init_model(preprocess_model_data)
+    def create_model(self, model_preprocessing_config: ModelInfo, provider_config: Config) -> Provider:
+        self.impl.init_model(model_preprocessing_config)
 
         if provider_config.cfg_dict and len(provider_config.cfg_dict) != 0:
             self.comp = self.impl.ctx.core.compile_model(self.impl.model, self.endpoint_full_name, provider_config.cfg_dict)
@@ -232,8 +222,8 @@ class OVGPUProvider(Provider):
     def name() -> str:
         return "GPU((\\.(.+)$)|$)"
 
-    def create_model(self, preprocess_model_data: ModelInfo, provider_config: Config) -> Provider:
-        self.impl.init_model(preprocess_model_data)
+    def create_model(self, model_preprocessing_config: ModelInfo, provider_config: Config) -> Provider:
+        self.impl.init_model(model_preprocessing_config)
 
         if provider_config.cfg_dict and len(provider_config.cfg_dict) != 0:
             self.comp = self.impl.ctx.core.compile_model(self.impl.model, self.endpoint_full_name, provider_config.cfg_dict)
@@ -265,8 +255,8 @@ class OVNPUProvider(Provider):
     def name() -> str:
         return "NPU((\\.(.+)$)|$)"
 
-    def create_model(self, preprocess_model_data: ModelInfo, provider_config: Config) -> Provider:
-        self.impl.init_model(preprocess_model_data)
+    def create_model(self, model_preprocessing_config: ModelInfo, provider_config: Config) -> Provider:
+        self.impl.init_model(model_preprocessing_config)
 
         if provider_config.cfg_dict and len(provider_config.cfg_dict) != 0:
             self.comp = self.impl.ctx.core.compile_model(self.impl.model, self.endpoint_full_name, provider_config.cfg_dict)

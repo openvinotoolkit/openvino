@@ -7,21 +7,19 @@
 
 import copy
 import json
+import os
+import re
+
+import numpy as np
 import onnx
 import onnxruntime
-import os
-import pathlib
-import re
-import sys
-import numpy as np
+
+import utils
 
 from providers.interfaces import Context
 from providers.interfaces import Provider
 from providers.interfaces import ProviderHolder
 from common.provider_description import Config, ModelInfo, TensorInfo
-
-import utils
-
 
 def onnx_type_to_dtype(onnx_type):
     conv_map = {"float": "float32", "double": "float64"}
@@ -77,7 +75,7 @@ class OnnxContextBase:
             if model_input_name in preprocess_model_data.preproc_per_io.keys() and "layout" in preprocess_model_data.preproc_per_io[model_input_name].keys():
                 return_layouts[model_input_name] = preprocess_model_data.preproc_per_io[model_input_name]["layout"]
             else:
-                return_layouts[model_input_name] = utils.getLayoutByShape(model_input.shape)
+                return_layouts[model_input_name] = utils.get_layout_from_shape(model_input.shape)
         return return_layouts
 
     @staticmethod
@@ -109,7 +107,7 @@ class OnnxContextBase:
 
 def preprocess_model_static_shapes(model, preprocess_model_data: ModelInfo):
     if preprocess_model_data is None:
-        return
+        return model
     for model_input in model.graph.input:
         model_input_name = model_input.name
         if model_input_name in preprocess_model_data.preproc_per_io.keys():
@@ -137,6 +135,7 @@ class CPUExecutionProvider(Provider):
     def __init__(self, ctx: OnnxContextBase, endpoint_full_name: str, model_path: str):
         super().__init__()
         self.ctx = ctx
+        self.layout_per_input = {}
         self.model_path = model_path
         self.session = None
         self.endpoint_full_name = endpoint_full_name
@@ -145,9 +144,9 @@ class CPUExecutionProvider(Provider):
     def name() -> str:
         return "CPUExecutionProvider$"
 
-    def create_model(self, preprocessing_request_data, provider_config: Config) -> Provider:
+    def create_model(self, model_preprocessing_config, provider_config: Config) -> Provider:
         model = onnx.load(self.model_path)
-        model = preprocess_model_static_shapes(model, preprocessing_request_data)
+        model = preprocess_model_static_shapes(model, model_preprocessing_config)
 
         options = onnxruntime.SessionOptions()
         options = OnnxContextBase.get_session_options(options, provider_config.cfg_dict)
@@ -156,7 +155,7 @@ class CPUExecutionProvider(Provider):
             model.SerializeToString(), sess_options=options, providers=["CPUExecutionProvider"], provider_options=[external_provider_dict_options]
         )
 
-        self.layout_per_input = OnnxContextBase.collect_layouts_per_io(self.session, preprocessing_request_data)
+        self.layout_per_input = OnnxContextBase.collect_layouts_per_io(self.session, model_preprocessing_config)
         return self
 
     def get_model_info(self) -> ModelInfo:
@@ -175,7 +174,6 @@ class CPUExecutionProvider(Provider):
 
     def prepare_input_tensors(self, input_files):
         return_tensors = {}
-        model_input_files_input_pairs = []
         model_info = OnnxContextBase.get_model_info(self.session)
         for model_input in self.session.get_inputs():
             model_input_name = model_input.name
@@ -192,9 +190,9 @@ class CPUExecutionProvider(Provider):
             return_tensors[model_input_name] = onnxruntime.OrtValue.ortvalue_from_numpy(tensor_raw_array)
         return return_tensors
 
-    def infer(self, tensors_dict):
+    def infer(self, input_tensors):
         output_names = [output.name for output in self.session.get_outputs()]
-        results = self.session.run(output_names, tensors_dict)
+        results = self.session.run(output_names, input_tensors)
         return {name: onnxruntime.OrtValue.ortvalue_from_numpy(t) for (name, t) in zip(output_names, results)}
 
 
@@ -203,12 +201,12 @@ def is_ovep_shape_static(ovep_shape):
 
 
 def preprocess_model_ovep_shapes(model, preprocess_model_data: ModelInfo):
-    if preprocess_model_data is None:
-        return
-
     # check if preprocessor requests static shapes only before changing a model
     is_dynamic_shape_requested = False
     expected_dynamic_shapes = {}
+    if preprocess_model_data is None:
+        return model, expected_dynamic_shapes
+
     for model_input_name in preprocess_model_data.preproc_per_io.keys():
         if "shape" in preprocess_model_data.preproc_per_io[model_input_name].keys():
             if not is_ovep_shape_static(preprocess_model_data.preproc_per_io[model_input_name]["shape"]):
@@ -270,9 +268,9 @@ class OVEPCPU(CPUExecutionProvider):
     def name() -> str:
         return "CPU$"
 
-    def create_model(self, preprocessing_request_data, provider_config: Config) -> Provider:
+    def create_model(self, model_preprocessing_config, provider_config: Config) -> Provider:
         model = onnx.load(self.model_path)
-        model, expected_dynamic_shapes = preprocess_model_ovep_shapes(model, preprocessing_request_data)
+        model, expected_dynamic_shapes = preprocess_model_ovep_shapes(model, model_preprocessing_config)
 
         options = onnxruntime.SessionOptions()
         options.add_session_config_entry("session.disable_cpu_ep_fallback", "1")
@@ -292,7 +290,7 @@ class OVEPCPU(CPUExecutionProvider):
             model.SerializeToString(), sess_options=options, providers=["OpenVINOExecutionProvider"], provider_options=[external_provider_dict_options]
         )
 
-        self.layout_per_input = OnnxContextBase.collect_layouts_per_io(self.session, preprocessing_request_data)
+        self.layout_per_input = OnnxContextBase.collect_layouts_per_io(self.session, model_preprocessing_config)
         return self
 
 
@@ -305,9 +303,9 @@ class OVEPNPU(CPUExecutionProvider):
     def name() -> str:
         return "NPU((\\.(.+)$)|$)"
 
-    def create_model(self, preprocessing_request_data, provider_config: Config) -> Provider:
+    def create_model(self, model_preprocessing_config, provider_config: Config) -> Provider:
         model = onnx.load(self.model_path)
-        model, expected_dynamic_shapes = preprocess_model_ovep_shapes(model, preprocessing_request_data)
+        model, expected_dynamic_shapes = preprocess_model_ovep_shapes(model, model_preprocessing_config)
 
         options = onnxruntime.SessionOptions()
         options.add_session_config_entry("session.disable_cpu_ep_fallback", "1")
@@ -334,7 +332,7 @@ class OVEPNPU(CPUExecutionProvider):
             model.SerializeToString(), sess_options=options, providers=["OpenVINOExecutionProvider"], provider_options=[external_provider_dict_options]
         )
 
-        self.layout_per_input = OnnxContextBase.collect_layouts_per_io(self.session, preprocessing_request_data)
+        self.layout_per_input = OnnxContextBase.collect_layouts_per_io(self.session, model_preprocessing_config)
         return self
 
 

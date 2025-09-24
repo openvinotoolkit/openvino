@@ -1,10 +1,11 @@
-import common.enums
 import copy
 import hashlib
 import json
 import os
 
 from pathlib import Path
+
+import common.enums
 
 from common.converters import layout_to_str, shape_to_list
 from common.model_description_schema import ModelInfoData
@@ -25,19 +26,19 @@ class Config:
     def __init__(self, cmd_argument: str):
         self.cfg_dict = {}
         if cmd_argument and len(cmd_argument) != 0:
-            if not if_file(cmd_argument):
+            if not os.path.isfile(cmd_argument):
                 self.cfg_dict = json.loads(cmd_argument)
             else:
                 with open(cmd_argument, "r") as file:
-                    isPlainText = False
+                    is_plain_text = False
                     try:
                         self.cfg_dict = json.load(file)
                     except json.JSONDecodeError as ex:
                         # not json file, probably just a plain file
-                        isPlainText = True
+                        is_plain_text = True
                         pass
 
-                    if isPlainText:
+                    if is_plain_text:
                         file.seek(0)
                         lines = file.readlines()
                         for line in lines:
@@ -78,7 +79,7 @@ class ModelInfo:
                 try:
                     json_data = json.loads(command_line_ppm)
                 except Exception as ex:
-                    raise RuntimeError(ModelInfo.model_description + f"\nGot:\n{command_line_ppm}")
+                    raise RuntimeError(ModelInfo.model_description + f"\nGot:\n{command_line_ppm}, error: {ex}") from None
         self.preproc_per_io = ModelInfoData(json_data)
 
     def set_model_name(self, model_name: str):
@@ -327,7 +328,7 @@ class TensorsInfoPrinter:
                 with model_tensor_meta_info_file_path.open("w") as outfile:
                     json.dump({info["source"]: aggregated_tensor_meta[info["source"]]}, outfile)
         except Exception as ex:
-            raise RuntimeError(f"Cannot serialize tensor of type: {ttype} into a file, error: {ex}")
+            raise RuntimeError(f"Cannot serialize tensor of type: {ttype} into a file, error: {ex}") from None
 
         # store aggregated inputs JSON info as "--input" param compatible format
         if model_serialization_path != Path():

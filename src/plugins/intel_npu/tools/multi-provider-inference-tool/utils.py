@@ -6,11 +6,11 @@
 #
 
 import copy
-import cv2
 import math
-import numpy as np
 import os
 
+import cv2
+import numpy as np
 
 def prepare_input_description(infiles, data_shape, model_data_type, layout):
     infiles_description = copy.deepcopy(infiles)
@@ -35,7 +35,7 @@ def prepare_input_description(infiles, data_shape, model_data_type, layout):
 
 def load_tensor_from_file(infiles_description):
     if "element_type" not in infiles_description.keys():
-        raise RuntimeError(f'In case of binary input each input description must be accompanied by "element_type". Please add it to each input data')
+        raise RuntimeError('In case of binary input each input description must be accompanied by "element_type". Please add it to each input data')
     file_data_precision = np.dtype(infiles_description["element_type"])
     tensor_shape = infiles_description["shape"]
     layout = infiles_description["layout"]
@@ -52,7 +52,7 @@ def load_tensor_from_file(infiles_description):
         return None, infiles_description
     assert len(files_list) == 1, "Batched loading is unsupported"
 
-    # TODO iterate for files list to process different lines of batch in case of batched input
+    # TODO iterate over files list to process different lines of batch in case of batched input (fixme)
     file_path = files_list.pop(0)
     infiles_description["files"] = files_list
 
@@ -80,7 +80,7 @@ def load_tensor_from_file(infiles_description):
             file_size * N == file_tensor_size
         ), f"File {file_path} contains {file_size} bytes, but {file_tensor_size} total in batch size {N} expected while converting precision from {file_data_precision.name} to {model_expected_precision.name}"
 
-        debatched_shape_list = copy(tensor_shape)
+        debatched_shape_list = copy.deepcopy(tensor_shape)
         debatched_shape_list[batch_dimension_index_in_tensor_shape_or_none] = 1
         tensor_from_file = np.fromfile(file_path, dtype=file_data_precision).reshape(debatched_shape_list)
         assert model_expected_precision == file_data_precision, "TODO convert tensors for batch"
@@ -102,7 +102,7 @@ def load_tensor_from_file(infiles_description):
             file_size * N == requested_tensor_size
         ), f"File {file_path} contains {file_size} bytes, but {requested_tensor_size} total in batch size {batch_dimension_index_in_tensor_shape_or_none} expected"
 
-        debatched_shape_list = copy(tensor_shape)
+        debatched_shape_list = copy.deepcopy(tensor_shape)
         debatched_shape_list[batch_dimension_index_in_tensor_shape_or_none] = 1
         tensor_from_file = np.fromfile(file_path, dtype=file_data_precision).reshape(debatched_shape_list)
         assert file_index_in_batch, "Batch is unsupported at the moment"
@@ -124,7 +124,7 @@ def load_image_from_file(infiles_description):
         return None, infiles_description
     assert len(files_list) == 1, "Batched loading is unsupported"
 
-    # TODO iterate for files list to process different lines of batch in case of batched input
+    # TODO iterate over files list to process different lines of batch in case of batched input (fixme)
     file_path = files_list.pop(0)
     infiles_description["files"] = files_list
 
@@ -138,7 +138,7 @@ def load_image_from_file(infiles_description):
         if int(h) == -1 or int(w) == -1:
             # do not need to resize image as probably we deal with a dynamic shape
             resized_image = image
-    except Exception as ex:
+    except Exception:
         # do not need to resize image as probably we deal with a dynamic shape
         resized_image = image
         pass
@@ -174,7 +174,7 @@ def get_model_name(model_path):
     return os.path.basename(model_path).split(".")[0]
 
 
-def getLayoutByShape(shape: list) -> str:
+def get_layout_from_shape(shape: list) -> str:
     rank = len(shape)
     if rank == 0:
         return ""

@@ -19,7 +19,7 @@ class Provider(ABC):
         pass
 
     @abstractmethod
-    def create_model(self, preprocessing_request_data, options=None):
+    def create_model(self, model_preprocessing_config, provider_config=None):
         pass
 
     @abstractmethod
@@ -35,7 +35,7 @@ class Provider(ABC):
         pass
 
     @abstractmethod
-    def infer(self, tensors_collection):
+    def infer(self, input_tensors):
         pass
 
     @staticmethod

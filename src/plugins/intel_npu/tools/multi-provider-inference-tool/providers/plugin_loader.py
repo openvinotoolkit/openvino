@@ -6,11 +6,11 @@
 #
 
 import importlib.util
-import os
 import re
 import sys
 
 from pathlib import Path
+
 import providers.interfaces
 from schema.validator import JSONSchemaValidator
 
@@ -38,8 +38,8 @@ class ExecutionProvider:
             assert JSONSchemaValidator.is_valid(ExecutionProvider.input_source_schema, data)
         return self.provider_impl.prepare_input_tensors(input_files)
 
-    def infer(self, tensors_collection):
-        return self.provider_impl.infer(tensors_collection)
+    def infer(self, input_tensors):
+        return self.provider_impl.infer(input_tensors)
 
 
 class ProviderFactory:
@@ -67,7 +67,6 @@ class ProviderFactory:
                 loaded += 1
             except Exception as e:
                 loading_errors[source_file] = str(e)
-                pass
             finally:
                 count += 1
 
@@ -76,7 +75,7 @@ class ProviderFactory:
             for p, e in loading_errors.items():
                 error_description += "\tModule: " + str(p) + "\n\t\t" + e + "\n"
         if count == 0:
-            raise RuntimeError(f"No any plugin detected")
+            raise RuntimeError("No any plugin detected")
         if loaded == 0:
             raise RuntimeError(f"Cannot load any plugin, attempted: {count}.\nPlugins loading logs:\n{error_description}")
         if loaded != count:

@@ -84,7 +84,7 @@ def compare_blobs(lhs_blob_file_path, rhs_blob_file_path, np_data_type_str):
     np_data_type = get_np_data_type(np_data_type_str)
     if np_data_type == np.dtype(np.float16):
         return compare_fp16_blobs(lhs_blob_file_path, rhs_blob_file_path)
-    elif np_data_type == np.dtype(np.float32):
+    if np_data_type == np.dtype(np.float32):
         return compare_fp32_blobs(lhs_blob_file_path, rhs_blob_file_path)
     return compare_typed_blobs(lhs_blob_file_path, rhs_blob_file_path, np_data_type)
 

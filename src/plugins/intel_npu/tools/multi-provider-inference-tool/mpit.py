@@ -7,9 +7,7 @@
 
 import argparse
 import json
-import os
 import sys
-import textwrap
 
 from pathlib import Path
 
@@ -26,10 +24,12 @@ def get_valid_command_arguments(available_inference_providers):
         description="""
 This tool enables launching neural network model inference using different AI framework providers
 and produces inference artifacts as blobs and metadata.
-As necessary input arguments, it requires a path to a neural model to launch inference, a provider name and input files description.""",
+As necessary input arguments, it requires a path to a neural model to launch inference,
+a provider name and input files description.""",
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument("-m", "--model", help="Location of a file specifying a neural model", type=Path)
+    parser.add_argument("-m", "--model", help="Location of a file specifying a neural model",
+                        type=Path)
     parser.add_argument(
         "-p",
         "--provider",
@@ -49,16 +49,16 @@ As necessary input arguments, it requires a path to a neural model to launch inf
     if not cmd_args.model:
         print("ERROR: Path to model file is missing!", file=sys.stderr)
         parser.print_help()
-        exit(1)
+        sys.exit(1)
 
     if not cmd_args.model.is_file():
         print(f"ERROR: Missing a model file by the path: {cmd_args.model}", file=sys.stderr)
-        exit(1)
+        sys.exit(1)
 
     if cmd_args.provider is None:
         print("ERROR: Inference providers are empty!", file=sys.stderr)
         parser.print_help()
-        exit(1)
+        sys.exit(1)
     return cmd_args
 
 
@@ -91,10 +91,11 @@ def get_input_tensor_metadata(provider, model_info, input_tensors_per_case, inpu
 def serialize_inference_input_artefacts(serializer, provider_name, input_tensors_info):
     for case_num in range(0, max(len(input_tensors_info), 1)):
         root_dir = Path(provider_name) / str(case_num)
-        serialized_file_paths, input_info_path, input_info_dump_path = serializer.serialize_tensors_by_type(root_dir, input_tensors_info[case_num], "input")
+        serialized_files, input_info_path, input_info_dump_path = serializer.serialize_tensors_by_type(
+                        root_dir, input_tensors_info[case_num], "input")
         print(f"Use Case[{case_num}]:")
         print("input tensors serialized by paths: ")
-        for fp in serialized_file_paths:
+        for fp in serialized_files:
             print(f"\t{fp}")
         print("input JSON descriptions(`-i` param compatible): ")
         print(f"\t{input_info_path}")
@@ -121,7 +122,8 @@ def get_output_tensor_metadata(provider, model_info, output_tensors_per_case):
 def serialize_inference_output_artefacts(serializer, provider_name, output_tensors_info):
     for case_num in range(0, max(len(output_tensors_info), 1)):
         root_dir = Path(provider_name) / str(case_num)
-        serialzied_output_tensors = serializer.serialize_tensors_by_type(root_dir, output_tensors_info[case_num], "output")
+        serialzied_output_tensors = serializer.serialize_tensors_by_type(
+                        root_dir, output_tensors_info[case_num], "output")
 
         print(f"Use Case[{case_num}]:")
         print("reference tensors serialized by paths: ")
@@ -129,13 +131,13 @@ def serialize_inference_output_artefacts(serializer, provider_name, output_tenso
             print(f"\t{fp}")
 
 
-if __name__ == "__main__":
+def main():
     loader = None
     try:
         loader = plugin_loader.ProviderFactory()
     except Exception as ex:
         print(f"ERROR: The application is inoperable, error: {ex}", file=sys.stderr)
-        exit(-1)
+        sys.exit(-1)
 
     args = get_valid_command_arguments(loader.get_avaialable_providers())
 
@@ -151,10 +153,9 @@ if __name__ == "__main__":
         # When no inference requested, meaning no input files are specified,
         # print only model info JSON, which can be parsed as a part of command pipelining
         print(f"{model_info_data}")
-        exit(0)
+        sys.exit(0)
 
-    print(f"Model I/O nodes info:")
-    print(f"{model_info_data}")
+    print(f"Model I/O nodes info:\n{model_info_data}")
 
     # convert input files into a tensor format specific for the requested provider
     input_files = get_usecase_files(args.inputs)
@@ -166,9 +167,10 @@ if __name__ == "__main__":
     # Input tensor info being written in a file allows
     # us to load that file as `-i` in subsequent tool invocations to keep
     # persisten inferences history
-    tensor_info = get_input_tensor_metadata(provider, model_info, input_tensors_per_case, input_files)
+    tensor_info = get_input_tensor_metadata(provider, model_info, input_tensors_per_case,
+                                            input_files)
 
-    print(f"Input tensor info:")
+    print("Input tensor info:")
     printer = TensorsInfoPrinter()
     for case_num in range(0, max(usecase_num, 1)):
         print(json.dumps(printer.get_printable_input_tensor_info(tensor_info[case_num]), indent=4))
@@ -191,3 +193,6 @@ if __name__ == "__main__":
 
     # serialize output tensors into files to store the model inference in the history
     serialize_inference_output_artefacts(printer, args.provider, output_tensor_info)
+
+if __name__ == "__main__":
+    main()

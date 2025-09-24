@@ -13,7 +13,7 @@ class ModelInfoData(JSONSchemaValidator):
     schema = JSONSchemaValidator.load_from_file("model")
 
     def __canonize_data__(self):
-        for i, d in self.items():
+        for _, d in self.items():
             if "shape" in d.keys():
                 d["shape"] = shape_to_list(d["shape"])
             if "layout" in d.keys():
