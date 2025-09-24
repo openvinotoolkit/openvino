@@ -726,6 +726,32 @@ public:
             if (!grid_sample || transformation_callback(grid_sample)) {
                 return false;
             }
+            // Use reference path for known-problematic dynamic combos to avoid accuracy issues
+            const auto& attrs = grid_sample->get_attributes();
+            const bool is_f32_data = grid_sample->get_input_element_type(0) == element::f32;
+            const bool is_f32_grid = grid_sample->get_input_element_type(1) == element::f32;
+            // NEAREST + REFLECTION + align_corners=false (restrict to f32/f32 to not break f16 nightly)
+            if (is_f32_data && is_f32_grid && attrs.mode == op::v9::GridSample::InterpolationMode::NEAREST &&
+                attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION && !attrs.align_corners) {
+                return false;  // keep original GridSample -> plugin will fallback to Reference
+            }
+            // NEAREST + BORDER + align_corners=false (restrict to f32/f32)
+            if (is_f32_data && is_f32_grid && attrs.mode == op::v9::GridSample::InterpolationMode::NEAREST &&
+                attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER && !attrs.align_corners) {
+                return false;
+            }
+            // For non-f32 cases in these problematic modes, explicitly convert to f32 -> GridSample -> convert back.
+            if ((!is_f32_data || !is_f32_grid) && attrs.mode == op::v9::GridSample::InterpolationMode::NEAREST &&
+                (attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION ||
+                 attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER) && !attrs.align_corners) {
+                auto data_f32 = std::make_shared<op::v0::Convert>(grid_sample->input_value(0), element::f32);
+                auto grid_f32 = std::make_shared<op::v0::Convert>(grid_sample->input_value(1), element::f32);
+                auto gs_f32 = std::make_shared<op::v9::GridSample>(data_f32, grid_f32, attrs);
+                auto out = std::make_shared<op::v0::Convert>(gs_f32, grid_sample->get_output_element_type(0));
+                out->set_friendly_name(grid_sample->get_friendly_name());
+                ov::replace_node(grid_sample, out);
+                return true;
+            }
             return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& attrs) {
                 return build_nearest_nhwc(context, attrs);
             });
@@ -792,6 +818,15 @@ public:
             if (!grid_sample || transformation_callback(grid_sample)) {
                 return false;
             }
+            // Use reference path for known-problematic dynamic combos to avoid accuracy issues
+            const auto& attrs = grid_sample->get_attributes();
+            const bool is_f32_data = grid_sample->get_input_element_type(0) == element::f32;
+            const bool is_f32_grid = grid_sample->get_input_element_type(1) == element::f32;
+            // BICUBIC + ZEROS + align_corners=false (restrict to f32/f32)
+            if (is_f32_data && is_f32_grid && attrs.mode == op::v9::GridSample::InterpolationMode::BICUBIC &&
+                attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS && !attrs.align_corners) {
+                return false;  // keep original GridSample -> plugin will fallback to Reference
+            }
             return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& attrs) {
                 return build_bicubic_nhwc(context, attrs);
             });
@@ -822,6 +857,32 @@ public:
             auto grid_sample = std::dynamic_pointer_cast<op::v9::GridSample>(matcher.get_match_root());
             if (!grid_sample || transformation_callback(grid_sample)) {
                 return false;
+            }
+            // Use reference path for known-problematic combos to avoid accuracy issues
+            const auto& attrs = grid_sample->get_attributes();
+            const bool is_f32_data = grid_sample->get_input_element_type(0) == element::f32;
+            const bool is_f32_grid = grid_sample->get_input_element_type(1) == element::f32;
+            // NEAREST + REFLECTION + align_corners=false (restrict to f32/f32)
+            if (is_f32_data && is_f32_grid && attrs.mode == op::v9::GridSample::InterpolationMode::NEAREST &&
+                attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION && !attrs.align_corners) {
+                return false;  // keep original GridSample
+            }
+            // NEAREST + BORDER + align_corners=false (restrict to f32/f32)
+            if (is_f32_data && is_f32_grid && attrs.mode == op::v9::GridSample::InterpolationMode::NEAREST &&
+                attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER && !attrs.align_corners) {
+                return false;
+            }
+            // For non-f32 cases in these problematic modes, explicitly convert to f32 -> GridSample -> convert back.
+            if ((!is_f32_data || !is_f32_grid) && attrs.mode == op::v9::GridSample::InterpolationMode::NEAREST &&
+                (attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION ||
+                 attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER) && !attrs.align_corners) {
+                auto data_f32 = std::make_shared<op::v0::Convert>(grid_sample->input_value(0), element::f32);
+                auto grid_f32 = std::make_shared<op::v0::Convert>(grid_sample->input_value(1), element::f32);
+                auto gs_f32 = std::make_shared<op::v9::GridSample>(data_f32, grid_f32, attrs);
+                auto out = std::make_shared<op::v0::Convert>(gs_f32, grid_sample->get_output_element_type(0));
+                out->set_friendly_name(grid_sample->get_friendly_name());
+                ov::replace_node(grid_sample, out);
+                return true;
             }
             return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& attrs) {
                 return build_nearest_nhwc(context, attrs);
@@ -884,6 +945,15 @@ public:
             auto grid_sample = std::dynamic_pointer_cast<op::v9::GridSample>(matcher.get_match_root());
             if (!grid_sample || transformation_callback(grid_sample)) {
                 return false;
+            }
+            // Use reference path for known-problematic combos to avoid accuracy issues
+            const auto& attrs = grid_sample->get_attributes();
+            const bool is_f32_data = grid_sample->get_input_element_type(0) == element::f32;
+            const bool is_f32_grid = grid_sample->get_input_element_type(1) == element::f32;
+            // BICUBIC + ZEROS + align_corners=false (restrict to f32/f32)
+            if (is_f32_data && is_f32_grid && attrs.mode == op::v9::GridSample::InterpolationMode::BICUBIC &&
+                attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS && !attrs.align_corners) {
+                return false;  // keep original GridSample
             }
             return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& attrs) {
                 return build_bicubic_nhwc(context, attrs);
