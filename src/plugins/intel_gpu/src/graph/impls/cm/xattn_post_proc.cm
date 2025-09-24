@@ -51,7 +51,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t block_mask ATTR, svmptr_t merge
         for (int i = 1; i < MERGED_Q_NUM; i++) {
             if (m_mereged * MERGED_Q_NUM + i < q_stride_pad / TOKEN_IN_BLOCK) {
                 vector<uchar, 32> cur_mask = cm_ptr_load<int, 8>((int*)block_mask, j + i * k_block_pad).format<uchar>();
-                new_mask &= cur_mask;
+                new_mask |= cur_mask;
             }
         }
         cm_ptr_store<int, 32 / 4>((int*)merged_block_mask, j, new_mask.format<int>());
