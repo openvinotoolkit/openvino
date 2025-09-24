@@ -196,7 +196,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(MlasGemmExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
                 VERIFY(weiRank(config) <= 3U, UNSUPPORTED_WEI_RANK);
                 auto wei_rank = weiRank(config);
-                return (wei_rank == 3U && weiDims(config)[0] > 1);
+                return wei_rank != 3U || weiDims(config)[0] <= 1;
             },
             HasNoOptimalConfig<FCAttrs>{},
             AcceptsAnyShape<FCAttrs>,
