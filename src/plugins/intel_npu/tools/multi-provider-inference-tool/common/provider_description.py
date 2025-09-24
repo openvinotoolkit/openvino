@@ -11,15 +11,17 @@ from common.model_description_schema import ModelInfoData
 from common.tensor_description_schema import TensorInfoData
 from common.source_description_schema import InputSource
 
+
 class Config:
-    config_description = '''Expects information in JSON format implementing the schema:
+    config_description = """Expects information in JSON format implementing the schema:
 "{
     \\"attr_name_0\\": \\"value_0\\",
     \\"attr_name_1\\": \\"value_1\\",
     ...
     \\"attr_name_N\\": \\"value_N\\",
 }"
-'''
+"""
+
     def __init__(self, cmd_argument: str):
         self.cfg_dict = {}
         if cmd_argument and len(cmd_argument) != 0:
@@ -40,17 +42,19 @@ class Config:
                         lines = file.readlines()
                         for line in lines:
                             line = line.strip()
-                            if len(line) == 0  or line[0] == '#':
+                            if len(line) == 0 or line[0] == "#":
                                 continue
 
                             kv_pairs = line.split()
                             if len(kv_pairs) != 2:
-                                raise RuntimeError(f"Cannot parse config file: {cmd_argument}. It must be either JSON or a list of 'KEY\\tVALUE' pairs, encountered the failed line: \"{line}\"")
+                                raise RuntimeError(
+                                    f"Cannot parse config file: {cmd_argument}. It must be either JSON or a list of 'KEY\\tVALUE' pairs, encountered the failed line: \"{line}\""
+                                )
                             self.cfg_dict[kv_pairs[0]] = kv_pairs[1]
 
 
 class ModelInfo:
-    model_description = '''Expects information in JSON format implementing the schema:
+    model_description = """Expects information in JSON format implementing the schema:
 "{
     \\"input_0\\": {
         \\"layout\\":\\"NCHW\\",
@@ -61,7 +65,7 @@ class ModelInfo:
         \\"shape\\": [2,3,4]
     }
 }"
-'''
+"""
 
     def __init__(self, command_line_ppm=""):
         json_data = {}
@@ -74,12 +78,10 @@ class ModelInfo:
                 try:
                     json_data = json.loads(command_line_ppm)
                 except Exception as ex:
-                    raise RuntimeError(
-                        ModelInfo.model_description + f"\nGot:\n{command_line_ppm}"
-                    )
+                    raise RuntimeError(ModelInfo.model_description + f"\nGot:\n{command_line_ppm}")
         self.preproc_per_io = ModelInfoData(json_data)
 
-    def set_model_name(self, model_name : str):
+    def set_model_name(self, model_name: str):
         self.model_name = model_name
 
     def get_model_name(self):
@@ -88,7 +90,7 @@ class ModelInfo:
     def insert_info(self, io_name: str, info: {}):
         # as we're inserting new data for a model input,
         # check this data on validity before inserting
-        new_data = ModelInfoData({io_name : info})
+        new_data = ModelInfoData({io_name: info})
         self.preproc_per_io[io_name] = new_data[io_name]
 
     def update_info(self, io_name: str, additional_info: {}):
@@ -105,11 +107,12 @@ class ModelInfo:
             raise RuntimeError(f"Cannot find input/output: {io_name} for a model among: {self.get_model_io_names()}")
         return self.preproc_per_io[io_name]
 
+
 class ModelInfoPrinter:
     def __init__(self):
         pass
 
-    def serialize_model_info(self, provider_name : str, model_path : Path, orig_model_info : ModelInfo):
+    def serialize_model_info(self, provider_name: str, model_path: Path, orig_model_info: ModelInfo):
         model_info = copy.deepcopy(orig_model_info)
 
         base_directory = Path(*provider_name.split("/"))
@@ -134,20 +137,21 @@ class ModelInfoPrinter:
         model_meta_info["model_path"] = str(model_path)
         model_meta_info["model_info_path"] = str(model_info_json_path)
         sha256 = hashlib.sha256()
-        sha256.update(str(Path(__file__).absolute()).encode('utf-8'))
+        sha256.update(str(Path(__file__).absolute()).encode("utf-8"))
         utter_model_info["_meta_" + sha256.hexdigest()] = model_meta_info
-        return json.dumps(utter_model_info,indent=4)
+        return json.dumps(utter_model_info, indent=4)
 
 
 class TensorInfo:
     necessary_attrs = {"data", "bytes_size", "model"}
     ext_attrs = ["element_type", "shape"]
 
-    types={"input", "output"}
+    types = {"input", "output"}
+
     def __init__(self):
         self.info = {}
 
-    def set_type(self, ttype:str):
+    def set_type(self, ttype: str):
         if ttype not in TensorInfo.types:
             raise RuntimeError(f"Cannot specify type: {ttype} for TensorInfo, available types: {TensorInfo.types}")
         self.info["type"] = ttype
@@ -158,17 +162,18 @@ class TensorInfo:
     def validate(self):
         self.info = TensorInfoData(self.info)
 
+
 class TensorsInfoPrinter:
     canonization_table = {
         "<": "%%_lt_%%",
         ">": "%%_gt_%%",
         ":": "%%_colon_%%",
-        "\"": "%%_dquote_%%",
+        '"': "%%_dquote_%%",
         "/": "%%_fslash_%%",
         "\\": "%%_bslash_%%",
         "|": "%%_pipe_%%",
         "?": "%%_quest_%%",
-        "*": "%%_asterix_%%"
+        "*": "%%_asterix_%%",
     }
     decanonization_table = {v: k for k, v in canonization_table.items()}
 
@@ -188,9 +193,9 @@ class TensorsInfoPrinter:
         return source + "s_dump_data.json"
 
     @staticmethod
-    def canonize_file_name(file_name : str):
-        file_name = "".join(str(file_name).split())   # remove spaces
-        file_name = "_".join(str(file_name).split(","))   # remove spaces
+    def canonize_file_name(file_name: str):
+        file_name = "".join(str(file_name).split())  # remove spaces
+        file_name = "_".join(str(file_name).split(","))  # remove spaces
         return file_name
 
     @staticmethod
@@ -212,29 +217,29 @@ class TensorsInfoPrinter:
         file_name = file_name[0:-1] + ".blob"
         return file_name
 
-    def get_printable_input_tensor_info(self, input_tensors_dict:list):
+    def get_printable_input_tensor_info(self, input_tensors_dict: list):
         printable_tensor_info = {}
         for info in input_tensors_dict:
             if info["type"] != "input":
                 continue
-            input_files = info['input_files']['files']
+            input_files = info["input_files"]["files"]
             tensor_source = {}
-            tensor_source["files"] = info['input_files']['files']
-            tensor_source["type"] = info['input_files']['type']
+            tensor_source["files"] = info["input_files"]["files"]
+            tensor_source["type"] = info["input_files"]["type"]
             if tensor_source["type"] == common.enums.InputSourceFileType.image.name:
                 tensor_source["convert"] = {}
-                tensor_source["convert"]["shape"] = info['shape']
-                tensor_source["convert"]["layout"] = layout_to_str(info['layout'])
-                tensor_source["convert"]["element_type"] = info['element_type']
+                tensor_source["convert"]["shape"] = info["shape"]
+                tensor_source["convert"]["layout"] = layout_to_str(info["layout"])
+                tensor_source["convert"]["element_type"] = info["element_type"]
             else:
-                tensor_source["shape"] = info['shape']
-                tensor_source["layout"] = layout_to_str(info['layout'])
-                tensor_source["element_type"] = info['element_type']
+                tensor_source["shape"] = info["shape"]
+                tensor_source["layout"] = layout_to_str(info["layout"])
+                tensor_source["element_type"] = info["element_type"]
 
-            printable_tensor_info[info['source']] = tensor_source
+            printable_tensor_info[info["source"]] = tensor_source
         return printable_tensor_info
 
-    def get_printable_output_tensor_info(self, input_tensors_dict:list):
+    def get_printable_output_tensor_info(self, input_tensors_dict: list):
         printable_tensor_info = {}
         for info in input_tensors_dict:
             if info["type"] != "output":
@@ -242,30 +247,29 @@ class TensorsInfoPrinter:
 
             tensor_source = {}
             if "input_files" in info.keys():
-                tensor_source["files"] = info['input_files']['files']
-                tensor_source["type"] = info['input_files']['type']
+                tensor_source["files"] = info["input_files"]["files"]
+                tensor_source["type"] = info["input_files"]["type"]
 
             if "layout" in info.keys():
-                tensor_source["layout"] = layout_to_str(info['layout'])
+                tensor_source["layout"] = layout_to_str(info["layout"])
 
-            tensor_source["shape"] = info['shape']
-            tensor_source["element_type"] = info['element_type']
-            tensor_source["type"] = 'bin'
-            printable_tensor_info[info['source']] = tensor_source
+            tensor_source["shape"] = info["shape"]
+            tensor_source["element_type"] = info["element_type"]
+            tensor_source["type"] = "bin"
+            printable_tensor_info[info["source"]] = tensor_source
         return printable_tensor_info
 
-    def get_printable_tensor_info(self, input_tensors_dict:list, ttype):
-        return  self.get_printable_input_tensor_info(input_tensors_dict) if  ttype == "input" else self.get_printable_output_tensor_info(input_tensors_dict)
+    def get_printable_tensor_info(self, input_tensors_dict: list, ttype):
+        return self.get_printable_input_tensor_info(input_tensors_dict) if ttype == "input" else self.get_printable_output_tensor_info(input_tensors_dict)
 
-
-    def serialize_tensors_by_type(self, root_path : Path, input_tensors_dict : list, ttype):
+    def serialize_tensors_by_type(self, root_path: Path, input_tensors_dict: list, ttype):
         for input_tensor_info in input_tensors_dict:
             # input_tensor_info is a composition of the following schemas:
             # - ModelInfoData schema
             # - TensorInfoData schema
             # - InputSource schema
             # Ccheck that input_tensor_info met these schemas
-            ModelInfoData({"" : input_tensor_info})
+            ModelInfoData({"": input_tensor_info})
             TensorInfoData(input_tensor_info)
             if "input_files" in input_tensor_info:
                 InputSource(input_tensor_info["input_files"])
@@ -279,7 +283,7 @@ class TensorsInfoPrinter:
             # ensure the root directory exists
             root_path.mkdir(parents=True, exist_ok=True)
             for info in input_tensors_dict:
-                if ttype and len(ttype) !=0 and info["type"] != ttype:
+                if ttype and len(ttype) != 0 and info["type"] != ttype:
                     continue
 
                 # create a model directory inside the root directory.
@@ -300,7 +304,7 @@ class TensorsInfoPrinter:
                     if aggregated_input_meta[info["source"]]["type"] != common.enums.InputSourceFileType.bin.name:
                         model_input_meta_info_file_path = main_model_source_dir / (canonized_fs_input_name + "_img.json")
                         with model_input_meta_info_file_path.open("w") as outfile:
-                            json.dump({info["source"] : aggregated_input_meta[info["source"]]}, outfile)
+                            json.dump({info["source"]: aggregated_input_meta[info["source"]]}, outfile)
 
                 # create input/ouput directory which stores blobs only
                 blob_storage_dir = main_model_source_dir / canonized_fs_input_name
@@ -312,7 +316,7 @@ class TensorsInfoPrinter:
                 serialized_blob_paths.append(blob_file_path)
 
                 # tensor meta is input meta having all conversions applied which fit a model
-                aggregated_tensor_meta[info["source"]]["files"] = [str(blob_file_path)]   # print as list
+                aggregated_tensor_meta[info["source"]]["files"] = [str(blob_file_path)]  # print as list
                 aggregated_tensor_meta[info["source"]]["type"] = common.enums.InputSourceFileType.bin.name
                 if "convert" in aggregated_tensor_meta[info["source"]].keys():
                     aggregated_tensor_meta[info["source"]].update(aggregated_tensor_meta[info["source"]]["convert"])
@@ -321,7 +325,7 @@ class TensorsInfoPrinter:
                 # dump tensor meta in JSON
                 model_tensor_meta_info_file_path = main_model_source_dir / (canonized_fs_input_name + "_dump.json")
                 with model_tensor_meta_info_file_path.open("w") as outfile:
-                    json.dump({info["source"] : aggregated_tensor_meta[info["source"]]}, outfile)
+                    json.dump({info["source"]: aggregated_tensor_meta[info["source"]]}, outfile)
         except Exception as ex:
             raise RuntimeError(f"Cannot serialize tensor of type: {ttype} into a file, error: {ex}")
 
@@ -338,7 +342,7 @@ class TensorsInfoPrinter:
 
         return serialized_blob_paths, input_info_file_path, input_info_dumps_file_path
 
-    def deserialize_output_tensor_descriptions(self, root_path : Path, model_name : str):
+    def deserialize_output_tensor_descriptions(self, root_path: Path, model_name: str):
         ttype = "output"
         if ttype not in TensorInfo.types:
             raise RuntimeError(f"Incorrect tensor type to deserialize: {ttype}. Expected: {TensorInfo.types}")

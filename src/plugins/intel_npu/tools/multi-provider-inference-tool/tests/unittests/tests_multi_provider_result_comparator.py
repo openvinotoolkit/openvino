@@ -19,24 +19,32 @@ from array import array
 from common.provider_description import TensorsInfoPrinter
 from tools.multi_provider_blobs_comparison import multi_provider_result_comparator
 
+
 def generate_posix_file_paths_from_file_names(root_dir, provider_name, file_names):
     return [pathlib.Path(os.path.join(root_dir, provider_name, f)).as_posix() for f in file_names]
 
+
 def generate_two_outputs_from_file_path_list(file_path_list_1, file_path_list_2):
-    outputs_dump_data_str = '''{
+    outputs_dump_data_str = (
+        '''{
     "output_0": {
         "shape": [1, 1],
         "element_type": "float16",
         "type": "bin",
-        "files": ["''' + "\",\"".join(file_path_list_1) + '''"]
+        "files": ["'''
+        + '","'.join(file_path_list_1)
+        + '''"]
         },
     "output_1": {
         "shape": [1, 2],
         "element_type": "float16",
         "type": "bin",
-        "files": ["''' + "\",\"".join(file_path_list_2) + '''"]
+        "files": ["'''
+        + '","'.join(file_path_list_2)
+        + """"]
         }
-    }'''
+    }"""
+    )
     return json.loads(outputs_dump_data_str)
 
 
@@ -46,17 +54,35 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         self.sandbox_dir = "UtilsTests_Tools_multi_provider_result_comparator"
         self.temporary_directories = []
 
-        self.provider_A_output_0_file_path_list = generate_posix_file_paths_from_file_names(self.sandbox_dir, "provider_A", ["output_0_file_0.blob", "output_0_file_1.blob"])
-        self.provider_A_output_1_file_path_list = generate_posix_file_paths_from_file_names(self.sandbox_dir, "provider_A", ["output_1_file_0.blob", "output_1_file_1.blob"])
-        self.provider_A_outputs_dump_data_json = generate_two_outputs_from_file_path_list(self.provider_A_output_0_file_path_list, self.provider_A_output_1_file_path_list)
+        self.provider_A_output_0_file_path_list = generate_posix_file_paths_from_file_names(
+            self.sandbox_dir, "provider_A", ["output_0_file_0.blob", "output_0_file_1.blob"]
+        )
+        self.provider_A_output_1_file_path_list = generate_posix_file_paths_from_file_names(
+            self.sandbox_dir, "provider_A", ["output_1_file_0.blob", "output_1_file_1.blob"]
+        )
+        self.provider_A_outputs_dump_data_json = generate_two_outputs_from_file_path_list(
+            self.provider_A_output_0_file_path_list, self.provider_A_output_1_file_path_list
+        )
 
-        self.provider_B_output_0_file_path_list = generate_posix_file_paths_from_file_names(self.sandbox_dir, "provider_B", ["output_0_file_0.blob", "output_0_file_1.blob"])
-        self.provider_B_output_1_file_path_list = generate_posix_file_paths_from_file_names(self.sandbox_dir, "provider_B", ["output_1_file_0.blob", "output_1_file_1.blob"])
-        self.provider_B_outputs_dump_data_json = generate_two_outputs_from_file_path_list(self.provider_B_output_0_file_path_list, self.provider_B_output_1_file_path_list)
+        self.provider_B_output_0_file_path_list = generate_posix_file_paths_from_file_names(
+            self.sandbox_dir, "provider_B", ["output_0_file_0.blob", "output_0_file_1.blob"]
+        )
+        self.provider_B_output_1_file_path_list = generate_posix_file_paths_from_file_names(
+            self.sandbox_dir, "provider_B", ["output_1_file_0.blob", "output_1_file_1.blob"]
+        )
+        self.provider_B_outputs_dump_data_json = generate_two_outputs_from_file_path_list(
+            self.provider_B_output_0_file_path_list, self.provider_B_output_1_file_path_list
+        )
 
-        self.provider_C_output_0_file_path_list = generate_posix_file_paths_from_file_names(self.sandbox_dir, "provider_C", ["output_0_file_0.blob", "output_0_file_1.blob"])
-        self.provider_C_output_1_file_path_list = generate_posix_file_paths_from_file_names(self.sandbox_dir, "provider_C", ["output_1_file_0.blob", "output_1_file_1.blob"])
-        self.provider_C_outputs_dump_data_json = generate_two_outputs_from_file_path_list(self.provider_C_output_0_file_path_list, self.provider_C_output_1_file_path_list)
+        self.provider_C_output_0_file_path_list = generate_posix_file_paths_from_file_names(
+            self.sandbox_dir, "provider_C", ["output_0_file_0.blob", "output_0_file_1.blob"]
+        )
+        self.provider_C_output_1_file_path_list = generate_posix_file_paths_from_file_names(
+            self.sandbox_dir, "provider_C", ["output_1_file_0.blob", "output_1_file_1.blob"]
+        )
+        self.provider_C_outputs_dump_data_json = generate_two_outputs_from_file_path_list(
+            self.provider_C_output_0_file_path_list, self.provider_C_output_1_file_path_list
+        )
 
     def tearDown(self):
         for d in self.temporary_directories:
@@ -155,9 +181,11 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         self.assertEqual(result["data"][provider_A_base_dir]["outputs"], result["data"][provider_B_base_dir]["outputs"])
         self.assertEqual(result["data"][provider_A_base_dir]["outputs"], result["data"][provider_C_base_dir]["outputs"])
 
-        files_per_output = {provider_A_base_dir: {"output_0": len(self.provider_A_output_0_file_path_list), "output_1": len(self.provider_A_output_1_file_path_list)},
-                            provider_B_base_dir: {"output_0": len(self.provider_B_output_0_file_path_list), "output_1": len(self.provider_B_output_1_file_path_list)},
-                            provider_C_base_dir: {"output_0": len(self.provider_C_output_0_file_path_list), "output_1": len(self.provider_C_output_1_file_path_list)}}
+        files_per_output = {
+            provider_A_base_dir: {"output_0": len(self.provider_A_output_0_file_path_list), "output_1": len(self.provider_A_output_1_file_path_list)},
+            provider_B_base_dir: {"output_0": len(self.provider_B_output_0_file_path_list), "output_1": len(self.provider_B_output_1_file_path_list)},
+            provider_C_base_dir: {"output_0": len(self.provider_C_output_0_file_path_list), "output_1": len(self.provider_C_output_1_file_path_list)},
+        }
 
         for o_name in result["data"][provider_A_base_dir]["outputs"]:
             # each provider has the same set of output names
@@ -200,7 +228,7 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
 
         # generate files for 1 output out of 2 outputs for each provider
         for f in [*self.provider_A_output_0_file_path_list, *self.provider_B_output_0_file_path_list, *self.provider_C_output_0_file_path_list]:
-            with open(f,"w") as file:
+            with open(f, "w") as file:
                 file.write("1234")
 
         result = multi_provider_result_comparator(provider_A_base_dir, [provider_B_base_dir, provider_C_base_dir], model_name, usecase_num)
@@ -221,9 +249,11 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         self.assertEqual(result["data"][provider_A_base_dir]["outputs"], result["data"][provider_B_base_dir]["outputs"])
         self.assertEqual(result["data"][provider_A_base_dir]["outputs"], result["data"][provider_C_base_dir]["outputs"])
 
-        files_per_output = {provider_A_base_dir: {"output_0": len(self.provider_A_output_0_file_path_list), "output_1": len(self.provider_A_output_1_file_path_list)},
-                            provider_B_base_dir: {"output_0": len(self.provider_B_output_0_file_path_list), "output_1": len(self.provider_B_output_1_file_path_list)},
-                            provider_C_base_dir: {"output_0": len(self.provider_C_output_0_file_path_list), "output_1": len(self.provider_C_output_1_file_path_list)}}
+        files_per_output = {
+            provider_A_base_dir: {"output_0": len(self.provider_A_output_0_file_path_list), "output_1": len(self.provider_A_output_1_file_path_list)},
+            provider_B_base_dir: {"output_0": len(self.provider_B_output_0_file_path_list), "output_1": len(self.provider_B_output_1_file_path_list)},
+            provider_C_base_dir: {"output_0": len(self.provider_C_output_0_file_path_list), "output_1": len(self.provider_C_output_1_file_path_list)},
+        }
         for o_name, status_message_count in zip(result["data"][provider_A_base_dir]["outputs"], [0, files_per_output[provider_A_base_dir]["output_0"]]):
             # each provider has the same set of output names
             self.assertTrue(o_name in result["data"][provider_A_base_dir]["data"].keys())
@@ -243,12 +273,24 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
             self.assertEqual(len(result["data"][provider_C_base_dir]["data"][o_name]["status"]), status_message_count)
 
             # no files in lists
-            self.assertEqual(len(result["data"][provider_A_base_dir]["data"][o_name]["files"]), files_per_output[provider_A_base_dir][o_name] - status_message_count)
-            self.assertEqual(len(result["data"][provider_B_base_dir]["data"][o_name]["files"]), files_per_output[provider_B_base_dir][o_name] - status_message_count)
-            self.assertEqual(len(result["data"][provider_C_base_dir]["data"][o_name]["files"]), files_per_output[provider_C_base_dir][o_name] - status_message_count)
-            self.assertEqual(len(result["data"][provider_A_base_dir]["data"][o_name]["data"]), files_per_output[provider_A_base_dir][o_name] - status_message_count)
-            self.assertEqual(len(result["data"][provider_B_base_dir]["data"][o_name]["data"]), files_per_output[provider_B_base_dir][o_name] - status_message_count)
-            self.assertEqual(len(result["data"][provider_C_base_dir]["data"][o_name]["data"]), files_per_output[provider_C_base_dir][o_name] - status_message_count)
+            self.assertEqual(
+                len(result["data"][provider_A_base_dir]["data"][o_name]["files"]), files_per_output[provider_A_base_dir][o_name] - status_message_count
+            )
+            self.assertEqual(
+                len(result["data"][provider_B_base_dir]["data"][o_name]["files"]), files_per_output[provider_B_base_dir][o_name] - status_message_count
+            )
+            self.assertEqual(
+                len(result["data"][provider_C_base_dir]["data"][o_name]["files"]), files_per_output[provider_C_base_dir][o_name] - status_message_count
+            )
+            self.assertEqual(
+                len(result["data"][provider_A_base_dir]["data"][o_name]["data"]), files_per_output[provider_A_base_dir][o_name] - status_message_count
+            )
+            self.assertEqual(
+                len(result["data"][provider_B_base_dir]["data"][o_name]["data"]), files_per_output[provider_B_base_dir][o_name] - status_message_count
+            )
+            self.assertEqual(
+                len(result["data"][provider_C_base_dir]["data"][o_name]["data"]), files_per_output[provider_C_base_dir][o_name] - status_message_count
+            )
 
     def test_compare_binary_files_correlation(self):
         provider_A = copy.deepcopy(self.provider_A_outputs_dump_data_json)
@@ -264,11 +306,17 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         provider_B_base_dir = os.path.join(self.sandbox_dir, "provider_B")
         provider_C_base_dir = os.path.join(self.sandbox_dir, "provider_C")
 
-        for f in [*self.provider_A_output_0_file_path_list, *self.provider_B_output_0_file_path_list, *self.provider_B_output_1_file_path_list, *self.provider_C_output_0_file_path_list, *self.provider_C_output_1_file_path_list]:
-            with open(f,"w") as file:
+        for f in [
+            *self.provider_A_output_0_file_path_list,
+            *self.provider_B_output_0_file_path_list,
+            *self.provider_B_output_1_file_path_list,
+            *self.provider_C_output_0_file_path_list,
+            *self.provider_C_output_1_file_path_list,
+        ]:
+            with open(f, "w") as file:
                 file.write("1234")
         for f in self.provider_A_output_1_file_path_list:
-            with open(f,"w") as file:
+            with open(f, "w") as file:
                 file.write("4321")
 
         result = multi_provider_result_comparator(provider_A_base_dir, [provider_B_base_dir, provider_C_base_dir], model_name, usecase_num)
@@ -289,9 +337,11 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         self.assertEqual(result["data"][provider_A_base_dir]["outputs"], result["data"][provider_B_base_dir]["outputs"])
         self.assertEqual(result["data"][provider_A_base_dir]["outputs"], result["data"][provider_C_base_dir]["outputs"])
 
-        files_per_output = {provider_A_base_dir: {"output_0": len(self.provider_A_output_0_file_path_list), "output_1": len(self.provider_A_output_1_file_path_list)},
-                            provider_B_base_dir: {"output_0": len(self.provider_B_output_0_file_path_list), "output_1": len(self.provider_B_output_1_file_path_list)},
-                            provider_C_base_dir: {"output_0": len(self.provider_C_output_0_file_path_list), "output_1": len(self.provider_C_output_1_file_path_list)}}
+        files_per_output = {
+            provider_A_base_dir: {"output_0": len(self.provider_A_output_0_file_path_list), "output_1": len(self.provider_A_output_1_file_path_list)},
+            provider_B_base_dir: {"output_0": len(self.provider_B_output_0_file_path_list), "output_1": len(self.provider_B_output_1_file_path_list)},
+            provider_C_base_dir: {"output_0": len(self.provider_C_output_0_file_path_list), "output_1": len(self.provider_C_output_1_file_path_list)},
+        }
         for o_name, std_corr in zip(result["data"][provider_A_base_dir]["outputs"], [1, 0.7171800136566162]):
             # each provider has the same set of output names
             self.assertTrue(o_name in result["data"][provider_A_base_dir]["data"].keys())
@@ -345,14 +395,17 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         provider_C_base_dir = os.path.join(self.sandbox_dir, "provider_C")
 
         # Do not generate files for B, output 1
-        for f in [*self.provider_A_output_0_file_path_list,
-                  *self.provider_B_output_0_file_path_list,
-                  *self.provider_C_output_0_file_path_list, *self.provider_C_output_1_file_path_list]:
-            with open(f,"w") as file:
+        for f in [
+            *self.provider_A_output_0_file_path_list,
+            *self.provider_B_output_0_file_path_list,
+            *self.provider_C_output_0_file_path_list,
+            *self.provider_C_output_1_file_path_list,
+        ]:
+            with open(f, "w") as file:
                 file.write("1234")
         # A output 1 has unexpected std_corr
         for f in self.provider_A_output_1_file_path_list:
-            with open(f,"w") as file:
+            with open(f, "w") as file:
                 file.write("4321")
 
         result = multi_provider_result_comparator(provider_A_base_dir, [provider_B_base_dir, provider_C_base_dir], model_name, usecase_num)
@@ -373,11 +426,13 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         self.assertEqual(result["data"][provider_A_base_dir]["outputs"], result["data"][provider_B_base_dir]["outputs"])
         self.assertEqual(result["data"][provider_A_base_dir]["outputs"], result["data"][provider_C_base_dir]["outputs"])
 
-        files_per_output = {provider_A_base_dir: {"output_0": len(self.provider_A_output_0_file_path_list), "output_1": len(self.provider_A_output_1_file_path_list)},
-                            provider_B_base_dir: {"output_0": len(self.provider_B_output_0_file_path_list), "output_1": 0},
-                            provider_C_base_dir: {"output_0": len(self.provider_C_output_0_file_path_list), "output_1": len(self.provider_C_output_1_file_path_list)}}
-        provider_B_status_per_output = {"output_0": 0, "output_1":len(self.provider_B_output_1_file_path_list) }
-        provider_B_file_found_per_output = {"output_0": True, "output_1":False}
+        files_per_output = {
+            provider_A_base_dir: {"output_0": len(self.provider_A_output_0_file_path_list), "output_1": len(self.provider_A_output_1_file_path_list)},
+            provider_B_base_dir: {"output_0": len(self.provider_B_output_0_file_path_list), "output_1": 0},
+            provider_C_base_dir: {"output_0": len(self.provider_C_output_0_file_path_list), "output_1": len(self.provider_C_output_1_file_path_list)},
+        }
+        provider_B_status_per_output = {"output_0": 0, "output_1": len(self.provider_B_output_1_file_path_list)}
+        provider_B_file_found_per_output = {"output_0": True, "output_1": False}
         for o_name, std_corr in zip(result["data"][provider_A_base_dir]["outputs"], [1, 0.7171800136566162]):
             # each provider has the same set of output names
             self.assertTrue(o_name in result["data"][provider_A_base_dir]["data"].keys())
@@ -440,14 +495,17 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         provider_C_base_dir = os.path.join(self.sandbox_dir, "provider_C")
 
         # Do not generate files for B, output 1
-        for f in [*self.provider_A_output_0_file_path_list,
-                  *self.provider_B_output_0_file_path_list,
-                  *self.provider_C_output_0_file_path_list, *self.provider_C_output_1_file_path_list]:
-            with open(f,"w") as file:
+        for f in [
+            *self.provider_A_output_0_file_path_list,
+            *self.provider_B_output_0_file_path_list,
+            *self.provider_C_output_0_file_path_list,
+            *self.provider_C_output_1_file_path_list,
+        ]:
+            with open(f, "w") as file:
                 file.write("1234")
         # A output 1 has unexpected std_corr
         for f in self.provider_B_output_1_file_path_list:
-            with open(f,"w") as file:
+            with open(f, "w") as file:
                 file.write("4321")
 
         result = multi_provider_result_comparator(provider_A_base_dir, [provider_B_base_dir, provider_C_base_dir], model_name, usecase_num)
@@ -468,11 +526,13 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         self.assertEqual(result["data"][provider_A_base_dir]["outputs"], result["data"][provider_B_base_dir]["outputs"])
         self.assertEqual(result["data"][provider_A_base_dir]["outputs"], result["data"][provider_C_base_dir]["outputs"])
 
-        files_per_output = {provider_A_base_dir: {"output_0": len(self.provider_A_output_0_file_path_list), "output_1": 0},
-                            provider_B_base_dir: {"output_0": len(self.provider_B_output_0_file_path_list), "output_1": len(self.provider_B_output_1_file_path_list)},
-                            provider_C_base_dir: {"output_0": len(self.provider_C_output_0_file_path_list), "output_1": len(self.provider_C_output_1_file_path_list)}}
-        provider_A_status_per_output = {"output_0": 0, "output_1":len(self.provider_A_output_1_file_path_list) }
-        provider_A_file_found_per_output = {"output_0": True, "output_1":False}
+        files_per_output = {
+            provider_A_base_dir: {"output_0": len(self.provider_A_output_0_file_path_list), "output_1": 0},
+            provider_B_base_dir: {"output_0": len(self.provider_B_output_0_file_path_list), "output_1": len(self.provider_B_output_1_file_path_list)},
+            provider_C_base_dir: {"output_0": len(self.provider_C_output_0_file_path_list), "output_1": len(self.provider_C_output_1_file_path_list)},
+        }
+        provider_A_status_per_output = {"output_0": 0, "output_1": len(self.provider_A_output_1_file_path_list)}
+        provider_A_file_found_per_output = {"output_0": True, "output_1": False}
         for o_name, std_corr in zip(result["data"][provider_A_base_dir]["outputs"], [1, 0.7171800136566162]):
             # each provider has the same set of output names
             self.assertTrue(o_name in result["data"][provider_A_base_dir]["data"].keys())
@@ -517,5 +577,6 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
                 self.assertAlmostEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=4)
                 self.assertAlmostEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=4)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

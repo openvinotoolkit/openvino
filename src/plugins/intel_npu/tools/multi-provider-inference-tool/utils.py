@@ -11,6 +11,7 @@ import math
 import numpy as np
 import os
 
+
 def prepare_input_description(infiles, data_shape, model_data_type, layout):
     infiles_description = copy.deepcopy(infiles)
     if "layout" not in infiles_description.keys():
@@ -31,9 +32,10 @@ def prepare_input_description(infiles, data_shape, model_data_type, layout):
         infiles_description["to_model_element_type"] = model_data_type
     return infiles_description
 
+
 def load_tensor_from_file(infiles_description):
     if "element_type" not in infiles_description.keys():
-        raise RuntimeError(f"In case of binary input each input description must be accompanied by \"element_type\". Please add it to each input data")
+        raise RuntimeError(f'In case of binary input each input description must be accompanied by "element_type". Please add it to each input data')
     file_data_precision = np.dtype(infiles_description["element_type"])
     tensor_shape = infiles_description["shape"]
     layout = infiles_description["layout"]
@@ -60,15 +62,11 @@ def load_tensor_from_file(infiles_description):
     file_tensor_size = math.prod(tensor_shape) * file_data_precision.itemsize
 
     if model_expected_precision != file_data_precision:
-        print(
-            f"Converting {file_path} input from {file_data_precision} to {model_expected_precision}"
-        )
+        print(f"Converting {file_path} input from {file_data_precision} to {model_expected_precision}")
         # binary file fit to tensor
         if file_size == file_tensor_size:
             tensor_from_file = np.fromfile(file_path, dtype=file_data_precision).reshape(tensor_shape)
-            assert (
-                model_expected_precision == file_data_precision
-            ), "TODO convert tensors"
+            assert model_expected_precision == file_data_precision, "TODO convert tensors"
             requested_tensor = tensor_from_file
             return requested_tensor, infiles_description
 
@@ -82,12 +80,10 @@ def load_tensor_from_file(infiles_description):
             file_size * N == file_tensor_size
         ), f"File {file_path} contains {file_size} bytes, but {file_tensor_size} total in batch size {N} expected while converting precision from {file_data_precision.name} to {model_expected_precision.name}"
 
-        debatched_shape_list = (copy(tensor_shape))
+        debatched_shape_list = copy(tensor_shape)
         debatched_shape_list[batch_dimension_index_in_tensor_shape_or_none] = 1
         tensor_from_file = np.fromfile(file_path, dtype=file_data_precision).reshape(debatched_shape_list)
-        assert (
-            model_expected_precision == file_data_precision
-        ), "TODO convert tensors for batch"
+        assert model_expected_precision == file_data_precision, "TODO convert tensors for batch"
         assert file_index_in_batch, "Batch is unsupported at the moment"
         requested_tensor = tensor_from_file
         return requested_tensor, infiles_description
@@ -135,8 +131,8 @@ def load_image_from_file(infiles_description):
     image = cv2.imread(file_path)
 
     # the image have to fit the model input shape
-    h = tensor_shape[layout.index('H')]
-    w = tensor_shape[layout.index('W')]
+    h = tensor_shape[layout.index("H")]
+    w = tensor_shape[layout.index("W")]
     resized_image = None
     try:
         if int(h) == -1 or int(w) == -1:
@@ -150,7 +146,7 @@ def load_image_from_file(infiles_description):
         resized_image = cv2.resize(image, (w, h))
 
     # transpose image to a valid model layout
-    if layout =="NCHW":
+    if layout == "NCHW":
         transposed_image = np.transpose(resized_image, (2, 0, 1))
     else:
         transposed_image = np.asarray(resized_image, np.ubyte).astype(model_expected_precision)
@@ -173,8 +169,10 @@ def load_objects_from_file(infiles_description):
         raise RuntimeError(f"Incorrect \"type\": {infiles_description['type']} is used as a source. Expected types: \"bin\",\"image\"")
     return tensor_raw_array, infiles_description
 
+
 def get_model_name(model_path):
-    return os.path.basename(model_path).split('.')[0]
+    return os.path.basename(model_path).split(".")[0]
+
 
 def getLayoutByShape(shape: list) -> str:
     rank = len(shape)

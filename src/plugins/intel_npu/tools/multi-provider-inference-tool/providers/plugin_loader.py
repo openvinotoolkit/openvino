@@ -14,6 +14,7 @@ from pathlib import Path
 import providers.interfaces
 from schema.validator import JSONSchemaValidator
 
+
 class ExecutionProvider:
     model_info_schema = JSONSchemaValidator.load_from_file("model")
     input_source_schema = JSONSchemaValidator.load_from_file("input_source")
@@ -41,7 +42,7 @@ class ExecutionProvider:
         return self.provider_impl.infer(tensors_collection)
 
 
-class ProviderFactory():
+class ProviderFactory:
     def __init__(self):
         self.provider_plugins = ProviderFactory.initialize()
 
@@ -50,7 +51,7 @@ class ProviderFactory():
         provider_plugins = {}
 
         plugin_dir = Path(__file__).parent
-        plugin_paths = sorted(plugin_dir.glob('**/provider.py'))
+        plugin_paths = sorted(plugin_dir.glob("**/provider.py"))
         count = 0
         loaded = 0
         loading_errors = {}
@@ -72,7 +73,7 @@ class ProviderFactory():
 
         error_description = ""
         if len(loading_errors) != 0:
-            for p,e in loading_errors.items():
+            for p, e in loading_errors.items():
                 error_description += "\tModule: " + str(p) + "\n\t\t" + e + "\n"
         if count == 0:
             raise RuntimeError(f"No any plugin detected")
@@ -81,7 +82,7 @@ class ProviderFactory():
         if loaded != count:
             ext_description = ""
             if len(error_description):
-                ext_description = '\nNot loaded plugins:\n' + error_description
+                ext_description = "\nNot loaded plugins:\n" + error_description
             print(f"Loaded plugins: {loaded}/{count}{ext_description}")
         return provider_plugins
 
@@ -90,7 +91,6 @@ class ProviderFactory():
         for p in self.provider_plugins.values():
             ret_list.extend(p.provider_names())
         return ret_list
-
 
     def create_provider_ctx(self, provider_name: str) -> providers.interfaces.Context:
         available_providers = self.get_avaialable_providers()
@@ -101,15 +101,12 @@ class ProviderFactory():
                 break
 
         if not found:
-            raise RuntimeError(
-                f"Unrecognized provider: {provider_name}. Please enter a correct one, which met a regexp from the list: {available_providers}"
-            )
+            raise RuntimeError(f"Unrecognized provider: {provider_name}. Please enter a correct one, which met a regexp from the list: {available_providers}")
         for p in self.provider_plugins.values():
             for ap in p.provider_names():
                 if re.search(ap, provider_name):
                     return p.create(provider_name)
         raise RuntimeError(f"No provider for {provider_name}")
-
 
     def create_provider_for_model(self, ctx: providers.interfaces.Context, model_path: str) -> ExecutionProvider:
         return ExecutionProvider(ctx.create_provider(model_path))

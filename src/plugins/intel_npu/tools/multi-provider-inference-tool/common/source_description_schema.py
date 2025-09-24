@@ -9,6 +9,7 @@ from common.converters import shape_to_list, layout_to_str
 from common.enums import InputSourceFileType
 from schema.validator import JSONSchemaValidator
 
+
 class InputSource(JSONSchemaValidator):
     schema = JSONSchemaValidator.load_from_file("input_source")
 
@@ -29,8 +30,7 @@ class InputSource(JSONSchemaValidator):
         if "type" not in self.keys():
             self["type"] = InputSourceFileType.bin.name
 
-        canonizer = {InputSourceFileType.image.name : InputSource.__canonize_image_data__,
-                    InputSourceFileType.bin.name : InputSource.__canonize_binary_data__}
+        canonizer = {InputSourceFileType.image.name: InputSource.__canonize_image_data__, InputSourceFileType.bin.name: InputSource.__canonize_binary_data__}
         canonizer[self["type"]](self)
 
     def __init__(self, input_json, *args, **kwargs):

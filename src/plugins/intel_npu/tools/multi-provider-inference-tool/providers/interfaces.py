@@ -40,7 +40,7 @@ class Provider(ABC):
 
     @staticmethod
     def canonize_endpoint_name(endpoint_full_name):
-        return endpoint_full_name.split('.')[0]
+        return endpoint_full_name.split(".")[0]
 
 
 class Context(ABC):
@@ -65,7 +65,7 @@ class ProviderHolder:
         return posixpath.join(root_prefix, provider_name)
 
     @staticmethod
-    def __remove_provider_prefix__(provider_name : str):
+    def __remove_provider_prefix__(provider_name: str):
         packages = provider_name.split("/")
         if len(packages) == 0:
             return provider_name, None
@@ -83,30 +83,22 @@ class ProviderHolder:
             elif issubclass(p, Provider):
                 names.append(p.name())
             else:
-                raise RuntimeError(
-                    f'Class of provider: {p.__class__} is neither "Context" nor "Provider"'
-                )
+                raise RuntimeError(f'Class of provider: {p.__class__} is neither "Context" nor "Provider"')
         return names
 
     def prefixed_names(self, prefix_root):
-        return [
-            ProviderHolder.__make_name__(prefix_root, p_name) for p_name in self.name()
-        ]
+        return [ProviderHolder.__make_name__(prefix_root, p_name) for p_name in self.name()]
 
     def get_provider_by_name(self, provider_name):
         for p in self.registered_provides:
             if issubclass(p, Context):
                 for ap in p.provider_names():
                     if re.search(ap, provider_name):
-                        provider_name_specific, _ = (
-                            ProviderHolder.__remove_provider_prefix__(provider_name)
-                        )
+                        provider_name_specific, _ = ProviderHolder.__remove_provider_prefix__(provider_name)
                         return p.get_provider_by_name(provider_name_specific)
             elif issubclass(p, Provider):
                 if re.search(p.name(), provider_name):
                     return p, provider_name
             else:
-                raise RuntimeError(
-                    f'Class of provider: {p.__class__} is neither "Context" nor "Provider"'
-                )
+                raise RuntimeError(f'Class of provider: {p.__class__} is neither "Context" nor "Provider"')
         return None, None

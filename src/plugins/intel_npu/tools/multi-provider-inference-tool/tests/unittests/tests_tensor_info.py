@@ -12,18 +12,19 @@ import sys
 import unittest
 
 sys.path.append("../..")
-from common.provider_description import  TensorInfo
+from common.provider_description import TensorInfo
+
 
 class UtilsTests_tensor_info_validation(unittest.TestCase):
 
     def setUp(self):
-        test_string = '''{
+        test_string = """{
         "data": "<something>",
         "bytes_size": 123456,
         "model": "<my_model>",
         "element_type":"float32",
         "shape": [1,2,3,4]
-    }'''
+    }"""
         self.tensor_info = TensorInfo()
         self.tensor_info.info = json.loads(test_string)
         self.tensor_info.validate()
@@ -47,12 +48,13 @@ class UtilsTests_tensor_info_validation(unittest.TestCase):
     def test_shape_correction(self):
         self.tensor_info.info["shape"] = "[10,20,30,40,50]"
         self.tensor_info.validate()
-        self.assertEqual(self.tensor_info.info["shape"], [10,20,30,40,50])
+        self.assertEqual(self.tensor_info.info["shape"], [10, 20, 30, 40, 50])
 
     def test_layout_correction(self):
-        self.tensor_info.info["layout"] = ["N","C","H","W"]
+        self.tensor_info.info["layout"] = ["N", "C", "H", "W"]
         self.tensor_info.validate()
         self.assertEqual(self.tensor_info.info["layout"], "NCHW")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

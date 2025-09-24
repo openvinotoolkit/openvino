@@ -8,6 +8,7 @@
 from common.converters import shape_to_list, layout_to_str
 from schema.validator import JSONSchemaValidator
 
+
 class ModelInfoData(JSONSchemaValidator):
     schema = JSONSchemaValidator.load_from_file("model")
 

@@ -21,8 +21,10 @@ import utils
 
 import openvino as ov
 
-def ov_layout_to_string(layout : ov.Layout):
-    return ''.join(layout.to_string()[1:-1].split(","))
+
+def ov_layout_to_string(layout: ov.Layout):
+    return "".join(layout.to_string()[1:-1].split(","))
+
 
 class OVContextBase:
     def __init__(self):
@@ -51,9 +53,7 @@ class OVContextBase:
             desired_input_data,
         ) in preprocess_model_data.preproc_per_io.items():
             if "layout" in desired_input_data.keys():
-                ppp.input(input_name).model().set_layout(
-                    ov.Layout(desired_input_data["layout"])
-                )
+                ppp.input(input_name).model().set_layout(ov.Layout(desired_input_data["layout"]))
             if "element_type" in desired_input_data.keys():
                 dtype = np.dtype(getattr(np, desired_input_data["element_type"]))
                 ppp.input(input_name).model().set_element_type(ov.Type(dtype))
@@ -65,13 +65,13 @@ class OVContextBase:
         # OV can'nt obtain a shape from a node using its API
         # providing the node has a dynamic shape.
         # In this case we get shape through node attributes
-        if 'shape' in model_input.get_node().get_attributes().keys():
+        if "shape" in model_input.get_node().get_attributes().keys():
             return model_input.get_node().get_attributes()["shape"]
         try:
             return model_input.get_shape()
         except Exception as ex:
             pass
-        return ['...']
+        return ["..."]
 
     @staticmethod
     def get_model_info(model) -> ModelInfo:
@@ -82,7 +82,7 @@ class OVContextBase:
                 {
                     "element_type": minput.get_element_type().to_dtype().name,
                     "shape": list(OVContextBase.extract_shape_from_model_input(minput)),
-                    "node_type" : "input",
+                    "node_type": "input",
                 },
             )
         for moutput in model.outputs:
@@ -91,7 +91,7 @@ class OVContextBase:
                 {
                     "element_type": moutput.get_element_type().to_dtype().name,
                     "shape": list(OVContextBase.extract_shape_from_model_input(moutput)),
-                    "node_type" : "output",
+                    "node_type": "output",
                 },
             )
         return info
@@ -99,23 +99,19 @@ class OVContextBase:
     @staticmethod
     def get_common_tensor_info(tensor):
         info = TensorInfo()
-        info.info["bytes_size"] = tensor.byte_size#bytearray(tensor.data)
+        info.info["bytes_size"] = tensor.byte_size  # bytearray(tensor.data)
         info.info["data"] = bytearray(tensor.data)
         info.info["element_type"] = tensor.get_element_type().to_dtype().name
         info.info["shape"] = list(tensor.get_shape())
         return info
 
     @staticmethod
-    def collect_layouts_per_io(
-        model: ov.Model, preprocess_model_data: ModelInfo
-    ) -> dict:
+    def collect_layouts_per_io(model: ov.Model, preprocess_model_data: ModelInfo) -> dict:
         return_layouts = {}
         for model_input in model.inputs:
             model_input_name = model_input.get_any_name()
             if model_input_name in preprocess_model_data.preproc_per_io.keys() and "layout" in preprocess_model_data.preproc_per_io[model_input_name].keys():
-                return_layouts[model_input_name] = ov_layout_to_string(ov.Layout(
-                    preprocess_model_data.preproc_per_io[model_input_name]["layout"]
-                ))
+                return_layouts[model_input_name] = ov_layout_to_string(ov.Layout(preprocess_model_data.preproc_per_io[model_input_name]["layout"]))
             else:
                 shape = OVContextBase.extract_shape_from_model_input(model_input)
                 return_layouts[model_input_name] = ov_layout_to_string(getLayoutByShape(shape))
@@ -142,16 +138,14 @@ class OVImplProvider:
         # We need this information of a preparation input tensors phase.
         # So that either we extract this layout from `preprocess_model_data` or
         # try to guess its format from model shape (legacy)
-        self.layout_per_input = self.ctx.collect_layouts_per_io(
-            self.model, preprocess_model_data
-        )
+        self.layout_per_input = self.ctx.collect_layouts_per_io(self.model, preprocess_model_data)
 
     def get_model_info(self):
         info = self.ctx.get_model_info(self.model)
         info.set_model_name(utils.get_model_name(self.model_path))
         # for some unknown reasons ov.Model doesn't contain layout, so add it
-        for i,l in self.layout_per_input.items():
-            info.update_info(i, {"layout" : l})
+        for i, l in self.layout_per_input.items():
+            info.update_info(i, {"layout": l})
         return info
 
     def get_tensor_info(self, tensor) -> TensorInfo:
@@ -167,13 +161,16 @@ class OVImplProvider:
         for model_input in self.model.inputs:
             model_input_name = model_input.get_any_name()
             if model_input_name not in input_files.keys():
-                raise RuntimeError(
-                    f"Cannot find input file for model input: {model_input_name} in user specified inputs: {input_files.keys()}"
-                )
+                raise RuntimeError(f"Cannot find input file for model input: {model_input_name} in user specified inputs: {input_files.keys()}")
 
-            infiles_description = utils.prepare_input_description(input_files[model_input_name], list(model_info.get_model_io_info(model_input_name)["shape"]), model_info.get_model_io_info(model_input_name)["element_type"], self.layout_per_input[model_input_name])
+            infiles_description = utils.prepare_input_description(
+                input_files[model_input_name],
+                list(model_info.get_model_io_info(model_input_name)["shape"]),
+                model_info.get_model_io_info(model_input_name)["element_type"],
+                self.layout_per_input[model_input_name],
+            )
             tensor_raw_array, infiles_description = utils.load_objects_from_file(infiles_description)
-            return_tensors[model_input_name] = ov.Tensor(tensor_raw_array)# -S- , ov.Shape(shape))
+            return_tensors[model_input_name] = ov.Tensor(tensor_raw_array)  # -S- , ov.Shape(shape))
         return return_tensors
 
     def infer(self, executional_model, input_tensors):
@@ -187,7 +184,7 @@ class OVImplProvider:
         output_index = 0
         for output in self.model.outputs:
             output_tensors[output.get_any_name()] = ov.Tensor(results[output_index])
-            output_index +=1
+            output_index += 1
         return output_tensors
 
 
@@ -202,7 +199,7 @@ class OVCPUProvider(Provider):
     def name() -> str:
         return "CPU$"
 
-    def create_model(self, preprocess_model_data: ModelInfo, provider_config : Config) -> Provider:
+    def create_model(self, preprocess_model_data: ModelInfo, provider_config: Config) -> Provider:
         self.impl.init_model(preprocess_model_data)
 
         if provider_config.cfg_dict and len(provider_config.cfg_dict) != 0:
@@ -235,7 +232,7 @@ class OVGPUProvider(Provider):
     def name() -> str:
         return "GPU((\\.(.+)$)|$)"
 
-    def create_model(self, preprocess_model_data: ModelInfo, provider_config : Config) -> Provider:
+    def create_model(self, preprocess_model_data: ModelInfo, provider_config: Config) -> Provider:
         self.impl.init_model(preprocess_model_data)
 
         if provider_config.cfg_dict and len(provider_config.cfg_dict) != 0:
@@ -268,7 +265,7 @@ class OVNPUProvider(Provider):
     def name() -> str:
         return "NPU((\\.(.+)$)|$)"
 
-    def create_model(self, preprocess_model_data: ModelInfo, provider_config : Config) -> Provider:
+    def create_model(self, preprocess_model_data: ModelInfo, provider_config: Config) -> Provider:
         self.impl.init_model(preprocess_model_data)
 
         if provider_config.cfg_dict and len(provider_config.cfg_dict) != 0:
@@ -289,6 +286,7 @@ class OVNPUProvider(Provider):
     def infer(self, input_tensors):
         return self.impl.infer(self.comp, input_tensors)
 
+
 class OVContext(Context):
     ov_registered_providers = ProviderHolder([OVCPUProvider, OVGPUProvider, OVNPUProvider])
 
@@ -296,17 +294,11 @@ class OVContext(Context):
         super().__init__()
         self.ov_ctx = OVContextBase()
 
-        provider_name_specific, prefix = ProviderHolder.__remove_provider_prefix__(
-            provider_name
-        )
+        provider_name_specific, prefix = ProviderHolder.__remove_provider_prefix__(provider_name)
         if prefix != "ov":
-            raise RuntimeError(
-                f'Incorrect prefix: {prefix} of the provider name: {provider_name} - "ov" expected.'
-            )
+            raise RuntimeError(f'Incorrect prefix: {prefix} of the provider name: {provider_name} - "ov" expected.')
 
-        self.provider_fabric, device = OVContext.ov_registered_providers.get_provider_by_name(
-            provider_name_specific
-        )
+        self.provider_fabric, device = OVContext.ov_registered_providers.get_provider_by_name(provider_name_specific)
         self.creator = lambda model_name: self.provider_fabric(self.ov_ctx, device, model_name)
 
     def create_provider(self, model_path: str):
@@ -326,6 +318,7 @@ Context.register(OVContext)
 
 def provider_names() -> list:
     return OVContext.provider_names()
+
 
 def create(provider_name):
     return OVContext(provider_name)

@@ -21,11 +21,13 @@ from common.source_description_schema import InputSource
 
 
 class FilesStorage:
-    source_file_types = [ name for name, _ in InputSourceFileType.__members__.items()]
-    source_description = f'''It is possible to specify three types of inputs:
+    source_file_types = [name for name, _ in InputSourceFileType.__members__.items()]
+    source_description = (
+        f"""It is possible to specify three types of inputs:
 two from the list {source_file_types} and a path to a JSON file contained inputs description."
 Please look at the required JSON formats:\n
-1) If you want to specify files as "{InputSourceFileType.image.name}", please use the following format:''' + '''
+1) If you want to specify files as "{InputSourceFileType.image.name}", please use the following format:"""
+        + '''
 "{
     \\"my_model_input\\": {
         \\"files\\": [
@@ -33,10 +35,15 @@ Please look at the required JSON formats:\n
             image_path_1,
             ...
         ],
-        \\"type\\":\\"''' + InputSourceFileType.image.name + '''\\"
+        \\"type\\":\\"'''
+        + InputSourceFileType.image.name
+        + '''\\"
     }
 }"
-\n2) If you want to specify files as "''' + InputSourceFileType.image.name + '''", and convert them to different shape or data type please add a "convert" section and use the following format:''' + '''
+\n2) If you want to specify files as "'''
+        + InputSourceFileType.image.name
+        + """", and convert them to different shape or data type please add a "convert" section and use the following format:"""
+        + '''
 "{
     \\"my_model_input\\": {
         \\"files\\": [
@@ -44,12 +51,17 @@ Please look at the required JSON formats:\n
             image_path_1,
             ...
         ],
-        \\"type\\":\\"''' + InputSourceFileType.image.name + '''\\",
+        \\"type\\":\\"'''
+        + InputSourceFileType.image.name
+        + '''\\",
         \\"convert\\":{\\"shape\\":\\"[1,3,372,500]\\", \\"element_type\\":\\"float32\\"}
     }
 }"
 
-\n3) If you want to specify files as "''' + InputSourceFileType.bin.name + '''", please use the following format:''' + '''
+\n3) If you want to specify files as "'''
+        + InputSourceFileType.bin.name
+        + """", please use the following format:"""
+        + '''
 "{
     \\"my_model_input.1\\": {
         \\"files\\": [
@@ -57,7 +69,9 @@ Please look at the required JSON formats:\n
             blob_path_1,
             ...
         ],
-        \\"type\\": \\"''' + InputSourceFileType.bin.name + '''\\",
+        \\"type\\": \\"'''
+        + InputSourceFileType.bin.name
+        + """\\",
         \\"shape\\": [1, 3, 299, 299],
         \\"layout\\": \\"NCHW\\",
         \\"element_type\": numpy.dtype.name
@@ -71,7 +85,8 @@ Location of these files usually described by the paths:
 or
     "<provider_name>/<model_name>/input_dump_data.json"
 
-'''
+"""
+    )
 
     def __init__(self):
         self.files_per_input_json = {}
@@ -98,6 +113,7 @@ or
     def inputs(self):
         return self.files_per_input_json
 
+
 class UseCaseFiles:
     use_case_separator = ";"
 
@@ -110,13 +126,9 @@ class UseCaseFiles:
             return
 
         files_per_case = []
-        file_paths_per_case = console_input_files_list.split(
-            UseCaseFiles.use_case_separator
-        )
+        file_paths_per_case = console_input_files_list.split(UseCaseFiles.use_case_separator)
         for case_files in file_paths_per_case:
             files_aggregator = FilesStorage()
             files_aggregator.parse_inputs(case_files)
             files_per_case.append(files_aggregator)
         return files_per_case
-
-

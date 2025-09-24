@@ -21,17 +21,19 @@ from __version__ import __version__
 
 
 def get_valid_command_arguments(available_inference_providers):
-    parser = argparse.ArgumentParser(prog="multi-provider-inference-tool",
-                                     description='''
+    parser = argparse.ArgumentParser(
+        prog="multi-provider-inference-tool",
+        description="""
 This tool enables launching neural network model inference using different AI framework providers
 and produces inference artifacts as blobs and metadata.
-As necessary input arguments, it requires a path to a neural model to launch inference, a provider name and input files description.''',
-                                     formatter_class=argparse.RawTextHelpFormatter)
+As necessary input arguments, it requires a path to a neural model to launch inference, a provider name and input files description.""",
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
     parser.add_argument("-m", "--model", help="Location of a file specifying a neural model", type=Path)
     parser.add_argument(
         "-p",
         "--provider",
-        help="An inference provider, available:\n\t" +'\n\t'.join(available_inference_providers),
+        help="An inference provider, available:\n\t" + "\n\t".join(available_inference_providers),
         default=None,
     )
     parser.add_argument("-i", "--inputs", help=FilesStorage.source_description)
@@ -41,7 +43,7 @@ As necessary input arguments, it requires a path to a neural model to launch inf
         "--provider_config",
         help=Config.config_description,
     )
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s_' + __version__)
+    parser.add_argument("-v", "--version", action="version", version="%(prog)s_" + __version__)
     cmd_args = parser.parse_args()
 
     if not cmd_args.model:
@@ -70,6 +72,7 @@ def get_usecase_files(input_files_cmd_line):
         usecase_num += 1
     return input_files
 
+
 def get_input_tensor_metadata(provider, model_info, input_tensors_per_case, input_files_per_case):
     tensor_info = {}
     for case_num in range(0, len(input_tensors_per_case)):
@@ -84,6 +87,7 @@ def get_input_tensor_metadata(provider, model_info, input_tensors_per_case, inpu
             tensor_info[case_num].append(tensor_input_info)
     return tensor_info
 
+
 def serialize_inference_input_artefacts(serializer, provider_name, input_tensors_info):
     for case_num in range(0, max(len(input_tensors_info), 1)):
         root_dir = Path(provider_name) / str(case_num)
@@ -95,6 +99,7 @@ def serialize_inference_input_artefacts(serializer, provider_name, input_tensors
         print("input JSON descriptions(`-i` param compatible): ")
         print(f"\t{input_info_path}")
         print(f"\t{input_info_dump_path}")
+
 
 def get_output_tensor_metadata(provider, model_info, output_tensors_per_case):
     output_tensor_info = {}
@@ -112,6 +117,7 @@ def get_output_tensor_metadata(provider, model_info, output_tensors_per_case):
             output_tensor_info[case_num].append(tensor_input_info)
     return output_tensor_info
 
+
 def serialize_inference_output_artefacts(serializer, provider_name, output_tensors_info):
     for case_num in range(0, max(len(output_tensors_info), 1)):
         root_dir = Path(provider_name) / str(case_num)
@@ -121,6 +127,7 @@ def serialize_inference_output_artefacts(serializer, provider_name, output_tenso
         print("reference tensors serialized by paths: ")
         for fp in serialzied_output_tensors:
             print(f"\t{fp}")
+
 
 if __name__ == "__main__":
     loader = None
@@ -161,10 +168,10 @@ if __name__ == "__main__":
     # persisten inferences history
     tensor_info = get_input_tensor_metadata(provider, model_info, input_tensors_per_case, input_files)
 
-    print (f"Input tensor info:")
+    print(f"Input tensor info:")
     printer = TensorsInfoPrinter()
     for case_num in range(0, max(usecase_num, 1)):
-        print(json.dumps(printer.get_printable_input_tensor_info(tensor_info[case_num]),indent=4))
+        print(json.dumps(printer.get_printable_input_tensor_info(tensor_info[case_num]), indent=4))
     print("")
 
     # serialize input tensors into files to store the model inference in the history
@@ -174,7 +181,6 @@ if __name__ == "__main__":
     output_tensors_per_case = {}
     for case_num in range(0, max(usecase_num, 1)):
         output_tensors_per_case[case_num] = model.infer(input_tensors_per_case[case_num])
-
 
     # Collected output tensors and the model info participate in
     # output tensor meta information creation, which being written in a file allows
