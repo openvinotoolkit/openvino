@@ -110,13 +110,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled
         // network
         try {
-            graphDesc =
-                _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
+            graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
 #ifdef VCL_FOR_COMPILER
             if (networkMeta.inputs.empty() && networkMeta.outputs.empty()) {
                 // If the metadata is empty, we can try to get it from the driver parser
                 _logger.info("Metadata is empty, trying to get it from the driver parser");
-                networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
+                networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
                 networkMeta.name = model->get_friendly_name();
             }
 #endif
@@ -135,8 +134,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    std::move(networkDesc.metadata),
 #endif
                                    std::move(tensor),
+                                    config,
                                    /* blobAllocatedByPlugin = */ false,
-                                   config,
                                    _compiler);
 }
 
@@ -279,17 +278,16 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
-    ze_graph_handle_t graphHandle = nullptr;
     NetworkMetadata networkMeta;
     std::vector<uint8_t> network(mainBlob.get_byte_size());
+    GraphDescriptor mainGraphDesc;
 
 #ifdef VCL_FOR_COMPILER
     _logger.debug("parse metadata from driver for vcl compiler");
     if (_zeGraphExt) {
         _logger.debug("parse start for vcl compiler");
-        graphHandle =
-            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()), mainBlob.get_byte_size());
-        networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
+        mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
+        networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc);
     }
     _logger.debug("parse end for vcl compiler");
 #else
@@ -299,8 +297,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     auto networkMeta = _compiler->parse(network, config);
     network.clear();
     network.shrink_to_fit();
-
-    GraphDescriptor mainGraphDesc;
 
     if (_zeGraphExt) {
         mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
