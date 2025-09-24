@@ -730,14 +730,10 @@ class GridSampleDecompositionNearestStatic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionNearestStatic() {
         // Match GridSample with 4D inputs and static shapes
-        auto data_pattern = ov::pass::pattern::any_input([](const Output<Node>& output) {
-            return output.get_partial_shape().rank().is_static() &&
-                   output.get_partial_shape().rank().get_length() == 4 && output.get_partial_shape().is_static();
-        });
-        auto grid_pattern = ov::pass::pattern::any_input([](const Output<Node>& output) {
-            return output.get_partial_shape().rank().is_static() &&
-                   output.get_partial_shape().rank().get_length() == 4 && output.get_partial_shape().is_static();
-        });
+        auto data_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(4), ov::pass::pattern::has_static_shape()}));
+        auto grid_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(4), ov::pass::pattern::has_static_shape()}));
         auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>(
             {data_pattern, grid_pattern},
             [](const Output<Node>& output) {
@@ -781,7 +777,7 @@ public:
                 auto out = std::make_shared<op::v0::Convert>(gs_f32, grid_sample->get_output_element_type(0));
                 out->set_friendly_name(grid_sample->get_friendly_name());
                 copy_rt_to_subgraph(grid_sample, out);
-                ov::replace_node(grid_sample, out);
+                ov::replace_node_update_name(grid_sample, out);
                 return true;
             }
             return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& attrs) {
@@ -797,14 +793,10 @@ class GridSampleDecompositionBilinearStatic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionBilinearStatic() {
         // Match GridSample with 4D inputs and static shapes
-        auto data_pattern = ov::pass::pattern::any_input([](const Output<Node>& output) {
-            return output.get_partial_shape().rank().is_static() &&
-                   output.get_partial_shape().rank().get_length() == 4 && output.get_partial_shape().is_static();
-        });
-        auto grid_pattern = ov::pass::pattern::any_input([](const Output<Node>& output) {
-            return output.get_partial_shape().rank().is_static() &&
-                   output.get_partial_shape().rank().get_length() == 4 && output.get_partial_shape().is_static();
-        });
+        auto data_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(4), ov::pass::pattern::has_static_shape()}));
+        auto grid_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(4), ov::pass::pattern::has_static_shape()}));
         auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>(
             {data_pattern, grid_pattern},
             [](const Output<Node>& output) {
@@ -830,14 +822,10 @@ class GridSampleDecompositionBicubicStatic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionBicubicStatic() {
         // Match GridSample with 4D inputs and static shapes
-        auto data_pattern = ov::pass::pattern::any_input([](const Output<Node>& output) {
-            return output.get_partial_shape().rank().is_static() &&
-                   output.get_partial_shape().rank().get_length() == 4 && output.get_partial_shape().is_static();
-        });
-        auto grid_pattern = ov::pass::pattern::any_input([](const Output<Node>& output) {
-            return output.get_partial_shape().rank().is_static() &&
-                   output.get_partial_shape().rank().get_length() == 4 && output.get_partial_shape().is_static();
-        });
+        auto data_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(4), ov::pass::pattern::has_static_shape()}));
+        auto grid_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::all_of({ov::pass::pattern::rank_equals(4), ov::pass::pattern::has_static_shape()}));
         auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>(
             {data_pattern, grid_pattern},
             [](const Output<Node>& output) {
@@ -920,7 +908,8 @@ public:
                 auto gs_f32 = std::make_shared<op::v9::GridSample>(data_f32, grid_f32, attrs);
                 auto out = std::make_shared<op::v0::Convert>(gs_f32, grid_sample->get_output_element_type(0));
                 out->set_friendly_name(grid_sample->get_friendly_name());
-                ov::replace_node(grid_sample, out);
+                copy_rt_to_subgraph(grid_sample, out);
+                ov::replace_node_update_name(grid_sample, out);
                 return true;
             }
             return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& attrs) {
