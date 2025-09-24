@@ -767,13 +767,17 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 
 bool check_if_whisper_model(const std::shared_ptr<ov::Model>& model) {
-    for (const auto& node : model->get_ops()) {
-        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(node) && node->inputs().size() == 3u) {
-            // Found cross-attention -> whisper model
-            LOG_DEBUG("Whisper model was found");
+    for (const auto& in: model->inputs()) {
+        if (in.get_any_name() == "encoder_hidden_states")
             return true;
-        }
     }
+    // for (const auto& node : model->get_ops()) {
+    //     if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(node) && node->inputs().size() == 3u) {
+    //         // Found cross-attention -> whisper model
+    //         LOG_DEBUG("Whisper model was found");
+    //         return true;
+    //     }
+    // }
     return false;
 }
 }  // namespace
@@ -836,6 +840,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_is_whisper = check_if_whisper_model(model);
     if (m_is_whisper) {
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
+        m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
     }
 
     const auto npudesc = extract_npu_descriptor(plugin);
@@ -934,7 +940,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     uint32_t whisper_lhs_seq_size = 0;  // Not applicable for LLMs/VLMs
     if (m_is_whisper) {
         axes = KVAxesPosition{whisper_batch_dim, whisper_seq_len_dim};
-        m_kvcache_desc = KVCacheDesc{whisper_max_prompt_size, whisper_kvcache_size, 0u, whisper_seq_len_dim};
+        m_kvcache_desc = KVCacheDesc{whisper_max_prompt_size, whisper_kvcache_size, 0u, whisper_seq_len_dim, 1u};
         whisper_lhs_seq_size =
             static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
 
