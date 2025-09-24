@@ -242,6 +242,13 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Convert> &
     return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "ConvertGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::Convert> &node) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3, 4});
+    const auto convertNode = std::make_shared<ov::op::v16::Convert>(param, ov::element::i32, true, true);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(convertNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "ConvertGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v14::ConvertPromoteTypes> &node) {
     const auto lhs = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{256, 56});
     const auto rhs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{3});

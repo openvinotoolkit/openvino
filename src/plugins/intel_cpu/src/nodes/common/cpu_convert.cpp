@@ -571,6 +571,9 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
                 parallel_for(ctx.size, convert_func);
             } else {
                 auto apply_conversion = [&, lbound = lbound, ubound = ubound](src_t value) -> dst_t {
+                    if (ctx.interimPrc.is_real()) {
+                        return static_cast<dst_t>(value);
+                    }
                     if (ctx.no_clamp) {
                         return static_cast<dst_t>(ctx.use_rounding ? std::round(value) : std::trunc(value));
                     }
