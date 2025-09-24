@@ -173,38 +173,6 @@ std::shared_ptr<Node> gather_hw_nhwc(const Ctx& ctx,
     return std::make_shared<op::v8::GatherND>(ctx.data_nhwc, indices, 0);
 }
 
-// Gather from NCHW by (b, c, y, x) using batch_dims=2 and indices [y, x]
-std::shared_ptr<Node> gather_hw_nchw(const Ctx& ctx,
-                                     const std::shared_ptr<Node>& x_coord,
-                                     const std::shared_ptr<Node>& y_coord) {
-    auto x_i32 = std::make_shared<op::v0::Convert>(x_coord, element::i32);
-    auto y_i32 = std::make_shared<op::v0::Convert>(y_coord, element::i32);
-
-    // Target shape [N, C, H_out, W_out]
-    auto n_1d = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, ctx.i32_0);
-    auto c_1d = std::make_shared<op::v0::Unsqueeze>(ctx.c_dim, ctx.i32_0);
-    auto h_1d = std::make_shared<op::v0::Unsqueeze>(ctx.h_out, ctx.i32_0);
-    auto w_1d = std::make_shared<op::v0::Unsqueeze>(ctx.w_out, ctx.i32_0);
-    auto tgt_shape = std::make_shared<op::v0::Concat>(OutputVector{n_1d, c_1d, h_1d, w_1d}, 0);
-
-    // Broadcast x,y from [N, H_out, W_out] -> [N, C, H_out, W_out]
-    auto expand_nc_axis = [&](const std::shared_ptr<Node>& t) -> std::shared_ptr<Node> {
-        auto t_nhw = std::make_shared<op::v0::Unsqueeze>(t, ctx.i32_1);  // [N,1,H,W]
-        return std::make_shared<op::v3::Broadcast>(t_nhw, tgt_shape);
-    };
-
-    auto x_bc = expand_nc_axis(x_i32);
-    auto y_bc = expand_nc_axis(y_i32);
-
-    // Indices shape [N, C, H_out, W_out, 2] with last dim [y, x]
-    auto y_exp = std::make_shared<op::v0::Unsqueeze>(y_bc, ctx.i32_neg1);
-    auto x_exp = std::make_shared<op::v0::Unsqueeze>(x_bc, ctx.i32_neg1);
-    auto indices = std::make_shared<op::v0::Concat>(OutputVector{y_exp, x_exp}, -1);
-
-    // Data is NCHW as-provided (no transpose)
-    return std::make_shared<op::v8::GatherND>(ctx.data_nchw, indices, 2);
-}
-
 // Reflection helpers (continuous/indexed)
 std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
                                     const std::shared_ptr<Node>& coord,
