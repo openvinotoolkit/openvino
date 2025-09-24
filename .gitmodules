@@ -51,7 +51,7 @@
 	url = https://github.com/nithinn/ncc.git
 [submodule "thirdparty/onednn_gpu"]
 	path = src/plugins/intel_gpu/thirdparty/onednn_gpu
-	url = https://github.com/jkasprza/oneDNN.git
+	url = https://github.com/oneapi-src/oneDNN.git
 [submodule "thirdparty/json/nlohmann_json"]
 	path = thirdparty/json/nlohmann_json
 	url = https://github.com/nlohmann/json.git
@@ -93,3 +93,6 @@
 [submodule "src/plugins/intel_cpu/thirdparty/xbyak_riscv"]
 	path = src/plugins/intel_cpu/thirdparty/xbyak_riscv
 	url = https://github.com/herumi/xbyak_riscv.git
+[submodule "src/plugins/intel_gpu/thirdparty/l0_onednn_gpu"]
+	path = src/plugins/intel_gpu/thirdparty/l0_onednn_gpu
+	url = https://github.com/jkasprza/oneDNN.git

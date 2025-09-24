@@ -41,8 +41,8 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
-# Set default GPU runtime to L0 for now
-set(OV_GPU_DEFAULT_RT "L0")
+# Set default GPU runtime to OCL
+set(OV_GPU_DEFAULT_RT "OCL")
 if (ENABLE_INTEL_GPU)
     ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL and L0" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES L0 OCL)
 endif()

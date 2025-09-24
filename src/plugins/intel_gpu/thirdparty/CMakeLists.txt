@@ -99,11 +99,16 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
         set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
+        if(GPU_RUNTIME STREQUAL "L0")
+            set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/l0_onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
+        elseif(GPU_RUNTIME STREQUAL "OCL")
+            set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
+        endif()
 
         ExternalProject_Add(onednn_gpu_build
             # Directory Options:
             PREFIX "${ONEDNN_PREFIX_DIR}"
-            SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
+            SOURCE_DIR "${ONEDNN_GPU_DIR}"
             BINARY_DIR "${ONEDNN_BUILD_DIR}"
             INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
             # Configure Step Options:

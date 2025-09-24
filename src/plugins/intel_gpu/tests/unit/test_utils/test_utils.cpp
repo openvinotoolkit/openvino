@@ -302,7 +302,11 @@ cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
 }
 
 std::shared_ptr<cldnn::engine> create_test_engine() {
+#ifdef OV_GPU_WITH_ZE_RT
     auto ret = cldnn::engine::create(engine_types::ze, runtime_types::ze);
+#elif OV_GPU_WITH_OCL_RT
+    auto ret = cldnn::engine::create(engine_types::ocl, runtime_types::ocl);
+#endif
 #ifdef ENABLE_ONEDNN_FOR_GPU
     if (ret->get_device_info().supports_immad)
         ret->create_onednn_engine({});
