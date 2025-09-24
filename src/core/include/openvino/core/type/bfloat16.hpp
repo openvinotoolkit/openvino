@@ -103,8 +103,8 @@ private:
     union F32 {
         F32(float val) : f{val} {}
         F32(uint32_t val) : i{val} {}
-        float f;
-        uint32_t i;
+        volatile float f;
+        volatile uint32_t i;
     };
 
     uint16_t m_value;
