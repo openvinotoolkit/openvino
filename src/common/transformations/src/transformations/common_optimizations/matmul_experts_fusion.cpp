@@ -67,7 +67,7 @@ ov::pass::FuseVectorizedMOE::FuseVectorizedMOE() {
     auto unsqueeze_routing_weights = pattern::wrap_type<ov::op::v0::Unsqueeze>({router_reshape, pattern::any_input()});
 
     auto mul3 = pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights});
-    auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()});
+    auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()}, {{"keep_dims", false}});
     auto moe_pattern = reduce_sum;
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {

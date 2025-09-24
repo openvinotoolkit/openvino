@@ -159,7 +159,7 @@ inline std::shared_ptr<ov::Model> build_moe_pattern_model() {
     auto reduce_sum =
         std::make_shared<op::v1::ReduceSum>(mul3,
                                             op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0}),
-                                            true);
+                                            false);
 
     return std::make_shared<ov::Model>(ov::OutputVector{reduce_sum}, ov::ParameterVector{input});
 }
