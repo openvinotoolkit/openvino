@@ -85,7 +85,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb-staging
+    runs-on: aks-linux-16-cores-32gb
     strategy:
       matrix:
         include:
