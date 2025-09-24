@@ -133,8 +133,8 @@ KERNEL (mlp_gate_up)(
     const __global int* expert_list,
     const __global uchar* weight_base_addr,
     const __global uchar* weight_offset,
-    __global TYPE* x,                        // [1, HIDDEN_SIZE]
-    __global TYPE* y) {                      // [MAX_TOPK, INTERMEDIATE_SIZE]
+    __global MOE_TYPE* x,                        // [1, HIDDEN_SIZE]
+    __global MOE_TYPE* y) {                      // [MAX_TOPK, INTERMEDIATE_SIZE]
     // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
     int expert_no = get_global_id(0);
     y += expert_no * INTERMEDIATE_SIZE;
@@ -162,9 +162,9 @@ KERNEL (mlp_down)(
     const __global int* expert_list,
     const __global uchar* weight_base_addr,
     const __global uchar* weight_offset,
-    const __global TYPE* x,                               // [MAX_TOPK, INTERMEDIATE_SIZE]
-    __global TYPE* routing_weights,                       // [MAX_TOPK]
-    __global TYPE* y) {                                   // [MAX_TOPK, HIDDEN_SIZE]
+    const __global MOE_TYPE* x,                               // [MAX_TOPK, INTERMEDIATE_SIZE]
+    __global MOE_TYPE* routing_weights,                       // [MAX_TOPK]
+    __global MOE_TYPE* y) {                                   // [MAX_TOPK, HIDDEN_SIZE]
     // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
     int expert_no = get_global_id(0);
     x += expert_no * INTERMEDIATE_SIZE;
@@ -284,8 +284,8 @@ KERNEL (mlp_down)(
 
 #else
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
-KERNEL (mlp_reduce)(const __global TYPE* x,                // [MAX_TOPK, HIDDEN_SIZE]
-    __global TYPE* y) {                                    // [1, HIDDEN_SIZE]
+KERNEL (mlp_reduce)(const __global MOE_TYPE* x,                // [MAX_TOPK, HIDDEN_SIZE]
+    __global MOE_TYPE* y) {                                    // [1, HIDDEN_SIZE]
     int n = get_global_id(1);
     half sum[MAX_TOPK] = {0};
     __attribute__((opencl_unroll_hint(MAX_TOPK)))
