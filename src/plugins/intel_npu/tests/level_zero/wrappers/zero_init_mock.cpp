@@ -18,7 +18,6 @@ constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;
 
 #endif
 
-
 namespace intel_npu {
 
 const ze_driver_uuid_t ZeroInitStructsMock::uuid = ze_intel_npu_driver_uuid;

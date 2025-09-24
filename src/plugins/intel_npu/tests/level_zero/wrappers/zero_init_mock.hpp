@@ -20,57 +20,10 @@ namespace intel_npu {
 struct ZeroInitStructsMock {
     ZeroInitStructsMock(std::string extVersionString);
 
-    ZeroInitStructsMock(const ZeroInitStructsMock&) = delete;
-    ZeroInitStructsMock& operator=(const ZeroInitStructsMock&) = delete;
-
     ~ZeroInitStructsMock();
 
-    inline ze_driver_handle_t getDriver() const {
-        return driver_handle;
-    }
-    inline ze_device_handle_t getDevice() const {
-        return device_handle;
-    }
-    inline ze_context_handle_t getContext() const {
-        return context;
-    }
-    inline ze_graph_dditable_ext_curr_t& getGraphDdiTable() const {
-        return *graph_dditable_ext_decorator;
-    }
-    inline ze_command_queue_npu_dditable_ext_curr_t& getCommandQueueDdiTable() const {
-        return *command_queue_npu_dditable_ext_decorator;
-    }
-    inline ze_graph_profiling_dditable_ext_curr_t& getProfilingDdiTable() const {
-        return *graph_profiling_npu_dditable_ext_decorator;
-    }
-    inline uint32_t getDriverVersion() const {
-        return driver_properties.driverVersion;
-    }
-    inline uint32_t getCompilerVersion() const {
-        return ZE_MAKE_VERSION(compiler_properties.compilerVersion.major, compiler_properties.compilerVersion.minor);
-    }
-    inline ze_device_graph_properties_t getCompilerProperties() const {
-        return compiler_properties;
-    }
-    inline uint32_t getMutableCommandListExtVersion() const {
-        return mutable_command_list_ext_version;
-    }
-    inline ze_api_version_t getZeDrvApiVersion() const {
-        return ze_drv_api_version;
-    }
-    // Helper function to check if extension with <ext_name> exists and its newer than <version>
-    inline bool isExtensionSupported(std::string ext_name, uint32_t version) const {
-        auto iter = driver_extension_properties.find(ext_name);
-        if (iter == driver_extension_properties.end()) {
-            return false;
-        } else if (iter->second >= version) {
-            return true;
-        }
-        return false;
-    }
     void initNpuDriver();
 
-    // keep zero_api alive until context is destroyed
     std::shared_ptr<intel_npu::ZeroApi> zero_api;
 
     static const ze_driver_uuid_t uuid;

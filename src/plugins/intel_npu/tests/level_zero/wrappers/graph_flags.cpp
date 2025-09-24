@@ -33,7 +33,7 @@ std::vector<int> _flags = {ZE_GRAPH_FLAG_NONE,
                             ZE_GRAPH_FLAG_ENABLE_PROFILING,
                             ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT};
 
-TEST_P(ZeroGraphFlagsTest, QueryGraph) { // the "fourth" branch is not being tested
+TEST_P(ZeroGraphFlagsTest, QueryGraph) {
     uint32_t flagsCombined = 0;
     while(std::next_permutation(_flags.begin(), _flags.end())) {
         flagsCombined = 0;

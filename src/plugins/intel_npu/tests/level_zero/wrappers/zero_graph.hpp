@@ -11,20 +11,6 @@
 
 using namespace intel_npu;
 
-constexpr std::string_view INPUTS_PRECISIONS_KEY = "--inputs_precisions";
-constexpr std::string_view INPUTS_LAYOUTS_KEY = "--inputs_layouts";
-constexpr std::string_view OUTPUTS_PRECISIONS_KEY = "--outputs_precisions";
-constexpr std::string_view OUTPUTS_LAYOUTS_KEY = "--outputs_layouts";
-
-// <option key>="<option value>"
-constexpr std::string_view KEY_VALUE_SEPARATOR = "=";
-constexpr std::string_view VALUE_DELIMITER = "\"";  // marks beginning and end of value
-
-// Format inside "<option value>"
-// <name1>:<value (precision / layout)> [<name2>:<value>]
-constexpr std::string_view NAME_VALUE_SEPARATOR = ":";
-constexpr std::string_view VALUES_SEPARATOR = " ";
-
 class ZeroGraphTest : public ::testing::TestWithParam<std::tuple<int, std::string>> {
 protected:
     void SetUp() override;

@@ -15,6 +15,8 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 
+// keep all flag combinations for all tests?
+// get rid of some redundant tests?
 void ZeroGraphTest::SetUp() {
     std::tie(graphDescFlag, extVersion) = GetParam();
 
@@ -84,8 +86,6 @@ TEST_P(ZeroGraphTest, InitializeGraph) {
     zeGraphExt->destroyGraph(graphDescriptor);
 }
 
-// the "fourth" branch is not being tested
-// todo: revise this
 TEST_P(ZeroGraphTest, QueryGraph) {
     // add checks for set emptyness?
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
@@ -161,18 +161,13 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemory) { // TODO: add
 
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
     void* ptr = nullptr;
-    std::cout << "before allocate\n";
-    OV_ASSERT_NO_THROW(ptr = allocate_zero_memory(zeroInitStruct, totalSize, 4095));
-    std::cout << "After allocate\n";
+    OV_ASSERT_NO_THROW(ptr = allocate_zero_memory(zeroInitStruct, totalSize, utils::STANDARD_PAGE_SIZE));
     // to check if its persistent or not
     // if persistent: and if i destroy the blob after init, then setGraph should fail?
-    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, ptr));
-    std::cout << "After set\n";
+    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(ptr) + 1));
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, ptr));
-    std::cout << "After deallocate\n";
     zeGraphExt->destroyGraph(graphDescriptor);
-    std::cout << "After destroy\n";
 }
 
 // should I use serializedIR or blob?
