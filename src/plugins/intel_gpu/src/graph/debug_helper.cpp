@@ -193,7 +193,7 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::u8)
+    else if (mem_dt == cldnn::data_types::boolean)
         dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4)
         dump_i4u4(mem_dt, actual_mem, stream, file_stream, dump_raw);
