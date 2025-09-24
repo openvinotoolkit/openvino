@@ -32,59 +32,9 @@ std::vector<CPUSpecificParams> getCPUInfoX64() {
 
 }  // namespace
 
-// Reuse shapes from master monolithic test to keep coverage parity for x64
-static std::vector<std::vector<InputShape>> getStaticShapesX64() {
-    std::vector<std::vector<InputShape>> result = {
-        {{{}, {{1, 5, 1, 1}}}, {{}, {{1, 1, 1, 2}}}},
-        {{{}, {{2, 4, 7, 1}}}, {{}, {{2, 1, 2, 2}}}},
-        {{{}, {{3, 3, 3, 3}}}, {{}, {{3, 3, 1, 2}}}},
-        {{{}, {{4, 2, 5, 4}}}, {{}, {{4, 2, 2, 2}}}},
-        {{{}, {{5, 1, 5, 5}}}, {{}, {{5, 1, 5, 2}}}},
-        {{{}, {{4, 2, 4, 6}}}, {{}, {{4, 2, 3, 2}}}},
-        {{{}, {{3, 3, 5, 7}}}, {{}, {{3, 7, 1, 2}}}},
-        {{{}, {{2, 4, 7, 7}}}, {{}, {{2, 2, 4, 2}}}},
-        {{{}, {{2, 5, 8, 8}}}, {{}, {{2, 3, 3, 2}}}},
-        {{{}, {{2, 6, 9, 8}}}, {{}, {{2, 2, 5, 2}}}},
-    };
-    if (ov::with_cpu_x86_avx2() || ov::with_cpu_x86_avx()) {
-        std::vector<std::vector<InputShape>> extra = {
-            {{{}, {{1, 7, 5, 3}}}, {{}, {{1, 1, 11, 2}}}},
-            {{{}, {{2, 6, 7, 2}}}, {{}, {{2, 6, 2, 2}}}},
-            {{{}, {{3, 2, 9, 1}}}, {{}, {{3, 3, 13, 2}}}},
-            {{{}, {{4, 7, 3, 4}}}, {{}, {{4, 5, 5, 2}}}},
-            {{{}, {{5, 3, 2, 13}}}, {{}, {{5, 1, 31, 2}}}},
-            {{{}, {{4, 3, 5, 14}}}, {{}, {{4, 4, 8, 2}}}},
-            {{{}, {{3, 2, 2, 15}}}, {{}, {{3, 33, 1, 2}}}},
-            {{{}, {{2, 1, 6, 16}}}, {{}, {{2, 8, 8, 2}}}},
-            {{{}, {{2, 3, 7, 17}}}, {{}, {{2, 9, 9, 2}}}},
-        };
-        result.insert(result.end(), extra.begin(), extra.end());
-    }
-    return result;
-}
-
-static const std::vector<std::vector<InputShape>> dynamicInShapesX64 = {
-    {{{ov::Dimension(1, 15), -1, -1, -1}, {{1, 1, 1, 1}, {6, 3, 1, 2}, {4, 5, 3, 1}, {2, 7, 2, 2}}},
-     {{ov::Dimension(1, 16), -1, -1, -1}, {{1, 1, 1, 2}, {6, 2, 2, 2}, {4, 1, 3, 2}, {2, 1, 2, 2}}}},
-    {{{-1, -1, -1, -1}, {{1, 2, 1, 5}, {3, 4, 2, 3}, {5, 6, 7, 1}, {7, 8, 2, 4}}},
-     {{-1, -1, -1, 2}, {{1, 2, 4, 2}, {3, 1, 7, 2}, {5, 2, 3, 2}, {7, 1, 5, 2}}}},
-    {{{ov::Dimension(2, 15), -1, -1, -1}, {{8, 3, 3, 3}, {6, 5, 2, 5}, {4, 7, 1, 11}, {2, 9, 3, 4}}},
-     {{-1, 3, 7, 2}, {{8, 3, 7, 2}, {6, 3, 7, 2}, {4, 3, 7, 2}, {2, 3, 7, 2}}}},
-    {{{3, 4, 4, 5}, {{3, 4, 4, 5}, {3, 4, 4, 5}, {3, 4, 4, 5}, {3, 4, 4, 5}}},
-     {{-1, -1, -1, 2}, {{3, 3, 4, 2}, {3, 1, 11, 2}, {3, 2, 5, 2}, {3, 3, 3, 2}}}},
-    {{{-1, -1, -1, -1}, {{1, 2, 1, 13}, {3, 4, 7, 2}, {5, 6, 3, 5}, {7, 8, 4, 4}}},
-     {{-1, -1, -1, -1}, {{1, 4, 4, 2}, {3, 3, 5, 2}, {5, 2, 7, 2}, {7, 1, 13, 2}}}},
-    {{{-1, -1, -1, -1}, {{2, 11, 1, 17}, {4, 9, 6, 3}, {6, 7, 7, 3}, {8, 3, 2, 11}}},
-     {{-1, -1, -1, 2}, {{2, 5, 4, 2}, {4, 1, 19, 2}, {6, 6, 3, 2}, {8, 1, 17, 2}}}},
-    {{{3, -1, -1, -1}, {{3, 2, 1, 23}, {3, 4, 3, 8}, {3, 6, 5, 5}, {3, 8, 31, 1}}},
-     {{-1, -1, -1, 2}, {{3, 31, 1, 2}, {3, 6, 4, 2}, {3, 23, 1, 2}, {3, 11, 2, 2}}}},
-    {{{-1, 3, -1, -1}, {{8, 3, 8, 4}, {6, 3, 33, 1}, {4, 3, 8, 6}, {2, 3, 8, 8}}},
-     {{-1, -1, -1, 2}, {{8, 8, 8, 2}, {6, 8, 7, 2}, {4, 1, 33, 2}, {2, 4, 8, 2}}}},
-};
-
 INSTANTIATE_TEST_SUITE_P(x64_smoke_static,
                          GridSampleLayerTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(getStaticShapesX64()),
+                         ::testing::Combine(::testing::ValuesIn(getStaticShapes()),
                                             ::testing::ValuesIn(allInterpolationModes()),
                                             ::testing::ValuesIn(allPaddingModes()),
                                             ::testing::ValuesIn(alignCornersValues()),
@@ -96,7 +46,7 @@ INSTANTIATE_TEST_SUITE_P(x64_smoke_static,
 
 INSTANTIATE_TEST_SUITE_P(x64_nightly_static_1,
                          GridSampleLayerTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(getStaticShapesX64()),
+                         ::testing::Combine(::testing::ValuesIn(getStaticShapes()),
                                             ::testing::ValuesIn(allInterpolationModes()),
                                             ::testing::ValuesIn(allPaddingModes()),
                                             ::testing::ValuesIn(alignCornersValues()),
@@ -108,7 +58,7 @@ INSTANTIATE_TEST_SUITE_P(x64_nightly_static_1,
 
 INSTANTIATE_TEST_SUITE_P(x64_nightly_static_2,
                          GridSampleLayerTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(getStaticShapesX64()),
+                         ::testing::Combine(::testing::ValuesIn(getStaticShapes()),
                                             ::testing::ValuesIn(allInterpolationModes()),
                                             ::testing::ValuesIn(allPaddingModes()),
                                             ::testing::ValuesIn(alignCornersValues()),
@@ -120,7 +70,7 @@ INSTANTIATE_TEST_SUITE_P(x64_nightly_static_2,
 
 INSTANTIATE_TEST_SUITE_P(x64_smoke_dynamic,
                          GridSampleLayerTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(dynamicInShapesX64),
+                         ::testing::Combine(::testing::ValuesIn(getDynamicShapes()),
                                             ::testing::ValuesIn(allInterpolationModes()),
                                             ::testing::ValuesIn(allPaddingModes()),
                                             ::testing::ValuesIn(alignCornersValues()),
@@ -132,7 +82,7 @@ INSTANTIATE_TEST_SUITE_P(x64_smoke_dynamic,
 
 INSTANTIATE_TEST_SUITE_P(x64_nightly_dynamic,
                          GridSampleLayerTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(dynamicInShapesX64),
+                         ::testing::Combine(::testing::ValuesIn(getDynamicShapes()),
                                             ::testing::ValuesIn(allInterpolationModes()),
                                             ::testing::ValuesIn(allPaddingModes()),
                                             ::testing::ValuesIn(alignCornersValues()),
