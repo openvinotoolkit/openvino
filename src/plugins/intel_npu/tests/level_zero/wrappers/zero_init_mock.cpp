@@ -3,6 +3,7 @@
 //
 
 #include "zero_init_mock.hpp"
+
 #include "intel_npu/utils/zero/zero_api.hpp"
 // #include "ze_api.h"
 #include <ze_command_queue_npu_ext.h>
@@ -182,17 +183,17 @@ ZeroInitStructsMock::ZeroInitStructsMock(std::string extVersionString)
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
     uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_CURRENT;
-    
+
     std::regex extVersionRegex(R"(^(\d+)\.(\d+)$)");
     std::smatch match;
     if (std::regex_match(extVersionString, match, extVersionRegex)) {
         int major = std::stoi(match[1].str());
         int minor = std::stoi(match[2].str());
         log.debug("Try to find graph ext version: %d.%d instead of %d.%d.",
-                    major,
-                    minor,
-                    ZE_MAJOR_VERSION(target_graph_ext_version),
-                    ZE_MINOR_VERSION(target_graph_ext_version));
+                  major,
+                  minor,
+                  ZE_MAJOR_VERSION(target_graph_ext_version),
+                  ZE_MINOR_VERSION(target_graph_ext_version));
         target_graph_ext_version = ZE_MAKE_VERSION(major, minor);
     }
 
@@ -317,4 +318,4 @@ ZeroInitStructsMock::~ZeroInitStructsMock() {
     }
 }
 
-}
+}  // namespace intel_npu

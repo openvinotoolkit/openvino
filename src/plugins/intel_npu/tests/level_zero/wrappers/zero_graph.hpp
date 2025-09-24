@@ -4,10 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include "common/npu_test_env_cfg.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 #include "zero_init_mock.hpp"
-#include "common_test_utils/test_constants.hpp"
-#include "common/npu_test_env_cfg.hpp"
 
 using namespace intel_npu;
 
@@ -19,7 +19,7 @@ protected:
 
 public:
     std::shared_ptr<ZeroInitStructsMock> zeroInitMock;
-    
+
     std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
 
     std::shared_ptr<intel_npu::ZeGraphExtWrappers> zeGraphExt;
@@ -55,6 +55,8 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
 
 void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes);
 
-void* allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const size_t bytes, const size_t alignment) noexcept;
+void* allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                           const size_t bytes,
+                           const size_t alignment) noexcept;
 
 void deallocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, void* handle) noexcept;

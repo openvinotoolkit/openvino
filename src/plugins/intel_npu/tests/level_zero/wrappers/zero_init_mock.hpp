@@ -46,4 +46,4 @@ struct ZeroInitStructsMock {
     ze_device_graph_properties_t compiler_properties = {};
 };
 
-}
+}  // namespace intel_npu

@@ -8,10 +8,10 @@
 
 #include <common_test_utils/test_assertions.hpp>
 
-#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
-#include "intel_npu/utils/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
+#include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 
@@ -39,14 +39,16 @@ void ZeroGraphTest::TearDown() {}
 TEST_P(ZeroGraphTest, GetGraphDescriptorIR) {
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
     uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
     zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, GetGraphDescriptorBlob) {
-    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
+    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH +
+                          "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
     std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     auto size = blobStream.tellg();
@@ -64,8 +66,9 @@ TEST_P(ZeroGraphTest, GetGraphDescriptorBlob) {
 TEST_P(ZeroGraphTest, GetNetworkMeta) {
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
     uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
     NetworkMetadata meta;
     // asserts on meta contents?
@@ -73,15 +76,14 @@ TEST_P(ZeroGraphTest, GetNetworkMeta) {
     zeGraphExt->destroyGraph(graphDescriptor);
 }
 
-TEST_P(ZeroGraphTest, GetIODescriptor) {
-
-}
+TEST_P(ZeroGraphTest, GetIODescriptor) {}
 
 TEST_P(ZeroGraphTest, InitializeGraph) {
     graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag);
     uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
     zeGraphExt->destroyGraph(graphDescriptor);
 }
@@ -90,15 +92,17 @@ TEST_P(ZeroGraphTest, QueryGraph) {
     // add checks for set emptyness?
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
     uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
     const auto supportedLayers = zeGraphExt->queryGraph(std::move(serializedIR), "");
     zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, GetGraphBinary) {
-    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
+    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH +
+                          "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
     std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = blobStream.tellg();
@@ -111,8 +115,9 @@ TEST_P(ZeroGraphTest, GetGraphBinary) {
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob.data(), blob.size()));
     uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
 
     // maybe without initializeGraph it wont work?
@@ -124,20 +129,22 @@ TEST_P(ZeroGraphTest, GetGraphBinary) {
 TEST_P(ZeroGraphTest, DestroyGraph) {
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
     uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
     zeGraphExt->destroyGraph(graphDescriptor);
     ASSERT_EQ(graphDescriptor._handle, nullptr);
 }
 
 // should I use serializedIR or blob?
-TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemory) { // TODO: add asserts for no throws
+TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemory) {  // TODO: add asserts for no throws
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
 
     uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
 
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
@@ -151,12 +158,13 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemory) { // TODO: add as
 }
 
 // should I use serializedIR or blob?
-TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemory) { // TODO: add asserts for no throws
+TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemory) {  // TODO: add asserts for no throws
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
 
     uint32_t initCommandQueueOrdinal = 0;
-    OV_ASSERT_NO_THROW(initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
+    OV_ASSERT_NO_THROW(initCommandQueueOrdinal =
+                           zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                                   ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
 
     size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
@@ -171,8 +179,9 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemory) { // TODO: add
 }
 
 // should I use serializedIR or blob?
-TEST_P(ZeroGraphTest, SetGraphArgsOnDestroyedBlob) { // TODO: add asserts for no throws
-    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
+TEST_P(ZeroGraphTest, SetGraphArgsOnDestroyedBlob) {  // TODO: add asserts for no throws
+    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH +
+                          "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
     std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = blobStream.tellg();
@@ -184,12 +193,13 @@ TEST_P(ZeroGraphTest, SetGraphArgsOnDestroyedBlob) { // TODO: add asserts for no
     blobStream.read(reinterpret_cast<char*>(blob), size);
 
     OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(blob, size));
-    auto initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
-                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    auto initCommandQueueOrdinal =
+        zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
+                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
     zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal);
     if (graphDescriptor._memoryPersistent) {
         blob = nullptr;
-    
+
         ASSERT_ANY_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, blob));
     } else {
         std::cout << "Memory is not persistent\n";
@@ -205,8 +215,7 @@ std::vector<int> graphDescflags = {ZE_GRAPH_FLAG_NONE,
 
 // combine with range so as it will be compile time
 // maybe not all the early versions are supported
-std::vector<std::string> extVersion =
-    {"1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12", "1.13"};
+std::vector<std::string> extVersion = {"1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12", "1.13"};
 
 INSTANTIATE_TEST_SUITE_P(something,
                          ZeroGraphTest,
@@ -293,10 +302,14 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
     return std::make_pair(sizeOfSerializedIR, buffer);
 }
 
-void* allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const size_t bytes, const size_t alignment) noexcept {
+void* allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                           const size_t bytes,
+                           const size_t alignment) noexcept {
     size_t size = bytes + alignment - (bytes % alignment);
 
-    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED};
+    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC,
+                                     nullptr,
+                                     ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED};
     void* data = nullptr;
     auto result = intel_npu::zeMemAllocHost(init_structs->getContext(), &desc, size, alignment, &data);
 
@@ -304,9 +317,9 @@ void* allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_st
         return data;
     } else {
         OPENVINO_THROW("L0 zeMemAllocHost result: %s, code %#X - %s",
-                      ze_result_to_string(result).c_str(),
-                      uint64_t(result),
-                      ze_result_to_description(result).c_str());
+                       ze_result_to_string(result).c_str(),
+                       uint64_t(result),
+                       ze_result_to_description(result).c_str());
         return nullptr;
     }
 }
@@ -315,8 +328,8 @@ void deallocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_s
     auto result = intel_npu::zeMemFree(init_structs->getContext(), handle);
     if (ZE_RESULT_SUCCESS != result) {
         OPENVINO_THROW("L0 zeMemFree result: %s, code %#X - %s",
-                      ze_result_to_string(result).c_str(),
-                      uint64_t(result),
-                      ze_result_to_description(result).c_str());
+                       ze_result_to_string(result).c_str(),
+                       uint64_t(result),
+                       ze_result_to_description(result).c_str());
     }
 }

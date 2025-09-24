@@ -17,7 +17,7 @@ protected:
 
 public:
     std::shared_ptr<ZeroInitStructsMock> zeroInitMock;
-    
+
     std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
 
     std::shared_ptr<ZeGraphExtWrappers> zeGraphExt;
