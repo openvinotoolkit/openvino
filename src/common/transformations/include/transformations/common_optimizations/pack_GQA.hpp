@@ -83,13 +83,12 @@ namespace ov::pass {
  *
  * @ingroup ov_transformation_common_optimizations
  */
-class TRANSFORMATIONS_API PackGQA;
 
 }  // namespace ov::pass
 
 namespace ov::pass {
 
-class PackGQA : public ov::pass::MultiMatcher {
+class TRANSFORMATIONS_API PackGQA : public ov::pass::MultiMatcher {
 public:
     OPENVINO_RTTI("PackGQA");
 
