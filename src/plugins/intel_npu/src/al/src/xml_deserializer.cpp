@@ -4,10 +4,13 @@
 
 #include "intel_npu/xml_deserializer.hpp"
 
+#include "openvino/op/group_query_attention.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "ov_ops/rms.hpp"
+#include "ov_ops/rotary_positional_embeddings.hpp"
 
 namespace intel_npu {
 
@@ -43,8 +46,18 @@ std::shared_ptr<ov::Model> deserialize_ir_model(uint8_t* serialized_model) {
         opsets[it.first] = it.second();
     }
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
-        std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
-        return exts;
+        std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> extensions_map;
+        const std::vector<ov::Extension::Ptr> extensions_vector{
+            // TODO why these extensions?
+            std::make_shared<ov::OpExtension<ov::op::internal::RMS>>(),
+            std::make_shared<ov::OpExtension<ov::op::internal::RoPE>>(),
+            std::make_shared<ov::OpExtension<ov::op::internal::GroupQueryAttention>>()};
+
+        for (const auto& ext : extensions_vector) {
+            if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
+                extensions_map.insert({base_ext->get_type_info(), base_ext});
+        }
+        return extensions_map;
     }();
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
     size_t version = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 0));
