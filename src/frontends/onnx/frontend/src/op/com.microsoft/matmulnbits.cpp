@@ -85,7 +85,6 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
     if (inputs.size() > 3 && !ov::as_type_ptr<NullNode>(inputs[3].get_node_shared_ptr())) {
         zero_points = inputs[3];
-        std::cout << "zero_points: " << zero_points << std::endl;
         CHECK_VALID_NODE(node,
                          zero_points.get_element_type() == ov::element::u8 ||
                              zero_points.get_element_type() == ov::element::i32 ||
