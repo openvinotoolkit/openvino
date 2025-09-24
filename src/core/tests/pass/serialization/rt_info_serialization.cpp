@@ -22,6 +22,8 @@
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
+namespace ov::test {
+
 class RTInfoSerializationTest : public ov::test::TestsCommon {
 protected:
     std::string m_out_xml_path;
@@ -308,8 +310,6 @@ TEST(OvSerializationTests, SerializeRawMeta) {
         EXPECT_EQ(0, serialized_model.compare(ir_with_rt_info));
     }
 }
-
-namespace ov::test {
 
 TEST(RTInfoSerialization, user_data) {
     std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>

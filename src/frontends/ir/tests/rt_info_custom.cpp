@@ -4,14 +4,15 @@
 
 #include <gtest/gtest.h>
 
+#include <sstream>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/xml_util/xml_serialize_util.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 TEST(RTInfoCustom, simple_entries) {
     std::string ref_ir_xml = R"V0G0N(
@@ -233,5 +234,4 @@ TEST(RTInfoCustom, RuntimeAttribute_priority) {
     OV_ASSERT_NO_THROW(custom = r_abs_rt_info.at(layout_custom_id).as<std::string>());
     EXPECT_EQ(custom, layout_custom_value);
 }
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test
