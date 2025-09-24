@@ -21,7 +21,7 @@ public:
 
     MOE() = default;
 
-    enum class Expert_type { GEMM3_SWIGLU, GEMM2_BIAS_SWIGLU_CLAMP };
+    enum class Expert_type { GEMM2_BIAS_SWIGLU_CLAMP, GEMM3_SWIGLU };
 
     struct Config {
         Expert_type expert_type{Expert_type::GEMM2_BIAS_SWIGLU_CLAMP};
@@ -32,8 +32,9 @@ public:
     /// \brief Constructs a MOE operation with config only
     /// \param args The input tensors, in the following order:
     ///   0: hidden_states - input tensor with hidden representations
-    ///   1: router_topk_output_weights - normalized weights for selected experts (input to final multiplication)
-    ///   2: router_topk_output_indices - indices of selected top-k experts
+    ///   1: routing_weights - [num_experts, ...] normalized weights for selected experts
+    ///      (input to final multiplication)
+    ///   2: router_topk_output_indices - [..., topk] indices of selected top-k experts
     ///   3: w0_weight - expert weights for first projection, shape [num_experts, inter_size, hidden_size] or
     ///   [num_experts, hidden_size, 2 * inter_size] if fused
     ///   4: w0_bias (optional) - expert bias for first projection,
