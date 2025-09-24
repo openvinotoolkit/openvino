@@ -92,7 +92,6 @@ static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformation
 
 /**
  * @brief Read-only property to get plugin specific needed alignment for cache header
- * impact.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint32_t, PropertyMutability::RO> cache_header_alignment{"CACHE_HEADER_ALIGNMENT"};
