@@ -30,18 +30,9 @@ class ConvolutionLayerGPUTestDynamic : public testing::WithParamInterface<convLa
                                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convLayerTestParamsSet>& obj) {
-        convSpecificParams convParams;
-        ov::element::Type model_type;
-        InputShape inputShape;
-        std::string targetDevice;
-        bool activationFusing;
-        std::tie(convParams, model_type, inputShape, targetDevice, activationFusing) = obj.param;
+        const auto& [convParams, model_type, inputShape, targetDevice, activationFusing] = obj.param;
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
         std::ostringstream result;
         result << "IS=";
@@ -67,19 +58,12 @@ public:
 
 protected:
     void SetUp() override {
-        convSpecificParams convParams;
-        InputShape inputShape;
-        auto model_type = ov::element::dynamic;
-        bool activationFusing;
-        std::tie(convParams, model_type, inputShape, targetDevice, activationFusing) = this->GetParam();
+        const auto& [convParams, model_type, inputShape, _targetDevice, activationFusing] = this->GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShape});
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)
@@ -102,7 +86,12 @@ protected:
 
                 function = std::make_shared<ov::Model>(results, inputParams, "Convolution");
         }
-    }
+
+        if (model_type == ov::element::f16) {
+            abs_threshold = 0.05;
+            rel_threshold = 0.05;
+        }
+}
 };
 
 TEST_P(ConvolutionLayerGPUTestDynamic, Inference) {
@@ -263,6 +252,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2D_static_output, 
                 ::testing::Values(true)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
+const std::vector<ov::test::InputShape> dynInputShapes2D_onednn = {
+    {
+        {1, 14, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+        {{1, 14, 101, 176}}
+    }
+};
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_onednn_dynamic2DSymAutoPad_test, ConvolutionLayerGPUTestDynamic,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::Values(std::vector<size_t>{7, 7}),
+                        ::testing::Values(std::vector<size_t>{2, 2}),
+                        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
+                        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
+                        ::testing::Values(std::vector<size_t>{1, 1}),
+                        ::testing::Values(64),
+                        ::testing::ValuesIn({ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER})),
+                ::testing::ValuesIn({ov::element::f16}),
+                ::testing::ValuesIn(dynInputShapes2D_onednn),
+                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
+                ::testing::Values(true)),
+                ConvolutionLayerGPUTestDynamic::getTestCaseName);
 // ======== 3D convolutions
 const std::vector<ov::test::InputShape> dynInputShapes3D = {
     {
@@ -335,18 +345,9 @@ class ConvolutionLayerGPUTestDynamicEltwiseFusing : public testing::WithParamInt
                                                     virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convLayerFusingTestParamsSet>& obj) {
-        convSpecificParams convParams;
-        ov::element::Type model_type;
-        std::vector<InputShape> inputShapes;
-        std::string targetDevice;
-        bool activationFusing;
-        std::tie(convParams, model_type, inputShapes, targetDevice, activationFusing) = obj.param;
+        const auto& [convParams, model_type, inputShapes, targetDevice, activationFusing] = obj.param;
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
         std::ostringstream result;
         for (const auto& inputShape : inputShapes) {
@@ -374,19 +375,12 @@ public:
 
 protected:
     void SetUp() override {
-        convSpecificParams convParams;
-        std::vector<InputShape> inputShapes;
-        auto model_type = ov::element::dynamic;
-        bool activationFusing;
-        std::tie(convParams, model_type, inputShapes, targetDevice, activationFusing) = this->GetParam();
+        const auto& [convParams, model_type, inputShapes, _targetDevice, activationFusing] = this->GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShapes});
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)

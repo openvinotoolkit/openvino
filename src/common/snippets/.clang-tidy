@@ -27,29 +27,15 @@
 # -misc-const-correctness. No big reason to enforce
 # -misc-no-recursion. No big reason to enforce
 # -readability-identifier-length. A lot of code use short names for readability, i.e. 'B' for batch
-# -readability-uppercase-literal-suffix. 
 #
 ### Checks that are turned off but better be enabled later:
-# -bugprone-narrowing-conversions
 # -bugprone-easily-swappable-parameters
-# -bugprone-exception-escape. There are a lot of legacy code which does not handle exceptions properly and just catches them all. Major refactoring is required to correct this.
-# -bugprone-implicit-widening-of-multiplication-result
-# -bugprone-incorrect-roundings. There are explicit ways to perform rounding (i.e. std::floor(), std::round(), etc). Requires careful updates case by case
-# -bugprone-signed-char-misuse. The source code contains valid logic when pointer to the data is interpreted as int8_t (i.e. weights tensor)
 # -cppcoreguidelines-avoid-const-or-ref-data-members
-# -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
-# -google-explicit-constructor,
-# -google-readability-casting,
-# -modernize-avoid-c-arrays,
-# -misc-header-include-cycle,
 # -misc-non-private-member-variables-in-classes,
-# -misc-use-anonymous-namespace,
-# -readability-const-return-type
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
 # -readability-isolate-declaration
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
-# -readability-simplify-boolean-expr
 # -readability-suspicious-call-argument
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
 # -modernize-use-constraints,
@@ -65,11 +51,6 @@ Checks: >
   misc-*,
   readability-*,
   -bugprone-easily-swappable-parameters,
-  -bugprone-exception-escape,
-  -bugprone-implicit-widening-of-multiplication-result,
-  -bugprone-incorrect-roundings,
-  -bugprone-narrowing-conversions,
-  -bugprone-signed-char-misuse,
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-const-or-ref-data-members,
   -cppcoreguidelines-avoid-do-while,
@@ -77,7 +58,6 @@ Checks: >
   -cppcoreguidelines-explicit-virtual-functions,
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-misleading-capture-default-by-value,
-  -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-non-private-member-variables-in-classes,
   -cppcoreguidelines-owning-memory,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
@@ -91,32 +71,28 @@ Checks: >
   -cppcoreguidelines-rvalue-reference-param-not-moved,
   -cppcoreguidelines-special-member-functions,
   -google-build-using-namespace,
-  -google-explicit-constructor,
-  -google-readability-casting,
   -google-readability-todo,
-  -modernize-avoid-c-arrays,
+  -modernize-use-trailing-return-type,
   -modernize-use-constraints,
   -modernize-use-std-numbers,
-  -modernize-use-trailing-return-type,
-  -misc-header-include-cycle,
   -misc-const-correctness,
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
-  -misc-use-anonymous-namespace,
-  -readability-const-return-type,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
   -readability-isolate-declaration,
   -readability-magic-numbers,
-  -readability-simplify-boolean-expr,
   -readability-suspicious-call-argument,
-  -readability-uppercase-literal-suffix,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes
 FormatStyle: file
 HeaderFilterRegex: 'src/common/snippets/.*\.h(pp)?$'
 CheckOptions:
+  - key: bugprone-narrowing-conversions.IgnoreConversionFromTypes
+    value: "size_t;ptrdiff_t;size_type;difference_type;value_type;uint32_t;uint64_t;unsigned long;unsigned int"
+  - key: cppcoreguidelines-narrowing-conversions.IgnoreConversionFromTypes
+    value: "size_t;ptrdiff_t;size_type;difference_type;value_type;uint32_t;uint64_t;unsigned long;unsigned int"
   - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
     value: true
   # use = instead of {} for initialization
@@ -138,6 +114,8 @@ CheckOptions:
     value: "3"
   - key: modernize-use-override.AllowOverrideAndFinal
     value: true
+  - key: performance-for-range-copy.WarnOnAllAutoCopies
+    value: true
   - key: readability-implicit-bool-conversion.AllowIntegerConditions
     value: true
   - key: readability-implicit-bool-conversion.AllowPointerConditions
@@ -158,4 +136,12 @@ CheckOptions:
   - key: performance-unnecessary-value-param.AllowedTypes
     value: >
       ov::snippets::lowered::LinearIR::constExprReverseIt
+  - key: readability-simplify-boolean-expr.ChainedConditionalReturn
+    value: true
+  - key: readability-simplify-boolean-expr.ChainedConditionalAssignment
+    value: true
+  - key: readability-simplify-boolean-expr.SimplifyDeMorgan
+    value: true
+  - key: readability-simplify-boolean-expr.SimplifyDeMorganRelaxed
+    value: true
 ---

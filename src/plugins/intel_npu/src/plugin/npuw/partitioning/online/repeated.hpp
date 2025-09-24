@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <set>
 #include <vector>
 
 #include "openvino/openvino.hpp"
@@ -52,6 +53,14 @@ struct MetaInterconnect {
     bool operator<(const MetaInterconnect& other) const;
 };
 
+struct MetaInterconnectIO {
+    std::set<std::string> output_imeta;
+    std::set<std::string> output_ometa;
+
+    bool operator==(const MetaInterconnectIO& other) const;
+    bool operator<(const MetaInterconnectIO& other) const;
+};
+
 }  // namespace online
 }  // namespace npuw
 }  // namespace ov
@@ -72,6 +81,17 @@ struct hash<std::vector<ov::element::Type>> {
         std::size_t seed = vec.size();
         for (const auto& s : vec) {
             seed ^= s.hash() + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+        return seed;
+    }
+};
+
+template <>
+struct hash<std::set<std::string>> {
+    inline size_t operator()(const std::set<std::string>& vec) const {
+        std::size_t seed = vec.size();
+        for (const auto& s : vec) {
+            seed ^= std::hash<std::string>()(s) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         }
         return seed;
     }
@@ -130,15 +150,25 @@ struct hash<ov::npuw::online::MetaInterconnect> {
     }
 };
 
+template <>
+struct hash<ov::npuw::online::MetaInterconnectIO> {
+    inline size_t operator()(const ov::npuw::online::MetaInterconnectIO& mic_io) const {
+        return (std::hash<std::set<std::string>>()(mic_io.output_imeta) + 0x9e3779b9) ^
+               (std::hash<std::set<std::string>>()(mic_io.output_ometa) + 0x9e3779b9);
+    }
+};
+
 // FIXME: hash<MetaInterconnect> defined above. This hash should be available by default
 template <>
-struct hash<std::vector<ov::npuw::online::MetaInterconnect>> {
-    inline size_t operator()(const std::vector<ov::npuw::online::MetaInterconnect>& vec) const {
-        std::size_t seed = vec.size();
-        for (const auto& mic : vec) {
+struct hash<ov::npuw::online::detail::PairMICVecIO> {
+    inline size_t operator()(const ov::npuw::online::detail::PairMICVecIO& p) const {
+        std::size_t seed = p.first.size();
+        for (const auto& mic : p.first) {
             seed ^= std::hash<ov::npuw::online::MetaInterconnect>()(mic) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         }
+        seed ^= std::hash<ov::npuw::online::MetaInterconnectIO>()(p.second) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
         return seed;
     }
 };
+
 }  // namespace std

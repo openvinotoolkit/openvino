@@ -4,10 +4,10 @@
 
 #include "jit_loop_emitters.hpp"
 
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <algorithm>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
@@ -133,7 +133,7 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::aarch64::jit_generat
 
 ov::snippets::lowered::ExpressionPtr jit_loop_end_emitter::get_loop_begin_expr(
     const ov::snippets::lowered::ExpressionPtr& expr) {
-    auto begin_expr = expr->get_input_port_connectors().back()->get_source().get_expr();
+    auto begin_expr = expr->get_input_expr_ptr(expr->get_input_count() - 1);
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(begin_expr->get_node()),
                               "LoopEnd expression must have th last port connector to LoopBegin");
     return begin_expr;

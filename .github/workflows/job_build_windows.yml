@@ -48,6 +48,7 @@ jobs:
       CCACHE_REMOTE_DIR: C:\\mount\\caches\\ccache\\windows2022_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
+      CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
@@ -86,7 +87,7 @@ jobs:
       
       - name: Setup NodeJS
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: ${{ env.NODEJS_VERSION }}
 
@@ -263,6 +264,8 @@ jobs:
               exit 1
             }
           }
+        env:
+          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
 
       - name: Pack Artifacts
         run: |
@@ -408,7 +411,7 @@ jobs:
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: always()
+        if: ${{ inputs.event-name != 'schedule' }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |

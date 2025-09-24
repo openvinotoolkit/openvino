@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cassert>
 #include <common/c_types_map.hpp>
+#include <common/primitive_attr.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
@@ -97,7 +98,7 @@ DnnlConvolutionPrimitive::IntermediateReorders::IntermediateReorders(const Key& 
             createIfNotEqual(key.dst->getDnnlDesc(), primDesc.dst_desc(), AllocateMemoryFor::Dst, engine);
     }
 
-    if (key.nonConstantWeights && key.wei->getDnnlDesc() != primDesc.weights_desc()) {
+    if (!key.constantWeights && key.wei->getDnnlDesc() != primDesc.weights_desc()) {
         m_inputReorders[DNNL_ARG_WEIGHTS] =
             createIfNotEqual(key.wei->getDnnlDesc(), primDesc.weights_desc(), AllocateMemoryFor::Dst, engine);
     }
@@ -141,7 +142,7 @@ size_t DnnlConvolutionPrimitive::Key::hash() const {
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, fcSemantic);
-    seed = hash_combine(seed, nonConstantWeights);
+    seed = hash_combine(seed, constantWeights);
 
     return seed;
 }
@@ -167,7 +168,7 @@ bool DnnlConvolutionPrimitive::Key::operator==(const Key& rhs) const {
 
     result = result && *attr.get() == *rhs.attr.get();
     result = result && fcSemantic == rhs.fcSemantic;
-    result = result && nonConstantWeights == rhs.nonConstantWeights;
+    result = result && constantWeights == rhs.constantWeights;
 
     return result;
 }
@@ -175,7 +176,7 @@ bool DnnlConvolutionPrimitive::Key::operator==(const Key& rhs) const {
 // make a fake shape: N, C, W
 template <typename T>
 static std::vector<T> normalizeDims(const std::vector<T>& dims) {
-    assert(one_of(static_cast<int>(dims.size()), 2, 3));
+    assert(any_of(static_cast<int>(dims.size()), 2, 3));
 
     if (dims.size() == 3) {
         return {dims[0], dims[2], dims[1]};
@@ -453,7 +454,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
     const auto& outputDims = attrs.fcSemantic ? normalizeDims(originalOutputDims) : originalOutputDims;
 
     auto isINT8 =
-        one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
+        any_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
     const auto weightScaleMask = attrs.isGrouped ? 3 : 1 << 0;
@@ -470,7 +471,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                     memory,
                                     outputDataType,
                                     attrs.dqScales,
-                                    false,
+                                    PostOpsMode::Original,
                                     false)
                     .compose()};
     }
@@ -484,7 +485,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                                       memory,
                                                       outputDataType,
                                                       attrs.dqScales,
-                                                      true,
+                                                      PostOpsMode::Legacy,
                                                       true);
     // first try to compose using legacy post ops
     auto legacyCompose = legacyPostOpsLegacyZeroPoints.compose();
@@ -538,7 +539,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                                             memory,
                                                             outputDataType,
                                                             attrs.dqScales,
-                                                            true,
+                                                            PostOpsMode::Legacy,
                                                             false);
         attributeVariants.emplace_back(legacyPostOpsOriginalZeroPoints.compose());
 
@@ -554,7 +555,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                                           memory,
                                                           outputDataType,
                                                           attrs.dqScales,
-                                                          false,
+                                                          PostOpsMode::Original,
                                                           false);
     attributeVariants.emplace_back(originalPostOpsOriginalZeroPoints.compose());
 
@@ -857,7 +858,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
                           paddingR,
                           shapeAgnosticData->m_primAttrs.attr,
                           attrs.fcSemantic,
-                          attrs.nonConstantWeights};
+                          attrs.constantWeights};
 
     const auto defaultImplType = shapeAgnosticData->m_implType;
 
@@ -878,8 +879,18 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
 
 DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                                            const DnnlMemoryDescPtr& dstDesc,
-                                                                           bool weightsNonTransposed) {
-    return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, weightsNonTransposed);
+                                                                           const ConvAttrs& attrs) {
+    FCAttrs fcAttrs{};
+    fcAttrs.withBias = attrs.withBias;
+    fcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
+
+    return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, fcAttrs);
+}
+
+DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                                           const DnnlMemoryDescPtr& dstDesc,
+                                                                           const FCAttrs& attrs) {
+    return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, attrs);
 }
 
 std::tuple<size_t, size_t, size_t, size_t> DnnlConvolutionPrimitive::getChannelParams(const ConvConfig& config) {
@@ -902,7 +913,7 @@ bool DnnlConvolutionPrimitive::isJitPlanarAvailable(const ConvConfig& config) {
 
     const auto [groupNum, groupIC, IC, groupOC] = getChannelParams(config);
 
-    return (IC == 1 && groupOC * groupNum == 1) && isAvx2FP32;
+    return all_of(1U, IC, groupOC * groupNum) && isAvx2FP32;
 }
 
 bool DnnlConvolutionPrimitive::isBrgConvAvailable(const ConvConfig& config) {
@@ -921,7 +932,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         return false;
         // @todo master implementation had the following logic as well:
         //     auto predicate = [](memory::format_tag tag) {
-        //         return one_of(tag, memory::format_tag::nwc, memory::format_tag::nhwc, memory::format_tag::ndhwc);
+        //         return any_of(tag, memory::format_tag::nwc, memory::format_tag::nhwc, memory::format_tag::ndhwc);
         //     };
         //     if (std::none_of(inputMemoryFormatsFilter.begin(), inputMemoryFormatsFilter.end(), predicate)) {
         //         return false;

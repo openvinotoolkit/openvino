@@ -1,12 +1,15 @@
 # type: ignore
 from __future__ import annotations
 from builtins import traceback as TracebackType
+from collections.abc import Iterator
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Node
+from openvino._pyopenvino import RTMap
 from openvino._pyopenvino import Tensor
+from openvino._pyopenvino import TensorVector
 from openvino._pyopenvino import Type
 from openvino.package_utils import deprecatedclassproperty
 from openvino.utils.data_helpers.data_dispatcher import _data_dispatch
@@ -14,7 +17,7 @@ from openvino.utils.data_helpers.wrappers import OVDict
 from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
 from openvino.utils.data_helpers.wrappers import tensor_from_file
 from pathlib import Path
-from typing import Any
+import collections.abc
 import io as io
 import openvino._pyopenvino
 import openvino._pyopenvino.op
@@ -23,7 +26,7 @@ import openvino.utils.data_helpers.wrappers
 import pathlib
 import traceback as traceback
 import typing
-__all__ = ['Any', 'AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'Tensor', 'TracebackType', 'Type', 'TypingType', 'compile_model', 'deprecatedclassproperty', 'io', 'tensor_from_file', 'traceback']
+__all__: list[str] = ['AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Iterator', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'RTMap', 'Tensor', 'TensorVector', 'TracebackType', 'Type', 'compile_model', 'deprecatedclassproperty', 'io', 'tensor_from_file', 'traceback']
 class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
     """
     AsyncInferQueue with a pool of asynchronous requests.
@@ -47,7 +50,7 @@ class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
                 :rtype: openvino.InferRequest
                 
         """
-    def __iter__(self) -> typing.Iterator[openvino._ov_api.InferRequest]:
+    def __iter__(self) -> collections.abc.Iterator[InferRequest]:
         """
         Allows to iterate over AsyncInferQueue.
         
@@ -56,7 +59,7 @@ class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
                 will put the parent AsyncInferQueue object in an invalid state.
         
                 :return: a generator that yields InferRequests.
-                :rtype: Iterable[openvino.InferRequest]
+                :rtype: collections.abc.Iterable[openvino.InferRequest]
                 
         """
     def start_async(self, inputs: typing.Any = None, userdata: typing.Any = None, share_inputs: bool = False) -> None:
@@ -243,8 +246,8 @@ class CompiledModel(openvino._pyopenvino.CompiledModel):
         """
         Gets state control interface for the underlaying infer request.
         
-                :return: List of VariableState objects.
-                :rtype: List[openvino.VariableState]
+                :return: list of VariableState objects.
+                :rtype: list[openvino.VariableState]
                 
         """
     def reset_state(self) -> None:
@@ -265,7 +268,7 @@ class Core(openvino._pyopenvino.Core):
         Core instance per application.
         
     """
-    def compile_model(self, model: typing.Union[openvino._ov_api.Model, str, pathlib.Path], device_name: typing.Optional[str] = None, config: typing.Optional[typing.Dict[str, typing.Any]] = None, *, weights: typing.Optional[bytes] = None) -> CompiledModel:
+    def compile_model(self, model: typing.Union[openvino._ov_api.Model, str, pathlib.Path], device_name: typing.Optional[str] = None, config: typing.Optional[dict[str, typing.Any]] = None, *, weights: typing.Optional[bytes] = None) -> CompiledModel:
         """
         Creates a compiled model.
         
@@ -293,7 +296,7 @@ class Core(openvino._pyopenvino.Core):
                 :rtype: openvino.CompiledModel
                 
         """
-    def import_model(self, model_stream: bytes, device_name: str, config: typing.Optional[typing.Dict[str, typing.Any]] = None) -> CompiledModel:
+    def import_model(self, model_stream: bytes, device_name: str, config: typing.Optional[dict[str, typing.Any]] = None) -> CompiledModel:
         """
         Imports a compiled model from a previously exported one.
         
@@ -335,9 +338,9 @@ class Core(openvino._pyopenvino.Core):
                     new_compiled = core.import_model(user_stream, "CPU")
                 
         """
-    def query_model(self, model: Model, device_name: str, config: typing.Optional[typing.Dict[str, typing.Any]] = None) -> dict:
+    def query_model(self, model: Model, device_name: str, config: typing.Optional[dict[str, typing.Any]] = None) -> dict:
         ...
-    def read_model(self, model: typing.Union[str, bytes, object, _io.BytesIO], weights: typing.Union[object, str, bytes, openvino._pyopenvino.Tensor, _io.BytesIO] = None, config: typing.Optional[typing.Dict[str, typing.Any]] = None) -> Model:
+    def read_model(self, model: typing.Union[str, bytes, object, _io.BytesIO], weights: typing.Union[object, str, bytes, openvino._pyopenvino.Tensor, _io.BytesIO] = None, config: typing.Optional[dict[str, typing.Any]] = None) -> Model:
         ...
 class InferRequest(openvino.utils.data_helpers.wrappers._InferRequestWrapper):
     """
@@ -480,13 +483,13 @@ class InferRequest(openvino.utils.data_helpers.wrappers._InferRequestWrapper):
         Gets all outputs tensors of this InferRequest.
         
                 :return: Dictionary of results from output tensors with ports as keys.
-                :rtype: Dict[openvino.ConstOutput, numpy.array]
+                :rtype: dict[openvino.ConstOutput, numpy.array]
                 
         """
 class Model:
     def __copy__(self) -> Model:
         ...
-    def __deepcopy__(self, memo: typing.Dict) -> Model:
+    def __deepcopy__(self, memo: dict) -> Model:
         """
         Returns a deepcopy of Model.
         
@@ -496,7 +499,7 @@ class Model:
         """
     def __enter__(self) -> Model:
         ...
-    def __exit__(self, exc_type: typing.Type[BaseException], exc_value: BaseException, traceback: traceback) -> None:
+    def __exit__(self, exc_type: type[BaseException], exc_value: BaseException, traceback: traceback) -> None:
         ...
     def __getattr__(self, name: str) -> typing.Any:
         ...
@@ -504,200 +507,202 @@ class Model:
     def __init__(self: openvino._pyopenvino.Model, other: openvino._pyopenvino.Model) -> None:
         ...
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], sinks: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], sinks: collections.abc.Sequence[openvino._pyopenvino.Node], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                             Create user-defined Model which is a representation of a model.
         
-                            :param results: List of results.
-                            :type results: List[op.Result]
-                            :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                            :type sinks: List[openvino.Node]
-                            :param parameters: List of parameters.
-                            :type parameters: List[op.Parameter]
+                            :param results: list of results.
+                            :type results: list[op.Result]
+                            :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+                            :type sinks: list[openvino.Node]
+                            :param parameters: list of parameters.
+                            :type parameters: list[op.Parameter]
                             :param name: String to set as model's friendly name.
                             :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                             Create user-defined Model which is a representation of a model.
         
-                            :param results: List of results.
-                            :type results: List[op.Result]
-                            :param parameters: List of parameters.
-                            :type parameters: List[op.Parameter]
+                            :param results: list of results.
+                            :type results: list[op.Result]
+                            :param parameters: list of parameters.
+                            :type parameters: list[op.Parameter]
                             :param name: String to set as model's friendly name.
                             :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Node], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model.
         
-                    :param results: List of Nodes to be used as results.
-                    :type results: List[openvino.Node]
-                    :param parameters: List of parameters.
-                    :type parameters:  List[op.Parameter]
+                    :param results: list of Nodes to be used as results.
+                    :type results: list[openvino.Node]
+                    :param parameters: list of parameters.
+                    :type parameters:  list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, result: openvino._pyopenvino.Node, parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, result: openvino._pyopenvino.Node, parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                             Create user-defined Model which is a representation of a model.
         
                             :param result: Node to be used as result.
                             :type result: openvino.Node
-                            :param parameters: List of parameters.
-                            :type parameters: List[op.Parameter]
+                            :param parameters: list of parameters.
+                            :type parameters: list[op.Parameter]
                             :param name: String to set as model's friendly name.
                             :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of outputs.
-                    :type results: List[openvino.Output]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
+                    :param results: list of outputs.
+                    :type results: list[openvino.Output]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], sinks: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], sinks: collections.abc.Sequence[openvino._pyopenvino.Node], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of outputs.
-                    :type results: List[openvino.Output]
-                    :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                    :type sinks: List[openvino.Node]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
+                    :param results: list of outputs.
+                    :type results: list[openvino.Output]
+                    :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+                    :type sinks: list[openvino.Node]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], sinks: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], sinks: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of outputs.
-                    :type results: List[openvino.Output]
-                    :param sinks: List of Output sink node handles.
-                    :type sinks: List[openvino.Output]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
+                    :param results: list of outputs.
+                    :type results: list[openvino.Output]
+                    :param sinks: list of Output sink node handles.
+                    :type sinks: list[openvino.Output]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], sinks: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], sinks: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of outputs.
-                    :type results: List[openvino.Output]
-                    :param sinks: List of Output sink node handles.
-                    :type sinks: List[openvino.Output]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
-                    :param variables: List of variables.
-                    :type variables: List[op.util.Variable]
+                    :param results: list of outputs.
+                    :type results: list[openvino.Output]
+                    :param sinks: list of Output sink node handles.
+                    :type sinks: list[openvino.Output]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
+                    :param variables: list of variables.
+                    :type variables: list[op.util.Variable]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], sinks: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], sinks: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                 Create user-defined Model which is a representation of a model
         
-                :param results: List of results.
-                :type results: List[op.Result]
-                :param sinks: List of Output sink node handles.
-                :type sinks: List[openvino.Output]
-                :param parameters: List of parameters.
-                :type parameters: List[op.Parameter]
+                :param results: list of results.
+                :type results: list[op.Result]
+                :param sinks: list of Output sink node handles.
+                :type sinks: list[openvino.Output]
+                :param parameters: list of parameters.
+                :type parameters: list[op.Parameter]
                 :param name: String to set as model's friendly name.
                 :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], sinks: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], sinks: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                 Create user-defined Model which is a representation of a model
         
-                :param results: List of results.
-                :type results: List[op.Result]
-                :param sinks: List of Output sink node handles.
-                :type sinks: List[openvino.Output]
-                :param parameters: List of parameters.
-                :type parameters: List[op.Parameter]
-                :param variables: List of variables.
-                :type variables: List[op.util.Variable]
+                :param results: list of results.
+                :type results: list[op.Result]
+                :param sinks: list of Output sink node handles.
+                :type sinks: list[openvino.Output]
+                :param parameters: list of parameters.
+                :type parameters: list[op.Parameter]
+                :param variables: list of variables.
+                :type variables: list[op.util.Variable]
                 :param name: String to set as model's friendly name.
                 :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], sinks: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], sinks: collections.abc.Sequence[openvino._pyopenvino.Node], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of results.
-                    :type results: List[op.Result]
-                    :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                    :type sinks: List[openvino.Node]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
-                    :param variables: List of variables.
-                    :type variables: List[op.util.Variable]
+                    :param results: list of results.
+                    :type results: list[op.Result]
+                    :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+                    :type sinks: list[openvino.Node]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
+                    :param variables: list of variables.
+                    :type variables: list[op.util.Variable]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], sinks: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], sinks: collections.abc.Sequence[openvino._pyopenvino.Node], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of results.
-                    :type results: List[openvino.Output]
-                    :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                    :type sinks: List[openvino.Node]
-                    :param variables: List of variables.
-                    :type variables: List[op.util.Variable]
+                    :param results: list of results.
+                    :type results: list[openvino.Output]
+                    :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+                    :type sinks: list[openvino.Node]
+                    :param variables: list of variables.
+                    :type variables: list[op.util.Variable]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.op.Result], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of results.
-                    :type results: List[op.Result]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
-                    :param variables: List of variables.
-                    :type variables: List[op.util.Variable]
+                    :param results: list of results.
+                    :type results: list[op.Result]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
+                    :param variables: list of variables.
+                    :type variables: list[op.util.Variable]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Output], parameters: list[openvino._pyopenvino.op.Parameter], variables: list[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: collections.abc.Sequence[openvino._pyopenvino.Output], parameters: collections.abc.Sequence[openvino._pyopenvino.op.Parameter], variables: collections.abc.Sequence[openvino._pyopenvino.op.util.Variable], name: str = '') -> None:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of results.
-                    :type results: List[openvino.Output]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
+                    :param results: list of results.
+                    :type results: list[openvino.Output]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
     def __repr__(self) -> str:
         ...
     def clone(self) -> Model:
+        ...
+    def evaluate(self, output_tensors: typing.Union[list[openvino._pyopenvino.Tensor], openvino._pyopenvino.TensorVector], input_tensors: typing.Union[list[openvino._pyopenvino.Tensor], openvino._pyopenvino.TensorVector], evaluation_context: typing.Optional[openvino._pyopenvino.RTMap] = None) -> bool:
         ...
 class ModelMeta(type):
     @classmethod
@@ -706,7 +711,7 @@ class ModelMeta(type):
     @classmethod
     def __getattribute__(cls, name: str) -> typing.Any:
         ...
-def compile_model(model: typing.Union[openvino._ov_api.Model, str, pathlib.Path], device_name: typing.Optional[str] = 'AUTO', config: typing.Optional[typing.Dict[str, typing.Any]] = None) -> CompiledModel:
+def compile_model(model: typing.Union[openvino._ov_api.Model, str, pathlib.Path], device_name: typing.Optional[str] = 'AUTO', config: typing.Optional[dict[str, typing.Any]] = None) -> CompiledModel:
     """
     Compact method to compile model with AUTO plugin.
     
@@ -724,4 +729,3 @@ def compile_model(model: typing.Union[openvino._ov_api.Model, str, pathlib.Path]
     
         
     """
-TypingType: typing._SpecialGenericAlias  # value = typing.Type

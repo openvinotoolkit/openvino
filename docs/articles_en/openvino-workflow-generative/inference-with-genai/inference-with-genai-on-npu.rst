@@ -23,7 +23,7 @@ Install required dependencies:
          python3 -m venv npu-env
          npu-env/bin/activate
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.22.0
-         pip install openvino==2025.2 openvino-tokenizers==2025.2 openvino-genai==2025.2
+         pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
 
 
       For the pre-production version, use the following line, instead:
@@ -40,7 +40,7 @@ Install required dependencies:
          python -m venv npu-env
          npu-env\Scripts\activate
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.22.0
-         pip install openvino==2025.2 openvino-tokenizers==2025.2 openvino-genai==2025.2
+         pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
 
 
       For the pre-production version, use the following line, instead:
@@ -146,6 +146,10 @@ which do not require specifying quantization parameters:
 * TheBloke/Llama-2-7B-Chat-GPTQ
 * Qwen/Qwen2-7B-Instruct-GPTQ-Int4
 
+.. note::
+
+   Pre-converted models optimized for NPU are available on `Hugging Face <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__
+     
 
 Run generation using OpenVINO GenAI
 ###############################################################################################
@@ -285,6 +289,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 * To export a blob with weights you need to pass ``"CACHE_MODE" : "OPTIMIZE_SPEED"`` in the config.
 * If the blob is exported as weightless you also need to either provide
   ``"WEIGHTS_PATH" : "path\\to\\original\\model.bin"`` or ``"MODEL_PTR" : original ov::Model object``.
+* Ahead-of-time import in weightless mode has been optimized to consume less memory than during regular compilation or using ``CACHE_DIR``.
 
 .. tab-set::
 

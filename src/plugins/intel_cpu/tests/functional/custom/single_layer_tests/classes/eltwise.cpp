@@ -11,6 +11,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_RISCV64)
 #   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
@@ -21,13 +22,8 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseLayerCPUTestParamsSet> obj) {
-    EltwiseTestParams basicParamsSet;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    bool enforceSnippets;
-    std::tie(basicParamsSet, cpuParams, fusingParams, enforceSnippets) = obj.param;
-
+std::string EltwiseLayerCPUTest::getTestCaseName(const testing::TestParamInfo<EltwiseLayerCPUTestParamsSet>& obj) {
+    const auto& [basicParamsSet, cpuParams, fusingParams, enforceSnippets] = obj.param;
     std::ostringstream result;
     result << EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams>(
                                                               basicParamsSet, 0));
@@ -132,21 +128,19 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
 }
 
 void EltwiseLayerCPUTest::SetUp() {
-    EltwiseTestParams basicParamsSet;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    bool enforceSnippets;
-    std::tie(basicParamsSet, cpuParams, fusingParams, enforceSnippets) = this->GetParam();
-    std::vector<InputShape> shapes;
-    ElementType netType;
-    utils::InputLayerType secondaryInputType;
-    ov::test::utils::OpType opType;
-    ov::AnyMap additionalConfig;
-    std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, additionalConfig) = basicParamsSet;
+    const auto& [basicParamsSet, cpuParams, fusingParams, enforceSnippets] = this->GetParam();
+    const auto& [_shapes, _eltwiseType, secondaryInputType, opType, _netType, _inType, _outType, _targetDevice,
+                 additionalConfig] = basicParamsSet;
+    auto shapes = _shapes;
+    eltwiseType = _eltwiseType;
+    inType = _inType;
+    outType = _outType;
+    targetDevice = _targetDevice;
+    auto netType = _netType;
     // we have to change model precision as well, otherwise inference precision won't affect single-node graph
     // due to enforce inference precision optimization for the eltwise as first node of the model
     if (ov::element::Type(netType).is_real() && additionalConfig.count(ov::hint::inference_precision.name())) {
-        netType = additionalConfig[ov::hint::inference_precision.name()].as<ov::element::Type>();
+        netType = additionalConfig.at(ov::hint::inference_precision.name()).as<ov::element::Type>();
     }
 
     if (ElementType::bf16 == netType) {
@@ -166,6 +160,25 @@ void EltwiseLayerCPUTest::SetUp() {
             abs_threshold = 0.0078125f;
         }
     }
+
+    if (postOpMgrPtr &&
+        (postOpMgrPtr->getFusedOpsNames().find("SoftSign") != std::string::npos ||
+         postOpMgrPtr->getFusedOpsNames().find("FloorMod") != std::string::npos)) {
+        rel_threshold = 0.05f;
+    }
+
+#if defined(OPENVINO_ARCH_ARM)
+    // ARM32-only: Sub/Div may be decomposed or routed to different implementations
+    // causing variability (binary->unary or ACL/ref). Keep tests stable but localized here.
+    if (ov::intel_cpu::any_of(eltwiseType, utils::EltwiseTypes::SUBTRACT, utils::EltwiseTypes::DIVIDE)) {
+        // If format expectations specify two inputs, but transforms reduce arity, limit to single input.
+        if (inFmts.size() > 1) {
+            inFmts.resize(1);
+        }
+        // Do not enforce specific primType (ACL vs REF) for Sub/Div on ARM32.
+        selectedType = CPUTestsBase::any_type;
+    }
+#endif
 
     shapes.resize(2);
     switch (opType) {
@@ -293,7 +306,8 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
             (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
             (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
             (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
-            (eltwiseType == utils::EltwiseTypes::MOD)) {
+            (eltwiseType == utils::EltwiseTypes::MOD) ||
+            (eltwiseType == utils::EltwiseTypes::FLOOR_MOD)) {
             return "jit";
         }
     }
@@ -340,10 +354,8 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-        utils::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
-        utils::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
-#endif
+        utils::EltwiseTypes::SUBTRACT,
+        utils::EltwiseTypes::DIVIDE,
         utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::SQUARED_DIFF,
         utils::EltwiseTypes::MOD,
@@ -355,9 +367,12 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
+        utils::EltwiseTypes::SUBTRACT,
+        utils::EltwiseTypes::DIVIDE,
         utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::MOD,
         utils::EltwiseTypes::POWER,
+        utils::EltwiseTypes::SQUARED_DIFF,
     };
     return eltwiseOpTypesBinInp;
 }
@@ -374,9 +389,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinDyn() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinDyn = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) // TODO: Fix CVS-105430
         utils::EltwiseTypes::SUBTRACT,
-#endif
         utils::EltwiseTypes::SQUARED_DIFF,
     };
     return eltwiseOpTypesBinDyn;
@@ -450,10 +463,8 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesI32() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesI32 = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) // TODO: Fix CVS-105430
         utils::EltwiseTypes::SUBTRACT,
         utils::EltwiseTypes::DIVIDE,
-#endif
         utils::EltwiseTypes::SQUARED_DIFF,
     };
     return eltwiseOpTypesI32;

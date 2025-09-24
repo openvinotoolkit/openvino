@@ -115,14 +115,14 @@ bool isSuitableConvolutionParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type<ov::op::v1::BinaryConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 bool isSuitableMiscParent(const std::shared_ptr<const Node>& node) {
@@ -130,7 +130,7 @@ bool isSuitableMiscParent(const std::shared_ptr<const Node>& node) {
         ov::is_type_any_of<ov::op::v0::NormalizeL2, ov::op::util::ConvolutionBackPropBase>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 // Matmul is a special case, since it supports simple + bias fusings
@@ -138,14 +138,14 @@ bool isSuitableMatMulParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type<ov::op::v0::MatMul>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 bool isSuitablePoolChild(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type<ov::op::v1::MaxPool>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node>& node) {
@@ -187,8 +187,9 @@ bool isSuitableChildForFusingBias(const std::shared_ptr<const Node>& node, int f
             if (parent_pshape[fusingAxis].is_dynamic()) {
                 break;
             }
-            if ((bias_shape_norm[fusingAxis] == static_cast<size_t>(parent_pshape[fusingAxis].get_length())) &&
-                (bias_shape_norm[fusingAxis] == shape_size(bias_shape_norm))) {
+            if (all_of(bias_shape_norm[fusingAxis],
+                       static_cast<size_t>(parent_pshape[fusingAxis].get_length()),
+                       shape_size(bias_shape_norm))) {
                 return true;
             }
         }
@@ -199,7 +200,7 @@ bool isSuitableChildForFusingBias(const std::shared_ptr<const Node>& node, int f
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
 void PropagateIfHasOnlyChild(const std::shared_ptr<Node>& node, NodeFusingType nodeType) {
     const auto out = node->outputs();
-    const bool has_only_child = out.size() == 1 && out[0].get_target_inputs().size() == 1;
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     SetNodeFusingType(node, has_only_child ? nodeType : NodeFusingType::FusedTerminator);
 }
 // todo: Skipping MultiSubGraphOp such as TensorIterator, Loop and If. Snippets might tokenize their bodies in the
@@ -312,7 +313,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
                     PropagateIfHasOnlyChild(node, fusingChainType);
                 } else if (isSuitableChildForFusingSimple(node)) {
 #if defined(OV_CPU_WITH_ACL)
-                    if (one_of(fusingChainType,
+                    if (any_of(fusingChainType,
                                NodeFusingType::FusedWithConvolution,
                                NodeFusingType::FusedWithBinaryConvolution)) {
                         PropagateIfHasOnlyChild(node, NodeFusingType::FusedTerminator);
@@ -320,7 +321,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
                     }
 #endif
                     PropagateIfHasOnlyChild(node, fusingChainType);
-                } else if (one_of(fusingChainType,
+                } else if (any_of(fusingChainType,
                                   NodeFusingType::FusedWithConvolution,
                                   NodeFusingType::FusedWithBinaryConvolution)) {
                     if (isSuitablePoolChild(node)) {

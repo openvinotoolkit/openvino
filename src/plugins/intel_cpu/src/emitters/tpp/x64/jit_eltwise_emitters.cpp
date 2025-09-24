@@ -26,12 +26,13 @@
 #include "transformations/tpp/x64/op/eltwise.hpp"
 
 namespace ov::intel_cpu {
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::x64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : TppEmitter(h, isa, expr) {
+BinaryEltwiseTppEmitter::BinaryEltwiseTppEmitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
+    : jit_emitter(h, isa),
+      TppEmitter(h, isa, expr) {
     const auto& subtensor_in0 = get_projected_subtensor(io_port_descriptors[0]);
     const auto& subtensor_in1 = get_projected_subtensor(io_port_descriptors[1]);
 
@@ -93,8 +94,9 @@ void BinaryEltwiseTppEmitter::execute_kernel(libxsmm_meltwfunction_binary eltwis
     eltwise_kernel(&param);
 }
 
-UnaryEltwiseTppEmitter::UnaryEltwiseTppEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : TppEmitter(h, isa, expr) {
+UnaryEltwiseTppEmitter::UnaryEltwiseTppEmitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
+    : jit_emitter(h, isa),
+      TppEmitter(h, isa, expr) {
     const auto& subtensor_in0 = get_projected_subtensor(io_port_descriptors[0]);
 
     const auto N = static_cast<libxsmm_blasint>(*subtensor_in0.rbegin());
@@ -128,8 +130,9 @@ void UnaryEltwiseTppEmitter::validate_arguments(const std::vector<size_t>& in, c
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output register, got " + std::to_string(out.size()));
 }
 
-ReduceTppEmitter::ReduceTppEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : UnaryEltwiseTppEmitter(h, isa, expr) {
+ReduceTppEmitter::ReduceTppEmitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
+    : jit_emitter(h, isa),
+      UnaryEltwiseTppEmitter(h, isa, expr) {
     m_compile_flags = LIBXSMM_MELTW_FLAG_UNARY_REDUCE_ROWS;
     // No need to set ldo for reduce, it is always assumed = 1 inside the kernel
     // m_shape.ldo = 1;

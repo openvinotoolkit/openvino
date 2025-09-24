@@ -8,6 +8,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "zero_tensor.hpp"
 
 namespace intel_npu {
 
@@ -20,7 +21,7 @@ class ZeroVariableState final : public ov::IVariableState {
 public:
     explicit ZeroVariableState(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                const std::string& name,
-                               const ov::SoPtr<ov::ITensor>& tensor,
+                               const std::shared_ptr<ZeroTensor>& zero_tensor,
                                size_t tensor_index,
                                size_t related_tensor_index,
                                const Config& config);
@@ -28,6 +29,19 @@ public:
     void set_state(const ov::SoPtr<ov::ITensor>& new_state) override;
 
     void reset() override;
+
+    ov::SoPtr<ov::ITensor> get_state() const override;
+
+    /**
+     * @brief Get user state to not change the state of the tensor through get_state()
+     */
+    ov::SoPtr<ov::ITensor> get_user_state() const;
+
+    /**
+     * @brief Get internal level zero tensor. It can be different than the user tensor in case the user set a tensor
+     * that cannot be imported. Used by the InferenceRequest to update the arguments of the pipeline.
+     */
+    std::shared_ptr<ZeroTensor> get_zero_state() const;
 
     /**
      * @brief Get input tensor index used internally for the state
@@ -41,25 +55,32 @@ public:
     size_t get_related_tensor_index() const;
 
     /**
-     * @brief Get acknowledge if the tensor was updated
+     * @brief Get acknowledgment if state was updated
+     * @details Used to check if the state's internal user tensor was updated. Actions might need to be taken by the
+     * InferenceRequest in that case. This flag can be cleared using clear_state_update_pending(). An update to the user
+     * tensor might not trigger an update of the level zero tensor as well. zero_state_update_pending() should be used
+     * to check if the level zero tensor was also updated.
      */
-    bool tensor_was_updated() const;
+    bool state_update_pending() const;
 
     /**
-     * @brief Reset tensor updated flag
+     * @brief Reset state updated flag
+     * @details Must be used to reset the flag exposed through state_update_pending()
      */
-    void reset_tensor_updated_flag();
+    void clear_state_update_pending();
 
     /**
-     * @brief Get acknowledge if the zero tensor was updated
-     * @details In case the memory was allocated in the same level zero context update the zero tensor
+     * @brief Get acknowledgment if the zero state was updated
+     * @details Used to signal that the state's internal zero tensor was also updated. Actions might need to be taken by
+     * the InferenceRequest in that case. This flag can be cleared using clear_zero_state_update_pending().
      */
-    bool zero_tensor_should_be_updated() const;
+    bool zero_state_update_pending() const;
 
     /**
-     * @brief Reset zero tensor updated flag
+     * @brief Reset zero state updated flag
+     * @details Must be used to reset the flag exposed through zero_state_update_pending()
      */
-    void reset_zero_tensor_updated_flag();
+    void clear_zero_state_update_pending();
 
     ~ZeroVariableState() override = default;
 
@@ -68,9 +89,12 @@ private:
     size_t _tensor_index;
     size_t _related_tensor_index;
 
-    bool _tensor_updated = false;
-    bool _zero_tensor_updated = false;
+    std::shared_ptr<ZeroTensor> _zero_state;
 
+    bool _is_state_updated = false;
+    bool _is_zero_state_update_needed = false;
+
+    const Config _config;
     Logger _logger;
 };
 

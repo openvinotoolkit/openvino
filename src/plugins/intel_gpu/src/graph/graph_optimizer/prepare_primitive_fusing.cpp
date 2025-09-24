@@ -57,8 +57,27 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
-    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions())
-        return;
+    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+        size_t value = GPU_DEBUG_VALUE_OR(p.get_config().get_disable_post_ops_fusions(), 0);
+        switch (value) {
+            case 2:
+                fuse_reorders(p); return;
+            case 3:
+                remove_redundant_reshape(p); return;
+            case 4:
+                fuse_swiglu(p); return;
+            case 5:
+                fuse_bias(p); return;
+            case 6:
+                fuse_simple_primitives(p); return;
+            case 7:
+                fuse_constant_transposes(p); return;
+            case 8:
+                optimize_fused_ops(p); return;
+            default:
+                return;
+        }
+    }
 
     fuse_reorders(p);
     remove_redundant_reshape(p);
@@ -68,6 +87,16 @@ void prepare_primitive_fusing::run(program& p) {
     fuse_constant_transposes(p);
     optimize_fused_ops(p);
 }
+
+static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node) {
+    for (size_t i = 0; i < node.get_dependencies().size(); ++i) {
+        if (node.get_dependency(i).is_constant())
+            return i;
+    }
+
+    return std::nullopt;
+}
+
 
 void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     auto node_itr = p.get_processing_order().begin();
@@ -219,22 +248,18 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             continue;
 
         auto& eltw_node = node->as<eltwise>();
-        auto get_eltw_const_dep_idx = [](typed_program_node<eltwise>& eltw_node) {
-            for (auto i = 0; i < static_cast<int32_t>(eltw_node.get_dependencies().size()); ++i) {
-                if (eltw_node.get_dependency(i).is_constant())
-                    return i;
-            }
-            return -1;
-        };
-        auto const_dep_idx = get_eltw_const_dep_idx(eltw_node);
-        auto non_const_dep_idx = 1 - const_dep_idx;
-
+        auto const_dep_idx = find_eltwise_const_dep_idx(eltw_node);
         bool is_bias_add = eltw_node.get_primitive()->mode == eltwise_mode::sum &&
                            eltw_node.get_dependencies().size() == 2 &&
-                           const_dep_idx >= 0 && const_dep_idx < 2;
+                           const_dep_idx.has_value() &&
+                           const_dep_idx.value() < 2;
 
         if (!is_bias_add)
             continue;
+
+        OPENVINO_ASSERT(const_dep_idx.has_value(), " Eltwise should have a const dependency to be fused as bias");
+
+        auto non_const_dep_idx = 1 - const_dep_idx.value();
 
         for (auto& dep : eltw_node.get_dependencies()) {
             auto& fused_prims = dep.first->get_fused_primitives();
@@ -262,7 +287,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
                 // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
                 // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
-                auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
+                auto const_shape = eltw_node.get_dependency(const_dep_idx.value()).get_output_layout().get_shape();
                 int32_t count_elements_not_one = 0;
                 int32_t idx_element_not_one = -1;
                 for (size_t i = 0; i < const_shape.size(); ++i) {
@@ -282,7 +307,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 continue;
             }
         } else {
-            cldnn::tensor::value_type out_features = node->get_output_layout().feature();
+            ov::Dimension::value_type out_features = node->get_output_layout().feature();
             bool is_3d_fc = false;
 
             // Change out_features value to proper dimension for 3D FC case
@@ -293,7 +318,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 out_features = node->get_input_layout(1).spatial(1);
                 is_3d_fc = true;
             }
-            auto& const_dep = eltw_node.get_dependency(const_dep_idx);
+            auto& const_dep = eltw_node.get_dependency(const_dep_idx.value());
             if ((const_dep.get_output_layout().feature() != out_features && !is_3d_fc) ||
                 const_dep.get_output_layout().count() != static_cast<size_t>(out_features)) {
                 continue;
@@ -302,11 +327,14 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             if (const_dep.get_output_layout().count() > node->get_dependency(non_const_dep_idx).get_output_layout().count())
                 continue;
         }
-        auto& bias_node = eltw_node.get_dependency(const_dep_idx);
+        auto& bias_node = eltw_node.get_dependency(const_dep_idx.value());
         primitive_id bias_name = bias_node.id();
         auto& replace_candidate = eltw_node.get_dependency(non_const_dep_idx);
 
         if (bias_node.get_output_layout().data_type != replace_candidate.get_output_layout().data_type)
+            continue;
+
+        if (replace_candidate.users.size() > 1)
             continue;
 
         auto fuse_bias_f = [&p](program_node& prev_node, program_node& new_node, program_node& bias_node, program_node& eltw_node) {
@@ -724,8 +752,20 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 11)
+                    return;
+            }
             auto activation_func = activation_node.get_primitive()->activation_function;
             if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
+
+            if (activation_func == cldnn::activation_func::softplus && activation_node.get_output_layout().data_type == data_types::f16) {
+                // This is WA :
+                // - SoftPlus can overflow on f16 so that jitter.cpp currently resolves by typecasting to f32
+                // - But it doesn't guarantee the case of fusion.
+                // - For now it needs to disable fusion for SoftPlus.
                 return;
             }
 
@@ -855,6 +895,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 12)
+                    return;
+            }
             auto& input_data = quantize_node.get_dependency(0);
             if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
                 return;
@@ -965,6 +1009,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_eltwise_f = [&](eltwise_node& node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 13)
+                    return;
+            }
             std::shared_ptr<const cldnn::eltwise> prim = node.get_primitive();
             const std::vector<eltwise_mode> supported_modes = {
                 eltwise_mode::sum,
@@ -1165,7 +1213,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
                     && !fused_node->is_type<fully_connected>()
-                    && !fused_node->is_type<convolution>())
+                    && !fused_node->is_type<convolution>()
+                    && !fused_node->is_type<gemm>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))
@@ -1271,6 +1320,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
+        // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise
         program_helpers::do_for_types<activation, quantize, eltwise>(*node,
                 fuse_activation_f,
                 fuse_quantize_f,

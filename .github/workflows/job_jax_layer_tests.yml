@@ -59,12 +59,17 @@ jobs:
           sparse-checkout-cone-mode: false
           submodules: 'false'
       
-      - name: Download OpenVINO artifacts (tarballs and wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download OpenVINO artifacts (wheels)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_@(wheels|tests)
+          name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Setup Variables
         run: |
@@ -105,7 +110,7 @@ jobs:
 
       - name: JAX Layer Tests
         if: ${{ fromJSON(inputs.affected-components).JAX_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
-        run: python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/jax_tests ${PARALLEL} -m precommit_jax_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
+        run: python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/jax_tests ${PARALLEL} -v -m precommit_jax_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
