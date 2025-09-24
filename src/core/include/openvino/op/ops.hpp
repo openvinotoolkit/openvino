@@ -119,7 +119,6 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/mish.hpp"
 #include "openvino/op/mod.hpp"
-#include "openvino/op/moe.hpp"
 #include "openvino/op/multiclass_nms.hpp"
 #include "openvino/op/multinomial.hpp"
 #include "openvino/op/multiply.hpp"

@@ -90,7 +90,7 @@ ov::pass::FuseVectorizedMOE::FuseVectorizedMOE() {
                                        down_proj_weight,
                                        down_proj_bias_node};
 
-        ov::op::v16::MOE::Config config;
+        ov::op::internal::MOE::Config config;
 
         // Extract expert_alpha from Swish beta attribute
         auto swish_beta_const = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(swish_beta).get_node_shared_ptr());
@@ -103,9 +103,9 @@ ov::pass::FuseVectorizedMOE::FuseVectorizedMOE() {
         }
 
         // Set expert_type
-        config.expert_type = ov::op::v16::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP;
 
-        auto moe = std::make_shared<ov::op::v16::MOE>(moe_inputs, config);
+        auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
         moe->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), moe);
         ov::replace_node(m.get_match_root(), moe);

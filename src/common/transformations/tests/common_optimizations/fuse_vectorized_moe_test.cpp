@@ -237,12 +237,12 @@ inline std::shared_ptr<ov::Model> build_fused_moe_reference_model() {
     ov::OutputVector moe_inputs =
         {input, unsqueeze_routing_weights, router_topk_indices, w0_weight, w0_bias, w1_weight, w1_bias};
 
-    ov::op::v16::MOE::Config config;
-    config.expert_type = ov::op::v16::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP;
+    ov::op::internal::MOE::Config config;
+    config.expert_type = ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP;
     config.expert_alpha = expert_alpha;
     config.expert_beta = expert_beta;
 
-    auto moe = std::make_shared<ov::op::v16::MOE>(moe_inputs, config);
+    auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
     return std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{input});
 }
 

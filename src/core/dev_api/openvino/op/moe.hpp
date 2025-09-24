@@ -12,13 +12,13 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov::op::v16 {
+namespace ov::op::internal {
 ///
 /// \brief MOE experts
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API MOE : public ov::op::Op {
 public:
-    OPENVINO_OP("MOE", "opset16");
+    OPENVINO_OP("MOE");
 
     MOE() = default;
 
@@ -36,12 +36,16 @@ public:
     ///   1: router_topk_output_weights - normalized weights for selected experts (input to final multiplication)
     ///   2: router_topk_output_indices - indices of selected top-k experts
     ///   3: w0_weight - expert weights for first projection, shape [num_experts, inter_size, hidden_size] or
-    ///   [num_experts, hidden_size, 2 * inter_size] if fused 4: w0_bias (optional) - expert bias for first projection,
-    ///   shape [num_experts, ...] or empty tensor if not needed 5: w1_weight - expert weights for second projection,
-    ///   shape [num_experts, inter_size, hidden_size] 6: w1_bias (optional) - expert bias for second projection, shape
-    ///   [num_experts, ...] or empty tensor if not needed 7: w2_weight - expert weights for final projection, shape
-    ///   [num_experts, hidden_size, inter_size] 8: w2_bias (optional/redundant) - expert bias for final projection,
-    ///   usually not required
+    ///   [num_experts, hidden_size, 2 * inter_size] if fused
+    ///   4: w0_bias (optional) - expert bias for first projection,
+    ///   shape [num_experts, ...] or empty tensor if not needed
+    ///   5: w1_weight - expert weights for second projection,
+    ///   shape [num_experts, inter_size, hidden_size]
+    ///   6: w1_bias (optional) - expert bias for second projection, shape
+    ///   [num_experts, ...] or empty tensor if not needed
+    ///   7: w2_weight - expert weights for final projection, shape
+    ///   [num_experts, hidden_size, inter_size]
+    ///   8: w2_bias (optional) - expert bias for final projection
     /// \param config Configuration for the MOE operation
     MOE(const OutputVector& args, const Config& config);
 
@@ -56,20 +60,20 @@ private:
     Config m_config;
 };
 
-}  // namespace ov::op::v16
+}  // namespace ov::op::internal
 
 namespace ov {
 OPENVINO_API
-std::ostream& operator<<(std::ostream& s, const ov::op::v16::MOE::Expert_type& type);
+std::ostream& operator<<(std::ostream& s, const ov::op::internal::MOE::Expert_type& type);
 
 template <>
-class OPENVINO_API
-    AttributeAdapter<ov::op::v16::MOE::Expert_type> : public EnumAttributeAdapterBase<ov::op::v16::MOE::Expert_type> {
+class OPENVINO_API AttributeAdapter<ov::op::internal::MOE::Expert_type>
+    : public EnumAttributeAdapterBase<ov::op::internal::MOE::Expert_type> {
 public:
-    AttributeAdapter(ov::op::v16::MOE::Expert_type& value)
-        : EnumAttributeAdapterBase<ov::op::v16::MOE::Expert_type>(value) {}
+    AttributeAdapter(ov::op::internal::MOE::Expert_type& value)
+        : EnumAttributeAdapterBase<ov::op::internal::MOE::Expert_type>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<ov::op::v16::MOE::Expert_type>");
+    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::MOE::Expert_type>");
     ~AttributeAdapter() override = default;
 };
 }  // namespace ov
