@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 
 #include "itt.hpp"
