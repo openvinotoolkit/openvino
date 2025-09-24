@@ -15,7 +15,6 @@
 namespace ov::op::internal {
 ///
 /// \brief MOE experts
-/// \ingroup ov_ops_cpp_api
 class OPENVINO_API MOE : public ov::op::Op {
 public:
     OPENVINO_OP("MOE");
@@ -63,11 +62,10 @@ private:
 }  // namespace ov::op::internal
 
 namespace ov {
-OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const ov::op::internal::MOE::Expert_type& type);
 
 template <>
-class OPENVINO_API AttributeAdapter<ov::op::internal::MOE::Expert_type>
+class AttributeAdapter<ov::op::internal::MOE::Expert_type>
     : public EnumAttributeAdapterBase<ov::op::internal::MOE::Expert_type> {
 public:
     AttributeAdapter(ov::op::internal::MOE::Expert_type& value)
