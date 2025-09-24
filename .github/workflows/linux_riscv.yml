@@ -211,8 +211,8 @@ jobs:
             -DENABLE_SYSTEM_PROTOBUF=ON \
             -DENABLE_SYSTEM_SNAPPY=ON \
             -DENABLE_SYSTEM_PUGIXML=ON \
-            -DENABLE_FASTER_BUILD=ON \
             -DBUILD_SHARED_LIBS=OFF \
+            -DTHREADING=OMP \
             -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_C_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_VERBOSE_MAKEFILE=ON \

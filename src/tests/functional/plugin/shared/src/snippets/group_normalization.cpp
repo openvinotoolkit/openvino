@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string GroupNormalization::getTestCaseName(testing::TestParamInfo<ov::test::snippets::GroupNormalizationParams> obj) {
+std::string GroupNormalization::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::GroupNormalizationParams>& obj) {
     const auto& [inputShapes, numGroup, eps, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
