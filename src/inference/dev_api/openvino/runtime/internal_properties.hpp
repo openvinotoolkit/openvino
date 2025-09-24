@@ -91,7 +91,7 @@ static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUER
 static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};
 
 /**
- * @brief Read-only property to get maximum batch size which does not cause performance degradation due to memory swap
+ * @brief Read-only property to get plugin specific needed alignment for cache header
  * impact.
  * @ingroup ov_runtime_cpp_prop_api
  */
