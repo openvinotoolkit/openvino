@@ -73,26 +73,52 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         }
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto valid_broadcast_target_shape = [](const std::vector<int32_t>& target_shape) {
-            return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
-        };
+        bool has_pre_reshape = (pattern_map.find(pre_reshape_b_m) != pattern_map.end()) &&
+                               (pattern_map.find(pre_reshape_c_m) != pattern_map.end());
+
         auto broadcast_b = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_b_m).get_node_shared_ptr());
         auto broadcast_c = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_c_m).get_node_shared_ptr());
 
+        auto get_input_shape = [](const std::shared_ptr<ov::op::v3::Broadcast>& broadcast) -> std::vector<int32_t> {
+            if (!broadcast) return {};
+            auto input_node = broadcast->get_input_node_shared_ptr(0);
+            if (input_node && input_node->get_output_partial_shape(0).is_static()) {
+                auto pshape = input_node->get_output_shape(0);
+                return std::vector<int32_t>(pshape.begin(), pshape.end());
+            }
+            return {};
+        };
+
+        auto valid_broadcast_target_shape = [has_pre_reshape](const std::vector<int32_t>& input_shape,
+                                                              const std::vector<int32_t>& target_shape) {
+            if (has_pre_reshape) {
+                if (input_shape.empty() || (input_shape.size() != target_shape.size())) return false;
+                int diff_cnt = 0;
+                for (size_t i = 0; i < input_shape.size(); ++i) {
+                    if (input_shape[i] != target_shape[i]) ++diff_cnt;
+                }
+                return diff_cnt == 1;
+            } else {
+                return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
+            }
+        };
+
         std::vector<int32_t> target_shape_val_b;
-        auto target_shape_constant_b = ov::as_type_ptr<ov::op::v0::Constant>(broadcast_c->get_input_node_shared_ptr(1));
+        auto target_shape_constant_b = ov::as_type_ptr<ov::op::v0::Constant>(broadcast_b->get_input_node_shared_ptr(1));
         if (target_shape_constant_b) {
             target_shape_val_b = target_shape_constant_b->cast_vector<int32_t>();
-            if (broadcast_b->get_output_partial_shape(0).is_dynamic() && !valid_broadcast_target_shape(target_shape_val_b)) {
+            std::vector<int32_t> input_shape_b = get_input_shape(broadcast_b);
+            if (!valid_broadcast_target_shape(input_shape_b, target_shape_val_b)) {
                 return false;
             }
         }
 
         std::vector<int32_t> target_shape_val_c;
-        auto target_shape_constant_c = ov::as_type_ptr<ov::op::v0::Constant>(broadcast_b->get_input_node_shared_ptr(1));
+        auto target_shape_constant_c = ov::as_type_ptr<ov::op::v0::Constant>(broadcast_c->get_input_node_shared_ptr(1));
         if (target_shape_constant_c) {
             target_shape_val_c = target_shape_constant_c->cast_vector<int32_t>();
-            if (broadcast_c->get_output_partial_shape(0).is_dynamic() && !valid_broadcast_target_shape(target_shape_val_c)) {
+            std::vector<int32_t> input_shape_c = get_input_shape(broadcast_c);
+            if (!valid_broadcast_target_shape(input_shape_c, target_shape_val_c)) {
                 return false;
             }
         }
