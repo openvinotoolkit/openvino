@@ -347,10 +347,14 @@ std::shared_ptr<Node> build_bilinear_nhwc(const Ctx& ctx, const ov::op::v9::Grid
     auto w_in_f = to_f32(ctx.w_in);
     auto h_in_f = to_f32(ctx.h_in);
 
+    // For REFLECTION, match reference semantics:
+    // - when align_corners == true: reflect continuous coordinates prior to flooring
+    // - when align_corners == false: do NOT reflect continuous coords here; indices are
+    //   reflected later via reflect_index (post-floor) like in the reference path
     std::shared_ptr<Node> x_pad = ctx.x, y_pad = ctx.y;
-    if (is_reflection) {
-        x_pad = reflect_coord(ctx, ctx.x, w_in_f, attrs.align_corners);
-        y_pad = reflect_coord(ctx, ctx.y, h_in_f, attrs.align_corners);
+    if (is_reflection && attrs.align_corners) {
+        x_pad = reflect_coord(ctx, ctx.x, w_in_f, true);
+        y_pad = reflect_coord(ctx, ctx.y, h_in_f, true);
     }
 
     std::shared_ptr<Node> x0 = std::make_shared<op::v0::Floor>(x_pad);
@@ -921,9 +925,16 @@ GridSampleDecomposition::GridSampleDecomposition() {
     add_matcher<GridSampleDecompositionBilinearStatic>();
     add_matcher<GridSampleDecompositionBicubicStatic>();
 
-    add_matcher<GridSampleDecompositionNearestDynamic>();
-    add_matcher<GridSampleDecompositionBilinearDynamic>();
-    add_matcher<GridSampleDecompositionBicubicDynamic>();
+    // Allow disabling dynamic matchers via env for validation/debug
+    bool enable_dynamic = true;
+    if (const char* env_dyn = std::getenv("OV_CPU_ARM_GRID_SAMPLE_DYNAMIC")) {
+        enable_dynamic = std::string(env_dyn) != "0";
+    }
+    if (enable_dynamic) {
+        add_matcher<GridSampleDecompositionNearestDynamic>();
+        add_matcher<GridSampleDecompositionBilinearDynamic>();
+        add_matcher<GridSampleDecompositionBicubicDynamic>();
+    }
 }
 
 }  // namespace ov::intel_cpu
