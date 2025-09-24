@@ -81,17 +81,19 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
         } else {
             OPENVINO_THROW("ACLConvolutionExecutor: the executor supports FakeQuantize and Activation post ops only");
         }
-    } else {
+    } else if (attrs.postOps.size() > 1) {
         OPENVINO_THROW("ACLConvolutionExecutor: ACL does not support more than 1 post op");
     }
 }
 
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
-    // Note: LPT propagate dequantization scales from src and weights on conv output, and the result scale is applied as weight scale.
-    // So quantization configuration forms in the following way:
+    // Note: LPT propagate dequantization scales from src and weights on conv output, and the result scale
+    // is applied as weight scale. So quantization configuration forms in the following way:
     // - src quantization info is always trivial
-    // - weights: scale is equal to result dequantization scale after Convolution propagated by LPT. Shift is not supported
-    // - destination scale is formed based on requantization FakeQuantize parameters: scale = 1.0 / input scale, shift = input shift
+    // - weights: scale is equal to result dequantization scale after Convolution propagated by LPT
+    //            shift is not supported
+    // - destination: scale is formed based on requantization FakeQuantize parameters: scale = 1.0 / input scale
+    //                shift = input shift
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         arm_compute::QuantizationInfo(weightScale.empty() ? 1.0F : weightScale[0]));
