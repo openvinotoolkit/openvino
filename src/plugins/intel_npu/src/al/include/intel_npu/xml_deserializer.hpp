@@ -13,10 +13,11 @@ public:
     explicit NPUXmlDeserializer(const pugi::xml_node& node,
                                 const std::shared_ptr<ov::AlignedBuffer>& weights,
                                 const std::unordered_map<std::string, ov::OpSet>& opsets,
+                                const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                                 std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                                 size_t version);
 };
 
-std::shared_ptr<ov::Model> deserialize_ir_model(std::string_view serialized_graph, const ov::Tensor& weights);
+std::shared_ptr<ov::Model> deserialize_ir_model(uint8_t* serialized_model);
 
 }  // namespace intel_npu
