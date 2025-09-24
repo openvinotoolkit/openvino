@@ -61,7 +61,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
       _element_type{user_tensor->get_element_type()},
       _shape{user_tensor->get_shape()},
       _capacity{_shape},
-      _strides{user_tensor->get_strides()},
+      _strides{_element_type.bitwidth() >= 8 ? user_tensor->get_strides() : ov::Strides{}},
       _strides_once{},
       _imported_tensor(user_tensor) {
     OPENVINO_ASSERT(_element_type.is_static());
