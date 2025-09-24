@@ -2131,7 +2131,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         OPENVINO_ASSERT(block_size == 32, "CPU: block size must be 32, current: ", block_size);
 
         // xattention_threshold.resize<float>({1});
-        // xattention_threshold.ptr<float>()[0] = 0.6f;
+        // xattention_threshold.ptr<float>()[0] = 0.9f;
         // xattention_stride = 16;
         // xattention_block_size = 128;
 

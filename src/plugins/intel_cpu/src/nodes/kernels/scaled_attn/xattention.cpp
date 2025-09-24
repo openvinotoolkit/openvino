@@ -20,8 +20,8 @@
 
 #    include "common.hpp"
 #endif
-#include "transpose_kernel.hpp"
 #include "softmax_kernel.hpp"
+#include "transpose_kernel.hpp"
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -56,6 +56,26 @@ float dot_product(const D* a, const D* b, int len, int stride_b = 1) {
         }
     }
     return result;
+}
+
+void sum_blocks_ref(const float* a, size_t M, size_t a_stride, float* dst, size_t out_stride, size_t num_per_block) {
+    size_t block_num = div_up(M, num_per_block);
+    for (size_t row = 0; row < block_num; row++) {
+        for (size_t col = 0; col < block_num; col++) {
+            float value = 0.0f;
+            for (size_t i = 0; i < num_per_block; i++) {
+                for (size_t j = 0; j < num_per_block; j++) {
+                    auto r_idx = row * num_per_block + i;
+                    auto c_idx = col * num_per_block + j;
+                    if (r_idx < M && c_idx < M) {
+                        auto in = a[r_idx * a_stride + c_idx];
+                        value += in;
+                    }
+                }
+            }
+            dst[row * out_stride + col] = value;
+        }
+    }
 }
 
 }  // namespace ref
@@ -135,6 +155,62 @@ static void transpose_16NxK(T* dst,
 }
 #endif
 
+static inline float hsum256_ps(__m256 v) {
+    __m256 t1 = _mm256_hadd_ps(v, v);
+    __m256 t2 = _mm256_hadd_ps(t1, t1);
+    __m128 lo = _mm256_castps256_ps128(t2);
+    __m128 hi = _mm256_extractf128_ps(t2, 1);
+    __m128 sum = _mm_add_ps(lo, hi);
+    return _mm_cvtss_f32(sum);
+}
+
+void sum_blocks8x8(const float* a, size_t M, size_t a_stride, float* out, size_t out_stride) {
+#if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
+    size_t block_num = (M + 7) / 8;
+    size_t col_num = block_num * 8;
+    size_t i = 0;
+    for (; i + 8 <= M; i += 8) {
+        for (size_t j = 0; j + 8 <= col_num; j += 8) {
+            __m256 r0 = _mm256_loadu_ps(a + (i + 0) * a_stride + j);
+            __m256 r1 = _mm256_loadu_ps(a + (i + 1) * a_stride + j);
+            __m256 r2 = _mm256_loadu_ps(a + (i + 2) * a_stride + j);
+            __m256 r3 = _mm256_loadu_ps(a + (i + 3) * a_stride + j);
+            __m256 r4 = _mm256_loadu_ps(a + (i + 4) * a_stride + j);
+            __m256 r5 = _mm256_loadu_ps(a + (i + 5) * a_stride + j);
+            __m256 r6 = _mm256_loadu_ps(a + (i + 6) * a_stride + j);
+            __m256 r7 = _mm256_loadu_ps(a + (i + 7) * a_stride + j);
+
+            __m256 sum = _mm256_add_ps(r0, r1);
+            sum = _mm256_add_ps(sum, r2);
+            sum = _mm256_add_ps(sum, r3);
+            sum = _mm256_add_ps(sum, r4);
+            sum = _mm256_add_ps(sum, r5);
+            sum = _mm256_add_ps(sum, r6);
+            sum = _mm256_add_ps(sum, r7);
+
+            const int ib = i >> 3;
+            const int jb = j >> 3;
+            const float block_sum = hsum256_ps(sum);
+            out[ib * out_stride + jb] = block_sum;
+        }
+    }
+
+    auto tails = M - i;
+    if (tails) {
+        for (size_t j = 0; j + 8 <= col_num; j += 8) {
+            __m256 sum = _mm256_setzero_ps();
+            for (size_t row = i; row < M; row++) {
+                __m256 r = _mm256_loadu_ps(a + row * a_stride + j);
+                sum = _mm256_add_ps(sum, r);
+            }
+            const float block_sum = hsum256_ps(sum);
+            const int jb = j >> 3;
+            out[(block_num - 1) * out_stride + jb] = block_sum;
+        }
+    }
+#endif
+}
+
 PlainTensor xattn_estimate(PlainTensor& query,
                            PlainTensor& key,
                            size_t block_size,
@@ -151,11 +227,12 @@ PlainTensor xattn_estimate(PlainTensor& query,
     auto K_H = key.size(1);
     auto groups = H / K_H;
 
-    auto q_num_strided = div_up(B, stride);
-    // pad k length to 512 (16*32)
+    // Align k length to multiple of stride and multiple of 32, since block
+    // size in brgemm computation is 32.
     auto k_padded = rnd_up(B, stride * 32);
     auto k_num_to_pad = k_padded - B;
     auto k_num_strided = div_up(k_padded, stride);
+    auto q_num_strided = div_up(B, stride);
     auto q_num_blocks = div_up(B, block_size);
     auto k_num_blocks = div_up(B, block_size);
     auto num_per_block = block_size / stride;
@@ -164,9 +241,9 @@ PlainTensor xattn_estimate(PlainTensor& query,
     }
 
     PlainTensor attn_sum_temp;
-    attn_sum_temp.resize({q_num_strided, H, L, k_num_strided}, sizeof(float), ov::element::Type_t::f32);
+    attn_sum_temp.resize({H, L, q_num_strided, k_num_strided}, sizeof(float), ov::element::Type_t::f32);
     parallel_for3d(q_num_strided, H, L, [&](size_t b, size_t h, size_t l) {
-        memset(attn_sum_temp.ptr<float>(b, h, l, 0), 0, k_num_strided * sizeof(float));
+        memset(attn_sum_temp.ptr<float>(h, l, b, 0), 0, k_num_strided * sizeof(float));
     });
 
     size_t n_block_size = 32;
@@ -176,12 +253,12 @@ PlainTensor xattn_estimate(PlainTensor& query,
 
     std::vector<std::shared_ptr<BrgemmKernel>> kernels(m_block_size);
     for (size_t i = 1; i < m_block_size + 1; i++) {
-        kernels[i - 1] = std::make_shared<BrgemmKernel>(i,
-                                                        n_block_size,
-                                                        S,
-                                                        S * stride * H * L,
-                                                        n_block_size,
-                                                        k_num_strided * H * L,
+        kernels[i - 1] = std::make_shared<BrgemmKernel>(i,                   // M
+                                                        n_block_size,        // N
+                                                        S,                   // K
+                                                        S * stride * H * L,  // lda
+                                                        n_block_size,        // ldb
+                                                        k_num_strided,       // ldc
                                                         false,
                                                         in_type,
                                                         true);
@@ -250,9 +327,10 @@ PlainTensor xattn_estimate(PlainTensor& query,
             auto m_end = std::min(m_start + m_block_size, q_num_strided);
             auto m_cnt = m_end - m_start;
 
-            // q_end may extend the seq length
             auto q_index = m_start * stride + stride - i - 1;
             auto q_end = q_index + stride * (m_cnt - 1);
+
+            // q_end may extend the seq length since it was aligned to multiple of stride
             if (q_end >= B) {
                 m_cnt--;
             }
@@ -263,7 +341,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
                 for (size_t n_blk = 0; n_blk < cur_k_block_num; n_blk++) {
                     auto n_start = n_blk * S;
                     auto* k_ptr = key_repack.ptr_v(h / groups, 0, n_start, 0);
-                    auto* c_ptr = &attn_sum_temp.at<float>({m_start, h, 0, n_blk * n_block_size});
+                    auto* c_ptr = &attn_sum_temp.at<float>({h, 0, m_start, n_blk * n_block_size});
                     kernels[m_cnt - 1]->executeGemm(m_cnt < m_block_size,
                                                     q_ptr,
                                                     k_ptr,
@@ -278,11 +356,12 @@ PlainTensor xattn_estimate(PlainTensor& query,
     }
 
     parallel_for3d(q_num_strided, H, L, [&](size_t b, size_t h, size_t l) {
-        auto* data = attn_sum_temp.ptr<float>(b, h, l, 0);
+        auto* data = attn_sum_temp.ptr<float>(h, l, b, 0);
         auto ncausal = b + 1;
+        auto scale = 1.0 / sqrt(S) / stride / norm;
         attn_softmax_kernel<float>(data,
                                    reinterpret_cast<float*>(data),
-                                   1.0/sqrt(S) / stride / norm,
+                                   scale,
                                    nullptr,
                                    nullptr,
                                    nullptr,
@@ -293,29 +372,19 @@ PlainTensor xattn_estimate(PlainTensor& query,
                                    ov::element::f32,
                                    0);
     });
-    
 
     PlainTensor attn_sum;
-    attn_sum.resize({q_num_blocks, H, L, k_num_blocks}, attn_sum_temp.m_element_size, attn_sum_temp.m_dt);
+    attn_sum.resize({H, L, q_num_blocks, k_num_blocks}, attn_sum_temp.m_element_size, attn_sum_temp.m_dt);
+    size_t src_stride = attn_sum_temp.size(3);
+    size_t dst_stride = attn_sum.size(3);
+    size_t row_num = attn_sum_temp.size(2);
     parallel_for2d(H, L, [&](size_t h, size_t l) {
-        for (size_t row = 0; row < q_num_blocks; row++) {
-            for (size_t col = 0; col < k_num_blocks; col++) {
-                auto* out = attn_sum.ptr<float>(row, h, l, col);
-
-                float value = 0.0f;
-                for (size_t i = 0; i < num_per_block; i++) {
-                    for (size_t j = 0; j < num_per_block; j++) {
-                        auto r_idx = row * num_per_block + i;
-                        auto c_idx = col * num_per_block + j;
-                        if (r_idx < q_num_strided && c_idx < k_num_strided) {
-                            auto* in = attn_sum_temp.ptr<float>(row * num_per_block + i, h, l, col * num_per_block + j);
-                            value += *in;
-                        }
-                    }
-                }
-
-                *out = value;
-            }
+        auto* src = attn_sum_temp.ptr<float>(h, l, 0, 0);
+        auto* dst = attn_sum.ptr<float>(h, l, 0, 0);
+        if (num_per_block == 8) {
+            sum_blocks8x8(src, row_num, src_stride, dst, dst_stride);
+        } else {
+            ref::sum_blocks_ref(src, row_num, src_stride, dst, dst_stride, num_per_block);
         }
     });
 
@@ -323,7 +392,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
     PlainTensor mask;
     mask.resize({H, q_num_blocks, k_num_blocks}, sizeof(bool), ov::element::Type_t::boolean);
     parallel_for3d(q_num_blocks, H, L, [&](size_t b, size_t h, size_t l) {
-        auto* row = attn_sum.ptr<float>(b, h, l, 0);
+        auto* row = attn_sum.ptr<float>(h, l, b, 0);
         float required_sum = std::accumulate(row, row + k_num_blocks, 0.0f, std::plus<>()) * threshold;
 
         std::vector<std::pair<float, int>> values_with_index(q_num_blocks);
