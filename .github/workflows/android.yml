@@ -236,8 +236,9 @@ jobs:
           mkdir -p android_tests/bin/intel64/Release
           mkdir -p android_tests/lib
 
-          # Install tests using cmake install
+          # Install tests and runtime libraries using cmake install
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix android_tests --component tests
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix android_tests --component core
 
           # Check if we need to move test binaries to expected location
           if [ -d "android_tests/tests" ]; then
