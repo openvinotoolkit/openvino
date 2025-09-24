@@ -8,7 +8,7 @@
 namespace kernel_selector {
 static constexpr size_t preferred_vec_size = 8;
 static inline size_t GetGroupSize(const reorder_params& params);
-static inline size_t CalculateTotalWorkItemCount(const reorder_params& params);
+static inline size_t CalculateAlignedTotalElementCount(const reorder_params& params);
 static inline int GetPerferredArraySize(const DataTensor& tensor);
 
 ParamsKey ReorderKernelBlockedOpt::GetSupportedKey() const {
@@ -134,7 +134,7 @@ JitConstants ReorderKernelBlockedOpt::GetJitConstants(const reorder_params& para
 
     jit.AddConstant(MakeJitConstant("VEC_SIZE", preferred_vec_size));
     jit.AddConstant(MakeJitConstant("ARRAY_SIZE", GetPerferredArraySize(params.inputs[0])));
-    jit.AddConstant(MakeJitConstant("ELEMENTS_NUM", preferred_vec_size * GetPerferredArraySize(params.inputs[0])));
+    jit.AddConstant(MakeJitConstant("ELEMS_PER_WI", preferred_vec_size * GetPerferredArraySize(params.inputs[0])));
 
     if (SimpleLayout(params.inputs[0].GetLayout()))
         jit.AddConstant(MakeJitConstant("LEFTOVER", 1));
@@ -166,7 +166,7 @@ KernelsPriority ReorderKernelBlockedOpt::GetKernelsPriority(const Params& /*para
 }
 
 static inline size_t GetGroupSize(const reorder_params& params) {
-    size_t size = CalculateTotalWorkItemCount(params);
+    size_t size = CalculateAlignedTotalElementCount(params);
     size_t each_item = (preferred_vec_size * GetPerferredArraySize(params.inputs[0]));
     size_t calc_size = size / each_item;
     calc_size = ((size % each_item == 0) ? calc_size : calc_size + 1);
@@ -248,7 +248,7 @@ static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
     return 1;
 }
 
-static inline size_t CalculateTotalWorkItemCount(const reorder_params& params) {
+static inline size_t CalculateAlignedTotalElementCount(const reorder_params& params) {
     auto feature = Align(params.outputs[0].Feature().v, GetInnerFeatureBlockSize(params.outputs[0]));
     auto batch = Align(params.outputs[0].Batch().v, GetInnerBatchBlockSize(params.outputs[0]));
     size_t spatial = 0;

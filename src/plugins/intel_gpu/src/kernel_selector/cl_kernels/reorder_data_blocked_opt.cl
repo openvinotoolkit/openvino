@@ -32,9 +32,9 @@ KERNEL(reorder_blocked_opt)(
 
     #if LEFTOVER
         if (global_id == get_global_size(0) - 1) {
-            size_t opt_size = global_id * (size_t)ELEMENTS_NUM;
+            size_t opt_size = global_id * (size_t)ELEMS_PER_WI;
             size_t total_size = (size_t)OUTPUT_BATCH_NUM * (size_t)OUTPUT_BATCH_PITCH;
-            if ((opt_size + ELEMENTS_NUM) != total_size) {
+            if ((opt_size + ELEMS_PER_WI) != total_size) {
                 unroll_for (uint i = 0; i < (total_size - opt_size) ; ++i) {
                     output[opt_size + i] = ACTIVATION_TYPED(OUTPUT_REORDER,
                                                             TO_OUTPUT_REORDER_TYPE(input[opt_size + i]),
