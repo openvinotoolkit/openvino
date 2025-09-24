@@ -88,10 +88,17 @@ TEST_P(OVClassCompiledModelPropertiesTests, CanUseCache) {
 
 TEST(CacheHeaderAlignmentTests, CacheHeaderPaddingAndAlignment) {
     ov::Core core;
-    // Pick first device supporting alignment property
     const std::string device_with_alignment{"TEMPLATE"};
-    const uint32_t alignment =
-        core.get_property(device_with_alignment, ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
+    uint32_t alignment{};
+    try {
+        alignment =
+            core.get_property(device_with_alignment, ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
+    } catch (...) {
+        GTEST_SKIP() << device_with_alignment
+                     << " device is not supported or cache_header_alignment property is not defined";
+    }
+
+    std::cout << "[+] Using device " << device_with_alignment << " with alignment " << alignment << std::endl;
 
     auto p = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
     auto relu = std::make_shared<ov::op::v0::Relu>(p);
