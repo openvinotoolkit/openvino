@@ -451,9 +451,9 @@ std::shared_ptr<Node> build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridS
     auto c5 = op::v0::Constant::create(ctx.calc_type, {}, {5.0F});
     auto c8 = op::v0::Constant::create(ctx.calc_type, {}, {8.0F});
 
-    auto dx_p1 = std::make_shared<op::v1::Add>(dx, ctx.c1);           // dx + 1
-    auto one_m_dx = std::make_shared<op::v1::Subtract>(ctx.c1, dx);    // 1 - dx
-    auto two_m_dx = std::make_shared<op::v1::Subtract>(ctx.c2, dx);    // 2 - dx
+    auto dx_p1 = std::make_shared<op::v1::Add>(dx, ctx.c1);          // dx + 1
+    auto one_m_dx = std::make_shared<op::v1::Subtract>(ctx.c1, dx);  // 1 - dx
+    auto two_m_dx = std::make_shared<op::v1::Subtract>(ctx.c2, dx);  // 2 - dx
 
     auto dx2 = std::make_shared<op::v1::Multiply>(dx, dx);
     auto dx_p1_2 = std::make_shared<op::v1::Multiply>(dx_p1, dx_p1);
@@ -464,41 +464,45 @@ std::shared_ptr<Node> build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridS
     auto a_dx_p1 = std::make_shared<op::v1::Multiply>(a, dx_p1);
     auto a5 = std::make_shared<op::v1::Multiply>(c5, a);
     auto term_v0_1 = std::make_shared<op::v1::Subtract>(a_dx_p1, a5);
-    auto term_v0_2 = std::make_shared<op::v1::Add>(
-        std::make_shared<op::v1::Multiply>(term_v0_1, dx_p1), std::make_shared<op::v1::Multiply>(c8, a));
-    std::shared_ptr<Node> w_x0 = std::make_shared<op::v1::Subtract>(
-        std::make_shared<op::v1::Multiply>(term_v0_2, dx_p1), std::make_shared<op::v1::Multiply>(c4, a));
+    auto term_v0_2 = std::make_shared<op::v1::Add>(std::make_shared<op::v1::Multiply>(term_v0_1, dx_p1),
+                                                   std::make_shared<op::v1::Multiply>(c8, a));
+    std::shared_ptr<Node> w_x0 =
+        std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(term_v0_2, dx_p1),
+                                           std::make_shared<op::v1::Multiply>(c4, a));
 
     // v1 = ((A + 2) * dx - (A + 3)) * dx * dx + 1
     auto ap2 = std::make_shared<op::v1::Add>(a, ctx.c2);
     auto ap3 = std::make_shared<op::v1::Add>(a, c3);
     std::shared_ptr<Node> w_x1 = std::make_shared<op::v1::Add>(
         std::make_shared<op::v1::Multiply>(
-            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, dx), ap3), dx2),
+            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, dx), ap3),
+            dx2),
         ctx.c1);
 
     // v2 = ((A + 2) * (1 - dx) - (A + 3)) * (1 - dx)^2 + 1
     std::shared_ptr<Node> w_x2 = std::make_shared<op::v1::Add>(
         std::make_shared<op::v1::Multiply>(
-            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, one_m_dx), ap3), one_m_dx_2),
+            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, one_m_dx), ap3),
+            one_m_dx_2),
         ctx.c1);
 
     // v3 = ((A * (2 - dx) - 5A) * (2 - dx) + 8A) * (2 - dx) - 4A
     auto a_two_m_dx = std::make_shared<op::v1::Multiply>(a, two_m_dx);
     auto term_v3_1 = std::make_shared<op::v1::Subtract>(a_two_m_dx, a5);
-    auto term_v3_2 = std::make_shared<op::v1::Add>(
-        std::make_shared<op::v1::Multiply>(term_v3_1, two_m_dx), std::make_shared<op::v1::Multiply>(c8, a));
-    std::shared_ptr<Node> w_x3 = std::make_shared<op::v1::Subtract>(
-        std::make_shared<op::v1::Multiply>(term_v3_2, two_m_dx), std::make_shared<op::v1::Multiply>(c4, a));
+    auto term_v3_2 = std::make_shared<op::v1::Add>(std::make_shared<op::v1::Multiply>(term_v3_1, two_m_dx),
+                                                   std::make_shared<op::v1::Multiply>(c8, a));
+    std::shared_ptr<Node> w_x3 =
+        std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(term_v3_2, two_m_dx),
+                                           std::make_shared<op::v1::Multiply>(c4, a));
 
     w_x0 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x0);
     w_x1 = std::make_shared<op::v1::Select>(w_is_one, ctx.c1, w_x1);
     w_x2 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x2);
     w_x3 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x3);
 
-    auto dy_p1 = std::make_shared<op::v1::Add>(dy, ctx.c1);           // dy + 1
-    auto one_m_dy = std::make_shared<op::v1::Subtract>(ctx.c1, dy);    // 1 - dy
-    auto two_m_dy = std::make_shared<op::v1::Subtract>(ctx.c2, dy);    // 2 - dy
+    auto dy_p1 = std::make_shared<op::v1::Add>(dy, ctx.c1);          // dy + 1
+    auto one_m_dy = std::make_shared<op::v1::Subtract>(ctx.c1, dy);  // 1 - dy
+    auto two_m_dy = std::make_shared<op::v1::Subtract>(ctx.c2, dy);  // 2 - dy
 
     auto dy2 = std::make_shared<op::v1::Multiply>(dy, dy);
     auto dy_p1_2 = std::make_shared<op::v1::Multiply>(dy_p1, dy_p1);
@@ -508,27 +512,31 @@ std::shared_ptr<Node> build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridS
     // y weights per OV reference cubic_coeffs(dy)
     auto a_dy_p1 = std::make_shared<op::v1::Multiply>(a, dy_p1);
     auto term_wy0_1 = std::make_shared<op::v1::Subtract>(a_dy_p1, a5);
-    auto term_wy0_2 = std::make_shared<op::v1::Add>(
-        std::make_shared<op::v1::Multiply>(term_wy0_1, dy_p1), std::make_shared<op::v1::Multiply>(c8, a));
-    std::shared_ptr<Node> w_y0 = std::make_shared<op::v1::Subtract>(
-        std::make_shared<op::v1::Multiply>(term_wy0_2, dy_p1), std::make_shared<op::v1::Multiply>(c4, a));
+    auto term_wy0_2 = std::make_shared<op::v1::Add>(std::make_shared<op::v1::Multiply>(term_wy0_1, dy_p1),
+                                                    std::make_shared<op::v1::Multiply>(c8, a));
+    std::shared_ptr<Node> w_y0 =
+        std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(term_wy0_2, dy_p1),
+                                           std::make_shared<op::v1::Multiply>(c4, a));
 
     std::shared_ptr<Node> w_y1 = std::make_shared<op::v1::Add>(
         std::make_shared<op::v1::Multiply>(
-            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, dy), ap3), dy2),
+            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, dy), ap3),
+            dy2),
         ctx.c1);
 
     std::shared_ptr<Node> w_y2 = std::make_shared<op::v1::Add>(
         std::make_shared<op::v1::Multiply>(
-            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, one_m_dy), ap3), one_m_dy_2),
+            std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, one_m_dy), ap3),
+            one_m_dy_2),
         ctx.c1);
 
     auto a_two_m_dy = std::make_shared<op::v1::Multiply>(a, two_m_dy);
     auto term_wy3_1 = std::make_shared<op::v1::Subtract>(a_two_m_dy, a5);
-    auto term_wy3_2 = std::make_shared<op::v1::Add>(
-        std::make_shared<op::v1::Multiply>(term_wy3_1, two_m_dy), std::make_shared<op::v1::Multiply>(c8, a));
-    std::shared_ptr<Node> w_y3 = std::make_shared<op::v1::Subtract>(
-        std::make_shared<op::v1::Multiply>(term_wy3_2, two_m_dy), std::make_shared<op::v1::Multiply>(c4, a));
+    auto term_wy3_2 = std::make_shared<op::v1::Add>(std::make_shared<op::v1::Multiply>(term_wy3_1, two_m_dy),
+                                                    std::make_shared<op::v1::Multiply>(c8, a));
+    std::shared_ptr<Node> w_y3 =
+        std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(term_wy3_2, two_m_dy),
+                                           std::make_shared<op::v1::Multiply>(c4, a));
 
     w_y0 = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, w_y0);
     w_y1 = std::make_shared<op::v1::Select>(h_is_one, ctx.c1, w_y1);
