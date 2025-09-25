@@ -2244,6 +2244,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         // TODO: support multiple batches
         for (size_t seq_idx = 0; seq_idx < 1; seq_idx++) {
             if (q.size(0) > 1) {
+                #if defined(OPENVINO_ARCH_X86_64)
                 masks[seq_idx] = xattn_estimate(q,
                                                 k,
                                                 x_attention_block_size,
@@ -2251,6 +2252,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                                                 1,
                                                 threshold.ptr<float>()[seq_idx],
                                                 true);
+                #endif
             }
         }
         return masks;
