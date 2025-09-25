@@ -96,10 +96,8 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     if (xattention_threshold_input && xattention_threshold_input->get_output_partial_shape(0).is_dynamic()) {
         // TODO: enable xattention_threshold_input
         prim.has_xattention = true;
-    } else if(rt_info.find("k_block_size") != rt_info.end()) {
-        if(rt_info.at("k_block_size").as<int64_t>() == 256) {
-            prim.has_xattention = true;
-        }
+    } else if(key_cache_ps[3].get_length() == k_head_size && key_cache_ps[2].get_length() == 256) {
+        prim.has_xattention = true;
     }
 
     const size_t sinks_idx = cldnn::paged_attention::PagedAttentionInputIdx::SINKS;
