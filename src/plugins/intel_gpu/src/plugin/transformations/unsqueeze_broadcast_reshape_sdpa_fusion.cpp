@@ -73,9 +73,6 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         }
         const auto& pattern_map = m.get_pattern_value_map();
 
-        bool has_pre_reshape = (pattern_map.find(pre_reshape_b_m) != pattern_map.end()) &&
-                               (pattern_map.find(pre_reshape_c_m) != pattern_map.end());
-
         auto broadcast_b = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_b_m).get_node_shared_ptr());
         auto broadcast_c = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_c_m).get_node_shared_ptr());
 
@@ -89,9 +86,11 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
             return {};
         };
 
-        auto valid_broadcast_target_shape = [has_pre_reshape](const std::vector<int32_t>& input_shape,
-                                                              const std::vector<int32_t>& target_shape) {
-            if (has_pre_reshape) {
+        auto valid_broadcast_target_shape = [](const std::vector<int32_t>& input_shape,
+                                               const std::vector<int32_t>& target_shape,
+                                               bool is_static_output) {
+            if (is_static_output) {
+                // For static output shapes, check that input_shape and target_shape differ in exactly one dimension
                 if (input_shape.empty() || (input_shape.size() != target_shape.size())) return false;
                 int diff_cnt = 0;
                 for (size_t i = 0; i < input_shape.size(); ++i) {
@@ -99,6 +98,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
                 }
                 return diff_cnt == 1;
             } else {
+                // For dynamic output shapes, check the target_shape pattern
                 return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
             }
         };
@@ -108,7 +108,8 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         if (target_shape_constant_b) {
             target_shape_val_b = target_shape_constant_b->cast_vector<int32_t>();
             std::vector<int32_t> input_shape_b = get_input_shape(broadcast_b);
-            if (!valid_broadcast_target_shape(input_shape_b, target_shape_val_b)) {
+            bool is_static_b = broadcast_b->get_output_partial_shape(0).is_static();
+            if (!valid_broadcast_target_shape(input_shape_b, target_shape_val_b, is_static_b)) {
                 return false;
             }
         }
@@ -118,7 +119,8 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         if (target_shape_constant_c) {
             target_shape_val_c = target_shape_constant_c->cast_vector<int32_t>();
             std::vector<int32_t> input_shape_c = get_input_shape(broadcast_c);
-            if (!valid_broadcast_target_shape(input_shape_c, target_shape_val_c)) {
+            bool is_static_c = broadcast_c->get_output_partial_shape(0).is_static();
+            if (!valid_broadcast_target_shape(input_shape_c, target_shape_val_c, is_static_c)) {
                 return false;
             }
         }
