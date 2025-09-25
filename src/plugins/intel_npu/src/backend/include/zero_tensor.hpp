@@ -38,6 +38,8 @@ public:
 private:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
+    bool memory_imported = false;
+
     Logger _logger;
 };
 
@@ -72,7 +74,8 @@ public:
      */
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                const ov::SoPtr<ov::ITensor>& user_tensor,
-               const Config& config);
+               const Config& config,
+               const bool isInput);
 
     void* data() override;
     void* data(const ov::element::Type& type) override;
@@ -94,7 +97,7 @@ public:
     void prevent_reuse();
     bool can_be_reused();
 
-    ~ZeroTensor() override = default;
+    ~ZeroTensor();
 
 private:
     void update_strides() const;
@@ -119,6 +122,8 @@ private:
     ov::SoPtr<ov::ITensor> _imported_tensor;
 
     std::shared_ptr<ZeHostMem> _host_memory;
+
+    bool imported_test = false;
 };
 
 class ZeroMemoryPool final {

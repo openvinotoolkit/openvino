@@ -42,7 +42,7 @@ void ZeroVariableState::set_state(const ov::SoPtr<ov::ITensor>& new_state) {
         _logger.debug("ZeroVariableState::set_state - create zero tensor");
         // Try to use the user tensor directly if its underlying data is already allocated in the same Level Zero
         // context.
-        _zero_state = std::make_shared<ZeroTensor>(_init_structs, m_state, _config);
+        _zero_state = std::make_shared<ZeroTensor>(_init_structs, m_state, _config, true);
         _is_zero_state_update_needed = true;
     } catch (const ZeroTensorException&) {
         // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;

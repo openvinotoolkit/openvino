@@ -62,7 +62,8 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
 
 ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                        const ov::SoPtr<ov::ITensor>& user_tensor,
-                       const Config& config)
+                       const Config& config,
+                       const bool isInput)
     : _init_structs(init_structs),
       _config(config),
       _logger("ZeroTensor", _config.get<LOG_LEVEL>()),
@@ -80,15 +81,28 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(_user_tensor._ptr);
     auto host_tensor = std::dynamic_pointer_cast<ZeroHostTensor>(_user_tensor._ptr);
     if (remote_tensor == nullptr && host_tensor == nullptr) {
+        // std::cout << "==SetTensor: " << _user_tensor->data() << " == size: " << _user_tensor->get_byte_size()
+        //           << " ==" << std::endl;
         // case for regular user tensor
         auto memory_id =
             zeroUtils::get_l0_context_memory_allocation_id(_init_structs->getContext(), _user_tensor->data());
-        if (memory_id > 0) {
+        if (!isInput && memory_id > 0) {
             _logger.debug("ZeroTensor::ZeroTensor - tensor was created in the same L0 context");
             _imported_tensor = _user_tensor;
+
+            // throw ZeroTensorException("Tensor is out of bounds of the already allocated memory");
+
             _host_memory = ZeroMemoryPool::get_instance().get_zero_memory(memory_id);
+            imported_test = true;
+
+            if (_host_memory == nullptr) {
+                OPENVINO_THROW("Failed to get zero memory from pool");
+            }
 
             if (_host_memory->_ptr != _user_tensor->data()) {
+                std::cout << "_host_memory->_ptr: " << _host_memory->_ptr
+                          << " != _user_tensor->data(): " << _user_tensor->data()
+                          << " == size: " << _user_tensor->get_byte_size() << std::endl;
                 auto user_ptr = reinterpret_cast<uintptr_t>(_user_tensor->data());
                 auto host_ptr = reinterpret_cast<uintptr_t>(_host_memory->_ptr);
                 auto offset = host_ptr - user_ptr;
@@ -97,6 +111,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
 
                 if (offset >= 0) {
                     if (tensor_byte_size > _host_memory->_size - ::abs(static_cast<std::ptrdiff_t>(offset))) {
+                        std::cout << "Throw, tensor is out of bounds, fallback on copies" << std::endl;
                         _logger.debug(
                             "ZeroTensor::ZeroTensor - tensor is out of bounds of the already allocated memory");
                         throw ZeroTensorException("Tensor is out of bounds of the already allocated memory");
@@ -107,10 +122,22 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
             }
 
             _ptr = _user_tensor->data();
-        } else if (_init_structs->isExternalMemoryStandardAllocationSupported() &&
+        } else if (!isInput && _init_structs->isExternalMemoryStandardAllocationSupported() &&
                    utils::memory_and_size_aligned_to_standard_page_size(_user_tensor->data(),
                                                                         _user_tensor->get_byte_size())) {
             _logger.debug("ZeroTensor::ZeroTensor - import memory from a system memory pointer");
+
+            auto memory_id_finish = zeroUtils::get_l0_context_memory_allocation_id(
+                _init_structs->getContext(),
+                static_cast<void*>(static_cast<uint8_t*>(_user_tensor->data()) + _user_tensor->get_byte_size()));
+
+            if (memory_id_finish > 0) {
+                std::cout << "Warning: trying to import a memory which is part of an existing allocation" << std::endl;
+
+                throw ZeroTensorException("Tensor was not created in the same zero context");
+            }
+
+            imported_test = true;
 
             _host_memory = ZeroMemoryPool::get_instance().import_standard_allocation_and_get_zero_memory(
                 _init_structs,
@@ -139,6 +166,13 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
             _logger.debug("ZeroTensor::ZeroTensor - remote tensor was not created in the same L0 context");
             throw ZeroTensorException("Tensor was not created in the same zero context");
         }
+    }
+}
+
+ZeroTensor::~ZeroTensor() {
+    if (imported_test) {
+        auto memory_id = zeroUtils::get_l0_context_memory_allocation_id(_init_structs->getContext(), _ptr);
+        std::cout << "Destroy zeroTensor memory_id: " << memory_id << " == _ptr: " << _ptr << std::endl;
     }
 }
 
@@ -288,6 +322,7 @@ ZeHostMem::ZeHostMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     : _size(bytes),
       _init_structs(init_structs),
       _logger("ZeHostMem", config.get<LOG_LEVEL>()) {
+    memory_imported = true;
     _ze_external_memory_import_system_memory_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
                                                                 nullptr,
                                                                 data,
@@ -307,7 +342,13 @@ ZeHostMem::ZeHostMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
 }
 
 ZeHostMem::~ZeHostMem() {
+    if (memory_imported) {
+        auto memory_id = zeroUtils::get_l0_context_memory_allocation_id(_init_structs->getContext(), _ptr);
+        std::cout << "zeMemFree memory_id " << memory_id << " == _ptr: " << _ptr << std::endl;
+    }
     auto result = zeMemFree(_init_structs->getContext(), _ptr);
+    _ptr = nullptr;
+    _size = 0;
     if (ZE_RESULT_SUCCESS != result) {
         _logger.error("L0 zeMemFree result: %s, code %#X - %s",
                       ze_result_to_string(result).c_str(),
@@ -316,7 +357,10 @@ ZeHostMem::~ZeHostMem() {
     }
 }
 
-ZeroMemoryPool::ZeroMemoryPool() {}
+ZeroMemoryPool::ZeroMemoryPool() {
+    std::cout << "===================================create new zero memory pool============================"
+              << std::endl;
+}
 
 ZeroMemoryPool& ZeroMemoryPool::get_instance() {
     static ZeroMemoryPool instance;
@@ -334,6 +378,9 @@ std::shared_ptr<ZeHostMem> ZeroMemoryPool::allocate_and_get_zero_memory(
     OPENVINO_ASSERT(memory_id != 0, "Failed to get memory allocation id");
 
     auto pair = std::make_pair(memory_id, zero_memory);
+
+    // std::cout << "==allocate memory_id: " << memory_id << " == pointer:" << zero_memory->_ptr
+    //           << " == size: " << zero_memory->_size << std::endl;
 
     std::lock_guard<std::mutex> lock(_mutex);
     _pool.emplace(pair);
@@ -354,6 +401,8 @@ std::shared_ptr<ZeHostMem> ZeroMemoryPool::import_standard_allocation_and_get_ze
 
     auto pair = std::make_pair(memory_id, zero_memory);
 
+    std::cout << "==import standard allocation memory_id: " << memory_id << " == pointer:" << zero_memory->_ptr
+              << " == size: " << zero_memory->_size << std::endl;
     std::lock_guard<std::mutex> lock(_mutex);
     _pool.emplace(pair);
 
@@ -367,10 +416,14 @@ std::shared_ptr<ZeHostMem> ZeroMemoryPool::get_zero_memory(const uint64_t id) {
         // is it valid?
         auto obj = _pool.at(id).lock();
         if (obj) {
+            std::cout << "==get memory_id: " << id << " == pointer:" << obj->_ptr << " == size: " << obj->_size
+                      << std::endl;
+
             return obj;
         }
     }
 
+    std::cout << "================nullptr===================" << std::endl;
     return nullptr;
 }
 
