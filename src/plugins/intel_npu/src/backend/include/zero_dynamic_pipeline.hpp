@@ -73,20 +73,20 @@ struct DynamicPipeline {
                 size_t shapesSize = shapes.size();
                 for (size_t i = 0; i < 4; i++) {
                     if (i < shapesSize) {
-                        _binding._inputs[arg_index]->sizes[i] = shapes[i];
+                        _binding._inputs[arg_index]->memRef.sizes[i] = shapes[i];
                     } else {
                         // Set dimension to 1 if exceed region of shapes
-                        _binding._inputs[arg_index]->sizes[i] = 1;
+                        _binding._inputs[arg_index]->memRef.sizes[i] = 1;
                     }
                 }
 
                 size_t stridesSize = strides.size();
                 for (size_t i = 0; i < 4; i++) {
                     if (i < stridesSize) {
-                        _binding._inputs[arg_index]->strides[i] = strides[i];
+                        _binding._inputs[arg_index]->memRef.strides[i] = strides[i];
                     } else {
                         // Set dimension to 1 if exceed region of shapes
-                        _binding._inputs[arg_index]->strides[i] = 1;
+                        _binding._inputs[arg_index]->memRef.strides[i] = 1;
                     }
                 }
 
@@ -110,20 +110,20 @@ struct DynamicPipeline {
                     size_t shapesSize = shapes.size();
                     for (size_t i = 0; i < 4; i++) {
                         if (i < shapesSize) {
-                            _binding._outputs[output_index]->sizes[i] = shapes[i];
+                            _binding._outputs[output_index]->memRef.sizes[i] = shapes[i];
                         } else {
                             // Set dimension to 1 if exceed region of shapes
-                            _binding._outputs[output_index]->sizes[i] = 1;
+                            _binding._outputs[output_index]->memRef.sizes[i] = 1;
                         }
                     }
 
                     size_t stridesSize = strides.size();
                     for (size_t i = 0; i < 4; i++) {
                         if (i < stridesSize) {
-                            _binding._outputs[output_index]->strides[i] = strides[i];
+                            _binding._outputs[output_index]->memRef.strides[i] = strides[i];
                         } else {
                             // Set dimension to 1 if exceed region of shapes
-                            _binding._outputs[output_index]->strides[i] = 1;
+                            _binding._outputs[output_index]->memRef.strides[i] = 1;
                         }
                     }
 

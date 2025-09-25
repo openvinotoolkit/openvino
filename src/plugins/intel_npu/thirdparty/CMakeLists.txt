@@ -24,3 +24,7 @@ if(ENABLE_INTEL_NPU_PROTOPIPE)
         target_compile_options(yaml-cpp PRIVATE -Wno-suggest-override)
     endif()
 endif()
+
+if(ENABLE_LLVM_BACKEND)
+    add_subdirectory(jit-tools/mlir-runtime EXCLUDE_FROM_ALL)
+endif()

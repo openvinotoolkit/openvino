@@ -37,36 +37,16 @@ target_link_libraries(${TARGET_NAME}
 
 if(ENABLE_LLVM_BACKEND)
     target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            MLIRAnalysis
-            MLIRBuiltinToLLVMIRTranslation
-            MLIRExecutionEngine
-            MLIRIR
-            MLIRJitRunner
-            MLIRLLVMDialect
-            MLIRLLVMToLLVMIRTranslation
-            MLIRToLLVMIRTranslationRegistration
-            MLIRParser
-            MLIRTargetLLVMIRExport
-            MLIRSupport
-            LLVMSupport
-            LLVMCore
-            LLVMX86CodeGen
-            LLVMX86AsmParser
+        PUBLIC
+            openvino_npu_mlir_runtime
     )
 
-    set(TEST_SOURCE_DIR ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/jit-tools)
-    set(TEST_DEST_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
-    if(WIN32)
-        set(TEST_DEST_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${config})
-    endif()
-
-    message(STATUS "dest dir:${TEST_DEST_DIR}     config:${config}")
-    add_custom_command(TARGET ${TARGET_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${TEST_SOURCE_DIR} ${TEST_DEST_DIR}
-        COMMENT "Copying jit files to ${TEST_DEST_DIR} directory"
+    target_include_directories(${TARGET_NAME}
+        PUBLIC
+            $<BUILD_INTERFACE:${NPU_PLUGIN_SOURCE_DIR}/thirdparty/jit-tools/mlir-runtime>
     )
+
+    add_dependencies(${TARGET_NAME} openvino_npu_mlir_runtime)
 endif()
 
 #

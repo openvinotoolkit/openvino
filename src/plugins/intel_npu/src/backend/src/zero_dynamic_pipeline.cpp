@@ -228,31 +228,37 @@ void DynamicPipeline::push() {
         _logger.debug("Inputs info for IRGraph:");
         for (auto& memType : graphArguments._inputs) {
             _logger.debug(" sizes: %d*%d*%d*%d",
-                          memType->sizes[0],
-                          memType->sizes[1],
-                          memType->sizes[2],
-                          memType->sizes[3]);
+                          memType->memRef.sizes[0],
+                          memType->memRef.sizes[1],
+                          memType->memRef.sizes[2],
+                          memType->memRef.sizes[3]);
             _logger.debug(" strides: %d*%d*%d*%d",
-                          memType->strides[0],
-                          memType->strides[1],
-                          memType->strides[2],
-                          memType->strides[3]);
-            _logger.debug(" basePtr: %p data: %p offset: %d", memType->basePtr, memType->data, memType->offset);
+                          memType->memRef.strides[0],
+                          memType->memRef.strides[1],
+                          memType->memRef.strides[2],
+                          memType->memRef.strides[3]);
+            _logger.debug(" basePtr: %p data: %p offset: %d",
+                          memType->memRef.basePtr,
+                          memType->memRef.data,
+                          memType->memRef.offset);
             _logger.debug("");
         }
         _logger.debug("Outputs info for IRGraph:");
         for (auto& memType : graphArguments._outputs) {
             _logger.debug(" sizes: %d*%d*%d*%d",
-                          memType->sizes[0],
-                          memType->sizes[1],
-                          memType->sizes[2],
-                          memType->sizes[3]);
+                          memType->memRef.sizes[0],
+                          memType->memRef.sizes[1],
+                          memType->memRef.sizes[2],
+                          memType->memRef.sizes[3]);
             _logger.debug(" strides: %d*%d*%d*%d",
-                          memType->strides[0],
-                          memType->strides[1],
-                          memType->strides[2],
-                          memType->strides[3]);
-            _logger.debug(" basePtr: %p data: %p offset: %d", memType->basePtr, memType->data, memType->offset);
+                          memType->memRef.strides[0],
+                          memType->memRef.strides[1],
+                          memType->memRef.strides[2],
+                          memType->memRef.strides[3]);
+            _logger.debug(" basePtr: %p data: %p offset: %d",
+                          memType->memRef.basePtr,
+                          memType->memRef.data,
+                          memType->memRef.offset);
             _logger.debug("");
         }
 
