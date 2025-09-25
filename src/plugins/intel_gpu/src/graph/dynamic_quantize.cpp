@@ -79,7 +79,7 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_q
     }
     if (attrs.precomputed_reduction) {
         OPENVINO_ASSERT(output_layouts.size() == 2,
-                        "Dynamic quantization is supposed to have 2 outputs before partial_shape, but got: ", output_layouts.size());
+                        "Dynamic quantization is supposed to have 2 outputs in front of precomputed reduction, but got: ", output_layouts.size());
         output_layouts.emplace_back(layout(output_shapes[2], attrs.precomputed_reduction_dt, output_format));
     }
 
