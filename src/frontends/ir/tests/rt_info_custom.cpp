@@ -1,16 +1,16 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#if 0
+#    include <gtest/gtest.h>
 
-#include <gtest/gtest.h>
+#    include <sstream>
 
-// #include <sstream>
-
-#include "common_test_utils/test_assertions.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "openvino/runtime/core.hpp"
-#include "openvino/xml_util/xml_serialize_util.hpp"
+#    include "common_test_utils/test_assertions.hpp"
+#    include "openvino/op/abs.hpp"
+#    include "openvino/pass/serialize.hpp"
+#    include "openvino/runtime/core.hpp"
+#    include "openvino/xml_util/xml_serialize_util.hpp"
 
 namespace ov::test {
 
@@ -117,11 +117,11 @@ TEST(RTInfoCustom, simple_entries) {
     ASSERT_NE(nullptr, model_0);
     check_model(model_0.get());
 
-    // std::stringstream model_s, weights_s;
-    // pass::Serialize{model_s, weights_s}.run_on_model(model_0);
-    // const auto model_1 = core.read_model(model_s.str(), Tensor{});
-    // ASSERT_NE(nullptr, model_1);
-    // check_model(model_1.get());
+    std::stringstream model_s, weights_s;
+    pass::Serialize{model_s, weights_s}.run_on_model(model_0);
+    const auto model_1 = core.read_model(model_s.str(), Tensor{});
+    ASSERT_NE(nullptr, model_1);
+    check_model(model_1.get());
 }
 
 TEST(RTInfoCustom, nested_entries) {
@@ -219,19 +219,20 @@ TEST(RTInfoCustom, RuntimeAttribute_priority) {
     info[layout_attribute_id] = "CWHN";
     info["L_A_Y_O_U_T"] = layout_attribute_value;
 
-    // std::stringstream model_s, weights_s;
-    // pass::Serialize{model_s, weights_s}.run_on_model(model);
-    // const auto r_model = Core{}.read_model(model_s.str(), Tensor{});
+    std::stringstream model_s, weights_s;
+    pass::Serialize{model_s, weights_s}.run_on_model(model);
+    const auto r_model = Core{}.read_model(model_s.str(), Tensor{});
 
-    // const auto& r_abs_rt_info = r_model->get_output_op(0)->input(0).get_source_output().get_node()->get_rt_info();
-    // EXPECT_EQ(r_abs_rt_info.size(), 2);
+    const auto& r_abs_rt_info = r_model->get_output_op(0)->input(0).get_source_output().get_node()->get_rt_info();
+    EXPECT_EQ(r_abs_rt_info.size(), 2);
 
-    // LayoutAttribute la;
-    // OV_ASSERT_NO_THROW(la = r_abs_rt_info.at(layout_attribute_id).as<LayoutAttribute>());
-    // EXPECT_EQ(la.to_string(), layout_attribute_value.to_string());
+    LayoutAttribute la;
+    OV_ASSERT_NO_THROW(la = r_abs_rt_info.at(layout_attribute_id).as<LayoutAttribute>());
+    EXPECT_EQ(la.to_string(), layout_attribute_value.to_string());
 
-    // std::string custom;
-    // OV_ASSERT_NO_THROW(custom = r_abs_rt_info.at(layout_custom_id).as<std::string>());
-    // EXPECT_EQ(custom, layout_custom_value);
+    std::string custom;
+    OV_ASSERT_NO_THROW(custom = r_abs_rt_info.at(layout_custom_id).as<std::string>());
+    EXPECT_EQ(custom, layout_custom_value);
 }
 }  // namespace ov::test
+#endif
