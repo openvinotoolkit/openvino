@@ -25,6 +25,7 @@ public:
         Input,
         Output,
         Data,
+        Internal,
     } ParamType;
     struct KerenlParam {
         KerenlParam() :type(Input), paramIndex(-1), portIndex(-1),
@@ -33,6 +34,7 @@ public:
         int paramIndex;
         int portIndex;
         std::string blobName;
+        std::string size_expr;
         cldnn::format format;
     };
 

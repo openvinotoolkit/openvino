@@ -11,3 +11,17 @@
     <CompilerOptions options="-cl-mad-enable"/>
     <WorkSizes global="B*F*Y*X,1,1"/>
 </CustomLayer>
+
+<CustomLayer name="CustomOpIntBuf" type="SimpleGPU" version="1">
+    <Kernel entry="custom_kernel_intr_buffer">
+        <Source filename="custom_op_internal_buffer.cl"/>
+    </Kernel>
+    <Buffers>
+        <Tensor arg-index="0" type="input" port-index="0" />   <!-- pts -->
+        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>  <!-- output -->
+        <Tensor arg-index="2" type="internal" port-index="0" size="INPUT0_DIMS[0]*INPUT0_DIMS[1]*INPUT0_DIMS[2]*INPUT0_DIMS[3]" format="BFYX"/> <!-- simple fixed size -->    
+                                                                   <!-- need to pass total memory required for allocation -->
+    </Buffers>
+    <CompilerOptions options="-cl-mad-enable"/>
+    <WorkSizes global="B*F*Y*X,1,1"/>
+</CustomLayer>
