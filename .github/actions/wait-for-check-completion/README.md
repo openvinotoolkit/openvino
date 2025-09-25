@@ -1,6 +1,6 @@
 # Wait for Check Completion Action
 
-A GitHub Action that waits for a specific check to complete before proceeding. This is useful for workflows that need to wait for other checks or workflows to finish.
+A GitHub Action that waits for multiple checks to complete before proceeding. This is useful for workflows that need to wait for other checks or workflows to finish.
 
 ## Usage
 
@@ -9,7 +9,7 @@ A GitHub Action that waits for a specific check to complete before proceeding. T
   uses: ./.github/actions/wait-for-check-completion
   with:
     ref: ${{ github.event.pull_request.head.sha }}
-    check-name: 'triage'
+    check-names: 'triage,build,test'
     repo-token: ${{ secrets.GITHUB_TOKEN }}
     wait-interval: 10
     timeout: 600
@@ -20,7 +20,7 @@ A GitHub Action that waits for a specific check to complete before proceeding. T
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
 | `ref` | The git reference (commit SHA, branch, or tag) to check | Yes | - |
-| `check-name` | The name of the check to wait for | Yes | - |
+| `check-names` | Comma-separated list of check names to wait for (e.g., "check1,check2,check3") | Yes | - |
 | `repo-token` | GitHub token for API access | Yes | - |
 | `wait-interval` | Wait interval in seconds between status checks | No | `10` |
 | `timeout` | Maximum timeout in seconds to wait for the check | No | `600` |
@@ -31,35 +31,66 @@ A GitHub Action that waits for a specific check to complete before proceeding. T
 
 | Output | Description |
 |--------|-------------|
-| `conclusion` | The conclusion of the check (success, failure, neutral, cancelled, timed_out, action_required, stale, skipped) |
-| `status` | The status of the check (queued, in_progress, completed) |
+| `conclusion` | The overall conclusion of the checks (success, failure, neutral, action_required, mixed) |
+| `status` | The overall status of the checks (completed, mixed) |
+| `results` | JSON object containing results for each check with their individual status and conclusion |
 
 ## Examples
 
 ### Basic Usage
 
-Wait for a specific check to complete:
+Wait for multiple checks to complete:
+
+```yaml
+- name: Wait for CI checks to complete
+  uses: ./.github/actions/wait-for-check-completion
+  with:
+    ref: ${{ github.event.pull_request.head.sha }}
+    check-names: 'build,test,lint'
+    repo-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### Single Check
+
+Wait for a single check (still uses check-names):
 
 ```yaml
 - name: Wait for labeler to finish
   uses: ./.github/actions/wait-for-check-completion
   with:
     ref: ${{ github.event.pull_request.head.sha }}
-    check-name: 'triage'
+    check-names: 'triage'
     repo-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Custom Wait Interval and Timeout
+### Custom Settings
 
 ```yaml
-- name: Wait for CI to complete
+- name: Wait for all CI to complete
   uses: ./.github/actions/wait-for-check-completion
   with:
     ref: ${{ github.sha }}
-    check-name: 'continuous-integration'
+    check-names: 'continuous-integration,code-quality,security-scan'
     repo-token: ${{ secrets.GITHUB_TOKEN }}
     wait-interval: 30
     timeout: 1800
+```
+
+### Using Results Output
+
+```yaml
+- name: Wait for checks and analyze results
+  id: wait-checks
+  uses: ./.github/actions/wait-for-check-completion
+  with:
+    ref: ${{ github.event.pull_request.head.sha }}
+    check-names: 'build,test,lint'
+    repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+- name: Process results
+  run: |
+    echo "Overall conclusion: ${{ steps.wait-checks.outputs.conclusion }}"
+    echo "Individual results: ${{ steps.wait-checks.outputs.results }}"
 ```
 
 ### Conditional Wait
@@ -70,18 +101,23 @@ Wait for a specific check to complete:
   if: ${{ github.event_name == 'pull_request' }}
   with:
     ref: ${{ github.event.pull_request.head.sha }}
-    check-name: 'build'
+    check-names: 'build,test'
     repo-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Behavior
 
-- The action polls the GitHub API at regular intervals (specified by `wait-interval`) to check the status of the specified check
-- It waits until the check status becomes `completed`
-- The action succeeds if the check conclusion is `success`, `neutral`, or `skipped`
-- The action fails if the check conclusion is `failure`, `cancelled`, or `timed_out`
-- The action shows a warning for `action_required` or unknown conclusions
-- If the timeout is reached before the check completes, the action fails
+- The action waits for ALL specified checks to complete
+- It polls all checks simultaneously and tracks their individual progress
+- The overall conclusion is determined as follows:
+  - `success`: All checks have successful conclusions (`success`)
+  - `failure`: At least one check failed (`failure`, `cancelled`, `timed_out`)
+  - `action_required`: At least one check requires action
+  - `neutral`: All checks completed with neutral/successful conclusions (`success`, `neutral`, `skipped`)
+  - `mixed`: Checks completed with mixed conclusions
+- Individual check results are available in the `results` output as JSON
+- If the timeout is reached before all checks complete, the action fails
+- The action provides detailed logging of each check's progress
 
 ## Development
 
