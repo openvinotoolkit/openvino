@@ -94,7 +94,7 @@ capabilities).
    for ``inference_precision`` attribute.
 
 
-Activations Scaling
+Activation Scaling
 ###################
 
 Since ``f16`` has a smaller dynamic range compared to ``f32`` or ``bf16``, overflow might occur when using ``f16`` for ``inference_precision``.
