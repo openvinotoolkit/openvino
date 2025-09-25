@@ -308,7 +308,7 @@ Properties::Properties(const PropertiesType pType,
       _metrics(metrics),
       _backend(backend) {}
 
-void Properties::registerProperties(const std::function<void(FilteredConfig&)>& supportedPropertiesCb) {
+void Properties::registerProperties() {
     // Reset
     _properties.clear();
     _supportedProperties.clear();
@@ -326,14 +326,7 @@ void Properties::registerProperties(const std::function<void(FilteredConfig&)>& 
     }
 
     // 2.3. Common metrics (exposed same way by both Plugin and CompiledModel)
-    REGISTER_CUSTOM_METRIC(ov::supported_properties,
-                           true,
-                           ([this, supportedPropertiesCb](const Config& /* unusedConfig */) {
-                               if (supportedPropertiesCb != nullptr) {
-                                   supportedPropertiesCb(_config);
-                               }
-                               return _supportedProperties;
-                           }));
+    REGISTER_SIMPLE_METRIC(ov::supported_properties, true, _supportedProperties);
 
     // 3. Populate supported properties list
     // ========
@@ -677,14 +670,7 @@ void Properties::registerCompiledModelProperties() {
     });
 }
 
-ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    std::map<std::string, std::string> amends;
-    for (auto&& value : arguments) {
-        amends.emplace(value.first, value.second.as<std::string>());
-    }
-    FilteredConfig amendedConfig = _config;
-    amendedConfig.update(amends, OptionMode::Both);
-
+ov::Any Properties::get_property(const std::string& name, const FilteredConfig& amendedConfig) const {
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
         return std::get<2>(configIterator->second)(amendedConfig);

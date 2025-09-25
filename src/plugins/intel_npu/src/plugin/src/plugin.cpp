@@ -264,12 +264,7 @@ Plugin::Plugin()
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
     _properties = std::make_unique<Properties>(PropertiesType::PLUGIN, _globalConfig, _metrics, _backend);
-    _properties->registerProperties([this](FilteredConfig& filteredConfig) {
-        if (!filteredConfig.wasFiltered()) {
-            filter_config_by_compiler_support(filteredConfig);
-            _properties->registerProperties();
-        }
-    });
+    _properties->registerProperties();
 }
 
 void Plugin::init_options() {
@@ -331,6 +326,7 @@ void Plugin::init_options() {
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
+            // Can we always register workload type and to enable only when contidion above is true?
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
         // register backend options
@@ -588,15 +584,47 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     auto npu_plugin_properties = arguments;
     exclude_model_ptr_from_map(npu_plugin_properties);
-    if (!_globalConfig.wasFiltered() && _globalConfig.hasOpt(name)) {
-        if (_globalConfig.getOpt(name).mode() != OptionMode::RunTime) {
+    // 1. Incorrect property - compiler load redundant, but can't avoid this
+    // 2. Unknown property (private compiler property) - need to check for compiler load
+    // 3. Valid property
+    // 3.1 Option was already enabled (runtime case)
+    // 3.2 Option was not yet enabled (deffered compiler load) - need to check for compiler load
+    // 3.3 Regular metric
+    // 3.4 SUPPORTED_PROPERTY - need to check for compiler load
+    if (!_globalConfig.wasFiltered()) {
+        bool shouldFilterConfigsAndRegister = false;
+        if (_globalConfig.hasOpt(name)) {  // 3.2
+            if (_globalConfig.getOpt(name).mode() != OptionMode::RunTime) {
+                shouldFilterConfigsAndRegister = true;
+            }
+        } else if (name == ov::supported_properties.name()) {  // 3.4
+            shouldFilterConfigsAndRegister = true;
+        }
+        if (shouldFilterConfigsAndRegister) {
             // filter out unsupported options
             filter_config_by_compiler_support(_globalConfig);
             // 2. Reset properties for the new options
             _properties->registerProperties();
         }
     }
-    return _properties->get_property(name, npu_plugin_properties);
+
+    std::map<std::string, std::string> amends;  // What if arguments contains a CompileTime option not enabled yet?
+    for (auto&& value : npu_plugin_properties) {
+        amends.emplace(value.first, value.second.as<std::string>());
+    }
+    FilteredConfig amendedConfig = _globalConfig;
+    amendedConfig.update(amends, OptionMode::Both);
+    if (amendedConfig.get<COMPILER_TYPE>() !=
+        _globalConfig.get<COMPILER_TYPE>()) {  // is compiler type changed via arguments?
+        // create compiler
+        CompilerAdapterFactory compilerAdapterFactory;
+        auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
+
+        OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
+        amendedConfig = fork_local_config(amends, compiler);
+    }
+
+    return _properties->get_property(name, amendedConfig);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,

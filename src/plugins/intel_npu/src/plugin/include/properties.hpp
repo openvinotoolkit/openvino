@@ -37,12 +37,12 @@ public:
      * - it will register metric-based properties, with data from the metrics interface
      * - at the end it populates supported_properties with the now dynamically registered public properties
      */
-    void registerProperties(const std::function<void(FilteredConfig&)>& supportedPropertiesCb = nullptr);
+    void registerProperties();
 
     /**
      * @brief Get the values of a property in a map
      */
-    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments = {}) const;
+    ov::Any get_property(const std::string& name, const FilteredConfig& amendedConfig) const;
 
     /**
      * @brief Set the values of a subset of properties, provided as a map
