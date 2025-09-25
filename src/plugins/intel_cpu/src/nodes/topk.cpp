@@ -251,6 +251,7 @@ private:
     Vmm vmm_zero = Vmm(0);  // vmm_zero represents Vmm(0) when isa is avx512_core, otherwise vmm_mask represents Vmm(0)
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
+    const Xbyak::Opmask k2_mask = Xbyak::Opmask(2);
     const int vector_step = vlen / sizeof(float);
     const int tail_step = jcp_.work_amount % vector_step;
 
@@ -1782,7 +1783,23 @@ private:
     }
 
     void bubble_swap_xmm(Xmm xmm_val_a, Xmm xmm_idx_a, Xmm xmm_val_b, Xmm xmm_idx_b, bool cmp_val = true) {
+        compare_node_xmm(xmm_val_a, xmm_idx_a, xmm_val_b, xmm_idx_b, xmm_tmp, _cmp_eq_oq, _cmp_nle_us, false);
+        if (isa == cpu::x64::avx512_core) {
+            kmovb(k2_mask, k_mask);
+        }
+        compare_node_xmm(xmm_val_a, xmm_idx_a, xmm_val_b, xmm_idx_b, xmm_mask, _cmp_eq_oq, _cmp_nle_us, true);
+        if (isa == cpu::x64::avx512_core) {
+            kandb(k2_mask, k2_mask, k_mask);
+        } else {
+            uni_vpand(xmm_tmp, xmm_tmp, xmm_mask);
+        }
+
         compare_node_xmm(xmm_val_a, xmm_idx_a, xmm_val_b, xmm_idx_b, xmm_mask, cmp_flg, _cmp_nle_us, cmp_val);
+        if (isa == cpu::x64::avx512_core) {
+            korb(k_mask, k_mask, k2_mask);
+        } else {
+            uni_vorps(xmm_mask, xmm_mask, xmm_tmp);
+        }
 
         if (isa == cpu::x64::avx512_core) {
             uni_vmovups(xmm_tmp, xmm_val_a);
