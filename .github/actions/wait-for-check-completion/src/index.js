@@ -67,7 +67,7 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
             }
 
             if (pendingChecks.size === 0) {
-                core.info('All checks completed!');
+                core.info('All checks completed, parsing conclusions...');
                 break;
             }
 
@@ -161,7 +161,6 @@ async function run() {
         core.setOutput('results', JSON.stringify(results));
 
         // Log results
-        core.info(`All checks completed successfully`);
         for (const [checkName, result] of Object.entries(results)) {
             core.info(`${checkName}: ${result.status} (${result.conclusion})`);
         }

@@ -123,3 +123,7 @@ npm run build
 ```bash
 npm test
 ```
+
+## Dependencies
+
+* Uses `caniuse-lite` sourced from [caniuse.com](caniuse.com)

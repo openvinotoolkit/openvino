@@ -75,7 +75,7 @@ runs:
       if: ${{ github.event_name == 'pull_request' }}
       with:
         ref: ${{ github.event.pull_request.head.sha }}
-        check-names: ${{ inputs.labeler_check_name }}
+        check-names: "${{ inputs.labeler_check_name }},Documentation"
         repo-token: ${{ inputs.repo_token }}
         wait-interval: 10
 
