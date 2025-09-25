@@ -508,16 +508,34 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // To handle this case, "KeepConstPrecision" is executed again.
         manager.register_pass<ov::pass::KeepConstPrecision>(supported_woq_types, !device_info.supports_immad);
 
+        bool use_xattention = false;
+        const auto& parameters = func->get_parameters();
+        for (const auto& param : parameters) {
+            if (param->get_friendly_name() == "xattention_block_size") {
+                use_xattention = true;
+            }
+        }
+
         ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
         kv_cache_config.keyCachePrecision = config.get_kv_cache_precision();
         kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
         kv_cache_config.inferencePrecision = infer_precision;
-        kv_cache_config.keyCacheBlockSize = 16;
-        kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};
+        if (use_xattention) {
+            kv_cache_config.keyCacheBlockSize = 256;
+            kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};
+        } else {
+            kv_cache_config.keyCacheBlockSize = 16;
+            kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+        }
         kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
         kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
-        kv_cache_config.valueCacheBlockSize = 16;
-        kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+        if (use_xattention) {
+            kv_cache_config.valueCacheBlockSize = 256;
+            kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+        } else {
+            kv_cache_config.valueCacheBlockSize = 16;
+            kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+        }
         kv_cache_config.valueCacheQuantBychannel = false;
         kv_cache_config.valueCacheGroupSize = 0;
 

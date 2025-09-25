@@ -29,11 +29,7 @@ ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_in
       m_use_score_outputs(use_score_outputs),
       m_allow_score_aggregation(use_score_outputs),
       m_allow_cache_rotation(allow_cache_rotation),
-      m_allow_xattention(allow_xattention) {
-        if (!allow_xattention) {
-            setenv("OV_GPU_XATTN_BLOCK_SIZE", "1", 1);
-        }
-      }
+      m_allow_xattention(allow_xattention) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
