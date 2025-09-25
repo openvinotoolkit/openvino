@@ -65,7 +65,7 @@ runs:
   using: "composite"
   steps:
     - name: Wait for labeler to finish
-      uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc # v1.3.4
+      uses: ./.github/actions/wait-for-check-completion
       if: ${{ github.event_name == 'pull_request' }}
       with:
         ref: ${{ github.event.pull_request.head.sha }}

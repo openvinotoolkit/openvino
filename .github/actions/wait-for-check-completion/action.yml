@@ -1,0 +1,42 @@
+name: 'Wait for Check Completion'
+description: 'Wait for a specific check to complete before proceeding'
+author: 'OpenVINO'
+
+inputs:
+  ref:
+    description: 'The git reference (commit SHA, branch, or tag) to check'
+    required: true
+  check-name:
+    description: 'The name of the check to wait for'
+    required: true
+  repo-token:
+    description: 'GitHub token for API access'
+    required: true
+  wait-interval:
+    description: 'Wait interval in seconds between status checks'
+    required: false
+    default: '10'
+  timeout:
+    description: 'Maximum timeout in seconds to wait for the check'
+    required: false
+    default: '600'
+  owner:
+    description: 'Repository owner (defaults to current repository owner)'
+    required: false
+  repo:
+    description: 'Repository name (defaults to current repository name)'
+    required: false
+
+outputs:
+  conclusion:
+    description: 'The conclusion of the check (success, failure, neutral, cancelled, timed_out, action_required, stale, skipped)'
+  status:
+    description: 'The status of the check (queued, in_progress, completed)'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'clock'
+  color: 'blue'
