@@ -118,8 +118,9 @@ void copy_rt_to_subgraph(const std::shared_ptr<Node>& from, const std::shared_pt
     while (!stack.empty()) {
         auto node = stack.back();
         stack.pop_back();
-        if (!node || visited.count(node.get()))
+        if (!node || visited.count(node.get()) > 0) {
             continue;
+        }
         visited.insert(node.get());
         subgraph_nodes.push_back(node);
         for (const auto& input : node->inputs()) {
