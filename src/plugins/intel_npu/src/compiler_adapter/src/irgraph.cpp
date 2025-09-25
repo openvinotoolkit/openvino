@@ -11,33 +11,7 @@
 #    include "intel_npu/utils/zero/zero_api.hpp"
 #    include "openvino/runtime/make_tensor.hpp"
 
-#    pragma warning(push)
-#    pragma warning(disable : 4244 4267 4146 4996)
-#    include <llvm/Support/Error.h>
-#    include <llvm/Support/InitLLVM.h>
-#    include <llvm/Support/SourceMgr.h>
-#    include <llvm/Support/TargetSelect.h>
-#    include <mlir/ExecutionEngine/ExecutionEngine.h>
-#    include <mlir/ExecutionEngine/MemRefUtils.h>
-#    include <mlir/IR/BuiltinOps.h>
-#    include <mlir/IR/DialectRegistry.h>
-#    include <mlir/IR/MLIRContext.h>
-#    include <mlir/Parser/Parser.h>
-#    include <mlir/Support/LLVM.h>
-#    include <mlir/Target/LLVMIR/Dialect/All.h>
-#    pragma warning(pop)
-
 namespace intel_npu {
-
-#    if defined(_WIN32)
-#        define MLIR_RUNNER_UTILS_FILE_NAME   "mlir_runner_utils.dll"
-#        define MLIR_C_RUNNER_UTILS_FILE_NAME "mlir_c_runner_utils.dll"
-#        define MLIR_ZERO_WRAPPER_FILE_NAME   "level_zero_wrapper.dll"
-#    else
-#        define MLIR_RUNNER_UTILS_FILE_NAME   "libmlir_runner_utils.so"
-#        define MLIR_C_RUNNER_UTILS_FILE_NAME "libmlir_c_runner_utils.so"
-#        define MLIR_ZERO_WRAPPER_FILE_NAME   "liblevel_zero_wrapper.so"
-#    endif
 
 void IRGraph::MemRefType::setArg(const void* arg) {
     basePtr = data = arg;
