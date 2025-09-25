@@ -98,10 +98,10 @@ protected:
             if (is_dyn_quan_input && prim->activation_precomputed_reduction.is_valid()) {
                 auto activation_precomputed_reduction_idx = idx++;
                 auto act_precomputed_reduction_mem = instance.dep_memory_ptr(activation_precomputed_reduction_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_precomputed_reduction_mem->get_layout(), dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_precomputed_reduction_mem->get_layout(),
+                                                                        dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
                 args.insert({DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS | DNNL_ARG_SRC_0, act_precomputed_reduction_mem->get_onednn_memory(desc)});
             }
-
         }
 
         return args;
