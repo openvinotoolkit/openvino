@@ -1376,7 +1376,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_no_zp_block_size) 
     test_case.add_input<float>(Shape{1, 1280}, input_data);
 
     test_case.add_expected_output<float>(Shape{1, 10},
-                                         {403.8, 404.5, 413.0, 403.5, 418.8, 415.2, 407.1, 420.4, 415.1, 398.5});
+                                         {403.8f, 404.5f, 413.0f, 403.5f, 418.8f, 415.2f, 407.1f, 420.4f, 415.1f, 398.5f});
     test_case.run_with_tolerance_as_fp(0.1f);
 }
 
