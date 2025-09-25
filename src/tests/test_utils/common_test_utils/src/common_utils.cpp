@@ -4,7 +4,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 
-#include <sstream>
 #include <thread>
 
 #include "gtest/gtest.h"
