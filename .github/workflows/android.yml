@@ -347,6 +347,7 @@ jobs:
             adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
             # Push OpenVINO libraries from runtime package
             for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
             echo "Running CPU unit tests..."
             adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
