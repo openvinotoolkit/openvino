@@ -5,7 +5,7 @@ allow-licenses:
   - 'BSD-3-Clause-Clear'
   - 'BSD-2-Clause-Views'
   - 'MIT'
-  - 'CC0-1.0 AND MIT'
+  - 'CC0-1.0'
   - 'CC-BY-4.0'
   - 'Apache-2.0'
   - 'ISC'
