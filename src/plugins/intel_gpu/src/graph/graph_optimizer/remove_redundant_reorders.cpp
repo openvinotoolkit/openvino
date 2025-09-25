@@ -444,7 +444,6 @@ void remove_redundant_reorders::run(program& p) {
 
             auto& node = node_ptr->as<reorder>();
 
-
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
 
