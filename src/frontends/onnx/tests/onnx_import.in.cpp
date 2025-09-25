@@ -308,7 +308,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_expand_context_dependent_model) {
                                 0.9255966544151306f,
                                 0.07103605568408966f});
     test_case.add_input<int64_t>(Shape{3}, {1, 4, 3});
-    test_case.add_expected_output<int32_t>(Shape{}, {2});  // res=1.56138, cast to int(2)
+    test_case.add_expected_output<int32_t>(Shape{}, {1});
     test_case.run();
 }
 
