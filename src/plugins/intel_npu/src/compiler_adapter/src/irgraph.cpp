@@ -2,60 +2,39 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#    pragma once
+#pragma once
 
-#    include "irgraph.hpp"
+#include "irgraph.hpp"
 
-#    include "intel_npu/config/options.hpp"
-#    include "intel_npu/utils/utils.hpp"
-#    include "intel_npu/utils/zero/zero_api.hpp"
-#    include "openvino/runtime/make_tensor.hpp"
+#include <iostream>
+#include <iterator>
 
-#    pragma warning(push)
-#    pragma warning(disable : 4244 4267 4146 4996)
-#    include <llvm/Support/Error.h>
-#    include <llvm/Support/InitLLVM.h>
-#    include <llvm/Support/SourceMgr.h>
-#    include <llvm/Support/TargetSelect.h>
-#    include <mlir/ExecutionEngine/ExecutionEngine.h>
-#    include <mlir/ExecutionEngine/MemRefUtils.h>
-#    include <mlir/IR/BuiltinOps.h>
-#    include <mlir/IR/DialectRegistry.h>
-#    include <mlir/IR/MLIRContext.h>
-#    include <mlir/Parser/Parser.h>
-#    include <mlir/Support/LLVM.h>
-#    include <mlir/Target/LLVMIR/Dialect/All.h>
-#    pragma warning(pop)
+#include "intel_npu/config/options.hpp"
+#include "intel_npu/prefix.hpp"
+#include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
+#include "npu_mlir_runtime.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
 
-#    if defined(_WIN32)
-#        define MLIR_RUNNER_UTILS_FILE_NAME   "mlir_runner_utils.dll"
-#        define MLIR_C_RUNNER_UTILS_FILE_NAME "mlir_c_runner_utils.dll"
-#        define MLIR_ZERO_WRAPPER_FILE_NAME   "level_zero_wrapper.dll"
-#    else
-#        define MLIR_RUNNER_UTILS_FILE_NAME   "libmlir_runner_utils.so"
-#        define MLIR_C_RUNNER_UTILS_FILE_NAME "libmlir_c_runner_utils.so"
-#        define MLIR_ZERO_WRAPPER_FILE_NAME   "liblevel_zero_wrapper.so"
-#    endif
-
 void IRGraph::MemRefType::setArg(const void* arg) {
-    basePtr = data = arg;
+    memRef.basePtr = memRef.data = arg;
 }
 
 void IRGraph::MemRefType::setSize(const intel_npu::IODescriptor& desc) {
     // Note: check difference between shape from compiler and shape from IR.
     const auto& shape = desc.shapeFromCompiler.get_shape();
     for (size_t i = 0; i < shape.size(); ++i)
-        sizes[i] = shape[i];
+        memRef.sizes[i] = shape[i];
 }
 
 void IRGraph::MemRefType::updateStride() {
     // Note: NCHW layout
     uint64_t stride = 1;
     for (size_t i = 4 - 1; i > 0; --i) {
-        strides[i] = stride;
-        stride *= sizes[i];
+        memRef.strides[i] = stride;
+        stride *= memRef.sizes[i];
     }
 }
 
@@ -122,9 +101,10 @@ public:
                     NetworkMetadata& metadata,
                     std::vector<ArgumentDescriptor>& inputs,
                     std::vector<ArgumentDescriptor>& outputs) override;
-    std::unique_ptr<mlir::ExecutionEngine> createExecutionEngine(const std::string& entryName,
-                                                                 std::optional<ov::Tensor>& blob,
-                                                                 mlir::MLIRContext* context);
+    void createExecutionEngine(std::optional<ov::Tensor>& blob);
+    void prepareMetadata(NetworkMetadata& metadata,
+                         std::vector<ArgumentDescriptor>& inputs,
+                         std::vector<ArgumentDescriptor>& outputs);
     void initializeIRGraphExecution(std::optional<ov::Tensor>& blob,
                                     NetworkMetadata& metadata,
                                     std::vector<ArgumentDescriptor>& inputs,
@@ -136,7 +116,7 @@ public:
                              const ov::Shape& shapes) override;
     void initializeGraph(uint64_t command_queue_group_ordinal) override;
     uint64_t getNumSubgraphs() override {
-        return _numOfSubgraphs;
+        return _engineProperties.numOfSubGraphs;
     }
     void executeGraph(std::vector<MemRefType*>& inputs,
                       std::vector<MemRefType*>& outputs,
@@ -157,12 +137,9 @@ public:
     virtual ~IRGraphImpl() {}
 
 public:
-    std::unique_ptr<mlir::MLIRContext> _context;
-    mlir::DialectRegistry _registry;
-    std::unique_ptr<mlir::ExecutionEngine> _engine;
-
+    npu_mlir_runtime_handle_t _engine = nullptr;
+    npu_mlir_runtime_properties_t _engineProperties;
     IRGraph::GraphArguments _binding;
-    uint64_t _numOfSubgraphs;
     static bool _initializedMLIR;
     Logger _logger;
 };
@@ -173,18 +150,10 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob,
                              NetworkMetadata& metadata,
                              std::vector<ArgumentDescriptor>& arg_inputs,
                              std::vector<ArgumentDescriptor>& arg_outputs) {
-    if (_initializedMLIR == false) {
-        llvm::InitializeNativeTarget();
-        llvm::InitializeNativeTargetAsmPrinter();
-        llvm::InitializeNativeTargetAsmParser();
-        mlir::registerAllToLLVMIRTranslations(_registry);
-
-        // Need to call initialize each time, otherwise the engine can not find llvm dialect
-        //_initializedMLIR = true;
+    if (!_initializedMLIR) {
+        initializeIRGraphExecution(blob, metadata, arg_inputs, arg_outputs);
+        _initializedMLIR = true;
     }
-
-    _context = std::make_unique<mlir::MLIRContext>(_registry);
-    initializeIRGraphExecution(blob, metadata, arg_inputs, arg_outputs);
 
     _binding._inputs.resize(arg_inputs.size());
 
@@ -230,73 +199,134 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob,
     }
 }
 
-std::unique_ptr<mlir::ExecutionEngine> IRGraphImpl::createExecutionEngine(const std::string& entryName,
-                                                                          std::optional<ov::Tensor>& blob,
-                                                                          mlir::MLIRContext* context) {
-    auto blobPtr = reinterpret_cast<const uint8_t*>(blob.value().data());
-    auto blobSize = blob.value().get_byte_size();
+void IRGraphImpl::createExecutionEngine(std::optional<ov::Tensor>& blob) {
+    _npu_mlir_runtime_blob_desc_t blobDesc;
+    blobDesc.pInput = reinterpret_cast<const uint8_t*>(blob.value().data());
+    blobDesc.inputSize = blob.value().get_byte_size();
 
-    // Metadata<METADATA_VERSION_X_X> is stored after LLVM code in CompiledModel::export_model
-    // So, the file size needs to be adjusted to avoid compilation error
-    auto getLLVMIRSize = [](const uint8_t* llvmIR, size_t size) {
-        if (size == 0 || llvmIR == nullptr)
-            return 0ULL;
-        for (size_t index = size - 1; index >= 0; --index) {
-            if (llvmIR[index] == static_cast<uint8_t>('}')) {
-                return index + 1ULL;
+    if (npuMLIRRuntimeCreate(&blobDesc, &_engine, &_engineProperties) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to create MLIR runtime engine");
+    }
+}
+
+/**
+ * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific
+ * ones.
+ *
+ * @param arg The main Level Zero structure from which most metadata will be extracted.
+ * @param metadata The secondary Level Zero structure from which metadata will be extracted. More specifically, the
+ * argument is used for populating "shapeFromIRModel". Not providing this argument will lead to an empty value for
+ * the referenced attribute.
+ * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
+ */
+static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
+                                    const std::optional<ze_graph_argument_metadata_t>& metadata) {
+    auto logger = Logger::global().clone("getIODescriptor");
+    ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
+    ov::Shape shapeFromCompiler;
+    ov::PartialShape shapeFromIRModel;
+    std::unordered_set<std::string> outputTensorNames;
+
+    for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
+        outputTensorNames.insert(arg.associated_tensor_names[id]);
+    }
+    for (uint32_t id = 0; id < arg.dims_count; id++) {
+        shapeFromCompiler.push_back(arg.dims[id]);
+    }
+    if (metadata.has_value()) {
+        const auto dynamicDim = std::numeric_limits<uint64_t>::max();
+        shapeFromIRModel.reserve(metadata->shape_size);
+        for (uint32_t id = 0; id < metadata->shape_size; id++) {
+            if (metadata->shape[id] != dynamicDim) {
+                shapeFromIRModel.push_back(metadata->shape[id]);
+            } else {
+                // lower bound is ignored, so we set it to 1 just to satisfy the Dimension constructor,
+                // upper bound is set to the value from shapeFromCompiler as it is filled with upper bounds
+                // in case of dynamic dimensions
+                if (id == utils::BATCH_AXIS && shapeFromCompiler[id] == utils::DEFAULT_BATCH_SIZE) {
+                    logger.info("Ignore dynamic batch size upper limit, but keep the dimension dynamic as a metadata "
+                                "from compiler has been lost.");
+                    // We need to kepp batch dimension dynamic
+                    shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
+                } else {
+                    shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
+                    shapeFromIRModel.push_back(-1);
+                }
             }
         }
-
-        return 0ULL;
-    };
-
-    llvm::StringRef content(reinterpret_cast<const char*>(blobPtr), getLLVMIRSize(blobPtr, blobSize));
-    auto llvmBlob = llvm::MemoryBuffer::getMemBufferCopy(content, "LLVMBlob");
-    auto sourceMgr = std::make_shared<llvm::SourceMgr>();
-    sourceMgr->AddNewSourceBuffer(std::move(llvmBlob), llvm::SMLoc());
-    mlir::OwningOpRef<mlir::Operation*> module = mlir::parseSourceFile<mlir::ModuleOp>(*sourceMgr, context);
-
-    if (!module) {
-        OPENVINO_THROW("Failed to parse LLVM IR");
     }
 
-    // std::cout << "Creating JITTargetMachineBuilder" << std::endl;
-    auto tmBuilderOrError = llvm::orc::JITTargetMachineBuilder::detectHost();
-    if (!tmBuilderOrError) {
-        OPENVINO_THROW("Failed to detect host");
-    }
-    // std::cout << "Creating TargetMachine for " << tmBuilderOrError->getCPU() << std::endl;
-    // std::cout << "Target triple " << tmBuilderOrError->getTargetTriple().normalize() << std::endl;
-
-    auto tmOrError = tmBuilderOrError->createTargetMachine();
-    if (!tmOrError) {
-        OPENVINO_THROW("Failed to create TargetMachine");
-    }
-    // std::cout << "TargetMachine created" << std::endl;
-
-    mlir::ExecutionEngineOptions engineOptions;
-    engineOptions.jitCodeGenOptLevel = llvm::CodeGenOptLevel::None;
-
-    llvm::SmallVector<mlir::StringRef, 4> sharedLibs;
-    sharedLibs.push_back(MLIR_RUNNER_UTILS_FILE_NAME);
-    sharedLibs.push_back(MLIR_C_RUNNER_UTILS_FILE_NAME);
-    sharedLibs.push_back(MLIR_ZERO_WRAPPER_FILE_NAME);
-    engineOptions.sharedLibPaths = sharedLibs;
-    engineOptions.enableObjectDump = true;
-    // std::cout << "Creating engine" << std::endl;
-    auto expectedEngine = mlir::ExecutionEngine::create(*module, engineOptions, std::move(tmOrError.get()));
-    if (!expectedEngine) {
-        OPENVINO_THROW("Failed to create ExecutionEngine");
-    }
-    // std::cout << "Engine created" << std::endl;
-    auto engine = std::move(*expectedEngine);
-    auto expectedFPtr = engine->lookupPacked(entryName);
-
-    if (!expectedFPtr) {
-        OPENVINO_THROW("Failed to lookup main function");
+    // Flags will be used instead of indices for informing the type of the current entry
+    std::string nameFromCompiler = arg.name;
+    const bool isInput = (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT);
+    bool isStateInput = false;
+    bool isStateOutput = false;
+    bool isShapeTensor = false;
+    bool isInitInputWeights = false;
+    bool isInitOutputWeights = false;
+    bool isMainInputWeights = false;
+    if (isInput && isStateInputName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
+        isStateInput = true;
+    } else if (!isInput && isStateOutputName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(ASSIGN_PREFIX.length());
+        isStateOutput = true;
+    } else if (isShapeTensorName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(SHAPE_TENSOR_PREFIX.length());
+        isShapeTensor = true;
+    } else if (isInput && isInitInputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
+        isInitInputWeights = true;
+    } else if (!isInput && isInitOutputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
+        isInitOutputWeights = true;
+    } else if (isInput && isMainInputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
+        isMainInputWeights = true;
     }
 
-    return engine;
+    return {std::move(nameFromCompiler),
+            precision,
+            shapeFromCompiler,
+            isStateInput,
+            isStateOutput,
+            isShapeTensor,
+            isInitInputWeights,
+            isInitOutputWeights,
+            isMainInputWeights,
+            std::nullopt,
+            arg.debug_friendly_name,
+            std::move(outputTensorNames),
+            metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
+}
+
+void IRGraphImpl::prepareMetadata(NetworkMetadata& metadata,
+                                  std::vector<ArgumentDescriptor>& inputs,
+                                  std::vector<ArgumentDescriptor>& outputs) {
+    metadata.inputs.clear();
+    metadata.outputs.clear();
+    for (uint32_t i = 0; i < _engineProperties.numOfGraphArgs; ++i) {
+        // TODO: follow graph ext to support Optional metadata for weightless model
+        ze_graph_argument_properties_3_t arg;
+        if (npuMLIRRuntimeGetMetadata(_engine, i, &arg) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to get MLIR runtime metadata");
+        }
+        switch (arg.type) {
+        case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
+            metadata.inputs.push_back(getIODescriptor(arg, std::nullopt));
+            inputs.push_back({arg, i});
+        } break;
+        case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
+            metadata.outputs.push_back(getIODescriptor(arg, std::nullopt));
+            outputs.push_back({arg, i});
+        } break;
+        default: {
+            OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
+                           arg.type);
+        }
+        }
+    }
+    metadata.bindRelatedDescriptors();
 }
 
 void IRGraphImpl::getBinding(IRGraph::GraphArguments& binding) {
@@ -307,33 +337,26 @@ void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob,
                                              NetworkMetadata& metadata,
                                              std::vector<ArgumentDescriptor>& inputs,
                                              std::vector<ArgumentDescriptor>& outputs) {
-    const std::string adapterPrefix = std::string("_mlir_ciface_");
-    const std::string entryName = "main";
-    const std::string adapterName = adapterPrefix + entryName;
-    _engine = createExecutionEngine(adapterName, blob, _context.get());
-    std::string getNetworkMetadataFuncName = "get_network_metadata";
+    createExecutionEngine(blob);
+    prepareMetadata(metadata, inputs, outputs);
 
-    // Get metadata and number of graph
-    auto error = _engine->invoke(getNetworkMetadataFuncName, &metadata, &_numOfSubgraphs, &inputs, &outputs);
-    if (error) {
-        OPENVINO_THROW("Error invoking main: " + llvm::toString(std::move(error)));
-    }
-    _logger.debug("num of subgraphs: %d inputs: %d outputs: %d", _numOfSubgraphs, inputs.size(), outputs.size());
-
-    metadata.bindRelatedDescriptors();
+    _logger.debug("num of subgraphs: %d inputs: %d outputs: %d",
+                  _engineProperties.numOfSubGraphs,
+                  inputs.size(),
+                  outputs.size());
 }
 
 void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv) {
     auto inputs = _binding._inputs;
     if (argi < inputs.size()) {
         _logger.debug("setArgumentValue for index %d (input %d)", argi, argi);
-        inputs[argi]->basePtr = inputs[argi]->data = const_cast<void*>(argv);
+        inputs[argi]->memRef.basePtr = inputs[argi]->memRef.data = const_cast<void*>(argv);
     } else {
         auto outputs = _binding._outputs;
         auto idx = argi - inputs.size();
         _logger.debug("setArgumentValue for index %d (output %d)", argi, idx);
         if (idx < outputs.size()) {
-            outputs[idx]->basePtr = outputs[idx]->data = const_cast<void*>(argv);
+            outputs[idx]->memRef.basePtr = outputs[idx]->memRef.data = const_cast<void*>(argv);
         }
     }
 }
@@ -349,25 +372,25 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
         oss << *(inputs[argi]);
         _logger.debug("setArgumentProperty for index %d (input %d)", argi, argi);
         _logger.debug("Before change: %s", oss.str().c_str());
-        inputs[argi]->basePtr = inputs[argi]->data = const_cast<void*>(argv);
+        inputs[argi]->memRef.basePtr = inputs[argi]->memRef.data = const_cast<void*>(argv);
         // Now MemRefType only support 4 dimension
         size_t shapesSize = shapes.size();
         for (size_t i = 0; i < 4; i++) {
             if (i < shapesSize) {
-                inputs[argi]->sizes[i] = shapes[i];
+                inputs[argi]->memRef.sizes[i] = shapes[i];
             } else {
                 // Set dimension to 1 if exceed region of shapes
-                inputs[argi]->sizes[i] = 1;
+                inputs[argi]->memRef.sizes[i] = 1;
             }
         }
 
         size_t stridesSize = strides.size();
         for (size_t i = 0; i < 4; i++) {
             if (i < stridesSize) {
-                inputs[argi]->strides[i] = strides[i];
+                inputs[argi]->memRef.strides[i] = strides[i];
             } else {
                 // Set dimension to 1 if exceed region of shapes
-                inputs[argi]->strides[i] = 1;
+                inputs[argi]->memRef.strides[i] = 1;
             }
         }
 
@@ -386,26 +409,26 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
             std::ostringstream oss;
             oss << *(outputs[idx]);
             _logger.debug("Before change: %s", oss.str().c_str());
-            outputs[idx]->basePtr = outputs[idx]->data = const_cast<void*>(argv);
+            outputs[idx]->memRef.basePtr = outputs[idx]->memRef.data = const_cast<void*>(argv);
 
             // Now MemRefType only support 4 dimension
             size_t shapesSize = shapes.size();
             for (size_t i = 0; i < 4; i++) {
                 if (i < shapesSize) {
-                    outputs[idx]->sizes[i] = shapes[i];
+                    outputs[idx]->memRef.sizes[i] = shapes[i];
                 } else {
                     // Set dimension to 1 if exceed region of shapes
-                    outputs[idx]->sizes[i] = 1;
+                    outputs[idx]->memRef.sizes[i] = 1;
                 }
             }
 
             size_t stridesSize = strides.size();
             for (size_t i = 0; i < 4; i++) {
                 if (i < stridesSize) {
-                    outputs[idx]->strides[i] = strides[i];
+                    outputs[idx]->memRef.strides[i] = strides[i];
                 } else {
                     // Set dimension to 1 if exceed region of shapes
-                    outputs[idx]->strides[i] = 1;
+                    outputs[idx]->memRef.strides[i] = 1;
                 }
             }
 
@@ -422,39 +445,6 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
 
 void IRGraphImpl::initializeGraph(uint64_t ordinal) {
     // TODO
-}
-
-llvm::Error invokePacked(std::unique_ptr<mlir::ExecutionEngine>& engine,
-                         const std::string& adapterName,
-                         std::vector<IRGraphImpl::MemRefType*>& inputs,
-                         std::vector<IRGraphImpl::MemRefType*>& outputs,
-                         ze_context_handle_t ctx,
-                         ze_device_handle_t device,
-                         ze_graph_dditable_ext_t* graphDdiTableExt,
-                         ze_command_list_handle_t* commandLists,
-                         uint64_t numCommandLists,
-                         ze_command_queue_handle_t commandQueue,
-                         ze_fence_handle_t inferenceFence,
-                         ze_event_handle_t event) {
-    mlir::SmallVector<void*> packedArgs;
-    for (auto& input : inputs) {
-        mlir::ExecutionEngine::Argument<IRGraphImpl::MemRefType*>::pack(packedArgs, input);
-    }
-
-    for (auto& output : outputs) {
-        mlir::ExecutionEngine::Argument<IRGraphImpl::MemRefType*>::pack(packedArgs, output);
-    }
-
-    mlir::ExecutionEngine::Argument<ze_context_handle_t>::pack(packedArgs, ctx);
-    mlir::ExecutionEngine::Argument<ze_device_handle_t>::pack(packedArgs, device);
-    mlir::ExecutionEngine::Argument<ze_graph_dditable_ext_t*>::pack(packedArgs, graphDdiTableExt);
-    mlir::ExecutionEngine::Argument<ze_command_list_handle_t*>::pack(packedArgs, commandLists);
-    mlir::ExecutionEngine::Argument<uint64_t>::pack(packedArgs, numCommandLists);
-    mlir::ExecutionEngine::Argument<ze_command_queue_handle_t>::pack(packedArgs, commandQueue);
-    mlir::ExecutionEngine::Argument<ze_fence_handle_t>::pack(packedArgs, inferenceFence);
-    mlir::ExecutionEngine::Argument<ze_event_handle_t>::pack(packedArgs, event);
-
-    return engine->invokePacked(adapterName, packedArgs);
 }
 
 void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
@@ -478,23 +468,29 @@ void IRGraphImpl::executeGraph(std::vector<MemRefType*>& inputMefRefs,
     auto contextHandle = zeroInitStruct->getContext();
     auto deviceHandle = zeroInitStruct->getDevice();
     auto ddiTableHandle = zeroInitStruct->getGraphDdiTable().getImpl();
-    const std::string adapterName = "_mlir_ciface_main";
 
-    auto error = invokePacked(_engine,
-                              adapterName,
-                              inputMefRefs,
-                              outputMemRefs,
-                              contextHandle,
-                              deviceHandle,
-                              ddiTableHandle,
-                              commandLists.data(),
-                              commandLists.size(),
-                              (ze_command_queue_handle_t)commandQueue,
-                              fence,
-                              event);
+    std::vector<npu_mlir_runtime_mem_ref_t*> inputs, outputs;
+    for (auto& in : inputMefRefs)
+        inputs.push_back(&in->memRef);
+    for (auto& out : outputMemRefs)
+        outputs.push_back(&out->memRef);
+    npu_mlir_runtime_execute_params_t params;
+    params.pInputs = inputs.data();
+    params.numOfInputs = static_cast<uint32_t>(inputs.size());
+    params.pOutputs = outputs.data();
+    params.numOfOutputs = static_cast<uint32_t>(outputs.size());
+    params.ctx = contextHandle;
+    params.device = deviceHandle;
+    params.graphDdiTableExt = ddiTableHandle;
+    params.commandLists = commandLists.data();
+    params.numCommandLists = static_cast<uint64_t>(commandLists.size());
+    params.commandQueue = commandQueue;
+    params.inferenceFence = fence;
+    params.event = event;
 
-    if (error)
-        OPENVINO_THROW("Error invoking main: " + llvm::toString(std::move(error)));
+    if (npuMLIRRuntimeExecute(_engine, &params) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to execute MLIR runtime engine");
+    }
 }
 
 IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,

@@ -11,21 +11,20 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "npu_mlir_runtime.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
 class IRGraph final : public IGraph {
 public:
     struct MemRefType {
-        const void* basePtr;
-        const void* data;
-        int64_t offset;
-        int64_t sizes[4];
-        int64_t strides[4];
+        npu_mlir_runtime_mem_ref_t memRef;
         MemRefType() {
-            basePtr = nullptr;
-            data = nullptr;
-            offset = 0;
+            memRef.basePtr = nullptr;
+            memRef.data = nullptr;
+            memRef.offset = 0;
+            std::fill(std::begin(memRef.sizes), std::end(memRef.sizes), 0);
+            std::fill(std::begin(memRef.strides), std::end(memRef.strides), 0);
         }
 
         void setArg(const void* arg);
@@ -33,13 +32,13 @@ public:
         void updateStride();
 
         friend std::ostream& operator<<(std::ostream& os, const MemRefType& memRef) {
-            os << "BasePtr: " << memRef.basePtr << ", Data: " << memRef.data << ", Offset: " << memRef.offset
-               << ", Sizes: [";
-            for (int64_t size : memRef.sizes) {
+            os << "BasePtr: " << memRef.memRef.basePtr << ", Data: " << memRef.memRef.data
+               << ", Offset: " << memRef.memRef.offset << ", Sizes: [";
+            for (int64_t size : memRef.memRef.sizes) {
                 os << size << " ";
             }
             os << "], Strides: [";
-            for (int64_t stride : memRef.strides) {
+            for (int64_t stride : memRef.memRef.strides) {
                 os << stride << " ";
             }
             os << "]";
