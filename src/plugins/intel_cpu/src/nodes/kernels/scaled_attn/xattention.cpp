@@ -155,6 +155,7 @@ static void transpose_16NxK(T* dst,
 }
 #endif
 
+#if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
 static inline float hsum256_ps(__m256 v) {
     __m256 t1 = _mm256_hadd_ps(v, v);
     __m256 t2 = _mm256_hadd_ps(t1, t1);
@@ -165,7 +166,6 @@ static inline float hsum256_ps(__m256 v) {
 }
 
 void sum_blocks8x8(const float* a, size_t M, size_t a_stride, float* out, size_t out_stride) {
-#if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
     size_t block_num = (M + 7) / 8;
     size_t col_num = block_num * 8;
     size_t i = 0;
@@ -208,8 +208,8 @@ void sum_blocks8x8(const float* a, size_t M, size_t a_stride, float* out, size_t
             out[(block_num - 1) * out_stride + jb] = block_sum;
         }
     }
-#endif
 }
+#endif
 
 PlainTensor xattn_estimate(PlainTensor& query,
                            PlainTensor& key,
@@ -381,11 +381,15 @@ PlainTensor xattn_estimate(PlainTensor& query,
     parallel_for2d(H, L, [&](size_t h, size_t l) {
         auto* src = attn_sum_temp.ptr<float>(h, l, 0, 0);
         auto* dst = attn_sum.ptr<float>(h, l, 0, 0);
+#if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
         if (num_per_block == 8) {
             sum_blocks8x8(src, row_num, src_stride, dst, dst_stride);
         } else {
             ref::sum_blocks_ref(src, row_num, src_stride, dst, dst_stride, num_per_block);
         }
+#else
+        ref::sum_blocks_ref(src, row_num, src_stride, dst, dst_stride, num_per_block);
+#endif
     });
 
     // Find blocks
