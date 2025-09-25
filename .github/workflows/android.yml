@@ -106,6 +106,8 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_GENERATOR: 'Ninja'
       BUILD_TYPE: Release
+      INSTALL_DIR: android_package
+      INSTALL_TEST_DIR: android_tests
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -231,34 +233,40 @@ jobs:
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
-      - name: Prepare CPU test artifacts
+      - name: Prepare build and test artifacts (split)
         run: |
-          mkdir -p android_tests/bin/intel64/Release
-          mkdir -p android_tests/lib
+          # Prepare directories
+          mkdir -p ${INSTALL_TEST_DIR}/bin/intel64/Release
+          mkdir -p ${INSTALL_DIR}/lib
 
-          # Install tests and runtime libraries using cmake install
-          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix android_tests --component tests
-          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix android_tests --component core
+          # Install tests into tests dir
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
 
-          # Check if we need to move test binaries to expected location
-          if [ -d "android_tests/tests" ]; then
-            echo "Moving tests from android_tests/tests/ to android_tests/bin/intel64/Release/"
-            find android_tests/tests -name "*cpu*test*" -type f -exec cp {} android_tests/bin/intel64/Release/ \;
+          # Install runtime into install dir; fallback to full install if component is unavailable
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core \
+            || cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR}
+
+          # If tests were installed under tests/, move CPU test binaries to expected path
+          if [ -d "${INSTALL_TEST_DIR}/tests" ]; then
+            echo "Moving tests from ${INSTALL_TEST_DIR}/tests/ to ${INSTALL_TEST_DIR}/bin/intel64/Release/"
+            find ${INSTALL_TEST_DIR}/tests -name "*cpu*test*" -type f -exec cp {} ${INSTALL_TEST_DIR}/bin/intel64/Release/ \;
           fi
 
-          # Also copy any libraries that were installed
-          find android_tests -name "*.so*" -type f -exec cp {} android_tests/bin/intel64/Release/ \; 2>/dev/null || echo "No .so files from cmake install"
-
-          # Copy TBB libraries
-          find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} android_tests/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
-
-          # Copy NDK C++ shared library
-          cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" android_tests/lib/ || echo "libc++_shared.so not found"
+          # Add TBB and libc++ shared to runtime package
+          find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
+          cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" ${INSTALL_DIR}/lib/ || echo "libc++_shared.so not found"
       - name: Upload CPU test binaries
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ov_cpu_tests_android_${{ matrix.arch }}
-          path: android_tests/
+          path: ${{ env.INSTALL_TEST_DIR }}/
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO runtime package (Android)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ov_android_package_${{ matrix.arch }}
+          path: ${{ env.INSTALL_DIR }}/
           if-no-files-found: 'error'
 
   Test:
@@ -274,6 +282,8 @@ jobs:
       ANDROID_API_LEVEL: 30
       ANDROID_TARGET: google_apis
       ANDROID_ARCH: x86_64
+      INSTALL_DIR: android_package
+      INSTALL_TEST_DIR: android_tests
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -283,7 +293,13 @@ jobs:
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: ov_cpu_tests_android_x64
-          path: ./android_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Download OpenVINO runtime package (Android)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: ov_android_package_x64
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Setup KVM permissions
         run: |
@@ -302,6 +318,7 @@ jobs:
       - name: AVD cache
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         id: avd-cache
+        if: github.ref_name == 'master'
         with:
           path: |
             ~/.android/avd/*
@@ -323,17 +340,14 @@ jobs:
             set -e
             adb wait-for-device
 
-            [ -f "./android_tests/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
-            chmod +x ./android_tests/bin/intel64/Release/ov_cpu_unit_tests
+            [ -f "${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests" ] || { echo "Error: ov_cpu_unit_tests binary not found"; exit 1; }
+            chmod +x ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests
             adb shell "rm -rf /data/local/tmp/ov_test && mkdir -p /data/local/tmp/ov_test/intel64/Release"
             echo "Pushing unit test binary and libraries to device..."
-            adb push ./android_tests/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
-            # Push OpenVINO libraries
-            for lib in ./android_tests/bin/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-            # Push TBB libraries
-            for lib in ./android_tests/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-            # Push NDK C++ shared library
-            [ -f "./android_tests/lib/libc++_shared.so" ] && adb push "./android_tests/lib/libc++_shared.so" /data/local/tmp/ov_test/ || echo "libc++_shared.so not found"
+            adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
+            # Push OpenVINO libraries from runtime package
+            for lib in ${INSTALL_DIR}/bin/intel64/Release/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
             echo "Running CPU unit tests..."
             adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
