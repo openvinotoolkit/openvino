@@ -74,8 +74,8 @@ struct Ctx {
     std::shared_ptr<Node> h_out = nullptr;
     std::shared_ptr<Node> w_out = nullptr;
     // Types
-    element::Type element_type = element::undefined;
-    element::Type calc_type = element::undefined;  // f32 for math
+    element::Type element_type = element::dynamic;
+    element::Type calc_type = element::dynamic;  // set to f32 for math
     // Float constants
     std::shared_ptr<Node> c0 = nullptr;
     std::shared_ptr<Node> c1 = nullptr;

@@ -56,7 +56,7 @@ using namespace ov::op;
 
 struct Ctx {
     std::shared_ptr<Node> n_dim, c_dim, h_in, w_in, h_out, w_out;
-    element::Type element_type = element::undefined;
+    element::Type element_type = element::dynamic;
     element::Type calc_type = element::f32;
     std::shared_ptr<Node> c0, c1, c2, c0_5;
     std::shared_ptr<Node> i32_0, i32_1, i32_2, i32_3, i32_neg1;
@@ -512,7 +512,7 @@ std::shared_ptr<Node> build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridS
 }
 }  // namespace
 
-std::shared_ptr<ov::Model> create_expected_decomposed_pattern(
+static std::shared_ptr<ov::Model> create_expected_decomposed_pattern(
     const ov::PartialShape& data_shape,
     const ov::PartialShape& grid_shape,
     const ov::element::Type& data_type,
