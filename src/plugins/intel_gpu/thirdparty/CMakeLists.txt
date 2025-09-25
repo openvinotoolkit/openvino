@@ -166,12 +166,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
             set(DNNL_GPU_RUNTIME_VALUE  DNNL_RUNTIME_OCL)
         endif()
         set(LIB_INCLUDE_DIRS "${ONEDNN_INSTALL_DIR}/include"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/ngen"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/jit/config"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src/gpu/intel/gemm/jit/include"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/third_party/ngen")
+                             "${ONEDNN_GPU_DIR}/src"
+                             "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/ngen"
+                             "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/config"
+                             "${ONEDNN_GPU_DIR}/src/gpu/intel/gemm/jit/include"
+                             "${ONEDNN_GPU_DIR}/third_party"
+                             "${ONEDNN_GPU_DIR}/third_party/ngen")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_GPU_RUNTIME={$DNNL_GPU_RUNTIME_VALUE}
                             DNNL_DLL
