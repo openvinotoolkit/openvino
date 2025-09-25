@@ -6,11 +6,7 @@
 
 #include "openvino/core/log.hpp"
 
-void ov_util_reset_log_callback() {
-    ov::util::reset_log_callback();
-}
-
-void ov_util_set_log_callback(void (*f)(const char*)) {
+void ov_util_set_log_callback(ov_util_log_callback_func f) {
     if (f) {
         static std::function<void(std::string_view)> callback;
         callback = [f](std::string_view msg) {
@@ -20,4 +16,8 @@ void ov_util_set_log_callback(void (*f)(const char*)) {
     } else {
         ov::util::set_log_callback({});
     }
+}
+
+void ov_util_reset_log_callback() {
+    ov::util::reset_log_callback();
 }

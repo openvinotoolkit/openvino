@@ -7,10 +7,10 @@
 #include "openvino/c/ov_common.h"
 
 /**
- * @brief Resets log message handling callback to its default (standard output).
+ * @brief Callback function type for logging messages.
+ * @param message The log message as a null-terminated C string.
  */
-OPENVINO_C_API(void)
-ov_util_reset_log_callback();
+typedef void (*ov_util_log_callback_func)(const char* message);
 
 /**
  * @brief Sets user log message handling callback.
@@ -18,4 +18,10 @@ ov_util_reset_log_callback();
  *                          Null pointer is accepted (no logging).
  */
 OPENVINO_C_API(void)
-ov_util_set_log_callback(void (*f)(const char*));
+ov_util_set_log_callback(ov_util_log_callback_func);
+
+/**
+ * @brief Resets log message handling callback to its default (standard output).
+ */
+OPENVINO_C_API(void)
+ov_util_reset_log_callback();
