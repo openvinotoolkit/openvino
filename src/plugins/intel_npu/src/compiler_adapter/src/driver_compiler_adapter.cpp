@@ -17,6 +17,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "intel_npu/weights_pointer_attribute.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -162,8 +163,7 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
-void storeWeightsInfo(const std::shared_ptr<ov::Model>& model) {
-    size_t constantId = 0;
+void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
     for (auto&& node : model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(node)) {
             continue;
@@ -172,9 +172,8 @@ void storeWeightsInfo(const std::shared_ptr<ov::Model>& model) {
         auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
 
         ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
-        runtimeInfoMap["ptr"] = constantNode->get_data_ptr();
-        runtimeInfoMap["size"] = constantNode->get_byte_size();
-        runtimeInfoMap["ptr"] = constantNode->get_data_ptr();
+        runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
+            intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr());
     }
 }
 
@@ -466,7 +465,11 @@ driver_compiler_utils::SerializedIR DriverCompilerAdapter::serializeIR(
     const uint32_t supportedOpsetVersion,
     const bool useBetterModelSerialization) const {
     if (useBetterModelSerialization) {
-        return driver_compiler_utils::IRSerializerWithoutWeightsCopy(model, compilerVersion, supportedOpsetVersion)
+        const std::shared_ptr<ov::Model> clonedModel = model->clone();
+        storeWeightsPointerAttribute(clonedModel);
+        return driver_compiler_utils::IRSerializerWithoutWeightsCopy(clonedModel,
+                                                                     compilerVersion,
+                                                                     supportedOpsetVersion)
             .serialize();
     }
     return driver_compiler_utils::IRSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion)

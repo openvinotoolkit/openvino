@@ -4,9 +4,11 @@
 
 #include "intel_npu/xml_deserializer.hpp"
 
+#include "intel_npu/weights_pointer_attribute.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "ov_ops/rms.hpp"
@@ -22,6 +24,49 @@ NPUXmlDeserializer::NPUXmlDeserializer(
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
     size_t version)
     : ov::util::XmlDeserializer(node, weights, opsets, extensions, variables, version) {}
+
+ov::Any NPUXmlDeserializer::parse_weights_pointer_attribute(const pugi::xml_node& node) const {
+    if (auto rt_info = node.child("rt_info")) {
+        for (const auto& child : rt_info.children()) {
+            for (const auto& attr : child.attributes()) {
+                if (strcmp(attr.name(), "ptr") == 0) {
+                    const auto ptr = reinterpret_cast<const void*>(ov::util::pugixml::get_uint64_attr(child, "ptr"));
+                    return {WeightsPointerAttribute{ptr}};
+                }
+            }
+        }
+    }
+    return {};
+}
+
+void NPUXmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
+    const auto node = get_node();
+    const auto& dn = node.child("data");
+
+    auto wl_attr = parse_weights_pointer_attribute(node);
+    const auto el_type = ov::element::Type(ov::util::pugixml::get_str_attr(dn, "element_type"));
+    auto actual_size = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(dn, "size"));
+
+    char* ptr = reinterpret_cast<char*>(wl_attr.as<WeightsPointerAttribute>().memory_pointer);
+
+    std::shared_ptr<ov::AlignedBuffer> buffer;
+    if (el_type != ov::element::string) {
+        buffer = std::make_shared<ov::SharedBuffer<void*>>(ptr, actual_size, nullptr);
+    } else {
+        buffer = std::make_shared<ov::SharedStringAlignedBuffer>(ptr, actual_size);
+    }
+    adapter.set(buffer);
+}
+
+std::unique_ptr<ov::util::XmlDeserializer> NPUXmlDeserializer::make_visitor(
+    const pugi::xml_node& node,
+    const std::shared_ptr<ov::AlignedBuffer>& origin_weights,
+    const std::unordered_map<std::string, ov::OpSet>& opsets,
+    const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+    std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
+    size_t version) const {
+    return std::make_unique<NPUXmlDeserializer>(node, origin_weights, opsets, extensions, variables, version);
+}
 
 std::shared_ptr<ov::Model> deserialize_ir_model(uint8_t* serialized_model) {
     ov::pass::StreamSerialize::DataHeader dataHeader;

@@ -37,8 +37,6 @@ public:
           m_weightless_writer(constant_write_handler) {}
 
 private:
-    // bool append_node_attributes(ov::Node& node) override;
-
     ov::util::ConstantWriter& get_constant_write_handler() override;
 
     WeightlessWriter m_weightless_writer;
