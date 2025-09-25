@@ -222,7 +222,11 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Store original constants' offset for serialization purposes
     store_const_offsets(model);
 
-    auto partitioning = getPartitioning(model, m_cfg);
+    ov::npuw::PartitioningContext ctx;
+    // Identify based on compiler version, user config and pattern
+    ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
+
+    auto partitioning = getPartitioning(model, m_cfg, ctx);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
@@ -526,6 +530,80 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
+bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model,
+                                                               const ov::AnyMap& properties) const {
+    LOG_INFO("Identifying best HOST_GATHER config value...");
+    LOG_BLOCK();
+    // Check if was explicitly specified
+    auto it_hg = properties.find(intel_npu::npuw::partitioning::host_gather.name());
+    std::optional<bool> explicit_hg_value;
+    if (it_hg != properties.end()) {
+        explicit_hg_value = it_hg->second.as<bool>();
+    }
+
+    // Check NPUW_HOST_GATHER:QUANT based on the patterns (for tail vocab)
+    ov::npuw::patterns::opt::Context ctx;
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<ov::op::v0::Constant>>(std::ref(ctx), true);
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<ov::op::v0::Constant>>(std::ref(ctx), true);
+    rewr.run_on_model(model);
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    std::vector<CPtr> to_keep;
+
+    ov::pass::GraphRewrite rewr2;
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
+    rewr2.run_on_model(model);
+    // FIXME: since 3-model pipeline is the default option, the tail will be separate,
+    // so we need to match either head or tail pattern here for host gather quantized feature to work.
+    // However, there might be a case where tail pattern is matched, but head is not (for the same model)
+    // or vice versa. This would lead to worse performance. Consider adding this check to LLMCompiledModel
+    // as well, since there we have uncut model.
+    // Head or tail
+    const bool pattern_matched = ctx.found_host_gather_quant() || !to_keep.empty();
+
+    // Check the compiler version
+    const auto npu_devices = get_plugin()->get_core()->get_property("NPU", ov::available_devices);
+    const auto is_suitable_comp = [](int64_t ver, const std::string& arch) {
+        if (arch == "3720" || arch == "4000") {
+            return ver >= ONEAPI_MAKE_VERSION(7, 21);
+        }
+        return ver >= ONEAPI_MAKE_VERSION(7, 25);
+    };
+    const bool compiler_version_enough =
+        !npu_devices.empty() &&
+        is_suitable_comp(get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version),
+                         get_plugin()->get_core()->get_property("NPU", ov::device::architecture));
+    // FIXME: go from
+    //     get_plugin()->get_core()->get_property("NPU", ..
+    // to
+    ///    plugin->get_property(..
+
+    const bool can_enable_hgq = pattern_matched && (compiler_version_enough || npu_devices.empty());
+
+    // Now make a decision based on the checks above
+    if (!explicit_hg_value) {
+        // Default value is used, can force the best option
+        if (can_enable_hgq) {
+            LOG_INFO("Forcing quantized tail vocabulary for better performance.");
+            return true;
+        }
+    } else if (!explicit_hg_value.value()) {  // explicit NO
+        if (can_enable_hgq) {
+            LOG_WARN("Consider removing NPUW_HOST_GATHER:NO from the config for better performance.");
+        } else {
+            LOG_WARN("Consider enabling NPUW_HOST_GATHER:YES for better performance.");
+        }
+    } else {  // explicit YES
+        if (can_enable_hgq) {
+            LOG_WARN("Consider removing NPUW_HOST_GATHER:YES from the config for better performance.");
+        }
+    }  // explicit_hg_value
+    LOG_INFO("DONE.");
+    return false;
+}
+
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
                                                            const ov::npuw::s11n::WeightsContext& ctx) const {
     using namespace ov::npuw::s11n;
@@ -812,6 +890,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         if (is_weightless) {
             compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
             compiled->finalize_weights_bank();
+            compiled->m_import_weights_ctx.reset();
         } else {
             compiled->m_weights_bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -1053,17 +1132,20 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
             }
         }
 
-        ov::npuw::s11n::Weights weights = nullptr;
+        ov::npuw::s11n::WeightsPtr weights = nullptr;
         if (is_weightless) {
             if (!weights_path.empty()) {
                 auto mapped_memory = ov::load_mmap_object(weights_path);
-                weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                                                mapped_memory->size(),
-                                                                                                mapped_memory);
+                weights = std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(),
+                                                                    mapped_memory->size(),
+                                                                    mapped_memory);
             }
         }
 
-        WeightsContext ctx(weights, consts_cache, compiled->m_bf16_consts);
+        // FIXME: prolong lifetime of ov::Model for import with MODEL_PTR.
+        // Unclear why it's needed, but without saving consts_cache until bank evaluation,
+        // the memory is freed somewhere.
+        compiled->m_import_weights_ctx = WeightsContext(weights, weights_path, consts_cache, compiled->m_bf16_consts);
 
         // Deserialize compiled submodels
         std::size_t subm_size = 0;
@@ -1085,7 +1167,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                     plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
             }
             compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-            compiled->m_compiled_submodels[i].deserialize(stream, ctx);
+            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx);
         }
 
         compiled->implement_properties();
@@ -1121,8 +1203,6 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
 
-        // At this point closure size should have already been deserialized
-        NPUW_ASSERT(!comp_model_desc.closure.empty() && "Closure shouldn't be empty at this point!");
         for (std::size_t cidx = 0; cidx < comp_model_desc.closure.size(); ++cidx) {
             if (comp_model_desc.closure[cidx]) {
                 // host-side closure - already set, do nothing
@@ -1712,7 +1792,6 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
-                          BIND(npuw::partitioning::gather_quant, NPUW_HOST_GATHER_QUANT),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),

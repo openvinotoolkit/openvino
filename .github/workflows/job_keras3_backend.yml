@@ -62,11 +62,16 @@ jobs:
           ref: 'master'
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
-          pattern: openvino_@(wheels|tokenizers_wheel)
+          name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+
+      - name: Download OpenVINO artifacts (tokenizers_wheel)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.INSTALL_DIR }}
 
       - name: Setup Python ${{ inputs.python-version }}
         uses: ./.github/actions/setup_python
@@ -85,6 +90,7 @@ jobs:
       - name: Install test dependencies
         working-directory: ${{ env.KERAS_REPO }}
         run: |
+          pip install --upgrade pip setuptools
           pip install -r requirements.txt --upgrade
           # make sure that no other keras is installed via pip
           pip uninstall -y keras keras-nightly

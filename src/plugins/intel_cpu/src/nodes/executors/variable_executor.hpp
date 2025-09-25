@@ -29,17 +29,20 @@ class VariableExecutor : public Executor {
 public:
     using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
 
-    VariableExecutor(const MemoryArgs& memory,
+    VariableExecutor(const MemoryArgs& memory [[maybe_unused]],
                      Attrs attrs,
                      ExecutorContext::CPtr context,
-                     std::vector<ExecutorImplementationRef> suitableImplementations)
+                     std::vector<ExecutorImplementationRef> suitableImplementations,
+                     bool init)
         : m_attrs(std::move(attrs)),
           m_context(std::move(context)),
           m_suitableImplementations(std::move(suitableImplementations)),
           m_executors(m_suitableImplementations.size()) {
-        const size_t implId = select(memory, 0);
-        m_executors[implId] = create(implId, memory);
-        m_implId = implId;
+        if (init) {
+            const size_t implId = select(memory, 0);
+            m_executors[implId] = create(implId, memory);
+            m_implId = implId;
+        }
     }
 
     bool update(const MemoryArgs& memory) override {
@@ -47,6 +50,9 @@ public:
              implId = select(memory, ++implId)) {
             if (!m_executors[implId]) {
                 m_executors[implId] = create(implId, memory);
+                if (!m_executors[implId]) {
+                    continue;  // skip if creation failed
+                }
             }
 
             if (m_executors[implId]->update(memory)) {
@@ -80,12 +86,12 @@ private:
 
         auto startIt = m_suitableImplementations.begin() + startIdx;
 
-        const auto selectedImplementation = std::find_if(
-            startIt,
-            m_suitableImplementations.end(),
-            [&memory, this](const ExecutorImplementationRef& implementation) {
-                return implementation.get().shapeAgnostic() || implementation.get().acceptsShapes(m_attrs, memory);
-            });
+        const auto selectedImplementation =
+            std::find_if(startIt,
+                         m_suitableImplementations.end(),
+                         [&memory, this](const ExecutorImplementationRef& implementation) {
+                             return implementation.get().acceptsShapes(m_attrs, memory);
+                         });
 
         OPENVINO_ASSERT(selectedImplementation != m_suitableImplementations.end(), "Failed to select an implemetation");
 
@@ -104,7 +110,7 @@ private:
     std::vector<ExecutorImplementationRef> m_suitableImplementations;
     // executors cache
     std::vector<ExecutorPtr> m_executors;
-    size_t m_implId;
+    size_t m_implId = 0;
 };
 
 }  // namespace ov::intel_cpu

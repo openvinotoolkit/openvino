@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "common/primitive_attr.hpp"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
@@ -157,7 +158,7 @@ bool DeconvKey::operator==(const DeconvKey& rhs) const {
  */
 class DeconvolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
 
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<DeconvolutionShapeInfer>(m_op);
@@ -166,7 +167,7 @@ public:
 private:
     class DeconvolutionShapeInfer : public IShapeInfer {
     public:
-        DeconvolutionShapeInfer(const std::shared_ptr<ov::Node>& op)
+        explicit DeconvolutionShapeInfer(const std::shared_ptr<ov::Node>& op)
             : m_shape_infer(make_shape_inference(op)),
               m_port_mask((op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK) {}
 
@@ -250,7 +251,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 
         deconvAttrs.outputPadding = convBackprop->get_output_padding();
 
-        autoPad = one_of(convBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
+        autoPad = any_of(convBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
     } else if (auto groupConvBackprop = ov::as_type_ptr<const ov::op::v1::GroupConvolutionBackpropData>(op)) {
         algorithm = Algorithm::DeconvolutionGrouped;
 
@@ -272,7 +273,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 
         deconvAttrs.outputPadding = groupConvBackprop->get_output_padding();
 
-        autoPad = one_of(groupConvBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
+        autoPad = any_of(groupConvBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
     }
     for (size_t i = 0; i < deconvAttrs.dilation.size(); i++) {
         deconvAttrs.kernel.push_back(weightDims[static_cast<int>(withGroups) + 2 + i]);
@@ -292,10 +293,10 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
     }
     if (externOutShape && isDynamicNode()) {
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
-        if (getInputShapeAtPort(2).getStaticDims()[0] != spDimsNum ||
-            (isConstOutShape && lastOutputSpatialDims.size() != spDimsNum)) {
-            THROW_CPU_NODE_ERR("'output_shape' input has incorrect number of elements. Expected = ", spDimsNum);
-        }
+        CPU_NODE_ASSERT(getInputShapeAtPort(2).getStaticDims()[0] == spDimsNum &&
+                            (!isConstOutShape || lastOutputSpatialDims.size() == spDimsNum),
+                        "'output_shape' input has incorrect number of elements. Expected = ",
+                        spDimsNum);
     }
 
     size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
@@ -322,9 +323,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 void Deconvolution::createDnnlCompatibleWeights() {
     MemoryPtr blob = getSrcMemoryAtPort(1);
 
-    if (!blob) {
-        THROW_CPU_NODE_ERR("Cannot get const weights blob.");
-    }
+    CPU_NODE_ASSERT(blob, "Cannot get const weights blob.");
 
     weightIsConst = getParentEdgeAt(1)->getParent()->isConstant();
     auto blockedDims = getWeightDims();
@@ -351,7 +350,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent()) == nullptr) {
         return false;
     }
-    if (!one_of(getInputShapeAtPort(0).getRank(), 3UL, 4UL, 5UL)) {
+    if (none_of(getInputShapeAtPort(0).getRank(), 3UL, 4UL, 5UL)) {
         return false;
     }
 
@@ -483,9 +482,7 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                         if (origInMaxDims[i + 2] != Shape::UNDEFINED_DIM) {
                             auto upper_bound =
                                 deconvAttrs.stride[i] * static_cast<int32_t>(origInMaxDims[i + 2] - 1) - c1;
-                            if (upper_bound < 0) {
-                                THROW_CPU_NODE_ERR("paddings for dummy shapes can't be computed");
-                            }
+                            CPU_NODE_ASSERT(upper_bound >= 0, "paddings for dummy shapes can't be computed");
                         }
 
                         auto lower_bound = deconvAttrs.stride[i] * static_cast<int32_t>(origInMinDims[i + 2] - 1) - c1;
@@ -578,22 +575,19 @@ void Deconvolution::getSupportedDescriptors() {
     }
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inPrecision);
     outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outPrecision);
-    if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16) {
+    if (any_of(memory::data_type::bf16, inputDataType, outputDataType)) {
         inputDataType = outputDataType = memory::data_type::bf16;
     }
-    if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16) {
+    if (any_of(memory::data_type::f16, inputDataType, outputDataType)) {
         inputDataType = outputDataType = memory::data_type::f16;
     }
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::ElementTypeToDataType(
             fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
-    if (getParentEdges().size() != (withBiases ? (biasPort + 1) : biasPort)) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == (withBiases ? (biasPort + 1) : biasPort),
+                    "has incorrect number of input edges");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
     VectorDims inDims;
     VectorDims outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
@@ -739,11 +733,11 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
             continue;
         }
 
-        THROW_CPU_NODE_ERR("Fusing of ",
-                           NameFromType(node->getType()),
-                           " operation to ",
-                           NameFromType(this->getType()),
-                           " node is not implemented");
+        CPU_NODE_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -775,10 +769,9 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
     if (port_mask) {
         for (size_t i = 0; i < inputShapes.size(); ++i) {
             if (port_mask & 1 << i) {
-                if (outSpDims.size() != getInputShapeAtPort(i).getStaticDims()[0]) {
-                    THROW_CPU_NODE_ERR(
-                        "the node has 'output_shape' input, but provided output spatial dims number is incorrect");
-                }
+                CPU_NODE_ASSERT(
+                    outSpDims.size() == getInputShapeAtPort(i).getStaticDims()[0],
+                    "the node has 'output_shape' input, but provided output spatial dims number is incorrect");
                 outSpDimsVecShape = {outSpDims.size()};
                 inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
                 CpuBlockedMemoryDesc desc(ov::element::i32, Shape(outSpDimsVecShape));
@@ -790,9 +783,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
     }
 
     auto result = shapeInference->infer(inputShapesRefs, inputValues);
-    if (ShapeInferStatus::success != result.status) {
-        THROW_CPU_NODE_ERR("Unexpected shape inference result status");
-    }
+    CPU_NODE_ASSERT(ShapeInferStatus::success == result.status, "Unexpected shape inference result status");
     return std::move(result.dims.back());
 }
 
@@ -811,9 +802,7 @@ void Deconvolution::execute(const dnnl::stream& strm) {
         return;
     }
 
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("executor is not compiled");
-    }
+    CPU_NODE_ASSERT(execPtr, "executor is not compiled");
 
     execPtr->exec(primArgs, strm);
 
@@ -970,19 +959,11 @@ void Deconvolution::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto wghMemPtr = getSrcMemoryAtPort(1);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Destination memory is undefined.");
-    }
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Input memory is undefined.");
-    }
-    if (!wghMemPtr || !wghMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Weight memory is undefined.");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination memory is undefined.");
+    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "Input memory is undefined.");
+    CPU_NODE_ASSERT(wghMemPtr && wghMemPtr->isDefined(), "Weight memory is undefined.");
     auto* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
+    CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
 
     if (useACL) {
         if (isDynamicNode()) {
@@ -1034,9 +1015,7 @@ void Deconvolution::prepareParams() {
 
     if (withBiases) {
         biasMemPtr = getSrcMemoryAtPort(biasPort);
-        if (!biasMemPtr || !biasMemPtr->isDefined()) {
-            OPENVINO_THROW("Bias memory  memory is undefined.");
-        }
+        CPU_NODE_ASSERT(biasMemPtr && biasMemPtr->isDefined(), "Bias memory is undefined.");
         biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
     }
     bool is1x1PaddingAsymmetric = false;
@@ -1066,7 +1045,7 @@ void Deconvolution::prepareParams() {
         const auto& weiDims = key.inp1->getShape().getStaticDims();
         const auto srcDataType = key.inp0->getDataType();
         const auto weiDataType =
-            (one_of(srcDataType, memory::data_type::s8, memory::data_type::u8)) ? memory::data_type::s8 : srcDataType;
+            (any_of(srcDataType, memory::data_type::s8, memory::data_type::u8)) ? memory::data_type::s8 : srcDataType;
         auto wghDescAny =
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(weiDims), weiDataType, memory::format_tag::any);
         if (key.bias) {
@@ -1152,9 +1131,7 @@ void Deconvolution::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
 
     execPtr = result.first;
-    if (!execPtr) {
-        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
-    }
+    OPENVINO_ASSERT(execPtr, "Primitive descriptor was not found for node ", getName(), ".");
 
     primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
@@ -1293,17 +1270,14 @@ Deconvolution::DeconvDNNLExecutor::DeconvDNNLExecutor(const dnnl::deconvolution_
 }
 
 std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
-    if (getParentEdges().size() < 3) {
-        OPENVINO_THROW("Can't get output spatial dims. Inputs number = ", getParentEdges().size());
-    }
+    OPENVINO_ASSERT(getParentEdges().size() >= 3,
+                    "Can't get output spatial dims. Inputs number = ",
+                    getParentEdges().size());
     const auto& shapeMemPtr = getSrcMemoryAtPort(2);
-    if (!shapeMemPtr || !shapeMemPtr->isDefined()) {
-        OPENVINO_THROW("'output_shape' input memory is undefined.");
-    }
+    OPENVINO_ASSERT(shapeMemPtr && shapeMemPtr->isDefined(), "'output_shape' input memory is undefined.");
     const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
-    if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {
-        OPENVINO_THROW("Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements");
-    }
+    OPENVINO_ASSERT(shapeMemPtr->getStaticDims()[0] == spDimsNum,
+                    "Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements");
     const auto* outShapePtr = shapeMemPtr->getDataAs<const int32_t>();
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
     return outSpDims;
@@ -1326,9 +1300,7 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    VectorDims inDims;
-    VectorDims outDims;
-    std::tie(inDims, outDims) = makeDummyInOutShape();
+    auto [inDims, outDims] = makeDummyInOutShape();
     auto tmpInShape = Shape(inDims);
     auto tmpOutShape = Shape(outDims);
     initPaddingR(tmpInShape, tmpOutShape);

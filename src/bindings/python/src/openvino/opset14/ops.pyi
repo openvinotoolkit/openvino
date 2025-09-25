@@ -1,5 +1,6 @@
 # type: ignore
 from __future__ import annotations
+from builtins import list as TensorShape
 from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Type
@@ -13,7 +14,7 @@ import typing
 """
 Factory functions for ops added to openvino opset14.
 """
-__all__ = ['Node', 'NodeInput', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'avg_pool', 'convert_promote_types', 'inverse', 'max_pool', 'nameable_op', 'partial']
+__all__: list[str] = ['Node', 'NodeInput', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'avg_pool', 'convert_promote_types', 'inverse', 'max_pool', 'nameable_op', 'partial']
 def avg_pool(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Return average pooling node.
@@ -84,5 +85,4 @@ def max_pool(*args, **kwargs) -> openvino._pyopenvino.Node:
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
-TensorShape: typing._GenericAlias  # value = typing.List[int]
 _get_node_factory_opset14: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset14')

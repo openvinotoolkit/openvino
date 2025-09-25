@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,10 +62,10 @@ MatMulFunctionBase::MatMulFunctionBase(const std::vector<PartialShape>& inputSha
       matmul_type(type) {
     if (!precisions.empty()) {
         OPENVINO_ASSERT(precisions.size() == 2, "Got invalid number of input element types");
-        const bool is_f32 = ov::snippets::utils::everyone_is(element::f32, precisions[0], precisions[1]);
-        const bool is_int8 = ov::snippets::utils::one_of(precisions[0], element::i8, element::u8) && precisions[1] == element::i8;
-        const bool is_bf16 = ov::snippets::utils::everyone_is(element::bf16, precisions[0], precisions[1]);
-        const bool is_f16 = ov::snippets::utils::everyone_is(element::f16, precisions[0], precisions[1]);
+        const bool is_f32 = ov::snippets::utils::all_of(element::f32, precisions[0], precisions[1]);
+        const bool is_int8 = ov::snippets::utils::any_of(precisions[0], element::i8, element::u8) && precisions[1] == element::i8;
+        const bool is_bf16 = ov::snippets::utils::all_of(element::bf16, precisions[0], precisions[1]);
+        const bool is_f16 = ov::snippets::utils::all_of(element::f16, precisions[0], precisions[1]);
         OPENVINO_ASSERT(is_f32 || is_bf16 || is_f16 || is_int8, "Invalid precisions");
     }
 }
@@ -120,7 +120,7 @@ std::shared_ptr<ov::Model> MatMulFunction::initReference() const {
         matmul = std::make_shared<op::v0::MatMul>(indata0, indata1, false, transpose_b);
     }
     const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
-        NodeVector{data0, data1},
+        OutputVector{data0, data1},
         std::make_shared<ov::Model>(OutputVector{matmul}, ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(OutputVector{subgraph}, params);
 }
@@ -150,10 +150,12 @@ std::shared_ptr<ov::Model> FQMatMulFunction::initOriginal() const {
     return std::make_shared<ov::Model>(OutputVector{out}, params);
 }
 std::shared_ptr<ov::Model> MatMulBiasFunction::initOriginal() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
     ParameterVector params{data0};
-    auto data1 = make_matmul_b_input(precision, input_shapes[1], matmul_type, params);
-    auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
+    auto data1 = make_matmul_b_input(precisions[1], input_shapes[1], matmul_type, params);
+    // In case of int8 precision, bias has f32 precision. In all rest cases, bias has data precision
+    auto bias_precision = precisions[1] == ov::element::i8 ? ov::element::f32 : precisions[1];
+    auto data2 = std::make_shared<op::v0::Parameter>(bias_precision, input_shapes[2]);
     params.push_back(data2);
 
     std::shared_ptr<Node> matmul;

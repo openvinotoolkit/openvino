@@ -10,6 +10,7 @@
 
 namespace cldnn {
 
+using ScaledDotProductAttentionInputIdx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx;
 template <>
 struct typed_program_node<scaled_dot_product_attention> : public typed_program_node_base<scaled_dot_product_attention> {
     using parent = typed_program_node_base<scaled_dot_product_attention>;

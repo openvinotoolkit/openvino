@@ -26,16 +26,14 @@ using ConfigParams = std::tuple<bool,                       // if can continue t
 
 class AutoLoadFailedTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        unsigned int selectCount;
-        unsigned int loadCount;
-        unsigned int loadSuccessCount;
-        std::vector<std::tuple<std::string, bool>> deviceConfigs;
-        bool continueRun;
-        bool thrExcWheSelect;
-        MODEL configModel;
-        std::tie(continueRun, thrExcWheSelect, configModel, deviceConfigs, selectCount, loadCount, loadSuccessCount) =
-            obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
+        const auto& [continueRun,
+                     thrExcWheSelect,
+                     configModel,
+                     deviceConfigs,
+                     selectCount,
+                     loadCount,
+                     loadSuccessCount] = obj.param;
         std::ostringstream result;
         for (auto& item : deviceConfigs) {
             if (std::get<1>(item)) {
@@ -77,14 +75,8 @@ public:
 
 TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     // get Parameter
-    unsigned int selectCount;
-    unsigned int loadCount;
-    unsigned int loadSuccessCount;
-    std::vector<std::tuple<std::string, bool>> deviceConfigs;
-    bool continueRun;
-    bool thrExcWheSelect;
-    MODEL configModel;
-    std::tie(continueRun, thrExcWheSelect, configModel, deviceConfigs, selectCount, loadCount, loadSuccessCount) =
+
+    const auto& [continueRun, thrExcWheSelect, configModel, deviceConfigs, selectCount, loadCount, loadSuccessCount] =
         this->GetParam();
 
     // test auto plugin

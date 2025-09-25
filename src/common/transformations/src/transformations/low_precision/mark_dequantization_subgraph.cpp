@@ -24,6 +24,17 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::pass::pattern;
 
+static std::string write_precisions(const ov::element::TypeVector& precisions) {
+    std::stringstream sstream;
+#ifdef OPENVINO_DEBUG
+    sstream << "check_precision( ";
+    for (auto& p : precisions)
+        sstream << p.to_string() << " ";
+    sstream << ")";
+#endif /* OPENVINO_DEBUG */
+    return sstream.str();
+}
+
 namespace {
 
 ov::pass::pattern::op::Predicate check_precision(const ov::element::TypeVector& precisions) {
@@ -31,7 +42,7 @@ ov::pass::pattern::op::Predicate check_precision(const ov::element::TypeVector& 
         [=](const Output<Node>& output) -> bool {
             return std::find(precisions.begin(), precisions.end(), output.get_element_type()) != precisions.end();
         },
-        "check_precision");
+        write_precisions(precisions));
 }
 
 using RTInfoSetter = std::function<void(const std::shared_ptr<ov::Node>& node)>;

@@ -33,15 +33,14 @@ bool Verbose::shouldBePrinted() const {
         return false;
     }
 
-    if (lvl < 2 && one_of(node->getType(), Type::Input, Type::Output)) {
+    if (lvl < 2 && any_of(node->getType(), Type::Input, Type::Output)) {
         return false;
     }
 
-    if (lvl < 3 && node->isConstant()) {
-        return false;
-    }
-
-    return true;
+    const bool low_level = lvl < 3;
+    const bool is_constant = node->isConstant();
+    const bool skip_node = low_level && is_constant;
+    return !skip_node;
 }
 
 /**

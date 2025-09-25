@@ -1,10 +1,10 @@
-// Copyright (C) 2020-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_generator.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -28,6 +28,7 @@
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/x64/jit_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_memory_emitters.hpp"
+#include "emitters/snippets/x64/jit_parallel_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_reg_spill_emitters.hpp"
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
 #include "openvino/core/except.hpp"
@@ -196,6 +197,24 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
          }}
 #endif
 
+#define CREATE_LOOP_EMITTER(regular_emitter, parallel_emitter, ...)                               \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         auto loop_node = ov::as_type_ptr<snippets::op::LoopBase>(expr->get_node());              \
+         OPENVINO_ASSERT(loop_node, "Expected LoopBase node");                                    \
+         if (loop_node->get_is_parallel()) {                                                      \
+             return std::make_shared<parallel_emitter>(h.get(), isa, expr, ##__VA_ARGS__);        \
+         }                                                                                        \
+         return std::make_shared<regular_emitter>(h.get(), isa, expr);                            \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
+         auto loop_node = ov::as_type_ptr<snippets::op::LoopBase>(n);                             \
+         OPENVINO_ASSERT(loop_node, "Expected LoopBase node");                                    \
+         if (loop_node->get_is_parallel()) {                                                      \
+             return parallel_emitter::get_supported_precisions(n);                                \
+         }                                                                                        \
+         return regular_emitter::get_supported_precisions(n);                                     \
+     }}
+
 #define CREATE_DEBUG_TPP_EMITTER(e_type)                                                               \
     {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> {      \
          return std::make_shared<DebugTppEmitter>(expr, std::make_shared<e_type>(h.get(), isa, expr)); \
@@ -219,13 +238,13 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
          return supported_precisions;                                                                          \
      }}
 
-class jit_snippet : public dnnl::impl::cpu::x64::jit_generator {
+class jit_snippet : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
     ~jit_snippet() override = default;
 
-    jit_snippet() : jit_generator(jit_name()) {}
+    jit_snippet() : jit_generator_t(jit_name()) {}
 
     void generate() override {}
 };
@@ -344,8 +363,11 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::KernelDynamic::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_dynamic_emitter);
     jitters[snippets::op::LoopBegin::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_emitter);
-    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_emitter);
+        CREATE_LOOP_EMITTER(intel_cpu::jit_loop_begin_emitter,
+                            intel_cpu::jit_parallel_loop_begin_emitter,
+                            configurator->get_kernel_executor_table());
+    jitters[snippets::op::LoopEnd::get_type_info_static()] =
+        CREATE_LOOP_EMITTER(intel_cpu::jit_loop_end_emitter, intel_cpu::jit_parallel_loop_end_emitter);
     jitters[snippets::op::RegSpillBegin::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_reg_spill_begin_emitter);
     jitters[snippets::op::RegSpillEnd::get_type_info_static()] =
@@ -378,7 +400,7 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     // below: jitters[intel_cpu::tpp::op::Exp::get_type_info_static()] =
     //        CREATE_SNIPPETS_EMITTER(ReferenceUnaryEltwiseTppEmitter, static_cast<float(*)(float)>(std::exp));
     // jitters[intel_cpu::tpp::op::Reciprocal::get_type_info_static()] =
-    //         CREATE_SNIPPETS_EMITTER(ReferenceUnaryEltwiseTppEmitter, [](float x){ return 1.f/x; });
+    //         CREATE_SNIPPETS_EMITTER(ReferenceUnaryEltwiseTppEmitter, [](float x){ return 1.F/x; });
     jitters[intel_cpu::tpp::op::Reciprocal::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
 
     jitters[intel_cpu::tpp::op::Relu::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
@@ -400,11 +422,11 @@ std::shared_ptr<snippets::TargetMachine> intel_cpu::CPUTargetMachine::clone() co
 size_t intel_cpu::CPUTargetMachine::get_lanes() const {
     switch (isa) {
     case dnnl::impl::cpu::x64::avx2:
-        return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx2>::vlen / sizeof(float);
+        return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx2>::vlen / sizeof(float);
     case dnnl::impl::cpu::x64::sse41:
-        return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::vlen / sizeof(float);
+        return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::sse41>::vlen / sizeof(float);
     case dnnl::impl::cpu::x64::avx512_core:
-        return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::vlen / sizeof(float);
+        return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx512_core>::vlen / sizeof(float);
     default:
         OPENVINO_THROW("unknown isa ", isa);
     }
@@ -423,7 +445,7 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_gp_reg_pool() const 
     const auto num_gp_regs = 16;
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
-        if (!one_of(i, Xbyak::Operand::RSP)) {
+        if (none_of(i, Xbyak::Operand::RSP)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }
     }
@@ -434,11 +456,11 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_vec_reg_pool() const
     const auto num_vec_regs = [this]() {
         switch (isa) {
         case dnnl::impl::cpu::x64::avx2:
-            return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx2>::n_vregs;
+            return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx2>::n_vregs;
         case dnnl::impl::cpu::x64::sse41:
-            return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::n_vregs;
+            return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::sse41>::n_vregs;
         case dnnl::impl::cpu::x64::avx512_core:
-            return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::n_vregs;
+            return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx512_core>::n_vregs;
         default:
             OPENVINO_THROW("unknown isa ", isa);
         }
@@ -460,17 +482,15 @@ bool intel_cpu::CPUTargetMachine::is_supported() const {
 }
 
 snippets::CompiledSnippetPtr intel_cpu::CPUTargetMachine::get_snippet() {
-    if (h->create_kernel() != dnnl::impl::status::success) {
-        OPENVINO_THROW("Failed to create jit_kernel in get_snippet()");
-    }
+    OPENVINO_ASSERT(h->create_kernel() == dnnl::impl::status::success, "Failed to create jit_kernel in get_snippet()");
     const auto& result =
-        std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator>(h.release()));
+        std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator_t>(h.release()));
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU
     h = std::make_unique<jit_snippet>();
     return result;
 }
 
-intel_cpu::CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h)
+intel_cpu::CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator_t> h)
     : h_compiled(std::move(h)) {
     OPENVINO_ASSERT(h_compiled && h_compiled->jit_ker(), "Got invalid jit generator or kernel was nopt compiled");
 }
@@ -516,7 +536,9 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
 
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
     bool need = std::dynamic_pointer_cast<intel_cpu::jit_brgemm_emitter>(e) ||
-                std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e);
+                std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e) ||
+                // Note: in static case, loop args, used in execute, are stored in the emitter
+                std::dynamic_pointer_cast<intel_cpu::jit_parallel_loop_begin_emitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<intel_cpu::CPUTargetMachine>(target);
     need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||

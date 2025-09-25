@@ -114,7 +114,7 @@ ShapeInferPtr ConvolutionShapeInferFactory::makeShapeInfer() const {
             convolution->get_dilations(),
             convolution->get_pads_begin(),
             convolution->get_pads_end(),
-            one_of(convolution->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER),
+            any_of(convolution->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER),
             is_grouped);
     }
 

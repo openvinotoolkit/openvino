@@ -38,7 +38,7 @@ uint64_t get_blob_data_size(std::istream& model) {
 }
 
 std::string get_model_str(std::istream& model) {
-    const auto model_size = std::min<uint64_t>(model.rdbuf()->in_avail(), get_blob_data_size(model));
+    const auto model_size = get_blob_data_size(model);
     std::string xml;
     xml.resize(model_size);
     model.read(xml.data(), model_size);
@@ -52,7 +52,7 @@ ov::Tensor read_weights(std::istream& model, const size_t weights_size) {
 }
 
 ov::Tensor get_model_weights(std::istream& model) {
-    const auto weights_size = std::min<uint64_t>(model.rdbuf()->in_avail(), get_blob_data_size(model));
+    const auto weights_size = get_blob_data_size(model);
     return weights_size != 0 ? read_weights(model, weights_size) : ov::Tensor();
 }
 
@@ -266,7 +266,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
 }
 // ! [plugin:import_model_with_remote]
 
-std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(ov::Tensor& model,
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(const ov::Tensor& model,
                                                                               const ov::AnyMap& properties) const {
     ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
     std::istream stream{&buffer};
@@ -274,7 +274,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(ov
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
-    ov::Tensor& model,
+    const ov::Tensor& model,
     const ov::SoPtr<ov::IRemoteContext>& context,
     const ov::AnyMap& properties) const {
     ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};

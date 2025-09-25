@@ -10,10 +10,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/gen_pattern.hpp>
 #include <tuple>
 #include <vector>
 
@@ -23,33 +19,34 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/assign.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/read_value.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/defs.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
+#include "transformations/utils/utils.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 #endif
 
-using namespace ov::gen_pattern;
 using namespace ov::pass;
 
 namespace ov::intel_cpu {
@@ -58,92 +55,52 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     MATCHER_SCOPE(StatefulSDPAFusion);
     using namespace ov::pass::pattern;
 
-    auto beam_idx = makePattern("i32[?]");
+    auto beam_idx = any_input(type_matches(element::i32) && shape_matches("[?]"));
     auto cur_q = any_input();
     auto cur_k = any_input();
     auto cur_v = any_input();
 
-    auto axis_seq_len = ov::gen_pattern::Symbol("axis_seq_len");
-    auto axis_beam = ov::gen_pattern::Symbol("axis_beam");
+    auto past_k = wrap_type<ov::op::v6::ReadValue>();
+    auto past_v = wrap_type<ov::op::v6::ReadValue>();
 
-    // past_kv can be BHLS/LBHS
-    auto past_k = makePattern<ov::op::v6::ReadValue>({});
-    auto past_v = makePattern<ov::op::v6::ReadValue>({});
-
-    auto convert_past_k = makePattern<ov::op::v0::Convert>({past_k});
-    auto convert_past_v = makePattern<ov::op::v0::Convert>({past_v});
+    auto convert_past_k = wrap_type<ov::op::v0::Convert>({past_k});
+    auto convert_past_v = wrap_type<ov::op::v0::Convert>({past_v});
 
     auto gather_input_k =
-        makePattern<ov::op::v8::Gather>({past_k | convert_past_k, beam_idx, axis_beam}, {{"batch_dims", 0}});
+        wrap_type<ov::op::v8::Gather>({past_k | convert_past_k, beam_idx, "axis_beam"}, {{"batch_dims", 0}});
     auto gather_input_v =
-        makePattern<ov::op::v8::Gather>({past_v | convert_past_v, beam_idx, axis_beam}, {{"batch_dims", 0}});
+        wrap_type<ov::op::v8::Gather>({past_v | convert_past_v, beam_idx, "axis_beam"}, {{"batch_dims", 0}});
 
-    auto concat_k = makePattern<ov::op::v0::Concat>({gather_input_k, cur_k}, {{"axis", axis_seq_len}});
-    auto concat_v = makePattern<ov::op::v0::Concat>({gather_input_v, cur_v}, {{"axis", axis_seq_len}});
+    auto concat_k = wrap_type<ov::op::v0::Concat>({gather_input_k, cur_k});
+    auto concat_v = wrap_type<ov::op::v0::Concat>({gather_input_v, cur_v});
 
-    std::shared_ptr<Node> reshape_k;
-    std::shared_ptr<Node> reshape_v;
-    std::shared_ptr<Node> unsqueeze_k;
-    std::shared_ptr<Node> unsqueeze_v;
-    std::shared_ptr<Node> computed_bcst_k;
-    std::shared_ptr<Node> computed_bcst_v;
-    std::shared_ptr<Node> multiply_k;
-    std::shared_ptr<Node> multiply_v;
-    std::shared_ptr<Node> mq_reshape_k;
-    std::shared_ptr<Node> mq_reshape_v;
-    std::shared_ptr<Node> computed_bcst3_k;
-    std::shared_ptr<Node> computed_bcst3_v;
-    auto multi_query_bcst = [](const std::shared_ptr<Node>& kv) {
-        auto reshape_kv = makePattern<ov::op::v1::Reshape>({kv, any_input()});
-        auto unsqueeze_kv = makePattern<ov::op::v0::Unsqueeze>({kv, any_input()});
-
-        auto check_one = [](const Output<Node>& output) -> bool {
-            auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
-            const auto& bcst_arg = node->cast_vector<float>();
-            return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
-                return i == 1.0F;
-            });
-        };
-        auto constant_bcst = wrap_type<ov::op::v0::Constant>(check_one);
-
-        auto computed_bcst =
-            makePattern<ov::op::v1::Broadcast>({wrap_type<ov::op::v0::Constant>(check_one), any_input(), any_input()},
-                                               {{"mode", "numpy"}});
-
-        auto multiply_kv =
-            makePattern<ov::op::v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
-        auto computed_bcst3 =
-            makePattern<ov::op::v3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
-
-        auto result = makePattern<ov::op::v1::Reshape>({multiply_kv | computed_bcst3, any_input()});
-        return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
-    };
-
+    std::shared_ptr<Node> mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k;
     std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k) =
-        multi_query_bcst(concat_k);
+        ov::op::util::match_multi_query_bcst(concat_k);
+    std::shared_ptr<Node> mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v;
     std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v) =
-        multi_query_bcst(concat_v);
+        ov::op::util::match_multi_query_bcst(concat_v);
     auto present_k = concat_k | mq_reshape_k;
     auto present_v = concat_v | mq_reshape_v;
 
     // canonical q/k/v shape definition: [B,H,...L,S]
-    auto sdp0 = makePattern<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v});
-    auto sdp1 = makePattern<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input()});
+    auto sdp0 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v});
+    auto sdp1 = wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input()});
     auto sdp2 =
-        makePattern<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input(), any_input()});
+        wrap_type<ov::op::v13::ScaledDotProductAttention>({cur_q, present_k, present_v, any_input(), any_input()});
 
     // non-canonical q/k/v shape definitions, for example: [L, B, H, S]/[B, L, H, S]
     auto order_k = wrap_type<ov::op::v0::Constant>();
     auto order_v = wrap_type<ov::op::v0::Constant>();
     auto order_q = wrap_type<ov::op::v0::Constant>();
-    auto transpose_q = makePattern<ov::op::v1::Transpose>({cur_q, order_q});
-    auto transpose_k = makePattern<ov::op::v1::Transpose>({present_k, order_k});
-    auto transpose_v = makePattern<ov::op::v1::Transpose>({present_v, order_v});
+    auto transpose_q = wrap_type<ov::op::v1::Transpose>({cur_q, order_q});
+    auto transpose_k = wrap_type<ov::op::v1::Transpose>({present_k, order_k});
+    auto transpose_v = wrap_type<ov::op::v1::Transpose>({present_v, order_v});
 
-    auto sdp_trans0 = makePattern<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v});
+    auto sdp_trans0 = wrap_type<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v});
     auto sdp_trans1 =
-        makePattern<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v, any_input()});
-    auto sdp_trans2 = makePattern<ov::op::v13::ScaledDotProductAttention>(
+        wrap_type<ov::op::v13::ScaledDotProductAttention>({transpose_q, transpose_k, transpose_v, any_input()});
+    auto sdp_trans2 = wrap_type<ov::op::v13::ScaledDotProductAttention>(
         {transpose_q, transpose_k, transpose_v, any_input(), any_input()});
 
     auto sdp = sdp0 | sdp1 | sdp2 | sdp_trans0 | sdp_trans1 | sdp_trans2;
@@ -151,8 +108,11 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-        PatternValidator validator(m);
-        if (!validator) {
+
+        // Check concat axes equality first
+        const auto concat_k_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
+        const auto concat_v_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
+        if (concat_k_node->get_axis() != concat_v_node->get_axis()) {
             return false;
         }
 
@@ -179,15 +139,12 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             auto children = out.get_target_inputs();
             return std::all_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
                 auto* node = child.get_node();
-                if (!one_of(node->get_type_info(),
-                            ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
-                            ov::op::v0::ShapeOf::get_type_info_static(),
-                            ov::op::v3::ShapeOf::get_type_info_static(),
-                            ov::op::v0::Convert::get_type_info_static(),
-                            ov::op::v8::Gather::get_type_info_static())) {
-                    return false;
-                }
-                return true;
+                return any_of(node->get_type_info(),
+                              ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
+                              ov::op::v0::ShapeOf::get_type_info_static(),
+                              ov::op::v3::ShapeOf::get_type_info_static(),
+                              ov::op::v0::Convert::get_type_info_static(),
+                              ov::op::v8::Gather::get_type_info_static());
             });
         };
 
@@ -197,9 +154,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
             return false;
         }
-        const auto concat_k_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
-        const auto concat_v_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
-
         for (auto&& item : {concat_k_node, concat_v_node}) {
             auto&& children = item->get_output_target_inputs(0);
             switch (children.size()) {
@@ -343,16 +297,16 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
 bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SDPASubgraphFusion);
-    ov::pass::Manager manager("SDPASubgraphFusion");
+    ov::pass::SymbolicOptimizations symbolic_optimizations(true, get_pass_config());
+    auto& ctx_manager = *symbolic_optimizations.get_manager();
 
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::SimplifyGatherShapeOf);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::transpose_sinking::TSShapeOfForward);
-    CPU_REGISTER_PASS_COMMON(manager, StatefulSDPAFusion);
+    CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::SimplifyGatherShapeOf);
+    CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::transpose_sinking::TSShapeOfForward);
+    CPU_REGISTER_PASS_COMMON(ctx_manager, StatefulSDPAFusion);
     // TODO: remove the following after snippets support patterns with dynamic shapes
-    CPU_REGISTER_PASS_X64(manager, ov::intel_cpu::SDPAFuseTransposeReshape);
+    CPU_REGISTER_PASS_X64(ctx_manager, ov::intel_cpu::SDPAFuseTransposeReshape);
 
-    manager.run_passes(f);
-    return false;
+    return symbolic_optimizations.run_on_model(f);
 }
 
 }  // namespace ov::intel_cpu

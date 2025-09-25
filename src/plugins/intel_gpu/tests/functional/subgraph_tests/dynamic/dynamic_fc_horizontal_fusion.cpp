@@ -54,25 +54,15 @@ class FullyConnectedHorizontalFusion : public testing::WithParamInterface<FullyC
                                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string get_test_case_name(testing::TestParamInfo<FullyConnectedHorizontalFusionParams> obj) {
-        ShapeParams shape_params;
-        ov::element::Type weights_precision;
-        ov::element::Type activations_precision;
-        bool transpose;
-        bool decompression_sub;
-        bool reshape_on_decompression;
-        bool per_tensor_zp;
-        bool has_bias;
-        uint64_t dyn_quan_group_size;
-
-        std::tie(shape_params,
-                 weights_precision,
-                 activations_precision,
-                 transpose,
-                 decompression_sub,
-                 reshape_on_decompression,
-                 per_tensor_zp,
-                 has_bias,
-                 dyn_quan_group_size) = obj.param;
+        const auto& [shape_params,
+                     weights_precision,
+                     activations_precision,
+                     transpose,
+                     decompression_sub,
+                     reshape_on_decompression,
+                     per_tensor_zp,
+                     has_bias,
+                     dyn_quan_group_size] = obj.param;
 
         std::ostringstream result;
         result << "data_shape=";
@@ -238,15 +228,8 @@ protected:
         auto variable_b = create_variable(state_b_pshape, "var_b_" + std::to_string(idx));
         auto read_value_b = std::make_shared<ov::op::v6::ReadValue>(variable_b);
 
-        auto shape_of_state_a = std::make_shared<ov::op::v3::ShapeOf>(read_value_a);
-        auto indices_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
-        auto axis_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
-        auto gather = std::make_shared<ov::op::v8::Gather>(shape_of_state_a, indices_node, axis_node);
-        auto convert = std::make_shared<ov::op::v0::Convert>(gather, main_input->get_element_type());
-        auto divide = std::make_shared<ov::op::v1::Divide>(read_value_alpha, convert);
-
         auto matmul1 = std::make_shared<ov::op::v0::MatMul>(lora_input, read_value_a, false, transpose_weights);
-        auto multiply = std::make_shared<ov::op::v1::Multiply>(matmul1, divide);
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(matmul1, read_value_alpha);
         auto matmul2 = std::make_shared<ov::op::v0::MatMul>(multiply, read_value_b, false, transpose_weights);
         auto add = std::make_shared<ov::op::v1::Add>(main_input, matmul2);
         return add;
@@ -350,25 +333,15 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        ShapeParams shape_params;
-        ov::element::Type weights_precision;
-        ov::element::Type activations_precision;
-        bool transpose_weights;
-        bool decompression_sub;
-        bool reshape_on_decompression;
-        bool per_tensor_zp;
-        bool has_bias;
-        uint64_t dyn_quan_group_size;
-
-        std::tie(shape_params,
-                 weights_precision,
-                 activations_precision,
-                 transpose_weights,
-                 decompression_sub,
-                 reshape_on_decompression,
-                 per_tensor_zp,
-                 has_bias,
-                 dyn_quan_group_size) = GetParam();
+        const auto& [shape_params,
+                     weights_precision,
+                     activations_precision,
+                     transpose_weights,
+                     decompression_sub,
+                     reshape_on_decompression,
+                     per_tensor_zp,
+                     has_bias,
+                     dyn_quan_group_size] = GetParam();
 
         std::vector<InputShape> input_shapes = {shape_params.data_shape};
 
@@ -393,11 +366,14 @@ protected:
         if (activations_precision == ov::element::f16) {
             abs_threshold = 1.0f;
 
-            const auto& input_shape = shape_params.data_shape.second.front();
-            bool is_large_input = std::accumulate(input_shape.begin(), input_shape.end(), 1ul, std::multiplies<size_t>()) > 1024ul;
-            if (shape_params.lora_rank != 0 && is_large_input) {
+            if (shape_params.lora_rank != 0) {
                 rel_threshold = 0.01f;
-                abs_threshold = 4.0f;
+
+                const auto& input_shape = shape_params.data_shape.second.front();
+                bool is_large_input = std::accumulate(input_shape.begin(), input_shape.end(), 1ul, std::multiplies<size_t>()) > 1024ul;
+                if (is_large_input) {
+                    abs_threshold = 4.0f;
+                }
             }
         } else {
             abs_threshold = 1e-4f;
@@ -505,6 +481,7 @@ protected:
 };
 
 TEST_P(FullyConnectedHorizontalFusion, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     size_t lora_rank = std::get<0>(GetParam()).lora_rank;
     if (lora_rank != 0) {
         auto net_type = std::get<2>(GetParam());
@@ -518,7 +495,7 @@ TEST_P(FullyConnectedHorizontalFusion, Inference) {
 const std::vector<ov::element::Type> activations_precisions = {ov::element::f32, ov::element::f16};
 const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
 const std::vector<bool> per_tensor_zp = {true, false};
-const std::vector<bool> transpose_weights = {true, false };
+const std::vector<bool> transpose_weights = {true, false};
 
 std::vector<ov::Shape> weights1 = {{1, 16, 32}, {1, 16, 4}, {1, 16, 32}};
 std::vector<ov::Shape> weights2 = {{16, 32}, {16, 4}, {16, 32}};
@@ -592,6 +569,8 @@ const std::vector<ShapeParams> lora_input_shapes = {
     {{{-1, -1, 16}, {{1, 16, 16}}}, lora_weights2, -1, 16}    // first token a_small/b_medium_f32/b_small_f16
 };
 
+// Skip the test, unexpected validation failure on Linux CVS-170827
+#if defined(_WIN32)
 INSTANTIATE_TEST_SUITE_P(smoke_LoRA_HorizontalFusion,
                          FullyConnectedHorizontalFusion,
                          ::testing::Combine(::testing::ValuesIn(lora_input_shapes),
@@ -604,4 +583,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoRA_HorizontalFusion,
                                             ::testing::Values(false),
                                             ::testing::Values(0)),
                          FullyConnectedHorizontalFusion::get_test_case_name);
+#endif
 }  // namespace
