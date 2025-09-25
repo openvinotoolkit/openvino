@@ -426,6 +426,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 matMulAttrs.postOps = attrs.postOps;
                 matMulAttrs.transposeB = attrs.weightsNonTransposed;
                 matMulAttrs.constantWeights = true;
+                matMulAttrs.fcSemantic = true;
                 
                 return std::make_shared<
                     DnnlExecutor<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData,
