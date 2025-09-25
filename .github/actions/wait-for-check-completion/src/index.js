@@ -151,8 +151,6 @@ async function run() {
             overallConclusion = 'failure';
         } else if (allConclusions.some(c => c === 'action_required')) {
             overallConclusion = 'action_required';
-        } else if (allConclusions.every(c => ['success', 'neutral', 'skipped'].includes(c))) {
-            overallConclusion = 'neutral';
         } else {
             overallConclusion = 'mixed';
         }
@@ -163,13 +161,13 @@ async function run() {
         core.setOutput('results', JSON.stringify(results));
 
         // Log results
-        core.info(`✅ All checks completed successfully`);
+        core.info(`All checks completed successfully`);
         for (const [checkName, result] of Object.entries(results)) {
-            core.info(`  ${checkName}: ${result.status} (${result.conclusion})`);
+            core.info(`${checkName}: ${result.status} (${result.conclusion})`);
         }
 
         // Exit with appropriate code based on overall conclusion
-        if (overallConclusion === 'success' || overallConclusion === 'neutral') {
+        if (overallConclusion === 'success') {
             core.info('All checks completed with successful conclusions');
         } else if (overallConclusion === 'failure') {
             const failedChecks = Object.entries(results)
@@ -184,7 +182,6 @@ async function run() {
         } else {
             core.warning(`Checks completed with mixed conclusions: ${overallConclusion}`);
         }
-
     } catch (error) {
         core.setFailed(error.message);
         core.error(error.stack || error.toString());

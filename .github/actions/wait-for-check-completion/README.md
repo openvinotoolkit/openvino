@@ -1,6 +1,6 @@
 # Wait for Check Completion Action
 
-A GitHub Action that waits for multiple checks to complete before proceeding. This is useful for workflows that need to wait for other checks or workflows to finish.
+A GitHub Action that waits for multiple checks to complete before proceeding.
 
 ## Usage
 
@@ -52,7 +52,7 @@ Wait for multiple checks to complete:
 
 ### Single Check
 
-Wait for a single check (still uses check-names):
+Wait for a single check:
 
 ```yaml
 - name: Wait for labeler to finish
@@ -93,18 +93,6 @@ Wait for a single check (still uses check-names):
     echo "Individual results: ${{ steps.wait-checks.outputs.results }}"
 ```
 
-### Conditional Wait
-
-```yaml
-- name: Wait for checks (PR only)
-  uses: ./.github/actions/wait-for-check-completion
-  if: ${{ github.event_name == 'pull_request' }}
-  with:
-    ref: ${{ github.event.pull_request.head.sha }}
-    check-names: 'build,test'
-    repo-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
 ## Behavior
 
 - The action waits for ALL specified checks to complete
@@ -113,7 +101,6 @@ Wait for a single check (still uses check-names):
   - `success`: All checks have successful conclusions (`success`)
   - `failure`: At least one check failed (`failure`, `cancelled`, `timed_out`)
   - `action_required`: At least one check requires action
-  - `neutral`: All checks completed with neutral/successful conclusions (`success`, `neutral`, `skipped`)
   - `mixed`: Checks completed with mixed conclusions
 - Individual check results are available in the `results` output as JSON
 - If the timeout is reached before all checks complete, the action fails
