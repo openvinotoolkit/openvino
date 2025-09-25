@@ -35,7 +35,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
 
     data_layout.data_padding = padding();
 
-    const auto& key_cache_idx = cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE;
+    size_t key_cache_idx = cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE;
     const auto& key_cache_ps = impl_param.get_input_layout(key_cache_idx).get_partial_shape();
     const auto& key_cache_quant_mode = impl_param.get_program().get_config().get_key_cache_quant_mode();
     bool key_cache_compressed = impl_param.get_input_layout(key_cache_idx).data_type == ov::element::i8 ||
@@ -43,6 +43,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     size_t expected_block_size = paged_attention::block_size;
     if (desc->has_xattention) {
         expected_block_size = paged_attention::block_size_xattn;
+        key_cache_idx -= 1;
     }
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
         expected_block_size += 4;
@@ -51,9 +52,9 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                      "[GPU] Paged Attention key cache quantization mode mismatch: prim.is_key_by_channel : ",
                      desc->is_key_by_channel, " but exec_config : ", impl_param.get_program().get_config().get_key_cache_quant_mode());
     bool valid_block_size = key_cache_ps.is_dynamic() ||
-                            (key_cache_ps[key_cache_idx-1].get_length() == static_cast<long int>(expected_block_size));
+                            (key_cache_ps[key_cache_idx].get_length() == static_cast<long int>(expected_block_size));
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation for key cache quant mode "
-                    , key_cache_quant_mode, ". Expected ", expected_block_size, ", but got ", key_cache_ps[key_cache_idx-1].get_length());
+                    , key_cache_quant_mode, ". Expected ", expected_block_size, ", but got ", key_cache_ps[key_cache_idx].get_length());
     std::vector<layout> output_layouts{ data_layout };
 
     if (desc->has_scores_output()) {

@@ -106,27 +106,18 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
         key_cache->set_element_type(key_cache_precision);
         value_cache->set_element_type(value_cache_precision);
         bool status = false;
-        size_t keyCacheBlockSize, valueCacheBlockSize;
-        if (pa_op->get_rt_info().count("k_block_size") && pa_op->get_rt_info().count("v_block_size")){
-            keyCacheBlockSize = pa_op->get_rt_info()["k_block_size"].as<size_t>();
-            valueCacheBlockSize = pa_op->get_rt_info()["v_block_size"].as<size_t>();
-        } else {
-            keyCacheBlockSize = m_config.keyCacheBlockSize;
-            valueCacheBlockSize = m_config.valueCacheBlockSize;
-        }
-
         if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
             pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("v_head_size")) {
             const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
                                                           pa_op->get_rt_info()["k_head_size"].as<size_t>(),
-                                                          keyCacheBlockSize,
+                                                          m_config.keyCacheBlockSize,
                                                           key_cache_precision,
                                                           m_config.keyCacheGroupSize,
                                                           m_config.keyCacheQuantBychannel,
                                                           m_config.keyCacheDimOrder);
             const auto value_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_v_heads"].as<size_t>(),
                                                             pa_op->get_rt_info()["v_head_size"].as<size_t>(),
-                                                            valueCacheBlockSize,
+                                                            m_config.valueCacheBlockSize,
                                                             value_cache_precision,
                                                             m_config.valueCacheGroupSize,
                                                             m_config.valueCacheQuantBychannel,

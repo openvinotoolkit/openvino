@@ -72,6 +72,11 @@ inline size_t get_input_kv_len(const RuntimeParams& params) {
     return kv_len;
 }
 
+inline size_t get_aligned_kv_len(const size_t kv_len) {
+    // TODO: how to change PA_KV_CACHE_BLOCK_SIZE here
+    return (kv_len + PA_KV_CACHE_BLOCK_SIZE - 1) / PA_KV_CACHE_BLOCK_SIZE * PA_KV_CACHE_BLOCK_SIZE;
+}
+
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
     if (data_type_traits::is_i8_u8(key_cache_layout.data_type)) {
@@ -436,7 +441,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence_begins
 
     const size_t block_size = get_xattn_block_size(params);
-    if (block_size > 1) {
+    if (desc->has_xattention && block_size > 1) {
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // sparse_block_mask
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});  // sparse_block_mask_wg
     }
@@ -462,10 +467,11 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     jit.make("CMFLA_IS_CAUSAL", 1);
     if (desc->has_xattention) {
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE_XATTN);
+        jit.make("SPARSE_BLOCK_SIZE", xattn_block_size);
     } else {
         jit.make("CMPA_BLOCK_SZ", PA_KV_CACHE_BLOCK_SIZE);
+        jit.make("SPARSE_BLOCK_SIZE", 1);
     }
-    jit.make("SPARSE_BLOCK_SIZE", xattn_block_size);
     jit.make("Q_STEP", get_q_step(xe_arch, true));
 
     if (get_kv_compressed(params)) {
