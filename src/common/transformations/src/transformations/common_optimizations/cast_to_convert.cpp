@@ -37,7 +37,7 @@ ov::pass::CastToConvert::CastToConvert() {
         if (!convert_op)
             return false;
 
-        if (!(convert_op->get_no_clamp() && convert_op->get_use_rounding()))
+        if (!convert_op->get_cast())
             return false;
 
         auto input = convert_op->input_value(0);

@@ -13,12 +13,21 @@ namespace onnx {
 namespace ai_onnx {
 namespace opset_1 {
 
+/*
+ * onnx's cast op is using no_clamp and rounding cast. when running single node cast test, will got different
+ * result compared to ov's v0::Convert op, check
+ * https://github.com/microsoft/onnxruntime/blob/bac0bff72b1b4e6fd68ae759a32644defac61944/onnxruntime/test/providers/cpu/tensor/cast_op_test.cc#L959
+ * for example, float to int4, input=31.9
+ *   onnx cast:                      31.9 -> round -> 32 -> 0x20 -> cast -> 0 (round and no_clamp)
+ *   ov v0::Convert:                 31.9 -> trunc -> 31 -> clamp[-8, 7] -> 7 (trunc and clamp)
+ * so use v16::Convert with cast=true to align with onnx cast op behavior.
+ */
 ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     int64_t target_type = node.get_attribute_value<int64_t>("to");
     ov::element::Type elem_type = common::get_ov_element_type(target_type);
 
-    return {std::make_shared<v16::Convert>(data, elem_type, true, true)};
+    return {std::make_shared<v16::Convert>(data, elem_type, true)};
 }
 
 ONNX_OP("Cast", OPSET_SINCE(1), ai_onnx::opset_1::cast);

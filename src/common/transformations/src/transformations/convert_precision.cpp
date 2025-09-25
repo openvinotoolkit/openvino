@@ -343,8 +343,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                 if (convert_v16) {
                     convert = std::make_shared<ov::op::v16::Convert>(result_input,
                                                                      orig_result_types[i],
-                                                                     convert_v16->get_no_clamp(),
-                                                                     convert_v16->get_use_rounding());
+                                                                     convert_v16->get_cast());
                 } else {
                     convert = std::make_shared<ov::op::v0::Convert>(result_input, orig_result_types[i]);
                 }

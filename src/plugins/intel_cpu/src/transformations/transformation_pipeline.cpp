@@ -424,10 +424,7 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
             ov::copy_runtime_info(convert, reg.get());
             ov::replace_node(convert, new_convert);
         } else {
-            const auto new_convert = reg.make<ov::op::v16::Convert>(parent_node,
-                                                                    to,
-                                                                    convert_v16->get_no_clamp(),
-                                                                    convert_v16->get_use_rounding());
+            const auto new_convert = reg.make<ov::op::v16::Convert>(parent_node, to, convert_v16->get_cast());
             new_convert->set_friendly_name(convert_v16->get_friendly_name());
             ov::copy_runtime_info(convert_v16, reg.get());
             ov::replace_node(convert_v16, new_convert);

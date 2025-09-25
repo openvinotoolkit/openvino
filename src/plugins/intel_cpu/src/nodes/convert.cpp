@@ -66,8 +66,7 @@ Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     auto convert16 = ov::as_type_ptr<const ov::op::v16::Convert>(op);
     convertParams.origPrc = convert16 ? convert16->get_destination_type() : convert->get_destination_type();
     if (convert16) {
-        convertParams.no_clamp = convert16->get_no_clamp();
-        convertParams.use_rounding = convert16->get_use_rounding();
+        convertParams.cast = convert16->get_cast();
     }
 }
 
