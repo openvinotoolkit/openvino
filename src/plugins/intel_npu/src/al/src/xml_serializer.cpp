@@ -4,4 +4,12 @@
 
 #include "intel_npu/xml_serializer.hpp"
 
-namespace intel_npu {}  // namespace intel_npu
+#include "openvino/op/util/op_types.hpp"
+
+namespace intel_npu {
+
+ov::util::ConstantWriter& XmlSerializer::get_constant_write_handler() {
+    return m_weightless_writer;
+}
+
+}  // namespace intel_npu

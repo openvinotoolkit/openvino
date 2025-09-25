@@ -9,6 +9,17 @@
 
 namespace intel_npu {
 
+// Custom constant writer for weightless (skip store)
+class WeightlessWriter : public ov::util::ConstantWriter {
+public:
+    explicit WeightlessWriter(ov::util::ConstantWriter& other) : ov::util::ConstantWriter(other) {}
+
+    FilePosition write(const char*, size_t, size_t&, bool, ov::element::Type, bool) override {
+        // use new_size not modified and return offset 0 to store these in modifed IR (xmL) only
+        return 0;
+    }
+};
+
 class XmlSerializer : public ov::util::XmlSerializer {
 public:
     XmlSerializer(pugi::xml_node& data,
@@ -22,7 +33,15 @@ public:
                                   false,
                                   false,
                                   ov::element::dynamic,
-                                  false) {}
+                                  false),
+          m_weightless_writer(constant_write_handler) {}
+
+private:
+    // bool append_node_attributes(ov::Node& node) override;
+
+    ov::util::ConstantWriter& get_constant_write_handler() override;
+
+    WeightlessWriter m_weightless_writer;
 };
 
 class StreamSerialize : public ov::pass::StreamSerialize {

@@ -162,6 +162,22 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
+void storeWeightsInfo(const std::shared_ptr<ov::Model>& model) {
+    size_t constantId = 0;
+    for (auto&& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+            continue;
+        }
+
+        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+
+        ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
+        runtimeInfoMap["ptr"] = constantNode->get_data_ptr();
+        runtimeInfoMap["size"] = constantNode->get_byte_size();
+        runtimeInfoMap["ptr"] = constantNode->get_data_ptr();
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
