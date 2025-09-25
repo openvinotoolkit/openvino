@@ -98,11 +98,12 @@ Activations Scaling
 ###################
 
 Since ``f16`` has a smaller dynamic range compared to ``f32`` or ``bf16``, overflow might occur when using ``f16`` for ``inference_precision``.
-To address this issue, ``activation scaling`` divides the input of linear operations like ``MatMul`` or ``Convolution`` by the ``activations scale factor``, ensuring the layer's output does not exceed ``f16``'s dynamic range.
-The layer's output must then be multiplied by the ``activations scale factor`` to restore it to its original value, but overflow can occur again during this process.
-``Activation scaling`` utilizes :doc:`LPT <../../../openvino-extensibility/openvino-plugin-library/advanced-guides/low-precision-transformations>` to delay the multiplication by the scale factor as much as possible, preventing this from happening.
-The ``activations scale factor`` can be specified to the ``rt_info`` in the IR or specified via ``ov::hint::activations_scale_factor``.
-Currently, this property is supported by GPU.
+To address this issue, activation scaling divides the input of linear operations such as ``MatMul`` or ``Convolution`` by an activations scale factor, ensuring the layer's output does not exceed ``f16``'s dynamic range.
+
+The layer's output is then multiplied back by the activations scale factor to restore its original value, but overflow can occur again during this process.
+Activation scaling uses :doc:`LPT (Low Precision Transformations) <../../../documentation/openvino-extensibility/openvino-plugin-library/advanced-guides/low-precision-transformations>` to delay multiplication by the scale factor as much as possible, preventing overflow.
+The activations scale factor can be specified in the ``rt_info`` of the model IR or via ``ov::hint::activations_scale_factor``.
+Currently, this property is supported on GPU.
 
 .. scrollbox::   
 
