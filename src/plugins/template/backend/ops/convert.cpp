@@ -130,3 +130,14 @@ bool evaluate_node<ov::op::v0::Convert>(std::shared_ptr<ov::Node> node,
         OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
     }
 }
+
+template <>
+bool evaluate_node<ov::op::v16::Convert>(std::shared_ptr<ov::Node> node,
+                                         ov::TensorVector& outputs,
+                                         const ov::TensorVector& inputs) {
+    if (convert::evaluate_by_output_type(node->get_output_element_type(0), outputs, inputs)) {
+        return true;
+    } else {
+        OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
+    }
+}

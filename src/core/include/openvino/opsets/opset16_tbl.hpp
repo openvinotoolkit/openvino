@@ -10,7 +10,6 @@
 // Previous opsets operators
 // TODO (ticket: 156877): Add remaining operators from opset15 at the end of opset16 development
 _OPENVINO_OP_REG(Parameter, ov::op::v0)
-_OPENVINO_OP_REG(Convert, ov::op::v0)
 _OPENVINO_OP_REG(ShapeOf, ov::op::v3)
 
 // New operations added in opset16
@@ -20,3 +19,4 @@ _OPENVINO_OP_REG(SegmentMax, ov::op::v16)
 _OPENVINO_OP_REG(SparseFillEmptyRows, ov::op::v16)
 _OPENVINO_OP_REG(AvgPool, ov::op::v16)
 _OPENVINO_OP_REG(OneHot, ov::op::v16)
+_OPENVINO_OP_REG(Convert, ov::op::v16)
