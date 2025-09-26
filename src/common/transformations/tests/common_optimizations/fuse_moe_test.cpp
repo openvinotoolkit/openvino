@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/fuse_moe.hpp"
+#include "transformations/common_optimizations/fuse_moe_experts.hpp"
 
 #include <gtest/gtest.h>
 
@@ -86,9 +86,10 @@ std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
         std::shared_ptr<Node> select_Gather_2;
 
         select_Gather_2 = makeOP<opset8::Gather>({expert_mask, i, 0}, {{"batch_dims", 0}});
+        auto squeeze_Squeeze_7 = makeOP<opset1::Squeeze>({select_Gather_2, 0});   //  tensor_array<i64[2,?]> __module.model.layers.1.mlp/aten::squeeze/Squeeze_7(__module.model.layers.1.mlp/aten::select/Gather_7, 60)
 
         // x = torch.where(expert_mask[expert_idx]), x shape: [2, nonzero], dim0: topk, dim1: batch
-        auto ListUnpack_NonZero_2 = makeOP<opset3::NonZero>({select_Gather_2}, {{"output_type", "i64"}});
+        auto ListUnpack_NonZero_2 = makeOP<opset3::NonZero>({squeeze_Squeeze_7}, {{"output_type", "i64"}});
         // topk, batch = torch.where(expert_mask[expert_idx])
         auto ListUnpack_Split_2 = makeOP<opset1::Split>({ListUnpack_NonZero_2, 0}, {{"num_splits", 2}});
         // batch
@@ -335,11 +336,11 @@ TEST_F(TransformationTestsF, ConvertMOEToFuseMOE_FP16) {
     disable_rt_info_check();
     disable_result_friendly_names_check();
 
-    int expert_num = 128;
+    int expert_num = 16;
     int topk = 8;
 
     model = BuildMOE(expert_num, topk);
-    manager.register_pass<ov::pass::FuseMOEUnified>();
+    manager.register_pass<ov::pass::FuseMOEExperts>();
 
     model_ref = BuildFusedMOE(expert_num, topk);
 }

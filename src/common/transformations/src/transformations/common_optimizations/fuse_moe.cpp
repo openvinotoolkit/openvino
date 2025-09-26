@@ -3,6 +3,7 @@
 //
 
 #include "transformations/common_optimizations/fuse_moe.hpp"
+#include "transformations/common_optimizations/fuse_moe_experts.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -629,7 +630,7 @@ bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // manager.register_pass<ov::pass::EliminateSqueeze>();
     // Use the unified FuseMOE transformation
     manager.register_pass<ov::pass::PrintModel>("before_fuse_moe_pseudocode.cpp");
-    manager.register_pass<ov::pass::FuseMOEUnified>();
+    manager.register_pass<ov::pass::FuseMOEExperts>();
 
     manager.run_passes(model);
     return false;
