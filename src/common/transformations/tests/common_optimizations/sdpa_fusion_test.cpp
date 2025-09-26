@@ -27,7 +27,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 
 using namespace std;
 using namespace testing;
