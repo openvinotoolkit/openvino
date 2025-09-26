@@ -23,6 +23,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("input", &ModelWrap::get_input),
                         InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
                         InstanceMethod("getOutputSize", &ModelWrap::get_output_size),
+                        InstanceMethod("getOps", &ModelWrap::get_ops),
                         InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
@@ -38,10 +39,16 @@ void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
 }
 
 Napi::Value ModelWrap::get_name(const Napi::CallbackInfo& info) {
-    if (_model->get_name() != "")
+    std::vector<std::string> allowed_signatures;
+    try {
+        OPENVINO_ASSERT(ov::js::validate(info, allowed_signatures),
+                        "'getName'",
+                        ov::js::get_parameters_error_msg(info, allowed_signatures));
         return Napi::String::New(info.Env(), _model->get_name());
-    else
-        return Napi::String::New(info.Env(), "unknown");
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }
 
 std::shared_ptr<ov::Model> ModelWrap::get_model() const {
@@ -269,6 +276,25 @@ Napi::Value ModelWrap::reshape(const Napi::CallbackInfo& info) {
             OPENVINO_THROW("'reshape'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
         return info.This();
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
+Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
+    std::vector<std::string> allowed_signatures;
+    try {
+        OPENVINO_ASSERT(ov::js::validate(info, allowed_signatures),
+                        "'getOps'",
+                        ov::js::get_parameters_error_msg(info, allowed_signatures));
+
+        auto model_ops = _model->get_ops();
+        Napi::Array outputs = Napi::Array::New(info.Env(), model_ops.size());
+        uint32_t index = 0;
+        for (auto& op : model_ops)
+            outputs[index++] = cpp_to_js(info.Env(), op);
+        return outputs;
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
         return info.Env().Undefined();
