@@ -171,22 +171,21 @@ int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAtt
     return aligned_seq_len;
 }
 
-size_t get_partition_size() {
+size_t get_partition_size(const bool has_xattention) {
     // size_t k_partition_blok_num = (kv_len + 8191) / 8192;
     // if (k_partition_blok_num < 1)
     //     k_partition_blok_num = 1;
     // const size_t k_partition_blok_num = 16;
     // return k_partition_blok_num * PA_KV_CACHE_BLOCK_SIZE; // 128
-    // TODO: how to change PA_KV_CACHE_BLOCK_SIZE here
-    if (PA_KV_CACHE_BLOCK_SIZE < 128) {
+    if (!has_xattention && PA_KV_CACHE_BLOCK_SIZE < 128) {
         return 128;
     } else {
-        return PA_KV_CACHE_BLOCK_SIZE;
+        return PA_KV_CACHE_BLOCK_SIZE_XATTN;
     }
 }
 
-size_t get_partition_num(const size_t kv_len) {
-    const size_t partition_size = get_partition_size();
+size_t get_partition_num(const size_t kv_len, const bool has_xattention) {
+    const size_t partition_size = get_partition_size(has_xattention);
     const size_t partition_num = (kv_len + partition_size - 1) / partition_size;
 
     return partition_num;
@@ -548,7 +547,7 @@ JitConstants PagedAttentionGeneratorSingleToken::get_jit_constants(const kernel_
     // jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
     auto desc = params.typed_desc<paged_attention>();
     const float scale_factor = 1.0 / std::sqrt(static_cast<double>(desc->k_head_size));
-    const size_t kv_partition_size = get_partition_size();
+    const size_t kv_partition_size = get_partition_size(desc->has_xattention);
     auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
 
     jit.make("KV_PARTITION_SIZE", kv_partition_size);
