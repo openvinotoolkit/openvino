@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <memory>
 
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -40,8 +41,8 @@ void RepackedWeightsBufferExpression::validate() const {
     OPENVINO_ASSERT(ov::is_type<ov::intel_cpu::aarch64::GemmCopyB>(parent_out.get_expr()->get_node()) &&
                         parent_out.get_index() == 0,
                     "RepackedWeightsBufferExpression expects GemmCopyB as parent expression");
-    OPENVINO_ASSERT(any_of(get_node()->get_input_element_type(0), ov::element::f32),
-                    "RepackedWeightsBufferExpression after GemmCopyB currently only support f32 data type on arm");
+    OPENVINO_ASSERT(any_of(get_node()->get_input_element_type(0), ov::element::f32, ov::element::f16),
+                    "RepackedWeightsBufferExpression after GemmCopyB supports only f32/f16 on arm");
 }
 
 void RepackedWeightsBufferExpression::init_allocation_size(
@@ -59,7 +60,10 @@ void RepackedWeightsBufferExpression::init_allocation_size(
         return;
     }
     // convert byte size to element type size
-    m_allocation_size = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K) / element_type.size();
+    const size_t packed_bytes = element_type == ov::element::f16
+                                    ? kai_get_rhs_packed_size_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon(N, K)
+                                    : kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K);
+    m_allocation_size = packed_bytes / element_type.size();
 }
 
 }  // namespace ov::intel_cpu::aarch64

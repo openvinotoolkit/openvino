@@ -26,6 +26,7 @@
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -53,8 +54,12 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
 
 std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    // Note: Brgemm currently supports only fp32 on arm
-    return {{element::f32}};
+    // Enable f32 always, and f16 only when HW supports it
+    std::set<std::vector<element::Type>> result{{element::f32}};
+    if (ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
+        result.insert({element::f16});
+    }
+    return result;
 }
 
 void jit_gemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
