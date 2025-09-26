@@ -469,7 +469,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-medium
+    runs-on: aks-linux-medium-st
     container:
       image: 'openvinogithubactions.azurecr.io/library/python:3.12-slim'
       volumes:
