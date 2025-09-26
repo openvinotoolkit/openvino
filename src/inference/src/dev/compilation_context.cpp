@@ -174,14 +174,19 @@ CompiledBlobHeader::CompiledBlobHeader() {}
 
 CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
                                        const std::string& fileInfo,
-                                       const std::string& runtimeInfo)
+                                       const std::string& runtimeInfo,
+                                       const size_t headerSizeAlignment)
     : m_ieVersion(ieVersion),
       m_fileInfo(fileInfo),
-      m_runtimeInfo(runtimeInfo) {}
+      m_runtimeInfo(runtimeInfo),
+      m_headerSizeAlignment(headerSizeAlignment) {}
 
 std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     std::string xmlStr;
+
+    auto start = stream.tellg();
     std::getline(stream, xmlStr);
+    auto end = stream.tellg();
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
@@ -191,6 +196,15 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     header.m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
     header.m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
     header.m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
+    header.m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
+
+    if (const size_t headerSizeAlignment = header.m_headerSizeAlignment; headerSizeAlignment) {
+        size_t bytes_written = static_cast<size_t>(end - start);
+        size_t pad = (headerSizeAlignment - (bytes_written % headerSizeAlignment)) %
+                     headerSizeAlignment;  // 0 if already aligned
+        stream.seekg(static_cast<std::streamoff>(pad), std::ios::cur);
+        OPENVINO_ASSERT(stream.good(), "Failed to seek over padding in compiled blob header");
+    }
 
     return stream;
 }
@@ -201,10 +215,22 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     compiledBlobNode.append_attribute("ie_version").set_value(header.m_ieVersion.c_str());
     compiledBlobNode.append_attribute("file_info").set_value(header.m_fileInfo.c_str());
     compiledBlobNode.append_attribute("runtime_info").set_value(header.m_runtimeInfo.c_str());
+    compiledBlobNode.append_attribute("header_size_alignment")
+        .set_value(std::to_string(header.m_headerSizeAlignment).c_str());
 
+    auto start = stream.tellp();
     document.save(stream, nullptr, pugi::format_raw);
     document.reset();
     stream << std::endl;
+    auto end = stream.tellp();
+
+    // add padding
+    if (const size_t headerSizeAlignment = header.m_headerSizeAlignment; headerSizeAlignment) {
+        size_t bytes_written = static_cast<size_t>(end - start);
+        size_t pad = (headerSizeAlignment - (bytes_written % headerSizeAlignment)) %
+                     headerSizeAlignment;  // 0 if already aligned
+        std::fill_n(std::ostream_iterator<char>(stream), pad, 0);
+    }
 
     return stream;
 }

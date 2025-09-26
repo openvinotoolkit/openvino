@@ -1507,24 +1507,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                     plugin.get_property(ov::internal::compiled_model_runtime_properties.name(), {}).as<std::string>();
             }
             cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
-                auto start = networkStream.tellp();
-                networkStream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
-                                                        ov::ModelCache::calculate_file_info(cacheContent.modelPath),
-                                                        compiled_model_runtime_properties);
-                auto end = networkStream.tellp();
-
-                // add padding
                 uint32_t header_size_alignment{};
                 if (device_supports_internal_property(plugin, ov::internal::cache_header_alignment.name())) {
                     header_size_alignment =
                         plugin.get_property(ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
                 }
-                if (header_size_alignment) {
-                    size_t bytes_written = static_cast<size_t>(end - start);
-                    size_t pad = (header_size_alignment - (bytes_written % header_size_alignment)) %
-                                 header_size_alignment;  // 0 if already aligned
-                    std::fill_n(std::ostream_iterator<char>(networkStream), pad, 0);
-                }
+
+                networkStream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
+                                                        ov::ModelCache::calculate_file_info(cacheContent.modelPath),
+                                                        compiled_model_runtime_properties,
+                                                        header_size_alignment);
 
                 compiled_model->export_model(networkStream);
             });
