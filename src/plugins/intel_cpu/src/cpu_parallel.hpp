@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_threadpool.h>
+
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "thread_pool_imp.hpp"
@@ -38,6 +40,12 @@ public:
         int num = m_partitioner == ov::intel_cpu::TbbPartitioner::STATIC ? parallel_get_max_threads()
                                                                          : parallel_get_max_threads() * m_multiplier;
         return num;
+    }
+    void activate() {
+#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
+        int nthreads = get_num_threads();
+        dnnl_threadpool_interop_set_max_concurrency(nthreads);
+#endif
     }
 
     void parallel_simple(int D0, const std::function<void(int, int)>& func) const override {

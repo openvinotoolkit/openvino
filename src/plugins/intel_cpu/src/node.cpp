@@ -59,10 +59,6 @@
 #include "utils/ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 
-#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-#    include <common/dnnl_thread.hpp>
-#endif
-
 using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
@@ -817,13 +813,8 @@ void Node::updateDynamicParams() {
                           getName(),
                           " ",
                           getOriginalLayers());
-#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-                dnnl::impl::threadpool_utils::activate_threadpool(context->getCpuParallel()->get_thread_pool().get());
-#endif
+                context->getCpuParallel()->activate();
                 prepareParams();
-#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-                dnnl::impl::threadpool_utils::deactivate_threadpool();
-#endif
             }
         }
     } catch (const std::exception& e) {

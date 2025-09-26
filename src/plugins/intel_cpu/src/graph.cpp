@@ -8,9 +8,6 @@
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_config.h>
 #include <oneapi/dnnl/dnnl_types.h>
-#if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-#    include <common/dnnl_thread.hpp>
-#endif
 
 #include <algorithm>
 #include <cassert>
@@ -563,13 +560,8 @@ void Graph::CreatePrimitivesAndExecConstants() const {
         {
             OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
             DEBUG_LOG(*node);
-#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-            dnnl::impl::threadpool_utils::activate_threadpool(m_context->getCpuParallel()->get_thread_pool().get());
-#endif
+            m_context->getCpuParallel()->activate();
             node->createPrimitive();
-#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-            dnnl::impl::threadpool_utils::deactivate_threadpool();
-#endif
         }
 
         if (!node->isConstant() || !node->isExecutable()) {
