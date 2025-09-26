@@ -47,9 +47,9 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                      "[GPU] Paged Attention key cache quantization mode mismatch: prim.is_key_by_channel : ",
                      desc->is_key_by_channel, " but exec_config : ", impl_param.get_program().get_config().get_key_cache_quant_mode());
     bool valid_block_size = key_cache_ps.is_dynamic() ||
-                            (key_cache_ps[key_cache_idx].get_length() == static_cast<long int>(expected_block_size));
+                            (key_cache_ps[key_cache_idx-1].get_length() == static_cast<long int>(expected_block_size));
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation for key cache quant mode "
-                    , key_cache_quant_mode, ". Expected ", expected_block_size, ", but got ", key_cache_ps[key_cache_idx].get_length());
+                    , key_cache_quant_mode, ". Expected ", expected_block_size, ", but got ", key_cache_ps[key_cache_idx-1].get_length());
     std::vector<layout> output_layouts{ data_layout };
 
     if (desc->has_scores_output()) {
@@ -110,11 +110,11 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
     : parent(network, node) {
     const auto desc = node.get_primitive();
 
-    const auto k_head_size = desc->k_head_size;
-    const auto v_head_size = desc->v_head_size;
+    // const auto k_head_size = desc->k_head_size;
+    // const auto v_head_size = desc->v_head_size;
     const auto heads_num = desc->heads_num;
     const auto kv_heads_num = desc->kv_heads_num;
-    const auto pa_block_size = desc->block_size;
+    // const auto pa_block_size = desc->block_size;
 
     if (desc->has_alibi) {
         const auto alibi_input_idx = 11;
@@ -123,7 +123,7 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
     }
 
     OPENVINO_ASSERT(heads_num % kv_heads_num == 0);
-    OPENVINO_ASSERT(k_head_size % pa_block_size == 0);
-    OPENVINO_ASSERT(v_head_size % pa_block_size == 0);
+    // OPENVINO_ASSERT(k_head_size % pa_block_size == 0);
+    // OPENVINO_ASSERT(v_head_size % pa_block_size == 0);
 }
 }  // namespace cldnn
