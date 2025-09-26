@@ -57,6 +57,7 @@ struct GemmImplementationManager : public ImplementationManager {
         if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64}))
             return false;
 
+      
         if (!one_of(in0_layout.format.value, supported_formats) ||
             !one_of(in1_layout.format.value, supported_formats) ||
             !one_of(out_layout.format.value, supported_formats))
@@ -70,8 +71,8 @@ struct GemmImplementationManager : public ImplementationManager {
         }
 
         bool f16f16_case = everyone_is(data_types::f16, in0_dt, in1_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::i8});
-        bool u8s8_case = one_of(in0_dt, {data_types::i8, data_types::u8}) &&
-                         one_of(in1_dt, {data_types::i8, data_types::u8}) &&
+        bool u8s8_case = one_of(in0_dt, {data_types::f16, data_types::i8, data_types::u8, data_types::i4, data_types::u4}) &&
+                         one_of(in1_dt, {data_types::f16, data_types::i8, data_types::u8, data_types::i4, data_types::u4}) &&
                          one_of(out_dt, {data_types::f16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
 
         if (!f16f16_case && !u8s8_case)
