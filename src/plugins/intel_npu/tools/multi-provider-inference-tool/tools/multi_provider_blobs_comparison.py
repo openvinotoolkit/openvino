@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 
-import bin_diff
+import nrmse
 from common.provider_description import TensorsInfoPrinter
 
 
@@ -92,7 +92,7 @@ def initialize_provider_result_data(
 def get_comparison_profiver_output_files_result_data(
     ref_provider_output_blob_file_data, provider_to_cmp_output_blob_file_data, datatype
 ):
-    provider_to_cmp_output_blob_file_data["std_correlation"] = bin_diff.compare_blobs(
+    provider_to_cmp_output_blob_file_data["std_correlation"] = nrmse.compare_blobs(
         ref_provider_output_blob_file_data["path"],
         provider_to_cmp_output_blob_file_data["path"],
         datatype,
