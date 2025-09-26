@@ -57,6 +57,16 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     ov::ParameterVector parameters;
     ov::ResultVector results;
 
+    // Helper function to check if a tensor was originally dynamic
+    auto wasOriginallyDynamic = [](const std::unordered_set<std::string>& tensorNames) -> bool {
+        for (const auto& name : tensorNames) {
+            if (name.find("_DYNBATCH_ORIG") != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     for (const IODescriptor& inputDescriptor : inputDescriptors) {
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
             inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
@@ -65,6 +75,10 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
         auto shape = inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
                                                                   : inputDescriptor.shapeFromCompiler;
+
+        if (wasOriginallyDynamic(inputDescriptor.outputTensorNames)) {
+            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(-1);
+        }
 
         std::shared_ptr<ov::op::v0::Parameter> parameter =
             std::make_shared<ov::op::v0::Parameter>(inputDescriptor.precision, shape);
@@ -89,6 +103,10 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
         auto shape = outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
                                                                    : outputDescriptor.shapeFromCompiler;
+
+        if (wasOriginallyDynamic(outputDescriptor.outputTensorNames)) {
+            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(-1);
+        }
 
         const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
             std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
@@ -776,31 +794,56 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name())) {
         bool autoOrPluginBatch = localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN ||
                                  localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::AUTO;
-        try {
-            const bool pluginBatchingIsSupported = validateModelBatch(modelForCompilation, _logger);
+        if (modelForCompilation->is_dynamic()) {  // Avoiding risks with static models. TODO: common solution.
+            try {
+                const bool pluginBatchingIsSupported = validateModelBatch(modelForCompilation, _logger);
 
-            if (autoOrPluginBatch && pluginBatchingIsSupported) {
-                _logger.info("Attempting to handle batching on the plugin side.");
-                try {
-                    ov::set_batch(modelForCompilation, ov::Dimension(1));
-                } catch (const std::exception& ex) {
-                    _logger.warning("The plugin couldn't resize a batched model due to exception: %s.\n"
-                                    "Trying to debatch it...",
-                                    ex.what());
-                    deBatchModel(modelForCompilation, ov::Dimension(1));
-                    if (!modelForCompilation) {
-                        OPENVINO_THROW("Cannot debatch a model");
+                if (autoOrPluginBatch && pluginBatchingIsSupported) {
+                    _logger.info("Attempting to handle batching on the plugin side.");
+
+                    // Store dynamic batch info in tensor names BEFORE reshaping
+                    auto encodeDynamicBatchInfo = [](std::shared_ptr<ov::Model> model) {
+                        // Encode info in input tensor names
+                        for (auto& input : model->inputs()) {
+                            std::string originalName = input.get_any_name();
+                            std::string newName = originalName + "_DYNBATCH_ORIG";
+                            input.get_tensor().set_names({newName});
+                        }
+
+                        // Encode info in output tensor names
+                        for (auto& output : model->outputs()) {
+                            std::string originalName = output.get_any_name();
+                            std::string newName = originalName + "_DYNBATCH_ORIG";
+                            output.get_tensor().set_names({newName});
+                        }
+                    };
+
+                    try {
+                        encodeDynamicBatchInfo(modelForCompilation);
+                        ov::set_batch(modelForCompilation, ov::Dimension(1));
+                        updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+                    } catch (const std::exception& ex) {
+                        _logger.warning("The plugin couldn't resize a batched model due to exception: %s.\n"
+                                        "Trying to debatch it...",
+                                        ex.what());
+                        encodeDynamicBatchInfo(modelForCompilation);
+                        deBatchModel(modelForCompilation, ov::Dimension(1));
+                        if (!modelForCompilation) {
+                            OPENVINO_THROW("Cannot debatch a model");
+                        }
+                        _logger.info("The model has been debatched successfully");
+                        updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
                     }
-                    _logger.info("The model has been debatched successfully");
+                } else {
+                    _logger.info("Batching will be handed by compiler.");
+                    updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
                 }
-                // TODO: add debatcher for more complicated cases as set_batch is pretty naive.
-            } else {
-                _logger.info("Batching will be handed by compiler.");
+            } catch (const std::exception& ex) {
+                _logger.info("Couldn't validate and reshape the model. Batching will be handed by compiler.",
+                             ex.what());
+                updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
             }
-        } catch (const std::exception& ex) {
-            _logger.info("Couldn't validate and reshape the model. Batching will be handed by compiler.", ex.what());
         }
-        updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
