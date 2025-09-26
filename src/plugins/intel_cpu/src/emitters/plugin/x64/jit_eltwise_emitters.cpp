@@ -2956,8 +2956,8 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
 jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
                                      x64::cpu_isa_t host_isa,
                                      ov::element::Type exec_prc,
-                                     float alpha,
-                                     float beta)
+                                     double alpha,
+                                     double beta)
     : jit_emitter(host, host_isa, exec_prc) {
     minimum = x64::float2int(alpha);
     maximum = x64::float2int(beta);

@@ -7,6 +7,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <set>
 #include <vector>
@@ -961,8 +962,8 @@ public:
     jit_clamp_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       ov::element::Type exec_prc = ov::element::f32,
-                      float alpha = 0.0F,
-                      float beta = 0.0F);
+                      double alpha = 0.0,
+                      double beta = 0.0);
     jit_clamp_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       const std::shared_ptr<ov::Node>& n);
@@ -978,8 +979,8 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
     void register_table_entries() override;
 
-    int minimum;
-    int maximum;
+    int32_t minimum;
+    int32_t maximum;
 };
 
 }  // namespace ov::intel_cpu
