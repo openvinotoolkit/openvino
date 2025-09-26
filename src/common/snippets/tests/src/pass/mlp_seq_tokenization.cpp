@@ -58,15 +58,15 @@ static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::
     return result.str();
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MLP_SEQ,
-    TokenizeMLPSeqSnippetsParamTests,
-    testing::Combine(
-        testing::Values(std::vector<PartialShape>{{64, 64}}, std::vector<PartialShape>{{128, 128}}),
-        testing::Values(ov::element::f32, ov::element::u8),
-        testing::Values(1, 2, 3, 5, 7)),
-    getTestCaseName);
-
+namespace {
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ,
+                         TokenizeMLPSeqSnippetsParamTests,
+                         testing::Combine(testing::Values(std::vector<PartialShape>{{64, 64}},
+                                                          std::vector<PartialShape>{{128, 128}}),
+                                          testing::Values(ov::element::f32, ov::element::u8),
+                                          testing::Values(1, 2, 3, 5, 7)),
+                         getTestCaseName);
+}  // namespace
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
