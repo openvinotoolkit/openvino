@@ -26,10 +26,10 @@ jobs:
           sudo ./llvm.sh 18
 
       # Run cmake with extra options to cover as much source code as possible:
-      # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
+      # - -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
       # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
       - name: CMake configure
-        run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
+        run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
 
       - name: Create code style diff
         run: cmake --build build --target clang_format_fix_all -j8
@@ -62,10 +62,10 @@ jobs:
           sudo apt --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons
 
       # Run cmake with extra options to cover as much source code as possible:
-      # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
+      # - -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
       # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
       - name: CMake configure
-        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake -B build_arm64
+        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake -B build_arm64
 
       - name: Create code style diff
         run: cmake --build build_arm64 --target clang_format_fix_all -j8
@@ -98,9 +98,9 @@ jobs:
           sudo apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu
 
       # Run cmake with extra options to cover as much source code as possible:
-      # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
+      # - -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
       - name: CMake configure
-        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
+        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
 
       - name: Create code style diff
         run: cmake --build build_riscv64 --target clang_format_fix_all -j8
