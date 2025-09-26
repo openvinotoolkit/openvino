@@ -247,7 +247,7 @@ void SyncInferRequest::enqueue() {
             auto events = prepare_batched_input(port_idx, port, m_batched_tensors.at(port.get_tensor_ptr()));
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
         } else {
-            cldnn::primitive_id internal_name = m_graph->input_port_index_to_internal(port_idx)[0];
+            cldnn::primitive_id internal_name = std::move(m_graph->input_port_index_to_internal(port_idx)[0]);
             auto events = prepare_input(internal_name, port_idx, port, m_user_inputs.at(port_idx));
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
         }
@@ -741,6 +741,13 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                                                                const ov::Output<const ov::Node>& port,
                                                                const TensorWrapper& user_tensor_wrapper) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
+    if (internal_name.find("key_cache.") != std::string::npos || internal_name.find("value_cache.") != std::string::npos) {
+        auto device_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor_wrapper.ptr);
+        m_plugin_inputs[input_idx] = user_tensor_wrapper;
+        auto memory = device_tensor->get_memory();
+        m_graph->get_network()->set_input_data(internal_name, memory);
+        return {};
+    }
     auto pshape = port.get_partial_shape();
     auto is_dynamic = pshape.is_dynamic();
     auto user_tensor = user_tensor_wrapper.ptr;
@@ -958,7 +965,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
         return {};
 
     auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
-    auto output_memory = output_tensor->get_memory();
+    cldnn::memory::ptr output_memory = output_tensor->get_memory();
     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
     return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || user_tensor));
 }
