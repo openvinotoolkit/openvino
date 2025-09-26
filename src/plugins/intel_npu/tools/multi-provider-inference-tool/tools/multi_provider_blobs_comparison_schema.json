@@ -1,0 +1,119 @@
+{
+    "title": "A multi providers post-inference artifacts comparison tree",
+    "description": "It enumerates all providers, which are involved into the comparison, and describes model inference artifacts gathered for each provider from the requested comparison list. These artifacts include model outputs and output blobs and their properties accordingly. The comparison tree also stores list of inconsistent outputs and blobs which have no pairs among the artifacts produced by other providers.",
+    "type" : "object",
+    "required": ["providers", "not_found_data", "status", "data"],
+    "properties": {
+        "providers": {
+            "$comment": "A list of provider names which post-inference artifacts were recognized for",
+            "type": "array",
+            "items": {"type": "string"}
+        },
+        "not_found_data": {
+            "$comment": "The aggregation of providers which were requested for comparison but which data couldn't found among model inference artifacts or couldn't be processed",
+            "additionalProperties" : {
+                "type" : "object",
+                "$comment": "Specifies a provider name and other attributes"
+            }
+        },
+        "status": {
+            "$comment": "The list contains informational message, which describes possible reasons whether providers cannot be compared or not",
+            "type": ["array", "string"]
+        },
+        "data": {
+            "$comment": "The object aggregates post-inference artifact comparison results for each provider enumerated in 'providers'",
+            "type": "object",
+            "additionalProperties" : {
+                "type" : "object",
+                "anyOf": [
+                    {"required" : ["data"]},
+                    {"required" : ["not_found_data"]},
+                    {"required" : ["outputs"]},
+                    {"required" : ["status"]}
+                ],
+                "properties" : {
+                    "outputs": {
+                        "$comment": "A list of outputs which were found during analyzing a model metadata",
+                        "type": "array",
+                        "items": {"type": "string"}
+                    },
+                    "not_found_data": {
+                        "$comment": "The list of outputs which a current provider has not, but other providers have",
+                        "additionalProperties" : {
+                            "type" : "object",
+                            "$comment": "Specifies a name and other attributes of a not-found output"
+                        }
+                    },
+                    "status": {
+                        "$comment": "The list contains informational message, which describes possible reasons whether outputs cannot be compared or not",
+                        "type": ["array", "string"]
+                    },
+                    "data": {
+                        "$comment": "The object aggregates post-inference artifact comparison results for each output enumerated in 'outputs'",
+                        "type": "object",
+                        "additionalProperties" : {
+                            "type" : "object",
+                            "anyOf": [
+                                {"required" : ["files"]},
+                                {"required" : ["shape"]},
+                                {"required" : ["data"]},
+                                {"required" : ["element_type"]},
+                                {"required" : ["not_found_data"]},
+                                {"required" : ["status"]}
+                            ],
+                            "properties" : {
+                                "files": {
+                                    "$comment": "The list of file paths of blobs affiliated to the current model output",
+                                    "type": ["array", "string"]
+                                },
+                                "element_type": {
+                                    "$comment": "Specifies an element type of the data of the blob affiliated to the current model output",
+                                    "type": "string"
+                                },
+                                "shape": {
+                                    "$comment": "Specifies a shape of the blob affiliated to the current output",
+                                    "type": ["array", "string"]
+                                },
+                                "not_found_data": {
+                                    "$comment": "The list of files of output blobs which a current provider has not, but other providers have",
+                                    "additionalProperties" : {
+                                        "type" : "object",
+                                        "$comment": "Specifies a name and other attributes of a not-found blob"
+                                    }
+                                },
+                                "status": {
+                                    "$comment": "The list contains informational message, which describes possible reasons whether output blobs cannot be compared or not",
+                                    "type": ["array", "string"]
+                                },
+                                "data" : {
+                                    "$comment": "The object aggregates post-inference artifact comparison results for each output enumerated in 'outputs'",
+                                    "type": "object",
+                                    "additionalProperties" : {
+                                        "type" : "object",
+                                        "anyOf": [
+                                            {"required" : ["path"]},
+                                            {"required" : ["NRMSE"]}
+                                        ],
+                                        "properties" : {
+                                            "path": {
+                                                "$comment": "A path to the current blob",
+                                                "type": "string"
+                                            },
+                                            "NRMSE" : {
+                                                "$comment": "NRMSE metric of comparions of the current blob with a blob with the same characteristics and which was found among `reference provider` post-inference artifacts",
+                                                 "anyOf": [
+                                                    { "type": "number" },
+                                                    { "type": "null" }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
