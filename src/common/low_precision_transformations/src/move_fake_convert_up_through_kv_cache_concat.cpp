@@ -36,20 +36,22 @@ MoveFakeConvertUpThroughKVCacheConcat::MoveFakeConvertUpThroughKVCacheConcat() {
         auto fake_convert = wrap_type<ov::op::v13::FakeConvert>({kv_concat, fc_scale}) |
                             wrap_type<ov::op::v13::FakeConvert>({kv_concat, fc_scale, fc_shift});
 
-        auto [kv, reshape_kv, unsqueeze_kv, computed_bcst_kv, multiply_kv, computed_bcst3_kv] =
+        auto [multi_query_reshape_kv, reshape_kv, unsqueeze_kv, computed_bcst_kv, multiply_kv, computed_bcst3_kv] =
             ov::op::util::match_multi_query_bcst(fake_convert);
-        return std::make_tuple(kv_concat, fake_convert, kv);
+        return std::make_tuple(kv_concat, fake_convert, multi_query_reshape_kv);
     };
 
     auto k_cache_result = match_kv_cache();
     auto k_concat = std::get<0>(k_cache_result);
     auto k_fc = std::get<1>(k_cache_result);
-    auto key = std::get<2>(k_cache_result);
+    auto k_multi_query_reshape = std::get<2>(k_cache_result);
+    auto key = k_fc | k_multi_query_reshape;
 
     auto v_cache_result = match_kv_cache();
     auto v_concat = std::get<0>(v_cache_result);
     auto v_fc = std::get<1>(v_cache_result);
-    auto value = std::get<2>(v_cache_result);
+    auto v_multi_query_reshape = std::get<2>(v_cache_result);
+    auto value = v_fc | v_multi_query_reshape;
 
 #define ANY any_input()
     auto sdpa_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ANY, key, value}) |
