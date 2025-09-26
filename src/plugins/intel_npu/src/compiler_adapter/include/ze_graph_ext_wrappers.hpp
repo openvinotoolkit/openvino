@@ -83,4 +83,7 @@ private:
     Logger _logger;
 };
 
+// Parse the result string of query from foramt <name_0><name_1><name_2> to unordered_set of string
+std::unordered_set<std::string> parseQueryResult(std::vector<char>& data);
+
 }  // namespace intel_npu
