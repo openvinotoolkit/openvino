@@ -80,5 +80,8 @@ struct WeightsReorderParamsOneDNN : public cldnn::WeightsReorderParams {
     dnnl::memory::desc _out_desc;
 };
 
+int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
+                                const std::function<layout(int32_t)>& get_input_layout,
+                                int32_t slope_input_idx);
 }  // namespace onednn
 }  // namespace cldnn
