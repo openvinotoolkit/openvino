@@ -174,6 +174,34 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
     return result;
 }
 
+const Operator* OperatorsBridge::get_operator(const std::string& domain,
+                                              const std::string& name,
+                                              const int64_t version) const {
+    const auto dm = m_map.find(domain);
+    if (dm == std::end(m_map)) {
+        OPENVINO_DEBUG("Domain not recognized by OpenVINO");
+        return nullptr;
+    }
+    if (domain == "" && version > LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
+        OPENVINO_WARN("Currently ONNX operator set version: ",
+                      version,
+                      " is unsupported. Falling back to: ",
+                      LATEST_SUPPORTED_ONNX_OPSET_VERSION);
+    }
+    for (const auto& op : dm->second) {
+        if (op.first != name)
+            continue;
+
+        const auto& it = find(version, op.second);
+        if (it == std::end(op.second)) {
+            OPENVINO_THROW("Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + op.first + ":" +
+                           std::to_string(version));
+        }
+        return &it->second;
+    }
+    return nullptr;
+}
+
 bool OperatorsBridge::is_operator_registered(const std::string& name,
                                              int64_t version,
                                              const std::string& domain) const {
