@@ -29,7 +29,7 @@ class UtilsTests_tensor_info_validation(unittest.TestCase):
         self.tensor_info.info = json.loads(test_string)
         self.tensor_info.validate()
 
-    def test_info_info_type(self):
+    def test_type_validation(self):
         for ttype in TensorInfo.types:
             self.tensor_info.set_type(ttype)
             self.assertEqual(self.tensor_info.get_type(), ttype)

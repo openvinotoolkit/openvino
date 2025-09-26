@@ -7,6 +7,7 @@
 
 import copy
 import json
+import jsonschema
 import os
 import pathlib
 import shutil
@@ -83,6 +84,8 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         self.provider_C_outputs_dump_data_json = generate_two_outputs_from_file_path_list(
             self.provider_C_output_0_file_path_list, self.provider_C_output_1_file_path_list
         )
+        with open(pathlib.Path(__file__).parent.parent.parent / "tools" / "multi_provider_blobs_comparison_schema.json") as schema_file:
+            self.json_schema = json.load(schema_file)
 
     def tearDown(self):
         for d in self.temporary_directories:
@@ -148,6 +151,7 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
         self.assertEqual(len(result["data"]), 2)
         self.assertTrue(provider_B_base_dir in result["data"].keys())
         self.assertTrue(provider_C_base_dir in result["data"].keys())
+        jsonschema.validate(instance=result, schema=self.json_schema)
 
     def test_compare_no_output_binary_files(self):
         provider_A = copy.deepcopy(self.provider_A_outputs_dump_data_json)
@@ -211,6 +215,7 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
             self.assertEqual(len(result["data"][provider_A_base_dir]["data"][o_name]["data"]), 0)
             self.assertEqual(len(result["data"][provider_B_base_dir]["data"][o_name]["data"]), 0)
             self.assertEqual(len(result["data"][provider_C_base_dir]["data"][o_name]["data"]), 0)
+        jsonschema.validate(instance=result, schema=self.json_schema)
 
     def test_compare_fail_not_enough_binary_files(self):
         provider_A = copy.deepcopy(self.provider_A_outputs_dump_data_json)
@@ -291,6 +296,7 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
             self.assertEqual(
                 len(result["data"][provider_C_base_dir]["data"][o_name]["data"]), files_per_output[provider_C_base_dir][o_name] - status_message_count
             )
+        jsonschema.validate(instance=result, schema=self.json_schema)
 
     def test_compare_binary_files_correlation(self):
         provider_A = copy.deepcopy(self.provider_A_outputs_dump_data_json)
@@ -371,14 +377,15 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
                 self.assertTrue(f in result["data"][provider_B_base_dir]["data"][o_name]["data"].keys())
                 self.assertTrue(f in result["data"][provider_C_base_dir]["data"][o_name]["data"].keys())
 
-                for field in ["path", "std_correlation"]:
+                for field in ["path", "NRMSE"]:
                     self.assertTrue(field in result["data"][provider_A_base_dir]["data"][o_name]["data"][f].keys())
                     self.assertTrue(field in result["data"][provider_B_base_dir]["data"][o_name]["data"][f].keys())
                     self.assertTrue(field in result["data"][provider_C_base_dir]["data"][o_name]["data"][f].keys())
 
-                self.assertEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["std_correlation"], 1)
-                self.assertAlmostEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=4)
-                self.assertAlmostEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=4)
+                self.assertEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["NRMSE"], 1)
+                self.assertAlmostEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["NRMSE"], std_corr, places=4)
+                self.assertAlmostEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["NRMSE"], std_corr, places=4)
+        jsonschema.validate(instance=result, schema=self.json_schema)
 
     def test_compare_binary_files_correlation_lack_of_files_provider_B(self):
         provider_A = copy.deepcopy(self.provider_A_outputs_dump_data_json)
@@ -468,17 +475,18 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
                 self.assertEqual(f in result["data"][provider_B_base_dir]["data"][o_name]["data"].keys(), provider_B_file_found_per_output[o_name])
                 self.assertTrue(f in result["data"][provider_C_base_dir]["data"][o_name]["data"].keys())
 
-                for field in ["path", "std_correlation"]:
+                for field in ["path", "NRMSE"]:
                     self.assertTrue(field in result["data"][provider_A_base_dir]["data"][o_name]["data"][f].keys())
                     if provider_B_file_found_per_output[o_name]:
                         self.assertTrue(field in result["data"][provider_B_base_dir]["data"][o_name]["data"][f].keys())
                     self.assertTrue(field in result["data"][provider_C_base_dir]["data"][o_name]["data"][f].keys())
 
-                self.assertAlmostEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["std_correlation"], 1, places=5)
+                self.assertAlmostEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["NRMSE"], 1, places=5)
                 if provider_B_file_found_per_output[o_name]:
-                    self.assertAlmostEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=4)
+                    self.assertAlmostEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["NRMSE"], std_corr, places=4)
 
-                self.assertAlmostEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=4)
+                self.assertAlmostEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["NRMSE"], std_corr, places=4)
+        jsonschema.validate(instance=result, schema=self.json_schema)
 
     def test_compare_binary_files_correlation_lack_of_files_ref_provider_A(self):
         provider_A = copy.deepcopy(self.provider_A_outputs_dump_data_json)
@@ -568,14 +576,15 @@ class UtilsTests_Tools_multi_provider_result_comparator(unittest.TestCase):
                 self.assertTrue(f in result["data"][provider_B_base_dir]["data"][o_name]["data"].keys())
                 self.assertTrue(f in result["data"][provider_C_base_dir]["data"][o_name]["data"].keys())
 
-                for field in ["path", "std_correlation"]:
+                for field in ["path", "NRMSE"]:
                     self.assertTrue(field in result["data"][provider_A_base_dir]["data"][o_name]["data"][f].keys())
                     self.assertTrue(field in result["data"][provider_B_base_dir]["data"][o_name]["data"][f].keys())
                     self.assertTrue(field in result["data"][provider_C_base_dir]["data"][o_name]["data"][f].keys())
 
-                self.assertAlmostEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["std_correlation"], 1, places=5)
-                self.assertAlmostEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=4)
-                self.assertAlmostEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["std_correlation"], std_corr, places=4)
+                self.assertAlmostEqual(result["data"][provider_A_base_dir]["data"][o_name]["data"][f]["NRMSE"], 1, places=5)
+                self.assertAlmostEqual(result["data"][provider_B_base_dir]["data"][o_name]["data"][f]["NRMSE"], std_corr, places=4)
+                self.assertAlmostEqual(result["data"][provider_C_base_dir]["data"][o_name]["data"][f]["NRMSE"], std_corr, places=4)
+        jsonschema.validate(instance=result, schema=self.json_schema)
 
 
 if __name__ == "__main__":

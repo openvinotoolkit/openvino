@@ -19,13 +19,13 @@ from array import array
 
 from common.provider_description import TensorsInfoPrinter
 from pathlib import Path
-from tools.bin_diff import compare_blobs
+from tools.nrmse import compare_blobs
 
 
-class UtilsTests_Tools_bin_diff(unittest.TestCase):
+class UtilsTests_Tools_nrmse(unittest.TestCase):
 
     def setUp(self):
-        self.sandbox_dir = "UtilsTests_Tools_bin_diff"
+        self.sandbox_dir = "UtilsTests_Tools_nrmse"
         self.temporary_directories = []
         os.makedirs(self.sandbox_dir, exist_ok=True)
 

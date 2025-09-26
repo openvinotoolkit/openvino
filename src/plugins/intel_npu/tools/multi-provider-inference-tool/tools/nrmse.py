@@ -94,7 +94,7 @@ if __name__ == "__main__":
         prog="nrmse-calculator",
         description="""
 Calculate the NRMSE metric for two blobs. NRMSE represents the data similarity.
-The valie value of the metric lies in the range [0, 1]
+The value of the metric lies in the range [0, 1]
 Where:
     0 - means that these two blobs contain completely different binary data
     1 - means that these two blobs has the same binary data, so that they are indistinguishable.
