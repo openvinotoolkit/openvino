@@ -4,7 +4,6 @@
 
 #include "node.h"
 
-#include <oneapi/dnnl/dnnl_config.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
@@ -42,7 +41,6 @@
 #include "openvino/cc/factory.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/util/pp.hpp"

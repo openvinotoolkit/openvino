@@ -6,7 +6,6 @@
 
 #include <oneapi/dnnl/dnnl.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
-#include <oneapi/dnnl/dnnl_config.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
