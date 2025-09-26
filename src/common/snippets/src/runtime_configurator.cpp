@@ -261,10 +261,11 @@ void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopI
 
 void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir) {
     LoopInfoRuntimeParamsMap initialized_info;
+    const auto& loop_manager = linear_ir->get_loop_manager();
     auto updater = [&](const lowered::LoopInfoPtr& loop_info) {
         if (const auto unified_loop_info = ov::as_type_ptr<lowered::UnifiedLoopInfo>(loop_info)) {
             if (initialized_info.count(unified_loop_info) == 0) {
-                utils::update_runtime_parameters(unified_loop_info);
+                utils::update_runtime_parameters(loop_manager, unified_loop_info);
                 initialized_info[unified_loop_info] = get_loop_runtime_params(unified_loop_info);
             }
         } else if (const auto expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(loop_info)) {

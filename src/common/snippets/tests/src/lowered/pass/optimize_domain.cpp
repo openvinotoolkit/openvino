@@ -105,7 +105,6 @@ std::vector<OptimizeDomainParams> dopt_params = {
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DomainOptimization, OptimizeDomainTest,
                          ::testing::ValuesIn(dopt_params),
                          OptimizeDomainTest::getTestCaseName);
-
 } // namespace OptimizeDomainTestsInstantiation
 }  // namespace snippets
 }  // namespace test

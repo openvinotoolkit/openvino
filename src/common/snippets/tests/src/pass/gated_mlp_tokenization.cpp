@@ -70,6 +70,7 @@ static std::string getTestCaseName(const testing::TestParamInfo<TokenizeGatedMLP
     return result.str();
 }
 
+namespace {
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_GatedMLP,
     TokenizeGatedMLPSnippetsParamTests,
@@ -79,6 +80,7 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Values(GatedMLPFunction::WeightFormat::FP32, GatedMLPFunction::WeightFormat::FP16),
         testing::Values(utils::ActivationTypes::Swish, utils::ActivationTypes::Relu)),
     getTestCaseName);
+}  // namespace
 
 }  // namespace snippets
 }  // namespace test
