@@ -23,6 +23,8 @@ public:
                 size_t multiplier = default_multiplier)
         : m_partitioner(partitioner),
           m_multiplier(multiplier) {
+        m_partitioner = m_partitioner == ov::intel_cpu::TbbPartitioner::NONE ? ov::intel_cpu::TbbPartitioner::STATIC
+                                                                             : m_partitioner;
         m_thread_pool = std::make_shared<ThreadPool>(*this);
     }
     ~CpuParallel() override = default;

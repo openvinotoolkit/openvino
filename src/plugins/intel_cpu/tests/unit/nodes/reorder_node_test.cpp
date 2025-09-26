@@ -139,7 +139,7 @@ public:
             n->initSupportedPrimitiveDescriptors();
             n->selectPrimitiveDescriptorByIndex(0);
         }
-        stream = ov::intel_cpu::make_stream(cpuEngine);
+        stream = ov::intel_cpu::make_stream(cpuEngine, context->getCpuParallel()->get_thread_pool());
     }
 
 protected:
