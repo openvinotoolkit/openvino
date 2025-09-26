@@ -1,4 +1,4 @@
-// intel/compute-runtime e96840a03ec41659772ca0bea3338bdd688ae4b5
+// intel/compute-runtime 4df478c5139703c82e548a65eafbcc69923953ac
 /*
  * Copyright (C) 2024-2025 Intel Corporation
  *
@@ -9,17 +9,28 @@
 #ifndef _ZE_STYPES_H
 #define _ZE_STYPES_H
 
-#include <ze_api.h>
-#include <zet_api.h>
+#include <level_zero/ze_api.h>
+#include <level_zero/zes_api.h>
+#include <level_zero/zet_api.h>
 
 #include <cstdint>
 using ze_structure_type_ext_t = uint32_t;
 using zet_structure_type_ext_t = uint32_t;
+using zes_structure_type_ext_t = uint32_t;
 
 #define ZE_STRUCTURE_TYPE_SYNCHRONIZED_DISPATCH_EXP_DESC static_cast<ze_structure_type_ext_t>(0x00020020)
 #define ZE_STRUCTURE_TYPE_INTEL_MEDIA_COMMUNICATION_DESC static_cast<ze_structure_type_ext_t>(0x00020021)
 #define ZE_STRUCTURE_TYPE_INTEL_MEDIA_DOORBELL_HANDLE_DESC static_cast<ze_structure_type_ext_t>(0x00020022)
 #define ZE_STRUCTURE_TYPE_INTEL_DEVICE_MEDIA_EXP_PROPERTIES static_cast<ze_structure_type_ext_t>(0x00020023)
+#if ZE_API_VERSION_CURRENT_M <= ZE_MAKE_VERSION(1, 13)
+#define ZE_STRUCTURE_TYPE_COMMAND_LIST_APPEND_PARAM_COOPERATIVE_DESC static_cast<ze_structure_type_ext_t>(0x00020036)
+#define ZE_STRUCTURE_TYPE_EXTERNAL_MEMMAP_SYSMEM_EXT_DESC static_cast<ze_structure_type_ext_t>(0x00020037)
+#endif // ZE_API_VERSION_CURRENT_M <= ZE_MAKE_VERSION(1, 13)
+#define ZEX_STRUCTURE_TYPE_LABEL_DESCRIPTOR static_cast<ze_structure_type_ext_t>(0x00030002)
+#define ZEX_STRUCTURE_TYPE_OPERAND_DESCRIPTOR static_cast<ze_structure_type_ext_t>(0x00030003)
+#define ZEX_STRUCTURE_TYPE_VARIABLE_DESCRIPTOR static_cast<ze_structure_type_ext_t>(0x00030004)
+#define ZEX_STRUCTURE_TYPE_TEMP_VARIABLE_DESCRIPTOR static_cast<ze_structure_type_ext_t>(0x00030005)
+#define ZEX_STRUCTURE_TYPE_VARIABLE_INFO static_cast<ze_structure_type_ext_t>(0x00030006)
 #define ZE_INTEL_DEVICE_BLOCK_ARRAY_EXP_PROPERTIES static_cast<ze_structure_type_ext_t>(0x00030007)
 #define ZEX_STRUCTURE_DEVICE_MODULE_REGISTER_FILE_EXP static_cast<ze_structure_type_ext_t>(0x00030010)
 #define ZEX_STRUCTURE_KERNEL_REGISTER_FILE_SIZE_EXP static_cast<ze_structure_type_ext_t>(0x00030012)
@@ -33,11 +44,22 @@ using zet_structure_type_ext_t = uint32_t;
 #define ZEX_STRUCTURE_COUNTER_BASED_EVENT_EXTERNAL_SYNC_ALLOC_PROPERTIES static_cast<ze_structure_type_ext_t>(0x0003001D)
 #define ZEX_STRUCTURE_COUNTER_BASED_EVENT_EXTERNAL_STORAGE_ALLOC_PROPERTIES static_cast<ze_structure_type_ext_t>(0x00030027)
 #define ZE_STRUCTURE_TYPE_QUEUE_PRIORITY_DESC static_cast<ze_structure_type_ext_t>(0x00030028)
+#ifndef ZE_RECORD_REPLAY_GRAPH_EXP_NAME
+#define ZE_STRUCTURE_TYPE_RECORD_REPLAY_GRAPH_EXP_PROPERTIES static_cast<ze_structure_type_ext_t>(0x00030029)
+#endif // ZE_RECORD_REPLAY_GRAPH_EXP_NAME
+#define ZEX_STRUCTURE_TYPE_MEMORY_FREE_CALLBACK_EXT_DESC static_cast<ze_structure_type_ext_t>(0x00030030)
 
 // Metric structure types
-#define ZET_INTEL_STRUCTURE_TYPE_METRIC_GROUP_CALCULATE_EXP_PROPERTIES static_cast<zet_structure_type_ext_t>(0x00010008)
-#define ZET_INTEL_STRUCTURE_TYPE_METRIC_CALCULATE_DESC_EXP static_cast<zet_structure_type_ext_t>(0x00010009)
+#define ZET_STRUCTURE_TYPE_INTEL_METRIC_SCOPE_PROPERTIES_EXP static_cast<zet_structure_type_ext_t>(0x00010006)
+#define ZET_INTEL_STRUCTURE_TYPE_METRIC_HW_BUFFER_SIZE_EXP_DESC static_cast<zet_structure_type_ext_t>(0x00010007)
+#define ZET_INTEL_STRUCTURE_TYPE_METRIC_GROUP_CALCULATION_EXP_PROPERTIES static_cast<zet_structure_type_ext_t>(0x00010008)
+#define ZET_INTEL_STRUCTURE_TYPE_METRIC_CALCULATION_DESC_EXP static_cast<zet_structure_type_ext_t>(0x00010009)
 #define ZET_INTEL_STRUCTURE_TYPE_METRIC_SOURCE_ID_EXP static_cast<zet_structure_type_ext_t>(0x0001000a)
 #define ZET_INTEL_STRUCTURE_TYPE_METRIC_DECODED_BUFFER_PROPERTIES_EXP static_cast<zet_structure_type_ext_t>(0x0001000b)
+#define ZET_INTEL_STRUCTURE_TYPE_METRIC_CALCULABLE_PROPERTIES_EXP static_cast<zet_structure_type_ext_t>(0x0001000c)
+
+// Sysman structure types
+#define ZES_INTEL_PCI_LINK_SPEED_DOWNGRADE_EXP_STATE static_cast<zes_structure_type_ext_t>(0x00040001)
+#define ZES_INTEL_PCI_LINK_SPEED_DOWNGRADE_EXP_PROPERTIES static_cast<zes_structure_type_ext_t>(0x00040002)
 
 #endif
