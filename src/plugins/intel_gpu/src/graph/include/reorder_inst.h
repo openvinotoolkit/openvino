@@ -52,7 +52,9 @@ public:
             only_precision_changed &= in_layout.get_partial_shape() == out_layout.get_partial_shape();
         }
 
-        return only_precision_changed && is_simple_reorder() && typed_desc()->truncate;
+        bool is_truncate = typed_desc()->truncate || (out_layout.data_type == data_types::f32);
+
+        return only_precision_changed && is_simple_reorder() && is_truncate;
     }
 
     bool is_simple_reorder() const {
