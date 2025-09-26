@@ -295,7 +295,7 @@ class TensorsInfoPrinter:
                     continue
 
                 # create a model directory inside the root directory.
-                # A nodel directory is a storage for model input and output directories
+                # A model directory is a storage for model input and output directories
                 # and meta information as well
                 model_serialization_path = root_path / info["model"]
 
@@ -304,7 +304,7 @@ class TensorsInfoPrinter:
                 main_model_source_dir.mkdir(parents=True, exist_ok=True)
 
                 # well known filesystems forbid special symbols in string paths,
-                # so that let's apply path canonization to model input/ouput names
+                # so that let's apply path canonization to model input/output names
                 canonized_fs_input_name = TensorsInfoPrinter.canonize_io_name(info["source"])
 
                 # dump input meta in JSON
