@@ -9,7 +9,7 @@
 #ifndef _ZE_INTEL_GPU_H
 #define _ZE_INTEL_GPU_H
 
-#include <level_zero/ze_api.h>
+#include <ze_api.h>
 
 #include "ze_stypes.h"
 

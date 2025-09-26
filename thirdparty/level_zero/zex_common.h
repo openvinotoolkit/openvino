@@ -11,8 +11,8 @@
 #if defined(__cplusplus)
 #pragma once
 #endif
-#include "level_zero/ze_stypes.h"
-#include <level_zero/ze_api.h>
+#include "ze_stypes.h"
+#include <ze_api.h>
 
 #if defined(__cplusplus)
 extern "C" {
