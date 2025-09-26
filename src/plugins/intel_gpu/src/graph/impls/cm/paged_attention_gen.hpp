@@ -31,7 +31,8 @@ constexpr auto get_pa_build_options() {
 }
 
 // BLOCK_SIZE can be 16/32/64/128/256
-#define PA_KV_CACHE_BLOCK_SIZE 256
+#define PA_KV_CACHE_BLOCK_SIZE 16
+#define PA_KV_CACHE_BLOCK_SIZE_XATTN 256
 
 constexpr uint32_t BLOCK_SG_M = 64;
 constexpr uint32_t BLOCK_SG_N = 32;
@@ -58,13 +59,13 @@ int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAtt
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 size_t get_max_context_len(const kernel_impl_params& params);
 size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
-size_t get_partition_size();
-size_t get_partition_num(const size_t kv_len);
+size_t get_partition_size(const bool has_xattention);
+size_t get_partition_num(const size_t kv_len, const bool has_xattention);
 
 const float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx);
 inline size_t get_xattn_block_size(const kernel_impl_params& impl_param) {
     return impl_param.get_program().get_config().get_xattention_block_size();
- }
+}
 
 class PagedAttentionGeneratorBase : public KernelGenerator {
 public:
