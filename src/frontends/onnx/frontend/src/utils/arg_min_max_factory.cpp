@@ -70,7 +70,13 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
         const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {normalized_axis});
         const auto reverse = std::make_shared<v1::Reverse>(m_input_node, axis_node, v1::Reverse::Mode::INDEX);
 
-        const auto topk = std::make_shared<v11::TopK>(reverse, k_node, normalized_axis, mode, v1::TopK::SortType::NONE);
+        const auto topk = std::make_shared<v11::TopK>(reverse,
+                                                      k_node,
+                                                      normalized_axis,
+                                                      mode,
+                                                      v1::TopK::SortType::SORT_VALUES,
+                                                      element::i32,
+                                                      true);
 
         const auto data_shape = std::make_shared<v0::ShapeOf>(m_input_node);
         const auto dims_on_axis =
@@ -93,7 +99,13 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
         return result;
     }
 
-    const auto topk = std::make_shared<v11::TopK>(m_input_node, k_node, m_axis, mode, v11::TopK::SortType::NONE);
+    const auto topk = std::make_shared<v11::TopK>(m_input_node,
+                                                  k_node,
+                                                  m_axis,
+                                                  mode,
+                                                  v11::TopK::SortType::SORT_VALUES,
+                                                  element::i32,
+                                                  true);
 
     const auto result = std::make_shared<v0::Convert>(topk->output(1), ov::element::i64);
 
