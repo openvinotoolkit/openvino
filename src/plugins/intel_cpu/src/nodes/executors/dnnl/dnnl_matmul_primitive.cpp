@@ -315,8 +315,21 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
         PrimitiveDescWithPriority prim_desc_w_priority{dnnl::primitive_desc(), implPriorities.size()};
         const bool first_match = implPriorities.front() == impl_desc_type::unknown;
 
-        auto cur_desc =
-            createDescriptorInternal(inputDesc, weightDesc, biasDesc, outputDesc, attr, engine, transposeA, transposeB);
+        auto cur_desc = fcSemantic ? createDescriptorInternalAsFc(inputDesc,
+                                                                  weightDesc,
+                                                                  biasDesc,
+                                                                  outputDesc,
+                                                                  attr,
+                                                                  engine,
+                                                                  useWeightsDecompression)
+                                   : createDescriptorInternal(inputDesc,
+                                                              weightDesc,
+                                                              biasDesc,
+                                                              outputDesc,
+                                                              attr,
+                                                              engine,
+                                                              transposeA,
+                                                              transposeB);
 
         DnnlExtensionUtils::for_each_implementation(
             cur_desc,
