@@ -113,8 +113,13 @@ public:
     /// \brief Sets the output element type at the specified index.
     void set_out_type(int index, const ov::element::Type& output_type);
 
+    const std::shared_ptr<ov::internal::CacheManager> PagedAttentionExtension::get_cache_manager() const;
+
+    void PagedAttentionExtension::set_cache_manager(const std::shared_ptr<ov::internal::CacheManager> cache_manager);
+
 protected:
     std::vector<ov::element::Type> m_output_type = {ov::element::dynamic, ov::element::dynamic};
+    std::shared_ptr<ov::internal::CacheManager> m_cache_manager = nullptr;
 };
 
 }  // namespace op

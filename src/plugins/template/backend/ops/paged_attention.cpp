@@ -5,10 +5,13 @@
 #include "openvino/reference/paged_attention.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/cache_manager.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 
 template <ov::element::Type_t ET>
-bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
+bool evaluate(ov::TensorVector& outputs,
+              const ov::TensorVector& inputs,
+              const std::shared_ptr<ov::internal::CacheManager> cache_manager) {
     using T = typename ov::element_type_traits<ET>::value_type;
 
     const bool has_rotation = inputs.size() == 16;
@@ -40,8 +43,8 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
                                       inputs[5].get_shape(),                                     // pls
                                       has_rotation ? inputs[rot + 0].get_shape() : ov::Shape{},  // rbis
                                       has_rotation ? inputs[rot + 1].get_shape() : ov::Shape{},  // rds
-                                      has_rotation ? inputs[rot + 2].get_shape() : ov::Shape{}   // rtls
-    );
+                                      has_rotation ? inputs[rot + 2].get_shape() : ov::Shape{},  // rtls
+                                      cache_manager);
     return true;
 }
 
@@ -50,15 +53,16 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
                                                     ov::TensorVector& outputs,
                                                     const ov::TensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
+    auto cache_manager = std::static_pointer_cast<ov::op::PagedAttentionExtension>(node)->get_cache_manager();
     switch (element_type) {
     case ov::element::bf16:
-        return evaluate<ov::element::bf16>(outputs, inputs);
+        return evaluate<ov::element::bf16>(outputs, inputs, cache_manager);
     case ov::element::f16:
-        return evaluate<ov::element::f16>(outputs, inputs);
+        return evaluate<ov::element::f16>(outputs, inputs, cache_manager);
     case ov::element::f64:
-        return evaluate<ov::element::f64>(outputs, inputs);
+        return evaluate<ov::element::f64>(outputs, inputs, cache_manager);
     case ov::element::f32:
-        return evaluate<ov::element::f32>(outputs, inputs);
+        return evaluate<ov::element::f32>(outputs, inputs, cache_manager);
     default:
         OPENVINO_THROW("Unhandled data type ", element_type, " in evaluate_node()");
     }
