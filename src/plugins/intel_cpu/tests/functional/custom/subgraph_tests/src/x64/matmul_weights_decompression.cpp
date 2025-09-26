@@ -58,6 +58,10 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_amx = {
     {{{}, {{3, 339, 577}}}, {577, 335}},
     {{{}, {{1, 1, 256}}}, {256, 128}, 64ul},
 };
+const std::vector<MatMulDecompressionShapeParams> input_shapes_amx_u2 = {
+    {{{}, {{1, 8, 64}}}, {64, 64}},
+    {{{}, {{1, 16, 64}}}, {64, 128}},
+};
 const std::vector<fusingSpecificParams> fusing_params{emptyFusingSpec, fusingBias};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
@@ -117,6 +121,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx,
                                             ::testing::Values(true),
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(DecompressionType::full),
+                                            // todo: zero points converted to fp32 for reshape == true case
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_amx()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_amx_u2,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_amx_u2),
+                                            ::testing::Values(ov::element::u2),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::scalar),
+                                            ::testing::Values(DecompressionType::scalar),
                                             // todo: zero points converted to fp32 for reshape == true case
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_amx()),
