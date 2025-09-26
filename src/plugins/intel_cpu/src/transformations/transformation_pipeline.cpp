@@ -77,6 +77,7 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
+#include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
@@ -564,6 +565,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    CPU_REGISTER_PASS_X64(manager, ov::pass::FuseVectorizedMOE);
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCachePrecision = config.keyCachePrecision;
     cacheConfig.valueCachePrecision = config.valueCachePrecision;
