@@ -818,7 +818,7 @@ void Node::updateDynamicParams() {
                           " ",
                           getOriginalLayers());
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-                dnnl::impl::threadpool_utils::activate_threadpool(context->getCpuParallel()->getThreadPool().get());
+                dnnl::impl::threadpool_utils::activate_threadpool(context->getCpuParallel()->get_thread_pool().get());
 #endif
                 prepareParams();
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
@@ -1131,7 +1131,7 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
         node::Reorder::reorderData(memory,
                                    *_ptr,
                                    context->getParamsCache(),
-                                   context->getCpuParallel()->getThreadPool());
+                                   context->getCpuParallel()->get_thread_pool());
         return _ptr;
     };
 
@@ -1168,7 +1168,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
         node::Reorder::reorderData(srcMemory,
                                    *_ptr,
                                    context->getParamsCache(),
-                                   context->getCpuParallel()->getThreadPool());
+                                   context->getCpuParallel()->get_thread_pool());
 
         return _ptr;
     };

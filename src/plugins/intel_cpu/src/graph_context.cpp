@@ -56,7 +56,7 @@ GraphContext::GraphContext(Config config,
     }
 
     if (!m_cpuParallel) {
-        m_cpuParallel = std::make_shared<CpuParallel>(m_config.tbbPartitioner, 32);
+        m_cpuParallel = std::make_shared<CpuParallel>(m_config.tbbPartitioner);
     }
 }
 

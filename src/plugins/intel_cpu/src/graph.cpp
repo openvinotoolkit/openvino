@@ -127,7 +127,7 @@ void Graph::Init(const std::vector<NodePtr>& graphNodes,
     }
 
     m_context = context;
-    m_stream = make_stream(getEngine(), m_context->getCpuParallel()->getThreadPool());
+    m_stream = make_stream(getEngine(), m_context->getCpuParallel()->get_thread_pool());
 
     this->_name = std::move(name);
 
@@ -383,7 +383,7 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     }
 
     m_context = context;
-    m_stream = make_stream(getEngine(), m_context->getCpuParallel()->getThreadPool());
+    m_stream = make_stream(getEngine(), m_context->getCpuParallel()->get_thread_pool());
 
     Replicate(model, inputConfigs, outputConfigs);
 
@@ -564,7 +564,7 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
             DEBUG_LOG(*node);
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-            dnnl::impl::threadpool_utils::activate_threadpool(m_context->getCpuParallel()->getThreadPool().get());
+            dnnl::impl::threadpool_utils::activate_threadpool(m_context->getCpuParallel()->get_thread_pool().get());
 #endif
             node->createPrimitive();
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL

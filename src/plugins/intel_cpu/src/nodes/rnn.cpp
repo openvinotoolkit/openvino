@@ -1091,7 +1091,7 @@ void RNN::prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) {
         node::Reorder::reorderData(memory,
                                    *res_ptr,
                                    context->getParamsCache(),
-                                   context->getCpuParallel()->getThreadPool());
+                                   context->getCpuParallel()->get_thread_pool());
         return res_ptr;
     };
 
