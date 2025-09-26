@@ -54,7 +54,8 @@ void DynamicQuantize::validate_and_infer_types() {
     output_idx++;
     set_output_type(output_idx, m_attrs.scale_dt, out_shapes[output_idx]);
 
-    if (m_attrs.quantization_type == QuantizationType::Asymmetric && m_attrs.output_storage_type == OutputStorageType::Planar) {
+    if (m_attrs.quantization_type == QuantizationType::Asymmetric &&
+        m_attrs.output_storage_type == OutputStorageType::Planar) {
         output_idx++;
         set_output_type(output_idx, m_attrs.zp_dt, out_shapes[output_idx]);
     }
