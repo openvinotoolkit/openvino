@@ -90,7 +90,7 @@ public:
 
         const auto max_context_len = get_max_context_len(params);
         rt_params->max_context_len = max_context_len;
-        rt_params->partition_size = get_partition_size();
+        rt_params->partition_size = get_partition_size(desc->has_xattention);
         rt_params->num_of_partitions = ceil_div(max_context_len, rt_params->partition_size);
         rt_params->stage = get_paged_attention_stage(params);
         const size_t block_size = get_xattn_block_size(params);
@@ -186,7 +186,7 @@ public:
         } else {
             stage = get_paged_attention_stage(params);
             const auto max_context_len = get_max_context_len(params);
-            partition_size = get_partition_size();
+            partition_size = get_partition_size(desc->has_xattention);
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
         GPU_DEBUG_TRACE_DETAIL << "ov::intel_gpu::cm::PagedAttentionCmImpl::get_internal_buffer_descs(): stage = " << static_cast<int>(stage)
