@@ -9,7 +9,6 @@
 #include <string_view>
 
 #include "graph.hpp"
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -18,7 +17,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "ir_serializer.hpp"
+#include "intel_npu/weights_pointer_attribute.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -44,27 +43,6 @@ constexpr std::string_view VALUES_SEPARATOR = " ";
 const std::vector<size_t> NC_TO_CN_LAYOUT_DIMENSIONS_ORDER = {1, 0};
 const std::vector<size_t> NCHW_TO_NHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 1};
 const std::vector<size_t> NCDHW_TO_NDHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 4, 1};
-
-/**
- * @brief A standard copy function concerning memory segments. Additional checks on the given arguments are performed
- * before copying.
- * @details This is meant as a replacement for the legacy "ie_memcpy" function coming from the OpenVINO API.
- */
-void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes) {
-    if (numberOfBytes == 0) {
-        return;
-    }
-
-    OPENVINO_ASSERT(destination != nullptr, "Memcpy: received a null destination address");
-    OPENVINO_ASSERT(source != nullptr, "Memcpy: received a null source address");
-    OPENVINO_ASSERT(numberOfBytes <= destinationSize,
-                    "Memcpy: the source buffer does not fit inside the destination one");
-    OPENVINO_ASSERT(numberOfBytes <= (destination > source ? ((uintptr_t)destination - (uintptr_t)source)
-                                                           : ((uintptr_t)source - (uintptr_t)destination)),
-                    "Memcpy: the offset between the two buffers does not allow a safe execution of the operation");
-
-    memcpy(destination, source, numberOfBytes);
-}
 
 /**
  * @brief For driver backward compatibility reasons, the given value shall be converted to a string corresponding to the
@@ -185,6 +163,20 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
+void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
+    for (auto&& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+            continue;
+        }
+
+        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+
+        ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
+        runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
+            intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr(), constantNode->get_byte_size());
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -208,7 +200,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const Config& config) const {
+                                                       const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -216,7 +208,13 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+
+    auto serializedIR = serializeIR(model,
+                                    compilerVersion,
+                                    maxOpsetVersion,
+                                    config.isAvailable(ov::intel_npu::better_model_serialization.name())
+                                        ? config.get<BETTER_MODEL_SERIALIZATION>()
+                                        : false);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -252,7 +250,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
-                                                         const Config& config) const {
+                                                         const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
     storeWeightlessCacheAttribute(model);
@@ -275,7 +273,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("serialize IR");
-    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+    auto serializedIR = serializeIR(model,
+                                    compilerVersion,
+                                    maxOpsetVersion,
+                                    config.isAvailable(ov::intel_npu::better_model_serialization.name())
+                                        ? config.get<BETTER_MODEL_SERIALIZATION>()
+                                        : false);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -331,7 +334,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
             networkMetadata.name = model->get_friendly_name() + "_main";
             mainNetworkMetadata = std::move(networkMetadata);
             mainGraphHandle = graphDesc;
-            serializedIR = SerializedIR();
+            serializedIR = driver_compiler_utils::SerializedIR();
             // By convention, the main schedule is the last result produced by the compiler
             break;
         }
@@ -359,7 +362,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     ov::Tensor mainBlob,
-    const Config& config,
+    const FilteredConfig& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
@@ -413,7 +416,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                                 const Config& config) const {
+                                                 const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(query_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "query");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
@@ -421,7 +424,12 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+    auto serializedIR = serializeIR(model,
+                                    compilerVersion,
+                                    maxOpsetVersion,
+                                    config.isAvailable(ov::intel_npu::better_model_serialization.name())
+                                        ? config.get<BETTER_MODEL_SERIALIZATION>()
+                                        : false);
 
     std::string buildFlags;
     buildFlags += serializeConfig(config, compilerVersion);
@@ -452,60 +460,21 @@ uint32_t DriverCompilerAdapter::get_version() const {
  * @brief Place xml + weights in sequential memory
  * @details Format of the memory:
  */
-SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::Model>& model,
-                                                ze_graph_compiler_version_info_t compilerVersion,
-                                                const uint32_t supportedOpsetVersion) const {
-    driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion);
-
-    // Contract between adapter and compiler in driver
-    const uint32_t maxNumberOfElements = 10;
-    const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
-    const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
-
-    const uint32_t numberOfInputData = 2;
-    const uint64_t xmlSize = static_cast<uint64_t>(irSerializer.getXmlSize());
-    const uint64_t weightsSize = static_cast<uint64_t>(irSerializer.getWeightsSize());
-
-    OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
-    if (xmlSize >= maxSizeOfXML) {
-        OPENVINO_THROW("Xml file is too big to process. xmlSize: ", xmlSize, " >= maxSizeOfXML: ", maxSizeOfXML);
+driver_compiler_utils::SerializedIR DriverCompilerAdapter::serializeIR(
+    const std::shared_ptr<const ov::Model>& model,
+    const ze_graph_compiler_version_info_t compilerVersion,
+    const uint32_t supportedOpsetVersion,
+    const bool useBetterModelSerialization) const {
+    if (useBetterModelSerialization) {
+        const std::shared_ptr<ov::Model> clonedModel = model->clone();
+        storeWeightsPointerAttribute(clonedModel);
+        return driver_compiler_utils::IRSerializerWithoutWeightsCopy(clonedModel,
+                                                                     compilerVersion,
+                                                                     supportedOpsetVersion)
+            .serialize();
     }
-    if (weightsSize >= maxSizeOfWeights) {
-        OPENVINO_THROW("Bin file is too big to process. xmlSize: ",
-                       weightsSize,
-                       " >= maxSizeOfWeights: ",
-                       maxSizeOfWeights);
-    }
-
-    const uint64_t sizeOfSerializedIR = sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) +
-                                        xmlSize + sizeof(weightsSize) + weightsSize;
-
-    // use array to avoid vector's memory zeroing overhead
-    std::shared_ptr<uint8_t> buffer(new uint8_t[sizeOfSerializedIR], std::default_delete<uint8_t[]>());
-    uint8_t* serializedIR = buffer.get();
-
-    uint64_t offset = 0;
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &compilerVersion, sizeof(compilerVersion));
-    offset += sizeof(compilerVersion);
-
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
-    offset += sizeof(numberOfInputData);
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
-    offset += sizeof(xmlSize);
-    // xml data is filled in serializeModel()
-    uint64_t xmlOffset = offset;
-    offset += xmlSize;
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
-    offset += sizeof(weightsSize);
-    // weights data is filled in serializeModel()
-    uint64_t weightsOffset = offset;
-    offset += weightsSize;
-
-    irSerializer.serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset);
-
-    OPENVINO_ASSERT(offset == sizeOfSerializedIR);
-
-    return std::make_pair(sizeOfSerializedIR, buffer);
+    return driver_compiler_utils::IRSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion)
+        .serialize();
 }
 
 std::string DriverCompilerAdapter::serializeIOInfo(const std::shared_ptr<const ov::Model>& model,
@@ -597,20 +566,13 @@ std::string DriverCompilerAdapter::serializeIOInfo(const std::shared_ptr<const o
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
 }
 
-std::string DriverCompilerAdapter::serializeConfig(const Config& config,
+std::string DriverCompilerAdapter::serializeConfig(const FilteredConfig& config,
                                                    ze_graph_compiler_version_info_t compilerVersion) const {
     Logger logger("serializeConfig", Logger::global().level());
 
     std::string content = {};
-
-    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
-    if (plgConfig != nullptr) {
-        content += plgConfig->toStringForCompiler();
-        content += plgConfig->toStringForCompilerInternal();
-    } else {
-        logger.warning("Failed to cast Config to FilteredConfig. Exporting all configs");
-        content += config.toString();
-    }
+    content += config.toStringForCompiler();
+    content += config.toStringForCompilerInternal();
 
     logger.debug("Original content of config: %s", content.c_str());
 

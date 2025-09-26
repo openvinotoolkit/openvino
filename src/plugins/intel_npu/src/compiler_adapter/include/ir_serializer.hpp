@@ -3,7 +3,10 @@
 //
 
 #pragma once
+#include <ze_graph_ext.h>
+
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -17,24 +20,37 @@
  */
 namespace intel_npu::driver_compiler_utils {
 
-class IRSerializer {
+using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
+
+class IRSerializerBase {
 public:
-    IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset = 11);
+    IRSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
+                     const ze_graph_compiler_version_info_t compilerVersion,
+                     const uint32_t supportedOpset = 11);
 
-    size_t getXmlSize() const {
-        return _xmlSize;
-    }
+    virtual SerializedIR serialize() = 0;
 
-    size_t getWeightsSize() const {
-        return _weightsSize;
-    }
+protected:
+    Logger _logger;
+    std::shared_ptr<ov::Model> _model = nullptr;
+    ze_graph_compiler_version_info_t _compilerVersion;
+    uint32_t _supportedOpset = 11;
+};
 
+class IRSerializerWithWeightsCopy : public IRSerializerBase {
+public:
+    IRSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                const ze_graph_compiler_version_info_t compilerVersion,
+                                const uint32_t supportedOpset = 11);
+
+    SerializedIR serialize() override;
+
+private:
     /**
      * @brief Serialize OpenVINO model to target buffer
      */
     void serializeModelToBuffer(uint8_t* xml, uint8_t* weights);
 
-private:
     /**
      * @brief Serialize OpenVINO model to target stream
      */
@@ -45,11 +61,28 @@ private:
      */
     void countModelSize();
 
-    Logger _logger;
-    std::shared_ptr<ov::Model> _model = nullptr;
-    uint32_t _supportedOpset = 11;
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
 };
+
+class IRSerializerWithoutWeightsCopy : public IRSerializerBase {
+public:
+    IRSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                   const ze_graph_compiler_version_info_t compilerVersion,
+                                   const uint32_t supportedOpset = 11);
+
+    SerializedIR serialize() override;
+
+private:
+    void serializeModelToBuffer(uint8_t* buffer);
+
+    void serializeModelToStream(std::ostream& stream);
+
+    void countModelSize();
+
+    uint64_t _serializedModelSize = 0;
+};
+
+static std::mutex rtInfoMutex;
 
 }  // namespace intel_npu::driver_compiler_utils
