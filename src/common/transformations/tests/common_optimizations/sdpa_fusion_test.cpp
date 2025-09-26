@@ -898,13 +898,13 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
 
 TEST_F(TransformationTestsF, SDPAFusionTest13) {
     const PartialShape query_shape{1, 64, 1, 64};
-    const PartialShape key_shape{1, 8, 8, 1, 64};
-    const PartialShape value_shape{1, 8, 8, 1, 64};
+    const PartialShape key_shape{1, 8, 8, 3, 64};
+    const PartialShape value_shape{1, 8, 8, 3, 64};
 
-    const PartialShape mask_shape{1, 1, 1, 1};
+    const PartialShape mask_shape{1, 1, 1, 3};
 
-    const Shape key_reshaped{1, 64, 1, 64};
-    const Shape value_reshaped{1, 64, 1, 64};
+    const Shape key_reshaped{1, 64, 3, 64};
+    const Shape value_reshaped{1, 64, 3, 64};
 
     const Shape sinks_shape{1, 64, 1, 1};
     std::vector<size_t> sinks_broadcast_shape{1, 64, 1, 1};
