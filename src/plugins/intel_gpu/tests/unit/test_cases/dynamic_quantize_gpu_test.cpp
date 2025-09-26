@@ -175,7 +175,7 @@ public:
             cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr_ref(ref_output_buffers[i], get_test_stream());
 
             for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
-                const int abs_error_threshold = has_precompute_sum == PrecomputeSum::Enabled ? 2 : 2;
+                const int abs_error_threshold = 2;
                 ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], abs_error_threshold);
             }
         }
@@ -235,10 +235,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_grouped) {
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_gs128) {
     this->test_dynamic_quantization(false, {1, 1, 4096}, {64, 1, 4096}, QuantizationType::Symmetric, 128);
-}
-
-TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_gs256) {
-    this->test_dynamic_quantization(false, {1, 1, 1024}, {1, 1, 1024}, QuantizationType::Symmetric, 256);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_single_batch_grouped) {

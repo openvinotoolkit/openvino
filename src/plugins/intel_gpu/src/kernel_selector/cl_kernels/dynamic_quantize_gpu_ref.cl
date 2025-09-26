@@ -14,7 +14,7 @@
     #define TO_OUTPUT_VEC_TYPE_RTE(val)  convert_char8_rte(val)
 #endif
 
-#ifdef GENERATE_PRECOMPUTED_REDUCTION
+#if GENERATE_PRECOMPUTED_REDUCTION
     #define FOR_PRECOMPUTED_REDUCTION(x)  x
 #else
     #define FOR_PRECOMPUTED_REDUCTION(x)
