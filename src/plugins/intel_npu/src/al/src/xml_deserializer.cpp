@@ -31,7 +31,8 @@ ov::Any NPUXmlDeserializer::parse_weights_pointer_attribute(const pugi::xml_node
             for (const auto& attr : child.attributes()) {
                 if (strcmp(attr.name(), "ptr") == 0) {
                     const auto ptr = reinterpret_cast<const void*>(ov::util::pugixml::get_uint64_attr(child, "ptr"));
-                    return {WeightsPointerAttribute{ptr}};
+                    const auto byte_size = ov::util::pugixml::get_uint64_attr(child, "byte_size");
+                    return {WeightsPointerAttribute{ptr, byte_size}};
                 }
             }
         }
@@ -45,15 +46,15 @@ void NPUXmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::share
 
     auto wl_attr = parse_weights_pointer_attribute(node);
     const auto el_type = ov::element::Type(ov::util::pugixml::get_str_attr(dn, "element_type"));
-    auto actual_size = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(dn, "size"));
 
     char* ptr = reinterpret_cast<char*>(wl_attr.as<WeightsPointerAttribute>().memory_pointer);
+    size_t byte_size = wl_attr.as<WeightsPointerAttribute>().byte_size;
 
     std::shared_ptr<ov::AlignedBuffer> buffer;
     if (el_type != ov::element::string) {
-        buffer = std::make_shared<ov::SharedBuffer<void*>>(ptr, actual_size, nullptr);
+        buffer = std::make_shared<ov::SharedBuffer<void*>>(ptr, byte_size, nullptr);
     } else {
-        buffer = std::make_shared<ov::SharedStringAlignedBuffer>(ptr, actual_size);
+        buffer = std::make_shared<ov::SharedStringAlignedBuffer>(ptr, byte_size);
     }
     adapter.set(buffer);
 }

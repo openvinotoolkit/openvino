@@ -173,7 +173,7 @@ void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
 
         ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
         runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
-            intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr());
+            intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr(), constantNode->get_byte_size());
     }
 }
 
@@ -208,6 +208,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
+
     auto serializedIR = serializeIR(model,
                                     compilerVersion,
                                     maxOpsetVersion,
