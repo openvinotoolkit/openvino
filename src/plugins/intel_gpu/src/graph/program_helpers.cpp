@@ -158,21 +158,4 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
 
     return add_fusing_type::binary_per_oc;
 }
-
-int32_t onednn_add_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
-    if (node.get_preferred_impl_type() == impl_types::onednn) {
-        for (auto& fused_op : node.get_fused_primitives()) {
-            if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
-                // If it is first sum, reuse the buffer
-                auto fusing_type = get_add_fusing_type(node, fused_op);
-                if (fusing_type != add_fusing_type::sum)
-                    continue;
-                if (!fused_op.has_outer_dep())
-                    continue;
-                return fused_op.outer_dep_start_idx;
-            }
-        }
-    }
-    return -1;   // if -1, no reused input memory
-}
 }  // namespace cldnn

@@ -132,7 +132,6 @@ struct onednn_add_fusing_helpers {
     static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
                             std::function<void(const program_node&, const fused_primitive_desc&)> func);
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
-    static int32_t get_reused_eltwmem_idx(const program_node& node);
 };
 
 using add_fusing_type = onednn_add_fusing_helpers::add_fusing_type;
