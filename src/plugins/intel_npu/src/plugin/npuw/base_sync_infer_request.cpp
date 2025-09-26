@@ -23,6 +23,12 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
+    // (un) comment if (not) needed
+    m_profile.report_on_die = true;
+    m_profile.area = m_npuw_model->m_name + "/performance";
+
+    m_footprint.report_on_die = true;
+    m_footprint.area = m_npuw_model->m_name + "/memory";
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
@@ -239,6 +245,12 @@ std::vector<ov::ProfilingInfo> ov::npuw::IBaseInferRequest::get_profiling_info()
     return info;
 }
 
+std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
+    // So far accumulate over devices involved
+    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    return *proto_comp_model_desc.device_it;
+}
+
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
     prepare_for_infer();
@@ -250,7 +262,9 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
-        run_subrequest_for_success(idx, failover);
+        m_profile[profile_tag(idx)] += ov::npuw::perf::ms_to_run([&](){
+            run_subrequest_for_success(idx, failover);
+        });
         failover_happened |= failover;
         complete_subrequest(idx);
         if (m_npuw_model->m_acc_check) {
@@ -277,7 +291,9 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
                                                           const std::string& device) {
-    return ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    auto ptr = ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    m_footprint[device] += ptr->get_byte_size();
+    return ptr;
 }
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const ov::Node>& node,
@@ -285,12 +301,38 @@ ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const
     return allocMem(node.get_element_type(), node.get_shape(), device);
 }
 
+
+std::string ov::npuw::IBaseInferRequest::global_input_mem_device(std::size_t idx) const {
+    // Use the consumer subgraph device if it is alone;
+    // resort to global if there's many
+    if (!m_npuw_model->m_param_subscribers[idx].empty()) {
+        // There's subscribers, so resort to global
+        return m_npuw_model->global_mem_device();
+    }
+
+    const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(idx);
+    if (to_submodel != CompiledModel::NO_LINK) {
+        const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(to_submodel.first)];
+        return *proto_comp_model_desc.device_it;
+    }
+
+    // Resort to global again
+    return m_npuw_model->global_mem_device();
+}
+
+std::string ov::npuw::IBaseInferRequest::global_output_mem_device(std::size_t idx) const {
+    // Pick the affinitiy based on the producer subgraph
+    const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(idx);
+    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(from_submodel.first)];
+    return *proto_comp_model_desc.device_it;
+}
+
 void ov::npuw::IBaseInferRequest::alloc_io() {
     // Preallocate input tensors
     LOG_INFO("Preallocating input tensors...");
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
-        ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
+        ov::SoPtr<ov::ITensor> allocated = allocOut(port, global_input_mem_device(i));
         m_input_allocated.insert(allocated->data());
         m_port_to_tensor[port] = TensorStorage{allocated, true};
     }  // for(inputs)
@@ -322,7 +364,7 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::alloc_global_out(std::size_t out_idx) {
     const auto& port = m_npuw_model->outputs().at(out_idx);
-    return allocOut(port, m_npuw_model->global_mem_device());
+    return allocOut(port, global_output_mem_device(out_idx));
 }
 
 void ov::npuw::IBaseInferRequest::init_gio() {
@@ -449,6 +491,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
 
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
+    const bool is_dynamic = proto_comp_model_desc.attention.has_value();
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
@@ -464,6 +507,17 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         });
     };
 
+    // Check if the given subgraph's input is dynamic
+    auto is_dynamic_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_dynamic) {
+            return false;  // Early return
+        }
+        auto& dynamic = proto_comp_model_desc.attention.value();
+        return std::any_of(dynamic.params.begin(), dynamic.params.end(), [&](const auto& p) -> bool {
+            return p.idx == sub_in_idx;
+        });
+    };
+
     for (auto&& it : iodesc.global_params) {
         std::size_t param_idx{}, sub_in_idx{};
         std::tie(param_idx, sub_in_idx) = it;
@@ -474,7 +528,20 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto& s_port = request->get_inputs()[sub_in_idx];
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
-        if (!is_spatial_param(sub_in_idx)) {
+        if (is_spatial_param(sub_in_idx)) {
+            // Register for future use
+            // FIXME: Not sure why this code is here. There should be no
+            // spatial global parameters, as this execution mode iterates over
+            // the iterations only.
+            // Also, it pretty much looks like _io[] should be taken at
+            // idx but not real_idx, as referring to real_idx breaks the
+            // function pipelining
+            NPUW_ASSERT(false && "Global parameter can't be spatial");
+            m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else if (is_dynamic_param(sub_in_idx)) {
+            // Register for future use
+            m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else {
             // Input parameter is non-spatial, do normal handling
             if (m_input_allocated.count(g_tnsr->data()) == 0 && do_copy) {
                 LOG_DEBUG("Will be copied");
@@ -483,11 +550,8 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                 LOG_DEBUG("Will be set");
                 request->set_tensor(s_port, g_tnsr);
             }
-        } else {
-            // Register for future use
-            m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
         }
-    }
+    }  // for(global_params)
 
     LOG_DEBUG("Running copy...");
     ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
@@ -510,6 +574,11 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
 
     // Run host-side quantized gather, if required
     handle_quant_host_gather(idx, request);
+
+    // Handle attention inputs, if required
+    m_profile["attn(io)"] += ov::npuw::perf::ms_to_run([&](){
+        bind_attention_inputs(idx, request);
+    });
 
     LOG_DEBUG("Done");
 }
@@ -603,6 +672,91 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
             NPUW_ASSERT(false && "Not supported");
         }
     }
+}
+
+void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    if (!comp_model_desc.attention) {
+        return;
+    }
+
+    LOG_DEBUG("Binding Attention inputs...");
+    LOG_BLOCK();
+
+    const auto& dynamic = comp_model_desc.attention.value();
+    auto& r = request;
+
+    const auto pos_id = m_attention_selector->length();
+    if (pos_id == -1) {
+        // Dynamic range couldn't be identified - fallback to the default
+        // (worst case) behavior
+        for (auto&& param : dynamic.params) {
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
+            r->set_tensor(iport, input);
+        }
+    } else {
+        const auto past_len = m_attention_selector->past_length();
+        const auto do_copy = needs_copy(idx) && !m_npuw_model->m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
+
+        // Set the past k/v values first
+
+        struct copy_info {
+            ov::SoPtr<ov::ITensor> _src;
+            ov::SoPtr<ov::ITensor> _dst;
+            uint32_t _dim;
+
+            copy_info(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor> dst, uint32_t dim) {
+                _src = src;
+                _dst = dst;
+                _dim = dim;
+            }
+        };
+        std::vector<copy_info> copy_list;
+        for (auto&& param : dynamic.params) {
+            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+            const auto& input = m_attention_io[idx].inputs.at(param.idx);
+            auto input_shape = input->get_shape();
+            if (input_shape[param.dim] == past_len) {
+                // Special case for the last chunk
+                // Set tensor directly when actual pask key tensor shape is the same with the pre-allocated
+                // pask key tensor shape
+                r->set_tensor(iport, input);
+                continue;
+            }
+
+            const auto& view = ov::npuw::util::view(input, param.dim, 0, past_len);
+            const auto shape = view->get_shape();
+
+            LOG_DEBUG(iport);
+            LOG_BLOCK();
+            if (do_copy) {
+                auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
+                auto proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+                auto device = *proto_comp_model_desc.device_it;
+                auto new_tensor =
+                    ov::npuw::util::allocMem(view->get_element_type(), shape, device, m_npuw_model->get_plugin());
+                if (ov::shape_size(shape) > 0) {
+                    // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
+                    LOG_DEBUG("Do copy: " << shape << "...");
+                    copy_list.push_back(copy_info(view, new_tensor, static_cast<uint32_t>(param.dim)));
+                }
+                r->set_tensor(iport, new_tensor);
+            } else {
+                r->set_tensor(iport, view);
+            }
+        }  // for(params)
+
+        ov::parallel_for(copy_list.size(), [&](std::size_t idx) {
+            auto& it = copy_list[idx];
+            ov::SoPtr<ov::ITensor> src = it._src;
+            ov::SoPtr<ov::ITensor> dst = it._dst;
+            uint32_t dim = it._dim;
+            ov::npuw::util::copy_tensor_by_dim(src, dst, dim);
+        });
+    }
+
+    LOG_DEBUG("Done");
 }
 
 void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr request) {
