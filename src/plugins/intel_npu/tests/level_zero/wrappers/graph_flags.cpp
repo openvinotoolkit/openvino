@@ -28,6 +28,7 @@ void ZeroGraphFlagsTest::SetUp() {
 
 void ZeroGraphFlagsTest::TearDown() {}
 
+// check if they are really checked anywhere
 std::vector<int> _flags = {ZE_GRAPH_FLAG_NONE,
                            ZE_GRAPH_FLAG_DISABLE_CACHING,
                            ZE_GRAPH_FLAG_ENABLE_PROFILING,
