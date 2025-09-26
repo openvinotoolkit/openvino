@@ -199,9 +199,9 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     header.m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
 
     if (const size_t headerSizeAlignment = header.m_headerSizeAlignment; headerSizeAlignment) {
-        size_t bytes_written = static_cast<size_t>(end - start);
-        size_t pad = (headerSizeAlignment - (bytes_written % headerSizeAlignment)) %
-                     headerSizeAlignment;  // 0 if already aligned
+        size_t bytes_read = static_cast<size_t>(end - start);
+        size_t pad =
+            (headerSizeAlignment - (bytes_read % headerSizeAlignment)) % headerSizeAlignment;  // 0 if already aligned
         stream.seekg(static_cast<std::streamoff>(pad), std::ios::cur);
         OPENVINO_ASSERT(stream.good(), "Failed to seek over padding in compiled blob header");
     }
@@ -256,7 +256,9 @@ inline std::string getline_from_buffer(const char* buffer, size_t size, size_t& 
 }  // namespace
 
 void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size, size_t& pos) {
+    size_t start = pos;
     std::string xmlStr = ov::getline_from_buffer(buffer, buffer_size, pos);
+    size_t end = pos;
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
@@ -266,5 +268,14 @@ void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size
     m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
     m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
     m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
+    m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
+
+    if (const size_t headerSizeAlignment = m_headerSizeAlignment; headerSizeAlignment) {
+        size_t bytes_read = static_cast<size_t>(end - start);
+        size_t pad =
+            (headerSizeAlignment - (bytes_read % headerSizeAlignment)) % headerSizeAlignment;  // 0 if already aligned
+        pos += pad;
+    }
+
 }
 }  // namespace ov
