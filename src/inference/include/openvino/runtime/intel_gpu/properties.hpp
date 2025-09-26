@@ -153,6 +153,7 @@ static constexpr Property<bool> enable_kernels_reuse{"GPU_ENABLE_KERNELS_REUSE"}
  * @ingroup ov_runtime_cpp_prop_api
  *
  * If dynamic_quantization_group_size is larger than this max value, dynamic quantization will be disabled.
+ * This property is intended to be set from model rt-info to limit dynamic quantization group size for certain models.
  */
 static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{
     "GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
