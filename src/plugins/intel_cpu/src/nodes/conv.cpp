@@ -433,6 +433,12 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
     if (!fusedWith.empty()) {
         dstType = fusedWith.back()->getOriginalOutputPrecisionAtPort(0);
     }
+// ACL requires dst precision matches src precision for int8
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    if (canBeExecutedInInt8()) {
+        dstType = getOriginalInputPrecisionAtPort(0);
+    }
+#endif
 
     auto ndims = getInputShapeAtPort(0).getRank();
 
