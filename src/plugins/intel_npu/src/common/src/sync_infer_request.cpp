@@ -214,8 +214,7 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
         }
     }
 
-    OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape() ||
-                        tensor->get_shape()[utils::BATCH_AXIS] % port.get_shape()[utils::BATCH_AXIS] == 0,
+    OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
                     "The ",
                     tensor_type,
                     " tensor size is not equal to the model ",
@@ -275,14 +274,13 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
                         port.get_partial_shape());
         auto batch = port.get_partial_shape()[batch_idx];
 
-        OPENVINO_ASSERT(
-            batch.is_dynamic() || batch.get_length() == tensors_size || tensors_size % batch.get_length() == 0,
-            "set_input_tensors/set_tensors error. Input shape ",
-            port.get_partial_shape(),
-            "batch ",
-            batch,
-            "doesn't match with total blobs count: ",
-            tensors_size);
+        OPENVINO_ASSERT(batch.is_dynamic() || batch.get_length() == tensors_size,
+                        "set_input_tensors/set_tensors error. Input shape ",
+                        port.get_partial_shape(),
+                        "batch ",
+                        batch,
+                        "doesn't match with total blobs count: ",
+                        tensors_size);
     }
 
     auto batched_shape = tensors[utils::BATCH_AXIS]->get_shape();
