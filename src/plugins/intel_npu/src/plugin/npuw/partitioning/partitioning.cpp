@@ -327,6 +327,7 @@ public:
     void saveRepeatedConstants(const std::string& func_name);
     void saveTailDictConstants(const std::string& func_name);
     void saveRoPEConstants(const std::string& func_name);
+    void TEST_saveScaleConstants(const std::string& func_name);
     void matchParameters(const std::string& func_name);
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
@@ -1436,6 +1437,23 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
     }
 }
 
+void Partitioner::TEST_saveScaleConstants(const std::string& func_name) {
+    auto& func_group = all_functions.at(func_name);
+    auto& subgr_group = func_group.refs;
+    auto& model_group = func_group.mdls;
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    std::vector<CPtr> to_keep;
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstScales>(std::ref(to_keep));
+    rewr.run_on_model(model_group.front());
+
+    for (auto&& const_to_keep : to_keep) {
+        func_group.consts_to_keep.insert(const_to_keep);
+    }
+}
+
 void Partitioner::saveTailDictConstants(const std::string& func_name) {
     if (!part_ctx.use_host_gather_quant) {
         // No need to preserve as constants
@@ -2507,6 +2525,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveRepeatedConstants(func_group);
                 p.saveTailDictConstants(func_group);
                 p.saveRoPEConstants(func_group);
+                p.TEST_saveScaleConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
