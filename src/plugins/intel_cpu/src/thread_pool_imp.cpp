@@ -20,7 +20,7 @@ namespace ov::intel_cpu {
 
 dnnl::stream make_stream(const dnnl::engine& engine, const std::shared_ptr<ThreadPool>& thread_pool) {  // NOLINT
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-    if (!thread_pool){
+    if (!thread_pool) {
         OPENVINO_THROW("thread_pool should not be nullptr when using thread pool");
     }
     auto stream = dnnl::threadpool_interop::make_stream(engine, thread_pool.get());
