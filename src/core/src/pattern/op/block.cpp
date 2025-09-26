@@ -50,7 +50,9 @@ bool Block::match_value(Matcher* matcher, const Output<Node>& pattern_value, con
     pattern_map.merge(local_pm);
 
     for (const auto& matched_node : local_matcher->get_matched_nodes()) {
-        matcher->add_node(matched_node);
+        for (const auto& matched_node_out : matched_node->outputs()) {
+            matcher->add_node(matched_node_out);
+        }
     }
     return true;
 }
