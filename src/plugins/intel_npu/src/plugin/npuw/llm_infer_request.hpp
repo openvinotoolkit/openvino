@@ -24,6 +24,7 @@ public:
         static constexpr const char* past_key_values = "past_key_values";
         static constexpr const char* output_embeds = "npuw_output_embed";
         static constexpr const char* logits = "logits";
+        static constexpr const char* token_type_ids = "token_type_ids";
     };
 
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
@@ -49,26 +50,30 @@ private:
     void init_tensor(const ov::Output<const ov::Node>& port);
     void copy_kvcache();
     void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
-                            std::unordered_map<std::string, ov::Output<const ov::Node>> in_ports,
-                            std::unordered_map<std::string, ov::Output<const ov::Node>> out_ports,
+                            const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+                            const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
                             uint32_t tokens);
     void trim_kvcache_for_speculative_decoding(ov::SoPtr<ov::ITensor> position_ids);
 
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,
-                               ov::SoPtr<ov::ITensor> position_ids);
+                               ov::SoPtr<ov::ITensor> position_ids,
+                               ov::SoPtr<ov::ITensor> input_token_ids);
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
-                             ov::SoPtr<ov::ITensor> position_ids);
+                             ov::SoPtr<ov::ITensor> position_ids,
+                             ov::SoPtr<ov::ITensor> input_token_ids);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
-                       ov::SoPtr<ov::ITensor> position_ids);
+                       ov::SoPtr<ov::ITensor> position_ids,
+                       ov::SoPtr<ov::ITensor> input_token_ids);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
-                        ov::SoPtr<ov::ITensor> position_ids);
+                        ov::SoPtr<ov::ITensor> position_ids,
+                        ov::SoPtr<ov::ITensor> input_token_ids);
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
@@ -87,6 +92,10 @@ private:
     std::string m_input_ids_name;
 
     bool m_generate_initialized = false;
+
+    bool m_first_run = true;
+
+    int64_t m_zero_position_id = 0;
 
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
