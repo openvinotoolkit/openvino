@@ -7,7 +7,7 @@
 
 #include "dev/threading/itt.hpp"
 
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_ADAPTIVE
 
 #    define TBB_NUMA_SUPPORT_PRESENT (TBB_INTERFACE_VERSION >= 11100)
 #    if defined(__APPLE__)
@@ -332,4 +332,5 @@ int default_concurrency(numa_node_id id) {
 
 }  // namespace info
 }  // namespace custom
-#endif /*OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO*/
+#endif /*OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == \
+          OV_THREAD_TBB_ADAPTIVE*/
