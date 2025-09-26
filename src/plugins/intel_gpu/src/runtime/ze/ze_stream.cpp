@@ -8,7 +8,11 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "ze_event_pool.hpp"
+
+#include "ze_event_manager.hpp"
+#include "ze_cb_event_manager.hpp"
+#include "ze_event_pool_manager.hpp"
+
 #include "ze_event.hpp"
 #include "ze_kernel.hpp"
 #include "ze_memory.hpp"
@@ -185,8 +189,7 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
 
 ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
-    , _engine(engine)
-    , m_pool(engine, config.get_enable_profiling()) {
+    , _engine(engine) {
     const auto &info = engine.get_device_info();
 
     ze_command_queue_desc_t command_queue_desc = {};
@@ -201,6 +204,11 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
     command_queue_desc.ordinal = info.copy_queue_group_ordinal;
     ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_copy_command_list));
+    if (m_queue_type == QueueTypes::in_order) {
+        m_ev_manager = std::make_unique<ze_cb_event_manager>(engine, config.get_enable_profiling());
+    } else {
+        m_ev_manager = std::make_unique<ze_event_pool_manager>(engine, config.get_enable_profiling());
+    }
 }
 
 ze_stream::~ze_stream() {
@@ -306,7 +314,8 @@ void ze_stream::wait() {
 }
 
 event::ptr ze_stream::create_user_event(bool set) {
-    auto ev = m_pool.create_user_event();
+    // user event should use different api
+    auto ev = m_ev_manager->create_event(++m_queue_counter);
     if (set)
         ev->set();
 
@@ -314,7 +323,7 @@ event::ptr ze_stream::create_user_event(bool set) {
 }
 
 event::ptr ze_stream::create_base_event() {
-    return m_pool.create_event(++m_queue_counter);
+    return m_ev_manager->create_event(++m_queue_counter);
 }
 
 void ze_stream::flush() const {

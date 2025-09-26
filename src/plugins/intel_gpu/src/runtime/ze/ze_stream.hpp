@@ -9,6 +9,7 @@
 #include "ze_common.hpp"
 #include "ze_engine.hpp"
 #include "ze_event.hpp"
+#include "ze_event_manager.hpp"
 
 namespace cldnn {
 namespace ze {
@@ -27,7 +28,7 @@ public:
         , m_queue_counter(other.m_queue_counter.load())
         , m_last_barrier(other.m_last_barrier.load())
         , m_last_barrier_ev(other.m_last_barrier_ev)
-        , m_pool(other.m_pool) {
+        , m_ev_manager(other.m_ev_manager.release()) {
             other.m_command_list = nullptr;
             other.m_copy_command_list = nullptr;
         }
@@ -64,7 +65,7 @@ private:
     mutable std::atomic<uint64_t> m_queue_counter{0};
     std::atomic<uint64_t> m_last_barrier{0};
     std::shared_ptr<ze_event> m_last_barrier_ev = nullptr;
-    ze_events_pool m_pool;
+    std::unique_ptr<ze_event_manager> m_ev_manager;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;

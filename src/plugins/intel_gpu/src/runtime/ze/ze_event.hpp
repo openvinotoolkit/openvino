@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ze_base_event.hpp"
+#include "ze_event_manager.hpp"
 #include "ze_event_pool.hpp"
 
 #include <vector>
@@ -15,9 +16,10 @@ namespace ze {
 
 struct ze_event : public ze_base_event {
 public:
-    ze_event(ze_event_pool::ptr ev_pool, ze_event_handle_t ev, uint64_t queue_stamp = 0)
+    ze_event(ze_event_manager *ev_manager, ze_event_handle_t ev, uint64_t queue_stamp = 0, std::shared_ptr<ze_event_pool> event_pool = nullptr)
         : ze_base_event(queue_stamp)
-        , m_event_pool(ev_pool)
+        , m_event_manager(ev_manager)
+        , m_event_pool(event_pool)
         , m_event(ev) {}
 
     ze_event_handle_t get() override { return m_event; }
@@ -34,7 +36,8 @@ private:
     friend struct ze_events;
 
 protected:
-    ze_event_pool::ptr m_event_pool;
+    ze_event_manager *m_event_manager;
+    std::shared_ptr<ze_event_pool> m_event_pool = nullptr;
     ze_event_handle_t m_event;
 };
 

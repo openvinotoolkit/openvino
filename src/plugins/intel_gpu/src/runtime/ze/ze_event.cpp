@@ -47,11 +47,8 @@ bool ze_event::is_set_impl() {
 }
 
 bool ze_event::is_profiled() const {
-    if (m_event != nullptr) {
-        ze_event_pool_flags_t event_pool_flags;
-        auto ev_pool = m_event_pool.get()->m_handle;
-        ZE_CHECK(zeEventPoolGetFlags(ev_pool, &event_pool_flags));
-        return (event_pool_flags & ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP) != 0;
+    if (m_event_manager) {
+        return m_event_manager->is_profiling_enabled();
     }
     return false;
 }
@@ -61,7 +58,7 @@ bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_inte
         return true;
     }
 
-    const auto& engine = m_event_pool->m_engine;
+    const auto& engine = m_event_manager->get_engine();
     auto device_info = engine.get_device_info();
 
     ze_kernel_timestamp_result_t timestamp{};
@@ -146,7 +143,7 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
     if (_events.empty())
         return false;
 
-    const auto& engine = downcast<ze_event>(_events.front().get())->m_event_pool->m_engine;
+    const auto& engine = downcast<ze_event>(_events.front().get())->m_event_manager->get_engine();
     auto device_info = engine.get_device_info();
 
     auto get_total_exec_time = [&device_info](std::vector<ze_kernel_timestamp_data_t>& all_timestamps) {
@@ -210,7 +207,6 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
 }
 
 ze_event::~ze_event() {
-    if (m_event != nullptr) {
-        zeEventDestroy(m_event);
-    }
+    if (m_event_manager != nullptr)
+        m_event_manager->destroy_event(this);
 }
