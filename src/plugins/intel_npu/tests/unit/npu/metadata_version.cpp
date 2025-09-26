@@ -207,11 +207,11 @@ public:
 
     void TestBody() override {}
 
-    static std::string getTestCaseName(testing::TestParamInfo<MetadataVersionTestFixture::ParamType> info);
+    static std::string getTestCaseName(const testing::TestParamInfo<MetadataVersionTestFixture::ParamType>& info);
 };
 
 std::string MetadataVersionTestFixture::getTestCaseName(
-    testing::TestParamInfo<MetadataVersionTestFixture::ParamType> info) {
+    const testing::TestParamInfo<MetadataVersionTestFixture::ParamType>& info) {
     std::ostringstream result;
     result << "major version=" << MetadataBase::get_major(info.param)
            << ", minor version=" << MetadataBase::get_minor(info.param);
