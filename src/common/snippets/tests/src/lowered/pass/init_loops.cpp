@@ -303,17 +303,10 @@ TEST_F(InitLoopsTest, BrgemmAddSplitMN) {
             {LoopPortDesc(1, -n_block, data_size)}};
 
         const IOLoopPortDescs m_split_loop_descs = {
-            // Note: current implementation is incorrect: when m split loop is placed inside n blocking loop,
+            // Note: when m split loop is placed inside n blocking loop,
             // loop ports, which are inside the blocking loop, must have increment equal to n_block, not n
             // If the LoopPort is also blocking loop loop port, it still has increment equal to n
-            // Algorithm:
-            // 1. Process all dimensions before target one (N in this case)
-            // 2. Check if there is a loop by this dimension (n blocking loop in this case)
-            // 3. If yes, use n_block as increment for all ports inside this loop
-            // 5. If no, use n as increment as usual
-            // The question is: how to check that the current loop is inside the blocking loop?
-            {LoopPortDesc(n, -n * m_block, data_size), LoopPortDesc(n, -n * m_block, data_size)},
-            // {LoopPortDesc(n_block, -n_block * m_block, data_size), LoopPortDesc(n_block, -n_block * m_block, data_size)},
+            {LoopPortDesc(n_block, -n_block * m_block, data_size), LoopPortDesc(n, -n * m_block, data_size)},
             {LoopPortDesc(n, -n * m_block, data_size)}};
 
         build_lir(linear_ir_ref, m_loop_descs, n_loop_descs, m_split_loop_descs, n_split_loop_descs);
