@@ -109,6 +109,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             # Configure Step Options:
             CMAKE_ARGS
                 ${cmake_extra_args}
+                "-DDNNL_VERBOSE=ON"
                 "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
