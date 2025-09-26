@@ -66,7 +66,6 @@ TEST_F(InitLoopsTest, BrgemmAddSplitM) {
     const ov::snippets::VectorDims brgemm_b_subtensor{ov::snippets::utils::get_full_dim_value(), n_block};
     const ov::snippets::VectorDims brgemm_c_subtensor{m_block, n_block};
 
-    // blocking_m_loop_id, add_m_split_loop_id, inner_add_loop_id
     auto build_lir = [&](const std::shared_ptr<ov::snippets::lowered::LinearIR>& lir,
                          const IOLoopPortDescs& m_loop_descs,
                          const IOLoopPortDescs& n_loop_descs,
@@ -153,23 +152,23 @@ TEST_F(InitLoopsTest, BrgemmAddSplitM) {
     {
         using LoopPortDesc = UnifiedLoopInfo::LoopPortDesc;
         const auto data_size = input_precision.size();
-        const LoopPortDesc non_incremented_desc(0, 0, data_size);
 
         const IOLoopPortDescs n_loop_descs = {
-            {LoopPortDesc(0, 0, data_size), LoopPortDesc(1, -n, data_size)},
-            {LoopPortDesc(1, -n, data_size)}};
+            {LoopPortDesc(0, 0, data_size), LoopPortDesc(1, -static_cast<int>(n), data_size)},
+            {LoopPortDesc(1, -static_cast<int>(n), data_size)}};
 
-        const IOLoopPortDescs m_loop_descs = {
-            {LoopPortDesc(k, -k * m, data_size), LoopPortDesc(0, 0, data_size), LoopPortDesc(n, -n * m, data_size)},
-            {LoopPortDesc(n, -n * m, data_size)}};
+        const IOLoopPortDescs m_loop_descs = {{LoopPortDesc(k, -static_cast<int>(k * m), data_size),
+                                               LoopPortDesc(0, 0, data_size),
+                                               LoopPortDesc(n, -static_cast<int>(n * m), data_size)},
+                                              {LoopPortDesc(n, -static_cast<int>(n * m), data_size)}};
 
         const IOLoopPortDescs inner_add_loop_descs = {
-            {LoopPortDesc(1, -n, data_size), LoopPortDesc(1, -n, data_size)},
-            {LoopPortDesc(1, -n, data_size)}};
+            {LoopPortDesc(1, -static_cast<int>(n), data_size), LoopPortDesc(1, -static_cast<int>(n), data_size)},
+            {LoopPortDesc(1, -static_cast<int>(n), data_size)}};
 
-        const IOLoopPortDescs m_split_loop_descs = {
-            {LoopPortDesc(n, -n * m_block, data_size), LoopPortDesc(n, -n * m_block, data_size)},
-            {LoopPortDesc(n, -n * m_block, data_size)}};
+        const IOLoopPortDescs m_split_loop_descs = {{LoopPortDesc(n, -static_cast<int>(n * m_block), data_size),
+                                                     LoopPortDesc(n, -static_cast<int>(n * m_block), data_size)},
+                                                    {LoopPortDesc(n, -static_cast<int>(n * m_block), data_size)}};
 
         build_lir(linear_ir_ref, m_loop_descs, n_loop_descs, m_split_loop_descs, inner_add_loop_descs);
     }
@@ -201,7 +200,6 @@ TEST_F(InitLoopsTest, BrgemmAddSplitMN) {
     const ov::snippets::VectorDims brgemm_b_subtensor{ov::snippets::utils::get_full_dim_value(), n_block};
     const ov::snippets::VectorDims brgemm_c_subtensor{m_block, n_block};
 
-    // blocking_m_loop_id, blocking_n_loop_id, add_m_split_loop_id, add_n_split_loop_id
     auto build_lir = [&](const std::shared_ptr<ov::snippets::lowered::LinearIR>& lir,
                          const IOLoopPortDescs& m_loop_descs,
                          const IOLoopPortDescs& n_loop_descs,
@@ -290,25 +288,27 @@ TEST_F(InitLoopsTest, BrgemmAddSplitMN) {
         using LoopPortDesc = UnifiedLoopInfo::LoopPortDesc;
         const auto data_size = input_precision.size();
 
-        const IOLoopPortDescs n_loop_descs = {
-            {LoopPortDesc(0, 0, data_size), LoopPortDesc(1, -n, data_size), LoopPortDesc(1, -n, data_size)},
-            {LoopPortDesc(1, -n, data_size)}};
+        const IOLoopPortDescs n_loop_descs = {{LoopPortDesc(0, 0, data_size),
+                                               LoopPortDesc(1, -static_cast<int>(n), data_size),
+                                               LoopPortDesc(1, -static_cast<int>(n), data_size)},
+                                              {LoopPortDesc(1, -static_cast<int>(n), data_size)}};
 
-        const IOLoopPortDescs m_loop_descs = {
-            {LoopPortDesc(k, -k * m, data_size), LoopPortDesc(0, 0, data_size), LoopPortDesc(n, -n * m, data_size)},
-            {LoopPortDesc(n, -n * m, data_size)}};
+        const IOLoopPortDescs m_loop_descs = {{LoopPortDesc(k, -static_cast<int>(k * m), data_size),
+                                               LoopPortDesc(0, 0, data_size),
+                                               LoopPortDesc(n, -static_cast<int>(n * m), data_size)},
+                                              {LoopPortDesc(n, -static_cast<int>(n * m), data_size)}};
 
-        const IOLoopPortDescs n_split_loop_descs = {
-            {LoopPortDesc(1, -n_block, data_size), LoopPortDesc(1, -n_block, data_size)},
-            {LoopPortDesc(1, -n_block, data_size)}};
+        const IOLoopPortDescs n_split_loop_descs = {{LoopPortDesc(1, -static_cast<int>(n_block), data_size),
+                                                     LoopPortDesc(1, -static_cast<int>(n_block), data_size)},
+                                                    {LoopPortDesc(1, -static_cast<int>(n_block), data_size)}};
 
         const IOLoopPortDescs m_split_loop_descs = {
             // Note: when m split loop is placed inside n blocking loop,
             // loop ports, which are inside the blocking loop, must have increment equal to n_block, not n
             // If the LoopPort is also blocking loop loop port, it still has increment equal to n
-            {LoopPortDesc(n_block, -n_block * m_block, data_size), LoopPortDesc(n, -n * m_block, data_size)},
-            {LoopPortDesc(n, -n * m_block, data_size)}};
-
+            {LoopPortDesc(n_block, -static_cast<int>(n_block * m_block), data_size),
+             LoopPortDesc(n, -static_cast<int>(n * m_block), data_size)},
+            {LoopPortDesc(n, -static_cast<int>(n * m_block), data_size)}};
         build_lir(linear_ir_ref, m_loop_descs, n_loop_descs, m_split_loop_descs, n_split_loop_descs);
     }
 }
