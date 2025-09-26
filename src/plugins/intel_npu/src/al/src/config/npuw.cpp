@@ -33,6 +33,8 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_SPATIAL>();
     desc.add<NPUW_SPATIAL_NWAY>();
     desc.add<NPUW_SPATIAL_DYN>();
+    desc.add<NPUW_ATTN_DYN>();
+    desc.add<NPUW_ATTN_NO_COPY>();
     desc.add<NPUW_HOST_GATHER>();
     desc.add<NPUW_F16IC>();
     desc.add<NPUW_DCOFF_TYPE>();
@@ -69,6 +71,8 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
     desc.add<NPUW_LLM_PREFILL_HINT>();
     desc.add<NPUW_LLM_GENERATE_HINT>();
+    desc.add<NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    desc.add<NPUW_LLM_GENERATE_ATTENTION_HINT>();
     desc.add<NPUW_LLM_SHARED_HEAD>();
 }
 

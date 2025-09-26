@@ -25,7 +25,8 @@ public:
         uint32_t num_stored_tokens = 0u;
         uint32_t dim = 0u;
         uint32_t max_generation_token_len = 0u;
-        bool v_tensors_transposed = false;
+        bool v_tensors_transposed_pre = false; // prefill
+        bool v_tensors_transposed_gen = false; // generate
     };
 
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
