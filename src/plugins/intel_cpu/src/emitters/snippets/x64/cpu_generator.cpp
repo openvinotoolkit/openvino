@@ -10,7 +10,6 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <set>
 #include <utility>
@@ -488,23 +487,6 @@ snippets::CompiledSnippetPtr intel_cpu::CPUTargetMachine::get_snippet() {
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU
     h = std::make_unique<jit_snippet>();
     return result;
-}
-
-intel_cpu::CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator_t> h)
-    : h_compiled(std::move(h)) {
-    OPENVINO_ASSERT(h_compiled && h_compiled->jit_ker(), "Got invalid jit generator or kernel was nopt compiled");
-}
-
-const uint8_t* intel_cpu::CompiledSnippetCPU::get_code() const {
-    return h_compiled->jit_ker();
-}
-
-size_t intel_cpu::CompiledSnippetCPU::get_code_size() const {
-    return h_compiled->getSize();
-}
-
-bool intel_cpu::CompiledSnippetCPU::empty() const {
-    return get_code_size() == 0;
 }
 
 intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
