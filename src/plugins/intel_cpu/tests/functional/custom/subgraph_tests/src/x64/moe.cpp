@@ -130,21 +130,18 @@ protected:
         const auto expert_alpha = 1.702f;
         const auto expert_beta = 7.0f;
 
-        // Get the static input shape from test parameters [1, 4, 256]
-        auto static_shape = shape_params.data_shape.second[0];  // first (and only) static shape
-        const size_t batch = static_shape[0];                   // 1
-        const size_t seq_len = static_shape[1];                 // 4
-        const size_t input_hidden = static_shape[2];            // 256
+        // Create input parameter with dynamic shape - batch and hidden_size are fixed, seq_len is dynamic
+        const size_t batch = 2;                                      // Fixed batch size from reference
+        const ov::Dimension seq_len_dim = ov::Dimension::dynamic();  // Dynamic sequence length
+        auto input_shape = ov::PartialShape{batch, seq_len_dim, hidden_size};
+        auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, input_shape);
 
-        // Create input parameter with static shape
-        auto input = std::make_shared<ov::op::v0::Parameter>(data_precision, static_shape);
-
-        // Expert processing path
+        // Expert processing path - use -1 for dynamic reshape like in reference
         auto experts_reshape = std::make_shared<ov::op::v1::Reshape>(
             input,
             ov::op::v0::Constant::create(ov::element::i64,
                                          ov::Shape{2},
-                                         std::vector<int64_t>{batch * seq_len, hidden_size}),
+                                         std::vector<int64_t>{-1, hidden_size}),  // -1 flattens batch*seq_len
             false);
 
         auto tile = std::make_shared<ov::op::v0::Tile>(
@@ -210,9 +207,10 @@ protected:
 
         auto end_reshape = std::make_shared<ov::op::v1::Reshape>(
             down_proj_add,
-            ov::op::v0::Constant::create(ov::element::i64,
-                                         ov::Shape{4},
-                                         std::vector<int64_t>{number_of_experts, batch, seq_len, hidden_size}),
+            ov::op::v0::Constant::create(
+                ov::element::i64,
+                ov::Shape{4},
+                std::vector<int64_t>{number_of_experts, batch, -1, hidden_size}),  // Use -1 for dynamic seq_len
             false);
 
         // Router subgraph - this is crucial for the MoE pattern recognition
@@ -237,14 +235,14 @@ protected:
         auto router_topk_values = router_topk_values_and_indices->output(0);
         auto router_topk_indices = router_topk_values_and_indices->output(1);
 
-        // ScatterElementsUpdate: Create zeros tensor of the correct shape first
+        // ScatterElementsUpdate: Follow reference pattern exactly
         auto scatter_elements_update = std::make_shared<ov::op::v12::ScatterElementsUpdate>(
-            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{batch * seq_len, number_of_experts}, {0}),  // data
-            router_topk_indices,                                                                     // indices
-            router_topk_values,                                                                      // updates
+            router_topk_values,                                                           // data
+            router_topk_indices,                                                          // indices
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{batch, topk}, {0}),  // updates - match reference
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}));  // axis
 
-        // Transpose: [batch*seq_len, number_of_experts] -> [number_of_experts, batch*seq_len]
+        // Transpose: Dynamic shape transpose
         auto router_transpose = std::make_shared<ov::op::v1::Transpose>(
             scatter_elements_update,
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0}));
@@ -311,17 +309,30 @@ namespace {
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
 
-const std::vector<MoeShapeParams> input_shapes_basic = {{
-    {{}, {{2, 1, 2048}}},  // data_shape - simplified: batch=2, seq_len=1, hidden_size=2048
-    2048,                  // hidden_size - match reference
-    4096,                  // intermediate_size - match reference
-    3,                     // number_of_experts - match reference
-    2,                     // topk
-    2,                     // fusion_factor
-    {3, 2048, 8192},       // gate_up_weights_shape - match reference dimensions
-    {3, 4096, 2048},       // down_proj_weights_shape - match reference dimensions
-    64                     // decompression_group_size
-}};
+const std::vector<MoeShapeParams> input_shapes_basic = {
+    {
+        {{2, -1, 2048}, {{2, 1, 2048}, {2, 4, 2048}, {2, 8, 2048}}},  // data_shape - dynamic seq_len: batch=2,
+                                                                      // seq_len=dynamic, hidden_size=2048
+        2048,                                                         // hidden_size - match reference
+        4096,                                                         // intermediate_size - match reference
+        3,                                                            // number_of_experts - match reference
+        2,                                                            // topk
+        2,                                                            // fusion_factor
+        {3, 2048, 8192},  // gate_up_weights_shape - match reference dimensions
+        {3, 4096, 2048},  // down_proj_weights_shape - match reference dimensions
+        64                // decompression_group_size
+    },
+    {
+        {{1, -1, 1024}, {{1, 2, 1024}, {1, 6, 1024}, {1, 16, 1024}}},  // Different batch size and hidden size
+        1024,                                                          // hidden_size
+        2048,                                                          // intermediate_size
+        4,                                                             // number_of_experts
+        2,                                                             // topk
+        2,                                                             // fusion_factor
+        {4, 1024, 4096},                                               // gate_up_weights_shape
+        {4, 2048, 1024},                                               // down_proj_weights_shape
+        32                                                             // decompression_group_size
+    }};
 auto filter_additional_config_basic = []() {
     std::vector<std::map<std::string, ov::Any>> additional_config = {
         {{ov::hint::inference_precision.name(), ov::element::f32}}};
