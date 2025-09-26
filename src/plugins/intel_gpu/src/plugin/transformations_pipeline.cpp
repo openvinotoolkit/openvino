@@ -513,7 +513,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
         kv_cache_config.inferencePrecision = infer_precision;
         kv_cache_config.keyCacheBlockSize = 16;
-        kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+        kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};
         kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
         kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
         kv_cache_config.valueCacheBlockSize = 16;
