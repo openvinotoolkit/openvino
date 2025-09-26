@@ -53,3 +53,21 @@ TEST(engine, memory_creation) {
     ASSERT_FALSE(mem->is_allocated_by(engine));
     ASSERT_EQ(std::dynamic_pointer_cast<simple_attached_memory>(mem)->lock(get_test_stream(), mem_lock_type::read), host_data.data());
 }
+
+TEST(engine, large_allocation) {
+    auto& engine = get_test_engine();
+
+    std::shared_ptr<memory> mem = nullptr;
+    ov::Shape sz_8gb = {8, 1024, 1024, 512+128};
+    layout layout_to_allocate = {sz_8gb, data_types::u8, format::bfyx};
+
+    engine.set_enable_large_allocations(true);
+
+    if (engine.supports_allocation(allocation_type::usm_device) && ov::shape_size(sz_8gb) < engine.get_device_info().max_global_mem_size) {
+        OV_ASSERT_NO_THROW(mem = engine.allocate_memory(layout_to_allocate, allocation_type::usm_host));
+        ASSERT_NE(mem, nullptr);
+        ASSERT_EQ(mem->get_layout(), layout_to_allocate);
+        ASSERT_NE(std::dynamic_pointer_cast<ocl::gpu_usm>(mem), nullptr);
+        ASSERT_TRUE(mem->is_allocated_by(engine));
+    }
+}

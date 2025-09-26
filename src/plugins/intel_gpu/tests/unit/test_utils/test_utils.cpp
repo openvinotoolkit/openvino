@@ -298,6 +298,10 @@ cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
         config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     }
 
+    if (engine.get_enable_large_allocations()) {
+        config.set_property(ov::intel_gpu::hint::enable_large_allocations(true));
+    }
+
     return config;
 }
 
