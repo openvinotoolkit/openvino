@@ -1064,8 +1064,8 @@ inline void attn_softmax_kernel(T* a,
                                 void* attn_mask,
                                 uint8_t* causal_mask,
                                 bool select_nfltmax_at_0,
-                                size_t len,
-                                size_t total_size,
+                                size_t seq_len,
+                                size_t kv_total_len,
                                 ov::element::Type attn_mask_prec,
                                 ov::element::Type dst_precision,
                                 float alibi_slope = 0);
@@ -1078,8 +1078,8 @@ inline void attn_softmax_kernel<float>(float* a,
                                        void* attn_mask,
                                        uint8_t* causal_mask,
                                        bool select_nfltmax_at_0,
-                                       size_t len,
-                                       size_t total_size,
+                                       size_t seq_len,
+                                       size_t kv_total_len,
                                        ov::element::Type attn_mask_prec,
                                        ov::element::Type dst_precision,
                                        float alibi_slope) {
@@ -1122,7 +1122,7 @@ inline void attn_softmax_kernel<float>(float* a,
                              static_cast<const float*>(attn_mask),
                              causal_mask,
                              select_nfltmax_at_0,
-                             len,
+                             seq_len,
                              alibi_slope,
                              max);
     } else if (attn_mask_prec == ov::element::bf16) {
@@ -1132,7 +1132,7 @@ inline void attn_softmax_kernel<float>(float* a,
                              static_cast<const ov::bfloat16*>(attn_mask),
                              causal_mask,
                              select_nfltmax_at_0,
-                             len,
+                             seq_len,
                              alibi_slope,
                              max);
     } else {
@@ -1142,33 +1142,33 @@ inline void attn_softmax_kernel<float>(float* a,
                             static_cast<const ov::float16*>(attn_mask),
                             causal_mask,
                             select_nfltmax_at_0,
-                            len,
+                            seq_len,
                             alibi_slope,
                             max);
     }
 
     float sum = 0.0f;
     // exp sum
-    exp_reduce_sum(a, max, len, sum);
+    exp_reduce_sum(a, max, seq_len, sum);
     // divide sum
     float scalar = 1.0f / sum;
     if (dst_precision == ov::element::f32) {
-        multiply_scalar(a, reinterpret_cast<float*>(a_dst), scalar, len);
+        multiply_scalar(a, reinterpret_cast<float*>(a_dst), scalar, kv_total_len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len) {
-            memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
+        if (kv_total_len > seq_len) {
+            memset(static_cast<float*>(a_dst) + seq_len, 0, sizeof(float) * (kv_total_len - seq_len));
         }
     } else if (dst_precision == ov::element::bf16) {
-        multiply_scalar(a, static_cast<ov::bfloat16*>(a_dst), scalar, len);
+        multiply_scalar(a, static_cast<ov::bfloat16*>(a_dst), scalar, kv_total_len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len) {
-            memset(static_cast<ov::bfloat16*>(a_dst) + len, 0, sizeof(ov::bfloat16) * (total_size - len));
+        if (kv_total_len > seq_len) {
+            memset(static_cast<ov::bfloat16*>(a_dst) + seq_len, 0, sizeof(ov::bfloat16) * (kv_total_len - seq_len));
         }
     } else {
-        multiply_scalar(a, static_cast<ov::float16*>(a_dst), scalar, len);
+        multiply_scalar(a, static_cast<ov::float16*>(a_dst), scalar, kv_total_len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len) {
-            memset(static_cast<ov::float16*>(a_dst) + len, 0, sizeof(ov::float16) * (total_size - len));
+        if (kv_total_len > seq_len) {
+            memset(static_cast<ov::float16*>(a_dst) + seq_len, 0, sizeof(ov::float16) * (kv_total_len - seq_len));
         }
     }
 }
@@ -1181,8 +1181,8 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                              void* attn_mask,
                                              uint8_t* causal_mask,
                                              bool select_nfltmax_at_0,
-                                             size_t len,
-                                             size_t total_size,
+                                             size_t seq_len,
+                                             size_t kv_total_len,
                                              ov::element::Type attn_mask_prec,
                                              ov::element::Type dst_precision,
                                              float alibi_slope) {
@@ -1246,7 +1246,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                              static_cast<const float*>(attn_mask),
                              causal_mask,
                              select_nfltmax_at_0,
-                             len,
+                             seq_len,
                              alibi_slope,
                              max);
     } else if (attn_mask_prec == ov::element::f16) {
@@ -1256,7 +1256,7 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                              static_cast<const ov::float16*>(attn_mask),
                              causal_mask,
                              select_nfltmax_at_0,
-                             len,
+                             seq_len,
                              alibi_slope,
                              max);
     } else {
@@ -1266,26 +1266,26 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                              static_cast<const ov::bfloat16*>(attn_mask),
                              causal_mask,
                              select_nfltmax_at_0,
-                             len,
+                             seq_len,
                              alibi_slope,
                              max);
     }
 
     ov::float16 sum = 0.0f;
     if (dst_precision == ov::element::f32) {
-        exp_reduce_sum_f32(a, max, len, sum);
+        exp_reduce_sum_f32(a, max, seq_len, sum);
         ov::float16 scalar = 1.0f / sum;
-        multiply_scalar(a, static_cast<float*>(a_dst), scalar, len);
+        multiply_scalar(a, static_cast<float*>(a_dst), scalar, kv_total_len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len)
-            memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
+        if (kv_total_len > seq_len)
+            memset(static_cast<float*>(a_dst) + seq_len, 0, sizeof(float) * (kv_total_len - seq_len));
     } else {
-        exp_reduce_sum_f32(a, max, len, sum);
+        exp_reduce_sum_f32(a, max, seq_len, sum);
         ov::float16 scalar = 1.0f / sum;
-        multiply_scalar_f32(a, static_cast<ov::float16*>(a_dst), scalar, len);
+        multiply_scalar_f32(a, static_cast<ov::float16*>(a_dst), scalar, kv_total_len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len)
-            memset(static_cast<ov::float16*>(a_dst) + len, 0, sizeof(ov::float16) * (total_size - len));
+        if (kv_total_len > seq_len)
+            memset(static_cast<ov::float16*>(a_dst) + seq_len, 0, sizeof(ov::float16) * (kv_total_len - seq_len));
     }
 }
 #endif
