@@ -25,7 +25,7 @@ public:
           m_multiplier(multiplier) {
         m_thread_pool = std::make_shared<ThreadPool>(*this);
     }
-    ~CpuParallel() = default;
+    ~CpuParallel() override = default;
 
     [[nodiscard]] ov::intel_cpu::TbbPartitioner get_partitioner() const {
         return m_partitioner;
@@ -41,10 +41,9 @@ public:
                                                                          : parallel_get_max_threads() * m_multiplier;
         return num;
     }
-    void activate() {
+    void activate() const {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-        int nthreads = get_num_threads();
-        dnnl_threadpool_interop_set_max_concurrency(nthreads);
+        dnnl_threadpool_interop_set_max_concurrency(get_num_threads());
 #endif
     }
 

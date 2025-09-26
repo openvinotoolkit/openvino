@@ -14,7 +14,6 @@
 #    include <oneapi/dnnl/dnnl_threadpool.hpp>
 
 #    include "openvino/core/parallel.hpp"
-#    include "openvino/runtime/intel_cpu/properties.hpp"
 #endif
 
 namespace ov::intel_cpu {

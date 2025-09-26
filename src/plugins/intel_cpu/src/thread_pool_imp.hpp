@@ -37,7 +37,6 @@ public:
         m_cpu_parallel.parallel_simple(n, fn);
     }
 
-    ~ThreadPool() = default;
 private:
     const ICpuParallel& m_cpu_parallel;
 };

@@ -12,8 +12,8 @@ class ICpuParallel {
 public:
     virtual ~ICpuParallel() = default;
 
-    virtual int get_num_threads() const = 0;
+    [[nodiscard]] virtual int get_num_threads() const = 0;
     virtual void parallel_simple(int n, const std::function<void(int, int)>& fn) const = 0;
 };
 
-} // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu
