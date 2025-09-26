@@ -368,7 +368,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
-        if: ${{ 'false' }} # Ticket: 143900
+        if: ${{ !cancelled() }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
