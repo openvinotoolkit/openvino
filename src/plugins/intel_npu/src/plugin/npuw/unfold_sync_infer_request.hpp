@@ -32,10 +32,13 @@ public:
     bool supports_async_pipeline() const override {
         return false;
     }
-    void update_subrequest_links(std::size_t) override {}
 
 private:
     void infer() override;
+    void try_accurate_substart_async(std::size_t idx) override;
+    void try_accurate_subwait(std::size_t idx, bool& accuracy_failover) override;
+    void ensure_subrequest_is_accurate(std::size_t idx, bool& accuracy_failover) override;
+
 };
 
 }  // namespace npuw
