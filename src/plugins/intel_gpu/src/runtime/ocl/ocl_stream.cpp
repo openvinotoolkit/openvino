@@ -249,7 +249,7 @@ dnnl::stream& ocl_stream::get_onednn_stream() {
 QueueTypes ocl_stream::detect_queue_type(void *queue_handle) {
     cl_command_queue queue = static_cast<cl_command_queue>(queue_handle);
     cl_command_queue_properties properties;
-    auto status = clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
+    auto status = call_clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
     if (status != CL_SUCCESS) {
         throw std::runtime_error("Can't get queue properties for user handle\n");
     }
@@ -419,7 +419,7 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     }
 
     if (!clevents.empty()) {
-        auto err = clWaitForEvents(static_cast<cl_uint>(clevents.size()), &clevents[0]);
+        auto err = call_clWaitForEvents(static_cast<cl_uint>(clevents.size()), &clevents[0]);
         if (err != CL_SUCCESS) {
             OPENVINO_THROW("[GPU] clWaitForEvents failed with ", err, " code");
         }

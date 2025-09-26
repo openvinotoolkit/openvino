@@ -95,13 +95,13 @@ static constexpr auto INTEL_D3D11_SHARING_EXT_NAME = "cl_khr_d3d11_sharing";
 static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     cl_uint maxSubDevices;
     size_t maxSubDevicesSize;
-    const auto err = clGetDeviceInfo(rootDevice(),
+    const auto err = call_clGetDeviceInfo(rootDevice(),
                                      CL_DEVICE_PARTITION_MAX_SUB_DEVICES,
                                      sizeof(maxSubDevices),
                                      &maxSubDevices, &maxSubDevicesSize);
 
     OPENVINO_ASSERT(err == CL_SUCCESS && maxSubDevicesSize == sizeof(maxSubDevices),
-                    "[GPU] clGetDeviceInfo(..., CL_DEVICE_PARTITION_MAX_SUB_DEVICES,...)");
+                    "[GPU] call_clGetDeviceInfo(..., CL_DEVICE_PARTITION_MAX_SUB_DEVICES,...)");
     if (maxSubDevices == 0) {
         return {};
     }
@@ -198,7 +198,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
 std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     cl_uint num_platforms = 0;
     // Get number of platforms available
-    cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
+    cl_int error_code = call_clGetPlatformIDs(0, nullptr, &num_platforms);
     if (num_platforms == 0 || error_code == CL_PLATFORM_NOT_FOUND_KHR) {
         return {};
     }
@@ -206,7 +206,7 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
     // Get platform list
     std::vector<cl_platform_id> platform_ids(num_platforms);
-    error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), NULL);
+    error_code = call_clGetPlatformIDs(num_platforms, platform_ids.data(), nullptr);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
     std::vector<device::ptr> supported_devices;
@@ -249,12 +249,12 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_conte
 std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_device(void* user_device) const {
     cl_uint num_platforms = 0;
     // Get number of platforms availible
-    cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
+    cl_int error_code = call_clGetPlatformIDs(0, nullptr, &num_platforms);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
     // Get platform list
     std::vector<cl_platform_id> platform_ids(num_platforms);
-    error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), NULL);
+    error_code = call_clGetPlatformIDs(num_platforms, platform_ids.data(), nullptr);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
     std::vector<device::ptr> supported_devices;
@@ -270,8 +270,8 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_devic
         // A non-NULL return value for clGetExtensionFunctionAddressForPlatform
         // does not guarantee that an extension function is actually supported
         // by the platform. The application must also make a corresponding query
-        // using clGetPlatformInfo (platform, CL_PLATFORM_EXTENSIONS, …​ ) or
-        // clGetDeviceInfo (device,CL_DEVICE_EXTENSIONS, …​ )
+        // using call_clGetPlatformInfo(platform, CL_PLATFORM_EXTENSIONS, …​ ) or
+        // call_clGetDeviceInfo(device,CL_DEVICE_EXTENSIONS, …​ )
         // to determine if an extension is supported by the OpenCL implementation.
         const std::string& ext = platform.getInfo<CL_PLATFORM_EXTENSIONS>();
         if (ext.empty() || ext.find(INTEL_D3D11_SHARING_EXT_NAME) == std::string::npos) {

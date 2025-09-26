@@ -102,9 +102,9 @@ ocl_queue_type command_queues_builder::build(const cl::Context& context, const c
 
     auto properties = get_properties(device, stream_id++);
 #if CL_TARGET_OPENCL_VERSION >= 200
-    queue = clCreateCommandQueueWithProperties(context.get(), device.get(), properties.data(), &error_code);
+    queue = call_clCreateCommandQueueWithProperties(context.get(), device.get(), properties.data(), &error_code);
 #else
-    queue = clCreateCommandQueue(context.get(), device.get(), properties, &error_code);
+    queue = call_clCreateCommandQueue(context.get(), device.get(), properties, &error_code);
 #endif
     OPENVINO_ASSERT(error_code == CL_SUCCESS, "[GPU] Command queues builder returned ", error_code, " error code");
     return queue;
