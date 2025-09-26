@@ -32,11 +32,11 @@ inline int64_t get_ptr_increment(const LoopInfoPtr& outer_split_info_of_nested_l
     auto get_port_dim_idx = [&layout, &port_type](size_t dim_idx) {
         if (port_type == ExpressionPort::Input) {
             return get_input_dim_idx(layout, dim_idx);
-        } else if (port_type == ExpressionPort::Output) {
-            return get_output_dim_idx(layout, dim_idx);
-        } else {
-            OPENVINO_THROW("Unsupported expression port type!");
         }
+        if (port_type == ExpressionPort::Output) {
+            return get_output_dim_idx(layout, dim_idx);
+        }
+        OPENVINO_THROW("Unsupported expression port type!");
     };
 
     const auto& expr_port = loop_port.get_expr_port();
