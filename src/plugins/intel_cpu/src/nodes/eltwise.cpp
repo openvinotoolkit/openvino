@@ -107,7 +107,6 @@
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "utils/cpp/bit_cast.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
@@ -318,24 +317,13 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {ov::op::v0::Clamp::get_type_info_static(),
          [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              auto clampOp = getNgraphOpAs<ov::op::v0::Clamp>(op);
-             auto alpha_ = static_cast<float>(clampOp->get_min());
-             auto beta_ = static_cast<float>(clampOp->get_max());
+             auto alpha_ = static_cast<double>(clampOp->get_min());
+             auto beta_ = static_cast<double>(clampOp->get_max());
              if (clampOp->get_input_element_type(0).is_integral_number()) {
                  // according to spec, when Clamp has integer element type, min and max mist be converted to
                  // integer
-                 double temp_alpha = std::ceil(clampOp->get_min());
-                 double temp_beta = std::floor(clampOp->get_max());
-                 if (clampOp->get_input_element_type(0).is_signed()) {
-                     temp_alpha = std::max(temp_alpha, static_cast<double>(std::numeric_limits<int32_t>::min()));
-                     temp_beta = std::min(temp_beta, static_cast<double>(std::numeric_limits<int32_t>::max()));
-                     alpha_ = ov::intel_cpu::bit_cast<float>(static_cast<int32_t>(temp_alpha));
-                     beta_ = ov::intel_cpu::bit_cast<float>(static_cast<int32_t>(temp_beta));
-                 } else {
-                     temp_alpha = std::max(temp_alpha, 0.0);
-                     temp_beta = std::min(temp_beta, static_cast<double>(std::numeric_limits<uint32_t>::max()));
-                     alpha_ = ov::intel_cpu::bit_cast<float>(static_cast<uint32_t>(temp_alpha));
-                     beta_ = ov::intel_cpu::bit_cast<float>(static_cast<uint32_t>(temp_beta));
-                 }
+                 alpha_ = std::ceil(alpha_);
+                 beta_ = std::floor(beta_);
              }
              node.m_attrs.data.alpha = alpha_;
              node.m_attrs.data.beta = beta_;
@@ -1080,7 +1068,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
             break;
         case dnnl::algorithm::eltwise_linear:
             // call dnnlpoc's specialized API to generate optimized postOps sequence
-            dnnlpoc.appendLinear({getAlpha()}, {getBeta()}, isLastPostOp);
+            dnnlpoc.appendLinear({static_cast<float>(getAlpha())}, {static_cast<float>(getBeta())}, isLastPostOp);
             break;
         default:
             CPU_NODE_THROW("as post operation is not supported");
