@@ -35,7 +35,7 @@ function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win
   endif()
 endfunction(GetNameAndUrlToDownload)
 
-#download from paltform specific folder from share server
+#download from platform specific folder from share server
 function (DownloadAndExtractPlatformSpecific
   component
   archive_name_unified
@@ -113,7 +113,7 @@ function (ExtractWithVersion URL archive_path unpacked_path folder result files_
 endfunction (ExtractWithVersion)
 
 function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal resultExt sha256 files_to_extract)
-  debug_message("checking wether archive downloaded : ${archive_path}")
+  debug_message("checking whether archive downloaded : ${archive_path}")
   set (downloadStatus "NOTOK")
   if (NOT EXISTS ${archive_path})
     DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result ${sha256} ${files_to_extract})
