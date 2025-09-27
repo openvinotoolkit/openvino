@@ -72,6 +72,23 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
     auto run_comparison = [&](const ExpressionPtr& expr, const ExpressionPtr& expr_ref) {
         const auto node = expr->get_node();
         const auto node_ref = expr_ref->get_node();
+        if (should_compare(LIRCmpValues::EXPR_ATTRS)) {
+            bool node_attrs_comparison_disabled = !should_compare(NodesCmpValues::ATTRIBUTES);
+            // WA: NodesCmpValues::ATTRIBUTES is used for expressions attributes comparison
+            // so it must be temporarily forced to true for expressions attributes comparison
+            if (node_attrs_comparison_disabled)
+                enable(NodesCmpValues::ATTRIBUTES);
+            attributes::detail::CompareNodesAttributes compare_expr_attr(m_nodes_cmp_values);
+            expr_ref->visit_attributes(compare_expr_attr.get_ref_reader());
+            expr->visit_attributes(compare_expr_attr.get_cmp_reader());
+            if (!compare_expr_attr.equal()) {
+                return Result::error("Comparison of attributes failed for exprs " + name(node_ref) + ", " + name(node) +
+                " [cmp status (ref vs target): " + to_str(compare_expr_attr) + "]");
+            }
+            if (node_attrs_comparison_disabled)
+                disable(NodesCmpValues::ATTRIBUTES);
+        }
+
         if (m_nodes_cmp_values != NodesCmpValues::NONE)
             PROPAGATE_ERROR("", Comparator(m_nodes_cmp_values).compare(node.get(), node_ref.get()));
 

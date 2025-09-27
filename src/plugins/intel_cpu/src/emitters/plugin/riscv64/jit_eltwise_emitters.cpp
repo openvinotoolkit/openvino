@@ -2422,7 +2422,7 @@ size_t jit_round_half_away_from_zero_emitter::aux_gprs_count() const {
 }
 
 size_t jit_round_half_away_from_zero_emitter::aux_vecs_count() const {
-    return 1;
+    return 0;
 }
 
 void jit_round_half_away_from_zero_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -2441,23 +2441,18 @@ void jit_round_half_away_from_zero_emitter::emit_isa(const std::vector<size_t>& 
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    auto aux0 = VReg(aux_vec_idxs[0]);
 
-    h->vmv_v_x(aux0, zero);
-    h->vmflt_vv(mask_vreg(), src, aux0);
-    h->vmv_v_v(aux0, src);
-    h->vfneg_vv(aux0, aux0, VM::masked);
+    h->vfsgnjx_vv(dst, src, src);
 
     auto tmp = Reg(aux_gpr_idxs[0]);
-
     h->csrrwi(tmp, CSR::frm, static_cast<uint32_t>(RM::rmm));
 
-    h->vfcvt_x_f_v(dst, aux0);  // fp32 -> int32
-    h->vfcvt_f_x_v(dst, dst);   // int32 -> fp32
+    h->vfcvt_x_f_v(dst, dst);  // fp32 -> int32
+    h->vfcvt_f_x_v(dst, dst);  // int32 -> fp32
 
     h->csrw(CSR::frm, tmp);
 
-    h->vfneg_vv(dst, dst, VM::masked);
+    h->vfsgnj_vv(dst, dst, src);
 }
 
 std::set<std::vector<element::Type>> jit_round_half_away_from_zero_emitter::get_supported_precisions(

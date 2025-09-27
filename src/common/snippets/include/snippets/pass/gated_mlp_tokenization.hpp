@@ -27,7 +27,7 @@ namespace ov::snippets::pass {
 class TokenizeGatedMLPSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeGatedMLPSnippets");
-    explicit TokenizeGatedMLPSnippets(const SnippetsTokenization::Config& config);
+    explicit TokenizeGatedMLPSnippets(const TokenizationConfig& config);
 };
 
 }  // namespace ov::snippets::pass
