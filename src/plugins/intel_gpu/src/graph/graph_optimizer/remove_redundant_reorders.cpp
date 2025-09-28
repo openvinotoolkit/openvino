@@ -477,7 +477,6 @@ void remove_redundant_reorders::run(program& p) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout
                 // during shape inference
                 if (input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
-                    input.is_type<fully_connected>() ||
                     input.is_type<broadcast>() || input.is_type<select>() || input.is_type<eltwise>() ||
                     input.is_type<rms>() || (input.is_dynamic() &&
                     (input.is_type<group_normalization>() || input.is_type<permute>()))) {
