@@ -66,15 +66,17 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (idx_rank != 1) {
                 return;
             }
-            auto axis = impl_params->typed_desc<gather>()->axis;
-            if (impl_params->get_input_layout(0).get_partial_shape()[axis] == -1
-                || impl_params->get_input_layout(1).get_partial_shape()[0] == -1
-                || impl_params->get_input_layout(0).get_partial_shape()[axis] == impl_params->get_input_layout(1).get_partial_shape()[0]) {
-                // May be skipped
-                node.can_be_optimized(true);
-                // Set runtime skippable only when the node is set as can_be_optimized finally.
-                node.set_runtime_skippable(true);
-                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            if (node.is_dynamic()) {
+                auto axis = impl_params->typed_desc<gather>()->axis;
+                if (impl_params->get_input_layout(0).get_partial_shape()[axis] == -1
+                    || impl_params->get_input_layout(1).get_partial_shape()[0] == -1
+                    || impl_params->get_input_layout(0).get_partial_shape()[axis] == impl_params->get_input_layout(1).get_partial_shape()[0]) {
+                    // May be skipped
+                    node.can_be_optimized(true);
+                    // Set runtime skippable only when the node is set as can_be_optimized finally.
+                    node.set_runtime_skippable(true);
+                    GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+                }
             }
         });
 
