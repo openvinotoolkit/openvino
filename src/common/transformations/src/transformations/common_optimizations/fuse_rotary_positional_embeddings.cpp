@@ -59,8 +59,8 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(4);
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>(3);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
     // optional heads & tails are fused in separate matcher pass,
     // after RoPENode has been created.
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionCosSinPreprocess>();

@@ -18,7 +18,7 @@ const std::vector<std::string> vit_param = {"VariadicSplit", "Slice", "StridedSl
 INSTANTIATE_TEST_SUITE_P(smoke_RoPEQwenVL,
                          RoPETestQwenVL,
                          ::testing::Combine(
-                            ::testing::Values(ov::element::f32),
+                            ::testing::Values(ov::element::f16, ov::element::f32),
                             ::testing::Values(ov::test::utils::DEVICE_GPU),
                             ::testing::ValuesIn(vit_param)),
                          RoPETestQwenVL::getTestCaseName);
