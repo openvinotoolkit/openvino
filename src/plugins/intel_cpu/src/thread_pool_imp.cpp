@@ -8,7 +8,6 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
-#    include <oneapi/dnnl/dnnl_common.hpp>
 #    include <oneapi/dnnl/dnnl_threadpool.hpp>
 
 #    include "openvino/core/except.hpp"
