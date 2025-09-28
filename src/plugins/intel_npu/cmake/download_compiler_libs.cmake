@@ -4,8 +4,10 @@
 
 # Function to download and extract files
 function(download_and_extract url dest_dir zip_file extracted_dir modify_proxy)
+    message(" ----[DEBUG]--- extracted_dir is -- ${extracted_dir}")
     # Check if the prebuilt VCL compiler libraries not exist
     if(NOT EXISTS "${extracted_dir}")
+        message(" ----[DEBUG]-- the extracted_dir is ${extracted_dir}, which is not exist, start download")
         if(modify_proxy STREQUAL "MODIFY")
             # Update proxy to enable download for windows url
 	    set(original_NO_PROXY $ENV{NO_PROXY})
