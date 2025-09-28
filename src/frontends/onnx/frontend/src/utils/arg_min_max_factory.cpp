@@ -28,15 +28,15 @@ ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
       m_axis{node.get_attribute_value<std::int64_t>("axis", 0)},
       m_select_last_index{node.get_attribute_value<std::int64_t>("select_last_index", 0)} {}
 
-std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_max() const {
+ov::OutputVector ArgMinMaxFactory::make_arg_max() const {
     return make_topk_subgraph(v11::TopK::Mode::MAX);
 }
 
-std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_min() const {
+ov::OutputVector ArgMinMaxFactory::make_arg_min() const {
     return make_topk_subgraph(v11::TopK::Mode::MIN);
 }
 
-std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) const {
+ov::OutputVector ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) const {
     const auto k_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
     if (m_select_last_index == 1) {
@@ -93,10 +93,10 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
         if (m_keep_dims == 0) {
             const auto axis_to_remove = v0::Constant::create(ov::element::u64, ov::Shape{}, {topk->get_axis()});
 
-            return std::make_shared<v0::Squeeze>(result, axis_to_remove);
+            return {std::make_shared<v0::Squeeze>(result, axis_to_remove)};
         }
 
-        return result;
+        return {result};
     }
 
     const auto topk = std::make_shared<v11::TopK>(m_input_node,
@@ -107,15 +107,15 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
                                                   element::i32,
                                                   true);
 
-    const auto result = std::make_shared<v0::Convert>(topk->output(1), ov::element::i64);
+    const ov::Output<ov::Node> result = topk->output(1);
 
     if (m_keep_dims == 0) {
         const auto axis_to_remove = v0::Constant::create(ov::element::u64, ov::Shape{}, {topk->get_axis()});
 
-        return std::make_shared<v0::Squeeze>(result, axis_to_remove);
+        return {std::make_shared<v0::Squeeze>(result, axis_to_remove)};
     }
 
-    return result;
+    return {result};
 }
 }  // namespace utils
 }  // namespace onnx
