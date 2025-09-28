@@ -113,7 +113,7 @@ void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(loop_begin != nullptr, "LoopEnd must be connected to the LoopBegin");
     const auto num_inputs = expr->get_input_count();
     OPENVINO_ASSERT(num_inputs >= 1, "LoopEnd expression must have at least 1 input");
-    OPENVINO_ASSERT(expr->get_input_port_connector(num_inputs - 1)->get_source().get_expr()->get_node() == loop_begin,
+    OPENVINO_ASSERT(expr->get_input_expr_ptr(num_inputs - 1)->get_node() == loop_begin,
                     "LoopEnd expression must have LoopBegin attached to the last connector");
 
     const auto& loop_manager = linear_ir.get_loop_manager();
