@@ -134,7 +134,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    std::move(networkDesc.metadata),
 #endif
                                    std::move(tensor),
-                                    config,
+                                   config,
                                    /* blobAllocatedByPlugin = */ false,
                                    _compiler);
 }
