@@ -344,16 +344,18 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     using namespace dnnl::impl::gpu::intel::jit;
-    ngen::Product product = ngen::OpenCLCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get());
-    info.arch = convert_ngen_arch(ngen::getCore(product.family));
+    if (context.get() != nullptr) {
+        ngen::Product product = ngen::OpenCLCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get());
+        info.arch = convert_ngen_arch(ngen::getCore(product.family));
 
-    // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
-    // This is required to guarantee some level of forward compatibility for the new HW generations
-    // as OneDNN code generators are not generic and typically requires some updates for the new architectures
-    // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
-    // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
-    if (product.family == ngen::ProductFamily::Unknown) {
-        info.supports_immad = false;
+        // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
+        // This is required to guarantee some level of forward compatibility for the new HW generations
+        // as OneDNN code generators are not generic and typically requires some updates for the new architectures
+        // Ideally, we shouldn't do that as OCL impls sometimes also check this flag, but in order to avoid that
+        // we need to ensure that graph transformations are not relying on this flag as indicator that onednn will be used
+        if (product.family == ngen::ProductFamily::Unknown) {
+            info.supports_immad = false;
+        }
     }
 #else  // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
@@ -392,8 +394,8 @@ memory_capabilities init_memory_caps(const cl::Device& device, const device_info
 void ocl_device::initialize_device(const cl::Device dev, const cl::Context& ctx) {
     _context = ctx;
     _device = dev;
-    _usm_helper = std::make_unique<cl::UsmHelper>(_context, _device, use_unified_shared_memory());
-    _is_initialized = true;
+    _usm_helper = std::make_unique<cl::UsmHelper>(_context, _device, use_unified_shared_memory() && ctx.get() != nullptr);
+    _is_initialized = ctx.get() != nullptr;
 }
 
 ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform, bool initialize)
@@ -409,10 +411,7 @@ ocl_device::ocl_device(const ocl_device::ptr other, bool initialize)
 : _platform(other->_platform)
 , _info(other->_info)
 , _mem_caps(other->_mem_caps) {
-    if (initialize) {
-        OPENVINO_ASSERT(other->is_initialized(), "[GPU] Can't initialize device because the source device is uninitialized");
-        initialize_device(other->_device, other->_context);
-    }
+    initialize_device(other->_device, other->_context);
 }
 
 bool ocl_device::is_same(const device::ptr other) {
@@ -468,14 +467,18 @@ void ocl_device::initialize() {
         return;
 
     ocl::ocl_device_detector detector;
-    auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, true);
+    auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, false);
 
     bool found = false;
     for (auto& device : device_map) {
         if (this->is_same(device.second)) {
             OPENVINO_ASSERT(!found, "[GPU] Multiple matching devices found for ", this->get_info().dev_name, ". Only one matching device is expected");
             if (auto casted = downcast<ocl_device>(device.second.get())) {
-                initialize_device(casted->get_device(), casted->get_context());
+                auto& casted_device = casted->get_device();
+                if (casted->get_context().get() == nullptr) {
+                    casted->set_context(cl::Context(casted_device));
+                }
+                initialize_device(casted_device, casted->get_context());
                 found = true;
             }
         }

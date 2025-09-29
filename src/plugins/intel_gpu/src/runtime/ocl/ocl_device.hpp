@@ -56,6 +56,7 @@ public:
 
     void set_mem_caps(const memory_capabilities& memory_capabilities) override;
     void set_sub_device_idx(uint32_t idx);
+    void set_context(const cl::Context& context) { _context = context; }
 
     void initialize() override;
     bool is_initialized() const override { return _is_initialized; };
