@@ -20,6 +20,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
+#include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
@@ -1011,6 +1012,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             ov::npuw::patterns::pre_compute::RopeCache rope_generate_cacher(ctx_len);
             rope_generate_cacher.run_on_model(kvcache_model);
         }
+    }
+
+    // Regularize models for the better partitioning assuming it is a transformer
+    {
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
+        rewr.run_on_model(kvcache_model);
+        rewr.run_on_model(prefill_model);
     }
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(

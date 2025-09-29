@@ -17,8 +17,9 @@ namespace online {
 class Snapshot;  // Forward declaration
 }  // namespace online
 
-// Note: the patterns below are only utilized by the online partitioner
 namespace patterns {
+
+// Note: the patterns below are only utilized by the online partitioner
 namespace attn {
 
 class SDPA : public ov::pass::MatcherPass {
@@ -28,6 +29,23 @@ public:
 };
 
 }  // namespace attn
+
+namespace regularize {
+
+class AttentionBroadcast : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::AttentionBroadcast");
+    AttentionBroadcast();
+};
+
+class ShapeOfParameter : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::ShapeOfParameter");
+    ShapeOfParameter();
+};
+
+}  // namespace regularize
+
 }  // namespace patterns
 }  // namespace npuw
 }  // namespace ov
