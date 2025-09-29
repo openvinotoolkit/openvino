@@ -21,6 +21,20 @@
 namespace ov::util {
 struct GenericLayerParams;
 
+template <class T>
+void str_to_container(const std::string& value, T& res) {
+    std::stringstream ss(value);
+    std::string field;
+    while (getline(ss, field, ',')) {
+        if (field.empty())
+            OPENVINO_THROW("Cannot get vector of parameters! \"", value, "\" is incorrect");
+        std::stringstream fs(field);
+        typename T::value_type val;
+        fs >> val;
+        res.insert(res.end(), val);
+    }
+}
+
 class XmlDeserializer : public ov::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,

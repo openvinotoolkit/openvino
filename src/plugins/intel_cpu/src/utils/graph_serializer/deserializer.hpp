@@ -18,21 +18,8 @@
 namespace ov::intel_cpu {
 
 template <class T>
-void str_to_container(const std::string& value, T& res) {
-    std::stringstream ss(value);
-    std::string field;
-    while (getline(ss, field, ',')) {
-        OPENVINO_ASSERT(!field.empty(), "Cannot get vector of parameters! \"", value, "\" is incorrect");
-        std::stringstream fs(field);
-        typename T::value_type val;
-        fs >> val;
-        res.insert(res.end(), val);
-    }
-}
-
-template <class T>
 bool getParameters(const pugi::xml_node& node, const std::string& name, std::vector<T>& value) {
-    str_to_container(ov::util::pugixml::get_str_attr(node, name.c_str()), value);
+    ov::util::str_to_container(ov::util::pugixml::get_str_attr(node, name.c_str()), value);
     return true;
 }
 
