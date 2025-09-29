@@ -29950,7 +29950,7 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
     const checkResults = {};
     const pendingChecks = new Set(checkNames);
 
-    while (Date.now() - startTime < timeoutMs && pendingChecks.size > 0) {
+    while ((Date.now() - startTime < timeoutMs) && (pendingChecks.size > 0)) {
         try {
             // Get all check runs for the specific commit
             const { data: checkRuns } = await octokit.rest.checks.listForRef({
@@ -29960,7 +29960,7 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
                 per_page: 100
             });
 
-            core.debug(`Found ${checkRuns.check_runs.length} total check runs`);
+            core.info(`Found ${checkRuns.check_runs.length} total check runs`);
 
             // Process each pending check
             for (const checkName of Array.from(pendingChecks)) {
@@ -30005,7 +30005,7 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
             if (error.status === 404) {
                 core.info('Checks not found yet, continuing to wait...');
             } else {
-                // For other errors, we might want to retry but log the error
+                // For other errors
                 core.error(`API error: ${error.message}`);
             }
         }
@@ -30020,7 +30020,6 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
         const pendingChecksList = Array.from(pendingChecks).join(', ');
         throw new Error(`Timeout: Checks [${pendingChecksList}] did not complete within ${timeout} seconds`);
     }
-
     return checkResults;
 }
 

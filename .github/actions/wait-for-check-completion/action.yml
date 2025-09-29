@@ -13,11 +13,11 @@ inputs:
     description: 'GitHub token for API access'
     required: true
   wait-interval:
-    description: 'Wait interval in seconds between status checks'
+    description: 'Wait interval between status checks (in seconds), default is 10 seconds'
     required: false
     default: '10'
   timeout:
-    description: 'Maximum timeout in seconds to wait for the check'
+    description: 'Maximum timeout in seconds to wait for the check (in seconds), default is 600 seconds'
     required: false
     default: '600'
   owner:
