@@ -8060,7 +8060,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueReadBuffer(
+            call_clEnqueueReadBuffer(
                 object_, buffer(), blocking, offset, size,
                 ptr,
                 (events != nullptr) ? (cl_uint) events->size() : 0,
@@ -8085,7 +8085,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueWriteBuffer(
+            call_clEnqueueWriteBuffer(
                 object_, buffer(), blocking, offset, size,
                 ptr,
                 (events != nullptr) ? (cl_uint) events->size() : 0,
@@ -8110,7 +8110,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueCopyBuffer(
+            call_clEnqueueCopyBuffer(
                 object_, src(), dst(), src_offset, dst_offset, size,
                 (events != nullptr) ? (cl_uint) events->size() : 0,
                 (events != nullptr && events->size() > 0) ? (cl_event*) &events->front() : nullptr,
@@ -8347,7 +8347,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueFillBuffer(
+            call_clEnqueueFillBuffer(
                 object_, 
                 buffer(),
                 static_cast<void*>(&pattern),
@@ -8435,7 +8435,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueWriteImage(
+            call_clEnqueueWriteImage(
                 object_, 
                 image(), 
                 blocking, 
@@ -8489,7 +8489,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueCopyImage(
+            call_clEnqueueCopyImage(
                 object_, 
                 src(), 
                 dst(), 
@@ -8549,7 +8549,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueFillImage(
+            call_clEnqueueFillImage(
                 object_,
                 image(),
                 static_cast<void*>(&fillColor),
@@ -8734,7 +8734,7 @@ public:
     {
         cl_event tmp;
         cl_int error;
-        void * result = ::clEnqueueMapImage(
+        void * result = call_clEnqueueMapImage(
             object_, image(), blocking, flags,
             origin.data(), 
             region.data(),
@@ -9018,7 +9018,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueUnmapMemObject(
+            call_clEnqueueUnmapMemObject(
                 object_, memory(), mapped_ptr,
                 (events != nullptr) ? (cl_uint) events->size() : 0,
                 (events != nullptr && events->size() > 0) ? (cl_event*) &events->front() : nullptr,
@@ -9127,7 +9127,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueMarkerWithWaitList(
+            call_clEnqueueMarkerWithWaitList(
                 object_,
                 (events != nullptr) ? (cl_uint) events->size() : 0,
                 (events != nullptr && events->size() > 0) ? (cl_event*) &events->front() : nullptr,
@@ -9157,7 +9157,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueBarrierWithWaitList(
+            call_clEnqueueBarrierWithWaitList(
                 object_,
                 (events != nullptr) ? (cl_uint) events->size() : 0,
                 (events != nullptr && events->size() > 0) ? (cl_event*) &events->front() : nullptr,
@@ -9339,7 +9339,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueNDRangeKernel(
+            call_clEnqueueNDRangeKernel(
                 object_, kernel(), (cl_uint) global.dimensions(),
                 offset.dimensions() != 0 ? (const size_type*) offset : nullptr,
                 (const size_type*) global,
@@ -9571,12 +9571,12 @@ typedef CL_API_ENTRY cl_int (CL_API_CALL *PFN_clEnqueueReleaseD3D10ObjectsKHR)(
 
     cl_int flush() const
     {
-        return detail::errHandler(::clFlush(object_), __FLUSH_ERR);
+        return detail::errHandler(call_clFlush(object_), __FLUSH_ERR);
     }
 
     cl_int finish() const
     {
-        return detail::errHandler(::clFinish(object_), __FINISH_ERR);
+        return detail::errHandler(call_clFinish(object_), __FINISH_ERR);
     }
 
 #ifdef cl_khr_external_memory
