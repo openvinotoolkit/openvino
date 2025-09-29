@@ -28,6 +28,7 @@ class TRANSFORMATIONS_API EliminateSliceBeforeGatherElements;
 class TRANSFORMATIONS_API EliminateStridedSlice;
 class TRANSFORMATIONS_API EliminateSlice;
 class TRANSFORMATIONS_API EliminateStridedSliceByShape;
+class TRANSFORMATIONS_API EliminateIdentity;
 class TRANSFORMATIONS_API NopElimination;
 class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
 
@@ -265,4 +266,15 @@ class ov::pass::PrepareShapeOpsForEliminationAroundBE : public ov::pass::Matcher
 public:
     OPENVINO_MATCHER_PASS_RTTI("PrepareShapeOpsForEliminationAroundBE");
     PrepareShapeOpsForEliminationAroundBE();
+};
+
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateIdentity eliminates identity that does nothing
+ */
+class ov::pass::EliminateIdentity : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateIdentity");
+    EliminateIdentity();
 };
