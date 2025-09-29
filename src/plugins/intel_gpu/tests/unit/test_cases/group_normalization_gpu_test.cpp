@@ -27,6 +27,7 @@ typedef std::tuple<
     std::size_t,                            // Number of groups
     double,                                 // Epsilon
     format,                                 // First input layout
+    padding,                                // First input padding
     format,                                 // Output layout
     padding                                 // Output padding
 >
@@ -38,10 +39,11 @@ public:
 
     void SetUp() override {
         const auto& params = GetParam();
-        const auto& [input_shape, _num_groups_, _epsilon_, _in_format_, _out_format_, _output_pad_] = params;
+        const auto& [input_shape, _num_groups_, _epsilon_, _in_format_, _in_pad_, _out_format_, _output_pad_] = params;
         num_groups_ = _num_groups_;
         epsilon_ = _epsilon_;
         in_format_ = _in_format_;
+        in_pad_ = _in_pad_;
         out_format_ = _out_format_;
         output_pad_ = _output_pad_;
         std::copy(std::begin(input_shape), std::end(input_shape), std::back_inserter(data_shape_));
@@ -71,8 +73,8 @@ public:
         }
         tp.add(input_layout{scale_primitive_, scale_bias_layout_});
         tp.add(input_layout{bias_primitive_, scale_bias_layout_});
-        tp.add(reorder{reordered_data_primitive, data_primitive_, in_format_, data_types::f32});
-        // tp.add(reorder{reordered_data_primitive, data_primitive_, layout{input_shape, data_types::f32, in_format_, {{0,0,0,0},{0,0,3,3}}}});
+        // tp.add(reorder{reordered_data_primitive, data_primitive_, in_format_, data_types::f32});
+        tp.add(reorder{reordered_data_primitive, data_primitive_, layout{input_shape, data_types::f32, in_format_, in_pad_}});
 
         auto g = group_normalization{
             "group_normalization_output",
@@ -132,6 +134,7 @@ private:
     std::size_t num_groups_{};
     double epsilon_{};
     format in_format_{format::any};
+    padding in_pad_{padding()};
     format out_format_{format::any};
     padding output_pad_{padding()};
     network::ptr network_{};
@@ -176,6 +179,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(std::vector<size_t>{1, 4}),
         ::testing::Values(0.0025),
         ::testing::ValuesIn(f_planar_4d_formats),
+        ::testing::ValuesIn({padding()}),
         ::testing::ValuesIn(f_4d_formats),
         ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})})));
 
@@ -187,6 +191,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(std::vector<size_t>{1, 2, 4}),
         ::testing::Values(0.0025),
         ::testing::ValuesIn(f_blocked_4d_formats),
+        ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})}),
         ::testing::ValuesIn(f_4d_formats),
         ::testing::ValuesIn({padding(), padding({0, 16, 0, 0})})));
 
@@ -198,6 +203,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(std::vector<size_t>{1, 4}),
         ::testing::Values(0.0025),
         ::testing::ValuesIn(f_planar_5d_formats),
+        ::testing::ValuesIn({padding()}),
         ::testing::ValuesIn(f_planar_5d_formats),
         ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})})));
 
