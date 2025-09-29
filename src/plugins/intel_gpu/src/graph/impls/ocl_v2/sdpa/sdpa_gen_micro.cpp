@@ -433,10 +433,10 @@ sdpa_config_t xe2_q_h256_s768_2nd_integrated = {64, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t xe2_q_h256_s512_2nd_integrated = {32, 32, 32, 16, 16, 1, 8, 2};
 sdpa_config_t xe2_q_h256_s384_2nd_integrated = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa) {
+sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa, bool is_prefill) {
     if (head_size <= 32) {
         if (seq <= 0 && is_pa)
-            return &xehpg_h32_pa;
+            return is_prefill ? &xehpg_h32 : &xehpg_h32_pa;
         if (quantized && seq >= 128) {
             if (thin_q)
                 return &xehpg_q_h32_2nd;
@@ -453,7 +453,7 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
         return &xehpg_h32;
     } else if (head_size <= 64) {
         if (seq <= 0 && is_pa)
-            return &xehpg_h64_pa;
+            return is_prefill ? &xehpg_h64 : &xehpg_h64_pa;
         if (quantized) {
             if (thin_q) {
                 if (seq <= 64)
@@ -480,7 +480,7 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
         return &xehpg_h64;
     } else if (head_size <= 128) {
         if (seq <= 0 && is_pa)
-            return &xehpg_h128_pa;
+            return is_prefill ? &xehpg_h128 : &xehpg_h128_pa;
         if (quantized) {
             if (thin_q) {
                 if (seq <= 1)
@@ -505,7 +505,7 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
         return &xehpg_h128;
     } else if (head_size <= 256) {
         if (seq <= 0 && is_pa)
-            return &xehpg_h256_pa;
+            return is_prefill ? &xehpg_h256 : &xehpg_h256_pa;
         if (thin_q) {
             if (quantized) {
                 if (seq <= 96)
@@ -532,7 +532,7 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
         return &xehpg_h256;
     } else if (head_size <= 512) {
         if (seq <= 0 && is_pa)
-            return &xehpg_h512_pa;
+            return is_prefill ? &xehpg_h512 : &xehpg_h512_pa;
         if (quantized) {
             if (thin_q) {
                 if (seq <= 64)
@@ -557,10 +557,10 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
     return nullptr;
 }
 
-sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa) {
+sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
     if (head_size <= 32) {
         if (seq <= 0 && is_pa)
-            return &xehpc_h32_pa;
+            return is_prefill ? &xehpc_h32 : &xehpc_h32_pa;
         if (thin_q)
             return &xehpc_h32_2nd;
         if (seq <= 32)
@@ -568,7 +568,7 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         return &xehpc_h32;
     } else if (head_size <= 64) {
         if (seq <= 0 && is_pa)
-            return &xehpc_h64_pa;
+            return is_prefill ? &xehpc_h64 : &xehpc_h64_pa;
         if (thin_q) {
             if (quantized) {
                 if (seq <= 96)
@@ -600,7 +600,7 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         return &xehpc_h64;
     } else if (head_size <= 128) {
         if (seq <= 0 && is_pa)
-            return &xehpc_h128_pa;
+            return is_prefill ? &xehpc_h128 : &xehpc_h128_pa;
         if (quantized) {
             if (thin_q) {
                 if (is_integrated) {
@@ -634,7 +634,7 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         return &xehpc_h128;
     } else if (head_size <= 256) {
         if (seq <= 0 && is_pa)
-            return &xehpc_h256_pa;
+            return is_prefill ? &xehpc_h256 : &xehpc_h256_pa;
         if (thin_q)
             return &xehpc_h256_2nd;
         if (seq <= 64)
@@ -642,7 +642,7 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         return &xehpc_h256;
     } else if (head_size <= 512) {
         if (seq <= 0 && is_pa)
-            return &xehpc_h512_pa;
+            return is_prefill ? &xehpc_h512 : &xehpc_h512_pa;
         if (thin_q) {
             if (quantized) {
                 if (is_integrated) {
@@ -700,9 +700,9 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
     return nullptr;
 }
 
-sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa) {
+sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
     if (seq <= 0 && is_pa) {
-        return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa);
+        return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
     }
     if (head_size <= 64) {
         if (quantized) {
@@ -747,7 +747,7 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
     }
 
     if (head_size <= 128) {
-        return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa);
+        return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
     }
 
     if (head_size <= 256) {
@@ -780,7 +780,7 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
             }
         }
     }
-    return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa);
+    return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
 
 }  // namespace
@@ -1402,15 +1402,15 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     GPU_DEBUG_TRACE_DETAIL << "thin_q = " << thin_q << ", is_quantized = " << is_quantized << "\n";
     switch (device_info.arch) {
     case gpu_arch::xe_hpg: {
-        config = choose_config_xehpg(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_paged_attention);
+        config = choose_config_xehpg(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_paged_attention, is_prefill);
         break;
     }
     case gpu_arch::xe_hpc:
-        config = choose_config_xehpc(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_integrated, is_paged_attention);
+        config = choose_config_xehpc(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
     case gpu_arch::xe2:
     case gpu_arch::xe3: {
-        config = choose_config_xe2(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_integrated, is_paged_attention);
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
     }
     default:
