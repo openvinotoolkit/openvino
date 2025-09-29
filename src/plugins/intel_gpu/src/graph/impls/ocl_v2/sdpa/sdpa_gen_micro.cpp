@@ -436,7 +436,7 @@ sdpa_config_t xe2_q_h256_s384_2nd_integrated = {16, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa, bool is_prefill) {
     if (head_size <= 32) {
         if (seq <= 0 && is_pa)
-            return is_prefill ? &xehpg_h32 : &xehpg_h32_pa;
+            return &xehpg_h32_pa;
         if (quantized && seq >= 128) {
             if (thin_q)
                 return &xehpg_q_h32_2nd;
@@ -1254,7 +1254,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         }
         if (!config.has_const_scale_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7});                        // blocked_indexes_start_and_gws_mapping
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});                        // blocked_indexes_start_and_gws_mapping
     } else {
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});  // Q
