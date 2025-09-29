@@ -699,7 +699,7 @@ TEST_P(eltwise_fusing_reorders, reorders_for_data_type) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, eltwise_fusing_reorders, ::testing::ValuesIn(std::vector<eltwise_test_params>{
-    eltwise_test_params{ { 1, 16, 16, 2 }, data_types::f16, data_types::f16, format::bfyx,  data_types::f16,  format::bfyx, eltwise_mode::max, 4, 6 },
+    eltwise_test_params{ { 1, 16, 16, 2 }, data_types::f16, data_types::f16, format::bfyx,  data_types::f16,  format::bfyx, eltwise_mode::max, 3, 6 },
 }));
 
 class eltwise_with_constant_input : public EltwiseFusingTest {};
