@@ -302,6 +302,75 @@ TEST_F(TransformationTestsF, IncreasePositionIdsLongRoPE) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
+TEST_F(TransformationTestsF, IncreasePositionIdsSliceGatherUnsqueezeRoPE) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ -1 });
+        auto input_convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::i32);
+        auto input_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_convert, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1}));
+        auto input_convert_fp = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f16);
+        auto rotary_embd = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 1});
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(rotary_embd, input_convert_fp);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{matmul, matmul}, 2);
+
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat);
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat);
+
+        auto constant_11 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 1 }, { 1 });
+        auto constant_12 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 1 }, { 0 });
+        auto constant_13 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 1 }, { 1 });
+        auto sin_slice = std::make_shared<ov::op::v1::StridedSlice>(sin, constant_11, constant_12, constant_13, std::vector<int64_t>{}, std::vector<int64_t>{});
+        auto sin_gather = std::make_shared<ov::op::v8::Gather>(sin_slice, constant_11, constant_12);
+        auto sin_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(sin_gather, constant_13);
+
+        auto cos_slice = std::make_shared<ov::op::v1::StridedSlice>(cos, constant_11, constant_12, constant_13, std::vector<int64_t>{}, std::vector<int64_t>{});
+        auto cos_gather = std::make_shared<ov::op::v8::Gather>(cos_slice, constant_11, constant_12);
+        auto cos_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(cos_gather, constant_13);
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_unsqueeze, sin_unsqueeze}, ov::op::internal::RoPE::Config());
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input, rotary_embd});
+        manager.register_pass<IncreasePositionIdsPrecision>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ -1 });
+        auto input_convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::i32);
+        auto input_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_convert, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{-1, 1}));
+        auto input_convert_fp = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f16);
+        auto rotary_embd = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{32, 1});
+
+        auto input_convert_f32 = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f32);
+        auto rotary_embd_convert_f32 = std::make_shared<ov::op::v0::Convert>(rotary_embd, ov::element::f32);
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(rotary_embd_convert_f32, input_convert_f32);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{matmul, matmul}, 2);
+
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat);
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat);
+
+        auto cos_convert = std::make_shared<ov::op::v0::Convert>(cos, ov::element::f16);
+        auto sin_convert = std::make_shared<ov::op::v0::Convert>(sin, ov::element::f16);
+
+        auto constant_11 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 1 }, { 1 });
+        auto constant_12 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 1 }, { 0 });
+        auto constant_13 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 1 }, { 1 });
+        auto sin_slice = std::make_shared<ov::op::v1::StridedSlice>(sin_convert, constant_11, constant_12, constant_13, std::vector<int64_t>{}, std::vector<int64_t>{});
+        auto sin_gather = std::make_shared<ov::op::v8::Gather>(sin_slice, constant_11, constant_12);
+        auto sin_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(sin_gather, constant_13);
+
+        auto cos_slice = std::make_shared<ov::op::v1::StridedSlice>(cos_convert, constant_11, constant_12, constant_13, std::vector<int64_t>{}, std::vector<int64_t>{});
+        auto cos_gather = std::make_shared<ov::op::v8::Gather>(cos_slice, constant_11, constant_12);
+        auto cos_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(cos_gather, constant_13);
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_unsqueeze, sin_unsqueeze}, ov::op::internal::RoPE::Config());
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input, rotary_embd});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
 TEST_F(TransformationTestsF, IncreasePositionIdsLTXVideo) {
     {
         auto input_1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 3, -1 });

@@ -27,7 +27,7 @@ using MvnLayerGPUTestParamSet = std::tuple<
 class MvnLayerGPUTest : public testing::WithParamInterface<MvnLayerGPUTestParamSet>,
                         virtual public ov::test::SubgraphBaseTest {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<MvnLayerGPUTestParamSet> obj) {
+   static std::string getTestCaseName(const testing::TestParamInfo<MvnLayerGPUTestParamSet>& obj) {
        const auto& [basicParamsSet, inputPrecision] = obj.param;
 
        const auto& [inputShapes, netPrecision, axes, normalizeVariance, eps] = basicParamsSet;

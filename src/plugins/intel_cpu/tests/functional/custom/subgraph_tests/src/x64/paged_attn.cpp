@@ -33,7 +33,6 @@
 using namespace ov::test;
 using namespace CPUTestUtils;
 using namespace ov::op;
-using namespace std;
 
 namespace ov {
 namespace test {
@@ -313,7 +312,7 @@ public:
             ov::Tensor past_lens(ov::element::i32, {batch_size_in_sequences}),
                 subsequence_begins(ov::element::i32, {batch_size_in_sequences + 1}),
                 block_indices_begins(ov::element::i32, {batch_size_in_sequences + 1}),
-                block_indices(ov::element::i32, {static_cast<size_t>(total_blocks)});
+                block_indices(ov::element::i32, {static_cast<size_t>(total_blocks == 0 ? 1 : total_blocks)});
             int32_t *past_lens_data = reinterpret_cast<int32_t*>(past_lens.data()),
                     *subsequence_begins_data = reinterpret_cast<int32_t*>(subsequence_begins.data()),
                     *block_indices_begins_data = reinterpret_cast<int32_t*>(block_indices_begins.data()),
