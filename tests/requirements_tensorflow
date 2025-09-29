@@ -10,7 +10,7 @@ pytest-xdist[psutil]==3.6.1
 pytest-html==4.1.1
 transformers==4.45.1
 # install exact keras version since tensorflow depends and has no upper bound for it
-keras==3.8.0
+keras==3.11.3
 tensorflow==2.20.0
 # install explicit version of wrapt to avoid "this __dict__ descriptor does not support '_DictWrapper' objects" error from TensorFlow 2.18
 wrapt==1.15.0; python_version >= "3.12"
