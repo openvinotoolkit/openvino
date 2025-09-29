@@ -29,7 +29,7 @@ Identity::Identity(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
         : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        THROW_CPU_NODE_ERR(errorMessage);
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     auto identity_op = as_type_ptr<op::v16::Identity>(op);
@@ -45,10 +45,10 @@ Identity::Identity(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 
 void Identity::getSupportedDescriptors() {
     if (getParentEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
+        OPENVINO_THROW("has incorrect number of input edges.");
     }
     if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+        OPENVINO_THROW("has incorrect number of output edges.");
     }
 }
 
@@ -57,7 +57,7 @@ void Identity::initSupportedPrimitiveDescriptors() {
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
 
     if (shape_prc != out_prc) {
-        THROW_CPU_NODE_ERR("has to have the same dtype for input and output nodes.");
+        OPENVINO_THROW("has to have the same dtype for input and output nodes.");
     }
 
     m_out_prc = out_prc;
@@ -121,7 +121,7 @@ std::string Identity::getPrimitiveDescriptorType() const {
     return str_type;
 }
 
-void Identity::execute(dnnl::stream strm) {
+void Identity::execute(const dnnl::stream& strm) {
     const auto out_el_num = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<Dim>());
 
     if (!canBeInPlace()) {
@@ -132,7 +132,7 @@ void Identity::execute(dnnl::stream strm) {
     }
 }
 
-void Identity::executeDynamicImpl(dnnl::stream strm) {
+void Identity::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
