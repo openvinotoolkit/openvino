@@ -28,7 +28,7 @@ import typing
 """
 Factory functions for all openvino ops.
 """
-__all__ = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'acosh', 'as_node', 'as_nodes', 'asinh', 'assert_list_of_ints', 'atanh', 'binary_op', 'check_valid_attributes', 'ctc_loss', 'get_dtype', 'get_element_type', 'get_element_type_str', 'hswish', 'is_non_negative_value', 'is_positive_value', 'lstm_cell', 'make_constant_node', 'mish', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'proposal', 'range', 'reduce_l1', 'reduce_l2', 'scatter_nd_update', 'softplus', 'swish', 'unary_op']
+__all__: list[str] = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'acosh', 'as_node', 'as_nodes', 'asinh', 'assert_list_of_ints', 'atanh', 'binary_op', 'check_valid_attributes', 'ctc_loss', 'get_dtype', 'get_element_type', 'get_element_type_str', 'hswish', 'is_non_negative_value', 'is_positive_value', 'lstm_cell', 'make_constant_node', 'mish', 'nameable_op', 'non_max_suppression', 'np', 'partial', 'proposal', 'range', 'reduce_l1', 'reduce_l2', 'scatter_nd_update', 'softplus', 'swish', 'unary_op']
 def acosh(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
     Apply hyperbolic inverse cosine function on the input node element-wise.
