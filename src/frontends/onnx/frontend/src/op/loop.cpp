@@ -11,6 +11,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "translate_session.hpp"
@@ -37,6 +38,9 @@ namespace {
 ///
 /// \return true if termination condition is not modified during loop iterations, false otherwise.
 bool is_termination_condition_always_true(const ov::Node* cond_in, const ov::Node* cond_out) {
+    if (auto identity = dynamic_cast<const op::v16::Identity*>(cond_out)) {
+        cond_out = identity->input_value(0).get_node();
+    }
     return cond_in == cond_out;
 }
 }  // namespace
@@ -101,9 +105,11 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
 
     const auto& cond_in = body_inputs[1];
     const auto& cond_out = body_outputs[0];
+    ov::ParameterVector body_params(body_inputs.begin(), body_inputs.end());
     // optimization allow to improve nG Loop shape inference
     if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
         body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
+        body_params.erase(body_params.begin() + 1);
     }
 
     CHECK_VALID_NODE(node,
@@ -123,9 +129,6 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
                      ") is not greater than number of outputs. Required at least: ",
                      loop_carried_dependencies.size() + 1);
 
-    ov::ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
-    body_params.emplace(body_params.begin(),
-                        body_inputs[0]);  // current iteration body input
     const auto body = std::make_shared<ov::Model>(body_outputs, body_params);
     auto loop = std::make_shared<v5::Loop>(trip_count, termination_cond);
     v5::Loop::SpecialBodyPorts spec_ports{0, 0};
