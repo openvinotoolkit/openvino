@@ -701,7 +701,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::string get_origin_weights_path(const ov::AnyMap& config) {
+static std::string get_origin_weights_path(const ov::AnyMap& config) {
     ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
     std::string origin_weights_path;
 
@@ -719,7 +719,7 @@ std::string get_origin_weights_path(const ov::AnyMap& config) {
     return origin_weights_path;
 }
 
-bool get_cache_decrypt_fn(const ov::AnyMap& config, CacheDecrypt& decrypt) {
+static bool get_cache_decrypt_fn(const ov::AnyMap& config, CacheDecrypt& decrypt) {
     bool decrypt_from_string = false;
 
     if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
@@ -740,10 +740,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     ModelDeserializer deserializer(
         model_stream,
-        [this](
-            const std::shared_ptr<ov::AlignedBuffer>& model,
-            const std::shared_ptr<ov::AlignedBuffer>& weights,
-            const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
+        [this](const std::shared_ptr<ov::AlignedBuffer>& model,
+               const std::shared_ptr<ov::AlignedBuffer>& weights,
+               const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
             if (origin_weights == nullptr) {
                 return get_core()->read_model(model, weights);
             } else {
@@ -808,10 +807,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 
     ModelDeserializer deserializer(
         model_buffer,
-        [this](
-            const std::shared_ptr<ov::AlignedBuffer>& model,
-            const std::shared_ptr<ov::AlignedBuffer>& weights,
-            const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
+        [this](const std::shared_ptr<ov::AlignedBuffer>& model,
+               const std::shared_ptr<ov::AlignedBuffer>& weights,
+               const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
             if (origin_weights == nullptr) {
                 return get_core()->read_model(model, weights);
             } else {
