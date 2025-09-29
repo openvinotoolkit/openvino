@@ -194,6 +194,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
 
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
@@ -484,7 +485,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        manager.register_pass<ov::pass::RMSFusion>(false);
+        manager.register_pass<ov::pass::RMSFusion>(false, true);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -543,6 +544,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
+            // TODO: sdpa_opt is not supporting sink_input for 1st token case yet
+            constexpr size_t sink_idx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::SINK;
+            if (sdpa->get_input_size() > sink_idx && !device_info.supports_immad) {
+                return false;
+            }
+
             const auto& query_ps = sdpa->get_input_partial_shape(0);
             const auto& key_ps = sdpa->get_input_partial_shape(1);
             const auto& value_ps = sdpa->get_input_partial_shape(2);

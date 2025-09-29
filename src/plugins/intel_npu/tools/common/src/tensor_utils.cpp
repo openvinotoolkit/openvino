@@ -507,10 +507,10 @@ std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor &tensor, const ov::Lay
     }
     pivotShape[ov::layout::batch_idx(layout)] /= parts;
     std::list<ov::Tensor> ret;
-    const auto *inputBuffer = tensor.data<unsigned char>();
+    const auto *inputBuffer = static_cast<unsigned char*>(tensor.data());
     for (size_t i = 0; i < parts; i ++) {
         ov::Tensor out(pivotPrecision, pivotShape);
-        memcpy(out.data<unsigned char>(), inputBuffer, out.get_byte_size());
+        memcpy(out.data(), inputBuffer, out.get_byte_size());
         inputBuffer += out.get_byte_size();
         ret.push_back(std::move(out));
     }
