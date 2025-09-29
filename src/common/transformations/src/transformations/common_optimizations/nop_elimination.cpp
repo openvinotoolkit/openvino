@@ -22,6 +22,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
@@ -822,6 +823,22 @@ pass::EliminateSqueeze::EliminateSqueeze() {
     this->register_matcher(m, callback);
 }
 
+pass::EliminateIdentity::EliminateIdentity() {
+    MATCHER_SCOPE(EliminateIdentity);
+    auto identity_pattern = pattern::wrap_type<ov::op::v16::Identity>();
+
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto identity = ov::as_type_ptr<ov::op::v16::Identity>(m.get_match_root());
+        if (!identity) {
+            return false;
+        }
+        return replace_output_update_name(identity->output(0), identity->input_value(0));
+    };
+
+    auto m = make_shared<pattern::Matcher>(identity_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
+
 namespace {
 int64_t make_positive(int64_t value, const Output<Node>& node) {
     const auto& rank = node.get_partial_shape().rank();
@@ -1360,6 +1377,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     ADD_MATCHER_FOR_THIS(EliminateStridedSlice)
     ADD_MATCHER_FOR_THIS(EliminateSlice)
     ADD_MATCHER_FOR_THIS(EliminateConcatStridedSlice)
+    ADD_MATCHER_FOR_THIS(EliminateIdentity)
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {
