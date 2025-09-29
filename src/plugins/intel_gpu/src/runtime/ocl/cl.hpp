@@ -3733,7 +3733,7 @@ public:
     cl_int getProfilingInfo(cl_profiling_info name, T* param) const
     {
         return detail::errHandler(detail::getInfo(
-            &::clGetEventProfilingInfo, object_, name, param),
+            &call_clGetEventProfilingInfo, object_, name, param),
             __GET_EVENT_PROFILE_INFO_ERR);
     }
 
@@ -3758,7 +3758,7 @@ public:
     cl_int wait() const
     {
         return detail::errHandler(
-            ::clWaitForEvents(1, &object_),
+            call_clWaitForEvents(1, &object_),
             __WAIT_FOR_EVENTS_ERR);
     }
 
@@ -3836,7 +3836,7 @@ public:
     cl_int setStatus(cl_int status)
     {
         return detail::errHandler(
-            ::clSetUserEventStatus(object_,status), 
+            call_clSetUserEventStatus(object_,status), 
             __SET_USER_EVENT_STATUS_ERR);
     }
 };

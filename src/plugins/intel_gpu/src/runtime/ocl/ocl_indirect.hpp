@@ -109,5 +109,13 @@ CL_INDIRECT_API(clEnqueueMapImage)
 CL_INDIRECT_API(clEnqueueWriteImage)
 CL_INDIRECT_API(clEnqueueCopyImage)
 CL_INDIRECT_API(clFlush)
+CL_INDIRECT_API(clSetUserEventStatus)
+
+cl_int call_clGetEventProfilingInfo(cl_event a1, cl_profiling_info a2, size_t a3, void* a4, size_t* a5) { \
+        static auto f_ = find_cl_symbol<decltype(&clGetEventProfilingInfo)>("clGetEventProfilingInfo");              \
+        return f_(a1, a2, a3, a4, a5);                         \
+    }
+
+
 #undef CL_INDIRECT_API
 } // namespace
