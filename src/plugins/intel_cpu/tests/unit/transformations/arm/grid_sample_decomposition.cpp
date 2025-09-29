@@ -623,7 +623,6 @@ protected:
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data, grid});
 
         model_ref = create_expected_decomposed_pattern(p.data_shape, p.grid_shape, p.data_type, p.grid_type, attrs);
-        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
     }
 };
