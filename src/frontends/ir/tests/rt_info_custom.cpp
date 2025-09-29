@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#    include <gtest/gtest.h>
+#include <gtest/gtest.h>
 
-#    include <sstream>
+#include <sstream>
 
-#    include "common_test_utils/test_assertions.hpp"
-#    include "openvino/op/abs.hpp"
-#    include "openvino/pass/serialize.hpp"
-#    include "openvino/runtime/core.hpp"
-#    include "openvino/xml_util/xml_serialize_util.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/xml_util/xml_serialize_util.hpp"
 
 namespace ov::test {
 
