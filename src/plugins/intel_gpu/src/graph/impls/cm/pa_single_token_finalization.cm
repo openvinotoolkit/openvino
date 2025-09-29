@@ -30,10 +30,8 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         for(int k = 1; k < kv_partition_num; k ++) {
             lse_max = cm_max<float>(lse_vec[k], lse_max);
         }
-        float lse_value = 0.0;
-        #pragma unroll
         for(int k = 0; k < kv_partition_num; k ++) {
-            lse_value = cm_exp<float>((lse_vec[k] - lse_max)*log2e);
+            float lse_value = cm_exp<float>((lse_vec[k] - lse_max)*log2e);
             total_lse += lse_value;
         }
 
@@ -42,7 +40,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         matrix<half, 1, REDUCE_SPLIT_SIZE> out_mat = 0;
         matrix<float, 1, REDUCE_SPLIT_SIZE> data_mat;
         uint input_offset = batch * total_partition_num * HEAD_SIZE + head * kv_partition_num * HEAD_SIZE + offset;
-        #pragma unroll
         for(int k = 0; k < kv_partition_num; k ++) {
             cm_svm_block_read<float, REDUCE_SPLIT_SIZE>((svmptr_t)(input + input_offset), data_mat.format<float>());
             input_offset += HEAD_SIZE;
