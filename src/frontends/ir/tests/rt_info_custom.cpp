@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#if 0
+
 #    include <gtest/gtest.h>
 
 #    include <sstream>
@@ -235,4 +235,3 @@ TEST(RTInfoCustom, RuntimeAttribute_priority) {
     EXPECT_EQ(custom, layout_custom_value);
 }
 }  // namespace ov::test
-#endif

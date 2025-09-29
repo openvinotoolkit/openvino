@@ -18,7 +18,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
-#include "openvino/xml_util/xml_serialize_util.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
