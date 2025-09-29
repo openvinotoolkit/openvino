@@ -2744,7 +2744,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_argmax_int32) {
     auto model = convert_model("argmax_int32.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input<std::int32_t>({2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    test_case.add_input<std::int32_t>({3, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
     test_case.add_expected_output<std::int64_t>({0, 1, 1, 1, 1, 1});
     test_case.run();
 }
