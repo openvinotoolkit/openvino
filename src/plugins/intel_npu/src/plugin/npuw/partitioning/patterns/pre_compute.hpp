@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/multi_matcher.hpp"
+
 namespace ov ::npuw ::patterns ::pre_compute {
 
 class RopePatternDesc {
@@ -64,6 +66,16 @@ public:
      */
     explicit RopeCache(const uint32_t max_prompt_len) : m_max_prompt_len(max_prompt_len) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
+
+class PreserveConstsRope : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstsRope");
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    PreserveConstsRope(Results to_keep);
 };
 // NOLINTNEXTLINE(readability/namespace)
 }  // namespace ov::npuw::patterns::pre_compute
