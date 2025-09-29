@@ -19,6 +19,7 @@
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
+#include "perf.hpp"
 
 namespace intel_npu {
 class Plugin;
@@ -146,6 +147,18 @@ private:
         float gflops{};
         std::size_t ops{};
     };
+
+    // Shouldn't this be counter instead? There's nothing much to
+    // average across compilation processes per model (it's a single
+    // process).
+    using MS = ov::npuw::perf::metric<float, ov::npuw::perf::MSec>;
+    ov::npuw::perf::Profile<MS> m_profile;
+
+    void init_profiling() {
+        // to be called from contructors
+        m_profile.report_on_die = true;
+        m_profile.area = m_name + "/compilation";
+    }
 
     struct CompiledModelDesc {
         DevList::const_iterator device_it;

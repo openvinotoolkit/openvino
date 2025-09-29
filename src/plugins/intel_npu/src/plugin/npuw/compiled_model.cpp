@@ -172,6 +172,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
+    init_profiling();
+
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
@@ -226,7 +228,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Identify based on compiler version, user config and pattern
     ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
 
-    auto partitioning = getPartitioning(model, m_cfg, ctx);
+    ov::npuw::Partitioning partitioning;
+    m_profile["partitioning"] += ov::npuw::perf::ms_to_run([&](){
+        partitioning = getPartitioning(model, m_cfg, ctx);
+    });
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
@@ -532,6 +537,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(serialized) {
     NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
+    init_profiling();
+
     ::intel_npu::registerNPUWOptions(*m_options_desc);
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
@@ -1458,7 +1465,10 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     }
 
     try {
-        m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
+        // WARNING: These requests can be issues in parallel, so timer should be thread-safe
+        m_profile["compile/" + device_to_try] += ov::npuw::perf::ms_to_run([&](){
+            m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
+        });
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
