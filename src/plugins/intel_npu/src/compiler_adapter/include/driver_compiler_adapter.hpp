@@ -37,7 +37,6 @@ public:
     uint32_t get_version() const override;
 
 private:
-
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 

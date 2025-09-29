@@ -96,7 +96,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("build flags");
     buildFlags += intel_npu::driver_compiler_utils::serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags += intel_npu::driver_compiler_utils::serializeConfig(config, compilerVersion, is_option_supported("NPU_TURBO"));
+    buildFlags +=
+        intel_npu::driver_compiler_utils::serializeConfig(config, compilerVersion, is_option_supported("NPU_TURBO"));
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 

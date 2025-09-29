@@ -8,10 +8,10 @@
 #include <mutex>
 #include <regex>
 
-#include "intel_npu/common/filtered_config.hpp"
-#include "openvino/pass/manager.hpp"
 #include "custom_stream_buffer.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
@@ -34,7 +34,7 @@ constexpr std::string_view VALUES_SEPARATOR = " ";
 const std::vector<size_t> NC_TO_CN_LAYOUT_DIMENSIONS_ORDER = {1, 0};
 const std::vector<size_t> NCHW_TO_NHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 1};
 const std::vector<size_t> NCDHW_TO_NDHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 4, 1};
-}
+}  // namespace
 
 namespace intel_npu::driver_compiler_utils {
 
