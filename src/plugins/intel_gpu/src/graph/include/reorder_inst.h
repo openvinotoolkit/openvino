@@ -40,7 +40,7 @@ public:
 
     void set_input_layout(layout const& lo) { input_layout = lo; }
 
-    bool is_type_conversion_only() const {
+    bool only_precision_changed() const {
         auto in_layout = get_input_layout();
         auto out_layout = get_output_layout();
         bool only_precision_changed = in_layout.data_type != out_layout.data_type &&
@@ -52,9 +52,12 @@ public:
             only_precision_changed &= in_layout.get_partial_shape() == out_layout.get_partial_shape();
         }
 
-        bool is_truncate = typed_desc()->truncate || (out_layout.data_type == data_types::f32);
+        return only_precision_changed;
+    }
 
-        return only_precision_changed && is_simple_reorder() && is_truncate;
+    bool is_type_conversion_only(bool force_truncate_mode = false) const {
+        bool is_truncate = typed_desc()->truncate || force_truncate_mode;
+        return only_precision_changed() && is_simple_reorder() && is_truncate;
     }
 
     bool is_simple_reorder() const {

@@ -201,26 +201,27 @@ TEST_P(resample_quantize_concat, along_f) {
     execute(p);
 }
 
+#define RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER 4, 6
 #define RESAMPLE_QUANTIZE_CONCAT_CNT 3, 6
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_quantize_concat, ::testing::ValuesIn(std::vector<resample_test_params>{
-    resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP32_3, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP32_4, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP32_6, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_FP32_3, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_FP32_4, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_FP32_6, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
     resample_test_params{ CASE_RESAMPLE_FP32_7, RESAMPLE_QUANTIZE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_FP32_8, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP32_10, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP32_10, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
 
-    resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP16_3, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP16_4, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP16_6, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_FP16_3, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_FP16_4, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_FP16_6, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
     resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_QUANTIZE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_8, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP16_12, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_QUANTIZE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_FP16_12, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_QUANTIZE_CONCAT_CNT_OPT_REORDER },
 }));
 
 class resample_eltwise_concat : public ResamplePrimitiveFusingTest {};
@@ -249,6 +250,7 @@ TEST_P(resample_eltwise_concat, along_f) {
     execute(p);
 }
 
+#define RESAMPLE_ELTWISE_CONCAT_CNT_OPT_REORDER 4, 8
 #define RESAMPLE_ELTWISE_CONCAT_CNT 3, 8
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_concat, ::testing::ValuesIn(std::vector<resample_test_params>{
     resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_ELTWISE_CONCAT_CNT },
@@ -270,11 +272,11 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_concat, ::testing::Values
     resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_ELTWISE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_ELTWISE_CONCAT_CNT },
 
-    resample_test_params{ CASE_RESAMPLE_I8_1, RESAMPLE_ELTWISE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_I8_2, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_I8_1, RESAMPLE_ELTWISE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_I8_2, RESAMPLE_ELTWISE_CONCAT_CNT_OPT_REORDER },
 
-    resample_test_params{ CASE_RESAMPLE_U8_1, RESAMPLE_ELTWISE_CONCAT_CNT },
-    resample_test_params{ CASE_RESAMPLE_U8_2, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_U8_1, RESAMPLE_ELTWISE_CONCAT_CNT_OPT_REORDER },
+    resample_test_params{ CASE_RESAMPLE_U8_2, RESAMPLE_ELTWISE_CONCAT_CNT_OPT_REORDER },
 }));
 
 class resample_eltwise_fusing_through : public ResamplePrimitiveFusingTest {};
