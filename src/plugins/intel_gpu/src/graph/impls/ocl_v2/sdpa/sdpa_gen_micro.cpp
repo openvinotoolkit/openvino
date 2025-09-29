@@ -1253,13 +1253,13 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
             args.push_back({ArgumentDescriptor::Types::INPUT, 8});  // block_indices_begins
         }
         if (!config.has_const_scale_val)
-            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});        // scale
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7});  // blocked_indexes_start_and_gws_mapping
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7});                        // blocked_indexes_start_and_gws_mapping
     } else {
-        args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});   // K
-        args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});   // Q
-        args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::VALUE});   // V
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
+        args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
+        args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});  // Q
+        args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::VALUE});  // V
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                        // A
 
         const uint32_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
         if (config.input_num > attn_mask_idx && !config.has_const_attn_mask_val)
@@ -1406,11 +1406,23 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         break;
     }
     case gpu_arch::xe_hpc:
-        config = choose_config_xehpc(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xehpc(static_cast<int32_t>(k_head_size),
+                                     static_cast<int32_t>(nkeys_v),
+                                     thin_q,
+                                     is_quantized,
+                                     is_integrated,
+                                     is_paged_attention,
+                                     is_prefill);
         break;
     case gpu_arch::xe2:
     case gpu_arch::xe3: {
-        config = choose_config_xe2(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xe2(static_cast<int32_t>(k_head_size),
+                                   static_cast<int32_t>(nkeys_v),
+                                   thin_q,
+                                   is_quantized,
+                                   is_integrated,
+                                   is_paged_attention,
+                                   is_prefill);
         break;
     }
     default:
