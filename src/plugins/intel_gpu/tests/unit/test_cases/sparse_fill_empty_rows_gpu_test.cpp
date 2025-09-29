@@ -8,6 +8,7 @@
 #include <intel_gpu/primitives/sparse_fill_empty_rows.hpp>
 
 #include "test_utils.h"
+#include "sparse_fill_empty_rows_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -112,14 +113,14 @@ public:
         const auto indicesRows = testParam.indicesData.size() / 2;
 
         ret.indices = helpers::AllocateTensor<int64_t>(
-            ov::Shape{indicesRows, 2},
+            ov::PartialShape{static_cast<int64_t>(indicesRows), 2},
             helpers::ConverFloatVector<int64_t>(testParam.indicesData));
         ret.values = helpers::AllocateTensor<T>(
-            ov::Shape{testParam.valuesData.size()},
+            ov::PartialShape{static_cast<int64_t>(testParam.valuesData.size())},
             helpers::ConverFloatVector<T>(testParam.valuesData));
         ret.denseShape = helpers::AllocateTensor<int64_t>(
-            ov::Shape{2}, helpers::ConverFloatVector<int64_t>(testParam.denseShapeData));
-        ret.defaultValue = helpers::AllocateTensor<T>(ov::Shape{}, {42.0f});
+            ov::PartialShape{2}, helpers::ConverFloatVector<int64_t>(testParam.denseShapeData));
+        ret.defaultValue = helpers::AllocateTensor<T>(ov::PartialShape{}, {42.0f});
 
         ret.expectedIndicesOutput = helpers::AllocateTensor<int64_t>(
             ov::Shape{testParam.expectedIndicesOutput.size() / 2, 2},
@@ -138,10 +139,16 @@ public:
         auto stream = get_test_stream_ptr(get_test_default_config(engine_));
         topology topology;
 
-        topology.add(input_layout("values", params.values->get_layout()));
-        topology.add(input_layout("denseShape", params.denseShape->get_layout()));
-        topology.add(input_layout("indices", params.indices->get_layout()));
-        topology.add(input_layout("default_value", params.defaultValue->get_layout()));
+        // Create dynamic layouts for input tensors
+        auto values_dynamic_layout = layout{ov::PartialShape::dynamic(1), params.values->get_layout().data_type, format::bfyx};
+        auto dense_shape_dynamic_layout = layout{ov::PartialShape::dynamic(1), data_types::i64, format::bfyx};
+        auto indices_dynamic_layout = layout{ov::PartialShape::dynamic(2), data_types::i64, format::bfyx};
+        auto default_value_dynamic_layout = layout{ov::PartialShape::dynamic(0), params.defaultValue->get_layout().data_type, format::bfyx};
+
+        topology.add(input_layout("values", values_dynamic_layout));
+        topology.add(input_layout("denseShape", dense_shape_dynamic_layout));
+        topology.add(input_layout("indices", indices_dynamic_layout));
+        topology.add(input_layout("default_value", default_value_dynamic_layout));
         
         std::vector<input_info> inputs = {
             input_info("values"),
@@ -170,6 +177,11 @@ public:
         network->set_input_data("denseShape", params.denseShape);
         network->set_input_data("indices", params.indices);
         network->set_input_data("default_value", params.defaultValue);
+
+        auto inst = network->get_primitive("sparse_fill_empty_rows");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
 
         auto outputs = network->execute();
         auto output_indices = outputs.at("output_indices").get_memory();

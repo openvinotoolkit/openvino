@@ -54,13 +54,20 @@ std::string ModelCache::calculate_file_info(const std::string& filePath) {
 
 std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model");
+    return compute_hash(model, {}, compileOptions);
+}
+
+std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& model,
+                                     const std::filesystem::path& model_path,
+                                     const ov::AnyMap& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - Model and path");
 
     OPENVINO_ASSERT(model);
 
     uint64_t seed = 0;
-    // 1. Calculate hash on function
+    // 1. Calculate hash on function, skipping weights if model path is provided
     ov::pass::Manager m;
-    m.register_pass<ov::pass::Hash>(seed);
+    m.register_pass<ov::pass::Hash>(seed, !model_path.empty());
     m.run_passes(std::const_pointer_cast<ov::Model>(model));
 
     // 2. Compute hash on serialized data and options
@@ -79,6 +86,11 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
                 seed = hash_combine(seed, strm.str());
             }
         }
+    }
+
+    // 4. If model path is provided add file info to the hash
+    if (!model_path.empty()) {
+        seed = hash_combine(seed, compute_hash(model_path.string(), compileOptions));
     }
 
     return std::to_string(seed);
