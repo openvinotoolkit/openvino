@@ -119,6 +119,15 @@ std::shared_ptr<Node> to_f32(const std::shared_ptr<Node>& input_node) {
     return std::make_shared<op::v0::Convert>(input_node, element::f32);
 }
 
+// Helper: run original GridSample in f32 and convert result back to original dtype
+std::shared_ptr<Node> grid_sample_in_f32_and_back(const std::shared_ptr<op::v9::GridSample>& gs) {
+    auto attrs = gs->get_attributes();
+    auto data_f32 = std::make_shared<op::v0::Convert>(gs->input_value(0), element::f32);
+    auto grid_f32 = std::make_shared<op::v0::Convert>(gs->input_value(1), element::f32);
+    auto gs_f32 = std::make_shared<op::v9::GridSample>(data_f32, grid_f32, attrs);
+    return std::make_shared<op::v0::Convert>(gs_f32, gs->get_output_element_type(0));
+}
+
 // Copy runtime info from the original node to the replacement subgraph feeding `output`.
 // Traversal stops at the inputs of `from` to avoid propagating RT info into
 // pre-existing producers (e.g., upstream Parameters/Constants or other nodes
@@ -771,10 +780,7 @@ GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
             return false;  // keep original GridSample -> plugin will fallback to Reference
         }
         if ((!is_f32_data || !is_f32_grid) && is_nearest_problematic(attrs)) {
-            auto data_f32 = std::make_shared<op::v0::Convert>(grid_sample->input_value(0), element::f32);
-            auto grid_f32 = std::make_shared<op::v0::Convert>(grid_sample->input_value(1), element::f32);
-            auto gs_f32 = std::make_shared<op::v9::GridSample>(data_f32, grid_f32, attrs);
-            auto out = std::make_shared<op::v0::Convert>(gs_f32, grid_sample->get_output_element_type(0));
+            auto out = grid_sample_in_f32_and_back(grid_sample);
             out->set_friendly_name(grid_sample->get_friendly_name());
             copy_rt_to_subgraph(grid_sample, out);
             ov::replace_node_update_name(grid_sample, out);
@@ -828,6 +834,14 @@ GridSampleDecompositionBicubic::GridSampleDecompositionBicubic() {
         if (is_f32_data && is_f32_grid && attrs.mode == op::v9::GridSample::InterpolationMode::BICUBIC &&
             attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS && !attrs.align_corners) {
             return false;  // keep original GridSample
+        }
+        if ((!is_f32_data || !is_f32_grid) && attrs.mode == op::v9::GridSample::InterpolationMode::BICUBIC &&
+            attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS && !attrs.align_corners) {
+            auto out = grid_sample_in_f32_and_back(grid_sample);
+            out->set_friendly_name(grid_sample->get_friendly_name());
+            copy_rt_to_subgraph(grid_sample, out);
+            ov::replace_node_update_name(grid_sample, out);
+            return true;
         }
         return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& attrs) {
             return build_bicubic_nhwc(context, attrs);
