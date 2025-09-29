@@ -90,7 +90,6 @@
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
-#include "plugin/transformations/transpose_conv1x1_to_fc.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
@@ -1199,7 +1198,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
 
-        manager.register_pass<ov::intel_gpu::TransposeConv1x1TransposeFusion>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();

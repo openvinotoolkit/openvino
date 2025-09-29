@@ -878,24 +878,16 @@ std::string parameter_name_to_tensor_name(const std::string& name,
                                           const std::vector<ov::Output<const ov::Node>>& inputs_info,
                                           const std::vector<ov::Output<const ov::Node>>& outputs_info) {
     
-
-    auto found_past_key = name.find("past_keys");
-    auto found_past_value = name.find("past_values");
-    auto found_past_key_values = name.find("past_key_values");
-    auto found_key = name.find(".key");
-    auto found_value = name.find(".value");
-    auto found_present = name.find("present");
-
-    if (found_past_key != std::string::npos) {
+    if (name.find("past_keys") != std::string::npos) {
         return name;
     }
-    if (found_past_value != std::string::npos) {
+    if (name.find("past_values") != std::string::npos) {
         return name;
     }
-    if (found_past_key_values != std::string::npos && found_key != std::string::npos) {
+    if (name.find("past_key_values") != std::string::npos && name.find(".key") != std::string::npos) {
         return name;
     }
-    if (found_past_key_values != std::string::npos && found_value != std::string::npos) {
+    if (name.find("past_key_values") != std::string::npos && name.find(".value") != std::string::npos) {
         return name;
     }
     

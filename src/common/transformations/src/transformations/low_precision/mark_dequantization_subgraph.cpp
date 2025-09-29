@@ -25,12 +25,6 @@
 #include <openvino/op/convert.hpp>
 #include <openvino/op/concat.hpp>
 #include <openvino/op/broadcast.hpp>
-#include "openvino/op/gather.hpp"
-#include <openvino/core/graph_util.hpp>
-#include <openvino/op/shape_of.hpp>
-#include <openvino/op/convert.hpp>
-#include <openvino/op/concat.hpp>
-#include <openvino/op/broadcast.hpp>
 #include <openvino/pass/constant_folding.hpp>
 
 using namespace ov;
@@ -397,27 +391,30 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     auto m = std::make_shared<Matcher>(multiply_pattern, "KeepDequantizationPrecision");
     this->register_matcher(m, callback);
 }
+//We apply Stateful transformation in onnx frontend, which convert stateless LLM model to stateful LLM model.
+//The reason of stateful transformation is enabling kvcache on GPU and avoid unnecessary mem copies to device 
+//However, we need to disable all nodes in the subgraph from constant folding which are used for shape inference.
 ov::pass::markStatefulSubgraph::markStatefulSubgraph() {
-
     MATCHER_SCOPE(markStatefulSubgraph);
     auto param_m = wrap_type<ov::op::v0::Parameter>();
     auto convert_param_m = wrap_type < ov::op::v0::Convert>(param_m);
     auto output_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{param_m, convert_param_m});
     auto shapeof_m = pattern::wrap_type<ov::op::v3::ShapeOf>({output_m});
-    auto const_gather_1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto const_gather_2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto Gather_m = ov::pass::pattern::wrap_type<ov::op::v8::Gather>({shapeof_m, const_gather_1_m, const_gather_2_m});
-    auto const_concat_1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto const_concat_2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto const_concat_3_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto Concat_m =
-        ov::pass::pattern::wrap_type<ov::op::v0::Concat>({Gather_m, const_concat_1_m, const_concat_2_m, const_concat_3_m
+    auto const_gather_arg1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_gather_arg2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto Gather_m =
+        ov::pass::pattern::wrap_type<ov::op::v8::Gather>({shapeof_m, const_gather_arg1_m, const_gather_arg2_m});
+    auto const_concat_arg1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_concat_arg2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_concat_arg3_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto Concat_m = ov::pass::pattern::wrap_type<ov::op::v0::Concat>(
+        {Gather_m, const_concat_arg1_m, const_concat_arg2_m, const_concat_arg3_m
     });
     auto const_broadcast_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto broadcast_m_2 = ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>({const_broadcast_m, Concat_m});
-    auto broadcast_m_3 = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>({const_broadcast_m, Concat_m});
-    auto broadcast_output_m = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{ broadcast_m_2, broadcast_m_3});
+    auto broadcast_out1_m = ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>({const_broadcast_m, Concat_m});
+    auto broadcast_out2_m = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>({const_broadcast_m, Concat_m});
+    auto broadcast_output_m =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{broadcast_out1_m, broadcast_out2_m});
    
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
