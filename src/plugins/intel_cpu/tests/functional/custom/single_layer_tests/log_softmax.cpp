@@ -20,7 +20,7 @@ class LogSoftmaxLayerCPUTest
           public SubgraphBaseTest,
           public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<logSoftmaxLayerTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<logSoftmaxLayerTestParams>& obj) {
         const auto& [inputShapes, netPrecision, axis] = obj.param;
         std::ostringstream result;
         if (inputShapes.front().first.size() != 0) {

@@ -6,7 +6,6 @@
 
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/common/variable_state.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -147,27 +146,6 @@ protected:
      * @param precision The precision value to be checked.
      */
     virtual void check_network_precision(const ov::element::Type_t precision) const = 0;
-
-    /**
-     * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
-     * @param descriptor Tensor's metadata
-     * @param index The index which the allocated tensor shall use.
-     * @param isInput Determines the containers in which the newly allocated tensors will be stored.
-     * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
-     * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
-     * @return Pointer towards the allocated tensor
-     */
-    std::shared_ptr<ov::ITensor> allocate_tensor(const IODescriptor& descriptor,
-                                                 const size_t index,
-                                                 const bool isInput,
-                                                 const ov::Allocator& allocator = {},
-                                                 const std::optional<std::size_t> batchSize = std::nullopt) const;
-
-    virtual std::shared_ptr<ov::ITensor> create_tensor(ov::element::Type type,
-                                                       const ov::Shape& shape,
-                                                       const ov::Allocator& allocator = {}) const;
-
-    virtual void add_state(const IODescriptor& descriptor, const size_t tensorIndex) const;
 
     bool is_batched_input(size_t idx) const;
 

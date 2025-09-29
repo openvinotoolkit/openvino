@@ -93,7 +93,7 @@ class MatMulDecompressConvertTest : public testing::WithParamInterface<MatMulDec
                                     virtual public SubgraphBaseTest,
                                     public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatMulDecompressConvertParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulDecompressConvertParams>& obj) {
         const auto& [inputShapes, transpose, weiElemType, additionalConfig, cpuParams] = obj.param;
         std::ostringstream result;
         for (const auto& shape : inputShapes) {

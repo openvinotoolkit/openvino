@@ -52,7 +52,7 @@ public:
     void reset();
 
     /// This output position for a different node
-    Output<Node> for_node(const std::shared_ptr<Node>& node);
+    Output<Node> for_node(const std::shared_ptr<Node>& node) const;
     /// \return A pointer to the node referred to by this output handle.
     Node* get_node() const;
     /// \return A `shared_ptr` to the node referred to by this output handle.

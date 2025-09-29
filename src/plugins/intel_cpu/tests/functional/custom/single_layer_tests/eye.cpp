@@ -29,7 +29,7 @@ class EyeLayerCPUTest : public testing::WithParamInterface<EyeLayerCPUTestParams
                         virtual public SubgraphBaseTest,
                         public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EyeLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<EyeLayerCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams] = obj.param;
         const auto& [_inputShape, _outBatchShape, eyePar, netPr, td] = basicParamsSet;
         inputShape = _inputShape;

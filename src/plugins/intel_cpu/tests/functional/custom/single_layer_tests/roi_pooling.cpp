@@ -37,7 +37,7 @@ class ROIPoolingCPULayerTest : public testing::WithParamInterface<ROIPoolingCPUT
                                public ov::test::SubgraphBaseTest,
                                public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ROIPoolingCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ROIPoolingCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams, propMode, additionalConfig] = obj.param;
         const auto& [inputShapes, poolShape, spatial_scale, pool_method, netPrecision, targetDevice] = basicParamsSet;
         std::ostringstream result;

@@ -41,7 +41,8 @@ BrgemmTppEmitter::BrgemmTppEmitter(jit_generator_t* h,
                                    const ExpressionPtr& expr,
                                    const snippets::KernelExecutorTablePtr& kernel_table,
                                    const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
-    : TppEmitter(h, isa, expr) {
+    : jit_emitter(h, isa),
+      TppEmitter(h, isa, expr) {
     const auto& brgemm_node = as_type_ptr<intel_cpu::tpp::op::BrgemmTPP>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node && !brgemm_node->is_dynamic(), "Invoked with invalid node type");
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);

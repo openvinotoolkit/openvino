@@ -14,12 +14,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-    std::string CodegenGelu::getTestCaseName(testing::TestParamInfo<ov::test::snippets::CodegenGeluParams> obj) {
-        ov::element::Type_t netPrecision;
-        InputShape inputShapes0, inputShapes1;
-        bool useSubgraph;
-        std::string targetDevice;
-        std::tie(netPrecision, inputShapes0, inputShapes1, useSubgraph, targetDevice) = obj.param;
+    std::string CodegenGelu::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::CodegenGeluParams>& obj) {
+        const auto& [netPrecision, inputShapes0, inputShapes1, useSubgraph, targetDevice] = obj.param;
 
         std::ostringstream result;
         result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes0.first}) << "_";

@@ -49,7 +49,7 @@ class RecurrentCellTransformation :
     public testing::WithParamInterface<RecurrentCellTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<RecurrentCellTransformationParams>& obj);
 
 protected:
     void SetUp() override;

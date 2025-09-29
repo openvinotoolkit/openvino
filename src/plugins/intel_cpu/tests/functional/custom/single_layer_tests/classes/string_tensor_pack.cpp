@@ -14,7 +14,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace StringTensorPack {
-std::string StringTensorPackLayerCPUTest::getTestCaseName(testing::TestParamInfo<StringTensorPackLayerCPUTestParamsSet> obj) {
+std::string StringTensorPackLayerCPUTest::getTestCaseName(const testing::TestParamInfo<StringTensorPackLayerCPUTestParamsSet>& obj) {
     const auto& [basicParamsSet, cpuParams] = obj.param;
     const auto& [StringTensorPackPar, indicesPrecision, td] = basicParamsSet;
     const auto& [indicesShape, symbolsShape] = StringTensorPackPar;

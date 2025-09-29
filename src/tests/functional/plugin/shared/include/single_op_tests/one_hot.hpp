@@ -8,7 +8,11 @@
 
 namespace ov {
 namespace test {
-TEST_P(OneHotLayerTest, Inference) {
+TEST_P(OneHot1LayerTest, Inference) {
+    run();
+}
+
+TEST_P(OneHot16LayerTest, Inference) {
     run();
 }
 }  // namespace test

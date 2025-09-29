@@ -10363,6 +10363,214 @@ TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_
         }
 }
 
+struct convolution_gpu_onednn_both_shapes_3d : public ::testing::TestWithParam<bool> {
+};
+
+INSTANTIATE_TEST_SUITE_P(quantized_onednn_convolution_u8s8f32_weights_zp_3d,
+                        convolution_gpu_onednn_both_shapes_3d,
+                        ::testing::Values(true, false)
+);
+
+TEST_P(convolution_gpu_onednn_both_shapes_3d, quantized_onednn_convolution_u8s8f32_weights_zp_3d) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    bool is_dyn_shape = GetParam();
+    ov::PartialShape dyn_input_pshape = {ov::Dimension(), 2, ov::Dimension(), ov::Dimension(), ov::Dimension()};
+    auto in_layout = layout{dyn_input_pshape, data_types::u8, format::bfzyx};
+    auto input = engine.allocate_memory({ data_types::u8, format::bfzyx, { 1, 2, 3, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfzyx, { 3, 2, 2, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 3, 1, 1, 1 } });
+    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfzyx, { 1, 3, 1, 1, 1 } });
+    auto w_zp = engine.allocate_memory({ data_types::u8, format::bfzyx, { 1, 1, 1, 1, 1 } });
+
+    set_values<uint8_t>(input, {
+        // First channel, first depth slice
+        1, 2, 3, 4, 5,
+        2, 2, 3, 4, 6,
+        3, 3, 3, 5, 1,
+        1, 1, 1, 1, 1,
+        // First channel, second depth slice
+        2, 3, 4, 5, 6,
+        3, 3, 4, 5, 7,
+        4, 4, 4, 6, 2,
+        2, 2, 2, 2, 2,
+        // First channel, third depth slice
+        1, 2, 3, 4, 5,
+        2, 2, 3, 4, 6,
+        3, 3, 3, 5, 1,
+        1, 1, 1, 1, 1,
+
+        // Second channel, first depth slice
+        1, 2, 3, 4, 5,
+        2, 2, 3, 4, 6,
+        3, 3, 3, 5, 1,
+        1, 1, 1, 1, 1,
+        // Second channel, second depth slice
+        2, 3, 4, 5, 6,
+        3, 3, 4, 5, 7,
+        4, 4, 4, 6, 2,
+        2, 2, 2, 2, 2,
+        // Second channel, third depth slice
+        1, 2, 3, 4, 5,
+        2, 2, 3, 4, 6,
+        3, 3, 3, 5, 1,
+        1, 1, 1, 1, 1 });
+
+    set_values<int8_t>(weights, {
+        // First output channel, first input channel, first depth slice
+         1,  2, -1,
+        -2,  1,  2,
+         9,  7, -1,
+        // First output channel, first input channel, second depth slice
+         2,  1,  0,
+        -1,  2,  1,
+         8,  6,  0,
+
+        // First output channel, second input channel, first depth slice
+         9,  0, -4,
+        -1,  3,  2,
+         0,  2,  5,
+        // First output channel, second input channel, second depth slice
+         8, -1, -3,
+         0,  4,  3,
+         1,  1,  4,
+
+        // Second output channel, first input channel, first depth slice
+         1,  2, -1,
+        -2,  1,  2,
+         9,  7, -1,
+        // Second output channel, first input channel, second depth slice
+         2,  1,  0,
+        -1,  2,  1,
+         8,  6,  0,
+
+        // Second output channel, second input channel, first depth slice
+         9,  0, -4,
+        -1,  3,  2,
+         0,  2,  5,
+        // Second output channel, second input channel, second depth slice
+         8, -1, -3,
+         0,  4,  3,
+         1,  1,  4,
+
+        // Third output channel, first input channel, first depth slice
+         1,  2, -1,
+        -2,  1,  2,
+         9,  7, -1,
+        // Third output channel, first input channel, second depth slice
+         2,  1,  0,
+        -1,  2,  1,
+         8,  6,  0,
+
+        // Third output channel, second input channel, first depth slice
+         9,  0, -4,
+        -1,  3,  2,
+         0,  2,  5,
+        // Third output channel, second input channel, second depth slice
+         8, -1, -3,
+         0,  4,  3,
+         1,  1,  4 });
+
+    set_values<uint8_t>(a_zp, { 2, 5, 5 });
+    set_values<uint8_t>(w_zp, { 2 });
+    set_values(biases, { 1.0f, -8.0f, -8.0f });
+
+    // Expected output shape: { 1, 3, 2, 3, 2 } - (batch=1, output_channels=3, depth=2, height=3, width=2)
+    VVVVF<float> output_vec = {
+        { // Output channel 0
+            { // Depth 0
+                { -75.0f, -64.0f },  // Height 0, Width [0,1]
+                { -32.0f,   4.0f },  // Height 1, Width [0,1]
+                { -45.0f, -14.0f }   // Height 2, Width [0,1]
+            },
+            { // Depth 1
+                {  65.0f,  45.0f },  // Height 0, Width [0,1]
+                {  10.0f, -37.0f },  // Height 1, Width [0,1]
+                { -66.0f, -36.0f }   // Height 2, Width [0,1]
+            }
+        },
+        { // Output channel 1
+            { // Depth 0
+                { -84.0f, -73.0f },  // Height 0, Width [0,1]
+                { -41.0f,  -5.0f },  // Height 1, Width [0,1]
+                { -54.0f, -23.0f }   // Height 2, Width [0,1]
+            },
+            { // Depth 1
+                {  56.0f,  36.0f },  // Height 0, Width [0,1]
+                {   1.0f, -46.0f },  // Height 1, Width [0,1]
+                { -75.0f, -45.0f }   // Height 2, Width [0,1]
+            }
+        },
+        { // Output channel 2
+            { // Depth 0
+                { -84.0f, -73.0f },  // Height 0, Width [0,1]
+                { -41.0f,  -5.0f },  // Height 1, Width [0,1]
+                { -54.0f, -23.0f }   // Height 2, Width [0,1]
+            },
+            { // Depth 1
+                {  56.0f,  36.0f },  // Height 0, Width [0,1]
+                {   1.0f, -46.0f },  // Height 1, Width [0,1]
+                { -75.0f, -45.0f }   // Height 2, Width [0,1]
+            }
+        }
+    };
+
+    topology topology(
+        data("weights", weights),
+        data("biases", biases),
+        data("a_zp", a_zp),
+        data("w_zp", w_zp),
+        convolution("conv", input_info("input"), "weights", "biases", "w_zp", "a_zp", "", 1,
+                    { 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 0, 0, 0 }, false, data_types::f32),
+        reorder("out", input_info("conv"), format::bfzyx, data_types::f32));
+    if (is_dyn_shape)
+        topology.add(input_layout("input", in_layout));
+    else
+        topology.add(input_layout("input", input->get_layout()));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    // ov::intel_gpu::ImplementationDesc conv_impl = { format::any, "", impl_types::onednn };
+    // config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    if (is_dyn_shape)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.begin()->first, "out");
+
+    auto output_memory = outputs.at("out").get_memory();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    auto output_layout = output_memory->get_layout();
+    int z_size = output_layout.spatial(2);
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::bfzyx);
+    ASSERT_EQ(z_size, 2);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 3);
+    ASSERT_EQ(b_size, 1);
+
+    for (int f = 0; f < f_size; f++)
+        for (int z = 0; z < z_size; ++z) {
+            for (int y = 0; y < y_size; ++y) {
+                for (int x = 0; x < x_size; ++x) {
+                    float actual_value = output_ptr[f * z_size * y_size * x_size + z * y_size * x_size + y * x_size + x];
+                    ASSERT_NEAR(output_vec[f][z][y][x], actual_value, 1e-5f) <<
+                    " x="<< x << " y=" << y << " z=" << z << " f=" << f;
+                }
+            }
+        }
+}
+
 TEST(convolution_gpu_onednn, support_activation_zero_points_for_i32) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)

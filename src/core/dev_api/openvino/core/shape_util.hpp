@@ -4,8 +4,11 @@
 
 #pragma once
 
+#include <optional>
+
 #include "openvino/core/shape.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace util {
@@ -71,5 +74,13 @@ Shape get_broadcast_shape(const Shape& first, const Shape& second, const ov::op:
  * @return Normalized shape dimension index.
  */
 OPENVINO_API std::ptrdiff_t normalize_shape_index(std::ptrdiff_t idx, size_t rank);
+
+/**
+ * @brief Calculates shape size if there is no overflow.
+ *
+ * @param shape  Input shape for size calculation.
+ * @return Shape size if there is no overflow, otherwise nullopt.
+ */
+OPENVINO_API std::optional<size_t> shape_size_safe(const Shape& shape);
 }  // namespace util
 }  // namespace ov

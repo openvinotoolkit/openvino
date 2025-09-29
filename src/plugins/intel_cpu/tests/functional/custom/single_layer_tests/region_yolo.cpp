@@ -31,7 +31,7 @@ using regionYoloParamsTuple = std::tuple<InputShape,             // Input Shape
 class RegionYoloCPULayerTest : public testing::WithParamInterface<regionYoloParamsTuple>,
                                virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<regionYoloParamsTuple> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<regionYoloParamsTuple>& obj) {
         const auto& [inputShape, attributes, mask, inpPrecision, outPrecision, additionalConfig, targetName] =
             obj.param;
         std::ostringstream result;

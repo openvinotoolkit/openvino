@@ -87,9 +87,7 @@ using TestParams = std::tuple<PadFactoryPtr, TestModelFactoryPtr>;
 class ConvertPadGroupConvTestFixture : public ::testing::WithParamInterface<TestParams>, public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestParams>& obj) {
-        PadFactoryPtr pad_factory;
-        TestModelFactoryPtr model_factory;
-        std::tie(pad_factory, model_factory) = obj.param;
+        const auto& [pad_factory, model_factory] = obj.param;
 
         std::ostringstream test_name;
         test_name << "pad_factory=" << pad_factory->getTypeName() << "/";
@@ -100,9 +98,7 @@ public:
 };
 
 TEST_P(ConvertPadGroupConvTestFixture, CompareFunctions) {
-    PadFactoryPtr pad_factory;
-    TestModelFactoryPtr model_factory;
-    std::tie(pad_factory, model_factory) = this->GetParam();
+    const auto& [pad_factory, model_factory] = this->GetParam();
 
     model_factory->setup(pad_factory, manager);
     model = model_factory->model;

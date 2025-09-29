@@ -11,13 +11,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string TransposeSoftmax::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeSoftmaxParams> obj) {
-    std::vector<InputShape> inputShapes;
-    std::vector<int64_t> order;
-    int axis;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes, order, axis, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string TransposeSoftmax::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::TransposeSoftmaxParams>& obj) {
+    const auto& [inputShapes, order, axis, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < inputShapes.size(); ++i) {
@@ -36,10 +31,10 @@ std::string TransposeSoftmax::getTestCaseName(testing::TestParamInfo<ov::test::s
 }
 
 void TransposeSoftmax::SetUp() {
-    std::vector<InputShape> inputShapes;
-    std::vector<int64_t> order;
-    int64_t axis;
-    std::tie(inputShapes, order, axis, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShapes, order, axis, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShapes);
 
     auto f = ov::test::snippets::TransposeSoftmaxFunction(inputDynamicShapes, order, axis);
@@ -49,10 +44,10 @@ void TransposeSoftmax::SetUp() {
 }
 
 void TransposeSoftmaxEltwise::SetUp() {
-    std::vector<InputShape> inputShapes;
-    std::vector<int64_t> order;
-    int64_t axis;
-    std::tie(inputShapes, order, axis, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShapes, order, axis, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShapes);
 
     auto f = ov::test::snippets::TransposeSoftmaxEltwiseFunction(inputDynamicShapes, order, axis);

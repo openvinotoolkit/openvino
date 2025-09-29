@@ -23,7 +23,7 @@ class FullyConnectedStridedInputsOutputsTest
       public CPUTestsBase,
       virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FullyConnectedStridedInputsOutputsTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<FullyConnectedStridedInputsOutputsTestParams>& obj) {
         const auto& [netPrecision, rank] = obj.param;
         std::ostringstream result;
         result << "netPRC=" << netPrecision.get_type_name() << "_";

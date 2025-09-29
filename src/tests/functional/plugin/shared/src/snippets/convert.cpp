@@ -11,12 +11,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string Convert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ConvertParams> obj) {
-    std::vector<InputShape> inputShape;
-    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShape, types, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string Convert::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ConvertParams>& obj) {
+    const auto& [inputShape, types, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < inputShape.size(); ++i) {
@@ -35,9 +31,10 @@ std::string Convert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::
 }
 
 void Convert::SetUp() {
-    std::vector<InputShape> inputShape;
-    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
-    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, types, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShape);
     auto f = ov::test::snippets::ConvertFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
@@ -79,8 +76,8 @@ void Convert::generate_inputs(const std::vector<ov::Shape>& targetInputStaticSha
     for (int i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
         ov::Tensor tensor;
-        int32_t startFrom, range, resolution;
-        std::tie(startFrom, range, resolution) = params[i];
+
+        const auto& [startFrom, range, resolution] = params[i];
         ov::test::utils::InputGenerateData in_data;
         in_data.start_from = startFrom;
         in_data.range = range;
@@ -91,9 +88,10 @@ void Convert::generate_inputs(const std::vector<ov::Shape>& targetInputStaticSha
 }
 
 void ConvertInput::SetUp() {
-    std::vector<InputShape> inputShape;
-    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
-    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, types, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShape);
     auto f = ov::test::snippets::ConvertInputFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
@@ -136,9 +134,10 @@ parameters ConvertInput::generate_params_random() const {
 }
 
 void ConvertOutput::SetUp() {
-    std::vector<InputShape> inputShape;
-    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
-    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, types, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShape);
 
     auto f = ov::test::snippets::ConvertOutputFunction(inputDynamicShapes, types.first[0], types.second[0]);
@@ -152,9 +151,10 @@ void ConvertOutput::SetUp() {
 }
 
 void ConvertStub::SetUp() {
-    std::vector<InputShape> inputShape;
-    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
-    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, types, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShape);
 
     auto f = ov::test::snippets::ConvertStubFunction(inputDynamicShapes, types.first[0], types.second[0]);
@@ -164,9 +164,10 @@ void ConvertStub::SetUp() {
 }
 
 void ConvertPartialInputsAndResults::SetUp() {
-    std::vector<InputShape> inputShape;
-    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
-    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, types, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShape);
 
     auto f = ov::test::snippets::ConvertPartialInputsAndResultsFunction(inputDynamicShapes, types.first, types.second);
@@ -175,9 +176,10 @@ void ConvertPartialInputsAndResults::SetUp() {
 }
 
 void ConvertManyOnInputs::SetUp() {
-    std::vector<InputShape> inputShape;
-    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
-    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, types, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShape);
 
     auto f = ov::test::snippets::ConvertManyOnInputsFunction(inputDynamicShapes, types.first);
@@ -186,9 +188,10 @@ void ConvertManyOnInputs::SetUp() {
 }
 
 void ConvertManyOnOutputs::SetUp() {
-    std::vector<InputShape> inputShape;
-    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
-    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, types, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShape);
 
     auto f = ov::test::snippets::ConvertManyOnOutputsFunction(inputDynamicShapes, types.first);
@@ -197,9 +200,10 @@ void ConvertManyOnOutputs::SetUp() {
 }
 
 void ConvertManyOnInputOutput::SetUp() {
-    std::vector<InputShape> inputShape;
-    std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
-    std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, types, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(inputShape);
 
     auto f = ov::test::snippets::ConvertManyOnInputOutputFunction(inputDynamicShapes, types.first, types.second);

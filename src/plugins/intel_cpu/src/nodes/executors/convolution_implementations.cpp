@@ -6,7 +6,10 @@
 #include <vector>
 
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_format_filter.hpp"
 #include "nodes/executors/convolution_config.hpp"
+#include "nodes/executors/debug_messages.hpp"
+#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
@@ -17,18 +20,12 @@
 #include "utils/arch_macros.h"
 #include "utils/general_utils.h"
 
-#if !defined(OPENVINO_ARCH_RISCV64)
-#    include "memory_format_filter.hpp"
-#    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
-#endif
-
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "post_ops.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OV_CPU_WITH_ACL)
-#    include "nodes/executors/debug_messages.hpp"
 #    include "nodes/executors/executor.hpp"
 #endif
 
@@ -240,6 +237,22 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 return true;
             },
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
+            AcceptsAnyShape<ConvAttrs>,
+            CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
+            )
+        OV_CPU_INSTANCE_RISCV64(
+            "convolution_dnnl_ref_ncsp", ExecutorType::Dnnl, OperationType::Convolution,
+            // supports
+            [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(config.attrs.postOps.empty(), UNSUPPORTED_POST_OPS);
+                return MatchesMemoryFormatFilter(config.descs,
+                                                 LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp},
+                                                 memoryFormatFilter,
+                                                 dnnlConvolutionMappingNotation);
+            },
+            // createOptimalConfig
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
             AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )

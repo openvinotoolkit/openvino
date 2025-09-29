@@ -26,7 +26,7 @@ class UniqueLayerTestCPU : public testing::WithParamInterface<UniqueLayerTestCPU
                            virtual public SubgraphBaseTest,
                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<UniqueLayerTestCPUParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<UniqueLayerTestCPUParams>& obj) {
         const auto &[inputShapes, flatOrAxis, sorted, dataPrecision, cpuParams, additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=(";

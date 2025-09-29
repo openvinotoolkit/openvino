@@ -32,7 +32,7 @@ class SliceScatterLayerCPUTest : public testing::WithParamInterface<SliceScatter
                                  virtual public SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SliceScatterLayerTestCPUParam> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<SliceScatterLayerTestCPUParam>& obj) {
         const auto& [shapes, params, secondaryInputType, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=(";

@@ -19,9 +19,11 @@ using ov::npuw::online::Group;
 using ov::npuw::online::Repeated;
 using ov::npuw::online::Snapshot;
 using ov::npuw::online::detail::GPtrSet;
+using ov::npuw::online::detail::MICVec;
 using ov::npuw::online::detail::OVNodePtr;
 using ov::npuw::online::detail::OVNodeSet;
 using ov::npuw::online::detail::OVPortsMap;
+using ov::npuw::online::detail::PairMICVecIO;
 using ov::npuw::online::detail::Uniques;
 
 namespace ov {
@@ -88,7 +90,6 @@ void Snapshot::buildGraph() {
         if (!isOp(ov_node)) {
             continue;
         }
-
         m_node_to_prod_cons->insert({ov_node, {}});
 
         auto nh = m_graph->create();
@@ -656,8 +657,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const GPtrSet& repeating_g
         return {};
     }
 
-    std::unordered_map<std::vector<MetaInterconnect>, std::unordered_map<Group::GPtr, std::unordered_set<Group::GPtr>>>
-        mics;
+    std::unordered_map<PairMICVecIO, std::unordered_map<Group::GPtr, std::unordered_set<Group::GPtr>>> mics;
 
     std::vector<Group::GPtr> repeating_groups_sorted(repeating_groups.begin(), repeating_groups.end());
 
@@ -687,10 +687,10 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const GPtrSet& repeating_g
 
                 // FIXME: find a better way to reduce time complexity
                 // Need to align interconnects in the same format via sort, so they could be compared later
-                std::vector<MetaInterconnect> mic_sorted_key(meta_interconnect.begin(), meta_interconnect.end());
+                MICVec mic_sorted_key(meta_interconnect.first.begin(), meta_interconnect.first.end());
                 std::sort(mic_sorted_key.begin(), mic_sorted_key.end());
 
-                auto& triangle = mics[mic_sorted_key];
+                auto& triangle = mics[{mic_sorted_key, meta_interconnect.second}];
                 triangle[group].insert(cons_group);
             }
         }
@@ -794,7 +794,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
     // look at the conss's own metaInterconnect descriptors with their own consumers.
     // There must be difference, and we can use this difference to pick the right candidates at time.
     // This mic2 metaInterconnect is of 2nd oreder in this case.
-    std::unordered_map<std::vector<MetaInterconnect>, std::vector<Group::GPtr>> mic2;
+    std::unordered_map<PairMICVecIO, std::vector<Group::GPtr>> mic2;
     for (const auto& cons : conss) {
         for (const auto& gptr : cons) {
             Group::GPtr group_cons = m_graph->meta(gptr->dstNodes().front()).get<Group::GPtr>();
@@ -802,10 +802,10 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
 
             // FIXME: find a better way to reduce time complexity
             // Need to align interconnects in the same format via sort, so they could be compared later
-            std::vector<MetaInterconnect> mic_sorted_key(meta_interconnect.begin(), meta_interconnect.end());
+            MICVec mic_sorted_key(meta_interconnect.first.begin(), meta_interconnect.first.end());
             std::sort(mic_sorted_key.begin(), mic_sorted_key.end());
 
-            mic2[mic_sorted_key].push_back(gptr);
+            mic2[{mic_sorted_key, meta_interconnect.second}].push_back(gptr);
         }
     }
 
@@ -871,7 +871,7 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
     const auto& this_avoided = first_rep_group->avoidedTargets();
     const auto& this_special = first_rep_group->specialTags();
 
-    std::unordered_map<std::vector<MetaInterconnect>, std::vector<std::pair<Group::GPtr, Group::GPtr>>> mics;
+    std::unordered_map<PairMICVecIO, std::vector<std::pair<Group::GPtr, Group::GPtr>>> mics;
 
     std::vector<Group::GPtr> repeating_groups_sorted(repeating_groups.begin(), repeating_groups.end());
 
@@ -900,9 +900,9 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
 
                 // FIXME: find a better way to reduce time complexity
                 // Need to align interconnects in the same format via sort, so they could be compared later
-                std::vector<MetaInterconnect> mic_sorted_key(meta_interconnect.begin(), meta_interconnect.end());
+                MICVec mic_sorted_key(meta_interconnect.first.begin(), meta_interconnect.first.end());
                 std::sort(mic_sorted_key.begin(), mic_sorted_key.end());
-                mics[mic_sorted_key].push_back({prod_group, group});
+                mics[{mic_sorted_key, meta_interconnect.second}].push_back({prod_group, group});
             }
         }
     }

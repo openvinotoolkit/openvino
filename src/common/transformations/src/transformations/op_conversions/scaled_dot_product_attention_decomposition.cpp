@@ -25,9 +25,11 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -115,13 +117,19 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     };
 
     Output<Node> scale;
+    Output<Node> sink;
+    bool has_sink = false;
     if (node->get_input_size() < 5) {
         scale = build_extract_dim_subgraph(q_shape, -1);
         scale = register_new_node<v1::ConvertLike>(scale, query);
         auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
         scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
-    } else {
+    } else if (node->get_input_size() < 7) {
         scale = node->input_value(4);
+        if (node->get_input_size() == 6) {
+            sink = node->input_value(5);
+            has_sink = true;
+        }
     }
 
     auto k_rank = register_new_node<v3::ShapeOf>(k_shape, element::i32)->output(0);
@@ -159,9 +167,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
             // take part in attention. A float mask of the same type as query, key, value that is added to the attention
             // score.
             if (mask.get_element_type() == element::boolean) {
-                atten_mask = register_new_node<v1::ConvertLike>(mask, scaled_atten);
-                auto inv_mask = register_new_node<v1::LogicalNot>(mask);
-                atten_mask = register_new_node<v1::Select>(inv_mask, atten_mask, minus_inf);
+                atten_mask = register_new_node<v1::Select>(mask, zero_f, minus_inf);
             } else {
                 atten_mask = mask;
             }
@@ -183,7 +189,27 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
     }
 
-    scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
+    if (has_sink) {
+        auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-2}));
+        auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+        auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+        auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+
+        auto q_last_but_one_dim = register_new_node<v1::Subtract>(register_new_node<v0::ShapeOf>(q_shape),
+                                                                  v0::Constant::create(element::i64, Shape{}, {1}));
+        auto sink_target_shape_1 = register_new_node<v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
+        auto sink_target_shape = register_new_node<v0::Concat>(OutputVector{sink_target_shape_1, one_i}, 0);
+        auto sink_broadcast = register_new_node<v1::Broadcast>(sink, sink_target_shape);
+
+        auto scaled_attn_sink = register_new_node<v0::Concat>(OutputVector{scaled_atten, sink_broadcast}, -1);
+        scaled_atten = register_new_node<v8::Softmax>(scaled_attn_sink, -1);
+
+        auto seq_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
+        scaled_atten = register_new_node<v8::Slice>(scaled_atten, zero_i, seq_len, one_i, minus_one);
+    } else {
+        scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
+    }
+
     auto result = register_new_node<v0::MatMul>(scaled_atten, value);
     result->set_friendly_name(node->get_friendly_name());
     copy_runtime_info(node, get_new_nodes());

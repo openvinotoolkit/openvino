@@ -14,7 +14,7 @@ using ov::test::utils::EltwiseTypes;
 namespace ov {
 namespace test {
 
-std::string FuseMulAddAndEwSimpleTest::getTestCaseName(testing::TestParamInfo<FuseMulAddAndEwSimpleParams> obj) {
+std::string FuseMulAddAndEwSimpleTest::getTestCaseName(const testing::TestParamInfo<FuseMulAddAndEwSimpleParams>& obj) {
     std::ostringstream result;
     const auto& [inputShape, inPrec] = obj.param;
     result << "IS=" << inputShape << "_";

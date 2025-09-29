@@ -9,6 +9,8 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include "intel_gpu/primitives/implementation_desc.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+
 namespace ov::intel_gpu {
 
 /**
@@ -113,6 +115,9 @@ inline std::istream& operator>>(std::istream& is, DumpTensors& val) {
     return is;
 }
 
+using GpuWeightlessCacheMap = std::unordered_map<size_t, ov::WeightlessCacheAttribute>;
+static constexpr Property<std::shared_ptr<GpuWeightlessCacheMap>, PropertyMutability::RW> weightless_attr{"GPU_WEIGHTLESS_ATTR"};
+
 /**
  * @brief Defines queue type that must be used for model execution
  */
@@ -156,7 +161,7 @@ static constexpr Property<size_t, ov::PropertyMutability::RW> impls_cache_capaci
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_async_compilation{"GPU_DISABLE_ASYNC_COMPILATION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_buffer_fusing{"GPU_DISABLE_RUNTIME_BUFFER_FUSING"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_memory_reuse{"GPU_DISABLE_MEMORY_REUSE"};
-static constexpr Property<bool, ov::PropertyMutability::RW> disable_post_ops_fusions{"GPU_DISABLE_POST_OPS_FUSIONS"};
+static constexpr Property<size_t, ov::PropertyMutability::RW> disable_post_ops_fusions{"GPU_DISABLE_POST_OPS_FUSIONS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_fc_fusion{"GPU_DISABLE_HORIZONTAL_FC_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
@@ -168,6 +173,7 @@ static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> 
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> load_dump_raw_binary{"GPU_LOAD_DUMP_RAW_BINARY"};
 static constexpr Property<bool, ov::PropertyMutability::RW> could_use_flashattn_v2{"GPU_COULD_USE_FLASHATTN_V2"};
 static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{"GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
+static constexpr Property<bool, ov::PropertyMutability::RW> validate_output_buffer{"VALIDATE_OUTPUT_BUFFER"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {

@@ -10,12 +10,7 @@ namespace ov {
 namespace test {
 
 std::string ConvertPadToConvTests::getTestCaseName(const testing::TestParamInfo<PadParams>& obj) {
-    ov::Shape input_shape;
-    std::string targetName;
-    std::vector<int64_t> pad_begin, pad_end;
-    ov::op::PadMode mode;
-    float value;
-    std::tie(input_shape, pad_begin, pad_end, value, mode, targetName) = obj.param;
+    const auto& [input_shape, pad_begin, pad_end, value, mode, targetName] = obj.param;
     std::ostringstream results;
 
     results << "Input" << ov::test::utils::vec2str(input_shape);
@@ -28,11 +23,8 @@ std::string ConvertPadToConvTests::getTestCaseName(const testing::TestParamInfo<
 }
 
 void ConvertPadToConvTests::SetUp() {
-    ov::Shape input_shape;
-    std::vector<int64_t> pad_begin, pad_end;
-    ov::op::PadMode mode;
-    float value;
-    std::tie(input_shape, pad_begin, pad_end, value, mode, targetDevice) = this->GetParam();
+    const auto& [input_shape, pad_begin, pad_end, value, mode, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     {
         auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);

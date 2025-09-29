@@ -12,20 +12,13 @@
 
 namespace ov {
 namespace test {
-std::string SharedMatmulAndGatherWeightsDecompression::getTestCaseName(testing::TestParamInfo<SharedMatmulAndGatherWeightsDecompressionParams> obj) {
-    std::string target_device;
-    GatherDecompressionShapeParams shape_params;
-    ov::test::ElementType weights_precision;
-    ov::test::ElementType decompression_precision;
-    bool decompression_subtract;
-    bool use_decompression_impl;
-
-    std::tie(target_device,
-             shape_params,
-             weights_precision,
-             decompression_precision,
-             decompression_subtract,
-             use_decompression_impl) = obj.param;
+std::string SharedMatmulAndGatherWeightsDecompression::getTestCaseName(const testing::TestParamInfo<SharedMatmulAndGatherWeightsDecompressionParams>& obj) {
+    const auto& [target_device,
+                 shape_params,
+                 weights_precision,
+                 decompression_precision,
+                 decompression_subtract,
+                 use_decompression_impl] = obj.param;
 
     std::ostringstream result;
     result << "device=" << target_device << "_";
@@ -71,18 +64,13 @@ std::shared_ptr<ov::Model> SharedMatmulAndGatherWeightsDecompression::initSubgra
 }
 
 void SharedMatmulAndGatherWeightsDecompression::SetUp() {
-    GatherDecompressionShapeParams shape_params;
-    ov::test::ElementType weights_precision;
-    ov::test::ElementType decompression_precision;
-    bool decompression_subtract;
-    bool use_decompression_impl;
-
-    std::tie(targetDevice,
-             shape_params,
-             weights_precision,
-             decompression_precision,
-             decompression_subtract,
-             use_decompression_impl) = GetParam();
+    const auto& [_targetDevice,
+                 shape_params,
+                 weights_precision,
+                 decompression_precision,
+                 decompression_subtract,
+                 use_decompression_impl] = GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes({shape_params.indices_shape, shape_params.indices_shape});
 

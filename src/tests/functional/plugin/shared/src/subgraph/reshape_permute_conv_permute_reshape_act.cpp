@@ -11,15 +11,7 @@
 namespace ov {
 namespace test {
 std::string ConvReshapeAct::getTestCaseName(const testing::TestParamInfo<ConvReshapeActParams>& obj) {
-    ov::element::Type model_type;
-    std::string targetName;
-    std::array<size_t, 4> input_shape;
-    std::array<size_t, 2> kernel_shape;
-    size_t output_channels;
-    ov::AnyMap configuration;
-
-
-    std::tie(model_type, targetName, input_shape, kernel_shape, output_channels, configuration) = obj.param;
+    const auto& [model_type, targetName, input_shape, kernel_shape, output_channels, configuration] = obj.param;
     std::ostringstream results;
 
     results << "IS=" << ov::test::utils::vec2str(std::vector<size_t>(input_shape.begin(), input_shape.end())) << "_";
@@ -34,13 +26,9 @@ std::string ConvReshapeAct::getTestCaseName(const testing::TestParamInfo<ConvRes
 }
 
 void ConvReshapeAct::SetUp() {
-    ov::element::Type model_type;
-    std::array<size_t, 4> input_shape;
-    std::array<size_t, 2> kernel_shape;
-    size_t output_channels;
-    ov::AnyMap additional_config;
-
-    std::tie(model_type, targetDevice, input_shape, kernel_shape, output_channels, additional_config) = this->GetParam();
+    const auto& [model_type, _targetDevice, input_shape, kernel_shape, output_channels, additional_config] =
+        this->GetParam();
+    targetDevice = _targetDevice;
 
     configuration.insert(additional_config.begin(), additional_config.end());
 

@@ -16,6 +16,7 @@
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -49,6 +50,11 @@ constexpr bool is_dynamic_value(T value) {
     return value == get_dynamic_value<T>();
 }
 
+template <typename T, typename = std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
+constexpr bool has_dynamic_values(std::vector<T> values) {
+    return std::any_of(values.cbegin(), values.cend(), ov::snippets::utils::is_dynamic_value<T>);
+}
+
 // This value means full dimension
 // For example, for the subtensor it means that scheduling should be by full dimension
 constexpr size_t get_full_dim_value() {
@@ -79,6 +85,10 @@ inline auto is_scalar_constant(const std::shared_ptr<ov::Node>& source_output_no
 inline auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) + 1 : allocation_rank;
 }
+
+// Returns the normalized Softmax axis when the node is a Softmax with a static rank.
+// Returns nullopt if the node is null, has a dynamic rank, or is not a supported Softmax version.
+std::optional<int64_t> get_softmax_axis(const std::shared_ptr<const ov::Node>& node);
 
 template <typename T, typename... Args>
 constexpr bool any_of(T val, Args... items) {
@@ -132,9 +142,7 @@ static inline bool is_planar_layout(const std::vector<size_t>& order) {
 }
 
 inline bool is_dynamic_vdims(const VectorDims& shape) {
-    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v) {
-        return is_dynamic_value(v);
-    });
+    return has_dynamic_values(shape);
 }
 
 inline bool is_dynamic_vdims(const VectorDimsPtr& shape) {

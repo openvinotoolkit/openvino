@@ -26,14 +26,10 @@ typedef std::tuple<
 class SplitLayerGPUDynamicTest : public testing::WithParamInterface<splitDynamicGPUTestParams>,
                           virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<splitDynamicGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<splitDynamicGPUTestParams>& obj) {
         std::ostringstream result;
-        size_t num_splits;
-        int64_t axis;
-        ov::element::Type model_type;
-        InputShape input_shape;
-        std::vector<size_t> out_indices;
-        std::tie(num_splits, axis, model_type, input_shape, out_indices) = obj.param;
+
+        const auto& [num_splits, axis, model_type, input_shape, out_indices] = obj.param;
 
         result << "IS=";
         result << ov::test::utils::partialShape2str({input_shape.first}) << "_";
@@ -53,12 +49,9 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        int64_t axis;
-        size_t num_splits;
-        InputShape input_shape;
-        std::vector<size_t> out_indices;
-        ov::element::Type model_type;
-        std::tie(num_splits, axis, model_type, input_shape, out_indices) = this->GetParam();
+
+        const auto& [num_splits, axis, model_type, input_shape, _out_indices] = this->GetParam();
+        auto out_indices = _out_indices;
         if (out_indices.empty()) {
             for (size_t i = 0; i < num_splits; ++i) {
                 out_indices.push_back(i);
@@ -137,14 +130,10 @@ typedef std::tuple<
 class VariadicSplitLayerGPUDynamicTest : public testing::WithParamInterface<varSplitDynamicGPUTestParams>,
                                          virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<varSplitDynamicGPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<varSplitDynamicGPUTestParams>& obj) {
         std::ostringstream result;
-        int64_t axis;
-        std::vector<int32_t> split_length;
-        ov::element::Type model_type;
-        InputShape input_shape;
-        ov::test::utils::InputLayerType inputType;
-        std::tie(axis, split_length, model_type, input_shape, inputType) = obj.param;
+
+        const auto& [axis, split_length, model_type, input_shape, inputType] = obj.param;
 
         result << "IS=";
         result << ov::test::utils::partialShape2str({input_shape.first}) << "_";
@@ -186,11 +175,9 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        int64_t axis;
-        InputShape input_shape;
-        std::vector<int32_t> split_length;
-        ov::test::utils::InputLayerType inputType;
-        std::tie(axis, split_length, model_type, input_shape, inputType) = this->GetParam();
+
+        const auto& [axis, split_length, _model_type, input_shape, inputType] = this->GetParam();
+        model_type = _model_type;
 
         split_length_vec = split_length;
 

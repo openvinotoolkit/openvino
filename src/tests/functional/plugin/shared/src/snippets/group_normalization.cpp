@@ -11,13 +11,8 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string GroupNormalization::getTestCaseName(testing::TestParamInfo<ov::test::snippets::GroupNormalizationParams> obj) {
-    InputShape inputShapes;
-    size_t numGroup;
-    float eps;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes, numGroup, eps, num_nodes, num_subgraphs, targetDevice) = obj.param;
+std::string GroupNormalization::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::GroupNormalizationParams>& obj) {
+    const auto& [inputShapes, numGroup, eps, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -34,10 +29,10 @@ std::string GroupNormalization::getTestCaseName(testing::TestParamInfo<ov::test:
 }
 
 void GroupNormalization::SetUp() {
-    InputShape inputShape;
-    size_t numGroup;
-    float eps;
-    std::tie(inputShape, numGroup, eps, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, numGroup, eps, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
 
     InputShape scaleShiftShape = ExtractScaleShiftShape(inputShape);
 

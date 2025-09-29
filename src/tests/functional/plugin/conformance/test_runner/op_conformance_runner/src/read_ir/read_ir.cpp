@@ -30,11 +30,10 @@ namespace op_conformance {
 
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
     using namespace ov::test::utils;
+    const auto& [path_to_model, path_to_ref_tensor] = obj.param;
     std::pair<std::string, std::string> model_pair;
-    std::string path_to_model, path_to_ref_tensor, deviceName = ov::test::utils::target_device;
     ov::AnyMap config = ov::test::utils::global_plugin_config;
-    std::tie(path_to_model, path_to_ref_tensor) = obj.param;
-
+    const std::string deviceName = ov::test::utils::target_device;
     std::ostringstream result;
 
     enum class IR_TYPE {

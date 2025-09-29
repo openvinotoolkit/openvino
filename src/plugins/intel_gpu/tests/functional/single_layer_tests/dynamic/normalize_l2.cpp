@@ -23,13 +23,8 @@ using NormalizeL2LayerGPUTestParams = std::tuple<
 class NormalizeL2LayerGPUTest : public testing::WithParamInterface<NormalizeL2LayerGPUTestParams>,
                                 virtual public ov::test::SubgraphBaseTest {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerGPUTestParams> obj) {
-       InputShape inputShapes;
-       ov::element::Type netPrecision;
-       std::vector<int64_t> axes;
-       ov::op::EpsMode epsMode;
-       float eps;
-       std::tie(inputShapes, netPrecision, axes, epsMode, eps) = obj.param;
+   static std::string getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerGPUTestParams>& obj) {
+       const auto& [inputShapes, netPrecision, axes, epsMode, eps] = obj.param;
 
        std::ostringstream result;
        result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -48,12 +43,7 @@ protected:
    void SetUp() override {
        targetDevice = ov::test::utils::DEVICE_GPU;
 
-       InputShape inputShapes;
-       ov::element::Type netPrecision;
-       std::vector<int64_t> axes;
-       ov::op::EpsMode epsMode;
-       float eps;
-       std::tie(inputShapes, netPrecision, axes, epsMode, eps) = this->GetParam();
+       const auto& [inputShapes, netPrecision, axes, epsMode, eps] = this->GetParam();
 
        init_input_shapes({inputShapes});
 

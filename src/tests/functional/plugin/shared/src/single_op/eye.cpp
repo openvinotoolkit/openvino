@@ -11,13 +11,8 @@
 
 namespace ov {
 namespace test {
-std::string EyeLayerTest::getTestCaseName(testing::TestParamInfo<EyeLayerTestParams> obj) {
-    std::string td;
-    std::vector<ov::Shape> input_shapes;
-    ov::element::Type model_type;
-    std::vector<int> out_batch_shape;
-    std::vector<int> eye_par;
-    std::tie(input_shapes, out_batch_shape, eye_par, model_type, td) = obj.param;
+std::string EyeLayerTest::getTestCaseName(const testing::TestParamInfo<EyeLayerTestParams>& obj) {
+    const auto& [input_shapes, out_batch_shape, eye_par, model_type, td] = obj.param;
     std::ostringstream result;
     result << "EyeTest_";
     result << "IS=(";
@@ -35,13 +30,11 @@ std::string EyeLayerTest::getTestCaseName(testing::TestParamInfo<EyeLayerTestPar
 }
 
 void EyeLayerTest::SetUp() {
-    std::vector<ov::Shape> input_shapes;
     int row_num, col_num;
     int shift;
-    std::vector<int> out_batch_shape;
-    ov::element::Type model_type;
-    std::vector<int> eye_par;
-    std::tie(input_shapes, out_batch_shape, eye_par, model_type, targetDevice) = this->GetParam();
+
+    const auto& [input_shapes, out_batch_shape, eye_par, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     row_num = eye_par[0];
     col_num = eye_par[1];
     shift = eye_par[2];

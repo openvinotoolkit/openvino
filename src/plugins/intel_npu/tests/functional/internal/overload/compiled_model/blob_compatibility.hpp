@@ -120,9 +120,7 @@ using OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibilityNPU;
     std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);                                       \
     ASSERT_TYPE(core.import_model(blobStream, target_device, {ov::intel_npu::disable_version_check(true)}),    \
                 ##__VA_ARGS__);                                                                                \
-    // CVS-166953: skip compile_model(model, {compiled_blob(tensor)}) scenario until ov::hint::compiled_blob
-    // is passed to fallback on import_model(tensor)
-    // APPEND_EXPORT_HELPER(ASSERT_TYPE, ##__VA_ARGS__)
+    APPEND_EXPORT_HELPER(ASSERT_TYPE, ##__VA_ARGS__)
 
 TEST_P(OVBlobCompatibilityNPU, CanImportAllPrecompiledBlobsForAllOVVersionsAndDrivers) {
     if (auto current_driver =

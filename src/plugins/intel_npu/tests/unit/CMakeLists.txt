@@ -20,7 +20,7 @@ ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADDITIONAL_SOURCE_DIRS
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/partitioning
         DEPENDENCIES
             openvino::runtime
         INCLUDES
@@ -33,7 +33,12 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
         OBJECT_FILES
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model.cpp            
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model_utils.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/logging.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/serialization.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/util.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/util_xarch.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/lazy_tensor.cpp
         LINK_LIBRARIES
             ${MANDATORY_UNIT_TESTS_LIBS}
         LABELS
@@ -43,6 +48,7 @@ ov_add_test_target(
 if(ENABLE_AVX2)
     ov_avx2_optimization_flags(avx2_flags)
     target_compile_options(${TARGET_NAME} PRIVATE "${avx2_flags}")
+    target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_AVX2)
 endif()
 
 install(TARGETS ${TARGET_NAME}

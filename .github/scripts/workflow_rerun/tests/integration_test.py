@@ -7,6 +7,7 @@ Integration tests
 
 import unittest
 from pathlib import Path
+from datetime import datetime
 from github import Github, Auth
 import os
 import tempfile
@@ -32,6 +33,14 @@ class IntegrationTest(unittest.TestCase):
 
         # Even if we use "failure" for status we cannot guarantee logs containing any of the known error
         # So these tests use the logs of the most recent successfull pipeline
+        # Its "created_at" time should be within 60 days - the log retention window
+        self.wf_run = None
+        for run in self.gh_repo.get_workflow_runs(status='success'):
+            if (datetime.now(run.created_at.tzinfo) - run.created_at).days < 45:
+                self.wf_run = run
+                break
+        if not self.wf_run:
+            raise RuntimeError('No suitable workflow run found for testing')
         self.wf_run = self.gh_repo.get_workflow_runs(status='success')[0]
         print(f'Workflow run for testing: {self.wf_run}', flush=True)
 
@@ -48,10 +57,10 @@ class IntegrationTest(unittest.TestCase):
             path_to_log_archive=log_archive_path,
             path_to_errors_file=self.errors_to_look_for_file,
         )
+        self.assertTrue(len(analyzer._log_files) > 0)
         analyzer.analyze()
         if analyzer.found_matching_error:
-            print(f'Found matrching error, ticket: {analyzer.found_error_ticket}')
-        
-    
+            print(f'Found matching error, ticket: {analyzer.found_error_ticket}')
+
     def tearDown(self) -> None:
         self.github.close()

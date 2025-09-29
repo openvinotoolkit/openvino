@@ -73,6 +73,18 @@ protected:
     int axis;
 };
 
+class OnlineSoftmaxFunction : public SnippetsFunctionBase {
+public:
+    explicit OnlineSoftmaxFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

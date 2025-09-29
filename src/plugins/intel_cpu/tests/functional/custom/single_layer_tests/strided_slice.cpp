@@ -37,7 +37,7 @@ class StridedSliceLayerCPUTest : public testing::WithParamInterface<StridedSlice
                                  virtual public SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<StridedSliceLayerCPUTestParamSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceLayerCPUTestParamSet>& obj) {
         const auto& [shapes, params, secondaryInputType, dataType, cpuParams] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";

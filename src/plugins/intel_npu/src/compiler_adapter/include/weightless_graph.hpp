@@ -128,6 +128,7 @@ private:
      * @details Each map entry corresponds to one input of the main schedule.
      */
     mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _mainInputsViewTensors;
+    Logger _wgLogger;  // Uses the "WeightlessGraph" domain
 };
 
 }  // namespace intel_npu

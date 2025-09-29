@@ -29,7 +29,7 @@ class ScatterUpdateLayerCPUTest : public testing::WithParamInterface<scatterUpda
                                   public SubgraphBaseTest,
                                   public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<scatterUpdateParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<scatterUpdateParams>& obj) {
         const auto& [scatterParams, inputPrecision, idxPrecision] = obj.param;
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesDescr = scatterParams.indicesDescriprion;

@@ -39,7 +39,7 @@ using Col2ImLayerCPUTestParamsSet = std::tuple<
 class Col2ImLayerCPUTest : public testing::WithParamInterface<Col2ImLayerCPUTestParamsSet>,
                              public SubgraphBaseTest, public CPUTestsBase {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<Col2ImLayerCPUTestParamsSet> obj);
+   static std::string getTestCaseName(const testing::TestParamInfo<Col2ImLayerCPUTestParamsSet>& obj);
 protected:
    void SetUp() override;
    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;

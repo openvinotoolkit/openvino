@@ -22,7 +22,7 @@ class FuseMulAddAndEwSimpleTest : public testing::WithParamInterface<FuseMulAddA
                                   public CPUTestUtils::CPUTestsBase,
                                   virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseMulAddAndEwSimpleParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseMulAddAndEwSimpleParams>& obj);
 
 protected:
     void SetUp() override;

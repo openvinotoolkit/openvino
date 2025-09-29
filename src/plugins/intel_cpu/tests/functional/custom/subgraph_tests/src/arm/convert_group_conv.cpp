@@ -16,7 +16,7 @@ typedef std::tuple<InputShape> groupConvLayerCPUTestParamsSet;
 class GroupConvToConvTransformationCPUTest: public testing::WithParamInterface<groupConvLayerCPUTestParamsSet>,
                                             virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<groupConvLayerCPUTestParamsSet>& obj) {
         const auto& [inputShapes] = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShapes;

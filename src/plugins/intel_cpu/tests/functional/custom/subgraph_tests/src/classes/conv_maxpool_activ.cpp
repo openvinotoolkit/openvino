@@ -7,7 +7,7 @@
 
 namespace ov {
 namespace test {
-std::string ConvPoolActivTest::getTestCaseName(testing::TestParamInfo<fusingSpecificParams> obj) {
+std::string ConvPoolActivTest::getTestCaseName(const testing::TestParamInfo<fusingSpecificParams>& obj) {
     fusingSpecificParams fusingParams = obj.param;
 
     std::ostringstream result;

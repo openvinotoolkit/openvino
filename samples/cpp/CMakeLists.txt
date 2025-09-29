@@ -59,7 +59,11 @@ endif()
 
 if(OpenVINO_SOURCE_DIR)
     # in case if samples are built from OV repo
-    set(OV_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
+    if (DEFINED OUTPUT_ROOT)
+        set(OV_MAIN_SAMPLES_DIR "${OUTPUT_ROOT}")
+    else()
+        set(OV_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
+    endif()
     set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
 else()
     # in case if samples are built out of OV repo
@@ -111,6 +115,10 @@ endif()
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
 elseif(gflags_required)
+    # CMake 4.0 and higher will drop support for CMake versions <= 3.5.
+    # By explicitly setting CMAKE_POLICY_VERSION_MINIMUM, we ensure compatibility with dependencies like gflags,
+    # which require at least CMake 3.0.2, and avoid policy warnings or errors in future CMake versions.
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
     set(GFLAGS_TARGET gflags_nothreads_static)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
         add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)

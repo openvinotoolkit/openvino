@@ -25,7 +25,7 @@ class GatherLayerTestCPU : public testing::WithParamInterface<GatherLayerTestCPU
                            virtual public ov::test::SubgraphBaseTest,
                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherLayerTestCPUParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherLayerTestCPUParams>& obj) {
         const auto& [inputShapes, axisAndBatchDims, netPrecision, isAxisConstant, cpuParams, additionalConfig] =
             obj.param;
         std::ostringstream result;
@@ -152,7 +152,7 @@ class GatherInPlaceLayerTestCPU : public testing::WithParamInterface<GatherInPla
                                   virtual public ov::test::SubgraphBaseTest,
                                   public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherInPlaceLayerTestCPUParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherInPlaceLayerTestCPUParams>& obj) {
         const auto &[inputShapes, indices, axis, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=(";

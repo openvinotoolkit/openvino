@@ -23,7 +23,7 @@ Install required dependencies:
          python3 -m venv npu-env
          npu-env/bin/activate
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.22.0
-         pip install openvino==2025.2 openvino-tokenizers==2025.2 openvino-genai==2025.2
+         pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
 
 
       For the pre-production version, use the following line, instead:
@@ -40,7 +40,7 @@ Install required dependencies:
          python -m venv npu-env
          npu-env\Scripts\activate
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.22.0
-         pip install openvino==2025.2 openvino-tokenizers==2025.2 openvino-genai==2025.2
+         pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
 
 
       For the pre-production version, use the following line, instead:
@@ -289,6 +289,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 * To export a blob with weights you need to pass ``"CACHE_MODE" : "OPTIMIZE_SPEED"`` in the config.
 * If the blob is exported as weightless you also need to either provide
   ``"WEIGHTS_PATH" : "path\\to\\original\\model.bin"`` or ``"MODEL_PTR" : original ov::Model object``.
+* Ahead-of-time import in weightless mode has been optimized to consume less memory than during regular compilation or using ``CACHE_DIR``.
 
 .. tab-set::
 

@@ -20,7 +20,7 @@ class ExtractImagePatchesLayerCPUTest : public testing::WithParamInterface<extra
                                         virtual public SubgraphBaseTest,
                                         public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<extractImagePatchesParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<extractImagePatchesParams>& obj) {
         const auto& [inputShapes, inputPrecision, kernelSize, strides, rates, padType] = obj.param;
         std::ostringstream result;
         result << "netPRC=" << inputPrecision << "_"

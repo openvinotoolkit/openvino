@@ -30,7 +30,7 @@ class AdaPoolLayerCPUTest : public testing::WithParamInterface<AdaPoolLayerCPUTe
                             virtual public SubgraphBaseTest,
                             public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<AdaPoolLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<AdaPoolLayerCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams] = obj.param;
         const auto& [adaPar, mode, isStatic, netPr, td] = basicParamsSet;
         const auto& [pooledSpatialShape, inputShape] = adaPar;

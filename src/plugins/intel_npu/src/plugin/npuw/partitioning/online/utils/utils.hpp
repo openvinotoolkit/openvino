@@ -49,6 +49,7 @@ class Group;
 struct Repeated;
 struct Interconnect;
 struct MetaInterconnect;
+struct MetaInterconnectIO;
 
 namespace detail {
 using OVNodePtr = std::shared_ptr<ov::Node>;
@@ -64,6 +65,10 @@ using Reptrack = std::vector<std::shared_ptr<Repeated>>;
 using ReptrackMap = std::unordered_map<OVNodePtr, Reptrack>;
 using Uniques = std::unordered_map<std::tuple<std::string, std::set<std::string>, std::string>, GPtrSet>;
 using Pass = std::function<void(void)>;
+using MICVec = std::vector<MetaInterconnect>;
+using MICSet = std::unordered_set<MetaInterconnect>;
+using PairMICVecIO = std::pair<MICVec, MetaInterconnectIO>;
+using PairMICSetIO = std::pair<MICSet, MetaInterconnectIO>;
 }  // namespace detail
 
 namespace util {

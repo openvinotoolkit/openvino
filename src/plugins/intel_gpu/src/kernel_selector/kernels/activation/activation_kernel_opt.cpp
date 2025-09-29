@@ -98,6 +98,10 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
         }
     }
 
+    if (params.activations[0].function == ActivationFunction::SOFTPLUS && input_dt == Datatype::F16) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
+
     return true;
 }
 

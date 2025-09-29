@@ -21,16 +21,15 @@ class TestConstantPadND(PytorchLayerTest):
                 self.value = value
 
             def forward(self, x):
-                return torch.constant_pad_nd(x, self.pad, self.value);
+                return torch.constant_pad_nd(x, self.pad, self.value)
 
-
-        ref_net = None
-
-        return aten_constant_pad_nd(pad, value), ref_net, "aten::constant_pad_nd"
+        return aten_constant_pad_nd(pad, value), None, "aten::constant_pad_nd"
 
     @pytest.mark.parametrize(("pad", "value"),
                              [((1,1,1,1), 0),((0,2,0,2), -1.0),((3,1,5,2), 0.5),((0,0,0,0), 0),])
 
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_constant_pad_nd(self, pad, value, ie_device, precision, ir_version):
         self._test(*self.create_model(pad, value),

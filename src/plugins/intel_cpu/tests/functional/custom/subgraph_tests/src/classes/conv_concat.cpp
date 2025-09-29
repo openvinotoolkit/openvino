@@ -15,7 +15,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj) {
+std::string ConvConcatSubgraphTest::getTestCaseName(const testing::TestParamInfo<convConcatCPUParams>& obj) {
     std::ostringstream result;
     const auto& [type, convParams, cpuParams, inputShapes, axis] = obj.param;
     result << "Type=" << nodeType2str(type) << "_";

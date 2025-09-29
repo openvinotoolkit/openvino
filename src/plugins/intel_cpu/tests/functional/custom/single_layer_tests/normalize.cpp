@@ -23,7 +23,7 @@ using NormalizeL2LayerCPUTestParamSet = std::tuple<InputShape,            // inp
 class NormalizeL2LayerCPUTest : public testing::WithParamInterface<NormalizeL2LayerCPUTestParamSet>,
                                 virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerCPUTestParamSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<NormalizeL2LayerCPUTestParamSet>& obj) {
         const auto& [shapes, inType, axes, eps, epsMode, cpuParams, fusingParams] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";

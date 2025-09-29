@@ -33,7 +33,7 @@ class Slice8LayerCPUTest : public testing::WithParamInterface<Slice8LayerTestCPU
                            virtual public SubgraphBaseTest,
                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<Slice8LayerTestCPUParam> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<Slice8LayerTestCPUParam>& obj) {
         const auto& [shapes, params, secondaryInputType, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=(";

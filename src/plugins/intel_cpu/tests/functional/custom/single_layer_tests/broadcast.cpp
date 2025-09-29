@@ -27,7 +27,7 @@ class BroadcastLayerCPUTest : public testing::WithParamInterface<BroadcastLayerC
                               virtual public ov::test::SubgraphBaseTest,
                               public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<BroadcastLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<BroadcastLayerCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams] = obj.param;
         const auto& [inputShapes, targetShapes, axesMapping, mode, netPrecision, isConstInputs, deviceName] =
             basicParamsSet;

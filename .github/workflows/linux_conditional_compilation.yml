@@ -174,7 +174,6 @@ jobs:
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
-            -DENABLE_FASTER_BUILD=ON \
             -DENABLE_UNITY_BUILD=ON \
             -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
@@ -313,7 +312,7 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}

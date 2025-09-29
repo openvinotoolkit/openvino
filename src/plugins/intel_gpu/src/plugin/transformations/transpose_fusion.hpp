@@ -32,4 +32,10 @@ public:
     TransposeSDPAMatcher();
 };
 
+class TransposeVLSDPAMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TransposeVLSDPAMatcher");
+    TransposeVLSDPAMatcher();
+};
+
 }   // namespace ov::intel_gpu

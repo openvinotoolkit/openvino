@@ -12,15 +12,18 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -59,8 +62,26 @@ public:
         m_scale = new_scale;
     }
 
+    void set_sinks(const PartialShape& sinks_shape, const std::vector<size_t>& sinks_broadcast_shape) {
+        // Adjust the code for sinks if you see other values for them.
+        // For now, there has been only one model with sinks: gpt-oss
+        with_sinks = true;
+        std::vector<size_t> broadcast_shape_value(sinks_broadcast_shape.begin(), sinks_broadcast_shape.end());
+        auto broadcast_to_shape =
+            v0::Constant::create(element::i32, Shape{sinks_broadcast_shape.size()}, broadcast_shape_value);
+        auto sinks_param = make_shared<v0::Parameter>(element::f16, sinks_shape);
+        m_sinks = make_shared<v3::Broadcast>(sinks_param, broadcast_to_shape, BroadcastType::BIDIRECTIONAL);
+        m_sinks_rank = sinks_broadcast_shape.size();
+        params.push_back(sinks_param);
+    }
+
     void set_preprocessing_callback(const std::function<void(unordered_map<InputType, Output<Node>>&)>& cb) {
         m_preprocessing_callback = cb;
+    }
+
+    void scale_qk_inputs(float scale) {
+        multiply_q(scale);
+        multiply_k(scale);
     }
 
     void reshape(InputType which, const Shape& shape) {
@@ -96,6 +117,19 @@ public:
     void transpose_v(const vector<size_t>& order) {
         transpose(InputType::V, order);
     }
+    void multiply_input(InputType which, float scale) {
+        auto scale_const = op::v0::Constant::create(m_type, ov::Shape{}, {scale});
+        nodes[which] = std::make_shared<op::v1::Multiply>(nodes[which], scale_const);
+    }
+    void multiply_q(float scale) {
+        multiply_input(InputType::Q, scale);
+    }
+    void multiply_k(float scale) {
+        multiply_input(InputType::K, scale);
+    }
+    void multiply_v(float scale) {
+        multiply_input(InputType::V, scale);
+    }
 
     // Build pattern (MatMul -> scale -> mask -> Softmax -> MatMul)
     void create_pattern_sdpa(bool transpose_b = false, int softmax_axis = -1) {
@@ -111,7 +145,34 @@ public:
         if (with_mask) {
             attn_scores_with_mask = make_shared<op::v1::Add>(attn_scores_scaled, m_mask);
         }
-        auto softmax = make_shared<op::v8::Softmax>(attn_scores_with_mask, softmax_axis);
+        if (with_sinks) {
+            attn_scores_with_mask = make_shared<v0::Concat>(OutputVector{attn_scores_with_mask, m_sinks}, -1);
+            auto reduce_max =
+                make_shared<v1::ReduceMax>(attn_scores_with_mask, op::v0::Constant::create(i64, {}, {-1}));
+            attn_scores_with_mask = make_shared<v1::Subtract>(attn_scores_with_mask, reduce_max);
+        }
+
+        std::shared_ptr<ov::Node> softmax = make_shared<op::v8::Softmax>(attn_scores_with_mask, softmax_axis);
+        if (with_sinks) {
+            // Adjust the code for sinks if you see other values for them.
+            // For now, there has been only one model with sinks: gpt-oss
+            std::vector<int> start(m_sinks_rank, 0);
+            std::vector<int> stop(m_sinks_rank, 0);
+            std::vector<int> step(m_sinks_rank, 1);
+            stop[stop.size() - 1] = -1;
+
+            std::vector<int64_t> begin_mask(m_sinks_rank, 1);
+            std::vector<int64_t> end_mask(m_sinks_rank, 1);
+            begin_mask[begin_mask.size() - 1] = 0;
+            end_mask[end_mask.size() - 1] = 0;
+
+            softmax = make_shared<op::v1::StridedSlice>(softmax,
+                                                        v0::Constant::create(element::i64, Shape{m_sinks_rank}, start),
+                                                        v0::Constant::create(element::i64, Shape{m_sinks_rank}, stop),
+                                                        v0::Constant::create(element::i64, Shape{m_sinks_rank}, step),
+                                                        begin_mask,
+                                                        end_mask);
+        }
         auto output = make_shared<op::v0::MatMul>(softmax, nodes[InputType::V]);
 
         nodes[InputType::SDPA] = output;
@@ -155,11 +216,27 @@ public:
 
         m_preprocessing_callback(nodes);
 
+        ov::Output<ov::Node> sinks_input;
+        if (with_sinks) {
+            sinks_input = m_sinks->get_input_source_output(0);
+        }
+
         auto query = nodes[InputType::Q];
         auto key = nodes[InputType::K];
         auto value = nodes[InputType::V];
-        nodes[InputType::SDPA] =
-            std::make_shared<op::v13::ScaledDotProductAttention>(query, key, value, mask_input, scale_const, causal);
+        nodes[InputType::SDPA] = with_sinks ? std::make_shared<op::v13::ScaledDotProductAttention>(query,
+                                                                                                   key,
+                                                                                                   value,
+                                                                                                   mask_input,
+                                                                                                   scale_const,
+                                                                                                   sinks_input,
+                                                                                                   causal)
+                                            : std::make_shared<op::v13::ScaledDotProductAttention>(query,
+                                                                                                   key,
+                                                                                                   value,
+                                                                                                   mask_input,
+                                                                                                   scale_const,
+                                                                                                   causal);
     }
 
     shared_ptr<Model> build_model() {
@@ -169,6 +246,8 @@ public:
 
 private:
     shared_ptr<v0::Parameter> m_mask;
+    shared_ptr<ov::Node> m_sinks;
+    size_t m_sinks_rank;
     ParameterVector params;
     unordered_map<InputType, Output<Node>> nodes;
     std::function<void(unordered_map<InputType, Output<Node>>&)> m_preprocessing_callback =
@@ -178,6 +257,7 @@ private:
 
     bool with_mask = false;
     bool with_scale = false;
+    bool with_sinks = false;
     bool causal = false;
 
     element::Type m_type = f32;
@@ -273,7 +353,7 @@ implicit_transpose_3d(int B, int S_q, int S_kv, int E, int Ev, std::vector<Dimen
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                          SDPAFusionImplicitTranspose,
-                         Combine(Values(f32, f16),                  // Types
+                         Combine(Values(f32, f16, bf16, f64),       // Types
                                  Values(true, false),               // Use attention_mask
                                  Values(true, false),               // Use scale
                                  Values(implicit_transpose_4d(1,    // B (batch)
@@ -369,7 +449,7 @@ TEST_P(SDPAFusionTransposeInMatmul, SDPAFusionTest_transpose_in_matmul) {
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                          SDPAFusionTransposeInMatmul,
-                         Combine(Values(f32, f16),                  // Types
+                         Combine(Values(f32, f16, bf16, f64),       // Types
                                  Values(true, false),               // Use attention_mask
                                  Values(true, false),               // Use scale
                                  Values(explicit_transpose_4d(1,    // B (batch)
@@ -816,6 +896,55 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
+TEST_F(TransformationTestsF, SDPAFusionTest13) {
+    const PartialShape query_shape{1, 64, 1, 64};
+    const PartialShape key_shape{1, 8, 8, 1, 64};
+    const PartialShape value_shape{1, 8, 8, 1, 64};
+
+    const PartialShape mask_shape{1, 1, 1, 1};
+
+    const Shape key_reshaped{1, 64, 1, 64};
+    const Shape value_reshaped{1, 64, 1, 64};
+
+    const Shape sinks_shape{1, 64, 1, 1};
+    std::vector<size_t> sinks_broadcast_shape{1, 64, 1, 1};
+
+    const Shape final_order{0, 2, 1, 3};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    {
+        sdpa.set_mask(mask_shape);
+        sdpa.set_scale(0.125f);
+        sdpa.set_sinks(sinks_shape, sinks_broadcast_shape);
+
+        sdpa.reshape_k(key_reshaped);
+        sdpa.reshape_v(value_reshaped);
+
+        sdpa.create_pattern_sdpa(true);
+        sdpa.transpose_sdpa(final_order);
+        model = sdpa.build_model();
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    {
+        sdpa_ref.set_mask(mask_shape);
+        sdpa_ref.set_scale(0.125f);
+        sdpa_ref.set_sinks(sinks_shape, sinks_broadcast_shape);
+
+        sdpa_ref.reshape_k(key_reshaped);
+        sdpa_ref.reshape_v(value_reshaped);
+
+        sdpa_ref.create_reference_sdpa();
+        sdpa_ref.transpose_sdpa(final_order);
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
 TEST_F(TransformationTestsF, SDPAFusionTest_Split) {
     // Init.
     const PartialShape query_shape{1, 1, 49, 128};
@@ -948,6 +1077,177 @@ TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
         sdpa_ref.set_preprocessing_callback(callback);
         sdpa_ref.create_reference_sdpa();
 
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_KScaledInput) {
+    // Init.
+    const PartialShape query_shape{1, 1, 4096, 512};
+    const PartialShape key_shape{1, 1, 4096, 512};
+    const PartialShape value_shape{1, 1, 4096, 512};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    // Preprocessing callback that scales the K input
+    auto callback = [](auto& nodes) {
+        auto scale_const = v0::Constant::create(f16, Shape{}, {1.f});
+        nodes[InputType::K] = std::make_shared<v1::Multiply>(nodes[InputType::K], scale_const);
+    };
+
+    // SDPA model.
+    {
+        sdpa.set_preprocessing_callback(callback);
+        sdpa.create_pattern_sdpa(true);
+
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.set_scale(1.f);
+        sdpa_ref.create_reference_sdpa();
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_WithConvertAfterScale) {
+    using namespace ov;
+    using namespace ov::element;
+
+    const PartialShape query_shape{1, 1, 4096, 512};
+    const PartialShape key_shape{1, 1, 4096, 512};
+    const PartialShape value_shape{1, 1, 4096, 512};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    auto callback = [](auto& nodes) {
+        auto scale_const = v0::Constant::create(f16, {1}, {0.125f});
+        nodes[InputType::Q] = std::make_shared<v1::Multiply>(nodes[InputType::Q], scale_const);
+        auto mul_k = std::make_shared<v1::Multiply>(nodes[InputType::K], scale_const);
+        nodes[InputType::K] = std::make_shared<v0::Convert>(mul_k, f16);
+    };
+
+    sdpa.set_preprocessing_callback(callback);
+    sdpa_ref.set_preprocessing_callback(callback);
+
+    // SDPA model.
+    {
+        sdpa.create_pattern_sdpa(true);
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.create_reference_sdpa();
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_QKInputScale) {
+    const ov::PartialShape query_shape{1, 1, 8, 64};
+    const ov::PartialShape key_shape{1, 1, 64, 8};
+    const ov::PartialShape value_shape{1, 1, 8, 64};
+
+    SDPA sdpa(ov::element::f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(ov::element::f16, query_shape, key_shape, value_shape);
+
+    // SDPA model with scaled inputs
+    {
+        sdpa.multiply_q(0.5f);
+        sdpa.multiply_k(0.5f);
+        sdpa.create_pattern_sdpa();
+
+        model = sdpa.build_model();
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // Reference model with fused scale and scaled query input
+    {
+        sdpa_ref.multiply_q(0.5f);
+        sdpa_ref.set_scale(0.5f);
+        sdpa_ref.transpose_k(get_tranpose_order(key_shape.size()));
+        sdpa_ref.create_reference_sdpa();
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_ConvertedInputs) {
+    const PartialShape query_shape{1, 1, 4096, 512};
+    const PartialShape key_shape{1, 1, 4096, 512};
+    const PartialShape value_shape{1, 1, 4096, 512};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    auto callback = [](auto& nodes) {
+        nodes[InputType::Q] = std::make_shared<v0::Convert>(nodes[InputType::Q], f16);
+        nodes[InputType::K] = std::make_shared<v0::Convert>(nodes[InputType::K], f16);
+        nodes[InputType::V] = std::make_shared<v0::Convert>(nodes[InputType::V], f16);
+    };
+
+    sdpa.set_preprocessing_callback(callback);
+    sdpa_ref.set_preprocessing_callback(callback);
+
+    {
+        sdpa.create_pattern_sdpa(true);
+        model = sdpa.build_model();
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    {
+        sdpa_ref.create_reference_sdpa();
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_DynamicMaskScores) {
+    // Both the attention scores and the mask have trailing dynamic dimensions
+    const PartialShape query_shape{1, 4, -1, 64};
+    // K has E before S_kv so that MatMul produces [..., -1, -1]
+    const PartialShape key_shape{1, 4, 64, -1};
+    const PartialShape value_shape{1, 4, -1, 64};
+    const PartialShape mask_shape{1, 1, -1, -1};
+
+    SDPA sdpa(f32, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f32, query_shape, key_shape, value_shape);
+
+    sdpa.set_mask(mask_shape);
+    sdpa_ref.set_mask(mask_shape);
+
+    {
+        sdpa.create_pattern_sdpa();
+        model = sdpa.build_model();
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    {
+        sdpa_ref.transpose_k(get_tranpose_order(query_shape.size()));
+        sdpa_ref.create_reference_sdpa();
         model_ref = sdpa_ref.build_model();
     }
 

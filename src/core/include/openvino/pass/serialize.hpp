@@ -12,8 +12,16 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace pass {
+namespace pugi {
+class xml_node;  // NCC
+}
+
+namespace ov::util {
+class XmlSerializer;
+class ConstantWriter;
+}  // namespace ov::util
+
+namespace ov::pass {
 
 /**
  * @brief Serialize transformation converts ov::Model into IR files
@@ -76,10 +84,19 @@ public:
 private:
     virtual bool use_absolute_offset();
 
+    virtual std::unique_ptr<util::XmlSerializer> make_serializer(
+        pugi::xml_node& data,
+        const std::string& node_type_name,
+        util::ConstantWriter& constant_write_handler,
+        int64_t version,
+        bool deterministic = false,
+        bool compress_to_fp16 = false,
+        ov::element::Type output_element_type = ov::element::dynamic,
+        bool data_is_temporary = false) const;
+
     std::ostream& m_stream;
     std::function<void(std::ostream&)> m_custom_data_serializer;
     std::function<std::string(const std::string&)> m_cache_encrypt;
     const Serialize::Version m_version;
 };
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

@@ -20,7 +20,7 @@ class Conv1dConvertTransformationCPUTest : public testing::WithParamInterface<co
                                            virtual public SubgraphBaseTest,
                                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<conv1dConvertCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<conv1dConvertCPUTestParamsSet>& obj) {
         const auto& [convType, inputShapes] = obj.param;
         std::ostringstream result;
         result << nodeType2str(convType) << "_";

@@ -31,7 +31,7 @@ using PadLayerCPUTestParamSet = std::tuple<
 class PadLayerCPUTest : public testing::WithParamInterface<PadLayerCPUTestParamSet>,
                         virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PadLayerCPUTestParamSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<PadLayerCPUTestParamSet>& obj) {
         const auto& [shapes, secondaryInputType, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams,
                      additionalConfig] = obj.param;
         std::ostringstream results;

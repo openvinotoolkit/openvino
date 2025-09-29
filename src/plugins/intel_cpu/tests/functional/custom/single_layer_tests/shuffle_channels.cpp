@@ -21,7 +21,7 @@ class ShuffleChannelsLayerCPUTest : public testing::WithParamInterface<ShuffleCh
                                     virtual public SubgraphBaseTest,
                                     public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ShuffleChannelsLayerCPUTestParamsSet>& obj) {
         const auto& [shapes, inType, shuffleChannelsParams, cpuParams] = obj.param;
         const auto& [axis, group] = shuffleChannelsParams;
         std::ostringstream results;

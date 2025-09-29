@@ -13,12 +13,7 @@
 namespace ov {
 namespace test {
 std::string GatherElementsLayerTest::getTestCaseName(const testing::TestParamInfo<GatherElementsParams>& obj) {
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type, indices_type;
-    int axis;
-    std::string device;
-    std::tie(shapes, indices_shape, axis, model_type, indices_type, device) = obj.param;
+    const auto& [shapes, indices_shape, axis, model_type, indices_type, device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -42,11 +37,8 @@ std::string GatherElementsLayerTest::getTestCaseName(const testing::TestParamInf
 }
 
 void GatherElementsLayerTest::SetUp() {
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type, indices_type;
-    int axis;
-    std::tie(shapes, indices_shape, axis, model_type, indices_type, targetDevice) = this->GetParam();
+    const auto& [shapes, indices_shape, axis, model_type, indices_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

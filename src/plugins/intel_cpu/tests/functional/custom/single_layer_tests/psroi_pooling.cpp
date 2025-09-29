@@ -34,7 +34,7 @@ class PSROIPoolingLayerCPUTest : public testing::WithParamInterface<PSROIPooling
                                  virtual public ov::test::SubgraphBaseStaticTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PSROIPoolingLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<PSROIPoolingLayerCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams] = obj.param;
         const auto& [psroiPar, netPr, td] = basicParamsSet;
         const auto& [featureMapShape, proposal, outputDim, groupSize, spatialScale, spatialBinsX, spatialBinsY, mode] =

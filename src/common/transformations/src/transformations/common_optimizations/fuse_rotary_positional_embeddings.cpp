@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 
+#include <climits>
 #include <cstdint>
 #include <limits>
 #include <variant>
@@ -18,12 +19,15 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -39,11 +43,10 @@
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov::gen_pattern;
 using namespace ov::pass;
+using namespace ov::pass::pattern;
 using namespace ov::op;
 
 ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
@@ -63,18 +66,13 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionIOSlicing>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionPreprocess>();
 
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0);
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(false);
     if (m_support_2d_rope) {
-        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0, true);
-        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1, true);
+        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(true);
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLMHF>();
     }
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(0);
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(1);
-
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
-
     return symbolic_optimizations.run_on_model(model);
 }
 
@@ -82,7 +80,7 @@ static std::shared_ptr<ov::Node> gen_chatglm_const() {
     using namespace pattern;
 
     auto pred = value_matches("-1, head_cnt, 1, ndims/2, 1") || value_matches("1, -1, head_cnt, ndims/2, 1") ||
-                value_matches("0, 0, 0, ndims/2, 1");
+                value_matches("0, 0, 0, ndims/2, 1") || value_matches("-1, batch, head_cnt, ndims/2, 1");
     return wrap_type<v0::Constant>(pred);
 }
 
@@ -165,95 +163,9 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
-using symbol_variant = std::variant<float, int32_t, int64_t, std::string>;
-
-static std::string ParseSymbolVariant(std::vector<symbol_variant> values) {
-    std::vector<std::string> symbol_strings;
-    symbol_strings.reserve(values.size());
-    for (auto& value : values) {
-        if (std::holds_alternative<float>(value)) {
-            symbol_strings.push_back(std::to_string(std::get<float>(value)));
-        } else if (std::holds_alternative<int>(value)) {
-            symbol_strings.push_back(std::to_string(std::get<int>(value)));
-        } else if (std::holds_alternative<int32_t>(value)) {
-            symbol_strings.push_back(std::to_string(std::get<int32_t>(value)));
-        } else if (std::holds_alternative<int64_t>(value)) {
-            symbol_strings.push_back(std::to_string(std::get<int64_t>(value)));
-        } else {
-            symbol_strings.push_back(std::get<std::string>(value));
-        }
-    }
-
-    return ov::util::join(symbol_strings);
-}
-
-static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
-                                             symbol_variant start,
-                                             symbol_variant stop,
-                                             symbol_variant step,
-                                             size_t axis) {
-    auto slice_start = ParseSymbolVariant({start});
-    auto slice_stop = ParseSymbolVariant({stop});
-    auto slice_step = ParseSymbolVariant({step});
-    auto slice_axis = ParseSymbolVariant({static_cast<int64_t>(axis)});
-
-    auto opt1 = pattern::wrap_type<ov::opset8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
-
-    std::vector<symbol_variant> vbegin(axis + 1, 0);
-    std::vector<symbol_variant> vend(axis + 1, 0);
-    std::vector<symbol_variant> vstride(axis + 1, 1);
-
-    vbegin[axis] = start;
-    vend[axis] = stop;
-    vstride[axis] = step;
-
-    auto begin = ParseSymbolVariant(vbegin);
-    auto end = ParseSymbolVariant(vend);
-    auto stride = ParseSymbolVariant(vstride);
-
-    std::vector<int64_t> begin_mask(axis + 1, 1);
-    std::vector<int64_t> end_mask(axis + 1, 1);
-    std::vector<int64_t> new_axis_mask;
-    std::vector<int64_t> shrink_axis_mask;
-    std::vector<int64_t> ellipsis_mask;
-
-    begin_mask[axis] = 0;
-    end_mask[axis] = 0;
-
-    auto opt2 = pattern::wrap_type<ov::op::v1::StridedSlice>({data, begin, end, stride},
-                                                             {{"begin_mask", begin_mask},
-                                                              {"end_mask", end_mask},
-                                                              {"new_axis_mask", new_axis_mask},
-                                                              {"shrink_axis_mask", shrink_axis_mask},
-                                                              {"ellipsis_mask", ellipsis_mask}});
-
-    return opt1 | opt2;
-}
-
-static std::shared_ptr<ov::Node> NewGenStridedSlice(std::shared_ptr<ov::Node> data,
-                                                    const pattern::PatternOp& start,
-                                                    const pattern::PatternOp& stop,
-                                                    const pattern::PatternOp& step,
-                                                    size_t axis) {
-    std::vector<int64_t> begin_mask(axis + 1, 1);
-    std::vector<int64_t> end_mask(axis + 1, 1);
-    std::vector<int64_t> new_axis_mask;
-    std::vector<int64_t> shrink_axis_mask;
-    std::vector<int64_t> ellipsis_mask;
-
-    begin_mask[axis] = 0;
-    end_mask[axis] = 0;
-
-    return pattern::wrap_type<ov::op::v1::StridedSlice>({data, start, stop, step},
-                                                        {{"begin_mask", begin_mask},
-                                                         {"end_mask", end_mask},
-                                                         {"new_axis_mask", new_axis_mask},
-                                                         {"shrink_axis_mask", shrink_axis_mask},
-                                                         {"ellipsis_mask", ellipsis_mask}});
-}
 
 ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
-    using namespace ov::op;
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionGPTNEOX);
 
     // rope pattern matching triggers a little design flaw:
@@ -334,6 +246,7 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 }
 
 ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionCosSinPreprocess);
 
     auto cos_const = pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32));
@@ -415,6 +328,7 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
 
 // only a fraction of head_size is rotary-embedded
 ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionIOSlicing);
     auto int32_max = std::numeric_limits<std::int32_t>::max();
     auto data = pattern::any_input(pattern::rank_equals(4));
@@ -462,6 +376,7 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
 
 // gptneox-preprocess of input data
 ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionPreprocess);
 
     // Pattern for input to be sliced (for models with combined QKV projection)
@@ -534,6 +449,7 @@ static std::shared_ptr<ov::Node> repeat_interleave_pattern(const ov::Output<ov::
 }
 
 ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionGPTJ);
 
     auto gather_sin_cos = pattern::any_input(pattern::type_matches(ov::element::f32));
@@ -653,7 +569,8 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     this->register_matcher(m, callback);
 }
 
-ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope) {
+ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
     //  [seq_length, batch_size, input_size(will be cropped to match hidden state size)]
@@ -667,9 +584,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto qkv_proj =
         pattern::wrap_type<v1::VariadicSplit>({qkv_linear, -1, {"total_size_q", "total_size_k", "total_size_v"}});
     qkv_proj->set_output_size(3);
-    auto cur_key =
-        pattern::wrap_type<v1::Reshape>({qkv_proj->output(split_output_id), {"0", "0", "head_cnt", "head_size"}},
-                                        {{"special_zero", true}});
+    auto reshape_pattern_const = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, head_size"));
+    auto cur_key = pattern::wrap_type<v1::Reshape>({qkv_proj, reshape_pattern_const}, {{"special_zero", true}});
     std::shared_ptr<ov::Node> input_key = nullptr;
     // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
     // Calculate positional embedding independent of batch and each head
@@ -678,9 +594,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         // For Models, where SDPA to PagedAttention transformation was applied,
         // all sequences have the size == 1, we move sequences to the batch, this is the PagedAttention specific,
         // so seq_length dim will be always 1, this means that Transpose is unnecessary and Reshape op can be used.
-        auto transposed_cur_key =
-            pattern::wrap_type<v1::Reshape>({qkv_proj->output(split_output_id), {"-1", "head_cnt", "1", "head_size"}},
-                                            {{"special_zero", false}});
+        auto transposed_cur_key = pattern::wrap_type<v1::Reshape>({qkv_proj, {"-1", "head_cnt", "1", "head_size"}},
+                                                                  {{"special_zero", false}});
         // Transpose for SDPA version:
         input_key = pattern::wrap_type<v1::Transpose>({cur_key, {0, 2, 1, 3}}) | transposed_cur_key;
     } else {
@@ -814,14 +729,18 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         config.head_cnt = static_cast<size_t>(head_cnt.i());
         config.head_size = static_cast<size_t>(head_size.i());
 
-        if (split_output_id == 0) {
-            // query : split_output_id == 0
+        const auto& qkv_proj_node = pattern_map.at(qkv_proj);
+        const size_t qkv_proj_output_id = qkv_proj_node.get_index();
+        if (qkv_proj_output_id == 0) {
+            // query : split output id == 0
             config.slice_start = 0;
             config.slice_stop = static_cast<size_t>(total_size_q.i());
-        } else {
-            // key : split_output_id == 1
+        } else if (qkv_proj_output_id == 1) {
+            // key : split output id == 1
             config.slice_start = static_cast<size_t>(total_size_q.i());
             config.slice_stop = static_cast<size_t>(config.slice_start + static_cast<size_t>(total_size_k.i()));
+        } else {
+            return false;
         }
 
         if (ov::is_type<opset1::Reshape>(root)) {
@@ -847,7 +766,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
 }
 
 ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
-    using namespace ov::op;
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionChatGLMHF);
 
     auto qk_linear = pattern::any_input(pattern::shape_matches("[?, 1, ?]"));
@@ -922,8 +841,8 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     this->register_matcher(m, callback);
 }
 
-ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
-    using namespace ov::op;
+ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionQwen);
 
     // rotary_emb_cos & rotary_emb_sin are sliced by present kv-length (past-kv-length + cur_len)
@@ -936,10 +855,9 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         pattern::wrap_type<v1::VariadicSplit>({qkv_proj, 2, {"head_cnt*head_size", "head_cnt*head_size", "?"}});
     ListUnpack_410_VariadicSplit->set_output_size(3);
     // B,L,H,S
-    auto view_Reshape_424 =
-        pattern::wrap_type<v1::Reshape>({ListUnpack_410_VariadicSplit->output(split_output_id), pattern::any_input()},
-                                        pattern::shape_matches("[?, ?, head_cnt, head_size]"),
-                                        {{"special_zero", true}});
+    auto view_Reshape_424 = pattern::wrap_type<v1::Reshape>({ListUnpack_410_VariadicSplit, pattern::any_input()},
+                                                            pattern::shape_matches("[?, ?, head_cnt, head_size]"),
+                                                            {{"special_zero", true}});
     auto slice_Slice_543 = NewGenSlice(view_Reshape_424, 0, "head_size", 1, 3);
 
     auto ShapeOf_485735 = pattern::wrap_type<ov::op::util::ShapeOfBase>({pattern::any_input()}, {});
@@ -1025,6 +943,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         auto head_size = symbols["head_size"];
         auto head_size_over_2 = symbols["head_size/2"];
         auto head_cnt_by_head_size = symbols["head_cnt*head_size"];
+
         if (!head_cnt.is_integer() || !head_size.is_integer() || !head_size_over_2.is_integer() ||
             !head_cnt_by_head_size.is_integer() || head_size_over_2.i() * 2 != head_size.i() ||
             head_cnt.i() * head_size.i() != head_cnt_by_head_size.i()) {
@@ -1037,14 +956,19 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         config.head_size = static_cast<size_t>(head_size.i());
         config.rotary_ndims = config.head_size;
 
-        if (split_output_id == 0) {
-            // query : split_output_id == 0
+        const auto& qkv_proj_split_node = pattern_map.at(ListUnpack_410_VariadicSplit);
+        const size_t qkv_proj_split_id = qkv_proj_split_node.get_index();
+        if (qkv_proj_split_id == 0) {
+            // query : split output id == 0
             config.slice_start = 0;
             config.slice_stop = config.head_cnt * config.head_size;
-        } else {
-            // key : split_output_id == 1
+            ;
+        } else if (qkv_proj_split_id == 1) {
+            // key : split output id == 1
             config.slice_start = config.head_cnt * config.head_size;
             config.slice_stop = config.slice_start + config.head_cnt * config.head_size;
+        } else {
+            return false;
         }
 
         new_args.push_back(pattern_map.at(qkv_proj));

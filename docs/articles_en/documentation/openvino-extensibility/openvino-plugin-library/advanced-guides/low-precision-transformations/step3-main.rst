@@ -43,7 +43,6 @@ Step 3. Main Transformations
    ShuffleChannelsTransformation <step3-main/movement/shuffle-channels>
    SplitTransformation <step3-main/movement/split>
    StridedSliceTransformation <step3-main/movement/strided-slice>
-   SubtractTransformation <step3-main/arithmetic/subtract>
    TransposeTransformation <step3-main/movement/transpose>
    UnsqueezeTransformation <step3-main/shape/unsqueeze>
    VariadicSplitTransformation <step3-main/movement/variadic-split>
@@ -83,7 +82,6 @@ Main transformations are the majority of low precision transformations. Transfor
 * :doc:`ShuffleChannelsTransformation <step3-main/movement/shuffle-channels>`
 * :doc:`SplitTransformation <step3-main/movement/split>`
 * :doc:`StridedSliceTransformation <step3-main/movement/strided-slice>`
-* :doc:`SubtractTransformation <step3-main/arithmetic/subtract>`
 * :doc:`TransposeTransformation <step3-main/movement/transpose>`
 * :doc:`UnsqueezeTransformation <step3-main/shape/unsqueeze>`
 * :doc:`VariadicSplitTransformation <step3-main/movement/variadic-split>`

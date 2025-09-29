@@ -278,8 +278,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::internal::key_cache_quant_mode.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::internal::value_cache_quant_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
         };

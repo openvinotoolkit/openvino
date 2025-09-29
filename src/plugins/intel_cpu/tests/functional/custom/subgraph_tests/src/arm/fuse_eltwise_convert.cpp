@@ -44,7 +44,7 @@ using eltwiseFusingCPUTestParamsSet = std::tuple<utils::EltwiseTypes,
 class MergeEltwiseAndConvertTransformationCPUTest: public testing::WithParamInterface<eltwiseFusingCPUTestParamsSet>,
                                             public CPUTestsBase, virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<eltwiseFusingCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<eltwiseFusingCPUTestParamsSet>& obj) {
         const auto& [eltwiseType, convertOutType] = obj.param;
         std::ostringstream result;
         result << "EltwiseType=" << eltwiseType << "_";

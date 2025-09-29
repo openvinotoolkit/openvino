@@ -50,7 +50,7 @@ static void modify_value(ov::Tensor& tensor, const ov::test::SpecialValue& speci
     }
 }
 
-std::string ConvertCPULayerTest::getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj) {
+std::string ConvertCPULayerTest::getTestCaseName(const testing::TestParamInfo<convertLayerTestParamsSet>& obj) {
     const auto& [inputShape, inPrc, outPrc, special_value, cpuParams] = obj.param;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";

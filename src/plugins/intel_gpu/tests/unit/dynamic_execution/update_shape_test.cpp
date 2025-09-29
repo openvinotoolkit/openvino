@@ -191,6 +191,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     pa_prim.has_alibi = false;
     pa_prim.num_outputs = 1;
     pa_prim.has_rotated_blocks = false;
+    pa_prim.is_key_by_channel = true;
 
     topology topology;
     topology.add(input_layout("input_data", input_data_layout));

@@ -9,18 +9,14 @@ namespace ov {
 namespace test {
 std::string ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestCaseName(
         const testing::TestParamInfo<ExperimentalDetectronGenerateProposalsSingleImageTestParams>& obj) {
-    std::vector<InputShape> shapes;
     ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attributes;
-    ElementType model_type;
-    std::string device_name;
-    std::tie(
-        shapes,
-        attributes.min_size,
-        attributes.nms_threshold,
-        attributes.post_nms_count,
-        attributes.pre_nms_count,
-        model_type,
-        device_name) = obj.param;
+
+    const auto& [shapes, _min_size, _nms_threshold, _post_nms_count, _pre_nms_count, model_type, device_name] =
+        obj.param;
+    attributes.min_size = _min_size;
+    attributes.nms_threshold = _nms_threshold;
+    attributes.post_nms_count = _post_nms_count;
+    attributes.pre_nms_count = _pre_nms_count;
 
     std::ostringstream result;
     using ov::test::operator<<;
@@ -42,18 +38,14 @@ std::string ExperimentalDetectronGenerateProposalsSingleImageLayerTest::getTestC
 }
 
 void ExperimentalDetectronGenerateProposalsSingleImageLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
     ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::Attributes attributes;
-    ElementType model_type;
-    std::string targetName;
-    std::tie(
-        shapes,
-        attributes.min_size,
-        attributes.nms_threshold,
-        attributes.post_nms_count,
-        attributes.pre_nms_count,
-        model_type,
-        targetName) = this->GetParam();
+
+    const auto& [shapes, _min_size, _nms_threshold, _post_nms_count, _pre_nms_count, model_type, targetName] =
+        this->GetParam();
+    attributes.min_size = _min_size;
+    attributes.nms_threshold = _nms_threshold;
+    attributes.post_nms_count = _post_nms_count;
+    attributes.pre_nms_count = _pre_nms_count;
 
     inType = outType = model_type;
     targetDevice = targetName;

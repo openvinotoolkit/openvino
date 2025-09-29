@@ -22,15 +22,10 @@ using TileLayerTestParamsSet = typename std::tuple<
 class TileLayerGPUTest : public testing::WithParamInterface<TileLayerTestParamsSet>,
                          public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TileLayerTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TileLayerTestParamsSet>& obj) {
         TileLayerTestParamsSet basicParamsSet = obj.param;
 
-        std::vector<ov::test::InputShape> input_shapes;
-        std::vector<int64_t> repeats;
-        ov::element::Type_t model_type;
-        bool is_repeats_const;
-        std::string deviceName;
-        std::tie(input_shapes, repeats, model_type, is_repeats_const, deviceName) = basicParamsSet;
+        const auto& [input_shapes, repeats, model_type, is_repeats_const, deviceName] = basicParamsSet;
 
         std::ostringstream result;
         result << "IS=(";
@@ -55,10 +50,9 @@ protected:
     void SetUp() override {
         TileLayerTestParamsSet basicParamsSet = this->GetParam();
 
-        std::vector<ov::test::InputShape> input_shapes;
-        ov::element::Type_t model_type;
-        bool is_repeats_const;
-        std::tie(input_shapes, repeatsData, model_type, is_repeats_const, targetDevice) = basicParamsSet;
+        const auto& [input_shapes, _repeatsData, model_type, is_repeats_const, _targetDevice] = basicParamsSet;
+        repeatsData = _repeatsData;
+        targetDevice = _targetDevice;
 
         if (input_shapes.front().first.rank() != 0) {
             inputDynamicShapes.push_back(input_shapes.front().first);

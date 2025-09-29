@@ -13,28 +13,19 @@ const size_t feat_stride = 1;
 const float box_size_scale = 2.0f;
 const float box_coordinate_scale = 2.0f;
 
-std::string ProposalBehTest::getTestCaseName(testing::TestParamInfo<proposalBehTestParamsSet> obj) {
-    proposalSpecificParams proposal_params;
-    std::string target_device;
-    std::vector<float> img_info;
-    std::tie(proposal_params, img_info, target_device) = obj.param;
+std::string ProposalBehTest::getTestCaseName(const testing::TestParamInfo<proposalBehTestParamsSet>& obj) {
+    const auto& [proposal_params, img_info, target_device] = obj.param;
 
-    size_t base_size, pre_nms_topn, post_nms_topn, min_size;
-    float nms_thresh;
-    std::vector<float> ratio, scale;
-    bool clip_before_nms, clip_after_nms;
-    std::string framework;
-
-    std::tie(base_size,
-             pre_nms_topn,
-             post_nms_topn,
-             nms_thresh,
-             min_size,
-             ratio,
-             scale,
-             clip_before_nms,
-             clip_after_nms,
-             framework) = proposal_params;
+    const auto& [base_size,
+                 pre_nms_topn,
+                 post_nms_topn,
+                 nms_thresh,
+                 min_size,
+                 ratio,
+                 scale,
+                 clip_before_nms,
+                 clip_after_nms,
+                 framework] = proposal_params;
 
     std::ostringstream result;
     result << "base_size=" << base_size << "_";
@@ -54,27 +45,19 @@ std::string ProposalBehTest::getTestCaseName(testing::TestParamInfo<proposalBehT
 }
 
 void ProposalBehTest::SetUp() {
-    proposalSpecificParams proposalParams;
-    std::vector<float> img_info;
+    const auto& [proposalParams, img_info, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
-    std::tie(proposalParams, img_info, targetDevice) = this->GetParam();
-
-    size_t base_size, pre_nms_topn, post_nms_topn, min_size;
-    float nms_thresh;
-    std::vector<float> ratio, scale;
-    bool clip_before_nms, clip_after_nms;
-    std::string framework;
-
-    std::tie(base_size,
-             pre_nms_topn,
-             post_nms_topn,
-             nms_thresh,
-             min_size,
-             ratio,
-             scale,
-             clip_before_nms,
-             clip_after_nms,
-             framework) = proposalParams;
+    const auto& [base_size,
+                 pre_nms_topn,
+                 post_nms_topn,
+                 nms_thresh,
+                 min_size,
+                 ratio,
+                 scale,
+                 clip_before_nms,
+                 clip_after_nms,
+                 framework] = proposalParams;
 
     size_t bottom_w = base_size;
     size_t bottom_h = base_size;

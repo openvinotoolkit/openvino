@@ -28,7 +28,6 @@
 #include "low_precision/reshape.hpp"
 #include "low_precision/relu.hpp"
 #include "low_precision/squeeze.hpp"
-#include "low_precision/subtract.hpp"
 #include "low_precision/strided_slice.hpp"
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"

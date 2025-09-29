@@ -203,7 +203,6 @@ html_js_files = [
     'js/graphs.js',
     'js/gsearch.js',
     'js/hide_banner.js',
-    'js/newsletter.js',
     'js/open_sidebar.js',
     'js/papaparse.min.js',
     'js/viewer.min.js',

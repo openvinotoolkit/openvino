@@ -47,22 +47,21 @@ std::string STFTLayerTest::getTestCaseName(const testing::TestParamInfo<STFTPara
 }
 
 void STFTLayerTest::SetUp() {
-    std::vector<InputShape> data_shapes;
-    int64_t frame_size;          // frame size value
-    int64_t frame_step;          // frame step value
-    bool transpose_frames;       // transpose_frames
-    ElementType data_type;       // data type
-    ElementType step_size_type;  // size/step type
-    utils::InputLayerType param_type;
+    // frame size value
+    // frame step value
+    // transpose_frames
+    // data type
+    // size/step type
 
-    std::tie(data_shapes,
-             frame_size,
-             frame_step,
-             transpose_frames,
-             data_type,
-             step_size_type,
-             param_type,
-             targetDevice) = this->GetParam();
+    const auto& [data_shapes,
+                 frame_size,
+                 frame_step,
+                 transpose_frames,
+                 data_type,
+                 step_size_type,
+                 param_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(data_shapes);
 

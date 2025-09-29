@@ -70,7 +70,7 @@ using ConvertRangeSubgraphCPUTestParams = std::tuple<
 class ConvertRangeSubgraphCPUTest: public testing::WithParamInterface<ConvertRangeSubgraphCPUTestParams>,
                                  virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvertRangeSubgraphCPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertRangeSubgraphCPUTestParams>& obj) {
         const auto& [additionalConfig, inputShapes, targetShapes] = obj.param;
         std::ostringstream result;
         result << "IS=";

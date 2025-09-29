@@ -31,7 +31,7 @@ using MatmulBrgemmInt8TestParams = std::tuple<ov::Shape,         // input shape
 class MatmulBrgemmInt8Test : public testing::WithParamInterface<MatmulBrgemmInt8TestParams>, public CpuTestWithFusing,
                       virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulBrgemmInt8TestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulBrgemmInt8TestParams>& obj) {
         const auto& [supportedInputShapes, isFC, inType, outType, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=" << supportedInputShapes.to_string() << "_";

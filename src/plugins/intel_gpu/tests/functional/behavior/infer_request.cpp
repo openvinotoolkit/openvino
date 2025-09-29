@@ -35,10 +35,7 @@ protected:
 };
 
 std::string InferRequestIOPrecision::getTestCaseName(const testing::TestParamInfo<newtworkParams> &obj) {
-    ov::element::Type model_type;
-    ov::Shape shape;
-    std::string targetDevice;
-    std::tie(model_type, shape, targetDevice) = obj.param;
+    const auto& [model_type, shape, targetDevice] = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -48,9 +45,8 @@ std::string InferRequestIOPrecision::getTestCaseName(const testing::TestParamInf
 }
 
 void InferRequestIOPrecision::SetUp() {
-    ov::element::Type model_type;
-    ov::Shape shape;
-    std::tie(model_type, shape, targetDevice) = GetParam();
+    const auto& [model_type, shape, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     float clamp_min = model_type.is_signed() ? -5.f : 0.0f;
     float clamp_max = 5.0f;

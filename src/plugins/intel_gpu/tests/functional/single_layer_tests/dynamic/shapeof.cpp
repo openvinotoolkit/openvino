@@ -21,10 +21,8 @@ typedef std::tuple<
 class ShapeOfLayerGPUTest : public testing::WithParamInterface<ShapeOfLayerGPUTestParamsSet>,
                             virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ShapeOfLayerGPUTestParamsSet> obj) {
-        InputShape inputShape;
-        ov::element::Type model_type;
-        std::tie(inputShape, model_type) = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<ShapeOfLayerGPUTestParamsSet>& obj) {
+        const auto& [inputShape, model_type] = obj.param;
 
         std::ostringstream result;
         result << "ShapeOfTest_";
@@ -43,9 +41,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        ov::element::Type model_type;
-        InputShape inputShape;
-        std::tie(inputShape, model_type) = this->GetParam();
+        const auto& [inputShape, model_type] = this->GetParam();
 
         init_input_shapes({inputShape});
 
@@ -216,11 +212,7 @@ class ShapeOfDynamicInputGPUTest : public testing::WithParamInterface<ShapeOfPar
                                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ShapeOfParams>& obj) {
-        InputShape shapes;
-        ov::element::Type model_type;
-        std::string targetDevice;
-
-        std::tie(shapes, model_type, targetDevice) = obj.param;
+        const auto& [shapes, model_type, targetDevice] = obj.param;
         std::ostringstream result;
         result << "IS=(";
         result << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -239,11 +231,10 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        ov::element::Type model_type;
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::tie(shapes, model_type, targetDevice) = GetParam();
+        const auto& [shapes, model_type, _targetDevice] = GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes({shapes});
 

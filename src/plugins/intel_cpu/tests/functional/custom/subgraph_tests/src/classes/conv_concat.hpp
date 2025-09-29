@@ -37,7 +37,7 @@ class ConvConcatSubgraphTest : public testing::WithParamInterface<convConcatCPUP
                                public CPUTestsBase,
                                virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<convConcatCPUParams>& obj);
 
 protected:
     void SetUp() override;

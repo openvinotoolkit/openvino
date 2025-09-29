@@ -14,7 +14,7 @@ using namespace ov::intel_cpu;
 namespace ov {
 namespace test {
 
-std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUTestParamSet> obj) {
+std::string MvnLayerCPUTest::getTestCaseName(const testing::TestParamInfo<MvnLayerCPUTestParamSet>& obj) {
     const auto& [basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision, additionalConfig] =
         obj.param;
     const auto& [inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps] = basicParamsSet;

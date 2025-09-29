@@ -13,18 +13,17 @@
 namespace ov {
 namespace test {
 std::string DeformableConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<deformableConvLayerTestParamsSet>& obj) {
-    deformableConvSpecificParams convParams;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string target_device;
-    bool with_modulation;
-    std::tie(convParams, with_modulation, model_type, shapes, target_device) = obj.param;
-    ov::op::PadType padType;
-    std::vector<size_t> stride, dilation;
-    std::vector<ptrdiff_t> pad_begin, pad_end;
-    size_t groups, deformable_groups, conv_out_channels;
-    bool with_bilinear_interpolation_pad;
-    std::tie(stride, pad_begin, pad_end, dilation, groups, deformable_groups, conv_out_channels, padType, with_bilinear_interpolation_pad) = convParams;
+    const auto& [convParams, with_modulation, model_type, shapes, target_device] = obj.param;
+
+    const auto& [stride,
+                 pad_begin,
+                 pad_end,
+                 dilation,
+                 groups,
+                 deformable_groups,
+                 conv_out_channels,
+                 padType,
+                 with_bilinear_interpolation_pad] = convParams;
 
     std::ostringstream result;
     result << "IS=(";
@@ -55,19 +54,19 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(const testing::TestP
 }
 
 void DeformableConvolutionLayerTest::SetUp() {
-    deformableConvSpecificParams convParams;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    bool with_modulation;
-    std::tie(convParams, with_modulation, model_type, shapes, targetDevice) = this->GetParam();
+    const auto& [convParams, with_modulation, model_type, shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
-    ov::op::PadType padType;
-    std::vector<size_t> stride, dilation;
-    std::vector<ptrdiff_t> pad_begin, pad_end;
-    size_t groups, deformable_groups, conv_out_channels;
-    bool with_bilinear_interpolation_pad;
-    std::tie(stride, pad_begin, pad_end, dilation, groups, deformable_groups, conv_out_channels, padType, with_bilinear_interpolation_pad) = convParams;
+    const auto& [stride,
+                 pad_begin,
+                 pad_end,
+                 dilation,
+                 groups,
+                 deformable_groups,
+                 conv_out_channels,
+                 padType,
+                 with_bilinear_interpolation_pad] = convParams;
 
     auto data = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]);
     data->set_friendly_name("a_data");

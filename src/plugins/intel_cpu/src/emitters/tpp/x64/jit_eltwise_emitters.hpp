@@ -6,6 +6,7 @@
 
 #include <libxsmm.h>
 #include <libxsmm_typedefs.h>
+#include <utils/general_utils.h>
 
 #include <cassert>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -89,7 +90,8 @@ public:
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                     const ov::snippets::lowered::ExpressionPtr& expr,
                                     executor_function executor)
-        : UnaryEltwiseTppEmitter(h, isa, expr),
+        : jit_emitter(h, isa),
+          UnaryEltwiseTppEmitter(h, isa, expr),
           executor(std::move(executor)) {}
     static void execute_unary_eltw_kernel(ReferenceUnaryEltwiseTppEmitter* ref_emitter, void* in0, void* out0) {
         assert(ref_emitter);
@@ -106,9 +108,7 @@ public:
 private:
     executor_function executor{nullptr};
 
-    template <class Tin,
-              class Tout,
-              std::enable_if_t<!std::is_same_v<Tin, Tout> || !std::is_same_v<Tin, float>, bool> = true>
+    template <class Tin, class Tout, typename = std::enable_if_t<!all_of_v<Tin, Tout, float>>>
     void evaluate_reference_impl(Tin* in0, Tout* out0) {
         for (int n = 0; n < m_shape.n; n++) {
             auto in0_row = in0;

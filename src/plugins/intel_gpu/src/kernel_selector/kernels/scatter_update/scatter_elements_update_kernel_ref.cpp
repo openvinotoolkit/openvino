@@ -101,20 +101,27 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
             switch (rank) {
                 case 4:
                     dispatchData.gws = {indices.X().v * indices.Y().v, indices.Feature().v, indices.Batch().v};
-                    dispatchData.lws = {1, 1, indices.Batch().v};
+                    dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                                  {Tensor::DataChannelName::FEATURE},
+                                  {Tensor::DataChannelName::BATCH}};
                     break;
                 case 5:
                     dispatchData.gws = {indices.X().v * indices.Y().v, indices.Z().v * indices.Feature().v, indices.Batch().v};
-                    dispatchData.lws = {1, 1, indices.Batch().v};
+                    dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                                  {Tensor::DataChannelName::Z, Tensor::DataChannelName::FEATURE},
+                                  {Tensor::DataChannelName::BATCH}};
                     break;
                 case 6:
                     dispatchData.gws = {indices.X().v * indices.Y().v, indices.Z().v * indices.W().v, indices.Feature().v * indices.Batch().v};
-                    dispatchData.lws = {1, 1, indices.Batch().v};
+                    dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                                  {Tensor::DataChannelName::Z, Tensor::DataChannelName::W},
+                                  {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
                     break;
                 default:
                     throw std::invalid_argument("Unsupported data layout for scatter elements update primitive");
                     break;
               }
+              dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
         } else {
             switch (rank) {
                 case 4:

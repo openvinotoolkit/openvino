@@ -9,7 +9,6 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
-#include <atomic>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -76,11 +75,15 @@
 #include "utils/verbose.h"
 #include "weights_cache.hpp"
 
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+#    include <atomic>
+#endif
+
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
 #endif
 
-#if defined(__x86_64__) && defined(__linux__)
+#if defined(OPENVINO_ARCH_X86_64) && defined(__linux__)
 #    include "openvino/runtime/properties.hpp"
 #endif
 
@@ -1633,7 +1636,7 @@ void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&&
 
 static int GetNumaNodeId([[maybe_unused]] const GraphContext::CPtr& context) {
     int numaNodeId = -1;
-#if defined(__x86_64__) && defined(__linux__)
+#if defined(OPENVINO_ARCH_X86_64) && defined(__linux__)
     if ((context->getCPUStreamExecutor()) &&
         (context->getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
         numaNodeId = context->getCPUStreamExecutor()->get_numa_node_id();
@@ -1752,10 +1755,6 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
 
             for (const auto& fusedNode : node->fusedWith) {
                 getPerfMapFor(perfMap, fusedNode);
-            }
-
-            for (const auto& mergedWith : node->mergedWith) {
-                getPerfMapFor(perfMap, mergedWith);
             }
         };
 
@@ -1989,14 +1988,10 @@ void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
     const auto inferPrec = getConfig().inferencePrecision;
-    if (any_of(inferPrec, element::f32, element::dynamic, ov::element::f16, element::dynamic)) {
+    if (any_of(inferPrec, element::f32, element::f16, element::dynamic)) {
         return;  // nothing to do, only precision reduction is currently allowed
     }
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (inferPrec == ov::element::f16) {
-        return;  // precision of configured by ov::pass::ConvertPrecision
-    }
-#endif
+
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
@@ -2015,18 +2010,6 @@ void Graph::EnforceInferencePrecision() {
                            Type::PagedAttention,  // page attention
                            Type::QKVProjection,
                            Type::LLMMLP)) {
-                    continue;  // stop at significant nodes
-                }
-            } else if (inferPrec == ov::element::f16) {
-                /* list of node types that must be forced to be executed in FP16 precision
-                 * because of performance gains */
-                if (any_of(parent->getType(),
-                           Type::Convolution,     // conv nets
-                           Type::Deconvolution,   // deconv
-                           Type::FullyConnected,  // conv / bert nets
-                           Type::MatMul,          // bert nets
-                           Type::Pooling,
-                           Type::MVN)) {
                     continue;  // stop at significant nodes
                 }
             }

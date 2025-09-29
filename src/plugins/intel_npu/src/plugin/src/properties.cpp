@@ -214,7 +214,7 @@ namespace intel_npu {
     } while (0)
 
 /**
- * @brief Macro for defining properties which have simmple single value returning metrics
+ * @brief Macro for defining properties which have simple single value returning metrics
  *
  * The key differentiator for Metrics (from configs) is that they don't have an entry in the config map, nor an
  * OptionBase descriptor. Metrics are static, Read-Only properties returning fixed characteristics of the device, plugin
@@ -348,7 +348,6 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::execution_mode, EXECUTION_MODE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::model, MODEL_PTR);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
@@ -376,6 +375,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::defer_weights_load, DEFER_WEIGHTS_LOAD);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compiler_dynamic_quantization, COMPILER_DYNAMIC_QUANTIZATION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::qdq_optimization_aggressive, QDQ_OPTIMIZATION_AGGRESSIVE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
@@ -409,6 +409,14 @@ void Properties::registerPluginProperties() {
         return false;
     }());
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+
+    FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model,
+                                   MODEL_PTR,
+                                   true,
+                                   ov::PropertyMutability::RO,
+                                   [](const Config& /* unusedConfig */) {
+                                       return std::shared_ptr<const ov::Model>(nullptr);
+                                   });
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query.
@@ -445,12 +453,24 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::batch_dim, NPUW_LLM_BATCH_DIM);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::seq_len_dim, NPUW_LLM_SEQ_LEN_DIM);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_generation_token_len, NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_lora_rank, NPUW_LLM_MAX_LORA_RANK);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_config, NPUW_LLM_PREFILL_CONFIG);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::additional_prefill_config,
+                                 NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_config, NPUW_LLM_GENERATE_CONFIG);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::additional_generate_config,
+                                 NPUW_LLM_ADDITIONAL_GENERATE_CONFIG);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::shared_lm_head_config, NPUW_LLM_SHARED_LM_HEAD_CONFIG);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::additional_shared_lm_head_config,
+                                 NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
 
     // 2. Metrics (static device and enviroment properties)
     // ========
@@ -563,7 +583,6 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
 
     // Properties we shall only enable if they were set prior-to-compilation
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::hint::model, MODEL_PTR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_profiling, PERF_COUNT);
@@ -582,6 +601,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_dynamic_quantization,
                                               COMPILER_DYNAMIC_QUANTIZATION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::qdq_optimization_aggressive, QDQ_OPTIMIZATION_AGGRESSIVE);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::batch_compiler_mode_settings,
                                               BATCH_COMPILER_MODE_SETTINGS);
@@ -598,6 +618,14 @@ void Properties::registerCompiledModelProperties() {
                                  [](const Config& config) {
                                      return config.get<WORKLOAD_TYPE>();
                                  });
+
+    FORCE_REGISTER_CUSTOM_PROPERTY(ov::hint::model,
+                                   MODEL_PTR,
+                                   true,
+                                   ov::PropertyMutability::RO,
+                                   [](const Config& /* unusedConfig */) {
+                                       return std::shared_ptr<const ov::Model>(nullptr);
+                                   });
 
     // 2. Metrics (static device and enviroment properties)
     // ========

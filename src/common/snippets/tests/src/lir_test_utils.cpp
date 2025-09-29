@@ -5,8 +5,10 @@
 #include "lir_test_utils.hpp"
 
 #include "snippets/lowered/linear_ir_builder.hpp"
+#include "snippets/lowered/pass/split_loops.hpp"
 #include "snippets/utils/utils.hpp"
 
+using namespace ov::snippets::lowered::pass;
 using namespace ov::snippets::lowered;
 using namespace ov::snippets::utils;
 using namespace ov::snippets;
@@ -36,6 +38,19 @@ void LoweredPassTestsF::TearDown() {
     pipeline.run(*linear_ir);
     auto res = comparator.compare(linear_ir, linear_ir_ref);
     ASSERT_TRUE(res.valid) << res.message;
+}
+
+void LoweredPassTestsF::assign_loop_ids(const std::map<ExpressionPtr, std::vector<size_t>>& expr_to_loop_ids,
+                                        const std::map<size_t, size_t>& loop_ids_mapper) {
+    linear_ir_ref->get_loop_manager()->reorder_identifiers(loop_ids_mapper);
+    for (const auto& [expr, original_loop_ids] : expr_to_loop_ids) {
+        std::vector<size_t> reordered_loop_ids;
+        reordered_loop_ids.reserve(original_loop_ids.size());
+        for (auto original_id : original_loop_ids) {
+            reordered_loop_ids.push_back(loop_ids_mapper.at(original_id));
+        }
+        expr->set_loop_ids(reordered_loop_ids);
+    }
 }
 
 ov::snippets::VectorDims get_default_subtensor(size_t rank) {
@@ -83,6 +98,27 @@ void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
         PortDescriptorUtils::set_port_descriptor_ptr(node->output(i), desc);
         update_expr_desc(expr->get_output_port_descriptor(i), desc);
     }
+}
+
+InnerSplittedUnifiedLoopInfoPtr make_inner_split_loop_info(size_t work_amount,
+                                                           size_t increment,
+                                                           const std::vector<LoopPort>& entries,
+                                                           const std::vector<LoopPort>& exits,
+                                                           const UnifiedLoopInfoPtr& outer_split_loop_info) {
+    outer_split_loop_info
+        ->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
+    outer_split_loop_info
+        ->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SplitLoops::TransformInnerSplitLoop>();
+    // Note: this temporary loop is needed to easily create InnerSplittedUnifiedLoopInfo:
+    // we extract all automatically calculated parameters from it such as LoopPortDesc and SpecificIterationHandlers
+    const auto tmp_unified_loop = std::make_shared<UnifiedLoopInfo>(work_amount, increment, entries, exits, false);
+    return std::make_shared<InnerSplittedUnifiedLoopInfo>(tmp_unified_loop->get_increment(),
+                                                          tmp_unified_loop->get_input_ports(),
+                                                          tmp_unified_loop->get_output_ports(),
+                                                          tmp_unified_loop->get_input_port_descs(),
+                                                          tmp_unified_loop->get_output_port_descs(),
+                                                          tmp_unified_loop->get_handlers(),
+                                                          outer_split_loop_info);
 }
 
 }  // namespace snippets

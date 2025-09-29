@@ -494,6 +494,32 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 };
 
+/* Graph:
+ * input0   input1
+ *    \     /  \
+ *    MatMul0   \
+ *       |       \
+ *    Softmax     \
+ *       \       /
+ *       MatMul1
+ * Note: This is a MHA pattern with shared K and V inputs, duplicating one of the python TF tests
+ */
+class MHASharedKVFunction : public SnippetsFunctionBase {
+public:
+    explicit MHASharedKVFunction(const std::vector<PartialShape>& inputShapes,
+                                 const std::vector<ov::element::Type>& precisions)
+        : SnippetsFunctionBase(inputShapes),
+          precisions(precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(precisions.size() == 2, "Got invalid number of input precisions");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+
+    const std::vector<ov::element::Type> precisions;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

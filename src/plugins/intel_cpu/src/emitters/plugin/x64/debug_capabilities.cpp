@@ -11,9 +11,8 @@
 #    include <cpu/x64/cpu_isa_traits.hpp>
 #    include <cpu/x64/jit_generator.hpp>
 #    include <cstddef>
-#    include <cstdint>
-#    include <iostream>
-#    include <sstream>
+
+#    include "emitters/plugin/common/debug_utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -34,46 +33,6 @@ template void RegPrinter::print<char, Reg16>(jit_generator_t& h, Reg16 reg, cons
 template void RegPrinter::print<unsigned char, Reg16>(jit_generator_t& h, Reg16 reg, const char* name);
 template void RegPrinter::print<char, Reg8>(jit_generator_t& h, Reg8 reg, const char* name);
 template void RegPrinter::print<unsigned char, Reg8>(jit_generator_t& h, Reg8 reg, const char* name);
-
-template <typename T>
-void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
-    std::stringstream ss;
-    if (name) {
-        ss << name << " | ";
-    }
-    ss << ori_name << ": ";
-    if (std::is_floating_point_v<T>) {
-        ss << *ptr;
-    } else {
-        if (std::is_signed_v<T>) {
-            ss << static_cast<int64_t>(*ptr);
-        } else {
-            ss << static_cast<uint64_t>(*ptr);
-        }
-    }
-    ss << '\n';
-    std::cout << ss.str();
-}
-
-template <typename PRC_T, size_t vlen>
-void RegPrinter::print_vmm_prc(const char* name, const char* ori_name, PRC_T* ptr) {
-    std::stringstream ss;
-    if (name) {
-        ss << name << " | ";
-    }
-    ss << ori_name << ": {" << ptr[0];
-    for (size_t i = 1; i < vlen / sizeof(float); i++) {
-        ss << ", " << ptr[i];
-    }
-    ss << "}" << '\n';
-    std::cout << ss.str();
-}
-template void RegPrinter::print_vmm_prc<float, 16>(const char* name, const char* ori_name, float* ptr);
-template void RegPrinter::print_vmm_prc<float, 32>(const char* name, const char* ori_name, float* ptr);
-template void RegPrinter::print_vmm_prc<float, 64>(const char* name, const char* ori_name, float* ptr);
-template void RegPrinter::print_vmm_prc<int, 16>(const char* name, const char* ori_name, int* ptr);
-template void RegPrinter::print_vmm_prc<int, 32>(const char* name, const char* ori_name, int* ptr);
-template void RegPrinter::print_vmm_prc<int, 64>(const char* name, const char* ori_name, int* ptr);
 
 template <typename Vmm>
 struct vmm_traits {};
@@ -184,13 +143,13 @@ void RegPrinter::print_vmm(jit_generator_t& h, REG_T vmm, const char* name) {
         h.mov(abi_param2, reinterpret_cast<size_t>(vmm.toString()));
         h.mov(abi_param1, reinterpret_cast<size_t>(name));
         if (vmm.isZMM()) {
-            auto p = &print_vmm_prc<PRC_T, 64>;
+            auto p = &ov::intel_cpu::debug_utils::print_vmm_prc<PRC_T, 64>;
             h.mov(h.rax, reinterpret_cast<size_t>(p));
         } else if (vmm.isYMM()) {
-            auto p = &print_vmm_prc<PRC_T, 32>;
+            auto p = &ov::intel_cpu::debug_utils::print_vmm_prc<PRC_T, 32>;
             h.mov(h.rax, reinterpret_cast<size_t>(p));
         } else {
-            auto p = &print_vmm_prc<PRC_T, 16>;
+            auto p = &ov::intel_cpu::debug_utils::print_vmm_prc<PRC_T, 16>;
             h.mov(h.rax, reinterpret_cast<size_t>(p));
         }
         align_rsp(h);
@@ -224,7 +183,7 @@ void RegPrinter::print_reg(jit_generator_t& h, REG_T reg, const char* name) {
         h.mov(abi_param3, h.rsp);
         h.mov(abi_param2, reinterpret_cast<size_t>(reg.toString()));
         h.mov(abi_param1, reinterpret_cast<size_t>(name));
-        auto p = &print_reg_prc<PRC_T>;
+        auto p = &ov::intel_cpu::debug_utils::print_reg_prc<PRC_T>;
         h.mov(h.rax, reinterpret_cast<size_t>(p));
         align_rsp(h);
         h.call(h.rax);

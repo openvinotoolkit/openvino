@@ -51,7 +51,7 @@ typedef std::tuple<
 class ShapeOfAnyLayoutCPUTest : public testing::WithParamInterface<ShapeOfAnyLayoutCPUTestParamsSet>,
                             virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ShapeOfAnyLayoutCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ShapeOfAnyLayoutCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams] = obj.param;
         const auto& [inputShape, netPr] = basicParamsSet;
         std::ostringstream result;
