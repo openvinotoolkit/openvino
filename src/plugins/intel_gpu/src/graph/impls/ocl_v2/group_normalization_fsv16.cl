@@ -13,6 +13,7 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     __global ACCUMULATOR_TYPE* internal_mean,
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
+#if 0
     const uint data_set_idx = get_global_id(1);     // batch * feature split
     const uint in_data_set_idx = get_global_id(0);
     const uint workers_per_dataset = LWS0 / FSV;    // 16 datasets are handled by one local workgroup
@@ -34,6 +35,9 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
 
     for (uint i = 0; i < items_num; ++i) {
         ACCUMULATOR_TYPE data = TO_ACCUMULATOR_TYPE(input[my_data_offset + i * workers_per_dataset * FSV]);
+        // if (f_base == 0) {
+        //     printf("off: %d , data: %10.4f\n", my_data_offset + i * workers_per_dataset * FSV, data);
+        // }
         sum += data;
         sqr_sum += data * data;
     }
@@ -65,6 +69,45 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
         internal_mean[bf] = mean;
         internal_variance[bf] = variance;
     }
+#else
+    const uint b = get_global_id(2) / INPUT0_FEATURE_NUM;
+    const uint f = get_global_id(2) % INPUT0_FEATURE_NUM;
+    const uint y = get_global_id(1);
+    const uint x = get_global_id(0);
+    const uint divisor_x = INPUT0_SIZE_X / get_local_size(0);
+    const uint divisor_y = INPUT0_SIZE_Y / get_local_size(1);
+
+    ACCUMULATOR_TYPE local_sum = ACCUMULATOR_VAL_ZERO;
+    ACCUMULATOR_TYPE local_sqr_sum = ACCUMULATOR_VAL_ZERO;
+    ACCUMULATOR_TYPE wi_sum = ACCUMULATOR_VAL_ZERO;
+    ACCUMULATOR_TYPE wi_sqr_sum = ACCUMULATOR_VAL_ZERO;
+    for (uint i = 0; i < divisor_y; ++i) {
+        for (uint j = 0; j < divisor_x; ++j) {
+            const uint data_offset = INPUT0_GET_INDEX(b, f, y + (get_local_size(1) * i), x + (get_local_size(0) * j));
+            ACCUMULATOR_TYPE data = TO_ACCUMULATOR_TYPE(input[data_offset]);
+            wi_sum += data;
+            wi_sqr_sum += data * data;
+        }
+    }
+
+    local_sum += work_group_reduce_add(wi_sum);
+    local_sqr_sum += work_group_reduce_add(wi_sqr_sum);
+
+    uint bf = b * INPUT0_FEATURE_NUM + f;
+    if (get_local_id(0) == 0 && get_local_id(1) == 0 && get_local_id(2) == 0) {
+        uint group_size = get_num_groups(0) * get_num_groups(1) * get_num_groups(2);
+        uint group_wi_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
+        float mean = local_sum / TO_ACCUMULATOR_TYPE(group_wi_size);
+        float variance = local_sqr_sum / TO_ACCUMULATOR_TYPE(group_wi_size);
+        internal_mean[b * INPUT0_FEATURE_NUM + f] = mean;
+        internal_variance[b * INPUT0_FEATURE_NUM + f] = variance;
+
+        // printf("[%3d/%3d/%3d/%3d] local_sum: %10.4f, local_sqr_sum: %10.4f, mean: %10.4f, variance: %10.4f, int_mean(sum): %10.4f, int_variance(sum): %10.4f, group_size: %d, divx: %d, divy: %d, group_wi_size: %d\n",
+        //     b, f, y, x, local_sum, local_sqr_sum, mean, variance,
+        //     internal_mean[b * INPUT0_FEATURE_NUM + f], internal_variance[b * INPUT0_FEATURE_NUM + f], group_size,
+        //     divisor_x, divisor_y, group_wi_size);
+    }
+#endif
 }
 #elif GROUP_NORM_KERNEL_GROUP_MEAN_VARIANCE
 REQD_SUB_GROUP_SIZE(SIMD)

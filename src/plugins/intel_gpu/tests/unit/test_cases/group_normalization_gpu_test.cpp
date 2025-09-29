@@ -72,6 +72,7 @@ public:
         tp.add(input_layout{scale_primitive_, scale_bias_layout_});
         tp.add(input_layout{bias_primitive_, scale_bias_layout_});
         tp.add(reorder{reordered_data_primitive, data_primitive_, in_format_, data_types::f32});
+        // tp.add(reorder{reordered_data_primitive, data_primitive_, layout{input_shape, data_types::f32, in_format_, {{0,0,0,0},{0,0,3,3}}}});
 
         auto g = group_normalization{
             "group_normalization_output",
