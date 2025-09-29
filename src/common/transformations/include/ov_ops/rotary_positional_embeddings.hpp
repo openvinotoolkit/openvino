@@ -32,7 +32,7 @@ public:
                                         // each head. change input order to [batch, head_cnt, 4608] to support 2d rope
         bool is_qwen = false;           // Qwen is special which overrides other setting
         bool use_rope_cache = false;    // use precomputed RoPE cache for trigonometric values (cosine and sine)
-        bool support_3d_rope = false;
+        bool support_3d_rope = false;   // use same logic as RoPEFusionGPTNEOX(4), used by gpu plugin
         size_t head_cnt = 0;
         size_t head_size = 0;
         int gather_position_arg_id =
