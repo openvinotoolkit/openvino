@@ -12,7 +12,7 @@ namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector argmax(const ov::frontend::onnx::Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
-    return arg_factory.make_arg_max();
+    return {arg_factory.make_arg_max()};
 }
 
 ONNX_OP("ArgMax", OPSET_RANGE(1, 11), ai_onnx::opset_1::argmax);
@@ -21,7 +21,7 @@ ONNX_OP("ArgMax", OPSET_RANGE(1, 11), ai_onnx::opset_1::argmax);
 namespace opset_12 {
 ov::OutputVector argmax(const ov::frontend::onnx::Node& node) {
     const utils::ArgMinMaxFactory arg_factory(node);
-    return arg_factory.make_arg_max();
+    return {arg_factory.make_arg_max()};
 }
 
 ONNX_OP("ArgMax", OPSET_SINCE(12), ai_onnx::opset_12::argmax);

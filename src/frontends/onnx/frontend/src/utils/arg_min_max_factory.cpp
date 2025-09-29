@@ -28,15 +28,15 @@ ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
       m_axis{node.get_attribute_value<std::int64_t>("axis", 0)},
       m_select_last_index{node.get_attribute_value<std::int64_t>("select_last_index", 0)} {}
 
-ov::OutputVector ArgMinMaxFactory::make_arg_max() const {
+ov::Output<ov::Node> ArgMinMaxFactory::make_arg_max() const {
     return make_topk_subgraph(v11::TopK::Mode::MAX);
 }
 
-ov::OutputVector ArgMinMaxFactory::make_arg_min() const {
+ov::Output<ov::Node> ArgMinMaxFactory::make_arg_min() const {
     return make_topk_subgraph(v11::TopK::Mode::MIN);
 }
 
-ov::OutputVector ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) const {
+ov::Output<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) const {
     const auto k_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
     if (m_select_last_index == 1) {
@@ -105,7 +105,7 @@ ov::OutputVector ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) cons
                                                   element::i64,
                                                   true);
 
-    const ov::Output<ov::Node> result = topk->output(1);
+    ov::Output<ov::Node> result = topk->output(1);
 
     if (m_keep_dims == 0) {
         const auto axis_to_remove = v0::Constant::create(ov::element::u64, ov::Shape{}, {topk->get_axis()});
