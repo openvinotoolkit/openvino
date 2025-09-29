@@ -953,19 +953,29 @@ CWAI3::CWAI3(CWAI3::Results scales) {
 
      auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
           auto& node_to_output = m.get_pattern_value_map();
-        
-          auto matched_node_A = node_to_output.at(constC).get_node_shared_ptr();
+
+          auto matched_node_A = node_to_output.at(constA).get_node_shared_ptr(); 
+          auto matched_node_C = node_to_output.at(constC).get_node_shared_ptr();
           auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
 
-          auto matched_A = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_A);
+          auto matched_A = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_A); 
+          auto matched_C = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_C);
           auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
-          auto matched_A_shape = matched_A->output(0).get_shape();
+          if ((ov::element::f16 == matched_C->get_element_type() ||
+             ov::element::f32 == matched_C->get_element_type()) &&
+             (ov::element::f16 == matched_matmul->get_element_type() ||
+             ov::element::f32 == matched_matmul->get_element_type()) &&
+             (ov::element::i4 == matched_A->get_element_type() ||
+             ov::element::nf4 == matched_A->get_element_type())) {
 
-          if (matched_A_shape.size() == 2 && matched_matmul->get_transpose_b()) {
-               scales.get().push_back(matched_A);
-               LOG_DEBUG("Matched: " << matched_A->get_friendly_name());
-               return false;  // root hasn't changed
+            auto matched_C_shape = matched_C->output(0).get_shape();
+
+            if (matched_C_shape.size() == 2 && matched_matmul->get_transpose_b()) {
+                 scales.get().push_back(matched_C);
+                 LOG_DEBUG("Matched: " << matched_C->get_friendly_name());
+                 return false;  // root hasn't changed
+            }
           }
           return false;  // root hasn't changed
     };
