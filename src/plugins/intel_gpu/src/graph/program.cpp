@@ -687,6 +687,12 @@ void program::transfer_memory_to_device() {
             }
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+                // usm_device memory does not provide performance benefits on the LNL platform
+                if (get_engine().get_device_info().arch == gpu_arch::xe2 &&
+                    get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
+                    return;
+                }
+
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
@@ -1198,8 +1204,7 @@ void program::fuse_nodes(program_node &fused_node,
             }
         }
 
-        auto port_idx = fused_node.get_port_from_deps(dep->id());
-        fused_node.dependencies.push_back({dep, port_idx});
+        fused_node.dependencies.push_back({dep, port});
         local_desc.inputs.emplace_back(FusedInputType::EXTERNAL, fused_node.dependencies.size() - 1, dep->get_output_layout(port).data_type);
         local_desc.deps.emplace_back(dep->id(), deps_idx++);
         dep->users.push_back(&fused_node);

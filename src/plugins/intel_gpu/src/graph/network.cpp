@@ -396,12 +396,12 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         // its attached memory with both its inputs and outputs
         for (auto& dep : p_inst->dependencies()) {
             // check dependencies
-            if (eng.is_the_same_buffer(mem_orig, dep.first->output_memory())) {
+            if (dep.first->outputs_allocated() && eng.is_the_same_buffer(mem_orig, dep.first->output_memory())) {
                 chain.push_back(const_cast<primitive_inst*>(dep.first));
             }
             // then second order dependencies
             for (auto& second_dep : dep.first->dependencies()) {
-                if (eng.is_the_same_buffer(mem_orig, second_dep.first->output_memory())) {
+                if (second_dep.first->outputs_allocated() && eng.is_the_same_buffer(mem_orig, second_dep.first->output_memory())) {
                     chain.push_back(const_cast<primitive_inst*>(second_dep.first));
                 }
             }
@@ -411,7 +411,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         const auto& user_ids = mdata_ptr->get_user_ids();
         for (const auto& id : user_ids) {
             auto usr_prim = get_primitive(id).get();
-            if (eng.is_the_same_buffer(mem_orig, usr_prim->output_memory())) {
+            if (usr_prim->outputs_allocated() && eng.is_the_same_buffer(mem_orig, usr_prim->output_memory())) {
                 chain.push_back(usr_prim);
             }
         }
@@ -428,10 +428,9 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     while (!candidates.empty()) {
         auto cand = candidates.top();
         candidates.pop();
-        const auto& mem_cand = cand->output_memory();
         // Add cand inst to the chain when cand's output is not allocated yet.
         if (!p_inst->outputs_allocated()
-            || eng.is_the_same_buffer(mem_orig, mem_cand)) {
+            || (cand->outputs_allocated() && eng.is_the_same_buffer(mem_orig, cand->output_memory()))) {
             auto nc_cand = const_cast<primitive_inst*>(cand);
             chain.push_back(nc_cand);
             add_mdata_chain(nc_cand);
@@ -1011,6 +1010,12 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+        // usm_device memory does not provide performance benefits on the LNL platform
+        if (get_engine().get_device_info().arch == gpu_arch::xe2 &&
+            get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
+            return;
+        }
+
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);

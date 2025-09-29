@@ -372,7 +372,7 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
     auto output_tensor = inference_request.get_output_tensor(0);
     auto* output_data = output_tensor.data<float>();
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data[i] << " for index " << i;
+        ASSERT_NEAR(output_data[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data[i] << " for index " << i;
     }
 
     float* buffer = new float[shape_size];
@@ -385,11 +385,11 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
     inference_request.set_input_tensor(tensor);
     inference_request.infer();  // Adds '1' to each element
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data[i] << " for index " << i;
+        ASSERT_NEAR(output_data[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data[i] << " for index " << i;
     }
 
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
+        ASSERT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
     }
 
     delete[] buffer;
@@ -419,7 +419,7 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
     auto output_tensor0 = inference_request0.get_output_tensor(0);
     auto* output_data0 = output_tensor0.data<float>();
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
+        ASSERT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
     }
 
     inference_request1.set_input_tensor(output_tensor0);
@@ -428,7 +428,7 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
     auto output_tensor1 = inference_request1.get_output_tensor(0);
     auto* output_data1 = output_tensor1.data<float>();
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data1[i], 7.f, 1e-5) << "Expected=7, actual=" << output_data1[i] << " for index " << i;
+        ASSERT_NEAR(output_data1[i], 7.f, 1e-5) << "Expected=7, actual=" << output_data1[i] << " for index " << i;
     }
 
     float* buffer = new float[shape_size];
@@ -442,15 +442,15 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
     inference_request1.infer();  // Adds '1' to each element
 
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data1[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data1[i] << " for index " << i;
+        ASSERT_NEAR(output_data1[i], 10.f, 1e-5) << "Expected=10, actual=" << output_data1[i] << " for index " << i;
     }
 
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
+        ASSERT_NEAR(output_data0[i], 6.f, 1e-5) << "Expected=6, actual=" << output_data0[i] << " for index " << i;
     }
 
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
+        ASSERT_NEAR(input_zero_data[i], 5.f, 1e-5) << "Expected=5, actual=" << input_zero_data[i] << " for index " << i;
     }
 
     delete[] buffer;
@@ -527,7 +527,7 @@ TEST_P(BatchingRunTests, SetInputTensorInfer) {
 
     inference_request.infer();  // Adds '1' to each element
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 }
 
@@ -554,7 +554,7 @@ TEST_P(BatchingRunTests, SetInputTensorAsync) {
     inference_request.start_async();  // Adds '1' to each element
     inference_request.wait_for(std::chrono::milliseconds(1000));
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 }
 
@@ -583,7 +583,7 @@ TEST_P(BatchingRunTests, SetInputTensorInfer_Caching) {
 
     inference_request.infer();  // Adds '1' to each element
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 
     delete[] buffer;
@@ -612,7 +612,7 @@ TEST_P(BatchingRunTests, CheckTwoRunsInfer) {
     }
     inference_request.infer();  // Adds '1' to each element
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 
     auto l0_host_input_tensor = context.create_host_tensor(ov::element::f32, batch_shape);
@@ -630,7 +630,7 @@ TEST_P(BatchingRunTests, CheckTwoRunsInfer) {
     auto* actual_host_tensor = l0_host_output_tensor.data();
     actual = reinterpret_cast<float*>(actual_host_tensor);
     for (size_t i = 0; i < shape_size; ++i) {
-        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+        ASSERT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
 
     delete[] buffer;
@@ -1184,6 +1184,42 @@ TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun1) {
     }
 }
 
+TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRun2) {
+    auto modelShape = PartialShape{-1, 2, 64, 64};
+    size_t batch_size = 3;
+    auto shape = Shape{batch_size, 2, 64, 64};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, modelShape, "N...");
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+
+    ov::InferRequest inference_request;
+    ov::Tensor input_tensor;
+
+    input_tensor = ov::Tensor(ov::element::f32, shape);
+
+    inference_request = compiled_model.create_infer_request();
+
+    inference_request.set_input_tensor(input_tensor);
+
+    auto* input_data = reinterpret_cast<float*>(input_tensor.data());
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = static_cast<float>(batch_size);
+    }
+
+    inference_request.infer();  // Adds '1' to each element
+
+    auto output_tensor = inference_request.get_output_tensor();
+
+    float expected_result = static_cast<float>(batch_size) + 1.f;
+    auto* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+    for (size_t j = 0; j < shape_size; ++j) {
+        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            << "Run=" << batch_size << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
+            << " for index " << j;
+    }
+}
+
 TEST_P(DynamicBatchingTests, DynamicCheckMultipleBatchingRunsSeq) {
     auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
     auto shape = Shape{4, 2, 64, 64};
@@ -1426,6 +1462,54 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
 }
 
 using CpuVaTensorsTests = InferRequestRunTests;
+
+TEST_P(CpuVaTensorsTests, DontDestroyImportedMemory) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    ov::InferRequest inference_request;
+    ov::Tensor first_output;
+    ov::Tensor second_output;
+    ov::Tensor global_input;
+    float* data;
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    global_input = inference_request.get_input_tensor();
+    memset(global_input.data(), 1, global_input.get_byte_size());
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    first_output = inference_request.get_output_tensor(0);
+
+    compiled_model = {};
+    inference_request = {};
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(global_input));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    second_output = inference_request.get_output_tensor(0);
+
+    EXPECT_NE(first_output.data(), second_output.data());
+    EXPECT_EQ(memcmp(first_output.data(), second_output.data(), second_output.get_byte_size()), 0);
+
+    const size_t byte_size = global_input.get_byte_size();
+    data = static_cast<float*>(::operator new(byte_size, std::align_val_t(4096)));
+    memset(data, 1, byte_size);
+
+    for (int i = 0; i < 10; i++) {
+        {
+            ov::Tensor input_data_tensor{ov::element::f32, global_input.get_shape(), data};
+            OV_ASSERT_NO_THROW(inference_request.set_input_tensor(input_data_tensor));
+            OV_ASSERT_NO_THROW(inference_request.infer());
+        }
+        second_output = inference_request.get_output_tensor(0);
+
+        EXPECT_NE(first_output.data(), second_output.data());
+        EXPECT_EQ(memcmp(first_output.data(), second_output.data(), second_output.get_byte_size()), 0);
+    }
+
+    ::operator delete(data, std::align_val_t(4096));
+}
 
 TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

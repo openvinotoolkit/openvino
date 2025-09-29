@@ -186,6 +186,25 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
     return nullptr;
 }
 
+std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properties) {
+    std::shared_ptr<const ov::Model> modelPtr = nullptr;
+    if (properties.count(ov::hint::model.name())) {
+        try {
+            modelPtr = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+        } catch (const ov::Exception&) {
+            try {
+                modelPtr = std::const_pointer_cast<const ov::Model>(
+                    properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
+                               "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
+            }
+        }
+        properties.erase(ov::hint::model.name());
+    }
+    return modelPtr;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -274,7 +293,6 @@ void Plugin::init_options() {
     REGISTER_OPTION(STEPPING);
     REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
-    REGISTER_OPTION(MODEL_PTR);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(WEIGHTLESS_BLOB);
@@ -329,13 +347,21 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_BATCH_DIM);
     REGISTER_OPTION(NPUW_LLM_SEQ_LEN_DIM);
     REGISTER_OPTION(NPUW_LLM_MAX_PROMPT_LEN);
+    REGISTER_OPTION(NPUW_LLM_MAX_GENERATION_TOKEN_LEN);
     REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
     REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
     REGISTER_OPTION(NPUW_LLM_CACHE_ROPE);
+    REGISTER_OPTION(NPUW_LLM_PREFILL_CHUNK_SIZE);
+    REGISTER_OPTION(NPUW_LLM_SHARED_HEAD);
+    REGISTER_OPTION(NPUW_LLM_MAX_LORA_RANK);
     REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
     REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
     REGISTER_OPTION(NPUW_LLM_GENERATE_HINT);
     REGISTER_OPTION(NPUW_LLM_GENERATE_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_GENERATE_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -505,7 +531,9 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    return _properties->get_property(name, arguments);
+    auto npu_plugin_properties = arguments;
+    exclude_model_ptr_from_map(npu_plugin_properties);
+    return _properties->get_property(name, npu_plugin_properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -527,14 +555,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    if (exclude_model_ptr_from_map(localProperties)) {
+        _logger.warning("Model received in config will be ignored as it was already provided by parameter.");
+    }
+
+    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
+    update_log_level(localPropertiesMap);
+
     // create compiler
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
-    const std::map<std::string, std::string> localPropertiesMap = any_copy(localProperties);
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto localConfig = fork_local_config(localPropertiesMap, compiler);
-    update_log_level(localPropertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
@@ -655,10 +690,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
-    return std::make_shared<RemoteContextImpl>(_backend, remoteProperties);
+    auto npu_plugin_properties = remoteProperties;
+    exclude_model_ptr_from_map(npu_plugin_properties);
+    return std::make_shared<RemoteContextImpl>(_backend, npu_plugin_properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remoteProperties) const {
+    auto npu_plugin_properties = remoteProperties;
+    exclude_model_ptr_from_map(npu_plugin_properties);
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
@@ -770,8 +809,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
-    const std::map<std::string, std::string> propertiesMap = any_copy(properties);
+    auto npu_plugin_properties = properties;
+    exclude_model_ptr_from_map(npu_plugin_properties);
+    const std::map<std::string, std::string> propertiesMap = any_copy(npu_plugin_properties);
+    update_log_level(propertiesMap);
+    auto compiler =
+        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::CompileTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -796,10 +839,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                                   std::unique_ptr<MetadataBase> metadata,
                                                   const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
-    CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
-    const auto propertiesMap = any_copy(properties);
+    auto npu_plugin_properties = properties;
+
+    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    auto originalModel = exclude_model_ptr_from_map(npu_plugin_properties);
+
+    CompilerAdapterFactory compilerAdapterFactory;
+    const auto propertiesMap = any_copy(npu_plugin_properties);
+    update_log_level(propertiesMap);
+    auto compiler =
+        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
+
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
@@ -833,7 +885,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                           ov::Coordinate{0},
                           ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
 
-    std::shared_ptr<const ov::Model> originalModel;
     std::vector<ov::Tensor> tensorsInits;
     const bool weightsSeparationEnabled = initSizes.has_value();
 
@@ -847,42 +898,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         }
 
         // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
-        if (properties.count(ov::hint::model.name())) {
-            try {
-                originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
-            } catch (const ov::AssertFailure&) {
-                try {
-                    originalModel = std::const_pointer_cast<const ov::Model>(
-                        properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
-                } catch (const ov::Exception&) {
-                    OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
-                                   "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
-                }
-            }
-        } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
-            const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
-            const size_t weightsPathLength = weightsPath.length();
-            std::string xmlPath = weightsPath;
+        if (!originalModel) {
+            if (!localConfig.get<WEIGHTS_PATH>().empty()) {
+                const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
+                const size_t weightsPathLength = weightsPath.length();
+                std::string xmlPath = weightsPath;
 
-            if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
-                weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
+                    weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                        WEIGHTS_EXTENSION.length(),
+                                        WEIGHTS_EXTENSION) == 0) {
+                    xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
                                     WEIGHTS_EXTENSION.length(),
-                                    WEIGHTS_EXTENSION) == 0) {
-                xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
-                                WEIGHTS_EXTENSION.length(),
-                                XML_EXTENSION);
-            } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
-                       weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
-                                           ONNX_EXTENSION.length(),
-                                           ONNX_EXTENSION)) {
-                OPENVINO_THROW("Invalid path to the weights: ",
-                               weightsPath,
-                               ". A \".bin\" or \".onnx\" extension was expected.");
-            }
+                                    XML_EXTENSION);
+                } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
+                           weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
+                                               ONNX_EXTENSION.length(),
+                                               ONNX_EXTENSION)) {
+                    OPENVINO_THROW("Invalid path to the weights: ",
+                                   weightsPath,
+                                   ". A \".bin\" or \".onnx\" extension was expected.");
+                }
 
-            originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
-        } else {
-            OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+                originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
+            } else {
+                OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+            }
         }
 
         check_weightless_cache_attribute_occurrence(originalModel);

@@ -7,8 +7,8 @@
 #include "atomic_guard.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -213,7 +213,7 @@ const Shape& Tensor::get_shape() const {
 }
 
 size_t Tensor::size() const {
-    return element::get_memory_size(get_element_type(), shape_size(get_shape()));
+    return ov::util::get_memory_size(get_element_type(), shape_size(get_shape()));
 }
 
 const std::unordered_set<std::string>& Tensor::get_names() const {

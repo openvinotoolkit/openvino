@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string SoftmaxBase::getTestCaseName(testing::TestParamInfo<ov::test::snippets::SoftmaxParams> obj) {
+std::string SoftmaxBase::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::SoftmaxParams>& obj) {
     const auto& [inputShapes, axis, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;

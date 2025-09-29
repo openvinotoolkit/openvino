@@ -134,7 +134,7 @@ KERNEL(arg_max_min_modified)(
     iav_type result[TOP_K];
 #else
 #ifdef USE_INTERNAL_BUFFERS
-    const uint iav_type_size = INPUT0_TYPE_SIZE + 4;
+    const uint iav_type_size = sizeof(iav_type);
     const uint buffer_size = iav_type_size * VALUES_NUM;
     const uint buffer_offset = buffer_size * OPERATION_NUM;
     __global iav_type *result = OFFSET_GLOBAL_PTR(iav_type, tmp_buffer0, output_idx * buffer_size);

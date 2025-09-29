@@ -281,7 +281,9 @@ REGISTER_FACTORY(v15, Col2Im);
 
 // ------------------------------ Supported v16 ops ----------------------------- //
 REGISTER_FACTORY(v16, ISTFT);
+REGISTER_FACTORY(v16, SparseFillEmptyRows);
 REGISTER_FACTORY(v16, AvgPool);
+REGISTER_FACTORY(v16, OneHot);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
