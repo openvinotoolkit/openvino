@@ -967,7 +967,8 @@ CWAI3::CWAI3(CWAI3::Results scales) {
              (ov::element::f16 == matched_matmul->get_element_type() ||
              ov::element::f32 == matched_matmul->get_element_type()) &&
              (ov::element::i4 == matched_A->get_element_type() ||
-             ov::element::nf4 == matched_A->get_element_type())) {
+             ov::element::nf4 == matched_A->get_element_type() ||
+	     ov::element::i8 == matched_A->get_element_type())) {
 
             auto matched_C_shape = matched_C->output(0).get_shape();
 
