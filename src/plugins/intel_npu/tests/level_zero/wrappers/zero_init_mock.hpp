@@ -18,7 +18,7 @@
 namespace intel_npu {
 
 struct ZeroInitStructsMock {
-    ZeroInitStructsMock(std::string extVersionString);
+    ZeroInitStructsMock(int extVersion);
 
     ~ZeroInitStructsMock();
 

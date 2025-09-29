@@ -137,7 +137,7 @@ void ZeroInitStructsMock::initNpuDriver() {
     fallbackToZeDriverGet();
 }
 
-ZeroInitStructsMock::ZeroInitStructsMock(std::string extVersionString)
+ZeroInitStructsMock::ZeroInitStructsMock(int extVersion)
     : zero_api(ZeroApi::getInstance()),
       log("NPUZeroInitStructsMock", Logger::global().level()) {
     log.debug("ZeroInitStructsMock - performing zeInit on NPU only");
@@ -182,20 +182,7 @@ ZeroInitStructsMock::ZeroInitStructsMock(std::string extVersionString)
     // Query our graph extension version
     std::string graph_ext_name;
     uint32_t graph_ext_version = 0;
-    uint32_t target_graph_ext_version = ZE_GRAPH_EXT_VERSION_CURRENT;
-
-    std::regex extVersionRegex(R"(^(\d+)\.(\d+)$)");
-    std::smatch match;
-    if (std::regex_match(extVersionString, match, extVersionRegex)) {
-        int major = std::stoi(match[1].str());
-        int minor = std::stoi(match[2].str());
-        log.debug("Try to find graph ext version: %d.%d instead of %d.%d.",
-                  major,
-                  minor,
-                  ZE_MAJOR_VERSION(target_graph_ext_version),
-                  ZE_MINOR_VERSION(target_graph_ext_version));
-        target_graph_ext_version = ZE_MAKE_VERSION(major, minor);
-    }
+    uint32_t target_graph_ext_version = extVersion;
 
     log.debug("Try to find graph ext version: %d.%d",
               ZE_MAJOR_VERSION(target_graph_ext_version),

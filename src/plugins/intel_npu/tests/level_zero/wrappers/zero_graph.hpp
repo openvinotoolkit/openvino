@@ -11,13 +11,16 @@
 
 using namespace intel_npu;
 
-class ZeroGraphTest : public ::testing::TestWithParam<std::tuple<int, std::string>> {
+class ZeroGraphTest : public ::testing::TestWithParam<std::tuple<int, int>> {
 protected:
     void SetUp() override;
 
-    void TearDown() override;
+    void TearDown() override {};
 
 public:
+
+    void serializeIR();
+
     std::shared_ptr<ZeroInitStructsMock> zeroInitMock;
 
     std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
@@ -30,13 +33,12 @@ public:
 
     std::shared_ptr<ov::Model> model;
 
-    std::string extVersion;
+    int extVersion;
 
     int graphDescFlag;
 
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<int, std::string>> obj) {
-        int flag;
-        std::string version;
+    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<int, int>> obj) {
+        int flag, version;
         std::tie(flag, version) = obj.param;
         std::string targetDevice = ov::test::utils::DEVICE_NPU;
 
@@ -44,7 +46,7 @@ public:
         result << "targetDevice=" << targetDevice << "_";
         result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
         result << "graphDescriptorFlag=" + std::to_string(flag) << "_";
-        result << "extVersion=" + version;
+        result << "extVersion=" + std::to_string(ZE_MAJOR_VERSION(version)) + "." + std::to_string(ZE_MINOR_VERSION(version));
         return result.str();
     }
 };
