@@ -101,22 +101,6 @@ uint32_t rearrange_awq_bits(uint32_t num) {
     return result;
 }
 
-uint16_t rearrange_bitnet_bits(uint16_t num) {
-    uint16_t result = 0;
-    const uint16_t mask = 0x0003;
-
-    result |= (num & (mask << 0)) << 0;
-    result |= (num & (mask << 8)) >> 6;
-    result |= (num & (mask << 4)) << 0;
-    result |= (num & (mask << 10)) >> 4;
-    result |= (num & (mask << 6)) << 2;
-    result |= (num & (mask << 12)) >> 2;
-    result |= (num & (mask << 8)) << 4;
-    result |= (num & (mask << 14)) << 0;
-
-    return result;
-}
-
 Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
     auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
@@ -176,14 +160,32 @@ OutputVector translate_linear_bitnet(const NodeContext& context) {
 
     auto constant = ov::as_type_ptr<v0::Constant>(weight.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
-    auto src = reinterpret_cast<const uint16_t*>(constant->get_data_ptr());
+    auto src = reinterpret_cast<const uint8_t*>(constant->get_data_ptr());
     auto initial_shape = constant->get_shape();
     FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D constants are supported.");
-    auto new_shape = Shape{initial_shape[0] * 4, initial_shape[1]};
-    auto new_weight = std::make_shared<v0::Constant>(element::u2, new_shape);
-    auto dst = const_cast<uint16_t*>(reinterpret_cast<const uint16_t*>(new_weight->get_data_ptr()));
-    for (size_t i = 0; i < shape_size(initial_shape) / 2; i++) {
-        dst[i] = rearrange_bitnet_bits(src[i]);
+    size_t rows = initial_shape[0];
+    size_t cols = initial_shape[1];
+    FRONT_END_OP_CONVERSION_CHECK(cols % 4 == 0, "The second dimension of weight must be divisible by 4.");
+    auto new_shape = Shape{rows * 4, cols};
+    auto new_weight = std::make_shared<v0::Constant>(element::u2, new_shape, 0);
+    auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_weight->get_data_ptr()));
+    auto row_size = cols / 4;
+    // This lambda extracts 2 bits from each of 4 consecutive bytes at a given bit position,
+    // then packs them into a single byte, placing each 2-bit value in its respective position (6, 4, 2, 0).
+    auto reorder_bitnet_2bit_values = [](const uint8_t* src, size_t src_idx, size_t pos) -> uint8_t {
+        return ((src[src_idx + 0] >> pos) & 0x3) << 0 | ((src[src_idx + 1] >> pos) & 0x3) << 2 |
+               ((src[src_idx + 2] >> pos) & 0x3) << 4 | ((src[src_idx + 3] >> pos) & 0x3) << 6;
+    };
+    // In each 8bit value we have 4 2-bit values, first value contains first element, second value first element of a
+    // next row. We need to repack them in contiguous way.
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols / 4; j++) {
+            size_t src_idx = 4 * j + i * cols;
+            dst[j + (i + 0 * rows) * row_size] = reorder_bitnet_2bit_values(src, src_idx, 0);
+            dst[j + (i + 1 * rows) * row_size] = reorder_bitnet_2bit_values(src, src_idx, 2);
+            dst[j + (i + 2 * rows) * row_size] = reorder_bitnet_2bit_values(src, src_idx, 4);
+            dst[j + (i + 3 * rows) * row_size] = reorder_bitnet_2bit_values(src, src_idx, 6);
+        }
     }
     new_weight->set_friendly_name(constant->get_friendly_name());
     auto zero_point = context.mark_node(std::make_shared<v0::Constant>(element::u2, Shape{}, 1));

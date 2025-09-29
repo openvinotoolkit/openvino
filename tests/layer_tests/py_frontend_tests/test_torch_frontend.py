@@ -996,6 +996,38 @@ def test_patched_8bit_model_converts():
     np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
 
 
+
+@pytest.mark.skip(reason="u2 support in CPU plugin is required.")
+def test_patched_bitnet_model_converts():
+    from openvino import convert_model, compile_model
+    from transformers.integrations.bitnet import AutoBitLinear, pack_weights
+    from transformers import PretrainedConfig, BitNetQuantConfig
+
+    class TestModel(torch.nn.Module):
+        config = PretrainedConfig(quantization_config = BitNetQuantConfig(linear_class = "autobitlinear"))
+        def __init__(self, size):
+            super().__init__()
+            self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
+            self.linear.weight = torch.nn.Parameter(torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32))
+            self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
+
+        def forward(self, x):
+            return self.linear(x)
+
+    size = (32, 64)
+    x = torch.randn(1, size[0])
+    model = TestModel(size)
+    with torch.no_grad():
+        res_ref = model(x)
+
+    with torch.no_grad():
+        converted_model = convert_model(model, example_input=(torch.randn(1, size[0]),))
+    assert converted_model
+    cm = compile_model(converted_model, "CPU")
+    res = cm([x.numpy()])
+    np.testing.assert_allclose(res[0], res_ref.numpy(), atol=1e-2)
+
+
 class InlinedInputsModel(torch.nn.Module):
     def __init__(self):
         super().__init__()
