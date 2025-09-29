@@ -15,9 +15,7 @@ if(THREADING STREQUAL "OMP")
     find_package(OpenMP)
 
     if(NOT OpenMP_CXX_FOUND)
-        message(WARNING "Compiler does not support OpenMP standard. Falling back to SEQ threading")
-        set(THREADING "SEQ")
-        set(ENABLE_INTEL_OPENMP OFF)
+        message(FATAL_ERROR "Compiler does not support OpenMP standard. Use -DTHREADING=SEQ instead")
     endif()
 
     if(ENABLE_INTEL_OPENMP)
