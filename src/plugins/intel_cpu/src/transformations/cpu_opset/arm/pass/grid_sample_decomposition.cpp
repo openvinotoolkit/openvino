@@ -109,8 +109,20 @@ std::shared_ptr<Node> to_f32(const std::shared_ptr<Node>& input_node) {
     return std::make_shared<op::v0::Convert>(input_node, element::f32);
 }
 
-// Copy runtime info from the original node to entire subgraph feeding `output`.
+// Copy runtime info from the original node to the replacement subgraph feeding `output`.
+// Traversal stops at the inputs of `from` to avoid propagating RT info into
+// pre-existing producers (e.g., upstream Parameters/Constants or other nodes
+// that must not be modified by this pass).
 void copy_rt_to_subgraph(const std::shared_ptr<Node>& from, const std::shared_ptr<Node>& output) {
+    // Treat direct inputs of `from` as graph traversal boundaries
+    std::unordered_set<const Node*> boundaries;
+    for (size_t i = 0; i < from->get_input_size(); ++i) {
+        auto in = from->input_value(i).get_node_shared_ptr();
+        if (in) {
+            boundaries.insert(in.get());
+        }
+    }
+
     std::vector<std::shared_ptr<Node>> stack;
     stack.push_back(output);
     std::unordered_set<const Node*> visited;
@@ -118,7 +130,14 @@ void copy_rt_to_subgraph(const std::shared_ptr<Node>& from, const std::shared_pt
     while (!stack.empty()) {
         auto node = stack.back();
         stack.pop_back();
-        if (!node || visited.count(node.get()) > 0) {
+        if (!node) {
+            continue;
+        }
+        // Do not step across or modify boundary nodes
+        if (boundaries.count(node.get()) > 0) {
+            continue;
+        }
+        if (visited.count(node.get()) > 0) {
             continue;
         }
         visited.insert(node.get());
