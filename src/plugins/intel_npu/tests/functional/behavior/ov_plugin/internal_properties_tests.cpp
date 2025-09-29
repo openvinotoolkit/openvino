@@ -7,83 +7,9 @@
 
 #include "common/utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "overload/ov_plugin/properties_tests.hpp"
 
 namespace ov::test::behavior {
-
-std::string OVPropertiesTestsNPU::getTestCaseName(const testing::TestParamInfo<PropertiesParamsNPU>& obj) {
-    std::string target_device;
-    AnyMap properties;
-    std::tie(target_device, properties) = obj.param;
-    std::replace(target_device.begin(), target_device.end(), ':', '.');
-    std::ostringstream result;
-    result << "target_device=" << target_device << "_";
-    if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
-    }
-    return result.str();
-}
-
-void OVPropertiesTestsNPU::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::tie(target_device, properties) = this->GetParam();
-    APIBaseTest::SetUp();
-    model = ov::test::utils::make_split_concat();
-}
-
-void OVPropertiesTestsNPU::TearDown() {
-    if (!properties.empty()) {
-        utils::PluginCache::get().reset();
-    }
-    APIBaseTest::TearDown();
-}
-
-std::string OVPropertiesTestsWithCompileModelPropsNPU::getTestCaseName(
-    const testing::TestParamInfo<PropertiesParamsNPU>& obj) {
-    std::string target_device;
-    AnyMap properties;
-    std::tie(target_device, properties) = obj.param;
-    std::replace(target_device.begin(), target_device.end(), ':', '.');
-    std::ostringstream result;
-    result << "target_device=" << target_device << "_";
-    if (!properties.empty()) {
-        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
-    }
-    return result.str();
-}
-
-void OVPropertiesTestsWithCompileModelPropsNPU::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::string temp_device;
-    std::tie(temp_device, properties) = this->GetParam();
-    std::string::size_type pos = temp_device.find(":", 0);
-    std::string hw_device;
-
-    if (pos == std::string::npos) {
-        target_device = temp_device;
-        hw_device = temp_device;
-    } else {
-        target_device = temp_device.substr(0, pos);
-        hw_device = temp_device.substr(++pos, std::string::npos);
-    }
-
-    if (target_device == std::string(ov::test::utils::DEVICE_MULTI) ||
-        target_device == std::string(ov::test::utils::DEVICE_AUTO) ||
-        target_device == std::string(ov::test::utils::DEVICE_HETERO) ||
-        target_device == std::string(ov::test::utils::DEVICE_BATCH)) {
-        compileModelProperties = {ov::device::priorities(hw_device)};
-    }
-
-    model = ov::test::utils::make_split_concat();
-
-    APIBaseTest::SetUp();
-}
-
-void OVPropertiesTestsWithCompileModelPropsNPU::TearDown() {
-    if (!properties.empty()) {
-        utils::PluginCache::get().reset();
-    }
-    APIBaseTest::TearDown();
-}
 
 TEST_P(OVPropertiesTestsNPU, SetCorrectProperties) {
     core->get_versions(target_device);
