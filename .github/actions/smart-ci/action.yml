@@ -75,10 +75,10 @@ runs:
       if: ${{ github.event_name == 'pull_request' }}
       with:
         ref: ${{ github.event.pull_request.head.sha }}
-        check-names: "non-existent"
+        check-names: "${{ inputs.labeler_check_name }}"
         repo-token: ${{ inputs.repo_token }}
         wait-interval: 10
-        timeout: 60
+        timeout: 300
 
     - name: checkout components file
       uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
