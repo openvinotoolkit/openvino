@@ -11,6 +11,7 @@
 #include "lir_comparator.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
 namespace ov {
@@ -66,6 +67,24 @@ ov::snippets::VectorDims get_default_subtensor(size_t rank = 2);
 void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
                            const std::vector<ov::snippets::VectorDims>& subtensors = {},
                            const std::vector<ov::snippets::VectorDims>& layouts = {});
+
+/**
+ * @brief Creates an InnerSplittedUnifiedLoopInfo which represents an inner loop that appears
+ * after SplitLoops optimizations.
+ *
+ * @param work_amount work amount of original loop before splitting
+ * @param increment increment for each iteration
+ * @param entries Vector of LoopPort objects representing loop entry points (input ports)
+ * @param exits Vector of LoopPort objects representing loop exit points (output ports)
+ * @param outer_split_loop_info Pointer to the outer split loop info that will contain this inner loop
+ * @return Shared pointer to the created InnerSplittedUnifiedLoopInfo
+ */
+ov::snippets::lowered::InnerSplittedUnifiedLoopInfoPtr make_inner_split_loop_info(
+    size_t work_amount,
+    size_t increment,
+    const std::vector<ov::snippets::lowered::LoopPort>& entries,
+    const std::vector<ov::snippets::lowered::LoopPort>& exits,
+    const ov::snippets::lowered::UnifiedLoopInfoPtr& outer_split_loop_info);
 
 }  // namespace snippets
 }  // namespace test
