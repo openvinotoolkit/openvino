@@ -15,7 +15,7 @@ tensorflow==2.20.0
 # install explicit version of wrapt to avoid "this __dict__ descriptor does not support '_DictWrapper' objects" error from TensorFlow 2.18
 wrapt==1.15.0; python_version >= "3.12"
 # tensorflow-text is not available for both Windows and ARM platforms
-tensorflow-text==2.18.0; python_version < "3.12" and platform_system == "Linux" and platform_machine == "x86_64"
+tensorflow-text==2.19.0; python_version < "3.13" and platform_system == "Linux" and platform_machine == "x86_64"
 tensorflow-hub==0.16.1
 jax==0.5.0; (platform_system != "Darwin" or platform_machine != "x86_64") and python_version > "3.9"
 # tensorflow 2.16.2 depends on ml-dtypes~=0.3.1 and jax 0.4.35 depends on ml-dtypes>=0.4.0
