@@ -425,6 +425,9 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
             std::string::size_type endpos = 0;
             std::string sub_str = "";
 
+            if (system_info_table[nproc][0].empty()) {
+                return;
+            }
             if (((endpos = system_info_table[nproc][0].find(',', pos)) != std::string::npos) ||
                 ((endpos = system_info_table[nproc][0].find('-', pos)) != std::string::npos)) {
                 sub_str = system_info_table[nproc][0].substr(pos, endpos - pos);
