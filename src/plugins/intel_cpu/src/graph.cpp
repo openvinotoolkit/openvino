@@ -124,6 +124,7 @@ void Graph::Init(const std::vector<NodePtr>& graphNodes,
 
     m_context = context;
     m_stream = make_stream(getEngine(), m_context->getCpuParallel()->get_thread_pool());
+    m_context->getCpuParallel()->activate();
 
     this->_name = std::move(name);
 
@@ -380,6 +381,7 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
 
     m_context = context;
     m_stream = make_stream(getEngine(), m_context->getCpuParallel()->get_thread_pool());
+    m_context->getCpuParallel()->activate();
 
     Replicate(model, inputConfigs, outputConfigs);
 
@@ -559,7 +561,6 @@ void Graph::CreatePrimitivesAndExecConstants() const {
         {
             OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
             DEBUG_LOG(*node);
-            m_context->getCpuParallel()->activate();
             node->createPrimitive();
         }
 
