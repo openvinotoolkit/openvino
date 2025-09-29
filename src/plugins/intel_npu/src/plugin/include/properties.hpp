@@ -42,7 +42,7 @@ public:
     /**
      * @brief Get the values of a property in a map
      */
-    ov::Any get_property(const std::string& name, const FilteredConfig& amendedConfig) const;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments = {}) const;
 
     /**
      * @brief Set the values of a subset of properties, provided as a map
@@ -130,8 +130,12 @@ private:
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
         ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
 
-    const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name()};
+    const std::vector<ov::PropertyName> _internalSupportedProperties = {
+        ov::cache_dir.name(), /* OV queries internal supported properties for cache_dir instead */
+        ov::hint::model.name(),
+        ov::weights_path.name(),
+        ov::internal::caching_properties.name(),
+        ov::internal::caching_with_mmap.name()};
 };
 
 }  // namespace intel_npu
