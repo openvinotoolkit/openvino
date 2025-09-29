@@ -81,8 +81,8 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     ACCUMULATOR_TYPE local_sqr_sum = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE wi_sum = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE wi_sqr_sum = ACCUMULATOR_VAL_ZERO;
-    for (uint i = 0; i < divisor_y; ++i) {
-        for (uint j = 0; j < divisor_x; ++j) {
+    unroll_for (uint i = 0; i < divisor_y; ++i) {
+        unroll_for (uint j = 0; j < divisor_x; ++j) {
             const uint data_offset = INPUT0_GET_INDEX(b, f, y + (get_local_size(1) * i), x + (get_local_size(0) * j));
             ACCUMULATOR_TYPE data = TO_ACCUMULATOR_TYPE(input[data_offset]);
             wi_sum += data;
