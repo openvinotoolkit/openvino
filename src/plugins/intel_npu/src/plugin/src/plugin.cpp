@@ -487,11 +487,6 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
 FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                          const std::unique_ptr<ICompilerAdapter>& compiler,
                                          OptionMode mode) const {
-    if (!_globalConfig.wasFiltered()) {
-        // filter out unsupported options
-        filter_config_by_compiler_support(_globalConfig);
-    }
-
     update_log_level(rawConfig);
     // create a copy of the global config
     FilteredConfig localConfig = _globalConfig;
@@ -510,6 +505,13 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
             compiler_changed = true;
         }
     }
+
+    // If localConfig was not filtered not even by compiler type change, then _globalConfig needs also initialization
+    if (!localConfig.wasFiltered()) {
+        filter_config_by_compiler_support(localConfig);
+        _globalConfig = localConfig;
+    }
+
     // 2. Revalidate unknown internal configs
     // look for unsupported internals
     // first in what we inherited from globalconfig by forking it - ONLY if compiler has changed
@@ -545,7 +547,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         return;
     }
 
-    // 1. Check if configs have been populated
+    // 1. Check if configs have been filtered
     if (!_globalConfig.wasFiltered()) {
         // filter out unsupported options
         filter_config_by_compiler_support(_globalConfig);
@@ -591,8 +593,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     // 3.2 Option was not yet enabled (deffered compiler load) - need to check for compiler load
     // 3.3 Regular metric
     // 3.4 SUPPORTED_PROPERTY - need to check for compiler load
+
+    bool shouldFilterConfigsAndRegister = false;
     if (!_globalConfig.wasFiltered()) {
-        bool shouldFilterConfigsAndRegister = false;
         if (_globalConfig.hasOpt(name)) {  // 3.2
             if (_globalConfig.getOpt(name).mode() != OptionMode::RunTime) {
                 shouldFilterConfigsAndRegister = true;
@@ -600,31 +603,34 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         } else if (name == ov::supported_properties.name()) {  // 3.4
             shouldFilterConfigsAndRegister = true;
         }
-        if (shouldFilterConfigsAndRegister) {
-            // filter out unsupported options
-            filter_config_by_compiler_support(_globalConfig);
-            // 2. Reset properties for the new options
-            _properties->registerProperties();
-        }
     }
 
-    std::map<std::string, std::string> amends;  // What if arguments contains a CompileTime option not enabled yet?
+    bool compileTimeOptionPresent = false;
+    std::map<std::string, std::string> amends;
     for (auto&& value : npu_plugin_properties) {
+        if (_globalConfig.hasOpt(value.first)) {
+            compileTimeOptionPresent = true;
+        }
         amends.emplace(value.first, value.second.as<std::string>());
     }
-    FilteredConfig amendedConfig = _globalConfig;
-    amendedConfig.update(amends, OptionMode::Both);
-    if (amendedConfig.get<COMPILER_TYPE>() !=
-        _globalConfig.get<COMPILER_TYPE>()) {  // is compiler type changed via arguments?
+    if (compileTimeOptionPresent && shouldFilterConfigsAndRegister) {
         // create compiler
         CompilerAdapterFactory compilerAdapterFactory;
-        auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
+        auto compiler =
+            compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
 
-        OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-        amendedConfig = fork_local_config(amends, compiler);
+        auto localConfig = fork_local_config(amends, compiler);
+        Properties localProperties(PropertiesType::PLUGIN, localConfig, _metrics, _backend);
+        localProperties.registerProperties();
+        return localProperties.get_property(name);
+    } else if (shouldFilterConfigsAndRegister) {
+        // filter out unsupported options
+        filter_config_by_compiler_support(_globalConfig);
+        // 2. Reset properties for the new options
+        _properties->registerProperties();
     }
 
-    return _properties->get_property(name, amendedConfig);
+    return _properties->get_property(name, arguments);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,

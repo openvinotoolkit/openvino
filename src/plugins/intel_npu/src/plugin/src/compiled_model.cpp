@@ -172,7 +172,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         return _graph->get_metadata().name;
     } else {
         // default behaviour
-        return _properties->get_property(name, _config);
+        return _properties->get_property(name);
     }
 }
 

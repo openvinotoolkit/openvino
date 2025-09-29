@@ -670,7 +670,14 @@ void Properties::registerCompiledModelProperties() {
     });
 }
 
-ov::Any Properties::get_property(const std::string& name, const FilteredConfig& amendedConfig) const {
+ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    std::map<std::string, std::string> amends;
+    for (auto&& value : arguments) {
+        amends.emplace(value.first, value.second.as<std::string>());
+    }
+    FilteredConfig amendedConfig = _config;
+    amendedConfig.update(amends, OptionMode::Both);
+
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {
         return std::get<2>(configIterator->second)(amendedConfig);
