@@ -149,7 +149,8 @@ void Const::serialize(std::ostream& stream) const {
     // In this case we need to include Constant's data into the blob.
     if (m_copied_if_not_in_model) {
         LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. This will "
-                 "increase the blob size by " << m_byte_size << " bytes.");
+                 "increase the blob size by "
+                 << m_byte_size << " bytes.");
         write(stream, true);
         write(stream, m_copied_if_not_in_model);
         // detach the tensor
