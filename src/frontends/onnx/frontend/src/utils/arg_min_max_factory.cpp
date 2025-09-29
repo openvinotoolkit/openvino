@@ -75,7 +75,7 @@ ov::OutputVector ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) cons
                                                       normalized_axis,
                                                       mode,
                                                       v1::TopK::SortType::SORT_VALUES,
-                                                      element::i32,
+                                                      element::i64,
                                                       true);
 
         const auto data_shape = std::make_shared<v0::ShapeOf>(m_input_node);
@@ -84,9 +84,7 @@ ov::OutputVector ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) cons
                                          axis_node,
                                          v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
 
-        const auto res_index =
-            std::make_shared<v1::Subtract>(dims_on_axis,
-                                           std::make_shared<v0::Convert>(topk->output(1), ov::element::i64));
+        const auto res_index = std::make_shared<v1::Subtract>(dims_on_axis, topk->output(1));
         const auto result =
             std::make_shared<v1::Subtract>(res_index, v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
 
@@ -104,7 +102,7 @@ ov::OutputVector ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) cons
                                                   m_axis,
                                                   mode,
                                                   v11::TopK::SortType::SORT_VALUES,
-                                                  element::i32,
+                                                  element::i64,
                                                   true);
 
     const ov::Output<ov::Node> result = topk->output(1);
