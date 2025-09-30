@@ -14,7 +14,7 @@ MOE
 The *MOE* (Mixture of Experts) operation fuses the computation of multiple experts, using routing weights and indices to select and combine expert outputs.
 
 **Detailed description**:  
-The MOE op receives hidden states, routing weights, and indices of selected experts, along with expert weights and (optionally) biases. It performs the expert computation as specified by the `expert_type` attribute, applying the routing_weights and combining the results. This enables efficient, fused computation of Mixture of Experts architectures excluding the router part (computation of routing weights).
+The MOE op receives hidden states, routing weights, and indices of selected experts, along with expert weights and (optionally) biases. It performs the expert computation as specified by the ``expert_type`` attribute, applying the routing_weights and combining the results. This enables efficient, fused computation of Mixture of Experts architectures excluding the router part (computation of routing weights).
 
 **Pseudocode for expert_type**
 The ``router_topk_output_indices`` are used to select the top-k experts for optimized computation, not included in the pseudocode below.
@@ -33,10 +33,10 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
     slice_1 = gate_up[..., ::2]      # every second element starting from index 0
     slice_2 = gate_up[..., 1::2]     # every second element starting from index 1
     # Branch 1: Minimum and Swish
-    minimum_1 = minimum(slice_2, expert_beta)
-    swish_1 = swish(minimum_1, beta=expert_alpha)
+    minimum_1 = minimum(slice_2, expert_alpha)
+    swish_1 = swish(minimum_1, beta=expert_beta)
     # Branch 2: Clamp and Add
-    clamp_1 = clamp(slice_1, -expert_beta, expert_beta)
+    clamp_1 = clamp(slice_1, -expert_alpha, expert_alpha)
     add_1 = clamp_1 + 1
     # Multiply branches
     fused = add_1 * swish_1
@@ -57,7 +57,7 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
     # Experts computation part (GEMM3_SWIGLU)
     x_proj = matmul(reshaped_hidden_states, weight_0, transpose_a=False, transpose_b=True)
     x_proj2 = matmul(reshaped_hidden_states, weight_1, transpose_a=False, transpose_b=True)
-    swiglu = swish(x_proj, beta=expert_alpha)
+    swiglu = swish(x_proj, beta=expert_beta)
     x_proj = x_proj * swiglu
     down_proj = matmul(swiglu, weight_2, transpose_a=False, transpose_b=True)
     
@@ -79,16 +79,16 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
 
 * *expert_alpha*
 
-  * **Description**: Alpha attribute for activation functions (used for Swish with GEMM2_BIAS_SWIGLU_CLAMP).
+  * **Description**: Alpha attribute - used as value for clamp min/max bounds (used with GEMM2_BIAS_SWIGLU_CLAMP).
   * **Type**: ``float``
-  * **Default value**: ``1.0``
+  * **Default value**: ``0.0``
   * **Required**: *no*
 
 * *expert_beta*
 
-  * **Description**: Beta attribute - used as value for clamp min/max bounds (used with GEMM2_BIAS_SWIGLU_CLAMP).
+  * **Description**: Beta attribute for activation functions (used for Swish, often with GEMM2_BIAS_SWIGLU_CLAMP).
   * **Type**: ``float``
-  * **Default value**: ``0.0``
+  * **Default value**: ``1.0``
   * **Required**: *no*
 
 **Inputs**
