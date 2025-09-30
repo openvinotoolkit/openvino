@@ -67,7 +67,7 @@ public:
     }
 
     template <typename T0, typename R, typename F>
-    R cpu_parallel_sum(const T0& D0, const R& input, const F& func) const {
+    [[nodiscard]] R cpu_parallel_sum(const T0& D0, const R& input, const F& func) const {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         R res_sum = 0;
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
