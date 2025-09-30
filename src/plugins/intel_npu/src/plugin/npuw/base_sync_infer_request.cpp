@@ -262,7 +262,7 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
-        m_profile[profile_tag(idx)] += ov::npuw::perf::ms_to_run([&](){
+        m_profile[profile_tag(idx)] += ov::npuw::perf::ms_to_run([&]() {
             run_subrequest_for_success(idx, failover);
         });
         failover_happened |= failover;
@@ -300,7 +300,6 @@ ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const
                                                           const std::string& device) {
     return allocMem(node.get_element_type(), node.get_shape(), device);
 }
-
 
 std::string ov::npuw::IBaseInferRequest::global_input_mem_device(std::size_t idx) const {
     // Use the consumer subgraph device if it is alone;
@@ -576,7 +575,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     handle_quant_host_gather(idx, request);
 
     // Handle attention inputs, if required
-    m_profile["attn(io)"] += ov::npuw::perf::ms_to_run([&](){
+    m_profile["attn(io)"] += ov::npuw::perf::ms_to_run([&]() {
         bind_attention_inputs(idx, request);
     });
 
@@ -710,7 +709,7 @@ void ov::npuw::IBaseInferRequest::bind_attention_inputs(std::size_t idx, RqPtr r
             LOG_BLOCK();
             if (do_copy && ov::shape_size(shape) > 0) {
                 // FIXME: Same devices that don't tolerate set_, also don't tolerate strided inputs
-                const auto &dst = r->get_tensor(iport);
+                const auto& dst = r->get_tensor(iport);
                 const auto old_ptr = dst->data();
                 dst->set_shape(shape);
                 const auto new_ptr = dst->data();

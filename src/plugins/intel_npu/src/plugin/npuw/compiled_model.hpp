@@ -6,8 +6,8 @@
 
 #include <optional>
 
-#include "common.hpp"
 #include "attention.hpp"
+#include "common.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
@@ -16,10 +16,10 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
+#include "perf.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
-#include "perf.hpp"
 
 namespace intel_npu {
 class Plugin;

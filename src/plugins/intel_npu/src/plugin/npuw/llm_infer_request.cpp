@@ -8,8 +8,8 @@
 
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "util_xarch.hpp"
 
 namespace {
@@ -98,7 +98,10 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
     }
 }
 
-void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim_src, uint32_t kv_dim_dst) {
+void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
+                        ov::SoPtr<ov::ITensor> dst_tensor,
+                        uint32_t kv_dim_src,
+                        uint32_t kv_dim_dst) {
     if (kv_dim_src != kv_dim_dst) {
         // new case - do a generic copy for now (in fact it is a permute)
         // Example:
@@ -563,7 +566,8 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                                        kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
                                                        kvcache_desc.max_prompt_size);
 
-            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
+            auto kvcache_in_slice =
+                make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
 
             copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, pre_kv_dim, gen_kv_dim);
         }
@@ -592,9 +596,7 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
             continue;
         }
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed)
-                                 ? 3u
-                                 : kvcache_desc.dim;
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
         auto dst_slice = make_tensor_slice(dst_tensor,
                                            kv_dim,
                                            kvcache_desc.num_stored_tokens - num_tokens,
@@ -869,7 +871,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         LOG_DEBUG("Calling inference for LM head model asynchronously");
         m_lm_head_request->start_async();
         if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
-            update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, input_tokens_len, kvcache_desc.v_tensors_transposed_gen);
+            update_kvcache_for(m_kvcache_request,
+                               m_kvcache_in_ports,
+                               m_kvcache_out_ports,
+                               input_tokens_len,
+                               kvcache_desc.v_tensors_transposed_gen);
         }
         m_lm_head_request->wait();
         LOG_DEBUG("Calling inference for LM head model -- done.");
@@ -877,7 +883,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
     } else {
         if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
-            update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, input_tokens_len, kvcache_desc.v_tensors_transposed_gen);
+            update_kvcache_for(m_kvcache_request,
+                               m_kvcache_in_ports,
+                               m_kvcache_out_ports,
+                               input_tokens_len,
+                               kvcache_desc.v_tensors_transposed_gen);
         }
 
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));

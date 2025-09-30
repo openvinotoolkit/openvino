@@ -253,12 +253,16 @@ void Group::fuseWith(const Group::GPtr& gptr_cons) {
         {
             LOG_DEBUG("Merger:");
             LOG_BLOCK();
-            for (auto &&layer : m_content) { LOG_DEBUG(layer); }
+            for (auto&& layer : m_content) {
+                LOG_DEBUG(layer);
+            }
         }
         {
             LOG_DEBUG("Mergee:");
             LOG_BLOCK();
-            for (auto &&layer : gptr_cons->m_content) { LOG_DEBUG(layer); }
+            for (auto&& layer : gptr_cons->m_content) {
+                LOG_DEBUG(layer);
+            }
         }
     }
 

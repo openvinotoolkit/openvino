@@ -229,7 +229,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
 
     ov::npuw::Partitioning partitioning;
-    m_profile["partitioning"] += ov::npuw::perf::ms_to_run([&](){
+    m_profile["partitioning"] += ov::npuw::perf::ms_to_run([&]() {
         partitioning = getPartitioning(model, m_cfg, ctx);
     });
     m_total_stat.gflops = partitioning.total_gflops;
@@ -1253,7 +1253,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     }
 
     // Evaluate and allocate all LazyTensors inside the bank
-    m_profile["weights bank"] += ov::npuw::perf::ms_to_run([&](){
+    m_profile["weights bank"] += ov::npuw::perf::ms_to_run([&]() {
         m_weights_bank->evaluate_and_allocate();
     });
 
@@ -1468,7 +1468,7 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
 
     try {
         // WARNING: These requests can be issues in parallel, so timer should be thread-safe
-        m_profile["compile/" + device_to_try] += ov::npuw::perf::ms_to_run([&](){
+        m_profile["compile/" + device_to_try] += ov::npuw::perf::ms_to_run([&]() {
             m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
         });
     } catch (const std::exception& ex) {

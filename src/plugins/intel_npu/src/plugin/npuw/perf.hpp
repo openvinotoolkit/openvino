@@ -25,7 +25,7 @@ struct MSec {
 
 struct Bytes {
     constexpr static const char* name = "MB";
-    constexpr static float scaler = 1024.0*1024;
+    constexpr static float scaler = 1024.0 * 1024;
 };
 
 template <typename T, typename U>
@@ -39,13 +39,9 @@ class metric {
 
 public:
     metric() = default;
-    metric(metric&& m)
-        : records(std::move(m.records)), name(std::move(m.name)), enabled(m.enabled) {
-    }
+    metric(metric&& m) : records(std::move(m.records)), name(std::move(m.name)), enabled(m.enabled) {}
 
-    explicit metric(const std::string &named, bool active = false)
-        : name(named), enabled(active) {
-    }
+    explicit metric(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
     void enable() {
         enabled = true;
@@ -81,10 +77,8 @@ public:
         const char* units = U::name;
         os << std::left << std::setw(20) << (m.name.empty() ? std::string("<unnamed timer>") : m.name);
         if (m.enabled) {
-            os << "[ avg = " << m.avg() << " " << units
-               << ", med = " << m.med() << " " << units
-               << " in " << m.vmin << ".." << m.vmax << " " << units
-               << " range over " << m.records.size() << " records"
+            os << "[ avg = " << m.avg() << " " << units << ", med = " << m.med() << " " << units << " in " << m.vmin
+               << ".." << m.vmax << " " << units << " range over " << m.records.size() << " records"
                << ", total = " << m.total << units << " ]";
         } else {
             os << "[ disabled ]";
@@ -102,13 +96,9 @@ class counter {
 
 public:
     counter() = default;
-    counter(counter&& c)
-        : total(std::move(c.total)), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {
-    }
+    counter(counter&& c) : total(std::move(c.total)), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {}
 
-    explicit counter(const std::string &named, bool active = false)
-        : name(named), enabled(active) {
-    }
+    explicit counter(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
     void enable() {
         enabled = true;
@@ -125,8 +115,8 @@ public:
         const char* units = U::name;
         os << std::left << std::setw(20) << (c.name.empty() ? std::string("<unnamed counter>") : c.name);
         if (c.enabled) {
-            os << "[ " << static_cast<decltype(U::scaler) >(c.total) / U::scaler
-               << " " << units << " total in " << c.calls << " records ]";
+            os << "[ " << static_cast<decltype(U::scaler)>(c.total) / U::scaler << " " << units << " total in "
+               << c.calls << " records ]";
         } else {
             os << "[ disabled ]";
         }
@@ -134,13 +124,13 @@ public:
     }
 };
 
-template<class Metric>
+template <class Metric>
 struct Profile {
     std::map<std::string, Metric> metrics;
     std::string area;
     bool report_on_die = false;
 
-    Metric& operator[](const std::string &tag) {
+    Metric& operator[](const std::string& tag) {
         auto iter = metrics.find(tag);
         if (iter == metrics.end()) {
             return metrics.insert({tag, Metric(tag, true)}).first->second;
@@ -157,7 +147,7 @@ struct Profile {
         } else {
             std::cout << std::hex << this << ":" << std::endl;
         }
-        for (auto &&m : metrics) {
+        for (auto&& m : metrics) {
             std::cout << "  " << m.second << std::endl;
         }
     }
