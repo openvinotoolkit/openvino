@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov::snippets::pass {
 
@@ -14,10 +14,11 @@ namespace ov::snippets::pass {
  *        Only single-value (0D) constants are currently supported.
  * @ingroup snippets
  */
-class ConvertConstantsToScalars : public ov::pass::MatcherPass {
+class ConvertConstantsToScalars : public ov::pass::ModelPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::ConvertConstantsToScalars");
-    ConvertConstantsToScalars();
+    OPENVINO_MODEL_PASS_RTTI("snippets::pass::ConvertConstantsToScalars");
+    ConvertConstantsToScalars() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 }  // namespace ov::snippets::pass
