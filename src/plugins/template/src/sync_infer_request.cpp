@@ -1,7 +1,7 @@
-
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "sync_infer_request.hpp"
 
 #include <algorithm>
@@ -10,11 +10,8 @@
 #include <string>
 #include <utility>
 
-#include "compiled_model.hpp"
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/op/paged_attention.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
@@ -41,6 +38,8 @@ void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
     }
 }
 
+}  // namespace
+
 void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
                        ov::op::util::VariableContext& variable_context,
                        std::vector<ov::SoPtr<ov::IVariableState>>& list_of_variables) {
@@ -51,6 +50,7 @@ void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
             }
         }
     }
+
     for (const auto& variable : ov_model->get_variables()) {
         if (!variable_context.get_variable_value(variable)) {
             const auto& shape = variable->get_info().data_shape.is_dynamic()
@@ -66,61 +66,26 @@ void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
     }
 }
 
-struct PortsDiscovery {
-    std::vector<ov::template_plugin::ScoresPort> scores;
-    std::vector<ov::template_plugin::LayerPorts> layers;
-};
-
-static PortsDiscovery discover_ports(const std::shared_ptr<const ov::template_plugin::CompiledModel>& cm) {
-    PortsDiscovery out;
-    auto runtime = cm->get_runtime_model();
-    const auto& results = runtime->get_results();
-    size_t layer_id = 0;
-
-    for (size_t i = 0; i < results.size(); ++i) {
-        auto res = results[i];
-        if (res->get_output_size() != 1)
-            continue;
-        auto src = res->input_value(0);
-        auto pat = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(src.get_node_shared_ptr());
-        if (!pat)
-            continue;
-        // by contract: second output (index 1) is scores
-        if (src.get_index() != 1)
-            continue;
-
-        ov::template_plugin::LayerPorts lp;
-        lp.k_param = pat->input_value(3);
-        lp.v_param = pat->input_value(4);
-        out.layers.push_back(lp);
-
-        ov::template_plugin::ScoresPort sp{};
-        sp.result_index = i;
-        sp.layer_id = layer_id++;
-        out.scores.push_back(sp);
-    }
-    return out;
-}
-
-}  // namespace
-
-namespace ov {
-namespace template_plugin {
-
 // ! [infer_request:ctor]
-InferRequest::InferRequest(const std::shared_ptr<const ov::template_plugin::CompiledModel>& model)
+ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::template_plugin::CompiledModel>& model)
     : ov::ISyncInferRequest(model) {
-    auto requestID = std::to_string(model->m_request_id.fetch_add(1));
+    // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
-    std::string name = model->m_model->get_friendly_name() + "_Req" + requestID;
+    auto requestID = std::to_string(get_template_model()->m_request_id.fetch_add(1));
+
+    std::string name = get_template_model()->m_model->get_friendly_name() + "_Req" + requestID;
     m_profiling_task = {
-        openvino::itt::handle("Template" + std::to_string(model->m_cfg.device_id) + "_" + name + "_Preprocess"),
-        openvino::itt::handle("Template" + std::to_string(model->m_cfg.device_id) + "_" + name + "_Postprocess"),
-        openvino::itt::handle("Template" + std::to_string(model->m_cfg.device_id) + "_" + name + "_StartPipeline"),
-        openvino::itt::handle("Template" + std::to_string(model->m_cfg.device_id) + "_" + name + "_WaitPipline"),
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
+                              "_Preprocess"),
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
+                              "_Postprocess"),
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
+                              "_StartPipeline"),
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
+                              "_WaitPipline"),
     };
     m_durations = {};
-    m_executable = model->get_template_plugin()->m_backend->compile(model->m_model);
+    m_executable = get_template_model()->get_template_plugin()->m_backend->compile(get_template_model()->m_model);
 
     // Allocate plugin backend specific memory handles
     m_backend_input_tensors.resize(get_inputs().size());
@@ -149,29 +114,16 @@ InferRequest::InferRequest(const std::shared_ptr<const ov::template_plugin::Comp
     const auto& ov_model = m_executable->get_model();
     collect_variables(ov_model, variable_context, m_variable_states);
     m_eval_context.emplace("VariableContext", variable_context);
-
-    // ---- NEW: Cache manager and eviction configuration ----
-    m_cache_mgr = model->get_or_create_cache_manager_locked();  // method added in CompiledModel
-    auto ports = discover_ports(model);
-    m_scores_ports = std::move(ports.scores);
-    m_layer_ports = std::move(ports.layers);
-
-    const size_t block_size = m_cache_mgr ? m_cache_mgr->get_block_size() : 32;
-    const size_t num_layers = m_cache_mgr ? m_cache_mgr->get_num_decoder_layers() : m_scores_ports.size();
-    const auto& ecfg = model->m_eviction_cfg;  // assumed member in CompiledModel
-    m_eviction =
-        std::make_unique<ov::cache::CacheEvictionAlgorithm>(ecfg, block_size, num_layers, ecfg.snapkv_window_size);
-    m_cfg_max_kv_blocks = 0;  // keep 0 unless you pass a property to set it
 }
 // ! [infer_request:ctor]
 
 // ! [infer_request:dtor]
-InferRequest::~InferRequest() = default;
+ov::template_plugin::InferRequest::~InferRequest() = default;
 // ! [infer_request:dtor]
 
 // ! [infer_request:set_tensors_impl]
-void InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
-                                    const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
+void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
+                                                         const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
     for (const auto& input : get_inputs()) {
         if (input == port) {
             m_batched_tensors[input.get_tensor_ptr()] = tensors;
@@ -183,12 +135,13 @@ void InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
 // ! [infer_request:set_tensors_impl]
 
 // ! [infer_request:query_state]
-std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
+std::vector<ov::SoPtr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
     return m_variable_states;
 }
 // ! [infer_request:query_state]
 
-std::shared_ptr<const ov::template_plugin::CompiledModel> InferRequest::get_template_model() const {
+std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::InferRequest::get_template_model()
+    const {
     auto& compiled_model = get_compiled_model();
     auto template_model = std::dynamic_pointer_cast<const ov::template_plugin::CompiledModel>(compiled_model);
     OPENVINO_ASSERT(template_model);
@@ -196,7 +149,7 @@ std::shared_ptr<const ov::template_plugin::CompiledModel> InferRequest::get_temp
 }
 
 // ! [infer_request:infer]
-void InferRequest::infer() {
+void ov::template_plugin::InferRequest::infer() {
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
     infer_preprocess();
     start_pipeline();
@@ -206,13 +159,9 @@ void InferRequest::infer() {
 // ! [infer_request:infer]
 
 // ! [infer_request:infer_preprocess]
-void InferRequest::infer_preprocess() {
+void ov::template_plugin::InferRequest::infer_preprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Preprocess]);
     auto start = Time::now();
-
-    // NEW: bind KV cache before tensor export
-    ensure_kv_cache_bound();
-
     convert_batched_tensors();
     check_tensors();
 
@@ -276,7 +225,7 @@ void InferRequest::infer_preprocess() {
 // ! [infer_request:infer_preprocess]
 
 // ! [infer_request:start_pipeline]
-void InferRequest::start_pipeline() {
+void ov::template_plugin::InferRequest::start_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[StartPipeline])
     auto start = Time::now();
     m_executable->call(m_backend_output_tensors,
@@ -288,7 +237,7 @@ void InferRequest::start_pipeline() {
 // ! [infer_request:start_pipeline]
 
 // ! [infer_request:wait_pipeline]
-void InferRequest::wait_pipeline() {
+void ov::template_plugin::InferRequest::wait_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[WaitPipeline])
     auto start = Time::now();
     // TODO: Wait pipeline using driver API or other synchronizations methods
@@ -298,7 +247,7 @@ void InferRequest::wait_pipeline() {
 // ! [infer_request:wait_pipeline]
 
 // ! [infer_request:infer_postprocess]
-void InferRequest::infer_postprocess() {
+void ov::template_plugin::InferRequest::infer_postprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Postprocess]);
     auto start = Time::now();
     OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
@@ -322,16 +271,12 @@ void InferRequest::infer_postprocess() {
             std::memcpy(data, host_tensor.data(), tensor->get_byte_size());
         }
     }
-
-    // NEW: harvest scores & run eviction policy
-    register_scores_and_evict();
-
     m_durations[Postprocess] = Time::now() - start;
 }
 // ! [infer_request:infer_postprocess]
 
 // ! [infer_request:get_profiling_info]
-std::vector<ov::ProfilingInfo> InferRequest::get_profiling_info() const {
+std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_info() const {
     std::vector<ov::ProfilingInfo> info;
     const auto fill_profiling_info = [](const std::string& name,
                                         const std::chrono::duration<float, std::micro>& time) -> ov::ProfilingInfo {
@@ -359,50 +304,7 @@ std::vector<ov::ProfilingInfo> InferRequest::get_profiling_info() const {
 // ! [infer_request:get_profiling_info]
 
 // ! [infer_request:cancel]
-void InferRequest::cancel() {
+void ov::template_plugin::InferRequest::cancel() {
     m_executable->cancel();
 }
 // ! [infer_request:cancel]
-
-// ---- NEW HELPERS ----
-void InferRequest::ensure_kv_cache_bound() {
-    if (!m_cache_mgr)
-        return;
-    // If you want to cap total pages externally, set m_cfg_max_kv_blocks via property elsewhere
-    if (m_cfg_max_kv_blocks > 0)
-        m_cache_mgr->allocate_cache_if_needed(m_cfg_max_kv_blocks);
-
-    const size_t L = std::min(m_layer_ports.size(), m_cache_mgr->get_num_decoder_layers());
-    for (size_t l = 0; l < L; ++l) {
-        const auto& lp = m_layer_ports[l];
-        auto kc = m_cache_mgr->get_key_cache(l);
-        auto vc = m_cache_mgr->get_value_cache(l);
-        if (kc)
-            set_tensor(lp.k_param, ov::get_tensor_impl(kc));
-        if (vc)
-            set_tensor(lp.v_param, ov::get_tensor_impl(vc));
-    }
-}
-
-void InferRequest::register_scores_and_evict() {
-    if (!m_eviction)
-        return;
-
-    ov::cache::AttentionScoresForEachDecoderLayer per_layer_scores;
-    per_layer_scores.resize(m_scores_ports.size());
-    for (const auto& sp : m_scores_ports) {
-        // pick the host-side tensor that corresponds to this Result
-        per_layer_scores[sp.layer_id] = m_backend_output_tensors.at(sp.result_index);
-    }
-
-    std::set<size_t> skipped{};
-    m_eviction->register_new_token_scores(per_layer_scores, skipped);
-
-    // In this skeleton we just query and drop; your next step would be to
-    // translate logical evictions into physical page ops via CacheManager.
-    auto evicted = m_eviction->evict_logical_blocks();
-    (void)evicted;
-}
-
-}  // namespace template_plugin
-}  // namespace ov

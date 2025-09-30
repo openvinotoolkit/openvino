@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include "compiled_model.hpp"
 
 #include <memory>
@@ -16,22 +17,20 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
-// forward declaration
-void transform_model(const std::shared_ptr<ov::Model>& model);
-
-namespace ov {
-namespace template_plugin {
-
-CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
-                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                             const ov::SoPtr<ov::IRemoteContext>& context,
-                             const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
-                             const Configuration& cfg,
-                             bool loaded_from_cache)
-    : ov::ICompiledModel(model, plugin, context, task_executor),
+// ! [compiled_model:ctor]
+ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                  const ov::SoPtr<ov::IRemoteContext>& context,
+                                                  const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                                                  const Configuration& cfg,
+                                                  bool loaded_from_cache)
+    : ov::ICompiledModel(model, plugin, context, task_executor),  // Disable default threads creation
       m_cfg(cfg),
       m_model(model),
       m_loaded_from_cache(loaded_from_cache) {
+    // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
+    // you should select proper device based on KEY_DEVICE_ID or automatic behavior
+    // In this case, m_wait_executor should also be created per device.
     try {
         compile_model(m_model);
     } catch (const std::exception& e) {
@@ -40,56 +39,58 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         OPENVINO_THROW("Generic exception is thrown");
     }
 }
+// ! [compiled_model:ctor]
 
-void CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
+// ! [compiled_model:compile_model]
+// forward declaration
+void transform_model(const std::shared_ptr<ov::Model>& model);
+
+void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
+    // apply plugins transformations
     if (!m_cfg.disable_transformations)
         transform_model(model);
 
+    // Integrate performance counters to the compiled model
     for (const auto& op : model->get_ops()) {
         auto& rt_info = op->get_rt_info();
         rt_info[ov::runtime::interpreter::PERF_COUNTER_NAME] =
             std::make_shared<ov::runtime::interpreter::PerfCounter>();
     }
-}
 
-std::shared_ptr<ov::cache::CacheManager> CompiledModel::get_or_create_cache_manager_locked() const {
-    std::lock_guard<std::mutex> lock(m_cache_mgr_mutex);
-    if (m_cache_manager)
-        return m_cache_manager;
-    // Gather engine metadata
-    auto exec_devices = this->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
-    auto ctx = this->get_context();  // SoPtr<IRemoteContext> (may be empty)
-    // Construct from runtime model + metadata (engine-scoped)
-    m_cache_manager = std::make_shared<ov::cache::CacheManager>(m_model, exec_devices, ctx);
-    return m_cache_manager;
+    // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
+// ! [compiled_model:compile_model]
 
-std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
-    return std::make_shared<InferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
+// ! [compiled_model:create_sync_infer_request]
+std::shared_ptr<ov::ISyncInferRequest> ov::template_plugin::CompiledModel::create_sync_infer_request() const {
+    return std::make_shared<InferRequest>(
+        std::static_pointer_cast<const ov::template_plugin::CompiledModel>(shared_from_this()));
 }
+// ! [compiled_model:create_sync_infer_request]
 
-std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
+// ! [compiled_model:create_infer_request]
+std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::create_infer_request() const {
     auto internal_request = create_sync_infer_request();
-
-    // Ensure shared CacheManager exists
-    (void)get_or_create_cache_manager_locked();
-
-    auto async_infer_request =
-        std::make_shared<AsyncInferRequest>(std::static_pointer_cast<InferRequest>(internal_request),
-                                            get_task_executor(),
-                                            get_template_plugin()->m_waitExecutor,
-                                            get_callback_executor());
+    auto async_infer_request = std::make_shared<AsyncInferRequest>(
+        std::static_pointer_cast<ov::template_plugin::InferRequest>(internal_request),
+        get_task_executor(),
+        get_template_plugin()->m_waitExecutor,
+        get_callback_executor());
 
     return async_infer_request;
 }
+// ! [compiled_model:create_infer_request]
 
-void CompiledModel::set_property(const ov::AnyMap& properties) {
+// ! [compiled_model:set_property]
+void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properties) {
     m_cfg = Configuration{properties, m_cfg};
-    // TODO: parse eviction knobs into m_eviction_cfg if exposed via properties
 }
+// ! [compiled_model:set_property]
 
-std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
+// ! [compiled_model:get_runtime_model]
+std::shared_ptr<const ov::Model> ov::template_plugin::CompiledModel::get_runtime_model() const {
     auto model = m_model->clone();
+    // Add execution information into the model
     size_t exec_order = 0;
     for (const auto& op : model->get_ordered_ops()) {
         auto& info = op->get_rt_info();
@@ -114,16 +115,18 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     }
     return model;
 }
+// ! [compiled_model:get_runtime_model]
 
-std::shared_ptr<const Plugin> CompiledModel::get_template_plugin() const {
+std::shared_ptr<const ov::template_plugin::Plugin> ov::template_plugin::CompiledModel::get_template_plugin() const {
     auto plugin = get_plugin();
     OPENVINO_ASSERT(plugin);
-    auto template_plugin = std::static_pointer_cast<const Plugin>(plugin);
+    auto template_plugin = std::static_pointer_cast<const ov::template_plugin::Plugin>(plugin);
     OPENVINO_ASSERT(template_plugin);
     return template_plugin;
 }
 
-ov::Any CompiledModel::get_property(const std::string& name) const {
+// ! [compiled_model:get_property]
+ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name) const {
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
@@ -160,8 +163,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 
     return m_cfg.Get(name);
 }
+// ! [compiled_model:get_property]
 
-void CompiledModel::export_model(std::ostream& model_stream) const {
+// ! [compiled_model:export_model]
+void ov::template_plugin::CompiledModel::export_model(std::ostream& model_stream) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "CompiledModel::export_model");
 
     std::stringstream xmlFile, binFile;
@@ -169,11 +174,11 @@ void CompiledModel::export_model(std::ostream& model_stream) const {
     serializer.run_on_model(m_model);
 
     auto m_constants = binFile.str();
-    auto m_model_s = xmlFile.str();
+    auto m_model = xmlFile.str();
 
-    auto dataSize = static_cast<std::uint64_t>(m_model_s.size());
+    auto dataSize = static_cast<std::uint64_t>(m_model.size());
     model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    model_stream.write(m_model_s.c_str(), dataSize);
+    model_stream.write(m_model.c_str(), dataSize);
 
     if (m_cfg.cache_mode == CacheMode::OPTIMIZE_SPEED) {
         dataSize = static_cast<std::uint64_t>(m_constants.size());
@@ -181,6 +186,4 @@ void CompiledModel::export_model(std::ostream& model_stream) const {
         model_stream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
     }
 }
-
-}  // namespace template_plugin
-}  // namespace ov
+// ! [compiled_model:export_model]
