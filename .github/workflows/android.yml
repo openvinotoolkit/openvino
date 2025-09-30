@@ -269,7 +269,7 @@ jobs:
           path: ${{ env.INSTALL_DIR }}/
           if-no-files-found: 'error'
 
-  Test:
+  CXX_Unit_Tests:
     needs: [Smart_CI, Docker, Build]
     timeout-minutes: 120
     runs-on: aks-linux-4-cores-16gb
@@ -366,7 +366,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_android
-    needs: [Smart_CI, Build, Test]
+    needs: [Smart_CI, Build, CXX_Unit_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
