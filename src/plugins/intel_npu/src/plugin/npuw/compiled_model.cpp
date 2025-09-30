@@ -543,6 +543,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
+void ov::npuw::CompiledModel::init_profiling() {
+    // to be called from contructors
+    m_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_profile.area = m_name + "/compilation";
+}
+
 bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model,
                                                                const ov::AnyMap& properties) const {
     LOG_INFO("Identifying best HOST_GATHER config value...");

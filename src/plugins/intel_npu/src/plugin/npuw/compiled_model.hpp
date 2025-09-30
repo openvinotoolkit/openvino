@@ -154,11 +154,7 @@ private:
     using MS = ov::npuw::perf::metric<float, ov::npuw::perf::MSec>;
     ov::npuw::perf::Profile<MS> m_profile;
 
-    void init_profiling() {
-        // to be called from contructors
-        m_profile.report_on_die = true;
-        m_profile.area = m_name + "/compilation";
-    }
+    void init_profiling();
 
     struct CompiledModelDesc {
         DevList::const_iterator device_it;

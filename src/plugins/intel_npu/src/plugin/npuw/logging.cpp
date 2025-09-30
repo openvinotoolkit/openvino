@@ -66,6 +66,23 @@ bool ov::npuw::debug_groups() {
     return do_debug_groups;
 }
 
+bool ov::npuw::profiling_enabled() {
+    static bool do_profiling = false;
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::once_flag flag;
+
+    std::call_once(flag, []() {
+        const auto* prof_opt = get_env({"OPENVINO_NPUW_PROF"});
+        if (!prof_opt) {
+            return;
+        }
+        const std::string prof_str(prof_opt);
+        do_profiling = (prof_str == "YES" || prof_str == "ON" || prof_str == "1");
+    });
+#endif
+    return do_profiling;
+}
+
 thread_local int ov::npuw::__logging_indent__::this_indent = 0;
 
 ov::npuw::__logging_indent__::__logging_indent__() {

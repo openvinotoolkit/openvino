@@ -842,15 +842,15 @@ void ov::npuw::util::permute_i4d(const ov::SoPtr<ov::ITensor>& src,
     const auto* src_p = static_cast<uint8_t*>(src->data());
     auto* dst_p = static_cast<uint8_t*>(dst->data());
 
-    for (int i = 0; i < src_shape[0]; i++) {
-        for (int j = 0; j < src_shape[1]; j++) {
-            for (int k = 0; k < src_shape[2]; k++) {
-                for (int l = 0; l < src_shape[3]; l++) {
-                    const int v_src[4] = {i, j, k, l};  // source vector
+    for (std::size_t i = 0; i < src_shape[0]; i++) {
+        for (std::size_t j = 0; j < src_shape[1]; j++) {
+            for (std::size_t k = 0; k < src_shape[2]; k++) {
+                for (std::size_t l = 0; l < src_shape[3]; l++) {
+                    const std::size_t v_src[4] = {i, j, k, l};  // source vector
                     const auto src_o =
                         v_src[0] * src_s[0] + v_src[1] * src_s[1] + v_src[2] * src_s[2] + v_src[3] * src_s[3];
 
-                    const int v_dst[4] = {
+                    const std::size_t v_dst[4] = {
                         // for order 0,1,3,2:
                         v_src[order[0]],  // i -> i
                         v_src[order[1]],  // j -> j
