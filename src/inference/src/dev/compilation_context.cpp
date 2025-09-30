@@ -276,6 +276,5 @@ void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size
             (headerSizeAlignment - (bytes_read % headerSizeAlignment)) % headerSizeAlignment;  // 0 if already aligned
         pos += pad;
     }
-
 }
 }  // namespace ov
