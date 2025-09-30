@@ -417,7 +417,22 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         return;
     };
 
+    auto update_proc_info = [&](const int nproc, const int proc_type) {
+        _cpu_mapping_table[nproc][CPU_MAP_PROCESSOR_ID] = nproc;
+        _cpu_mapping_table[nproc][CPU_MAP_CORE_ID] = _cores;
+        _cpu_mapping_table[nproc][CPU_MAP_CORE_TYPE] = proc_type;
+        _cpu_mapping_table[nproc][CPU_MAP_GROUP_ID] = n_group;
+
+        _cores = proc_type == HYPER_THREADING_PROC ? _cores : _cores + 1;
+
+        _proc_type_table[0][ALL_PROC]++;
+        _proc_type_table[0][proc_type]++;
+    };
+
     auto update_proc_map_info = [&](const int nproc) {
+        if (system_info_table[nproc][0].size() == 0) {
+            return;
+        }
         if (-1 == _cpu_mapping_table[nproc][CPU_MAP_CORE_ID]) {
             int core_1 = 0;
             int core_2 = 0;
@@ -436,64 +451,48 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                     return;
                 }
 
-                _cpu_mapping_table[core_1][CPU_MAP_PROCESSOR_ID] = core_1;
-                _cpu_mapping_table[core_2][CPU_MAP_PROCESSOR_ID] = core_2;
+                if (system_info_table[core_2][0].size() == 0) {
+                    if (system_info_table[core_1][0].size() == 0) {
+                        return;
+                    } else {
+                        update_proc_info(core_1, MAIN_CORE_PROC);
+                    }
+                } else {
+                    if (system_info_table[core_1][0].size() == 0) {
+                        update_proc_info(core_2, MAIN_CORE_PROC);
+                    } else {
+                        /**
+                         * Processor 0 need to handle system interception on Linux. So use second processor as physical
+                         * core and first processor as logic core
+                         */
+                        update_proc_info(core_1, HYPER_THREADING_PROC);
+                        update_proc_info(core_2, MAIN_CORE_PROC);
+                    }
+                }
 
-                _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _cores;
-                _cpu_mapping_table[core_2][CPU_MAP_CORE_ID] = _cores;
-
-                /**
-                 * Processor 0 need to handle system interception on Linux. So use second processor as physical core
-                 * and first processor as logic core
-                 */
-                _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
-                _cpu_mapping_table[core_2][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
-
-                _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = n_group;
-                _cpu_mapping_table[core_2][CPU_MAP_GROUP_ID] = n_group;
-
-                _cores++;
-
-                _proc_type_table[0][ALL_PROC] += 2;
-                _proc_type_table[0][MAIN_CORE_PROC]++;
-                _proc_type_table[0][HYPER_THREADING_PROC]++;
             } else if ((endpos = system_info_table[nproc][1].find('-', pos)) != std::string::npos) {
                 sub_str = system_info_table[nproc][1].substr(pos, endpos - pos);
                 core_1 = std::stoi(sub_str);
                 sub_str = system_info_table[nproc][1].substr(endpos + 1);
                 core_2 = std::stoi(sub_str);
+                int core_type = 0;
                 if ((core_2 - core_1 == 1) && (_proc_type_table[0][EFFICIENT_CORE_PROC] == 0)) {
-                    _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                    core_type = MAIN_CORE_PROC;
                 } else {
-                    _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] =
+                    core_type =
                         ((system_info_table[nproc][2].size() == 0) && (_proc_type_table[0][ALL_PROC] > 0))
                             ? LP_EFFICIENT_CORE_PROC
                             : EFFICIENT_CORE_PROC;
                 }
 
                 for (int m = core_1; m <= core_2; m++) {
-                    _cpu_mapping_table[m][CPU_MAP_PROCESSOR_ID] = m;
-                    _cpu_mapping_table[m][CPU_MAP_CORE_ID] = _cores;
-                    _cpu_mapping_table[m][CPU_MAP_CORE_TYPE] = _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE];
-                    _cpu_mapping_table[m][CPU_MAP_GROUP_ID] = n_group;
+                    update_proc_info(m, core_type);
 
-                    _cores++;
-
-                    _proc_type_table[0][ALL_PROC]++;
-                    _proc_type_table[0][_cpu_mapping_table[m][CPU_MAP_CORE_TYPE]]++;
                 }
             } else {
                 core_1 = std::stoi(system_info_table[nproc][0]);
 
-                _cpu_mapping_table[core_1][CPU_MAP_PROCESSOR_ID] = core_1;
-                _cpu_mapping_table[core_1][CPU_MAP_CORE_ID] = _cores;
-                _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
-                _cpu_mapping_table[core_1][CPU_MAP_GROUP_ID] = n_group;
-
-                _cores++;
-
-                _proc_type_table[0][ALL_PROC]++;
-                _proc_type_table[0][MAIN_CORE_PROC]++;
+                update_proc_info(core_1, MAIN_CORE_PROC);
             }
 
             n_group++;
