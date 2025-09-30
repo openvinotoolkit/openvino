@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
+#include <gtest/gtest.h>
 
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
