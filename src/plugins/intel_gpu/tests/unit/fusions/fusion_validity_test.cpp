@@ -5,6 +5,7 @@
 #include "test_utils.h"
 #include "fusion_test_common.hpp"
 
+#include <intel_gpu/primitives/arg_max_min.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
@@ -162,3 +163,54 @@ INSTANTIATE_TEST_SUITE_P(validate_fusings_onnx_gpu, format_mismatch_onnx_fusing,
     fusing_test_params{ CASE_RESAMPLE_ONNX_4D_FSV16_1, 3, 4 },
     fusing_test_params{ CASE_RESAMPLE_ONNX_5D_FSV16_1, 3, 4 }
 }));
+
+TEST(fused_node, port_from_peer_node) {
+    auto& engine = get_test_engine();
+
+    auto input_b = 12, input_f = 784, input_y = 1, input_x = 1;
+    auto top_k = 12, target_port = 1;
+    layout input0_layout   = layout{ { input_b, input_f, input_x, input_y }, data_types::f32, format::bfyx };
+    layout eltwise0_layout = layout{ { input_b, input_f, input_x, input_y }, data_types::f32, format::bfyx };
+    layout eltwise1_layout = layout{ { input_b, input_f, input_x, input_y }, data_types::f32, format::bfyx };
+
+    auto input0 = engine.allocate_memory(input0_layout);
+    auto eltwise0_data_mem = engine.allocate_memory(eltwise0_layout);
+    auto eltwise1_data_mem = engine.allocate_memory(eltwise1_layout);
+    auto topk_input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+
+    topology topology(
+            input_layout("input0", input0_layout),
+            data("const", {topk_input}),
+            data("eltwise0_data", eltwise0_data_mem),
+            data("eltwise1_data", eltwise1_data_mem),
+            arg_max_min("topk",
+                        { input_info("input0"), input_info("const") },
+                        ov::op::TopKMode::MAX, top_k,
+                        0,
+                        ov::op::TopKSortType::SORT_VALUES,
+                        false,
+                        false,
+                        data_types::f32,
+                        2),
+            eltwise("eltwise1_mul", input_info("input0"), input_info("eltwise0_data"), eltwise_mode::div),
+            eltwise("eltwise2_add", input_info("eltwise1_mul"), input_info("topk", target_port), eltwise_mode::prod),
+            eltwise("eltwise3_div", input_info("eltwise2_add"), input_info("eltwise1_data"), eltwise_mode::sub)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+
+    ov::intel_gpu::ImplementationDesc eltwise_impl = { format::bfyx, "generic_eltwise_ref", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise1_mul", eltwise_impl } }));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise2_add", eltwise_impl } }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input0", input0);
+
+    auto outputs = network.execute();
+    auto deps = network.get_program()->get_node("eltwise1_mul").get_dependencies();
+    auto it = std::find_if(deps.begin(), deps.end(), [](const auto& dep) {
+        return dep.first->id() == "topk";
+    });
+    ASSERT_EQ(it != deps.end(), true);
+    ASSERT_EQ(it->second, target_port);
+}
