@@ -31,8 +31,9 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         for (size_t idx = 2; idx < node.get_dependencies().size(); idx++) {
             in_fmts[idx] = format::byxf;
         }
-        for (size_t idx = 0; idx < node.get_outputs_count(); idx++) {
-            out_fmts[idx] = format::byxf;
+        out_fmts[0] = format::byxf;
+        for (size_t idx = 1; idx < node.get_outputs_count(); idx++) {
+            out_fmts[idx] = format::bfyx;
         }
 
         return {in_fmts, out_fmts};
@@ -60,10 +61,6 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         if (ConvMap.find(key) == ConvMap.end())
             return false;
 
-        if (desc.value().has_fused_groupnorm())
-            if (NormMap.find(key) == NormMap.end())
-                return false;
-
         return true;
     }
 
@@ -77,36 +74,31 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         GnReduce,
         BiasGnReduce,
     };
-
-    enum class GroupnormPostOp : uint32_t{
-        None = 0,
-        SiLU = 1
-    };
-
     struct ConvDesc {
         size_t n, ih, iw, c, k, kernel_size, stride, dilation, padding;
         size_t ow, oh;
         std::optional<size_t> group_count, group_size;
-        std::optional<GroupnormPostOp> gn_post_op;
         PostOp post_op;
 
-        bool process_fused_ops(const std::vector<cldnn::fused_primitive_desc> &fused_ops, bool bias) {
+        bool process_fused_ops(const std::vector<cldnn::fused_primitive_desc> &fused_ops, bool bias, uint32_t gn_groups) {
             // should check fused ops shapes, dtypes,...
+            if (gn_groups > 0 && fused_ops.size() > 0) {
+                return false;
+            }
             if (fused_ops.size() == 0) {
-                if (!bias)
-                    post_op = PostOp::None;
-                else
-                    post_op = PostOp::Bias;
-            } else if (fused_ops.size() == 1) {
-                if (fused_ops[0].is_type<group_normalization>()) {
-                    auto groupnorm0 = std::static_pointer_cast<const group_normalization>(fused_ops[0].desc);
-                    group_count = groupnorm0->num_groups;
-                    group_size = k / group_count.value();
+                if (gn_groups > 0) {
                     if (!bias)
                         post_op = PostOp::GnReduce;
                     else
                         post_op = PostOp::BiasGnReduce;
-                } else if (fused_ops[0].is_type<eltwise>()) {
+                } else {
+                    if (!bias)
+                        post_op = PostOp::None;
+                    else
+                        post_op = PostOp::Bias;
+                }
+            } else if (fused_ops.size() == 1) {
+                if (fused_ops[0].is_type<eltwise>()) {
                     auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
                     if (eltwise0->mode != eltwise_mode::sum)
                         return false;
@@ -114,26 +106,9 @@ struct ConvolutionImplementationManager : public ImplementationManager {
                         post_op = PostOp::Sum;
                     else
                         post_op = PostOp::BiasSum;
-                    gn_post_op = GroupnormPostOp::None;
                 } else {
                     return false;
                 }
-            } else if (fused_ops.size() == 2) {
-                if (fused_ops[0].is_type<group_normalization>() &&
-                    fused_ops[1].is_type<activation>()) {
-                        auto groupnorm0 = std::static_pointer_cast<const group_normalization>(fused_ops[0].desc);
-                        group_count = groupnorm0->num_groups;
-                        group_size = k / group_count.value();
-                        auto activation0 = std::static_pointer_cast<const activation>(fused_ops[1].desc);
-                        auto activation_function = activation0->activation_function;
-                        if (activation_function == activation_func::swish) {
-                            if (!bias)
-                                post_op = PostOp::GnReduce;
-                            else
-                                post_op = PostOp::BiasGnReduce;
-                            gn_post_op = GroupnormPostOp::SiLU;
-                        }
-                    }
             } else if (fused_ops_are_one_of<eltwise>(fused_ops) && fused_ops.size() == 3) {
                 auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
                 auto eltwise1 = std::static_pointer_cast<const eltwise>(fused_ops[1].desc);
@@ -172,8 +147,12 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             desc.dilation = conv_prim->dilation[0];
             // should check all paddings
             desc.padding = conv_prim->padding_begin[0];
+            desc.group_count = conv_prim->groupnorm_groups;
+            if (desc.group_count > 0) {
+                desc.group_size = desc.c / conv_prim->groupnorm_groups;
+            }
 
-            if (!desc.process_fused_ops(conv_node.get_fused_primitives(), conv_node.bias_term()))
+            if (!desc.process_fused_ops(conv_node.get_fused_primitives(), conv_node.bias_term(), conv_prim->groupnorm_groups))
                 return std::nullopt;
             return desc;
         }
@@ -199,9 +178,13 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             desc.dilation = conv_prim->dilation[0];
             // should check all paddings
             desc.padding = conv_prim->padding_begin[0];
+            desc.group_count = conv_prim->groupnorm_groups;
+            if (desc.group_count > 0) {
+                desc.group_size = desc.c / conv_prim->groupnorm_groups;
+            }
 
             const auto& fused_ops = params.fused_desc;
-            if (!desc.process_fused_ops(fused_ops, conv_prim->bias.is_valid()))
+            if (!desc.process_fused_ops(fused_ops, conv_prim->bias.is_valid(), conv_prim->groupnorm_groups))
                 return std::nullopt;
             return desc;
         }
@@ -227,13 +210,7 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         size_t global_slicing, local_slicing, prefetch_distance, accum_step;
     };
 
-    struct NormKnobs {
-        size_t wg_tile_n, wg_tile_w, wg_tile_c;
-        size_t sg_tile_n, sg_tile_w, sg_tile_c;
-    };
-
     static const std::unordered_map<std::string, KernelKnobs> ConvMap;
-    static const std::unordered_map<std::string, NormKnobs> NormMap;
 };
 
 }  // namespace ov::intel_gpu::cm

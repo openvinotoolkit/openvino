@@ -551,6 +551,8 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<prepare_primitive_fusing>();
 
+        apply_opt_pass<conv_groupnorm_stat>();
+
         apply_opt_pass<select_preferred_formats>();
 
         apply_opt_pass<reorder_inputs>(rf);

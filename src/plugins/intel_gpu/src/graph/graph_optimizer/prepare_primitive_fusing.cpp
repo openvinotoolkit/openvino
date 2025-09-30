@@ -1304,29 +1304,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
-        auto fuse_groupnorm_f = [&](group_normalization_node& groupnorm_node) {
-            auto& input_data = groupnorm_node.get_dependency(0);
-
-            if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
-                return;
-
-            if (!input_data.is_type<convolution>() || !conv_supports_fusings(input_data.as<convolution>()))
-                return;
-
-            if (!(lo.get_preferred_impl_type(input_data.as<convolution>(), format::byxf) == impl_types::cm))
-                return;
-
-            if (input_data.get_fused_primitives().size() > 0 || groupnorm_node.get_fused_primitives().size() > 0)
-                return;
-
-            p.fuse_nodes(input_data, groupnorm_node, &fusing_history);
-        };
-
         program_helpers::do_for_types<activation, quantize, eltwise, group_normalization>(*node,
             fuse_activation_f,
             fuse_quantize_f,
-            fuse_eltwise_f,
-            fuse_groupnorm_f);
+            fuse_eltwise_f);
     }
 
     // Need to update processing order to handle cases when peer node processing number is greater

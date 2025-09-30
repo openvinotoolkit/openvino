@@ -42,6 +42,7 @@ struct program {
     friend class propagate_constants;               // to be removed when possible
     friend class pre_replace_deconv;                // to be removed when possible
     friend class prepare_primitive_fusing;          // to be removed when possible
+    friend class conv_groupnorm_stat;               // to be removed when possible
     friend class prepare_quantization;              // to be removed when possible
     friend class reorder_inputs;                    // to be removed when possible
     friend class remove_redundant_reorders;         // to be removed when possible

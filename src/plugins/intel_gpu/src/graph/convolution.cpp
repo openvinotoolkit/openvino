@@ -137,8 +137,19 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
         op.set_auto_pad(desc->auto_pad);
         output_shapes = ov::op::v1::shape_infer(&op, input_shapes, pads_begin, pads_end);
     }
+    std::vector<layout> result = {layout{output_shapes[0], output_type, output_format}};
+    // sumx and sumxsq outputs for groupnorm
+    auto batch = output_shapes[0][0];
+    auto gn_groups = node.get_primitive()->groupnorm_groups;
+    if (gn_groups > 0) {
+        auto ng_shape = ov::PartialShape({batch, gn_groups, 1, 1});
+        ng_shape.is_static();
+        result.push_back(layout{ng_shape, data_types::f32, format::bfyx});
+        result.push_back(layout{ng_shape, data_types::f32, format::bfyx});
+    }
 
-    return {layout{output_shapes[0], output_type, output_format}};
+
+    return result;
 }
 
 }  // namespace

@@ -30,6 +30,16 @@ struct group_normalization : public primitive_base<group_normalization> {
                         double epsilon)
     : primitive_base(id, {data, scale, bias}), num_groups{num_groups}, epsilon{epsilon} {}
 
+    group_normalization(const primitive_id& id,
+                        const input_info& data,
+                        const input_info& scale,
+                        const input_info& bias,
+                        const input_info& sumx,
+                        const input_info& sumxsq,
+                        std::int64_t num_groups,
+                        double epsilon)
+    : primitive_base(id, {data, scale, bias, sumx, sumxsq}), num_groups{num_groups}, epsilon{epsilon} {}
+
     /// @brief Number of groups the channel dimension will be divided into
     /// @details
     /// Specifies the number of groups G that the channel dimension will be divided into.
