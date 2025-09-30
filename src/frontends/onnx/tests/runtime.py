@@ -9,11 +9,12 @@ from typing import Union
 
 import numpy as np
 
-from openvino.runtime import Core
+from openvino.runtime import Core, Type
 
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime import Model, Node, Tensor, Type
 from openvino.runtime.utils.types import NumericData, get_shape, get_dtype
+import openvino.properties.hint as hints
 
 from onnx.helper import float32_to_float8e5m2, float32_to_float8e4m3
 from onnx.numpy_helper import float8e5m2_to_float32, float8e4m3_to_float32
@@ -144,11 +145,14 @@ class Computation(object):
         else:
             model = self.network_cache[str(input_shapes)]
 
-        compiled_model = self.runtime.backend.compile_model(model, self.runtime.backend_name)
+        config = {}
         is_bfloat16 = any(parameter.get_output_element_type(0) == Type.bf16 for parameter in self.parameters)
         is_float8 = any(parameter.get_output_element_type(0) == Type.f8e4m3 or parameter.get_output_element_type(0) == Type.f8e5m2 for parameter in self.parameters)
         if is_bfloat16 or is_float8:
             input_values = self.convert_to_tensors(input_values)
+        else:
+            config[hints.inference_precision] = Type.f32
+        compiled_model = self.runtime.backend.compile_model(model, self.runtime.backend_name, config)
         request = compiled_model.create_infer_request()
         result_buffers = request.infer(dict(zip(param_names, input_values)))
         """Note: other methods to get result_buffers from request

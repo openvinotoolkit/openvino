@@ -75,7 +75,7 @@ std::shared_ptr<ov::Model> makeFakeQuantizeBinaryConvolutionFunction(const std::
     return function;
 }
 
-std::string ExecGraphRuntimePrecision::getTestCaseName(testing::TestParamInfo<ExecGraphRuntimePrecisionParams> obj) {
+std::string ExecGraphRuntimePrecision::getTestCaseName(const testing::TestParamInfo<ExecGraphRuntimePrecisionParams>& obj) {
     const auto& [specificParams, targetDevice] = obj.param;
     std::ostringstream result;
     result << "Function=" << specificParams.makeFunction(specificParams.inputPrecisions)->get_friendly_name() << "_";
