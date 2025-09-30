@@ -11,6 +11,7 @@
 
 #include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <unordered_set>
@@ -105,7 +106,7 @@ struct Ctx {
 };
 
 // Problematic NEAREST modes that should keep original op or require special handling
-static inline bool is_nearest_problematic(const op::v9::GridSample::Attributes& attrs) {
+inline bool is_nearest_problematic(const op::v9::GridSample::Attributes& attrs) {
     using IM = op::v9::GridSample::InterpolationMode;
     using PM = op::v9::GridSample::PaddingMode;
     if (attrs.mode != IM::NEAREST || attrs.align_corners) {
