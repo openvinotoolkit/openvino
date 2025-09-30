@@ -918,7 +918,7 @@ void jit_softsign_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_softsign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, 
+void jit_softsign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
 
