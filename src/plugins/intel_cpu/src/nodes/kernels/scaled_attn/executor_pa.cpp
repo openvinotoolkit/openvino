@@ -846,6 +846,8 @@ struct MHAHelper {
             [](size_t q_blk_rt, size_t k_blk_rt) {
                 return std::pair<size_t, size_t>{q_blk_rt, k_blk_rt};
             };
+        // Sparse attention mask pointer for current softmax kernel processing
+        uint8_t* xattn_mask = nullptr;
         if (!sparse_attention_mask.empty()) {
             sparse_scale = (_sparse_mask_block_size == 0 || _sparse_mask_block_size == _block_size)
                                ? 1
@@ -912,25 +914,6 @@ struct MHAHelper {
                 }
             }
 
-            // Instead of writing -inf directly into scores, build a softmax mask (0/-inf) and pass it to the kernel
-            DATA_TYPE* softmax_mask = nullptr;
-            std::vector<DATA_TYPE> softmax_mask_storage;
-            if (!sparse_attention_mask.empty()) {
-                const size_t padded_len = rnd_up(cur_kv_len, _block_size);
-                softmax_mask_storage.resize(padded_len);
-                //  Initialize to -inf by default; then set positions for allowed blocks to 0
-                const DATA_TYPE neg_inf_val = static_cast<DATA_TYPE>(-std::numeric_limits<float>::infinity());
-                std::fill(softmax_mask_storage.begin(), softmax_mask_storage.end(), neg_inf_val);
-                for (size_t k = 0; k < cur_kv_len; ++k) {
-                    size_t k_blk = k / _block_size;
-                    auto [q_m, k_m] = map_to_mask_idx(q_blk, k_blk);
-                    if (sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_m, k_m)[0]) {
-                        softmax_mask_storage[k] = static_cast<DATA_TYPE>(0);
-                    }
-                }
-                softmax_mask = softmax_mask_storage.data();
-            }
-
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
@@ -948,18 +931,43 @@ struct MHAHelper {
                         start_idx = ncausal - _sliding_window;
                         new_causal = _sliding_window;
                     }
+
+                    // Handle sparse attention mask for sliding window
+                    if (!sparse_attention_mask.empty()) {
+                        // Check _sparse_mask_block_size is a multiple of vector length for correct sparse_mask indexing
+#    if defined(HAVE_AVX512F)
+                        constexpr size_t vec_len = vec_len_f32_avx512;
+#    elif defined(HAVE_AVX2)
+                        constexpr size_t vec_len = vec_len_f32_avx2;
+#    elif defined(OPENVINO_ARCH_ARM64)
+                        constexpr size_t vec_len = vec_len_f32_neon;
+#    else
+                        constexpr size_t vec_len = 1;
+#    endif
+                        if (_sparse_mask_block_size % vec_len == 0) {
+                            // Get the original xattn_mask and calculate offset
+                            auto* original_mask = reinterpret_cast<uint8_t*>(
+                                sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
+                            size_t mask_start_offset = start_idx / _sparse_mask_block_size;
+                            xattn_mask = original_mask + mask_start_offset;
+                        }
+                    }
+
                     attn_softmax_kernel<float>(score + start_idx,
                                                reinterpret_cast<DATA_TYPE*>(score) + start_idx,
                                                revised_d_scale,
                                                alibi_lookup,
-                                               reinterpret_cast<void*>(softmax_mask + start_idx),
+                                               nullptr,
                                                nullptr,
                                                false,
                                                new_causal,
                                                rnd_up(cur_kv_len, _block_size) - start_idx,
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
-                                               nullptr);
+                                               nullptr,
+                                               0.f,
+                                               xattn_mask,
+                                               _sparse_mask_block_size);
 
                     memset(score, 0, sizeof(DATA_TYPE) * start_idx);
                 } else {
@@ -970,11 +978,29 @@ struct MHAHelper {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
                     }
+                    if (!sparse_attention_mask.empty()) {
+                        // Check _sparse_mask_block_size is a multiple of vector length for correct sparse_mask indexing
+#    if defined(HAVE_AVX512F)
+                        constexpr size_t vec_len = vec_len_f32_avx512;
+#    elif defined(HAVE_AVX2)
+                        constexpr size_t vec_len = vec_len_f32_avx2;
+#    elif defined(OPENVINO_ARCH_ARM64)
+                        constexpr size_t vec_len = vec_len_f32_neon;
+#    else
+                        constexpr size_t vec_len = 1;
+#    endif
+                        if (_sparse_mask_block_size % vec_len == 0) {
+                            xattn_mask = reinterpret_cast<uint8_t*>(
+                                sparse_attention_mask[batch_in_seq].ptr<bool>(h, q_blk / sparse_scale));
+                        }
+                    } else {
+                        xattn_mask = nullptr;
+                    }
                     attn_softmax_kernel<float>(score,
                                                reinterpret_cast<DATA_TYPE*>(score),
                                                revised_d_scale,
                                                alibi_lookup,
-                                               reinterpret_cast<void*>(softmax_mask),
+                                               nullptr,
                                                nullptr,
                                                false,
                                                ncausal,
@@ -982,7 +1008,9 @@ struct MHAHelper {
                                                precision_of<DATA_TYPE>::value,
                                                precision_of<DATA_TYPE>::value,
                                                nullptr,
-                                               alibi_slope);
+                                               alibi_slope,
+                                               xattn_mask,
+                                               _sparse_mask_block_size);
                 }
                 if (score_output && m >= q_start_idx_score) {
                     auto* score_block_ptr =
@@ -2252,7 +2280,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         // TODO: support multiple batches
         for (size_t seq_idx = 0; seq_idx < 1; seq_idx++) {
             if (q.size(0) > 1) {
-                #if defined(OPENVINO_ARCH_X86_64)
+#    if defined(OPENVINO_ARCH_X86_64)
                 masks[seq_idx] = xattn_estimate(q,
                                                 k,
                                                 x_attention_block_size,
@@ -2260,7 +2288,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                                                 1,
                                                 threshold.ptr<float>()[seq_idx],
                                                 true);
-                #endif
+#    endif
             }
         }
         return masks;
