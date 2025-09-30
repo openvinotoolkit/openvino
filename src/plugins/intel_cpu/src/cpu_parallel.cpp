@@ -4,6 +4,9 @@
 
 #include "cpu_parallel.hpp"
 
+#include <cstddef>
+
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {

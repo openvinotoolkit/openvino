@@ -43,7 +43,7 @@ public:
         dnnl_threadpool_interop_set_max_concurrency(get_num_threads());
 #endif
     }
-    void parallel_simple(int D0, const std::function<void(int, int)>& func) const {
+    void parallel_simple(int D0, const std::function<void(int, int)>& func) {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         const auto nthr = D0;
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
