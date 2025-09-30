@@ -5,6 +5,7 @@
 #include "cpu_parallel.hpp"
 
 #include <cstddef>
+#include <memory>
 
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "thread_pool_imp.hpp"
