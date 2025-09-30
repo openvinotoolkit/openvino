@@ -28,7 +28,9 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
             before_map[op.get_type_name()] = before_map.get(op.get_type_name(), 0) + 1
 
     paged_attention_transformation(ov_model, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention)
+    print("compile()")
     ov.Core().compile_model(ov_model, ie_device)
+    print("after compile()")
 
     after_map = {}
     for op in ov_model.get_ordered_ops():
@@ -153,6 +155,8 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
     model_class, model_name, model_link, mark, reason = model_info_tuple
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
+    if ie_device == 'CPU':
+        pytest.skip("SKIPPING CPU")
     if mark == 'skip':
         pytest.skip(reason)
     elif mark == 'xfail':

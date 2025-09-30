@@ -669,9 +669,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 19, v0::Constant::create(element::i32, Shape{}, {0}));
         }
 
+        // TODO: I think some additional checks may be present, but the default constant is goning to be 4d 0s
         pa_arguments.insert(pa_arguments.begin() + 20,
                             pattern_map.count(sinks) ? pattern_map.at(sinks).get_node_shared_ptr()
-                                                     : v0::Constant::create(element::f32, Shape{}, {0}));
+                                                     : v0::Constant::create(real_q.get_element_type(), Shape{0}, {}));
 
         OPENVINO_ASSERT(pa_arguments.size() == 21);
 

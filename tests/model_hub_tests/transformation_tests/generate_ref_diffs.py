@@ -91,11 +91,12 @@ def main():
 
         for model_id, _, _, _, cls in model_list:
             # wrapping in try/catch block to continue printing models even if one has failed
-            try:
-                model = cls.from_pretrained(model_id, export=True, trust_remote_code=True)
-            except:
-                print(f"Couldn't read {model_id}.")
-                continue
+            model = cls.from_pretrained(model_id, export=True, trust_remote_code=True)
+            #try:
+            #    model = cls.from_pretrained(model_id, export=True, trust_remote_code=True)
+            #except:
+            #    print(f"Couldn't read {model_id}.")
+            #    continue
 
             ov_model = model.model if cls is OVModelForCausalLM else model.lm_model
 
@@ -105,11 +106,11 @@ def main():
                     before_map[op.get_type_name()] = before_map.get(op.get_type_name(), 0) + 1
 
             # wrapping in try/catch block to continue printing models even if one has failed
-            try:
-                paged_attention_transformation(ov_model, use_block_indices_inputs=use_optimizations, use_score_outputs=use_optimizations, allow_score_aggregation=use_optimizations, allow_cache_rotation=use_optimizations, allow_xattention=use_optimizations)
-            except:
-                print(f"Couldn't run SDPAToPA transformation on {model_id} and generate diffs.")
-                continue
+            #try:
+            paged_attention_transformation(ov_model, use_block_indices_inputs=use_optimizations, use_score_outputs=use_optimizations, allow_score_aggregation=use_optimizations, allow_cache_rotation=use_optimizations, allow_xattention=use_optimizations)
+            #except:
+            #    print(f"Couldn't run SDPAToPA transformation on {model_id} and generate diffs.")
+            #    continue
 
             after_map = {}
             for op in ov_model.get_ordered_ops():

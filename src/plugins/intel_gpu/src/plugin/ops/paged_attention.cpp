@@ -21,6 +21,7 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
+    std::cout << "CreatePagedAttentionExtensionOp" << std::endl;
     validate_inputs_count(op, {21});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
@@ -37,9 +38,14 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     auto key_cache_ps = op->get_input_partial_shape(3);
     auto value_cache_ps = op->get_input_partial_shape(4);
 
+    std::cout << "value_cache_ps: " << value_cache_ps << std::endl;
+    std::cout << "1 " << std::endl;
     auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[2].get_length();
+    std::cout << "2 " << std::endl;
     auto v_head_size = has_rt_params ? rt_info.at(v_head_size_id).as<int64_t>() : value_cache_ps[3].get_length();
+    std::cout << "3 " << std::endl;
     auto kv_heads_num = has_rt_params ? rt_info.at(num_k_heads_id).as<int64_t>() : key_cache_ps[1].get_length();
+    std::cout << "4 " << std::endl;
 
     // WA: in some cases, the query input may have a bounded dimension
     // Use input shape of the input node in such cases
@@ -97,6 +103,10 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         prim.has_xattention = true;
     }
 
+    const size_t sinks_idx = cldnn::paged_attention::PagedAttentionInputIdx::SINKS;
+    auto sinks_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(sinks_idx)); //TODO: what if this is not a Constant?
+    OPENVINO_ASSERT(sinks_const != nullptr);
+    prim.has_sinks = ov::shape_size(sinks_const->get_output_shape(0)) > 0;
 
     prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.num_outputs = 1;

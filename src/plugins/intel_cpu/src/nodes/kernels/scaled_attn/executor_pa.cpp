@@ -1870,6 +1870,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& xattention_threshold,
               int32_t& xattention_block_size,
               int32_t& xattention_stride,
+              PlainTensor& sinks,
               PlainTensor& output_emb,
               PlainTensor& output_score) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
@@ -1893,7 +1894,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        OPENVINO_ASSERT(inputs_size == 20);
+        OPENVINO_ASSERT(inputs_size == 21);
         if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
             rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
@@ -1910,6 +1911,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
         xattention_stride = *inputs[ID_XATTENTION_STRIDE]->getDataAs<int32_t>();
         xattention_block_size = *inputs[ID_XATTENTION_BLOCK_SIZE]->getDataAs<int32_t>();
+
+        if (!inputs[ID_SINKS]->getShape().hasZeroDims()) {
+            sinks.reset(inputs[ID_SINKS]);  // [1, 64, 1, 1] TODO: for now
+        }
 
         output_emb.reset(outputs[0]);
         if (outputs.size() == 2) {
@@ -2051,6 +2056,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // TODO: add assertions on the block size and stride limitations as defined by the
             // block sparse operation and importance score computation impls
         }
+        
+        if (sinks) {
+            sinks.assert_dims({1, H, 1, 1}); //for now. TODO: check what this really should be
+        }
 
         output_emb.assert_dims({B_token, H * SV});
         output_emb = output_emb.reshape({B_token, 1, H * SV});
@@ -2147,6 +2156,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         int32_t xattention_block_size = 0;
         int32_t xattention_stride = 0;
 
+        PlainTensor sinks;
+
         PlainTensor output_emb;
         PlainTensor output_score;
 
@@ -2172,6 +2183,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              xattention_threshold,
              xattention_block_size,
              xattention_stride,
+             sinks,
              output_emb,
              output_score);
 

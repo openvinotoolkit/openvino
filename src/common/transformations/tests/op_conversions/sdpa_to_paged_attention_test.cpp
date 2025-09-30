@@ -592,6 +592,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, MOCK_VALUE);
         auto score_aggregation_window_const = std::make_shared<v0::Constant>(element::i32, Shape{0}, 0);
+        auto sinks = makeConst(element::f32, {0}, {});
 
         // PagedAttention:
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
@@ -613,7 +614,8 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
                                                                              rotation_trig_lut,
                                                                              xattention_threshold,
                                                                              xattention_block_size,
-                                                                             xattention_stride});
+                                                                             xattention_stride,
+                                                                             sinks});
         pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
@@ -973,6 +975,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         // PA cannot be instantiated uding makeOP hence creating constants for it manually
         auto c1 = makeConst(element::f32, {}, {0.088388f});
         auto c2 = makeConst(element::i32, {}, {0});
+        auto sinks = makeConst(element::f32, {0}, {});
         auto PagedAttentionExtension168 =
             std::make_shared<ov::op::PagedAttentionExtension>(ov::OutputVector{Reshape138,
                                                                                Reshape147,
@@ -993,7 +996,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
                                                                                rotation_trig_lut,
                                                                                xattention_threshold,
                                                                                xattention_block_size,
-                                                                               xattention_stride});
+                                                                               xattention_stride,
+                                                                               sinks});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -1334,6 +1338,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto c2 = makeConst(element::i32, {}, {0});
         // an empty Constant needs to be created in a usual way, not using makeConst()
         auto c3 = v0::Constant::create(element::f32, {0}, {});
+        auto sinks = makeConst(element::f32, {0}, {});
         auto PagedAttentionExtension_51962 =
             std::make_shared<ov::op::PagedAttentionExtension>(ov::OutputVector{Reshape_51953,
                                                                                Reshape_51957,
@@ -1354,7 +1359,8 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                                                                                rotation_trig_lut,
                                                                                xattention_threshold,
                                                                                xattention_block_size,
-                                                                               xattention_stride});
+                                                                               xattention_stride,
+                                                                               sinks});
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});
@@ -1651,6 +1657,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
 
         auto scale = v0::Constant::create(element::f32, {}, {0.102062f});
         auto alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
+        auto sinks = makeConst(element::f32, {0}, {});
         auto PagedAttentionExtension =
             std::make_shared<ov::op::PagedAttentionExtension>(OutputVector{Q,
                                                                            K,
@@ -1671,7 +1678,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
                                                                            rotation_trig_lut,
                                                                            xattention_threshold,
                                                                            xattention_block_size,
-                                                                           xattention_stride});
+                                                                           xattention_stride,
+                                                                           sinks});
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather2, 0});
@@ -1987,6 +1995,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto sliding_window = v0::Constant::create(element::i32, {}, {0});
         auto scale = v0::Constant::create(element::f32, {}, {0.062500f});
         auto alibi_slopes_stub = v0::Constant::create(element::f32, Shape{0}, {});
+        auto sinks = makeConst(element::f32, {0}, {});
         auto PagedAttentionExtension =
             std::make_shared<ov::op::PagedAttentionExtension>(OutputVector{Reshape11,
                                                                            Reshape13,
@@ -2007,7 +2016,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
                                                                            rotation_trig_lut,
                                                                            xattention_threshold,
                                                                            xattention_block_size,
-                                                                           xattention_stride});
+                                                                           xattention_stride,
+                                                                           sinks});
         auto ShapeOf2 = makeOP<opset3::ShapeOf>({Transpose7}, {{"output_type", "i64"}});
         auto Gather5 = makeOP<opset8::Gather>({ShapeOf2, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Gather5, 0});
