@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
 #include "grid_sample.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "gtest/gtest.h"
+#include "openvino/op/grid_sample.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
-#include "openvino/op/grid_sample.hpp"
 
 using namespace CPUTestUtils;
 
@@ -15,7 +16,13 @@ namespace ov {
 namespace test {
 
 std::string GridSampleLayerTestCPU::getTestCaseName(testing::TestParamInfo<GridSampleLayerTestCPUParams> obj) {
-    const auto &[inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision, cpuParams,
+    const auto& [inputShapes,
+                 interpolateMode,
+                 paddingMode,
+                 alignCorners,
+                 dataPrecision,
+                 gridPrecision,
+                 cpuParams,
                  additionalConfig] = obj.param;
     std::ostringstream result;
     result << "IS=(";
@@ -27,8 +34,7 @@ std::string GridSampleLayerTestCPU::getTestCaseName(testing::TestParamInfo<GridS
     for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
         result << "{";
         for (size_t j = 0lu; j < inputShapes.size(); j++) {
-            result << ov::test::utils::vec2str(inputShapes[j].second[i])
-                   << (j < inputShapes.size() - 1lu ? "_" : "");
+            result << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
         }
         result << "}_";
     }
@@ -36,12 +42,12 @@ std::string GridSampleLayerTestCPU::getTestCaseName(testing::TestParamInfo<GridS
     result << "interpMode="
            << (interpolateMode == ov::op::v9::GridSample::InterpolationMode::BILINEAR  ? "BILINEAR"
                : interpolateMode == ov::op::v9::GridSample::InterpolationMode::BICUBIC ? "BICUBIC"
-                                                                           : "NEAREST")
+                                                                                       : "NEAREST")
            << "_";
     result << "padMode="
            << (paddingMode == ov::op::v9::GridSample::PaddingMode::ZEROS    ? "ZEROS"
                : paddingMode == ov::op::v9::GridSample::PaddingMode::BORDER ? "BORDER"
-                                                                : "REFLECTION")
+                                                                            : "REFLECTION")
            << "_";
     result << "alignCorners=" << (alignCorners ? "True" : "False") << "_";
     result << "dataPrc=" << dataPrecision << "_";
@@ -61,7 +67,13 @@ std::string GridSampleLayerTestCPU::getTestCaseName(testing::TestParamInfo<GridS
 
 void GridSampleLayerTestCPU::SetUp() {
     abs_threshold = 0.0005;
-    const auto &[inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision, cpuParams,
+    const auto& [inputShapes,
+                 interpolateMode,
+                 paddingMode,
+                 alignCorners,
+                 dataPrecision,
+                 gridPrecision,
+                 cpuParams,
                  additionalConfig] = this->GetParam();
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     targetDevice = ov::test::utils::DEVICE_CPU;
@@ -98,8 +110,7 @@ const std::vector<ov::op::v9::GridSample::InterpolationMode>& allInterpolationMo
     static const std::vector<ov::op::v9::GridSample::InterpolationMode> modes = {
         ov::op::v9::GridSample::InterpolationMode::BILINEAR,
         ov::op::v9::GridSample::InterpolationMode::BICUBIC,
-        ov::op::v9::GridSample::InterpolationMode::NEAREST
-    };
+        ov::op::v9::GridSample::InterpolationMode::NEAREST};
     return modes;
 }
 
@@ -107,8 +118,7 @@ const std::vector<ov::op::v9::GridSample::PaddingMode>& allPaddingModes() {
     static const std::vector<ov::op::v9::GridSample::PaddingMode> modes = {
         ov::op::v9::GridSample::PaddingMode::ZEROS,
         ov::op::v9::GridSample::PaddingMode::BORDER,
-        ov::op::v9::GridSample::PaddingMode::REFLECTION
-    };
+        ov::op::v9::GridSample::PaddingMode::REFLECTION};
     return modes;
 }
 
@@ -152,47 +162,41 @@ const std::vector<std::vector<InputShape>>& getStaticShapes() {
 const std::vector<std::vector<InputShape>>& getDynamicShapes() {
     static const std::vector<std::vector<InputShape>> shapes = {
         // from master dynamicInSapes (full set)
-        {{{ov::Dimension(1, 15), -1, -1, -1},
-          {{1, 1, 1, 1}, {6, 3, 1, 2}, {4, 5, 3, 1}, {2, 7, 2, 2}}},
-         {{ov::Dimension(1, 16), -1, -1, -1},
-          {{1, 1, 1, 2}, {6, 2, 2, 2}, {4, 1, 3, 2}, {2, 1, 2, 2}}}},
-        {{{-1, -1, -1, -1},
-          {{1, 2, 1, 5}, {3, 4, 2, 3}, {5, 6, 7, 1}, {7, 8, 2, 4}}},
-         {{-1, -1, -1, 2},
-          {{1, 2, 4, 2}, {3, 1, 7, 2}, {5, 2, 3, 2}, {7, 1, 5, 2}}}},
-        {{{ov::Dimension(2, 15), -1, -1, -1},
-          {{8, 3, 3, 3}, {6, 5, 2, 5}, {4, 7, 1, 11}, {2, 9, 3, 4}}},
-         {{-1, 3, 7, 2},
-          {{8, 3, 7, 2}, {6, 3, 7, 2}, {4, 3, 7, 2}, {2, 3, 7, 2}}}},
-        {{{3, 4, 4, 5},
-          {{3, 4, 4, 5}, {3, 4, 4, 5}, {3, 4, 4, 5}, {3, 4, 4, 5}}},
-         {{-1, -1, -1, 2},
-          {{3, 3, 4, 2}, {3, 1, 11, 2}, {3, 2, 5, 2}, {3, 3, 3, 2}}}},
-        {{{-1, -1, -1, -1},
-          {{1, 2, 1, 13}, {3, 4, 7, 2}, {5, 6, 3, 5}, {7, 8, 4, 4}}},
-         {{-1, -1, -1, -1},
-          {{1, 4, 4, 2}, {3, 3, 5, 2}, {5, 2, 7, 2}, {7, 1, 13, 2}}}},
-        {{{-1, -1, -1, -1},
-          {{2, 11, 1, 17}, {4, 9, 6, 3}, {6, 7, 7, 3}, {8, 3, 2, 11}}},
-         {{-1, -1, -1, 2},
-          {{2, 5, 4, 2}, {4, 1, 19, 2}, {6, 6, 3, 2}, {8, 1, 17, 2}}}},
-        {{{3, -1, -1, -1},
-          {{3, 2, 1, 23}, {3, 4, 3, 8}, {3, 6, 5, 5}, {3, 8, 31, 1}}},
-         {{-1, -1, -1, 2},
-          {{3, 31, 1, 2}, {3, 6, 4, 2}, {3, 23, 1, 2}, {3, 11, 2, 2}}}},
-        {{{-1, 3, -1, -1},
-          {{8, 3, 8, 4}, {6, 3, 33, 1}, {4, 3, 8, 6}, {2, 3, 8, 8}}},
-         {{-1, -1, -1, 2},
-          {{8, 8, 8, 2}, {6, 8, 7, 2}, {4, 1, 33, 2}, {2, 4, 8, 2}}}},
+        {{{ov::Dimension(1, 15), -1, -1, -1}, {{1, 1, 1, 1}, {6, 3, 1, 2}, {4, 5, 3, 1}, {2, 7, 2, 2}}},
+         {{ov::Dimension(1, 16), -1, -1, -1}, {{1, 1, 1, 2}, {6, 2, 2, 2}, {4, 1, 3, 2}, {2, 1, 2, 2}}}},
+        {{{-1, -1, -1, -1}, {{1, 2, 1, 5}, {3, 4, 2, 3}, {5, 6, 7, 1}, {7, 8, 2, 4}}},
+         {{-1, -1, -1, 2}, {{1, 2, 4, 2}, {3, 1, 7, 2}, {5, 2, 3, 2}, {7, 1, 5, 2}}}},
+        {{{ov::Dimension(2, 15), -1, -1, -1}, {{8, 3, 3, 3}, {6, 5, 2, 5}, {4, 7, 1, 11}, {2, 9, 3, 4}}},
+         {{-1, 3, 7, 2}, {{8, 3, 7, 2}, {6, 3, 7, 2}, {4, 3, 7, 2}, {2, 3, 7, 2}}}},
+        {{{3, 4, 4, 5}, {{3, 4, 4, 5}, {3, 4, 4, 5}, {3, 4, 4, 5}, {3, 4, 4, 5}}},
+         {{-1, -1, -1, 2}, {{3, 3, 4, 2}, {3, 1, 11, 2}, {3, 2, 5, 2}, {3, 3, 3, 2}}}},
+        {{{-1, -1, -1, -1}, {{1, 2, 1, 13}, {3, 4, 7, 2}, {5, 6, 3, 5}, {7, 8, 4, 4}}},
+         {{-1, -1, -1, -1}, {{1, 4, 4, 2}, {3, 3, 5, 2}, {5, 2, 7, 2}, {7, 1, 13, 2}}}},
+        {{{-1, -1, -1, -1}, {{2, 11, 1, 17}, {4, 9, 6, 3}, {6, 7, 7, 3}, {8, 3, 2, 11}}},
+         {{-1, -1, -1, 2}, {{2, 5, 4, 2}, {4, 1, 19, 2}, {6, 6, 3, 2}, {8, 1, 17, 2}}}},
+        {{{3, -1, -1, -1}, {{3, 2, 1, 23}, {3, 4, 3, 8}, {3, 6, 5, 5}, {3, 8, 31, 1}}},
+         {{-1, -1, -1, 2}, {{3, 31, 1, 2}, {3, 6, 4, 2}, {3, 23, 1, 2}, {3, 11, 2, 2}}}},
+        {{{-1, 3, -1, -1}, {{8, 3, 8, 4}, {6, 3, 33, 1}, {4, 3, 8, 6}, {2, 3, 8, 8}}},
+         {{-1, -1, -1, 2}, {{8, 8, 8, 2}, {6, 8, 7, 2}, {4, 1, 33, 2}, {2, 4, 8, 2}}}},
     };
     return shapes;
 }
 
+const std::vector<std::vector<InputShape>>& getAllShapes() {
+    static const std::vector<std::vector<InputShape>> shapes = [] {
+        std::vector<std::vector<InputShape>> allShapes;
+        const auto& staticShapes = getStaticShapes();
+        const auto& dynamicShapes = getDynamicShapes();
+        allShapes.reserve(staticShapes.size() + dynamicShapes.size());
+        allShapes.insert(allShapes.end(), staticShapes.begin(), staticShapes.end());
+        allShapes.insert(allShapes.end(), dynamicShapes.begin(), dynamicShapes.end());
+        return allShapes;
+    }();
+    return shapes;
+}
+
 const std::vector<ov::AnyMap>& additionalConfigs() {
-    static const std::vector<ov::AnyMap> configs = {
-        {},
-        {{ov::hint::inference_precision.name(), ov::element::bf16}}
-    };
+    static const std::vector<ov::AnyMap> configs = {{}, {{ov::hint::inference_precision.name(), ov::element::bf16}}};
     return configs;
 }
 

@@ -3,6 +3,7 @@
 //
 
 #include "custom/single_layer_tests/classes/grid_sample.hpp"
+
 #include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -32,9 +33,9 @@ std::vector<CPUSpecificParams> getCPUInfoX64() {
 
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(x64_smoke_static,
+INSTANTIATE_TEST_SUITE_P(x64_smoke,
                          GridSampleLayerTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(getStaticShapes()),
+                         ::testing::Combine(::testing::ValuesIn(getAllShapes()),
                                             ::testing::ValuesIn(allInterpolationModes()),
                                             ::testing::ValuesIn(allPaddingModes()),
                                             ::testing::ValuesIn(alignCornersValues()),
@@ -44,9 +45,9 @@ INSTANTIATE_TEST_SUITE_P(x64_smoke_static,
                                             ::testing::Values(additionalConfigX64[0])),
                          GridSampleLayerTestCPU::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(x64_nightly_static_1,
+INSTANTIATE_TEST_SUITE_P(x64_nightly_1,
                          GridSampleLayerTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(getStaticShapes()),
+                         ::testing::Combine(::testing::ValuesIn(getAllShapes()),
                                             ::testing::ValuesIn(allInterpolationModes()),
                                             ::testing::ValuesIn(allPaddingModes()),
                                             ::testing::ValuesIn(alignCornersValues()),
@@ -56,37 +57,13 @@ INSTANTIATE_TEST_SUITE_P(x64_nightly_static_1,
                                             ::testing::Values(additionalConfigX64[0])),
                          GridSampleLayerTestCPU::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(x64_nightly_static_2,
+INSTANTIATE_TEST_SUITE_P(x64_nightly_2,
                          GridSampleLayerTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(getStaticShapes()),
+                         ::testing::Combine(::testing::ValuesIn(getAllShapes()),
                                             ::testing::ValuesIn(allInterpolationModes()),
                                             ::testing::ValuesIn(allPaddingModes()),
                                             ::testing::ValuesIn(alignCornersValues()),
-                                            ::testing::ValuesIn({ElementType::f32}),
-                                            ::testing::ValuesIn({ElementType::bf16}),
-                                            ::testing::ValuesIn(getCPUInfoX64()),
-                                            ::testing::Values(additionalConfigX64[0])),
-                         GridSampleLayerTestCPU::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(x64_smoke_dynamic,
-                         GridSampleLayerTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(getDynamicShapes()),
-                                            ::testing::ValuesIn(allInterpolationModes()),
-                                            ::testing::ValuesIn(allPaddingModes()),
-                                            ::testing::ValuesIn(alignCornersValues()),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(getCPUInfoX64()),
-                                            ::testing::Values(additionalConfigX64[0])),
-                         GridSampleLayerTestCPU::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(x64_nightly_dynamic,
-                         GridSampleLayerTestCPU,
-                         ::testing::Combine(::testing::ValuesIn(getDynamicShapes()),
-                                            ::testing::ValuesIn(allInterpolationModes()),
-                                            ::testing::ValuesIn(allPaddingModes()),
-                                            ::testing::ValuesIn(alignCornersValues()),
-                                            ::testing::ValuesIn({ElementType::bf16, ElementType::i32}),
+                                            ::testing::ValuesIn({ElementType::f32, ElementType::i32}),
                                             ::testing::ValuesIn({ElementType::bf16}),
                                             ::testing::ValuesIn(getCPUInfoX64()),
                                             ::testing::Values(additionalConfigX64[0])),
