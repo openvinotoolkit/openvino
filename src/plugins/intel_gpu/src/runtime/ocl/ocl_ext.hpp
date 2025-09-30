@@ -22,13 +22,13 @@
 #define OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 #endif
 
-#include <CL/cl_ext.h>
+#include "cl_ext.h"
 
 #ifdef _WIN32
 # ifndef NOMINMAX
 #  define NOMINMAX
 # endif
-# include <CL/cl_d3d11.h>
+# include "cl_d3d11.h"
 typedef cl_d3d11_device_source_khr cl_device_source_intel;
 typedef cl_d3d11_device_set_khr    cl_device_set_intel;
 #else
@@ -237,12 +237,6 @@ clEnqueueMemFillINTEL_fn)(
 using uuid_array = std::array<cl_uchar, CL_UUID_SIZE_KHR>;
 using luid_array = std::array<cl_uchar, CL_LUID_SIZE_KHR>;
 
-namespace cl {
-namespace detail {
-CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_UUID_KHR, uuid_array)
-CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_LUID_KHR, luid_array)
-}  // namespace detail
-}  // namespace cl
 
 #endif // OV_GPU_OPENCL_HPP_HAS_UUID
 
@@ -294,12 +288,6 @@ typedef struct _cl_device_pci_bus_info_khr {
 // some versions of CL/opencl.hpp don't define C++ wrapper for CL_DEVICE_BUS_INFO_KHR
 // we are checking it in cmake and defined macro OV_GPU_OPENCL_HPP_HAS_BUS_INFO if it is defined
 #ifndef OV_GPU_OPENCL_HPP_HAS_BUS_INFO
-
-namespace cl {
-namespace detail {
-CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_PCI_BUS_INFO_KHR, cl_device_pci_bus_info_khr)
-}  // namespace detail
-}  // namespace cl
 
 #endif // OV_GPU_OPENCL_HPP_HAS_BUS_INFO
 
