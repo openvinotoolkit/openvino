@@ -25,16 +25,18 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     // We rely on user (GENAI) to determine "attention_mask" input of model is
     // able to map to "cu_seqlens".
-    if (!model->has_rt_info("model_type_hint"))
-        return false;
-    const std::string& model_type = model->get_rt_info<std::string>("model_type_hint");
-    if (model_type != "QWenVL") {
+    // if (!model->has_rt_info("model_type_hint"))
+    //     return false;
+    // const std::string& model_type = model->get_rt_info<std::string>("model_type_hint");
+    // if (model_type != "QWenVL") {
+    //     return false;
+    // }
+    if(!ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model)) {
         return false;
     }
-
-    OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
-                    "No ScaledDotProductAttention operation observed in the graph, cannot perform "
-                    "the SDPAToVLSDPA transformation.");
+    // OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
+    //                 "No ScaledDotProductAttention operation observed in the graph, cannot perform "
+    //                 "the SDPAToVLSDPA transformation.");
     if (transformation_callback(nullptr)) {  // verify plugin-specific determinations
         return false;
     }
@@ -50,7 +52,6 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
         return nullptr;
     };
-
     // change "attention_mask" to "cu_seq_lens", and "window_attention_mask" to "cu_window_seqlens"
     constexpr std::array<std::pair<std::string_view, std::string_view>, 2> mask_2_seqlens_mapping = {
         {{"attention_mask", "cu_seq_lens"}, {"window_attention_mask", "cu_window_seqlens"}}};
@@ -58,6 +59,9 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (auto attn_param = get_parameter(model, std::string(old_name))) {
             // all consumers should be SDPA
             bool consumers_are_sdpa = true;
+            if (attn_param->get_output_partial_shape(0).rank().get_length() != 3) {
+                continue;
+            }
             for (auto target : attn_param->get_output_target_inputs(0)) {
                 if (auto sdpa = ov::as_type<v13::ScaledDotProductAttention>(target.get_node())) {
                     // when sdpa only has inputs q,k,v,attention_mask and is_causal==False
@@ -96,7 +100,6 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
             }
         }
     }
-
     model->validate_nodes_and_infer_types();
     return true;
 }
