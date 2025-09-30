@@ -475,8 +475,7 @@ void remove_redundant_reorders::run(program& p) {
                 !is_opt_out_result)
                 continue;
 
-            if (input.is_type<fully_connected>() && input.has_fused_primitives()
-                && input.get_preferred_impl_type() != impl_types::onednn) {
+            if (input.is_type<fully_connected>() && input.has_fused_primitives()) {
                 // From FC calc_output_layouts, data-type of the last fused-ops would be its output data-type
                 continue;
             }
