@@ -90,18 +90,18 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
                    return x == 1;
                }) == 2;
     };
-    auto input_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
+    auto input_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) {
         return has_optimized_version(output, supports_immad, false);
     };
-    auto output_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
+    auto output_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) {
         return has_optimized_version(output, supports_immad, true);
     };
 
     
     auto first_input_m = ov::pass::pattern::any_input();
     auto a_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({first_input_m, a_order_m});        //, input_transpose_predicate);
-    auto reshape_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m});      //, input_transpose_predicate);
+    auto transpose_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({first_input_m, a_order_m});
+    auto reshape_activations_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({first_input_m, a_order_m});
     auto a_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_activations_m, reshape_activations_m});
 
     auto weights_const_m = wrap_type<ov::op::v0::Constant>(weights_path);
@@ -121,8 +121,8 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
     auto conv_out_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{conv1x1_m, convert_m});
 
     auto c_order_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({conv_out_m, c_order_m});            //, output_transpose_predicate);
-    auto reshape_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({conv_out_m, c_order_m});  //, output_transpose_predicate);
+    auto transpose_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({conv_out_m, c_order_m});
+    auto reshape_output_m = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({conv_out_m, c_order_m});
     auto output_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{transpose_output_m, reshape_output_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
@@ -170,26 +170,24 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
             }
         };        
 
-        // add reshape after weight 9216 x 3072 x 1 x 1 --> 9216 x 3072
+        // add reshape after weight
         std::shared_ptr<ov::op::v0::Convert> weight_squeezed_convert;
         if (ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
             auto Reshape_weight = reshape_const_to_2d(weight);
             MatcherPass::register_new_node(Reshape_weight);
             Reshape_weight->set_friendly_name(weight->get_friendly_name() + "_Reshape_weight");
-            // FixMe: this is a point of interest - it protects quantized weights from being inflated by constant-folded conversion
-            // ov::disable_constant_folding(Reshape_weight);
             weight_squeezed_convert = ov::as_type_ptr<ov::op::v0::Convert>(weight_convert->clone_with_new_inputs({Reshape_weight}));
         } else {
             auto param = ov::as_type_ptr<ov::op::v0::Parameter>(weight);
             OPENVINO_ASSERT(param != nullptr);
             std::vector<int> values_reshape_b;
             auto shape_b = param->get_output_partial_shape(0);
-            for (auto i = 0; i < shape_b.size(); i++)
+            for (size_t i = 0; i < shape_b.size(); i++)
                 if (shape_b.to_shape()[i] != 1) {
                     values_reshape_b.push_back(shape_b.to_shape()[i]);
                 }
 
-            auto reshape_weight_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_b);  //{9216, 3072});
+            auto reshape_weight_const = ov::op::v0::Constant::create(element::i32, Shape{2}, values_reshape_b);
             auto Reshape_weight = std::make_shared<ov::op::v1::Reshape>(param, reshape_weight_const, false);
             MatcherPass::register_new_node(Reshape_weight);
             Reshape_weight->set_friendly_name(param->get_friendly_name() + "_Reshape_weight");
@@ -217,7 +215,6 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
         ov::disable_constant_folding(scaled_weight);
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, scaled_weight, false, true);
-        // ToDo: handle out conversion if it exists
         if (convert_out) {
             auto convert_final = convert_out->clone_with_new_inputs({matmul});
             convert_final->set_friendly_name(m.get_match_root()->get_friendly_name());

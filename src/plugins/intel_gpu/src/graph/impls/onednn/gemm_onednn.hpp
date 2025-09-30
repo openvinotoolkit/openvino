@@ -57,7 +57,6 @@ struct GemmImplementationManager : public ImplementationManager {
         if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64}))
             return false;
 
-      
         if (!one_of(in0_layout.format.value, supported_formats) ||
             !one_of(in1_layout.format.value, supported_formats) ||
             !one_of(out_layout.format.value, supported_formats))
