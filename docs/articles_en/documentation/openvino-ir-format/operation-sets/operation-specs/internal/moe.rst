@@ -30,8 +30,8 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
     # Fused gate_up computation
     gate_up = matmul(reshaped_hidden_states, weight_0, transpose_a=False, transpose_b=False) + bias_0
     # Slice gate_up into two halves along last dimension, taking every second element with step two
-    slice_1 = gate_up[..., ::2]      # elements at even positions (0, 2, 4, ...)
-    slice_2 = gate_up[..., 1::2]     # elements at odd positions (1, 3, 5, ...)
+    slice_1 = gate_up[..., ::2]      # every second element starting from index 0
+    slice_2 = gate_up[..., 1::2]     # every second element starting from index 1
     # Branch 1: Minimum and Swish
     minimum_1 = minimum(slice_2, expert_beta)
     swish_1 = swish(minimum_1, beta=expert_alpha)
@@ -79,14 +79,14 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
 
 * *expert_alpha*
 
-  * **Description**: Alpha parameter for activation functions (e.g., SwiGLU).
+  * **Description**: Alpha attribute for activation functions (used for Swish with GEMM2_BIAS_SWIGLU_CLAMP).
   * **Type**: ``float``
   * **Default value**: ``1.0``
   * **Required**: *no*
 
 * *expert_beta*
 
-  * **Description**: Beta parameter for clamp or activation functions.
+  * **Description**: Beta attribute - used as value for clamp min/max bounds (used with GEMM2_BIAS_SWIGLU_CLAMP).
   * **Type**: ``float``
   * **Default value**: ``0.0``
   * **Required**: *no*
@@ -132,11 +132,11 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
 
 .. note::
 
-    Bias inputs are optional and can be omitted if no bias is used, for example with ``GEMM3_SWIGLU`` expert_type. Then the number of the mlp weights should match the number of GEMMs.
+    Bias inputs are optional and can be omitted if no bias is used, for example with ``GEMM3_SWIGLU`` expert_type. Then the number of the weights should match the number of GEMMs.
 
 **Outputs**
 
-* **0**: Output tensor of type *T* with shape ``[batch, ..., hidden_size]``.  
+* **0**: Output tensor of type *T* with the same shape as hidden_states input ``[batch, ..., hidden_size]``.  
   The fused output of the selected experts, weighted by routing weights.
 
 **Types**
