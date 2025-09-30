@@ -64,10 +64,6 @@ public:
     void initializeGraph(const GraphDescriptor& graphDescriptor, uint32_t commandQueueGroupOrdinal) const;
 
 private:
-    std::unordered_set<std::string> getQueryResultFromSupportedLayers(
-        ze_result_t result,
-        ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
-
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,
