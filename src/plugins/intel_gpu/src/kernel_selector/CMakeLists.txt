@@ -74,7 +74,7 @@ if(COMMAND add_cpplint_target)
   add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::runtime PRIVATE openvino::runtime::dev)
+#target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::runtime PRIVATE openvino::runtime::dev)
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
 
