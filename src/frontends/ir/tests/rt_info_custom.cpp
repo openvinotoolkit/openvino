@@ -10,7 +10,26 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
-#include "openvino/xml_util/xml_serialize_util.hpp"
+
+#define XML_UTIL_LINKAGE_WORKAROUND
+/*
+    There is an issue with doubled definition of stringstream on MSVC 14.44 (VS 17 2022):
+    openvinod.lib(openvinod.dll) : error LNK2005: "protected: __cdecl std::basic_streambuf<char,struct
+    std::char_traits<char> >::basic_streambuf<char,struct std::char_traits<ch ar> >(void)"
+    (??0?$basic_streambuf@DU?$char_traits@D@std@@@std@@IEAA@XZ) already defined in frontend_test_basic.obj
+    [D:\ov\build\src\frontends\ir\tests\ov_ir_frontend_tests .vcxproj]
+    It's not certain whether it's OV or MS problem, thus the workaround.
+*/
+#ifdef XML_UTIL_LINKAGE_WORKAROUND
+namespace ov::util {
+OPENVINO_API std::string rt_info_get_user_name(const std::string& custom_name);
+OPENVINO_API Any& rt_info_get_user_data(AnyMap& rt_map, const std::string& custom_name);
+OPENVINO_API const Any& rt_info_get_user_data(const AnyMap& rt_map, const std::string& custom_name);
+OPENVINO_API void rt_info_set_user_data(AnyMap& rt_map, const std::string& custom_name, const Any& value);
+}  // namespace ov::util
+#else
+#    include "openvino/xml_util/xml_serialize_util.hpp"
+#endif
 
 namespace ov::test {
 
