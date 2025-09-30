@@ -146,6 +146,14 @@ private:
         std::size_t ops{};
     };
 
+    // Shouldn't this be counter instead? There's nothing much to
+    // average across compilation processes per model (it's a single
+    // process).
+    using MS = ov::npuw::perf::metric<float, ov::npuw::perf::MSec>;
+    ov::npuw::perf::Profile<MS> m_profile;
+
+    void init_profiling();
+
     struct CompiledModelDesc {
         DevList::const_iterator device_it;
         std::set<std::string> devices_to_avoid;

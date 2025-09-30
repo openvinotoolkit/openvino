@@ -143,7 +143,8 @@ struct Profile {
     Metric& operator[](const std::string &tag) {
         auto iter = metrics.find(tag);
         if (iter == metrics.end()) {
-            return metrics.insert({tag, Metric(tag, true)}).first->second;
+            // Use report_on_die as a "enabled" marker here
+            return metrics.insert({tag, Metric(tag, report_on_die)}).first->second;
         }
         return iter->second;
     }

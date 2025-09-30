@@ -23,11 +23,12 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
-    // (un) comment if (not) needed
-    m_profile.report_on_die = true;
+
+    // Initialize profiling
+    m_profile.report_on_die = ov::npuw::profiling_enabled();
     m_profile.area = m_npuw_model->m_name + "/performance";
 
-    m_footprint.report_on_die = true;
+    m_footprint.report_on_die = ov::npuw::profiling_enabled();
     m_footprint.area = m_npuw_model->m_name + "/memory";
 }
 
