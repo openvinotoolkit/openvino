@@ -924,7 +924,7 @@ void jit_softsign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
-    auto aux0 = VReg(aux_vec_idxs[0]);  // Single aux register for intermediate results for |x| & 1 + |x| 
+    auto aux0 = VReg(aux_vec_idxs[0]);  // Single aux register for intermediate results for |x| & 1 + |x|
     auto fp0 = FReg(aux_fp_gpr_idxs[0]);
 
     // Compute |x| (absolute value)
