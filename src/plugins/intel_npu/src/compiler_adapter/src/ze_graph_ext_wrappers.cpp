@@ -204,10 +204,6 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(std::pair<size_t,
                                                                                     &hGraphQueryNetwork);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryNetworkCreate2", result, _zeroInitStruct->getGraphDdiTable());
 
-    _logger.warning("queryGraph - Driver version is %d.%d, queryNetwork is unsupported.",
-                    ZE_MAJOR_VERSION(_graphExtVersion),
-                    ZE_MINOR_VERSION(_graphExtVersion));
-
     _logger.debug("queryGraph - perform pfnQueryNetworkGetSupportedLayers to get size");
     size_t size = 0;
     result = _zeroInitStruct->getGraphDdiTable().pfnQueryNetworkGetSupportedLayers(hGraphQueryNetwork, &size, nullptr);
