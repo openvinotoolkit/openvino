@@ -57,8 +57,7 @@ static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
 void ZeroInitStructsHolder::initNpuDriver() {
     auto setNpuDriver = [&](uint32_t drivers_count, std::vector<ze_driver_handle_t> all_drivers) {
         driver_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
-        log.debug("ZeroInitStructsHolder::initNpuDriver - setting driver properties to "
-                  "ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES");
+        log.debug("ZeroInitStructsHolder::initNpuDriver - get NPU driver");
         for (uint32_t i = 0; i < drivers_count; ++i) {
             zeDriverGetProperties(all_drivers[i], &driver_properties);
 
@@ -112,6 +111,7 @@ void ZeroInitStructsHolder::initNpuDriver() {
         (loader_version.major == 1 && loader_version.minor == 18 && loader_version.patch >= 5)) {
         uint32_t drivers_count = 0;
         ze_init_driver_type_desc_t desc = {};
+        desc.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC;
         desc.flags = ZE_INIT_DRIVER_TYPE_FLAG_NPU;
         auto result = zeInitDrivers(&drivers_count, nullptr, &desc);
         if (result != ZE_RESULT_SUCCESS) {
