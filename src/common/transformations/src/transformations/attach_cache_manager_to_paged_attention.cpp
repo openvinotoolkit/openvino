@@ -9,6 +9,14 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/paged_attention.hpp"
 
+#include "itt.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/util/common_util.hpp"
+
+
+
 #include "openvino/core/cache_manager.hpp"  // your class in ov::internal
 
 namespace ov {
