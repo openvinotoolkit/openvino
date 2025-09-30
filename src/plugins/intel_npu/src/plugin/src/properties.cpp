@@ -312,6 +312,7 @@ void Properties::registerProperties() {
     // Reset
     _properties.clear();
     _supportedProperties.clear();
+    _registeredProperties.clear();
 
     switch (_pType) {
     case PropertiesType::PLUGIN:
@@ -328,9 +329,13 @@ void Properties::registerProperties() {
     // 2.3. Common metrics (exposed same way by both Plugin and CompiledModel)
     REGISTER_SIMPLE_METRIC(ov::supported_properties, true, _supportedProperties);
 
+    // 2.4. All registered properties
+    REGISTER_SIMPLE_METRIC(ov::intel_npu::registered_properties, false, _registeredProperties);
+
     // 3. Populate supported properties list
     // ========
     for (auto& property : _properties) {
+        _registeredProperties.emplace_back(ov::PropertyName(property.first));
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
         }

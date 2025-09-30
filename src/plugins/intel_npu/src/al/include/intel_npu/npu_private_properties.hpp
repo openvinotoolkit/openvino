@@ -444,5 +444,14 @@ static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKE
  */
 static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
 
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: Vector of ov::PropertyName, default is empty.
+ * This option tracks all the registered properties in NPU plugin disregarding their visibility
+ * Used likely in properties tests when we want to compare tested properties and actual registered ones detecting
+ * potential mismatched
+ */
+static constexpr ov::Property<std::vector<ov::PropertyName>> registered_properties{"NPU_REGISTERED_PROPERTIES"};
+
 }  // namespace intel_npu
 }  // namespace ov
