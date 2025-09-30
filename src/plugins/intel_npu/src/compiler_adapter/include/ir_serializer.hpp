@@ -6,14 +6,19 @@
 #include <iostream>
 #include <string>
 
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "ze_graph_ext_wrappers.hpp"
+#include "ze_graph_ext.h"
+
+namespace intel_npu {
+
+using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 
 /**
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and
  *  providing forward compatibility (OV model with opset N+M, external compiler with opset N)
  */
-namespace intel_npu::driver_compiler_utils {
+namespace driver_compiler_utils {
 
 class IRSerializer {
 public:
@@ -73,5 +78,5 @@ private:
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
 };
-
-}  // namespace intel_npu::driver_compiler_utils
+}  // namespace driver_compiler_utils
+}  // namespace intel_npu
