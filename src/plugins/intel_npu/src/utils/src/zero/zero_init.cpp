@@ -314,6 +314,16 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     external_memory_properties_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
     auto res = zeDeviceGetExternalMemoryProperties(device_handle, &external_memory_properties_desc);
     if (res == ZE_RESULT_SUCCESS) {
+#ifdef _WIN32
+        if (external_memory_properties_desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32) {
+            _external_memory_fd_win32_supported = true;
+        }
+#else
+        if (external_memory_properties_desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF) {
+            _external_memory_fd_win32_supported = true;
+        }
+#endif
+
         if (external_memory_properties_desc.memoryAllocationImportTypes &
             ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
             _external_memory_standard_allocation_supported = true;

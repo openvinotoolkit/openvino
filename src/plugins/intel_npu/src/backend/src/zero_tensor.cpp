@@ -4,8 +4,6 @@
 
 #include "zero_tensor.hpp"
 
-#include <ze_mem_import_system_memory_ext.h>
-
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -16,7 +14,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace intel_npu {
+using namespace intel_npu;
 
 namespace {
 bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::element::Type& type) {
@@ -36,8 +34,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
                        const ov::Shape& shape,
                        const bool isInput)
     : _init_structs(init_structs),
-      _config(config),
-      _logger("ZeroTensor", _config.get<LOG_LEVEL>()),
+      _logger("ZeroTensor", config.get<LOG_LEVEL>()),
       _element_type{element_type},
       _shape{shape},
       _capacity{_shape},
@@ -50,7 +47,6 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     const auto byte_size = ov::util::get_memory_size_safe(element_type, _shape);
     OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", _shape);
     _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
-                                                                               _config,
                                                                                *byte_size,
                                                                                utils::STANDARD_PAGE_SIZE,
                                                                                _zero_memory_flag);
@@ -64,8 +60,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
                        const ov::SoPtr<ov::ITensor>& user_tensor,
                        const Config& config)
     : _init_structs(init_structs),
-      _config(config),
-      _logger("ZeroTensor", _config.get<LOG_LEVEL>()),
+      _logger("ZeroTensor", config.get<LOG_LEVEL>()),
       _element_type{user_tensor->get_element_type()},
       _shape{user_tensor->get_shape()},
       _capacity{_shape},
@@ -126,7 +121,6 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
             _logger.debug("ZeroTensor::ZeroTensor - import memory from a system memory pointer");
 
             _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
-                                                                                       _config,
                                                                                        _user_tensor->get_byte_size(),
                                                                                        utils::STANDARD_PAGE_SIZE,
                                                                                        /*zero_memory_flag = */ 0,
@@ -244,7 +238,6 @@ void ZeroTensor::set_shape(ov::Shape new_shape) {
         // allocate buffer and initialize objects from scratch
         _capacity = _shape;
         _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
-                                                                                   _config,
                                                                                    get_bytes_capacity(),
                                                                                    utils::STANDARD_PAGE_SIZE,
                                                                                    _zero_memory_flag);
@@ -273,107 +266,3 @@ void ZeroTensor::prevent_reuse() {
 bool ZeroTensor::can_be_reused() {
     return _can_be_reused;
 }
-
-ZeHostMem::ZeHostMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                     const Config& config,
-                     const size_t bytes,
-                     const size_t alignment,
-                     const uint32_t zero_memory_flag,
-                     void* data)
-    : _init_structs(init_structs),
-      _logger("ZeHostMem", config.get<LOG_LEVEL>()) {
-    ze_result_t result;
-    if (data == nullptr) {
-        _size = bytes + alignment - (bytes % alignment);
-        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, zero_memory_flag};
-        result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, alignment, &_ptr);
-    } else {
-        _size = bytes;
-        _ze_external_memory_import_system_memory_t memory_import = {
-            ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
-            nullptr,
-            data,
-            _size};
-        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, zero_memory_flag};
-        result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, alignment, &_ptr);
-    }
-
-    if (result != ZE_RESULT_SUCCESS) {
-        if (data == nullptr) {
-            OPENVINO_THROW("L0 zeMemAllocHost result: ", ze_result_to_string(result), ", code ", uint64_t(result));
-        } else {
-            _logger.info("Importing memory through zeMemAllocHost failed, result: %s, code %#X - %s",
-                         ze_result_to_string(result).c_str(),
-                         uint64_t(result),
-                         ze_result_to_description(result).c_str());
-
-            throw ZeroTensorException("Importing memory failed");
-        }
-    }
-}
-
-ZeHostMem::~ZeHostMem() {
-    auto result = zeMemFree(_init_structs->getContext(), _ptr);
-    if (ZE_RESULT_SUCCESS != result) {
-        _logger.error("L0 zeMemFree result: %s, code %#X - %s",
-                      ze_result_to_string(result).c_str(),
-                      uint64_t(result),
-                      ze_result_to_description(result).c_str());
-    }
-}
-
-ZeroMemoryPool::ZeroMemoryPool() {}
-
-ZeroMemoryPool& ZeroMemoryPool::get_instance() {
-    static ZeroMemoryPool instance;
-    return instance;
-}
-
-std::shared_ptr<ZeHostMem> ZeroMemoryPool::allocate_and_get_zero_memory(
-    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-    const Config& config,
-    const size_t bytes,
-    const size_t alignment,
-    const uint32_t zero_memory_flag,
-    void* data) {
-    auto zero_memory = std::shared_ptr<ZeHostMem>(
-        new ZeHostMem(init_structs, config, bytes, alignment, zero_memory_flag, data),
-        [this, zero_context = init_structs->getContext()](ZeHostMem* ptr) {
-            auto memory_id = zeroUtils::get_l0_context_memory_allocation_id(zero_context, ptr->_ptr);
-
-            std::lock_guard<std::mutex> lock(_mutex);
-            if (_pool.at(memory_id).lock()) {
-                // Don't destroy the command queue in case the shared ptr is in use!
-                return;
-            }
-            _pool.erase(memory_id);
-            // Destroy Command Queue
-            delete ptr;
-        });
-
-    auto memory_id = zeroUtils::get_l0_context_memory_allocation_id(init_structs->getContext(), zero_memory->_ptr);
-    OPENVINO_ASSERT(memory_id != 0, "Failed to get memory allocation id");
-
-    auto pair = std::make_pair(memory_id, zero_memory);
-
-    std::lock_guard<std::mutex> lock(_mutex);
-    _pool.emplace(pair);
-
-    return zero_memory;
-}
-
-std::shared_ptr<ZeHostMem> ZeroMemoryPool::get_zero_memory(const uint64_t id) {
-    std::lock_guard<std::mutex> lock(_mutex);
-    if (_pool.find(id) != _pool.end()) {
-        // found one weak pointer in the pool
-        // is it valid?
-        auto obj = _pool.at(id).lock();
-        if (obj) {
-            return obj;
-        }
-    }
-
-    return nullptr;
-}
-
-}  // namespace intel_npu
