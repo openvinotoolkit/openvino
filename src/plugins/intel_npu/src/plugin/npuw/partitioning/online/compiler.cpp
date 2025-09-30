@@ -129,12 +129,13 @@ class Compiler {
         }
     }
 
-    std::vector<Isolate> getAllIsolates() {
-        auto isolates = ov::npuw::online::util::getIsolates(ov::npuw::online::util::ISOL_PRESETS.at("COMPUTE"));
-        for (const auto& isol : ov::npuw::online::util::getIsolates(ov::npuw::online::util::ISOL_PRESETS.at("FAKE"))) {
-            isolates.push_back(isol);
-        }
-        for (const auto& isol : ov::npuw::online::util::getIsolates(ov::npuw::online::util::ISOL_PRESETS.at("ATTN"))) {
+    std::vector<Isolate> getComputeIsolates() {
+        // NB: Think twice before adding any new patterns here!
+        // In the most cases, you don't - this is a very specific
+        // type of patterns to isolate compute-intense parts ONLY!
+        namespace ou = ov::npuw::online::util;
+        auto isolates = ou::getIsolates(ou::ISOL_PRESETS.at("COMPUTE"));
+        for (const auto& isol : ou::getIsolates(ou::ISOL_PRESETS.at("FAKE"))) {
             isolates.push_back(isol);
         }
         return isolates;
@@ -209,8 +210,8 @@ class Compiler {
         m_snapshot->earlyRegroup();
         m_snapshot->repeatedBlocks([&]() {
             // This callback is called when repeatingBlocks algorithm thinks it is done
+            // NB: the "fake" tag is stripped elsewhere, that's how it works
             m_snapshot->stripTag("compute");
-            m_snapshot->stripTag("attn");
         });
         m_snapshot->repeat([&] {
             m_snapshot->fuseRemnantsExtended();
@@ -261,17 +262,18 @@ public:
             // Only get isolates here.
             // NB: We ignore NO_FOLD everywhere except pipeline COMPUTE - this needs
             // to be aligned in the future
-            ctx.isolates = getAllIsolates();
+            ctx.isolates = getComputeIsolates();
             m_snapshot->setCtx(ctx);
             reg();
             break;
         case Pipeline::COMPUTE:
+            // FIXME: It is probably the time to retire this pipeline
             warn_unused<::intel_npu::NPUW_ONLINE_ISOLATE>();
             warn_unused<::intel_npu::NPUW_ONLINE_NO_FOLD>();
 
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
-            ctx.isolates = getAllIsolates();
+            ctx.isolates = getComputeIsolates();
             ctx.nofolds = ov::npuw::online::util::getNoFolds("compute");
             m_snapshot->setCtx(ctx);
             rep();
@@ -282,7 +284,7 @@ public:
 
             // Manually set predefined isolates and nofolds then do rep() pipeline
             // FIXME: initialize via a dedicated function instead of parsing
-            ctx.isolates = getAllIsolates();
+            ctx.isolates = getComputeIsolates();
             m_snapshot->setCtx(ctx);
             rep();
             break;
