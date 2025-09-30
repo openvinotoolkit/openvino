@@ -11,12 +11,15 @@
 
 namespace ov::test::behavior {
 
-TEST_P(OVPropertiesTestsNPU, SetCorrectProperties) {
+using OVInternalPropertiesTestsNPU = OVPropertiesTestsNPU;
+using OVInternalPropertiesIncorrectTestsNPU = OVPropertiesIncorrectTestsNPU;
+
+TEST_P(OVInternalPropertiesTestsNPU, SetCorrectProperties) {
     core->get_versions(target_device);
     core->set_property(target_device, properties);
 }
 
-TEST_P(OVPropertiesTestsNPU, canSetPropertyAndCheckGetProperty) {
+TEST_P(OVInternalPropertiesTestsNPU, canSetPropertyAndCheckGetProperty) {
     core->set_property(target_device, properties);
 
     for (const auto& property_item : properties) {
@@ -26,7 +29,7 @@ TEST_P(OVPropertiesTestsNPU, canSetPropertyAndCheckGetProperty) {
     }
 }
 
-TEST_P(OVPropertiesIncorrectTestsNPU, SetPropertiesWithIncorrectKey) {
+TEST_P(OVInternalPropertiesIncorrectTestsNPU, SetPropertiesWithIncorrectKey) {
     core->get_versions(target_device);
     std::vector<ov::PropertyName> supported_properties;
     supported_properties = core->get_property(target_device, ov::supported_properties);
@@ -87,16 +90,16 @@ const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
 };
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVPropertiesTestsNPU,
+                         OVInternalPropertiesTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(compat_CorrectPluginMutableProperties)),
-                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsNPU>));
+                         (ov::test::utils::appendPlatformTypeTestName<OVInternalPropertiesTestsNPU>));
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVPropertiesIncorrectTestsNPU,
+                         OVInternalPropertiesIncorrectTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(compat_IncorrectMutablePropertiesWrongValueTypes)),
-                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesIncorrectTestsNPU>));
+                         (ov::test::utils::appendPlatformTypeTestName<OVInternalPropertiesIncorrectTestsNPU>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCheckSetSupportedRWMetricsPropsTestsNPU,
@@ -111,9 +114,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTestsNPU>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVPropertiesIncorrectTestsNPU,
+                         OVInternalPropertiesIncorrectTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(IncorrectMutablePropertiesWrongValueTypes)),
-                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesIncorrectTestsNPU>));
+                         (ov::test::utils::appendPlatformTypeTestName<OVInternalPropertiesIncorrectTestsNPU>));
 
 }  // namespace ov::test::behavior
