@@ -317,7 +317,7 @@ public:
     }
 
     template <typename T0, typename R, typename F>
-    R parallel_sum(const T0& D0, const R& input, const F& func) const {
+    [[nodiscard]] R parallel_sum(const T0& D0, const R& input, const F& func) const {
         return cpu_parallel_sum(D0, input, func);
     }
     template <typename T0, typename F>
