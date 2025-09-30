@@ -20,7 +20,10 @@ The MOE op receives hidden states, routing weights, and indices of selected expe
 The ``router_topk_output_indices`` are used to select the top-k experts for optimized computation, not included in the pseudocode below.
 
 * ``GEMM2_BIAS_SWIGLU_CLAMP``:
-  .. code-block:: python
+
+.. code-block:: py
+	:force:
+
     # Common part: Reshape hidden states and prepare for expert computation
     reshaped_hidden_states = reshape(hidden_states, [-1, 0], special_zero=True)
     tiled_hidden_states = tile(reshaped_hidden_states, [num_experts, 1])
@@ -48,7 +51,10 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
     output = reduce_sum(routed_experts, axis=0, keep_dims=False)
 
 * ``GEMM3_SWIGLU``:
-  .. code-block:: python
+
+.. code-block:: py
+	:force:
+
     # Common part: Reshape hidden states and prepare for expert computation
     reshaped_hidden_states = reshape(hidden_states, [-1, 0], special_zero=True)
     tiled_hidden_states = tile(reshaped_hidden_states, [num_experts, 1])
@@ -102,7 +108,7 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
   The normalized weights for the selected top-k experts (after routing/normalization).
 
 * **2**: ``router_topk_output_indices``  
-  *Tensor* of type *T_ind* with shape ``[..., topk]`` for example ``[batch, topk]``.  
+  *Tensor* of type *T_IND* with shape ``[..., topk]`` for example ``[batch, topk]``.  
   Indices of the selected top-k ("active") experts for each input.
 
 * **3**: ``weight_0``  
@@ -119,7 +125,7 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
   Weights for the second MatMul.
 
 * **6**: ``bias_1`` *(optional)*  
- *Tensor* of type *T* with shape ``[num_experts, ...]`` broadcastable to the output of the second MatMul or empty tensor.  
+  *Tensor* of type *T* with shape ``[num_experts, ...]`` broadcastable to the output of the second MatMul or empty tensor.  
   Bias to be added after the second MatMul.
 
 * **7**: ``weight_2`` *(optional)*  
@@ -142,4 +148,4 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
 **Types**
 
 * *T*: any floating point type.
-* *T_ind*: INT64 or INT32.
+* *T_IND*: ``int64`` or ``int32``.
