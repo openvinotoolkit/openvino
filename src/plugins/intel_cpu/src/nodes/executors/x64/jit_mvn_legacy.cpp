@@ -1813,13 +1813,16 @@ private:
     }
 };
 
-MVNJitExecutorLegacy::MVNJitExecutorLegacy(const MVNAttrs& mvnAttrs, const dnnl::primitive_attr& attr)
+MVNJitExecutorLegacy::MVNJitExecutorLegacy(const MVNAttrs& mvnAttrs,
+                                           const dnnl::primitive_attr& attr,
+                                           ov::element::Type src_prc,
+                                           ov::element::Type dst_prc)
     : mvnAttrs(mvnAttrs),
-      src_data_size(mvnAttrs.src_prc.size()),
-      dst_data_size(mvnAttrs.dst_prc.size()) {
+      src_data_size(src_prc.size()),
+      dst_data_size(dst_prc.size()) {
     auto jcp = jit_mvn_config_params();
-    jcp.src_prc = mvnAttrs.src_prc;
-    jcp.dst_prc = mvnAttrs.dst_prc;
+    jcp.src_prc = src_prc;
+    jcp.dst_prc = dst_prc;
     jcp.src_data_size = src_data_size;
     jcp.dst_data_size = dst_data_size;
     jcp.layout = mvnAttrs.layout;

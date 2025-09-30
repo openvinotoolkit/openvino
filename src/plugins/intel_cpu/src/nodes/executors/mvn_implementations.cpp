@@ -8,6 +8,7 @@
 
 #include "memory_desc/cpu_memory_desc.h"
 #include "mvn_config.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
@@ -98,15 +99,11 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ExecutorType::Jit,
             OperationType::MVN,
             // supports
-            [](const executor::Config<MVNAttrs>& config) -> bool {
-                // Check if both src and dst have planar layout
-                if (!config.descs.at(ARG_SRC_0)->hasLayoutType(LayoutType::ncsp) ||
-                    !config.descs.at(ARG_DST)->hasLayoutType(LayoutType::ncsp)) {
-                    return false;
-                }
-                bool supported = MVNJitExecutor::supports(config);
-                DEBUG_LOG("MVN JIT x64 ncsp executor support check: ", supported ? "supported" : "not supported");
-                return supported;
+            [](const executor::Config<MVNAttrs>& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(MatchesMemoryFormatFilter(config.descs, mvnPlanarLayoutConfig, memoryFormatFilter, mvnMappingNotation),
+                       MEMORY_FORMAT_MISMATCH);
+                VERIFY(MVNJitExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
             },
             // createOptimalConfig
             [](const executor::Config<MVNAttrs>& config) -> std::optional<executor::Config<MVNAttrs>> {
@@ -116,24 +113,17 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>,
-            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
-                DEBUG_LOG("Creating MVN JIT x64 ncsp executor");
-                return std::make_shared<MVNJitExecutor>(attrs, memory, context);
-            })
+            CreateDefault<MVNJitExecutor, MVNAttrs>{})
         OV_CPU_INSTANCE_X64(
             "mvn_jit_x64_nspc",
             ExecutorType::Jit,
             OperationType::MVN,
             // supports
-            [](const executor::Config<MVNAttrs>& config) -> bool {
-                // Check if both src and dst have channel-last layout
-                if (!config.descs.at(ARG_SRC_0)->hasLayoutType(LayoutType::nspc) ||
-                    !config.descs.at(ARG_DST)->hasLayoutType(LayoutType::nspc)) {
-                    return false;
-                }
-                bool supported = MVNJitExecutor::supports(config);
-                DEBUG_LOG("MVN JIT x64 nspc executor support check: ", supported ? "supported" : "not supported");
-                return supported;
+            [](const executor::Config<MVNAttrs>& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(MatchesMemoryFormatFilter(config.descs, mvnByChannelLayoutConfig, memoryFormatFilter, mvnMappingNotation),
+                       MEMORY_FORMAT_MISMATCH);
+                VERIFY(MVNJitExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
             },
             // createOptimalConfig
             [](const executor::Config<MVNAttrs>& config) -> std::optional<executor::Config<MVNAttrs>> {
@@ -143,24 +133,17 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>,
-            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
-                DEBUG_LOG("Creating MVN JIT x64 nspc executor");
-                return std::make_shared<MVNJitExecutor>(attrs, memory, context);
-            })
+            CreateDefault<MVNJitExecutor, MVNAttrs>{})
         OV_CPU_INSTANCE_X64(
             "mvn_jit_x64_nCsp8c",
             ExecutorType::Jit,
             OperationType::MVN,
             // supports
-            [](const executor::Config<MVNAttrs>& config) -> bool {
-                // Check if both src and dst have blocked 8c layout
-                if (!config.descs.at(ARG_SRC_0)->hasLayoutType(LayoutType::nCsp8c) ||
-                    !config.descs.at(ARG_DST)->hasLayoutType(LayoutType::nCsp8c)) {
-                    return false;
-                }
-                bool supported = MVNJitExecutor::supports(config);
-                DEBUG_LOG("MVN JIT x64 nCsp8c executor support check: ", supported ? "supported" : "not supported");
-                return supported;
+            [](const executor::Config<MVNAttrs>& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(MatchesMemoryFormatFilter(config.descs, mvnBlockedC8LayoutConfig, memoryFormatFilter, mvnMappingNotation),
+                       MEMORY_FORMAT_MISMATCH);
+                VERIFY(MVNJitExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
             },
             // createOptimalConfig
             [](const executor::Config<MVNAttrs>& config) -> std::optional<executor::Config<MVNAttrs>> {
@@ -170,24 +153,17 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>,
-            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
-                DEBUG_LOG("Creating MVN JIT x64 nCsp8c executor");
-                return std::make_shared<MVNJitExecutor>(attrs, memory, context);
-            })
+            CreateDefault<MVNJitExecutor, MVNAttrs>{})
         OV_CPU_INSTANCE_X64(
             "mvn_jit_x64_nCsp16c",
             ExecutorType::Jit,
             OperationType::MVN,
             // supports
-            [](const executor::Config<MVNAttrs>& config) -> bool {
-                // Check if both src and dst have blocked 16c layout
-                if (!config.descs.at(ARG_SRC_0)->hasLayoutType(LayoutType::nCsp16c) ||
-                    !config.descs.at(ARG_DST)->hasLayoutType(LayoutType::nCsp16c)) {
-                    return false;
-                }
-                bool supported = MVNJitExecutor::supports(config);
-                DEBUG_LOG("MVN JIT x64 nCsp16c executor support check: ", supported ? "supported" : "not supported");
-                return supported;
+            [](const executor::Config<MVNAttrs>& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(MatchesMemoryFormatFilter(config.descs, mvnBlockedC16LayoutConfig, memoryFormatFilter, mvnMappingNotation),
+                       MEMORY_FORMAT_MISMATCH);
+                VERIFY(MVNJitExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
             },
             // createOptimalConfig
             [](const executor::Config<MVNAttrs>& config) -> std::optional<executor::Config<MVNAttrs>> {
@@ -197,24 +173,17 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>,
-            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
-                DEBUG_LOG("Creating MVN JIT x64 nCsp16c executor");
-                return std::make_shared<MVNJitExecutor>(attrs, memory, context);
-            })
+            CreateDefault<MVNJitExecutor, MVNAttrs>{})
         OV_CPU_INSTANCE_ACL(
             "mvn_acl_ncsp",
             ExecutorType::Acl,
             OperationType::MVN,
             // supports
-            [](const executor::Config<MVNAttrs>& config) -> bool {
-                // Check if both src and dst have planar layout
-                if (!config.descs.at(ARG_SRC_0)->hasLayoutType(LayoutType::ncsp) ||
-                    !config.descs.at(ARG_DST)->hasLayoutType(LayoutType::ncsp)) {
-                    return false;
-                }
-                bool supported = ACLMVNExecutor::supports(config);
-                DEBUG_LOG("MVN ACL ncsp executor support check: ", supported ? "supported" : "not supported");
-                return supported;
+            [](const executor::Config<MVNAttrs>& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(MatchesMemoryFormatFilter(config.descs, mvnPlanarLayoutConfig, memoryFormatFilter, mvnMappingNotation),
+                       MEMORY_FORMAT_MISMATCH);
+                VERIFY(ACLMVNExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
             },
             // createOptimalConfig
             [](const executor::Config<MVNAttrs>& config) -> std::optional<executor::Config<MVNAttrs>> {
@@ -224,24 +193,17 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>,
-            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
-                DEBUG_LOG("Creating MVN ACL ncsp executor");
-                return std::make_shared<ACLMVNExecutor>(attrs, memory, context);
-            })
+            CreateDefault<ACLMVNExecutor, MVNAttrs>{})
         OV_CPU_INSTANCE_ACL(
             "mvn_acl_nspc",
             ExecutorType::Acl,
             OperationType::MVN,
             // supports
-            [](const executor::Config<MVNAttrs>& config) -> bool {
-                // Check if both src and dst have channel-last layout
-                if (!config.descs.at(ARG_SRC_0)->hasLayoutType(LayoutType::nspc) ||
-                    !config.descs.at(ARG_DST)->hasLayoutType(LayoutType::nspc)) {
-                    return false;
-                }
-                bool supported = ACLMVNExecutor::supports(config);
-                DEBUG_LOG("MVN ACL nspc executor support check: ", supported ? "supported" : "not supported");
-                return supported;
+            [](const executor::Config<MVNAttrs>& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(MatchesMemoryFormatFilter(config.descs, mvnByChannelLayoutConfig, memoryFormatFilter, mvnMappingNotation),
+                       MEMORY_FORMAT_MISMATCH);
+                VERIFY(ACLMVNExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
             },
             // createOptimalConfig
             [](const executor::Config<MVNAttrs>& config) -> std::optional<executor::Config<MVNAttrs>> {
@@ -251,10 +213,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>,
-            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
-                DEBUG_LOG("Creating MVN ACL nspc executor");
-                return std::make_shared<ACLMVNExecutor>(attrs, memory, context);
-            })
+            CreateDefault<ACLMVNExecutor, MVNAttrs>{})
         OV_CPU_INSTANCE_COMMON(
             "mvn_ref_nspc",
             ExecutorType::Common,
@@ -277,10 +236,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>,
-            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
-                DEBUG_LOG("Creating MVN Reference nspc executor");
-                return std::make_shared<MVNRefExecutor>(attrs, memory, context);
-            })
+            CreateDefault<MVNRefExecutor, MVNAttrs>{})
         OV_CPU_INSTANCE_COMMON(
             "mvn_ref",
             ExecutorType::Common,
@@ -326,10 +282,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>,
-            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
-                DEBUG_LOG("Creating MVN Reference executor");
-                return std::make_shared<MVNRefExecutor>(attrs, memory, context);
-            })
+            CreateDefault<MVNRefExecutor, MVNAttrs>{})
     };
     
     return mvnImplementations;

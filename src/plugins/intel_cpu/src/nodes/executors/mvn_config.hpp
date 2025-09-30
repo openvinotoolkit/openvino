@@ -44,12 +44,9 @@ struct MVNAttrs {
     bool normalizeVariance_ = true;
     float epsValue_ = 1e-9F;
     MVNEpsMode epsMode_ = INSIDE_SQRT;
-    ov::element::Type src_prc = ov::element::f32;
-    ov::element::Type dst_prc = ov::element::f32;
     VectorDims shape5D;
     size_t actualChannelSize = 0;  // Actual channel size for post-ops
     PostOps postOps;               // Post-operations configuration
-    dnnl::primitive_attr attr;     // Primitive attributes with post-ops configuration
 };
 
 using MVNConfig = executor::Config<MVNAttrs>;

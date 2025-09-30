@@ -17,6 +17,7 @@
 #include "cpu_memory.h"
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 
@@ -79,7 +80,7 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
     ACLTypes aclDataType{};
     ACLLayouts aclDataLayout{};
     for (const auto& cpu_mem_ptr : memory) {
-        if (cpu_mem_ptr.second->getSize() == 0) {
+        if (cpu_mem_ptr.second->getDesc().empty()) {
             DEBUG_LOG("ACLCommonExecutor: Skipping empty memory for arg ", cpu_mem_ptr.first);
             continue;
         }
@@ -128,16 +129,12 @@ void ACLCommonExecutor::execute(const MemoryArgs& memory) {
     for (const auto& cpu_mem_ptr : memory) {
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
         if (aclTensorAttrs.memoryUsageIndicator[index]) {
-            if (!aclMemoryTensors[index]) {
-                DEBUG_LOG("ACLCommonExecutor: aclMemoryTensors[", static_cast<int>(index), "] is null!");
-                continue;
-            }
+            OPENVINO_ASSERT(aclMemoryTensors[index] != nullptr,
+                            "ACLCommonExecutor: aclMemoryTensors[", static_cast<int>(index), "] is null");
 
             auto* data_ptr = memory.at(cpu_mem_ptr.first)->getData();
-            if (!data_ptr) {
-                DEBUG_LOG("ACLCommonExecutor: memory data pointer is null for index ", static_cast<int>(index));
-                continue;
-            }
+            OPENVINO_ASSERT(data_ptr != nullptr,
+                            "ACLCommonExecutor: memory data pointer is null for index ", static_cast<int>(index));
 
             DEBUG_LOG("ACLCommonExecutor: Importing memory for index ",
                       static_cast<int>(index),

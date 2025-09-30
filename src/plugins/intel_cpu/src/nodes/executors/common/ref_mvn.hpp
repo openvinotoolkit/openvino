@@ -39,8 +39,6 @@ public:
     static bool supports(const MVNConfig& config);
 
 private:
-    void mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const VectorDims& shape5d) const;
-
     MVNAttrs attrs;
     MemoryArgs memoryArgs;
     const ExecutorContext::CPtr context;

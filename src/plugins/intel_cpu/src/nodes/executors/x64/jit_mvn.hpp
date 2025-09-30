@@ -78,7 +78,10 @@ struct jit_uni_mvn_kernel {
 
 class MVNJitExecutorLegacy {
 public:
-    MVNJitExecutorLegacy(const MVNAttrs& mvnAttrs, const dnnl::primitive_attr& attr);
+    MVNJitExecutorLegacy(const MVNAttrs& mvnAttrs,
+                         const dnnl::primitive_attr& attr,
+                         ov::element::Type src_prc,
+                         ov::element::Type dst_prc);
     void exec(const uint8_t* src_data, uint8_t* dst_data, const void* post_ops_data_, const VectorDims& shape5d);
 
 private:
@@ -101,10 +104,7 @@ class MVNJitExecutor : public Executor {
 public:
     MVNJitExecutor(MVNAttrs mvnAttrs, MemoryArgs memory, ExecutorContext::CPtr context);
 
-    bool update(const MemoryArgs& memory) override {
-        memoryArgs = memory;
-        return true;
-    }
+    bool update(const MemoryArgs& memory) override;
 
     void execute() override {
         executeImpl(memoryArgs);

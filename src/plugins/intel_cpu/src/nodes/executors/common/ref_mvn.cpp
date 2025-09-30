@@ -34,15 +34,7 @@ MVNRefExecutor::MVNRefExecutor(MVNAttrs mvnAttrs, MemoryArgs memory, ExecutorCon
     auto srcDesc = memoryArgs.at(ARG_SRC_0)->getDescPtr();
     auto dstDesc = memoryArgs.at(ARG_DST)->getDescPtr();
 
-    if (!srcDesc || !dstDesc) {
-        OPENVINO_THROW("Invalid memory descriptors for MVNRefExecutor");
-    }
-
-    // Use the transformed 5D shape from attrs
-    shape5D = attrs.shape5D;
-    if (shape5D.size() != 5 || shape5D.empty()) {
-        OPENVINO_THROW("Invalid shape5D in MVNRefExecutor");
-    }
+    OPENVINO_ASSERT(srcDesc && dstDesc, "Invalid memory descriptors for MVNRefExecutor");
 
     src_data_size = srcDesc->getPrecision().size();
     dst_data_size = dstDesc->getPrecision().size();
@@ -53,17 +45,15 @@ bool MVNRefExecutor::supports([[maybe_unused]] const MVNConfig& config) {
     return true;
 }
 
-void MVNRefExecutor::executeImpl(const MemoryArgs& memory) {
-    const auto src = memory.at(ARG_SRC_0);
-    const auto dst = memory.at(ARG_DST);
+// Static local implementation as requested in review
+static void mvn_ref_impl(const MVNAttrs& attrs,
+                         const MemoryArgs& memoryArgs,
+                         const uint8_t* src_data,
+                         uint8_t* dst_data,
+                         const VectorDims& shape5d) {
+    const auto& src_prc = memoryArgs.at(ARG_SRC_0)->getDesc().getPrecision();
+    const auto& dst_prc = memoryArgs.at(ARG_DST)->getDesc().getPrecision();
 
-    const auto* src_data = src->getDataAs<const uint8_t>();
-    auto* dst_data = dst->getDataAs<uint8_t>();
-
-    mvn_ref(src_data, dst_data, attrs.shape5D);
-}
-
-void MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const VectorDims& shape5d) const {
     const size_t N = shape5d[0];
     const size_t C = shape5d[1];
     const size_t D = shape5d[2];
@@ -89,17 +79,17 @@ void MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const V
     std::vector<float> src_float;
     std::vector<float> dst_float;
 
-    if (attrs.src_prc == ov::element::f32) {
+    if (src_prc == ov::element::f32) {
         // No conversion needed for input
         src_data_ptr = reinterpret_cast<const float*>(src_data);
     } else {
         // Convert input to float for intermediate calculations
         src_float.resize(total_size);
-        cpu_convert(src_data, src_float.data(), attrs.src_prc, ov::element::f32, total_size);
+        cpu_convert(src_data, src_float.data(), src_prc, ov::element::f32, total_size);
         src_data_ptr = src_float.data();
     }
 
-    if (attrs.dst_prc == ov::element::f32) {
+    if (dst_prc == ov::element::f32) {
         // No conversion needed for output
         dst_data_ptr = reinterpret_cast<float*>(dst_data);
     } else {
@@ -430,9 +420,8 @@ void MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const V
                     if (attrs.layout == mvn_planar) {
                         const size_t c_offset = (b * C * data_size) + (c * data_size);
                         const float* src_ptr = &src_data_ptr[c_offset];
-                        const auto mean_f = static_cast<float>(mean);
                         for (size_t i = 0; i < data_size; i++) {
-                            double diff = src_ptr[i] - mean_f;
+                            double diff = src_ptr[i] - mean;
                             variance += diff * diff;
                         }
                     } else {
@@ -455,50 +444,41 @@ void MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const V
                                                           : std::sqrt(variance) + attrs.epsValue_;
                     const double inv_sigma = 1.0 / sigma;
 
-                    // Normalize
                     if (attrs.layout == mvn_planar) {
                         const size_t c_offset = (b * C * data_size) + (c * data_size);
-                        const float* src_ptr = &src_data_ptr[c_offset];
                         float* dst_ptr = &dst_data_ptr[c_offset];
-                        const auto mean_f = static_cast<float>(mean);
-                        const auto inv_sigma_f = static_cast<float>(inv_sigma);
-                        // Vectorizable loop
+                        const float* src_ptr = &src_data_ptr[c_offset];
                         for (size_t i = 0; i < data_size; i++) {
-                            dst_ptr[i] = (src_ptr[i] - mean_f) * inv_sigma_f;
+                            dst_ptr[i] = static_cast<float>((src_ptr[i] - mean) * inv_sigma);
                         }
                     } else {
                         const size_t b_offset = b * data_size * C;
                         size_t base_idx = b_offset + c;
-                        const auto mean_f = static_cast<float>(mean);
-                        const auto inv_sigma_f = static_cast<float>(inv_sigma);
                         for (size_t d = 0; d < D; d++) {
                             for (size_t h = 0; h < H; h++) {
                                 for (size_t w = 0; w < W; w++) {
-                                    dst_data_ptr[base_idx] = (src_data_ptr[base_idx] - mean_f) * inv_sigma_f;
+                                    dst_data_ptr[base_idx] =
+                                        static_cast<float>((src_data_ptr[base_idx] - mean) * inv_sigma);
                                     base_idx += C;
                                 }
                             }
                         }
                     }
                 } else {
-                    // Just subtract mean
                     if (attrs.layout == mvn_planar) {
                         const size_t c_offset = (b * C * data_size) + (c * data_size);
-                        const float* src_ptr = &src_data_ptr[c_offset];
                         float* dst_ptr = &dst_data_ptr[c_offset];
-                        const auto mean_f = static_cast<float>(mean);
-                        // Vectorizable loop
+                        const float* src_ptr = &src_data_ptr[c_offset];
                         for (size_t i = 0; i < data_size; i++) {
-                            dst_ptr[i] = src_ptr[i] - mean_f;
+                            dst_ptr[i] = static_cast<float>(src_ptr[i] - mean);
                         }
                     } else {
                         const size_t b_offset = b * data_size * C;
                         size_t base_idx = b_offset + c;
-                        const auto mean_f = static_cast<float>(mean);
                         for (size_t d = 0; d < D; d++) {
                             for (size_t h = 0; h < H; h++) {
                                 for (size_t w = 0; w < W; w++) {
-                                    dst_data_ptr[base_idx] = src_data_ptr[base_idx] - mean_f;
+                                    dst_data_ptr[base_idx] = static_cast<float>(src_data_ptr[base_idx] - mean);
                                     base_idx += C;
                                 }
                             }
@@ -509,10 +489,138 @@ void MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const V
         }
     }
 
-    // Convert output back to destination precision if needed
-    if (attrs.dst_prc != ov::element::f32) {
-        cpu_convert(dst_float.data(), dst_data, ov::element::f32, attrs.dst_prc, total_size);
+    // Apply post-ops (ScaleShift) in FP32 domain
+    if (!attrs.postOps.empty()) {
+        // Extract first ScaleShift if present
+        for (const auto& postOpAny : attrs.postOps) {
+            try {
+                const auto& ss = std::any_cast<const ScaleShiftPostOp&>(postOpAny);
+                const auto& scales = ss.scales();
+                const auto& shifts = ss.shifts();
+
+                const size_t N = shape5d[0];
+                const size_t C = shape5d[1];
+                const size_t D = shape5d[2];
+                const size_t H = shape5d[3];
+                const size_t W = shape5d[4];
+                const size_t spatial = D * H * W;
+
+                const bool scalar = scales.size() == 1 && shifts.size() == 1;
+
+                if (attrs.layout == mvn_planar) {
+                    for (size_t b = 0; b < N; ++b) {
+                        size_t base = b * C * spatial;
+                        for (size_t c = 0; c < C; ++c) {
+                            const float sc = scalar ? scales[0] : scales[c % scales.size()];
+                            const float sh = scalar ? shifts[0] : shifts[c % shifts.size()];
+                            float* dst_ptr = &dst_data_ptr[base + c * spatial];
+                            for (size_t i = 0; i < spatial; ++i) {
+                                dst_ptr[i] = dst_ptr[i] * sc + sh;
+                            }
+                        }
+                    }
+                } else if (attrs.layout == mvn_by_channel) {
+                    // NDHWC/NHWC layout
+                    for (size_t b = 0; b < N; ++b) {
+                        size_t idx = b * spatial * C;
+                        for (size_t d = 0; d < D; ++d) {
+                            for (size_t h = 0; h < H; ++h) {
+                                for (size_t w = 0; w < W; ++w) {
+                                    float* dst_ptr = &dst_data_ptr[idx];
+                                    for (size_t c = 0; c < C; ++c) {
+                                        const float sc = scalar ? scales[0] : scales[c % scales.size()];
+                                        const float sh = scalar ? shifts[0] : shifts[c % shifts.size()];
+                                        dst_ptr[c] = dst_ptr[c] * sc + sh;
+                                    }
+                                    idx += C;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Blocked layout: apply per-element with proper block size
+                    const size_t CB = div_up(C, blk_size);
+                    for (size_t b = 0; b < N; ++b) {
+                        for (size_t cb = 0; cb < CB; ++cb) {
+                            const size_t c_in_blk = (cb == CB - 1 && C % blk_size != 0) ? (C % blk_size) : blk_size;
+                            for (size_t d = 0; d < D; ++d) {
+                                for (size_t h = 0; h < H; ++h) {
+                                    for (size_t w = 0; w < W; ++w) {
+                                        for (size_t c = 0; c < c_in_blk; ++c) {
+                                            const size_t c_idx = cb * blk_size + c;
+                                            const float sc = scalar ? scales[0] : scales[c_idx % scales.size()];
+                                            const float sh = scalar ? shifts[0] : shifts[c_idx % shifts.size()];
+                                            const size_t off = b * CB * D * H * W * blk_size +
+                                                               cb * D * H * W * blk_size + d * H * W * blk_size +
+                                                               h * W * blk_size + w * blk_size + c;
+                                            dst_data_ptr[off] = dst_data_ptr[off] * sc + sh;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (const std::bad_any_cast&) {
+                // skip non-ScaleShift ops in ref path
+                continue;
+            }
+        }
     }
+
+    // Convert back if needed
+    if (dst_prc != ov::element::f32) {
+        cpu_convert(dst_data_ptr, dst_data, ov::element::f32, dst_prc, total_size);
+    }
+}
+
+void MVNRefExecutor::executeImpl(const MemoryArgs& memory) {
+    const auto src = memory.at(ARG_SRC_0);
+    const auto dst = memory.at(ARG_DST);
+
+    const auto* src_data = src->getDataAs<const uint8_t>();
+    auto* dst_data = dst->getDataAs<uint8_t>();
+
+    // Derive 5D shape and effective execAcrossChannels from input dims
+    const auto& dims = src->getStaticDims();
+    VectorDims local5D;
+    const size_t rank = dims.size();
+    switch (rank) {
+    case 0:
+        local5D = {1, 1, 1, 1, 1};
+        break;
+    case 1:
+        if (attrs.initAcrossChannels_) {
+            local5D = {1, 1, 1, 1, dims[0]};
+        } else {
+            local5D = {1, dims[0], 1, 1, 1};
+        }
+        break;
+    case 2:
+        if (attrs.initAcrossChannels_) {
+            local5D = {1, dims[0], 1, dims[1], 1};
+        } else {
+            local5D = {dims[0], dims[1], 1, 1, 1};
+        }
+        break;
+    case 3:
+        local5D = {dims[0], dims[1], 1, dims[2], 1};
+        break;
+    case 4:
+        local5D = {dims[0], dims[1], 1, dims[2], dims[3]};
+        break;
+    default:
+        local5D = {dims[0], dims[1], dims[2], dims[3], dims[4]};
+        break;
+    }
+
+    // Effective execAcrossChannels matches node::transformTo5DCase behavior
+    MVNAttrs effectiveAttrs = attrs;
+    if (dims.size() <= 2 && attrs.initAcrossChannels_) {
+        effectiveAttrs.execAcrossChannels_ = false;
+    }
+
+    mvn_ref_impl(effectiveAttrs, memoryArgs, src_data, dst_data, local5D);
 }
 
 }  // namespace ov::intel_cpu

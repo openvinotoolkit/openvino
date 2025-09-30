@@ -74,7 +74,10 @@ struct jit_uni_mvn_kernel {
 
 class MVNJitExecutorLegacy {
 public:
-    MVNJitExecutorLegacy(const MVNAttrs& mvnAttrs, const dnnl::primitive_attr& attr);
+    MVNJitExecutorLegacy(const MVNAttrs& mvnAttrs,
+                         const dnnl::primitive_attr& attr,
+                         ov::element::Type src_prc,
+                         ov::element::Type dst_prc);
     void exec(const uint8_t* src_data, uint8_t* dst_data, const void* post_ops_data_, const VectorDims& shape5d);
 
 private:

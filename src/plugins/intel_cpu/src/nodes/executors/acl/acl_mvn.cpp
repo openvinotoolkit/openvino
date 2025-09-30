@@ -18,6 +18,7 @@
 #include "nodes/executors/mvn_config.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
+#include "nodes/executors/debug_messages.hpp"
 
 namespace ov::intel_cpu {
 
@@ -28,9 +29,8 @@ bool ACLMVNExecutor::supports(const MVNConfig& config) {
     const auto& srcDesc = config.descs.at(ARG_SRC_0);
     const auto& dstDesc = config.descs.at(ARG_DST);
 
-    // Check supported precisions
-    auto srcPrecision = srcDesc->getPrecision();
-    auto dstPrecision = dstDesc->getPrecision();
+    const auto& srcPrecision = srcDesc->getPrecision();
+    const auto& dstPrecision = dstDesc->getPrecision();
 
     DEBUG_LOG("ACL MVN: srcPrecision=", srcPrecision.get_type_name(), " dstPrecision=", dstPrecision.get_type_name());
     DEBUG_LOG("ACL MVN: normalizeVariance=",
@@ -44,52 +44,32 @@ bool ACLMVNExecutor::supports(const MVNConfig& config) {
               " epsMode=",
               static_cast<int>(config.attrs.epsMode_));
 
-    const bool unsupported_src_precision = srcPrecision != ov::element::f32 && srcPrecision != ov::element::f16;
-    const bool unsupported_dst_precision = dstPrecision != ov::element::f32 && dstPrecision != ov::element::f16;
-
-    if (unsupported_src_precision || unsupported_dst_precision) {
-        DEBUG_LOG("ACL MVN: Unsupported precision");
-        return false;
-    }
+    VERIFY((srcPrecision == ov::element::f32 || srcPrecision == ov::element::f16) &&
+               (dstPrecision == ov::element::f32 || dstPrecision == ov::element::f16),
+           UNSUPPORTED_SRC_PRECISIONS);
 
     // Input and output precisions must match
-    if (srcPrecision != dstPrecision) {
-        DEBUG_LOG("ACL MVN: Precision mismatch");
-        return false;
-    }
+    VERIFY(srcPrecision == dstPrecision, UNSUPPORTED_DST_PRECISIONS);
 
-    if (config.attrs.epsMode_ == MVNEpsMode::OUTSIDE_SQRT) {
-        DEBUG_LOG("ACL MVN: OUTSIDE_SQRT not supported");
-        return false;
-    }
-    if (!config.attrs.normalizeVariance_) {
-        DEBUG_LOG("ACL MVN: normalize_variance=false not supported");
-        return false;
-    }
+    // ACL supports only INSIDE_SQRT with normalizeVariance=true
+    VERIFY(config.attrs.epsMode_ != MVNEpsMode::OUTSIDE_SQRT, UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(config.attrs.normalizeVariance_, UNSUPPORTED_BY_EXECUTOR);
 
     // Check layout compatibility
     const bool ncsp_mismatch = srcDesc->hasLayoutType(LayoutType::ncsp) && !dstDesc->hasLayoutType(LayoutType::ncsp);
     const bool nspc_mismatch = srcDesc->hasLayoutType(LayoutType::nspc) && !dstDesc->hasLayoutType(LayoutType::nspc);
-
-    if (ncsp_mismatch || nspc_mismatch) {
-        DEBUG_LOG("ACL MVN: Layout mismatch");
-        return false;
-    }
+    VERIFY(!(ncsp_mismatch || nspc_mismatch), MEMORY_FORMAT_MISMATCH);
 
     // Original conditions from master: NHWC with initAcrossChannels=false is not supported
-    if (!config.attrs.initAcrossChannels_ && srcDesc->hasLayoutType(LayoutType::nspc)) {
-        DEBUG_LOG("ACL MVN: NHWC with initAcrossChannels=false not supported");
-        return false;
-    }
+    VERIFY(config.attrs.initAcrossChannels_ || !srcDesc->hasLayoutType(LayoutType::nspc), UNSUPPORTED_BY_EXECUTOR);
 
-    DEBUG_LOG("ACL MVN: supports() returning true");
     return true;
 }
 
 void ACLMVNExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
     DEBUG_LOG("ACL MVN updateTensorsShapes called");
 
-    // Get original shape from ACL tensor
+    // Get the original shape from ACL tensor
     const auto& srcShape = aclMemoryShapes[ACLArgs::ACL_SRC_0];
 
     // Convert ACL shape to VectorDims for easier manipulation
@@ -98,7 +78,7 @@ void ACLMVNExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
         srcDims.push_back(srcShape[srcShape.num_dimensions() - 1 - i]);
     }
 
-    // Original logic from master branch
+    // Original logic from the master branch
     size_t X = 0, Y = 0;
     if (aclMVNAtrrs.initAcrossChannels_) {
         if (srcDims.size() >= 2U) {
