@@ -22,7 +22,7 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
 * ``GEMM2_BIAS_SWIGLU_CLAMP``:
 
 .. code-block:: py
-	:force:
+    :force:
 
     # Common part: Reshape hidden states and prepare for expert computation
     reshaped_hidden_states = reshape(hidden_states, [-1, 0], special_zero=True)
@@ -53,7 +53,7 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
 * ``GEMM3_SWIGLU``:
 
 .. code-block:: py
-	:force:
+    :force:
 
     # Common part: Reshape hidden states and prepare for expert computation
     reshaped_hidden_states = reshape(hidden_states, [-1, 0], special_zero=True)
