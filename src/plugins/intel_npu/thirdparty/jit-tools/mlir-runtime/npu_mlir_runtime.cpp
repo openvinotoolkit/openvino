@@ -50,7 +50,9 @@ public:
 
     void parseMetadata();
 
-    void getArgumentProperties(uint32_t argIndex, ze_graph_argument_properties_3_t* pGraphArgumentProperties);
+    void getArgumentProperties(uint32_t argIndex,
+                               ze_graph_argument_properties_3_t* pGraphArgumentProperties,
+                               ze_graph_argument_metadata_t* pGraphArgumentMetadata);
 
     void execute(npu_mlir_runtime_execute_params_t* pParams);
 
@@ -176,21 +178,49 @@ NPUMLIRRuntime::~NPUMLIRRuntime() {
 }
 
 void NPUMLIRRuntime::getArgumentProperties(uint32_t argIndex,
-                                           ze_graph_argument_properties_3_t* pGraphArgumentProperties) {
+                                           ze_graph_argument_properties_3_t* pGraphArgumentProperties,
+                                           ze_graph_argument_metadata_t* pGraphArgumentMetadata) {
     _logger.debug("Getting argument properties for index %d", argIndex);
     if (argIndex >= _numOfArgs) {
         OPENVINO_THROW("Invalid argument index");
     }
 
     const ArgumentDescriptor* argDesc = nullptr;
+    IODescriptor desc;
     if (argIndex < _inputs.size()) {
         argDesc = &_inputs[argIndex];
+        desc = _metadata.inputs[argIndex];
     } else {
         argDesc = &_outputs[argIndex - _inputs.size()];
+        desc = _metadata.outputs[argIndex - _inputs.size()];
     }
 
     // Define new struct to hold metadata
     *pGraphArgumentProperties = argDesc->info;
+
+    // Fill in metadata struct
+    pGraphArgumentMetadata->stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_METADATA;
+    pGraphArgumentMetadata->pNext = nullptr;
+    pGraphArgumentMetadata->type = argDesc->info.type;
+    std::strncpy(pGraphArgumentMetadata->friendly_name, argDesc->info.name, ZE_MAX_GRAPH_ARGUMENT_NAME);
+    pGraphArgumentMetadata->data_type = ZE_GRAPH_METADATA_TYPE_UNDEFINED;
+
+    if (desc.shapeFromIRModel.has_value()) {
+        // Only care about shape, this is shapeFromIRModel
+        for (int i = 0; i < desc.shapeFromIRModel->size() && i < ZE_MAX_GRAPH_TENSOR_REF_DIMS; ++i) {
+            auto val = desc.shapeFromIRModel.value()[i];
+            pGraphArgumentMetadata->shape[i] =
+                val.is_dynamic() ? std::numeric_limits<uint64_t>::max() : val.get_length();
+        }
+    } else {
+        // Use shapeFromCompiler
+        std::copy(std::begin(desc.shapeFromCompiler.get_shape()),
+                  std::end(desc.shapeFromCompiler.get_shape()),
+                  std::begin(pGraphArgumentMetadata->shape));
+    }
+    pGraphArgumentMetadata->shape_size = argDesc->info.dims_count;
+    pGraphArgumentMetadata->tensor_names_count = 0;  // Not used
+    std::strncpy(pGraphArgumentMetadata->input_name, argDesc->info.name, ZE_MAX_GRAPH_ARGUMENT_NAME);
 }
 
 void NPUMLIRRuntime::execute(npu_mlir_runtime_execute_params_t* pParams) {
@@ -277,14 +307,15 @@ DLLEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeDestr
 DLLEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
 npuMLIRRuntimeGetMetadata(npu_mlir_runtime_handle_t hRuntime,
                           uint32_t argIndex,
-                          ze_graph_argument_properties_3_t* pGraphArgumentProperties) {
-    if (hRuntime == nullptr || pGraphArgumentProperties == nullptr) {
+                          ze_graph_argument_properties_3_t* pGraphArgumentProperties,
+                          ze_graph_argument_metadata_t* pGraphArgumentMetadata) {
+    if (hRuntime == nullptr || pGraphArgumentProperties == nullptr || pGraphArgumentMetadata == nullptr) {
         return NPU_MLIR_RUNTIME_RESULT_ERROR_INVALID_NULL_POINTER;
     }
 
     try {
         NPUMLIRRuntime* runtime = reinterpret_cast<NPUMLIRRuntime*>(hRuntime);
-        runtime->getArgumentProperties(argIndex, pGraphArgumentProperties);
+        runtime->getArgumentProperties(argIndex, pGraphArgumentProperties, pGraphArgumentMetadata);
     } catch (const std::exception& e) {
         printf("Error getting argument properties: %s", e.what());
         return NPU_MLIR_RUNTIME_RESULT_ERROR_UNKNOWN;
