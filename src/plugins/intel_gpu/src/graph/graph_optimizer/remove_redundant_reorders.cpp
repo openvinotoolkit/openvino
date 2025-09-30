@@ -463,12 +463,13 @@ void remove_redundant_reorders::run(program& p) {
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
-            // Opt out Reorder of converting data-type at the result layer which is not set by truncate mode.
+            // Optimize out Reorder of converting data-type at the result layer which is not set by truncate mode.
+            // some opt-kernels do not support mixed data-type, 'EnableDifferentTypes'.
             bool is_opt_out_result =
-                (input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<broadcast>() ||
-                input.is_type<fully_connected>() || input.is_type<select>() || input.is_type<eltwise>() || input.is_type<rms>()) &&
-                node.is_type_conversion_only(true) && node.is_output() && !output_layout.data_padding &&
-                !node.get_primitive()->truncate && output_layout.data_type == data_types::f32 && !node.get_program().is_body_program();
+                (input.is_type<mvn>() || input.is_type<broadcast>() || input.is_type<fully_connected>() ||
+                input.is_type<select>() || input.is_type<rms>()) &&
+                node.is_type_conversion_only(true) && format::is_simple_data_format(output_layout.format) && node.is_output() &&
+                !node.get_primitive()->truncate && output_layout.data_type == data_types::f32 && !output_layout.data_padding;
 
             if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format) &&
                 !is_opt_out_result)
