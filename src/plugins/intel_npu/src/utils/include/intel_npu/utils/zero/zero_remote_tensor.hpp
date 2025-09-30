@@ -11,6 +11,7 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_memory.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
@@ -70,7 +71,7 @@ public:
     void* get_original_memory() const;
     ze_context_handle_t get_zero_context_handle() const;
 
-    ~ZeroRemoteTensor() override;
+    ~ZeroRemoteTensor() override = default;
 
 private:
     void allocate(const size_t bytes);
@@ -78,7 +79,7 @@ private:
     bool is_allocated() const noexcept;
     void update_strides();
     void update_properties();
-    void copy_file_data_to_level_zero_memory();
+    void copy_file_data_to_level_zero_memory(const size_t size_to_read);
 
     std::shared_ptr<ov::IRemoteContext> _context;
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
@@ -97,10 +98,8 @@ private:
     const void* _mem = nullptr;
     void* _data = nullptr;
 
-    bool _external_memory_support = false;
-    bool _mmaped_file_support = false;
-
     ov::Tensor _mmap_tensor;
+    std::shared_ptr<ZeroMem> _host_memory;
 };
 
 inline bool is_remote_tensor(const std::shared_ptr<ov::ITensor>& tensor) {

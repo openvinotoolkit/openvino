@@ -9,31 +9,12 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_memory.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
-
-struct ZeHostMem final {
-public:
-    ZeHostMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-              const Config& config,
-              const size_t bytes,
-              const size_t alignment,
-              const uint32_t zero_memory_flag = 0,
-              void* data = nullptr);
-
-    ~ZeHostMem();
-
-    void* _ptr = nullptr;
-    size_t _size = 0;
-
-private:
-    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
-
-    Logger _logger;
-};
 
 /**
  * @brief ZeroTensor API holding NPU device memory
@@ -96,7 +77,6 @@ private:
     size_t get_bytes_capacity() const;
 
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
-    const Config& _config;
     Logger _logger;
 
     ov::element::Type _element_type;
@@ -112,36 +92,7 @@ private:
     ov::SoPtr<ov::ITensor> _user_tensor;
     ov::SoPtr<ov::ITensor> _imported_tensor;
 
-    std::shared_ptr<ZeHostMem> _host_memory;
-};
-
-class ZeroMemoryPool final {
-public:
-    ZeroMemoryPool();
-    ZeroMemoryPool(const ZeroMemoryPool& other) = delete;
-    ZeroMemoryPool(ZeroMemoryPool&& other) = delete;
-    void operator=(const ZeroMemoryPool&) = delete;
-    void operator=(ZeroMemoryPool&&) = delete;
-
-    static ZeroMemoryPool& get_instance();
-
-    std::shared_ptr<ZeHostMem> allocate_and_get_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                                                            const Config& config,
-                                                            const size_t bytes,
-                                                            const size_t alignment,
-                                                            const uint32_t zero_memory_flag = 0,
-                                                            void* data = nullptr);
-
-    std::shared_ptr<ZeHostMem> get_zero_memory(const uint64_t id);
-
-private:
-    std::unordered_map<uint64_t, std::weak_ptr<ZeHostMem>> _pool;
-    std::mutex _mutex;
-};
-
-class ZeroTensorException final : public std::runtime_error {
-public:
-    explicit ZeroTensorException(const std::string& msg) : std::runtime_error(msg) {}
+    std::shared_ptr<ZeroMem> _host_memory;
 };
 
 }  // namespace intel_npu

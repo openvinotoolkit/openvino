@@ -529,6 +529,43 @@ TEST_P(ZeroTensorTests, UseBiggerMemoryFromAlreadyImportedStandardAllocation) {
     ::operator delete(data, std::align_val_t(4096));
 }
 
+TEST_P(ZeroTensorTests, CopySmallerHostTensorFromBiggerOne) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();
+    auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+    auto shape = Shape{1, 64, 64, 64};
+
+    auto host_tensor =
+        std::make_shared<::intel_npu::ZeroHostTensor>(zero_context, init_struct, ov::element::f32, shape);
+    void* data = host_tensor->data();
+
+    auto smaller_shape0 = Shape{1, 32, 32, 32};
+    auto smaller_tensor0 = make_tensor(ov::element::f32, smaller_shape0, host_tensor->data());
+    auto zero_tensor0 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, smaller_tensor0, npu_config);
+    EXPECT_EQ(smaller_shape0, zero_tensor0->get_shape());
+    EXPECT_EQ(host_tensor->data(), smaller_tensor0->data());
+
+    auto smaller_shape1 = Shape{1, 16, 16, 16};
+    auto smaller_tensor1 = make_tensor(ov::element::f32, smaller_shape1, smaller_tensor0->data());
+    auto zero_tensor1 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, smaller_tensor1, npu_config);
+    EXPECT_EQ(smaller_shape1, zero_tensor1->get_shape());
+    EXPECT_EQ(host_tensor->data(), smaller_tensor1->data());
+
+    host_tensor = {};
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), zero_tensor0->data()));
+
+    zero_tensor0 = {};
+    smaller_tensor0 = {};
+    ASSERT_TRUE(
+        ::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), zero_tensor1->data()));
+
+    smaller_tensor1 = {};
+    zero_tensor1 = {};
+    ASSERT_FALSE(::intel_npu::zeroUtils::get_l0_context_memory_allocation_id(init_struct->getContext(), data));
+}
+
 using ZeroTensorTestsCheckDataType = ZeroTensorTests;
 
 TEST_P(ZeroTensorTestsCheckDataType, CopyZeroTensorAndCheckTensorDataType) {

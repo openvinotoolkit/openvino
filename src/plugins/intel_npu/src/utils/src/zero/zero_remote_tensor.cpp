@@ -54,25 +54,6 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
     const auto byte_size = ov::util::get_memory_size_safe(element_type, shape);
     OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", shape);
 
-    ze_device_external_memory_properties_t desc = {};
-    desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
-    auto res = zeDeviceGetExternalMemoryProperties(_init_structs->getDevice(), &desc);
-    if (res == ZE_RESULT_SUCCESS) {
-#ifdef _WIN32
-        if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32) {
-            _external_memory_support = true;
-        }
-#else
-        if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF) {
-            _external_memory_support = true;
-        }
-#endif
-
-        if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
-            _mmaped_file_support = true;
-        }
-    }
-
     allocate(*byte_size);
 }
 
@@ -132,41 +113,7 @@ std::shared_ptr<ov::IRemoteContext> ZeroRemoteTensor::get_context() const {
     return _context;
 }
 
-ZeroRemoteTensor::~ZeroRemoteTensor() {
-    auto res = deallocate();
-    if (!res) {
-        _logger.error("ZeroRemoteTensor failed to free the memory");
-    }
-}
-
-bool ZeroRemoteTensor::deallocate() noexcept {
-    switch (_mem_type) {
-    case MemType::L0_INTERNAL_BUF:
-    case MemType::SHARED_BUF:
-    case MemType::MMAPED_FILE: {
-        if (_data) {
-            auto result = zeMemFree(_init_structs->getContext(), _data);
-            if (ZE_RESULT_SUCCESS != result) {
-                if (ZE_RESULT_ERROR_UNINITIALIZED == result) {
-                    _logger.warning("ZeroRemoteTensor failed to free memory; Level zero context was already destroyed "
-                                    "and memory was already released by the driver.");
-                } else {
-                    _logger.error("zeMemFree failed %#X", uint64_t(result));
-                    return false;
-                }
-            }
-
-            _data = nullptr;
-        }
-
-        return true;
-    }
-    default:
-        return false;
-    }
-}
-
-void ZeroRemoteTensor::copy_file_data_to_level_zero_memory() {
+void ZeroRemoteTensor::copy_file_data_to_level_zero_memory(const size_t size_to_read) {
     if (!_file_descriptor.has_value()) {
         OPENVINO_THROW("No parameter ", file_descriptor.name(), " found in parameters map");
     }
@@ -179,6 +126,13 @@ void ZeroRemoteTensor::copy_file_data_to_level_zero_memory() {
         _file_descriptor.value()._file_path,
         ", because the value exceeds std::streamsize limit");
 
+    OPENVINO_ASSERT(size_to_read <= static_cast<size_t>(std::numeric_limits<std::streamsize>::max()),
+                    "Cannot set offset ",
+                    size_to_read,
+                    " from ",
+                    size_to_read,
+                    ", because the value exceeds std::streamsize limit");
+
     std::streamoff offset = static_cast<std::streamoff>(_file_descriptor.value()._offset_in_bytes);
 
     std::ifstream fin(_file_descriptor.value()._file_path, std::ios::binary);
@@ -190,20 +144,19 @@ void ZeroRemoteTensor::copy_file_data_to_level_zero_memory() {
         OPENVINO_THROW("Offset is beyond the end of the file.");
     }
 
-    std::streamoff size_to_read = file_size - offset;
     fin.seekg(offset, std::ios::beg);
 
-    size_t aligned_size = utils::align_size_to_standard_page_size(size_to_read);
+    _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
+                                                                               size_to_read,
+                                                                               utils::STANDARD_PAGE_SIZE,
+                                                                               to_alloc_flag(_tensor_type));
+    _data = _host_memory->_ptr;
 
-    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, to_alloc_flag(_tensor_type)};
-    THROW_ON_FAIL_FOR_LEVELZERO(
-        "zeMemAllocHost",
-        zeMemAllocHost(_init_structs->getContext(), &desc, aligned_size, utils::STANDARD_PAGE_SIZE, &_data));
-
-    fin.read(static_cast<char*>(_data), size_to_read);
-    OPENVINO_ASSERT(fin.gcount() == size_to_read,
+    std::streamoff bytes_to_read = static_cast<std::streamoff>(size_to_read);
+    fin.read(static_cast<char*>(_data), bytes_to_read);
+    OPENVINO_ASSERT(fin.gcount() == bytes_to_read,
                     "Cannot read ",
-                    size_to_read,
+                    bytes_to_read,
                     " bytes from ",
                     _file_descriptor.value()._file_path);
 }
@@ -211,48 +164,31 @@ void ZeroRemoteTensor::copy_file_data_to_level_zero_memory() {
 void ZeroRemoteTensor::allocate(const size_t bytes) {
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF: {
-        size_t size = utils::align_size_to_standard_page_size(bytes);
-
-        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, to_alloc_flag(_tensor_type)};
-        THROW_ON_FAIL_FOR_LEVELZERO(
-            "zeMemAllocHost",
-            zeMemAllocHost(_init_structs->getContext(), &desc, size, utils::STANDARD_PAGE_SIZE, &_data));
+        _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
+                                                                                   bytes,
+                                                                                   utils::STANDARD_PAGE_SIZE,
+                                                                                   to_alloc_flag(_tensor_type));
+        _data = _host_memory->_ptr;
         break;
     }
     case MemType::SHARED_BUF: {
-        if (!_external_memory_support) {
+        if (!_init_structs->isExternalMemoryFdWin32Supported()) {
             OPENVINO_THROW("Remote tensor functionality is not supported with this driver version");
         }
 
+        if (_mem == nullptr) {
+            OPENVINO_THROW("Parameter ", mem_handle.name(), " is required for MemType::SHARED_BUF");
+        }
+
         // set up the request to import the external memory handle
-#ifdef _WIN32
-        // in the case of the Windows platform memory is locked by the D3D12 memory management - using zeMemAllocDevice
-        // to import memory
-        ze_external_memory_import_win32_handle_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_WIN32,
-                                                                  nullptr,
-                                                                  ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32,
-                                                                  const_cast<void*>(_mem),
-                                                                  nullptr};
-        ze_device_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, 0, 0};
-        THROW_ON_FAIL_FOR_LEVELZERO("zeMemAllocDevice",
-                                    zeMemAllocDevice(_init_structs->getContext(),
-                                                     &desc,
-                                                     bytes,
-                                                     utils::STANDARD_PAGE_SIZE,
-                                                     _init_structs->getDevice(),
-                                                     &_data));
-#else
-        // in the case of Linux platforms memory could be changed after allocation - using zeMemAllocHost for importing
-        // memory
-        ze_external_memory_import_fd_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_FD,
-                                                        nullptr,
-                                                        ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF,
-                                                        static_cast<int>(reinterpret_cast<intptr_t>(_mem))};
-        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, &memory_import, 0};
-        THROW_ON_FAIL_FOR_LEVELZERO(
-            "zeMemAllocHost",
-            zeMemAllocHost(_init_structs->getContext(), &desc, bytes, utils::STANDARD_PAGE_SIZE, &_data));
-#endif
+        _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
+                                                                                   bytes,
+                                                                                   utils::STANDARD_PAGE_SIZE,
+                                                                                   to_alloc_flag(_tensor_type),
+                                                                                   _mem,
+                                                                                   true);
+
+        _data = _host_memory->_ptr;
         break;
     }
     case MemType::MMAPED_FILE: {
@@ -261,10 +197,10 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             OPENVINO_THROW("No parameter ", file_descriptor.name(), " found in parameters map");
         }
 
-        if (!_mmaped_file_support) {
+        if (!_init_structs->isExternalMemoryStandardAllocationSupported()) {
             _logger.info("Importing mmaped memory isn't supported for this configuration. File data will be copied to "
                          "the level zero memory");
-            copy_file_data_to_level_zero_memory();
+            copy_file_data_to_level_zero_memory(bytes);
             break;
         }
 
@@ -272,39 +208,33 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             _logger.info("Importing mmaped memory isn't supported for output tensors. File data will be copied to the "
                          "level zero memory");
 
-            copy_file_data_to_level_zero_memory();
+            copy_file_data_to_level_zero_memory(bytes);
             break;
         } else if (_tensor_type == TensorType::BINDED) {
             _logger.warning("Importing memory from a memory-mapped file is supported only for input tensors");
             _tensor_type = TensorType::INPUT;
         }
 
-        // memory map the file
         _mmap_tensor = ov::read_tensor_data(_file_descriptor.value()._file_path,
-                                            ov::element::u8,
-                                            ov::PartialShape::dynamic(1),
+                                            _element_type,
+                                            _shape,
                                             _file_descriptor.value()._offset_in_bytes,
                                             true);
 
-        size_t aligned_size = utils::align_size_to_standard_page_size(_mmap_tensor.get_byte_size());
-
-        _ze_external_memory_import_system_memory_t memory_import = {
-            ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
-            nullptr,
-            _mmap_tensor.data(),
-            aligned_size};
-
-        uint32_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
-        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, &memory_import, flag};
-
-        auto result =
-            zeMemAllocHost(_init_structs->getContext(), &desc, aligned_size, utils::STANDARD_PAGE_SIZE, &_data);
-
-        if (result != ZE_RESULT_SUCCESS) {
+        try {
+            size_t aligned_size = utils::align_size_to_standard_page_size(bytes);
+            _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
+                                                                                       aligned_size,
+                                                                                       utils::STANDARD_PAGE_SIZE,
+                                                                                       to_alloc_flag(_tensor_type),
+                                                                                       _mmap_tensor.data());
+        } catch (const ZeroTensorException&) {
             _logger.info("Failed to import mmaped memory. File data will be copied to the level zero memory");
             _mmap_tensor = {};  // destroy memory if it couldn't be imported
-            copy_file_data_to_level_zero_memory();
+            copy_file_data_to_level_zero_memory(bytes);
         }
+
+        _data = _host_memory->_ptr;
         break;
     }
     default:
