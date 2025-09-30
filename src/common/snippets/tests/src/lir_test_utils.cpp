@@ -105,7 +105,7 @@ InnerSplittedUnifiedLoopInfoPtr make_inner_split_loop_info(size_t work_amount,
                                                            const std::vector<LoopPort>& entries,
                                                            const std::vector<LoopPort>& exits,
                                                            const UnifiedLoopInfoPtr& outer_split_loop_info,
-                                                           std::optional<IOLoopPortDescs> io_descs) {
+                                                           const std::optional<IOLoopPortDescs>& io_descs) {
     outer_split_loop_info
         ->register_pass_to_handler<SpecificLoopIterType::MAIN_BODY, SplitLoops::TransformInnerSplitLoop>();
     outer_split_loop_info

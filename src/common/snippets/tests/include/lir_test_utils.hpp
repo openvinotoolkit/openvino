@@ -88,7 +88,7 @@ ov::snippets::lowered::InnerSplittedUnifiedLoopInfoPtr make_inner_split_loop_inf
     const std::vector<ov::snippets::lowered::LoopPort>& entries,
     const std::vector<ov::snippets::lowered::LoopPort>& exits,
     const ov::snippets::lowered::UnifiedLoopInfoPtr& outer_split_loop_info,
-    std::optional<IOLoopPortDescs> io_descs = std::nullopt);
+    const std::optional<IOLoopPortDescs>& io_descs = std::nullopt);
 
 }  // namespace snippets
 }  // namespace test
