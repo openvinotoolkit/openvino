@@ -125,12 +125,12 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
 
             _logger.debug("ZeroTensor::ZeroTensor - import memory from a system memory pointer");
 
-            _host_memory = ZeroMemoryPool::get_instance().import_standard_allocation_and_get_zero_memory(
-                _init_structs,
-                _config,
-                _user_tensor->data(),
-                _user_tensor->get_byte_size(),
-                utils::STANDARD_PAGE_SIZE);
+            _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
+                                                                                       _config,
+                                                                                       _user_tensor->get_byte_size(),
+                                                                                       utils::STANDARD_PAGE_SIZE,
+                                                                                       /*zero_memory_flag = */ 0,
+                                                                                       _user_tensor->data());
 
             _ptr = _host_memory->_ptr;
         } else {
@@ -278,42 +278,37 @@ ZeHostMem::ZeHostMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                      const Config& config,
                      const size_t bytes,
                      const size_t alignment,
-                     uint32_t zero_memory_flag)
-    : _size(bytes + alignment - (bytes % alignment)),
-      _init_structs(init_structs),
+                     const uint32_t zero_memory_flag,
+                     void* data)
+    : _init_structs(init_structs),
       _logger("ZeHostMem", config.get<LOG_LEVEL>()) {
-    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, zero_memory_flag};
-    auto result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, alignment, &_ptr);
-
-    if (result != ZE_RESULT_SUCCESS) {
-        OPENVINO_THROW("L0 zeMemAllocHost result: ", ze_result_to_string(result), ", code ", uint64_t(result));
+    ze_result_t result;
+    if (data == nullptr) {
+        _size = bytes + alignment - (bytes % alignment);
+        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, zero_memory_flag};
+        result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, alignment, &_ptr);
+    } else {
+        _size = bytes;
+        _ze_external_memory_import_system_memory_t memory_import = {
+            ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
+            nullptr,
+            data,
+            _size};
+        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, zero_memory_flag};
+        result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, alignment, &_ptr);
     }
-}
-
-ZeHostMem::ZeHostMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                     const Config& config,
-                     void* data,
-                     const size_t bytes,
-                     const size_t alignment,
-                     const uint32_t zero_memory_flag)
-    : _size(bytes),
-      _init_structs(init_structs),
-      _logger("ZeHostMem", config.get<LOG_LEVEL>()) {
-    _ze_external_memory_import_system_memory_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
-                                                                nullptr,
-                                                                data,
-                                                                _size};
-
-    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, zero_memory_flag};
-    auto result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, alignment, &_ptr);
 
     if (result != ZE_RESULT_SUCCESS) {
-        _logger.info("Importing memory through zeMemAllocHost failed, result: %s, code %#X - %s",
-                     ze_result_to_string(result).c_str(),
-                     uint64_t(result),
-                     ze_result_to_description(result).c_str());
+        if (data == nullptr) {
+            OPENVINO_THROW("L0 zeMemAllocHost result: ", ze_result_to_string(result), ", code ", uint64_t(result));
+        } else {
+            _logger.info("Importing memory through zeMemAllocHost failed, result: %s, code %#X - %s",
+                         ze_result_to_string(result).c_str(),
+                         uint64_t(result),
+                         ze_result_to_description(result).c_str());
 
-        throw ZeroTensorException("Importing memory failed");
+            throw ZeroTensorException("Importing memory failed");
+        }
     }
 }
 
@@ -339,27 +334,23 @@ std::shared_ptr<ZeHostMem> ZeroMemoryPool::allocate_and_get_zero_memory(
     const Config& config,
     const size_t bytes,
     const size_t alignment,
-    const uint32_t zero_memory_flag) {
-    auto zero_memory = std::make_shared<ZeHostMem>(init_structs, config, bytes, alignment, zero_memory_flag);
-    auto memory_id = zeroUtils::get_l0_context_memory_allocation_id(init_structs->getContext(), zero_memory->_ptr);
-    OPENVINO_ASSERT(memory_id != 0, "Failed to get memory allocation id");
+    const uint32_t zero_memory_flag,
+    void* data) {
+    auto zero_memory = std::shared_ptr<ZeHostMem>(
+        new ZeHostMem(init_structs, config, bytes, alignment, zero_memory_flag, data),
+        [this, zero_context = init_structs->getContext()](ZeHostMem* ptr) {
+            auto memory_id = zeroUtils::get_l0_context_memory_allocation_id(zero_context, ptr->_ptr);
 
-    auto pair = std::make_pair(memory_id, zero_memory);
+            std::lock_guard<std::mutex> lock(_mutex);
+            if (_pool.at(memory_id).lock()) {
+                // Don't destroy the command queue in case the shared ptr is in use!
+                return;
+            }
+            _pool.erase(memory_id);
+            // Destroy Command Queue
+            delete ptr;
+        });
 
-    std::lock_guard<std::mutex> lock(_mutex);
-    _pool.emplace(pair);
-
-    return zero_memory;
-}
-
-std::shared_ptr<ZeHostMem> ZeroMemoryPool::import_standard_allocation_and_get_zero_memory(
-    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-    const Config& config,
-    void* data,
-    const size_t bytes,
-    const size_t alignment,
-    const uint32_t zero_memory_flag) {
-    auto zero_memory = std::make_shared<ZeHostMem>(init_structs, config, data, bytes, alignment, zero_memory_flag);
     auto memory_id = zeroUtils::get_l0_context_memory_allocation_id(init_structs->getContext(), zero_memory->_ptr);
     OPENVINO_ASSERT(memory_id != 0, "Failed to get memory allocation id");
 
