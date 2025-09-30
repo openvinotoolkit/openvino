@@ -330,14 +330,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
         static const std::set<ov::element::Type_t> supported_precisions = {
-            ov::element::Type_t::u4,     ov::element::Type_t::i4,      ov::element::Type_t::u8,
-            ov::element::Type_t::i8,     ov::element::Type_t::f8e4m3,  ov::element::Type_t::f8e5m2,
-            ov::element::Type_t::u16,    ov::element::Type_t::i16,     ov::element::Type_t::u32,
-            ov::element::Type_t::i32,    ov::element::Type_t::u64,     ov::element::Type_t::i64,
-            ov::element::Type_t::bf16,   ov::element::Type_t::f16,     ov::element::Type_t::f32,
-            ov::element::Type_t::f64,    ov::element::Type_t::boolean, ov::element::Type_t::string,
-            ov::element::Type_t::nf4,    ov::element::Type_t::f4e2m1,  ov::element::Type_t::f8e8m0,
-            ov::element::Type_t::dynamic};
+            ov::element::Type_t::u4,   ov::element::Type_t::i4,      ov::element::Type_t::u8,
+            ov::element::Type_t::i8,   ov::element::Type_t::f8e4m3,  ov::element::Type_t::f8e5m2,
+            ov::element::Type_t::u16,  ov::element::Type_t::i16,     ov::element::Type_t::u32,
+            ov::element::Type_t::i32,  ov::element::Type_t::u64,     ov::element::Type_t::i64,
+            ov::element::Type_t::bf16, ov::element::Type_t::f16,     ov::element::Type_t::f32,
+            ov::element::Type_t::f64,  ov::element::Type_t::boolean, ov::element::Type_t::string,
+            ov::element::Type_t::nf4,  ov::element::Type_t::f4e2m1,  ov::element::Type_t::f8e8m0,
+            ov::element::Type_t::u2,   ov::element::Type_t::dynamic};
 
         if (supported_precisions.find(input_precision) == supported_precisions.end()) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
