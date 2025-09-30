@@ -206,7 +206,6 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
     blobStream.seekg(0, std::ios::end);
     size = static_cast<size_t>(blobStream.tellg()) - size;
     blobStream.seekg(0, std::ios::beg);
-    size = calculate_alignment_with_padding(size, utils::STANDARD_PAGE_SIZE);
 
     uint8_t* blob = static_cast<uint8_t*>(::operator new(size, std::align_val_t(utils::STANDARD_PAGE_SIZE)));
     blobStream.read(reinterpret_cast<char*>(blob), size);
@@ -231,7 +230,6 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryZeMemAllocBlob) 
     blobStream.seekg(0, std::ios::end);
     size = static_cast<size_t>(blobStream.tellg()) - size;
     blobStream.seekg(0, std::ios::beg);
-    size = calculate_alignment_with_padding(size, utils::STANDARD_PAGE_SIZE);
 
     void* blob = nullptr;
     OV_ASSERT_NO_THROW(blob = allocate_zero_memory(zeroInitStruct, size, utils::STANDARD_PAGE_SIZE))
