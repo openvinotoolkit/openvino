@@ -997,7 +997,6 @@ def test_patched_8bit_model_converts():
 
 
 
-@pytest.mark.skip(reason="u2 support in CPU plugin is required.")
 def test_patched_bitnet_model_converts():
     from openvino import convert_model, compile_model
     from transformers.integrations.bitnet import AutoBitLinear, pack_weights
