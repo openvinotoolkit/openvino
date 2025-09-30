@@ -21,14 +21,8 @@ public:
               const Config& config,
               const size_t bytes,
               const size_t alignment,
-              const uint32_t zero_memory_flag);
-
-    ZeHostMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-              const Config& config,
-              void* data,
-              const size_t bytes,
-              const size_t alignment,
-              const uint32_t zero_memory_flag = 0);
+              const uint32_t zero_memory_flag = 0,
+              void* data = nullptr);
 
     ~ZeHostMem();
 
@@ -135,15 +129,8 @@ public:
                                                             const Config& config,
                                                             const size_t bytes,
                                                             const size_t alignment,
-                                                            uint32_t zero_memory_flag);
-
-    std::shared_ptr<ZeHostMem> import_standard_allocation_and_get_zero_memory(
-        const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-        const Config& config,
-        void* data,
-        const size_t bytes,
-        const size_t alignment,
-        const uint32_t zero_memory_flag = 0);
+                                                            const uint32_t zero_memory_flag = 0,
+                                                            void* data = nullptr);
 
     std::shared_ptr<ZeHostMem> get_zero_memory(const uint64_t id);
 
