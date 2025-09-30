@@ -58,6 +58,26 @@ public:
         }
     }
 
+    void update_xattn_rt_params(const primitive_inst& instance) {
+        const auto& params = *instance.get_impl_params();
+
+        auto out_shape = params.output_layouts[0].get_shape();
+        const size_t block_size = get_xattn_block_size(params);
+        const size_t kv_len = get_max_context_len(params) / STRIDE * STRIDE;
+        const size_t q_len = out_shape[0];
+        const uint32_t N = kv_len / STRIDE;
+        const size_t N_kq_groups = ceil_div(N, BLOCK_WG_N);
+
+        const auto q_block_pad = ceil_div(q_len, block_size);
+        const auto sum_per_token_in_block = block_size / STRIDE;
+        const auto k_block_in_group = BLOCK_WG_N / sum_per_token_in_block;
+        const auto k_block_pad = k_block_in_group * N_kq_groups;
+
+        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        rt_params->xattn_q_block_pad = q_block_pad;
+        rt_params->xattn_k_block_pad = k_block_pad;
+    }
+
     void update_rt_params(const primitive_inst& instance) override {
         update_stages_flags(instance);
         if (m_rt_params == nullptr) {
@@ -73,6 +93,10 @@ public:
         rt_params->partition_size = get_partition_size();
         rt_params->num_of_partitions = ceil_div(max_context_len, rt_params->partition_size);
         rt_params->stage = get_paged_attention_stage(params);
+        const size_t block_size = get_xattn_block_size(params);
+        if (block_size > 1) {
+            update_xattn_rt_params(instance);
+        }
 
         GPU_DEBUG_TRACE_DETAIL << "  max_context_len: " << rt_params->max_context_len << "  partition_size: " << rt_params->partition_size
                                << "  num_of_partitions: " << rt_params->num_of_partitions << ", stage: " << static_cast<size_t>(rt_params->stage) << std::endl;
