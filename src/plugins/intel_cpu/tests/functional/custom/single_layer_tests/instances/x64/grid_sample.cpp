@@ -66,7 +66,7 @@ INSTANTIATE_TEST_SUITE_P(x64_nightly_2,
                                             ::testing::ValuesIn({ElementType::f32, ElementType::i32}),
                                             ::testing::ValuesIn({ElementType::bf16}),
                                             ::testing::ValuesIn(getCPUInfoX64()),
-                                            ::testing::Values(additionalConfigX64[0])),
+                                            ::testing::Values(additionalConfigX64[1])),
                          GridSampleLayerTestCPU::getTestCaseName);
 
 }  // namespace ov::test

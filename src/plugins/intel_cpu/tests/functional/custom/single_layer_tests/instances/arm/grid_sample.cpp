@@ -58,7 +58,7 @@ INSTANTIATE_TEST_SUITE_P(ARM_nightly_2,
                                             ::testing::ValuesIn({ElementType::f32, ElementType::i32}),
                                             ::testing::ValuesIn({ElementType::f16}),
                                             ::testing::ValuesIn(getCPUInfoARM()),
-                                            ::testing::Values(additionalConfigARM[0])),
+                                            ::testing::Values(additionalConfigARM[1])),
                          GridSampleLayerTestCPU::getTestCaseName);
 
 }  // namespace ov::test
