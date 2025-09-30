@@ -93,7 +93,6 @@
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
-#include "plugin/transformations/disable_fp16_comp_for_periodic_funcs.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -195,6 +194,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
 
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
@@ -444,9 +444,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
 
-        if (infer_precision == ov::element::f16) {
-            manager.register_pass<DisableFP16CompressionForPeriodicFuncs>();
-        }
         type_to_fuse_map empty_fuse_map = {};
         manager.register_pass<ov::pass::Validate>();
 
@@ -488,7 +485,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        manager.register_pass<ov::pass::RMSFusion>(false);
+        manager.register_pass<ov::pass::RMSFusion>(false, true);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
@@ -547,6 +544,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
+            // TODO: sdpa_opt is not supporting sink_input for 1st token case yet
+            constexpr size_t sink_idx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::SINK;
+            if (sdpa->get_input_size() > sink_idx && !device_info.supports_immad) {
+                return false;
+            }
+
             const auto& query_ps = sdpa->get_input_partial_shape(0);
             const auto& key_ps = sdpa->get_input_partial_shape(1);
             const auto& value_ps = sdpa->get_input_partial_shape(2);
@@ -1199,7 +1202,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.set_per_pass_validation(false);
 
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
-        manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+        manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 

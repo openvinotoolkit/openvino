@@ -565,16 +565,16 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
 
     // Check the compiler version
     const auto npu_devices = get_plugin()->get_core()->get_property("NPU", ov::available_devices);
-    const auto is_suitable_arch = [](const std::string& arch) {
-        return arch == "3720" || arch == "4000";
-    };
-    const auto is_suitable_comp = [](int64_t ver) {
-        return ver >= ONEAPI_MAKE_VERSION(7, 21);
+    const auto is_suitable_comp = [](int64_t ver, const std::string& arch) {
+        if (arch == "3720" || arch == "4000") {
+            return ver >= ONEAPI_MAKE_VERSION(7, 21);
+        }
+        return ver >= ONEAPI_MAKE_VERSION(7, 25);
     };
     const bool compiler_version_enough =
         !npu_devices.empty() &&
-        is_suitable_arch(get_plugin()->get_core()->get_property("NPU", ov::device::architecture)) &&
-        is_suitable_comp(get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version));
+        is_suitable_comp(get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version),
+                         get_plugin()->get_core()->get_property("NPU", ov::device::architecture));
     // FIXME: go from
     //     get_plugin()->get_core()->get_property("NPU", ..
     // to
@@ -1203,8 +1203,6 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& func_desc = m_compiled_submodels[real_idx];
 
-        // At this point closure size should have already been deserialized
-        NPUW_ASSERT(!comp_model_desc.closure.empty() && "Closure shouldn't be empty at this point!");
         for (std::size_t cidx = 0; cidx < comp_model_desc.closure.size(); ++cidx) {
             if (comp_model_desc.closure[cidx]) {
                 // host-side closure - already set, do nothing
