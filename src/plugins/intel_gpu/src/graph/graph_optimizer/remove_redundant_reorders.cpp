@@ -446,6 +446,7 @@ void remove_redundant_reorders::run(program& p) {
 
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
+            auto input_layout = input.get_output_layout();
 
             if (!node.is_simple_reorder())
                 continue;
@@ -469,16 +470,12 @@ void remove_redundant_reorders::run(program& p) {
                 (input.is_type<mvn>() || input.is_type<broadcast>() || input.is_type<fully_connected>() ||
                 input.is_type<select>() || input.is_type<rms>()) &&
                 node.is_type_conversion_only(true) && format::is_simple_data_format(output_layout.format) && node.is_output() &&
-                !node.get_primitive()->truncate && output_layout.data_type == data_types::f32 && !output_layout.data_padding;
+                !node.get_primitive()->truncate && !output_layout.data_padding &&
+                !data_type_traits::is_i8_u8(input_layout.data_type) && !data_type_traits::is_i8_u8(output_layout.data_type);
 
             if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format) &&
                 !is_opt_out_result)
                 continue;
-
-            if (input.is_type<fully_connected>() && input.has_fused_primitives()) {
-                // From FC calc_output_layouts, data-type of the last fused-ops would be its output data-type
-                continue;
-            }
 
             // Do not opt out result reorder of Loop body network
             bool is_loop_body_network_output = (node.get_program().is_body_program() && node.is_output());
