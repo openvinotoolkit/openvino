@@ -88,16 +88,16 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    SerializedIR serializedIR = intel_npu::driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion);
+    driver_compiler_utils::IRSerializer irSerializer(model, maxOpsetVersion);
+    SerializedIR serializedIR = irSerializer.serializeIR(model, compilerVersion, maxOpsetVersion);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
     _logger.debug("build flags");
-    buildFlags += intel_npu::driver_compiler_utils::serializeIOInfo(model, useIndices);
+    buildFlags += irSerializer.serializeIOInfo(model, useIndices);
     buildFlags += " ";
-    buildFlags +=
-        intel_npu::driver_compiler_utils::serializeConfig(config, compilerVersion, is_option_supported("NPU_TURBO"));
+    buildFlags += irSerializer.serializeConfig(config, compilerVersion, is_option_supported("NPU_TURBO"));
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
 
@@ -148,12 +148,13 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("serialize IR");
-    SerializedIR serializedIR = intel_npu::driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion);
+    driver_compiler_utils::IRSerializer irSerializer(model, maxOpsetVersion);
+    SerializedIR serializedIR = irSerializer.serializeIR(model, compilerVersion, maxOpsetVersion);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
-    const std::string serializedIOInfo = intel_npu::driver_compiler_utils::serializeIOInfo(model, useIndices);
+    const std::string serializedIOInfo = irSerializer.serializeIOInfo(model, useIndices);
     const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
     if (plgConfig == nullptr) {
         OPENVINO_THROW("config is not FilteredConfig");
@@ -187,7 +188,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
         _logger.debug("build flags");
         buildFlags = serializedIOInfo;
         buildFlags += " ";
-        buildFlags += intel_npu::driver_compiler_utils::serializeConfig(updatedConfig, compilerVersion);
+        buildFlags += irSerializer.serializeConfig(updatedConfig, compilerVersion);
 
         _logger.debug("compile start");
         auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR, buildFlags, flags);
@@ -294,10 +295,11 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    SerializedIR serializedIR = intel_npu::driver_compiler_utils::serializeIR(model, compilerVersion, maxOpsetVersion);
+    driver_compiler_utils::IRSerializer irSerializer(model, maxOpsetVersion);
+    SerializedIR serializedIR = irSerializer.serializeIR(model, compilerVersion, maxOpsetVersion);
 
     std::string buildFlags;
-    buildFlags += intel_npu::driver_compiler_utils::serializeConfig(config, compilerVersion);
+    buildFlags += irSerializer.serializeConfig(config, compilerVersion);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     ov::SupportedOpsMap result;

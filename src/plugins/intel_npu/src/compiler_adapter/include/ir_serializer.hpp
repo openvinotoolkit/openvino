@@ -32,6 +32,30 @@ public:
      */
     void serializeModelToBuffer(uint8_t* xml, uint8_t* weights);
 
+    /**
+     * @brief Serialize input / output information to string format.
+     * @details Format:
+     * --inputs_precisions="0:<input1Precision> [1:<input2Precision>]"
+     * --inputs_layouts="0:<input1Layout> [1:<input2Layout>]"
+     * --outputs_precisions="0:<output1Precision>"
+     * --outputs_layouts="0:<output1Layout>"
+     *
+     * For older compiler versions, the name of the inputs/outputs may be used instead of their indices.
+     *
+     * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV
+     * API, the layout fields shall be filled with default values in order to assure the backward compatibility
+     * with the driver.
+     */
+    SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                             ze_graph_compiler_version_info_t compilerVersion,
+                             const uint32_t supportedOpsetVersion);
+
+    std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
+
+    std::string serializeConfig(const Config& config,
+                                ze_graph_compiler_version_info_t compilerVersion,
+                                bool turboSupported = false);
+
 private:
     /**
      * @brief Serialize OpenVINO model to target stream
@@ -49,50 +73,5 @@ private:
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
 };
-
-/**
- * @brief A standard copy function concerning memory segments. Additional checks on the given arguments are performed
- * before copying.
- * @details This is meant as a replacement for the legacy "ie_memcpy" function coming from the OpenVINO API.
- */
-void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes);
-
-/**
- * @brief Serialize input / output information to string format.
- * @details Format:
- * --inputs_precisions="0:<input1Precision> [1:<input2Precision>]"
- * --inputs_layouts="0:<input1Layout> [1:<input2Layout>]"
- * --outputs_precisions="0:<output1Precision>"
- * --outputs_layouts="0:<output1Layout>"
- *
- * For older compiler versions, the name of the inputs/outputs may be used instead of their indices.
- *
- * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV
- * API, the layout fields shall be filled with default values in order to assure the backward compatibility
- * with the driver.
- */
-SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                         ze_graph_compiler_version_info_t compilerVersion,
-                         const uint32_t supportedOpsetVersion);
-
-/**
- * @brief For driver backward compatibility reasons, the given value shall be converted to a string corresponding to the
- * adequate legacy precision.
- */
-std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precision);
-
-/**
- * @brief Gives the string representation of the default legacy layout value corresponding to the given rank.
- * @details This is done in order to assure the backward compatibility with the driver. Giving a layout different from
- * the default one may lead either to error or to accuracy failures since unwanted transposition layers may be
- * introduced.
- */
-std::string rankToLegacyLayoutString(const size_t rank);
-
-std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
-
-std::string serializeConfig(const Config& config,
-                            ze_graph_compiler_version_info_t compilerVersion,
-                            bool turboSupported = false);
 
 }  // namespace intel_npu::driver_compiler_utils

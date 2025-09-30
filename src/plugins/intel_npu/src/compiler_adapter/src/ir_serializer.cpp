@@ -34,6 +34,108 @@ constexpr std::string_view VALUES_SEPARATOR = " ";
 const std::vector<size_t> NC_TO_CN_LAYOUT_DIMENSIONS_ORDER = {1, 0};
 const std::vector<size_t> NCHW_TO_NHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 1};
 const std::vector<size_t> NCDHW_TO_NDHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 4, 1};
+
+/**
+ * @brief A standard copy function concerning memory segments. Additional checks on the given arguments are performed
+ * before copying.
+ * @details This is meant as a replacement for the legacy "ie_memcpy" function coming from the OpenVINO API.
+ */
+void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes) {
+    if (numberOfBytes == 0) {
+        return;
+    }
+
+    OPENVINO_ASSERT(destination != nullptr, "Memcpy: received a null destination address");
+    OPENVINO_ASSERT(source != nullptr, "Memcpy: received a null source address");
+    OPENVINO_ASSERT(numberOfBytes <= destinationSize,
+                    "Memcpy: the source buffer does not fit inside the destination one");
+    OPENVINO_ASSERT(numberOfBytes <= (destination > source ? ((uintptr_t)destination - (uintptr_t)source)
+                                                           : ((uintptr_t)source - (uintptr_t)destination)),
+                    "Memcpy: the offset between the two buffers does not allow a safe execution of the operation");
+
+    memcpy(destination, source, numberOfBytes);
+}
+
+/**
+ * @brief For driver backward compatibility reasons, the given value shall be converted to a string corresponding to the
+ * adequate legacy precision.
+ */
+std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precision) {
+    switch (precision) {
+    case ov::element::Type_t::f16:
+        return "FP16";
+    case ov::element::Type_t::f32:
+        return "FP32";
+    case ov::element::Type_t::f64:
+        return "FP64";
+    case ov::element::Type_t::bf16:
+        return "BF16";
+    case ov::element::Type_t::f8e4m3:
+        return "FP8_E4M3";
+    case ov::element::Type_t::f8e5m2:
+        return "FP8_E5M2";
+    case ov::element::Type_t::f8e8m0:
+        return "FP8_E8M0";
+    case ov::element::Type_t::nf4:
+        return "NF4";
+    case ov::element::Type_t::i4:
+        return "I4";
+    case ov::element::Type_t::i8:
+        return "I8";
+    case ov::element::Type_t::i16:
+        return "I16";
+    case ov::element::Type_t::i32:
+        return "I32";
+    case ov::element::Type_t::i64:
+        return "I64";
+    case ov::element::Type_t::u4:
+        return "U4";
+    case ov::element::Type_t::u8:
+        return "U8";
+    case ov::element::Type_t::u16:
+        return "U16";
+    case ov::element::Type_t::u32:
+        return "U32";
+    case ov::element::Type_t::u64:
+        return "U64";
+    case ov::element::Type_t::u1:
+        return "BIN";
+    case ov::element::Type_t::u2:
+        return "U2";
+    case ov::element::Type_t::boolean:
+        return "BOOL";
+    case ov::element::Type_t::dynamic:
+        return "DYNAMIC";
+    default:
+        OPENVINO_THROW("Incorrect precision: ", precision);
+    }
+}
+
+/**
+ * @brief Gives the string representation of the default legacy layout value corresponding to the given rank.
+ * @details This is done in order to assure the backward compatibility with the driver. Giving a layout different from
+ * the default one may lead either to error or to accuracy failures since unwanted transposition layers may be
+ * introduced.
+ */
+std::string rankToLegacyLayoutString(const size_t rank) {
+    switch (rank) {
+    case 0:
+        return "**SCALAR**";
+    case 1:
+        return "C";
+    case 2:
+        return "NC";
+    case 3:
+        return "CHW";
+    case 4:
+        return "NCHW";
+    case 5:
+        return "NCDHW";
+    default:
+        return "BLOCKED";
+    }
+}
+
 }  // namespace
 
 namespace intel_npu::driver_compiler_utils {
@@ -125,35 +227,17 @@ void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
     _logger.debug("serializeModelToBuffer end");
 }
 
-void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes) {
-    if (numberOfBytes == 0) {
-        return;
-    }
-
-    OPENVINO_ASSERT(destination != nullptr, "Memcpy: received a null destination address");
-    OPENVINO_ASSERT(source != nullptr, "Memcpy: received a null source address");
-    OPENVINO_ASSERT(numberOfBytes <= destinationSize,
-                    "Memcpy: the source buffer does not fit inside the destination one");
-    OPENVINO_ASSERT(numberOfBytes <= (destination > source ? ((uintptr_t)destination - (uintptr_t)source)
-                                                           : ((uintptr_t)source - (uintptr_t)destination)),
-                    "Memcpy: the offset between the two buffers does not allow a safe execution of the operation");
-
-    memcpy(destination, source, numberOfBytes);
-}
-
-SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                         ze_graph_compiler_version_info_t compilerVersion,
-                         const uint32_t supportedOpsetVersion) {
-    driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion);
-
+SerializedIR IRSerializer::serializeIR(const std::shared_ptr<const ov::Model>& model,
+                                       ze_graph_compiler_version_info_t compilerVersion,
+                                       const uint32_t supportedOpsetVersion) {
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;
     const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
     const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
 
     const uint32_t numberOfInputData = 2;
-    const uint64_t xmlSize = static_cast<uint64_t>(irSerializer.getXmlSize());
-    const uint64_t weightsSize = static_cast<uint64_t>(irSerializer.getWeightsSize());
+    const uint64_t xmlSize = static_cast<uint64_t>(getXmlSize());
+    const uint64_t weightsSize = static_cast<uint64_t>(getWeightsSize());
 
     OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
     if (xmlSize >= maxSizeOfXML) {
@@ -190,84 +274,14 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
     uint64_t weightsOffset = offset;
     offset += weightsSize;
 
-    irSerializer.serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset);
+    serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset);
 
     OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
     return std::make_pair(sizeOfSerializedIR, buffer);
 }
 
-std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precision) {
-    switch (precision) {
-    case ov::element::Type_t::f16:
-        return "FP16";
-    case ov::element::Type_t::f32:
-        return "FP32";
-    case ov::element::Type_t::f64:
-        return "FP64";
-    case ov::element::Type_t::bf16:
-        return "BF16";
-    case ov::element::Type_t::f8e4m3:
-        return "FP8_E4M3";
-    case ov::element::Type_t::f8e5m2:
-        return "FP8_E5M2";
-    case ov::element::Type_t::f8e8m0:
-        return "FP8_E8M0";
-    case ov::element::Type_t::nf4:
-        return "NF4";
-    case ov::element::Type_t::i4:
-        return "I4";
-    case ov::element::Type_t::i8:
-        return "I8";
-    case ov::element::Type_t::i16:
-        return "I16";
-    case ov::element::Type_t::i32:
-        return "I32";
-    case ov::element::Type_t::i64:
-        return "I64";
-    case ov::element::Type_t::u4:
-        return "U4";
-    case ov::element::Type_t::u8:
-        return "U8";
-    case ov::element::Type_t::u16:
-        return "U16";
-    case ov::element::Type_t::u32:
-        return "U32";
-    case ov::element::Type_t::u64:
-        return "U64";
-    case ov::element::Type_t::u1:
-        return "BIN";
-    case ov::element::Type_t::u2:
-        return "U2";
-    case ov::element::Type_t::boolean:
-        return "BOOL";
-    case ov::element::Type_t::dynamic:
-        return "DYNAMIC";
-    default:
-        OPENVINO_THROW("Incorrect precision: ", precision);
-    }
-}
-
-std::string rankToLegacyLayoutString(const size_t rank) {
-    switch (rank) {
-    case 0:
-        return "**SCALAR**";
-    case 1:
-        return "C";
-    case 2:
-        return "NC";
-    case 3:
-        return "CHW";
-    case 4:
-        return "NCHW";
-    case 5:
-        return "NCDHW";
-    default:
-        return "BLOCKED";
-    }
-}
-
-std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
+std::string IRSerializer::serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
     const ov::ParameterVector& parameters = model->get_parameters();
     const ov::ResultVector& results = model->get_results();
 
@@ -355,9 +369,9 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
 }
 
-std::string serializeConfig(const Config& config,
-                            ze_graph_compiler_version_info_t compilerVersion,
-                            bool turboSupported) {
+std::string IRSerializer::serializeConfig(const Config& config,
+                                          ze_graph_compiler_version_info_t compilerVersion,
+                                          bool turboSupported) {
     Logger logger("serializeConfig", Logger::global().level());
 
     std::string content = {};
