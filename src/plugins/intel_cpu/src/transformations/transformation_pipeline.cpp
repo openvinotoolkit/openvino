@@ -270,8 +270,8 @@
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
-#    include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 #    include "transformations/cpu_opset/arm/pass/deconv_1d_decomposition.hpp"
+#    include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #else
