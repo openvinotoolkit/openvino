@@ -94,14 +94,14 @@ ov::pass::FuseVectorizedMOE::FuseVectorizedMOE() {
 
         ov::op::internal::MOE::Config config;
 
-        // Extract expert_alpha from Swish beta attribute
+        // Extract expert_beta from Swish beta attribute
         auto swish_beta_const = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(swish_beta).get_node_shared_ptr());
         auto swish_beta_const_val = swish_beta_const->cast_vector<float>()[0];
-        config.expert_alpha = swish_beta_const_val;
+        config.expert_beta = swish_beta_const_val;
 
-        // Extract expert_beta from Clamp max attribute
+        // Extract expert_alpha from Clamp max attribute
         if (auto clamp_op = ov::as_type_ptr<ov::op::v0::Clamp>(pm.at(clamp).get_node_shared_ptr())) {
-            config.expert_beta = static_cast<float>(clamp_op->get_max());
+            config.expert_alpha = static_cast<float>(clamp_op->get_max());
         }
 
         // Set expert_type
