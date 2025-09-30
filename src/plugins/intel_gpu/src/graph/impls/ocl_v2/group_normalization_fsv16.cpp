@@ -103,9 +103,9 @@ protected:
         return args;
     }
 
-    static std::vector<unsigned int> getDivisors(unsigned int n) {
-        std::vector<unsigned int> divisors;
-        for (unsigned int i = 1; i <= n; ++i) {
+    static std::vector<size_t> getDivisors(size_t n) {
+        std::vector<size_t> divisors;
+        for (size_t i = 1; i <= n; ++i) {
             if (n % i == 0) {
                 divisors.push_back(i);
             }
@@ -113,7 +113,7 @@ protected:
         return divisors;
     }
 
-    static std::pair<unsigned int, unsigned int> adjustWorkGroupSize(unsigned int x, unsigned int y, unsigned int max_work_group_size) {
+    static std::pair<size_t, size_t> adjustWorkGroupSize(size_t x, size_t y, size_t max_work_group_size) {
         if (x * y <= max_work_group_size) {
             return {x, y};
         }
@@ -121,14 +121,14 @@ protected:
         auto x_divisors = getDivisors(x);
         auto y_divisors = getDivisors(y);
 
-        unsigned int best_x = 1, best_y = 1;
-        unsigned int max_area = 0;
+        size_t best_x = 1, best_y = 1;
+        size_t max_area = 0;
 
         for (auto dx : x_divisors) {
-            unsigned int new_x = x / dx;
+            size_t new_x = x / dx;
             for (auto dy : y_divisors) {
-                unsigned int new_y = y / dy;
-                unsigned int area = new_x * new_y;
+                size_t new_y = y / dy;
+                size_t area = new_x * new_y;
                 if (area <= max_work_group_size && area > max_area) {
                     best_x = new_x;
                     best_y = new_y;
@@ -152,28 +152,6 @@ protected:
             auto f = extract_channel(ChannelName::FEATURE, ol);
             auto b = extract_channel(ChannelName::BATCH, ol);
 
-#if 0
-            wgs.global[0] = x * y;
-            wgs.global[1] = ceil_div(f, fsv) * b;
-            wgs.global[2] = 1;
-
-            wgs.local[0] = x * y;
-            wgs.local[1] = 1;
-            wgs.local[2] = 1;
-
-            auto max_wgs = params.get_device_info().max_work_group_size;
-
-            size_t divisor = 2;
-            while (wgs.local[0] > (max_wgs / fsv)) {
-                if (wgs.global[0] % divisor == 0) {
-                    wgs.local[0] = wgs.global[0] / divisor;
-                }
-                divisor += 1;
-            }
-            wgs.local[0] *= fsv;
-            wgs.global[0] = wgs.local[0];
-        }};
-#else
             size_t max_wgs = params.get_device_info().max_work_group_size;
             auto [wgs0, wgs1] = adjustWorkGroupSize(x, y, max_wgs);
 
@@ -184,13 +162,7 @@ protected:
             wgs.local[0] = wgs0;
             wgs.local[1] = wgs1;
             wgs.local[2] = 1;
-
-            GPU_DEBUG_COUT << "bfyx: " << b << ", " << f << ", " << y << ", " << x << std::endl;
-            GPU_DEBUG_COUT << "max_wgs: " << max_wgs << std::endl;
-            GPU_DEBUG_COUT << "wgs: " << wgs.global[2] << ", " << wgs.global[1] << ", " << wgs.global[0] << std::endl;
-            GPU_DEBUG_COUT << "wls: " << wgs.local[2] << ", " << wgs.local[1] << ", " << wgs.local[0] << std::endl;
         }};
-#endif
     }
 };
 

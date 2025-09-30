@@ -13,63 +13,6 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     __global ACCUMULATOR_TYPE* internal_mean,
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
-#if 0
-    const uint data_set_idx = get_global_id(1);     // batch * feature split
-    const uint in_data_set_idx = get_global_id(0);
-    const uint workers_per_dataset = LWS0 / FSV;    // 16 datasets are handled by one local workgroup
-    const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
-    const uint items_num = data_set_size / workers_per_dataset;
-    const uint leftovers = data_set_size - (items_num * workers_per_dataset);
-
-    const uint INPUT0_ALIGNED_FEATURE_NUM = ALIGN(INPUT0_FEATURE_NUM, FSV);
-    const uint b = (data_set_idx * FSV) / INPUT0_ALIGNED_FEATURE_NUM;
-    const uint f_base = (data_set_idx * FSV) % INPUT0_ALIGNED_FEATURE_NUM;
-    const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, 0, 0);
-    const uint my_data_offset = data_set_offset + in_data_set_idx;
-
-    __local ACCUMULATOR_TYPE sum_per_feature[SLM_SIZE];
-    __local ACCUMULATOR_TYPE sqr_sum_per_feature[SLM_SIZE];
-
-    ACCUMULATOR_TYPE sum = ACCUMULATOR_VAL_ZERO;
-    ACCUMULATOR_TYPE sqr_sum = ACCUMULATOR_VAL_ZERO;
-
-    for (uint i = 0; i < items_num; ++i) {
-        ACCUMULATOR_TYPE data = TO_ACCUMULATOR_TYPE(input[my_data_offset + i * workers_per_dataset * FSV]);
-        // if (f_base == 0) {
-        //     printf("off: %d , data: %10.4f\n", my_data_offset + i * workers_per_dataset * FSV, data);
-        // }
-        sum += data;
-        sqr_sum += data * data;
-    }
-
-    if (in_data_set_idx < leftovers) {
-        ACCUMULATOR_TYPE data = TO_ACCUMULATOR_TYPE(input[my_data_offset + items_num * workers_per_dataset * FSV + in_data_set_idx]);
-        sum += data;
-        sqr_sum += data * data;
-    }
-
-    sum_per_feature[in_data_set_idx] = sum;
-    sqr_sum_per_feature[in_data_set_idx] = sqr_sum;
-    const uint num_local_workers = LWS0;
-    const uint worker_block_idx = in_data_set_idx / FSV;
-    uint reduce_add_level = 1;
-    while ((SLM_SIZE / FSV) > reduce_add_level) {
-        barrier(CLK_LOCAL_MEM_FENCE);
-        if (worker_block_idx % (reduce_add_level * 2) == 0 && (in_data_set_idx + FSV * reduce_add_level) < num_local_workers) {
-            sum_per_feature[in_data_set_idx] += sum_per_feature[in_data_set_idx + FSV * reduce_add_level];
-            sqr_sum_per_feature[in_data_set_idx] += sqr_sum_per_feature[in_data_set_idx + FSV * reduce_add_level];
-        }
-        reduce_add_level *= 2;
-    }
-
-    if (worker_block_idx == 0 && (f_base + in_data_set_idx) < INPUT0_FEATURE_NUM) {
-        ACCUMULATOR_TYPE mean = sum_per_feature[in_data_set_idx] / TO_ACCUMULATOR_TYPE(data_set_size);
-        ACCUMULATOR_TYPE variance = sqr_sum_per_feature[in_data_set_idx] / TO_ACCUMULATOR_TYPE(data_set_size);
-        uint bf = b * INPUT0_FEATURE_NUM + f_base + in_data_set_idx;
-        internal_mean[bf] = mean;
-        internal_variance[bf] = variance;
-    }
-#else
     const uint b = get_global_id(2) / INPUT0_FEATURE_NUM;
     const uint f = get_global_id(2) % INPUT0_FEATURE_NUM;
     const uint y = get_global_id(1);
@@ -101,13 +44,7 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
         float variance = local_sqr_sum / TO_ACCUMULATOR_TYPE(group_wi_size);
         internal_mean[b * INPUT0_FEATURE_NUM + f] = mean;
         internal_variance[b * INPUT0_FEATURE_NUM + f] = variance;
-
-        // printf("[%3d/%3d/%3d/%3d] local_sum: %10.4f, local_sqr_sum: %10.4f, mean: %10.4f, variance: %10.4f, int_mean(sum): %10.4f, int_variance(sum): %10.4f, group_size: %d, divx: %d, divy: %d, group_wi_size: %d\n",
-        //     b, f, y, x, local_sum, local_sqr_sum, mean, variance,
-        //     internal_mean[b * INPUT0_FEATURE_NUM + f], internal_variance[b * INPUT0_FEATURE_NUM + f], group_size,
-        //     divisor_x, divisor_y, group_wi_size);
     }
-#endif
 }
 #elif GROUP_NORM_KERNEL_GROUP_MEAN_VARIANCE
 REQD_SUB_GROUP_SIZE(SIMD)
