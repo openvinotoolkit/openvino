@@ -9,9 +9,11 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestIndex(PytorchLayerTest):
-    def _prepare_input(self, input_shape, idx):
+    def _prepare_input(self, input_shape, idx=None):
         import numpy as np
-        return (np.random.randn(*input_shape).astype(np.float32), idx)
+        if idx is not None:
+            return (np.random.randn(*input_shape).astype(np.float32), idx)
+        return (np.random.randn(*input_shape).astype(np.float32),)
 
     def create_model(self, model="list"):
         import torch
@@ -35,11 +37,21 @@ class TestIndex(PytorchLayerTest):
 
             def forward(self, x, idx):
                 return x.__getitem__(idx.to(torch.bool))
+
+        class aten_index_bool_with_axis(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.idx = torch.tensor([1, 0, 1, 0, 1], dtype=torch.bool)
+
+            def forward(self, x):
+                return x[:,:,self.idx]
+
         cases = {
             "list": aten_index_list,
             "getitem": aten_index_getitem,
             "list_with_bool": aten_index_list_bool,
-            "getitem_with_bool": aten_index_getitem_bool
+            "getitem_with_bool": aten_index_getitem_bool,
+            "bool_with_axis": aten_index_bool_with_axis
         }
 
         aten_index = cases[model]
@@ -73,6 +85,12 @@ class TestIndex(PytorchLayerTest):
     def test_index_bool(self, input_shape, idx, case, ie_device, precision, ir_version):
         self._test(*self.create_model(case), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input_shape": input_shape, "idx": idx})
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_index_bool_with_axis(self, ie_device, precision, ir_version):
+        self._test(*self.create_model("bool_with_axis"), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"input_shape": (2,2,5)}, trace_model=True)
 
 
 class TestIndexRange(PytorchLayerTest):

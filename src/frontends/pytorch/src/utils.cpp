@@ -797,8 +797,14 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
         if (id_dtype == element::boolean || id_dtype == element::u8) {
             auto idx = rg.make<v0::Convert>(indices[i], element::u8);
             auto nonzero = rg.make<v3::NonZero>(idx);
+            Output<Node> masked_id;
+            if (indices.size() == 1) {
             auto input_order = rg.make<v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 0});
-            auto masked_id = rg.make<v1::Transpose>(nonzero, input_order);
+            masked_id = rg.make<v1::Transpose>(nonzero, input_order);
+            } else {
+                auto zero_const = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
+                masked_id = rg.make<v0::Squeeze>(nonzero, zero_const);
+            }                
             masked_indicies.push_back(masked_id);
             is_masked_bool.push_back(true);
         } else {
@@ -815,7 +821,7 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
         return true;
     }
     // perform gather for single element case
-    if (advanced_ids.size() == 1) {
+    if (advanced_ids.size() == 1 && advanced_ids[0] == 0) {
         auto index = masked_indicies[advanced_ids[0]];
         if (is_masked_bool[advanced_ids[0]]) {
             auto gather = rg.make<v8::GatherND>(data, index);
