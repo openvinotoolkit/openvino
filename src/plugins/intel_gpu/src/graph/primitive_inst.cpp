@@ -1147,6 +1147,14 @@ bool primitive_inst::use_async_compilation() {
             // Disable async compilation for all int4 FC, except in the case of batch_size == 1
             if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1)
                 compile_fc_impls = false;
+        } else {
+            auto input_dt = fc_node.input().get_output_layout().data_type;
+            auto weights_dt = fc_node.weights().get_output_layout().data_type;
+            auto output_dt = fc_node.input().get_output_layout().data_type;
+            // Disable async compilation for int8 quantize FC
+            if (one_of(weights_dt, {data_types::i8, data_types::u8})
+                && (one_of(input_dt, {data_types::i8, data_types::u8}) || one_of(output_dt, {data_types::i8, data_types::u8})))
+                compile_fc_impls = false;
         }
     }
 

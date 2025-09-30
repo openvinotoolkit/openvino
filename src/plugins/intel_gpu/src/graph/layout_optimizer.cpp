@@ -139,9 +139,6 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = has_all_enabled_onednn_impls_optimization_attribute();
 
-    if (prev.is_dynamic() || next.is_dynamic())
-        return false;
-
     auto is_input_idx = [&](size_t idx) -> bool {
         if (&next.get_dependency(idx) == &prev)
             return true;
@@ -149,6 +146,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             return true;
         return false;
     };
+    auto get_channel_count = [](const layout& layout) -> int64_t {
+        return layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
+    };
+
+    if ((prev.is_dynamic() || next.is_dynamic()) &&
+        (!next.is_type<convolution>() || get_channel_count(prev_output_layout) == -1 || get_channel_count(next_output_layout) == -1)) {
+        return false;
+    }
 
     // Not to fuse reorder if this removal changes input format of its next node which has reuse in fused_op
     if (next.get_preferred_impl_type() == impl_types::onednn) {
@@ -197,7 +202,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         next.get_preferred_impl_type() == impl_types::onednn &&
         ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
          (fmt_prev == format::bfyx && fmt_next == format::byxf &&
-            (prev_dt == data_types::f16 && next.get_input_layout(0).feature() <= 8))) &&
+            (prev_dt == data_types::f16 && get_channel_count(next.get_input_layout(0)) <= 8))) &&
         is_input_reorder(prev, next))
         return true;
 
@@ -247,30 +252,31 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         if (next.is_type<convolution>() &&
             (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
             ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
-            (fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.feature() % 16 == 0 && prev_output_layout.feature() == 3) ||
-            (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.feature() >= 16 && prev_output_layout.feature() == 3 &&
+            (fmt_next == format::b_fs_yx_fsv32 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv16_fsv16 && get_channel_count(next_output_layout) % 16 == 0 && get_channel_count(prev_output_layout) == 3) ||
+            (fmt_next == format::bs_fs_yx_bsv16_fsv16 && get_channel_count(next_output_layout) >= 16 && get_channel_count(prev_output_layout) == 3 &&
             (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8))))
             return true;
 
         if (next.is_type<convolution>() &&
             fmt_prev == format::bfyx &&
             (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16) &&
-            next_output_layout.feature() >= 16 && prev_output_layout.feature() <= 4 &&
+            get_channel_count(next_output_layout) >= 16 && get_channel_count(prev_output_layout) <= 4 &&
             !next.as<convolution>().get_primitive()->activations_zero_points.is_valid() &&
             !next.as<convolution>().get_primitive()->weights_zero_points.is_valid())
             return true;
 
         if (next.is_type<convolution>() &&
             (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
-            ((fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv8_fsv4 && (prev_output_layout.feature() == 3 || prev_output_layout.feature() == 4)) ||
-            (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.feature() >= 16 &&
-            (prev_output_layout.feature() == 3 || (prev_output_layout.feature() == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
+            ((fmt_next == format::b_fs_yx_fsv32 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv8_fsv4 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
+            (fmt_next == format::b_fs_yx_fsv16 && get_channel_count(next_output_layout) >= 16 &&
+            (get_channel_count(prev_output_layout) == 3 || (get_channel_count(prev_output_layout) == 4 &&
+            (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
             return true;
     }
 
@@ -281,7 +287,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
     if (next.is_type<convolution>() &&
         !(prev.is_type<quantize>() && (prev_dt == data_types::i8 || prev_dt == data_types::u8)) &&
-        (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bfyx)  && prev_output_layout.feature() == 3 &&
+        (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bfyx)  && get_channel_count(prev_output_layout) == 3 &&
         (fmt_next == format::b_fs_yx_fsv4 ||
          fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
@@ -289,13 +295,13 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<convolution>() &&
         fmt_prev == format::bfyx &&
         ((fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16) &&
-            next_output_layout.feature() >= 16 && prev_output_layout.feature() == 3))
+            get_channel_count(next_output_layout) >= 16 && get_channel_count(prev_output_layout) == 3))
         return true;
 
     if (next.is_type<convolution>() &&
         fmt_prev == format::bfzyx &&
         ((fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_zyx_bsv16_fsv16) &&
-            next_output_layout.feature() >= 16 && prev_output_layout.feature() == 3))
+            get_channel_count(next_output_layout) >= 16 && get_channel_count(prev_output_layout) == 3))
         return true;
 
     if (use_onednn_impls) {

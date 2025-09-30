@@ -909,9 +909,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
 
-            // In dynamic shape, quantize-fusion is enabled in only onednn convolution.
+            // In dynamic shape, quantize-fusion is disable in only cldnn convolution
             if ((in_layout.is_dynamic() || out_layout.is_dynamic()) &&
-                (!input_data.is_type<convolution>() || (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute())))
+                (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute()))
                 return;
 
             auto out_dt = out_layout.data_type;
