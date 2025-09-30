@@ -10,8 +10,9 @@
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
 #    include <oneapi/dnnl/dnnl_threadpool.hpp>
 
-#    include "openvino/core/except.hpp"
+#    include "cpu_parallel.hpp"
 #    include "openvino/core/parallel.hpp"
+#    include "openvino/runtime/intel_cpu/properties.hpp"
 #endif
 
 namespace ov::intel_cpu {
