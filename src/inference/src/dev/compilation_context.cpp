@@ -175,7 +175,7 @@ CompiledBlobHeader::CompiledBlobHeader() {}
 CompiledBlobHeader::CompiledBlobHeader(const std::string& ieVersion,
                                        const std::string& fileInfo,
                                        const std::string& runtimeInfo,
-                                       const size_t headerSizeAlignment)
+                                       const uint32_t headerSizeAlignment)
     : m_ieVersion(ieVersion),
       m_fileInfo(fileInfo),
       m_runtimeInfo(runtimeInfo),
@@ -198,7 +198,7 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     header.m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
     header.m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
 
-    if (const size_t headerSizeAlignment = header.m_headerSizeAlignment; headerSizeAlignment) {
+    if (const uint32_t headerSizeAlignment = header.m_headerSizeAlignment; headerSizeAlignment) {
         size_t bytes_read = static_cast<size_t>(end - start);
         size_t pad =
             (headerSizeAlignment - (bytes_read % headerSizeAlignment)) % headerSizeAlignment;  // 0 if already aligned
@@ -225,7 +225,7 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     auto end = stream.tellp();
 
     // add padding
-    if (const size_t headerSizeAlignment = header.m_headerSizeAlignment; headerSizeAlignment) {
+    if (const uint32_t headerSizeAlignment = header.m_headerSizeAlignment; headerSizeAlignment) {
         size_t bytes_written = static_cast<size_t>(end - start);
         size_t pad = (headerSizeAlignment - (bytes_written % headerSizeAlignment)) %
                      headerSizeAlignment;  // 0 if already aligned
@@ -270,7 +270,7 @@ void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size
     m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
     m_headerSizeAlignment = ov::util::pugixml::get_uint_attr(compiledBlobNode, "header_size_alignment");
 
-    if (const size_t headerSizeAlignment = m_headerSizeAlignment; headerSizeAlignment) {
+    if (const uint32_t headerSizeAlignment = m_headerSizeAlignment; headerSizeAlignment) {
         size_t bytes_read = static_cast<size_t>(end - start);
         size_t pad =
             (headerSizeAlignment - (bytes_read % headerSizeAlignment)) % headerSizeAlignment;  // 0 if already aligned
