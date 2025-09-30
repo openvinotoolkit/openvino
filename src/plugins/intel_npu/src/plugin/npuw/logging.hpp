@@ -19,6 +19,8 @@ enum class LogLevel { None = 0, Error = 1, Warning = 2, Info = 3, Verbose = 4, D
 
 LogLevel get_log_level();
 
+bool debug_groups();
+
 class __logging_indent__ {
     static thread_local int this_indent;
 

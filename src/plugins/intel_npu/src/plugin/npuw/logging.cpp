@@ -49,6 +49,23 @@ ov::npuw::LogLevel ov::npuw::get_log_level() {
     return log_level;
 }
 
+bool ov::npuw::debug_groups() {
+    static bool do_debug_groups = false;
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::once_flag flag;
+
+    std::call_once(flag, []() {
+        const auto* debug_opt = get_env({"OPENVINO_NPUW_DEBUG_GROUPS"});
+        if (!debug_opt) {
+            return;
+        }
+        const std::string debug_str(debug_opt);
+        do_debug_groups = (debug_str == "YES" || debug_str == "ON" || debug_str == "1");
+    });
+#endif
+    return do_debug_groups;
+}
+
 thread_local int ov::npuw::__logging_indent__::this_indent = 0;
 
 ov::npuw::__logging_indent__::__logging_indent__() {
