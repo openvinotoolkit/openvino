@@ -841,6 +841,24 @@ struct MHAHelper {
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
+        [[maybe_unused]] size_t sparse_scale = 1;
+        [[maybe_unused]] std::function<std::pair<size_t, size_t>(size_t, size_t)> map_to_mask_idx =
+            [](size_t q_blk_rt, size_t k_blk_rt) {
+                return std::pair<size_t, size_t>{q_blk_rt, k_blk_rt};
+            };
+        if (!sparse_attention_mask.empty()) {
+            sparse_scale = (_sparse_mask_block_size == 0 || _sparse_mask_block_size == _block_size)
+                               ? 1
+                               : (_sparse_mask_block_size / _block_size);  // >=1
+            map_to_mask_idx = [sparse_scale](size_t q_blk_rt, size_t k_blk_rt) {
+                if (sparse_scale == 1) {
+                    return std::pair<size_t, size_t>{q_blk_rt, k_blk_rt};
+                }
+                size_t q_mask = q_blk_rt / sparse_scale;
+                size_t k_mask = k_blk_rt / sparse_scale;
+                return std::pair<size_t, size_t>{q_mask, k_mask};
+            };
+        }
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
             if (_params.is_sage_attn) {
@@ -856,16 +874,6 @@ struct MHAHelper {
             // 1 1 1 0 ...
             // just computing the positions of 1 should be enough
             // map runtime (block_size) indices to mask (xt_block_size) indices
-            auto map_to_mask_idx = [&](size_t q_blk_rt, size_t k_blk_rt) {
-                if (_sparse_mask_block_size == 0 || _sparse_mask_block_size == _block_size) {
-                    return std::pair<size_t, size_t>{q_blk_rt, k_blk_rt};
-                }
-                // Only support mask block >= runtime block and divisible (checked in init)
-                size_t scale = _sparse_mask_block_size / _block_size;  // >=1
-                size_t q_mask = q_blk_rt / scale;
-                size_t k_mask = k_blk_rt / scale;
-                return std::pair<size_t, size_t>{q_mask, k_mask};
-            };
             for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
                 // sparse attention mask filtering
                 if (!sparse_attention_mask.empty()) {
@@ -2137,16 +2145,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         // If to support second token sparse attention, need generate sparse mask after concat_pastkv
         if (xattention_threshold && q.size(0) > 1) {
-            sparse_attention_mask = get_sparse_blocks(q,
-                                                      k,
-                                                      past_lens,
-                                                      subsequence_begins,
-                                                      block_indices,
-                                                      block_indices_begins,
-                                                      xattention_stride,
-                                                      xattention_block_size,
-                                                      xattention_threshold);
-
             // Only support block_size <= sparse_attention_BlockSize and sparse_attention_BlockSize must be an integer
             // multiple
             if (block_size != static_cast<size_t>(xattention_block_size)) {
@@ -2160,6 +2158,16 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                                    block_size);
                 }
             }
+            sparse_attention_mask = get_sparse_blocks(q,
+                                                      k,
+                                                      past_lens,
+                                                      subsequence_begins,
+                                                      block_indices,
+                                                      block_indices_begins,
+                                                      xattention_stride,
+                                                      xattention_block_size,
+                                                      xattention_threshold);
+
             // keep original mask granularity; remember its block size for on-the-fly mapping
             _helper._sparse_mask_block_size = xattention_block_size;
         }
