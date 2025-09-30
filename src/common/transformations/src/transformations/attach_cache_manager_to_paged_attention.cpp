@@ -5,19 +5,15 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/core/model.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "openvino/op/paged_attention.hpp"
-
 #include "itt.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/paged_cache_manager.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
-
-
-
-#include "openvino/core/cache_manager.hpp"  // your class in ov::internal
 
 namespace ov {
 namespace pass {
@@ -52,7 +48,6 @@ struct CacheSizing {
     size_t page_bytes{0};
     size_t total_bytes{0};
     size_t alignment_bytes{64};
-    // For sanity checks (not used by CacheManager directly):
     size_t num_blocks{0}, num_heads{0}, block_size{0}, key_head_size{0}, value_head_size{0};
 };
 
@@ -72,35 +67,35 @@ static inline CacheSizing derive_cache_sizing_from_node(const std::shared_ptr<ov
         throw std::runtime_error("PagedAttention CacheManager: key/value cache shapes mismatch");
     }
 
-    const size_t num_blocks      = kc4[0];
-    const size_t num_heads       = kc4[1];
-    const size_t block_size      = kc4[2];
-    const size_t key_head_size   = kc4[3];
+    const size_t num_blocks = kc4[0];
+    const size_t num_heads = kc4[1];
+    const size_t block_size = kc4[2];
+    const size_t key_head_size = kc4[3];
     const size_t value_head_size = vc4[3];
 
-    const size_t head_width_max  = std::max(key_head_size, value_head_size);
+    const size_t head_width_max = std::max(key_head_size, value_head_size);
 
-    const size_t page_bytes  = num_heads * block_size * head_width_max * elem_size;
+    const size_t page_bytes = num_heads * block_size * head_width_max * elem_size;
     const size_t total_bytes = page_bytes * num_blocks;
 
     CacheSizing s;
-    s.elem_type        = elem_type;
-    s.page_bytes       = page_bytes;
-    s.total_bytes      = total_bytes;
-    s.num_blocks       = num_blocks;
-    s.num_heads        = num_heads;
-    s.block_size       = block_size;
-    s.key_head_size    = key_head_size;
-    s.value_head_size  = value_head_size;
+    s.elem_type = elem_type;
+    s.page_bytes = page_bytes;
+    s.total_bytes = total_bytes;
+    s.num_blocks = num_blocks;
+    s.num_heads = num_heads;
+    s.block_size = block_size;
+    s.key_head_size = key_head_size;
+    s.value_head_size = value_head_size;
     return s;
 }
 
-} // namespace
+}  // namespace
 
 bool AttachCacheManagerToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(AttachCacheManagerToPagedAttention);
 
-    std::shared_ptr<ov::internal::CacheManager> shared_cache_manager;
+    std::shared_ptr<ov::internal::PagedCacheManager> shared_cache_manager;
 
     CacheSizing sizing{};
     bool sizing_initialized = false;
@@ -115,28 +110,26 @@ bool AttachCacheManagerToPagedAttention::run_on_model(const std::shared_ptr<ov::
 
         // If this PA already has a CacheManager bound, skip it.
         if (pa->get_cache_manager()) {
-            graph_modified = true; // we still consider the pass touched the graph logically
+            graph_modified = true;  // we still consider the pass touched the graph logically
             continue;
         }
 
         // Initialize the shared CacheManager from the first encountered PA.
         if (!sizing_initialized) {
             sizing = derive_cache_sizing_from_node(pa);
-            shared_cache_manager = std::make_shared<ov::internal::CacheManager>(
-                sizing.elem_type,
-                /*total_bytes=*/sizing.total_bytes,
-                /*page_bytes=*/sizing.page_bytes,
-                /*alignment_bytes=*/64);
+            shared_cache_manager = std::make_shared<ov::internal::PagedCacheManager>(sizing.elem_type,
+                                                                                     /*total_bytes=*/sizing.total_bytes,
+                                                                                     /*page_bytes=*/sizing.page_bytes,
+                                                                                     /*alignment_bytes=*/64);
             sizing_initialized = true;
         }
 
         // Optional compatibility check (defensive): ensure other PAs match the first one.
         {
             const auto s_other = derive_cache_sizing_from_node(pa);
-            const bool compatible =
-                (s_other.elem_type == sizing.elem_type) &&
-                (s_other.page_bytes == sizing.page_bytes) &&
-                (s_other.total_bytes == sizing.total_bytes);
+            const bool compatible = (s_other.elem_type == sizing.elem_type) &&
+                                    (s_other.page_bytes == sizing.page_bytes) &&
+                                    (s_other.total_bytes == sizing.total_bytes);
             if (!compatible) {
                 throw std::runtime_error(
                     "AttachCacheManagerToPagedAttention: multiple PagedAttention nodes with incompatible cache "

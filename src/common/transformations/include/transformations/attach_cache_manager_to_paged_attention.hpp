@@ -2,12 +2,15 @@
 #pragma once
 
 #include <memory>
+
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 #include "transformations_visibility.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
 
 // Forward decls to keep the header light.
-namespace ov { class Model; }
+namespace ov {
+class Model;
+}
 
 namespace ov {
 namespace pass {
