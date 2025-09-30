@@ -479,15 +479,13 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                 if ((core_2 - core_1 == 1) && (_proc_type_table[0][EFFICIENT_CORE_PROC] == 0)) {
                     core_type = MAIN_CORE_PROC;
                 } else {
-                    core_type =
-                        ((system_info_table[nproc][2].size() == 0) && (_proc_type_table[0][ALL_PROC] > 0))
-                            ? LP_EFFICIENT_CORE_PROC
-                            : EFFICIENT_CORE_PROC;
+                    core_type = ((system_info_table[nproc][2].size() == 0) && (_proc_type_table[0][ALL_PROC] > 0))
+                                    ? LP_EFFICIENT_CORE_PROC
+                                    : EFFICIENT_CORE_PROC;
                 }
 
                 for (int m = core_1; m <= core_2; m++) {
                     update_proc_info(m, core_type);
-
                 }
             } else {
                 core_1 = std::stoi(system_info_table[nproc][0]);
