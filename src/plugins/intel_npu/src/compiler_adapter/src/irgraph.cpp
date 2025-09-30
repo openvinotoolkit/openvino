@@ -161,17 +161,19 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob,
     _logger.debug("Dump metadata info from blob");
     _logger.debug("Metadata inputs: %d", metadata.inputs.size());
     for (const auto& input : metadata.inputs) {
-        _logger.debug("Input compiler name: %s input node name: %s shape: %s",
+        _logger.debug("Input compiler name: %s input node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
                       input.nameFromCompiler.c_str(),
                       input.nodeFriendlyName.c_str(),
-                      input.shapeFromCompiler.to_string().c_str());
+                      input.shapeFromCompiler.to_string().c_str(),
+                      input.shapeFromIRModel.has_value() ? input.shapeFromIRModel->to_string().c_str() : "N/A");
     }
     _logger.debug("Metadata outputs: %d", metadata.outputs.size());
     for (const auto& output : metadata.outputs) {
-        _logger.debug("Output compiler name: %s output node name: %s shape: %s",
+        _logger.debug("Output compiler name: %s output node name: %s shapeFromCompiler: %s shapeFromIRModel: %s",
                       output.nameFromCompiler.c_str(),
                       output.nodeFriendlyName.c_str(),
-                      output.shapeFromCompiler.to_string().c_str());
+                      output.shapeFromCompiler.to_string().c_str(),
+                      output.shapeFromIRModel.has_value() ? output.shapeFromIRModel->to_string().c_str() : "N/A");
     }
 
     _logger.debug("Dump MemRefType from initial metadata:");
@@ -249,7 +251,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                     // We need to kepp batch dimension dynamic
                     shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
                 } else {
-                    shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
+                    // shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
                     shapeFromIRModel.push_back(-1);
                 }
             }
@@ -308,16 +310,17 @@ void IRGraphImpl::prepareMetadata(NetworkMetadata& metadata,
     for (uint32_t i = 0; i < _engineProperties.numOfGraphArgs; ++i) {
         // TODO: follow graph ext to support Optional metadata for weightless model
         ze_graph_argument_properties_3_t arg;
-        if (npuMLIRRuntimeGetMetadata(_engine, i, &arg) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
+        ze_graph_argument_metadata_t meta;
+        if (npuMLIRRuntimeGetMetadata(_engine, i, &arg, &meta) != NPU_MLIR_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to get MLIR runtime metadata");
         }
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            metadata.inputs.push_back(getIODescriptor(arg, std::nullopt));
+            metadata.inputs.push_back(getIODescriptor(arg, meta));
             inputs.push_back({arg, i});
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            metadata.outputs.push_back(getIODescriptor(arg, std::nullopt));
+            metadata.outputs.push_back(getIODescriptor(arg, meta));
             outputs.push_back({arg, i});
         } break;
         default: {

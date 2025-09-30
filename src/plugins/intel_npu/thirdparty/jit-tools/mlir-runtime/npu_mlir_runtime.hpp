@@ -125,12 +125,12 @@ NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL np
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Get metadata from MLIR runtime instance
-NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL npuMLIRRuntimeGetMetadata(
-    npu_mlir_runtime_handle_t hRuntime,  ///< [in][release] handle of mlir runtime object
-    uint32_t argIndex,
-    ze_graph_argument_properties_3_t*
-        pGraphArgumentProperties  ///< [in,out] query result for graph argument properties.
-);
+NPU_MLIR_RUNTIME_APIEXPORT npu_mlir_runtime_result_t NPU_MLIR_RUNTIME_APICALL
+npuMLIRRuntimeGetMetadata(npu_mlir_runtime_handle_t hRuntime,  ///< [in][release] handle of mlir runtime object
+                          uint32_t argIndex,
+                          ze_graph_argument_properties_3_t*
+                              pGraphArgumentProperties,  ///< [in,out] query result for graph argument properties.
+                          _ze_graph_argument_metadata_t* pGraphArgumentMetadata);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Execute MLIR runtime with params
