@@ -9,7 +9,7 @@
 #include <oneapi/dnnl/dnnl_threadpool_iface.hpp>
 #include <openvino/core/parallel.hpp>
 
-#include "icpu_parallel.hpp"
+#include "cpu_parallel.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
 namespace ov::intel_cpu {
@@ -22,7 +22,7 @@ public:
     ThreadPool(ThreadPool&&) = delete;
     ThreadPool& operator=(ThreadPool&&) = delete;
 
-    explicit ThreadPool(const ICpuParallel& cpu_parallel) : m_cpu_parallel(cpu_parallel) {}
+    explicit ThreadPool(const CpuParallel& cpu_parallel) : m_cpu_parallel(cpu_parallel) {}
 
     [[nodiscard]] int get_num_threads() const override {
         return m_cpu_parallel.get_num_threads();
@@ -38,7 +38,7 @@ public:
     }
 
 private:
-    const ICpuParallel& m_cpu_parallel;
+    const CpuParallel& m_cpu_parallel;
 };
 
 dnnl::stream make_stream(const dnnl::engine& engine, const std::shared_ptr<ThreadPool>& thread_pool = nullptr);

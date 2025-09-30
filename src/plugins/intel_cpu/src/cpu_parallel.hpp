@@ -8,26 +8,20 @@
 
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {
 
 // Default multiplier for the number of virtual threads when tbb partitioner is AUTO. This value is determined
 // empirically.
 constexpr int default_multiplier = 32;
+class ThreadPool;
 
-class CpuParallel : public ICpuParallel {
+class CpuParallel {
 public:
     CpuParallel() = default;
     CpuParallel(ov::intel_cpu::TbbPartitioner partitioner = ov::intel_cpu::TbbPartitioner::STATIC,
-                size_t multiplier = default_multiplier)
-        : m_partitioner(partitioner),
-          m_multiplier(multiplier) {
-        m_partitioner = m_partitioner == ov::intel_cpu::TbbPartitioner::NONE ? ov::intel_cpu::TbbPartitioner::STATIC
-                                                                             : m_partitioner;
-        m_thread_pool = std::make_shared<ThreadPool>(*this);
-    }
-    ~CpuParallel() override = default;
+                size_t multiplier = default_multiplier);
+    ~CpuParallel() = default;
 
     [[nodiscard]] ov::intel_cpu::TbbPartitioner get_partitioner() const {
         return m_partitioner;
@@ -38,7 +32,7 @@ public:
     [[nodiscard]] std::shared_ptr<ThreadPool> get_thread_pool() {
         return m_thread_pool;
     }
-    [[nodiscard]] int get_num_threads() const override {
+    [[nodiscard]] int get_num_threads() const {
         int num = m_partitioner == ov::intel_cpu::TbbPartitioner::STATIC ? parallel_get_max_threads()
                                                                          : parallel_get_max_threads() * m_multiplier;
         return num;
@@ -48,8 +42,7 @@ public:
         dnnl_threadpool_interop_set_max_concurrency(get_num_threads());
 #endif
     }
-
-    void parallel_simple(int D0, const std::function<void(int, int)>& func) const override {
+    void parallel_simple(int D0, const std::function<void(int, int)>& func) const {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         const auto nthr = D0;
         if (m_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {

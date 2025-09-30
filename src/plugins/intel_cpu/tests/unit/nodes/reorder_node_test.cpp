@@ -16,6 +16,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "memory_control.hpp"
 #include "nodes/input.h"
+#include "thread_pool_imp.hpp"
 
 using namespace ov::intel_cpu;
 namespace ReorderCPUTest {
