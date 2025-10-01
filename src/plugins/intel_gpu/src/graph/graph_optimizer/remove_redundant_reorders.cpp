@@ -472,6 +472,10 @@ void remove_redundant_reorders::run(program& p) {
                 node.is_type_conversion_only(true) && format::is_simple_data_format(output_layout.format) && node.is_output() &&
                 !node.get_primitive()->truncate && !output_layout.data_padding &&
                 !data_type_traits::is_i8_u8(input_layout.data_type) && !data_type_traits::is_i8_u8(output_layout.data_type);
+            if (is_opt_out_result) {
+                GPU_DEBUG_TRACE_DETAIL << "Optimize out Reorder " << node.id() << " to input " << input.id() <<
+                    " converting data-type from " << input_layout.data_type << " to " << output_layout.data_type << std::endl;
+            }
 
             if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format) &&
                 !is_opt_out_result)

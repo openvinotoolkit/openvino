@@ -320,6 +320,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         updated_param.input_layouts[0] = orig_input_layout.clone_with_other_shape(input_shape);
         updated_param.output_layouts[0] = orig_output_layout.clone_with_other_shape(output_shape);
 
+        GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment to " << orig_impl_param.desc->id << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment: input(" << orig_input_layout.to_short_string() << " -> "
                                << updated_param.input_layouts[0].to_short_string() << "), output("
                                << orig_output_layout.to_short_string() << " -> "

@@ -542,7 +542,13 @@ void primitive_inst::update_shape() {
     }
 }
 
-kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
+kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(program_node const& node, kernel_impl_params const& orig_impl_param) {
+    // Check if fake alignment is not necessary
+    if (node.is_output()) {
+        GPU_DEBUG_TRACE_DETAIL << " Disable fake alignment : " << node.id() << " is output node" << std::endl;
+        return orig_impl_param;
+    }
+
     auto updated_params = get_node().type()->get_fake_aligned_params(orig_impl_param);
 
     const auto &dev_info = get_node().get_program().get_engine().get_device_info();
@@ -607,7 +613,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     }
 
     // Update param if fake_alignment is available
-    auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
+    auto updated_params = get_fake_aligned_params_if_possible(get_node(), *_impl_params);
 
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
@@ -966,7 +972,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
         } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
-            GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] "
+            GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] " << get_node().id()
                                    << " Current buffer_size=" << _max_output_layout_count[i]
                                    << " Requested buffer_size=" << updated_layouts[i].get_linear_size()
                                    << std::endl;
@@ -2956,7 +2962,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     auto& kernels_cache = prog.get_kernels_cache();
 
     // Update param if fake_alignment is available
-    auto updated_params = inst.get_fake_aligned_params_if_possible(params);
+    auto updated_params = inst.get_fake_aligned_params_if_possible(inst.get_node(), params);
     // Change weights layout of `updated_params` to original one to have valid information
     // in _impl->_weights_reorder_params about required weights format after impl selection
     if (inst.get_node().is_type<fully_connected>() || inst.get_node().is_type<convolution>() || inst.get_node().is_type<deconvolution>()) {

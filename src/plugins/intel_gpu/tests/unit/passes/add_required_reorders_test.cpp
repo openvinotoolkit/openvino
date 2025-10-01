@@ -221,7 +221,7 @@ TEST(add_required_reorders, prevent_runtime_error_for_mvn_requiring_alignment) {
     topology.add(permute("permute2", input_info("conv"), {0, 2, 3, 1}));
     topology.add(mvn("mvn2", input_info("permute2"), true, 1e-10f, false, {3}));
     topology.add(fully_connected("fc", input_info("mvn2"), "fc_weights", "", data_types::f32, 4, 2));
-    topology.add(reorder("reorder", input_info("fc"), layout{ ov::PartialShape{1, 8192, 24, 24}, data_types::f32, format::bfyx }));
+    topology.add(reorder("reorder", input_info("fc"), layout{ ov::PartialShape{1, 8192, 24, 24}, data_types::f16, format::bfyx }));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -234,7 +234,14 @@ TEST(add_required_reorders, prevent_runtime_error_for_mvn_requiring_alignment) {
     auto prog = network.get_program();
     ASSERT_NE(prog, nullptr);
 
-    const auto& fc_node = prog->get_node("fc");
+    std::shared_ptr<primitive_inst> prim = nullptr;
+    for (auto& item : network.get_executed_primitives()) {
+        if (network.get_primitive(item.first)->get_node().is_type<fully_connected>())
+            prim = network.get_primitive(item.first);
+    }
+
+    ASSERT_NE(prim, nullptr);
+    const auto& fc_node = prim->get_node();
     ASSERT_TRUE(fc_node.is_all_valid_output_layouts());
 }
 
