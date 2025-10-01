@@ -1457,6 +1457,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const bool use_asymmetric_quantization = configuration.use_asymmetric_quantization;
 
     if (is_paged_attention && !is_prefill && is_quantized) {
+        problem.Ta = micro::Type::s8;
+
         const auto scale_dt = convert_type(ov::element::f16);
         problem_kq.Ta_scale = scale_dt;
         problem_kq.A_scale.setAlignment(scale_dt.size());
@@ -1515,6 +1517,14 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_kq.B.layout = micro::MatrixLayout::Pr;
     problem_kq.C.layout = micro::MatrixLayout::T;
     problem_kq.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
+    if (is_paged_attention && !is_prefill) {
+        auto pa_desc = params.typed_desc<paged_attention>();
+        const auto paged_attention_block_size = static_cast<int>(paged_attention::block_size);
+        problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta);
+        if (is_quantized && pa_desc->is_key_by_channel) {
+            problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta + 4);  // scale - 2 bytes, zp - 2 bytes
+        }
+    }
     problem_kq.B.setAlignment(64);  // Q is packed in VNNI format in SLM
     problem_kq.B.crosspack = 2;
     problem_kq.B.tileR = static_cast<uint16_t>(d_max);
@@ -1609,6 +1619,10 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_vs.B.layout = micro::MatrixLayout::Pr;
     problem_vs.C.layout = micro::MatrixLayout::N;
     problem_vs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
+    if (is_paged_attention && !is_prefill) {
+        const auto paged_attention_block_size = static_cast<int>(paged_attention::block_size);
+        problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta);
+    }
     problem_vs.B.setAlignment(64);  // S is packed in SLM
     problem_vs.B.crosspack = 16;
     sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();
