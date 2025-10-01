@@ -26,7 +26,9 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
