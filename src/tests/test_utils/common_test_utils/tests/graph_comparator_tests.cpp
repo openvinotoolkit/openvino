@@ -698,3 +698,319 @@ TEST(GraphComparatorTests, CheckConsumersCountNegative) {
     auto res = comparator.compare(function, function_ref);
     ASSERT_FALSE(res.valid) << res.message;
 }
+
+TEST(GraphComparatorTests, DisconnectedSubgraphsIdentical) {
+    // This test should PASS: identical models with disconnected constant->result subgraphs
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        // Main connected graph
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        // Disconnected constant->result subgraphs
+        auto const1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result_const1 = std::make_shared<ov::op::v0::Result>(const1);
+
+        auto const2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.999f});
+        auto result_const2 = std::make_shared<ov::op::v0::Result>(const2);
+
+        function_ref = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result_const1, result_const2},
+            ov::ParameterVector{param}
+        );
+    }
+    {
+        // Identical model
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        auto const1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result_const1 = std::make_shared<ov::op::v0::Result>(const1);
+
+        auto const2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.999f});
+        auto result_const2 = std::make_shared<ov::op::v0::Result>(const2);
+
+        function = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result_const1, result_const2},
+            ov::ParameterVector{param}
+        );
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(GraphComparatorTests, DisconnectedSubgraphsDifferentOrder) {
+    // This test currently FAILS but should PASS: same subgraphs in different order
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        // Main connected graph
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        // Disconnected constant->result subgraphs in ORDER 1
+        auto const1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result_const1 = std::make_shared<ov::op::v0::Result>(const1);
+
+        auto const2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.999f});
+        auto result_const2 = std::make_shared<ov::op::v0::Result>(const2);
+
+        function_ref = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result_const1, result_const2},  // Order: main, 0.9, 0.999
+            ov::ParameterVector{param}
+        );
+    }
+    {
+        // Same model but disconnected subgraphs in ORDER 2
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        auto const1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result_const1 = std::make_shared<ov::op::v0::Result>(const1);
+
+        auto const2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.999f});
+        auto result_const2 = std::make_shared<ov::op::v0::Result>(const2);
+
+        function = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result_const2, result_const1},  // Order: main, 0.999, 0.9 (SWAPPED!)
+            ov::ParameterVector{param}
+        );
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    EXPECT_TRUE(res.valid) << "Bug CVS-140357: Comparator fails when disconnected subgraphs are in different order. Message: " << res.message;
+}
+
+TEST(GraphComparatorTests, DisconnectedSubgraphsDifferent) {
+    // This test should FAIL: different disconnected subgraphs
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        // Main connected graph
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        // Disconnected constant->result subgraphs
+        auto const1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result_const1 = std::make_shared<ov::op::v0::Result>(const1);
+
+        auto const2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.999f});
+        auto result_const2 = std::make_shared<ov::op::v0::Result>(const2);
+
+        function_ref = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result_const1, result_const2},
+            ov::ParameterVector{param}
+        );
+    }
+    {
+        // Different disconnected subgraphs (different constant values)
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        auto const1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.8f});  // Different!
+        auto result_const1 = std::make_shared<ov::op::v0::Result>(const1);
+
+        auto const2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.99f});  // Different!
+        auto result_const2 = std::make_shared<ov::op::v0::Result>(const2);
+
+        function = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result_const1, result_const2},
+            ov::ParameterVector{param}
+        );
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << "Should detect different disconnected subgraphs";
+}
+
+// More comprehensive tests for CVS-140357
+
+TEST(GraphComparatorTests, DisconnectedSubgraphsSwappedOrder) {
+    // This test SHOULD PASS after fix: same disconnected subgraphs but swapped order
+    // Currently FAILS because comparator matches Results by position, not by content
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        // Model 1: Main graph + 2 disconnected constants in order A, B
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        auto const_a = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result_a = std::make_shared<ov::op::v0::Result>(const_a);
+
+        auto const_b = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.999f});
+        auto result_b = std::make_shared<ov::op::v0::Result>(const_b);
+
+        function_ref = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result_a, result_b},  // Order: main, A, B
+            ov::ParameterVector{param}
+        );
+    }
+    {
+        // Model 2: Same but disconnected constants in order B, A (SWAPPED!)
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        auto const_a = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result_a = std::make_shared<ov::op::v0::Result>(const_a);
+
+        auto const_b = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.999f});
+        auto result_b = std::make_shared<ov::op::v0::Result>(const_b);
+
+        function = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result_b, result_a},  // Order: main, B, A (SWAPPED!)
+            ov::ParameterVector{param}
+        );
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    EXPECT_TRUE(res.valid) << "CVS-140357: Should match disconnected subgraphs regardless of order. Error: " << res.message;
+}
+
+TEST(GraphComparatorTests, DisconnectedSubgraphsMissingOne) {
+    // This test should FAIL: one model has extra disconnected subgraph
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        // Model 1: Main graph + 2 disconnected constants
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        auto const1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result1 = std::make_shared<ov::op::v0::Result>(const1);
+
+        auto const2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.999f});
+        auto result2 = std::make_shared<ov::op::v0::Result>(const2);
+
+        function_ref = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result1, result2},
+            ov::ParameterVector{param}
+        );
+    }
+    {
+        // Model 2: Main graph + only 1 disconnected constant (missing one!)
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        auto const1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result1 = std::make_shared<ov::op::v0::Result>(const1);
+
+        function = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result1},  // Missing second constant!
+            ov::ParameterVector{param}
+        );
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << "Should detect missing disconnected subgraph";
+}
+
+TEST(GraphComparatorTests, DisconnectedSubgraphsComplexStructure) {
+    // Test with more complex disconnected subgraphs (not just Constant->Result)
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        // Model 1: Main graph + disconnected Const->Add->Result subgraph
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(mul);
+
+        // Disconnected subgraph: Const1 + Const2 -> Result
+        auto const1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+        auto const2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.0f});
+        auto add_disconnected = std::make_shared<ov::op::v1::Add>(const1, const2);
+        auto result_disconnected = std::make_shared<ov::op::v0::Result>(add_disconnected);
+
+        function_ref = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result_disconnected},
+            ov::ParameterVector{param}
+        );
+    }
+    {
+        // Model 2: Identical structure
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(mul);
+
+        auto const1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+        auto const2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.0f});
+        auto add_disconnected = std::make_shared<ov::op::v1::Add>(const1, const2);
+        auto result_disconnected = std::make_shared<ov::op::v0::Result>(add_disconnected);
+
+        function = std::make_shared<ov::Model>(
+            ov::ResultVector{result_main, result_disconnected},
+            ov::ParameterVector{param}
+        );
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(GraphComparatorTests, OnlyDisconnectedSubgraphs) {
+    // Edge case: model with ONLY disconnected subgraphs (no Parameters)
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        // Model 1: Only constants in order A, B
+        auto const_a = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result_a = std::make_shared<ov::op::v0::Result>(const_a);
+
+        auto const_b = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.999f});
+        auto result_b = std::make_shared<ov::op::v0::Result>(const_b);
+
+        function_ref = std::make_shared<ov::Model>(
+            ov::ResultVector{result_a, result_b},
+            ov::ParameterVector{}
+        );
+    }
+    {
+        // Model 2: Same constants in order B, A (SWAPPED!)
+        auto const_a = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.9f});
+        auto result_a = std::make_shared<ov::op::v0::Result>(const_a);
+
+        auto const_b = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.999f});
+        auto result_b = std::make_shared<ov::op::v0::Result>(const_b);
+
+        function = std::make_shared<ov::Model>(
+            ov::ResultVector{result_b, result_a},  // SWAPPED ORDER!
+            ov::ParameterVector{}
+        );
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    EXPECT_TRUE(res.valid) << "CVS-140357: Should match disconnected subgraphs regardless of order. Error: " << res.message;
+}
