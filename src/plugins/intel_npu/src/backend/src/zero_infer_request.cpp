@@ -76,23 +76,11 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
 std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
                                                    const std::shared_ptr<ov::ITensor>& tensor,
                                                    const std::optional<size_t> batchSize) {
-    // Check if tensor was originally dynamic by looking for encoded markers
-    // This information is needed to restore the original dynamic batching behavior
-    auto wasOriginallyDynamic = [](const std::unordered_set<std::string>& tensorNames) -> bool {
-        for (const auto& name : tensorNames) {
-            if (name.find(intel_npu::utils::DYNBATCH_SUFFIX) != std::string::npos) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    auto wasDynamic = wasOriginallyDynamic(desc.outputTensorNames);
-
     if (tensor == nullptr && !batchSize.has_value()) {
         return std::nullopt;
     }
 
+    auto wasDynamic = intel_npu::utils::wasOriginallyDynamic(desc.outputTensorNames);
     if (!wasDynamic) {
         return std::nullopt;
     }
