@@ -629,13 +629,15 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model,
 
     if (embed_result) {
         auto shape = embed_result->input(0).get_shape();
-        // If shape.size() is 3, then last axis should be the Vocab size.
+        // If shape.size() is 3, then last axis should contain the rank of embedding dimension.
         // But 1st and 2nd axes can mean different things.
         // 1st axis can represent the batch size, while 2nd - the number of embeddings,
         // or vice-versa (in chatglm)
         if (shape.size() == 3) {
             uint32_t num_embeds_dim = 1 - batch_dim;
-            if (shape[num_embeds_dim] > max_generation_token_len) {
+            OPENVINO_ASSERT(shape[num_embeds_dim] >= max_generation_token_len,
+                "Number of output embeddings should be greater or equal to the slicing range!");
+            if (shape[num_embeds_dim] != max_generation_token_len) {
                 std::vector<int32_t> start_pos{
                     static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - max_generation_token_len)),
                     static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - max_generation_token_len)),
