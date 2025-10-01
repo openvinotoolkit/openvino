@@ -123,8 +123,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     auto opt_unsq_v = optional<v1::Reshape, v0::Unsqueeze>({unsq_v, any_input()});
 
     // this Transpose may be inserted by SDPAFusionMatcher
-    auto opt_transpose_k =
-        optional<v1::Transpose>({opt_unsq_k, any_input()}, shape_matches("..., S_kv, D"));
+    auto opt_transpose_k = optional<v1::Transpose>({opt_unsq_k, any_input()}, shape_matches("..., S_kv, D"));
 
     auto sdpa = wrap_type<v13::ScaledDotProductAttention>({
         opt_unsq_q,
@@ -135,7 +134,8 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     });
 
     auto opt_sdpa_reshape = optional<v1::Reshape, v0::Unsqueeze>({sdpa, any_input()});
-    auto post_sdpa = wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_reshape, any_input()}, shape_matches("..., S_q, D"));
+    auto post_sdpa =
+        wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_reshape, any_input()}, shape_matches("Batches..., S_q, D"));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
@@ -180,7 +180,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
                 ov::copy_runtime_info(m.get_matched_nodes(), {shape_of_v, k_node.get_node_shared_ptr()});
             }
         }
-        
+
         auto new_sdpa_node = sdpa_node->clone_with_new_inputs(
             {q_node, k_node, v_node, sdpa_node->input(3).get_source_output(), sdpa_node->input(4).get_source_output()});
 
@@ -190,7 +190,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         new_sdpa_node->set_friendly_name(post_sdpa_node->get_friendly_name());
         ov::copy_runtime_info(post_sdpa_node, new_sdpa_node);
         ov::replace_node(post_sdpa_node, new_sdpa_node);
-        
+
         return true;
     };
 

@@ -1040,35 +1040,35 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimization) {
 
 TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimization_OutputReshape) {
     // Init.
-    const PartialShape query_shape{1, 1, 49, 52};
-    const PartialShape key_shape{1, 1, 49, 52};
-    const PartialShape value_shape{1, 1, 49, 52};
+    const PartialShape query_shape{-1, -1, 52};
+    const PartialShape key_shape{-1, -1, -1, 52};
+    const PartialShape value_shape{-1, -1, 52};
 
     SDPA sdpa(f16, query_shape, key_shape, value_shape);
     SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
 
     // SDPA model.
-    {      
+    {
         sdpa.reshape_q({1, 49, 1, 52});
         sdpa.reshape_k({1, 49, 1, 52});
         sdpa.reshape_v({1, 49, 1, 52});
-        
+
         sdpa.create_pattern_sdpa(true);
-                
+
         sdpa.reshape_sdpa({1, 1, 49, 52});
         sdpa.reshape_sdpa({1, 49, 52});
-        
+
         model = sdpa.build_model();
-        
+
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
     // SDPA reference model.
     {
         sdpa_ref.create_reference_sdpa();
-        
+
         sdpa_ref.reshape_sdpa({1, 49, 52});
-        
+
         model_ref = sdpa_ref.build_model();
     }
 
