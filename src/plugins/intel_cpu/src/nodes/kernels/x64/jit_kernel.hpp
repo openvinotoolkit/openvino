@@ -665,7 +665,10 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
     void store(const variable<DstT>& dst, const variable<SrcT[N]>& src, const variable<size_t>& length);
 
     template <typename B, typename E, typename S = size_t>
-    void foreach (const B& begin, const E& end, std::function<void(const variable<size_t>&)> && fn, const S& step = 1);
+    void foreach (const B& begin,
+                  const E& end,
+                  const std::function<void(const variable<size_t>&)>& fn,
+                  const S& step = 1);
 
     template <typename T>
     variable<T> var();
@@ -814,7 +817,7 @@ void jit_kernel::store(const variable<DstT>& dst, const variable<SrcT[N]>& src, 
 template <typename B, typename E, typename S>
 void jit_kernel::foreach (const B& begin,
                           const E& end,
-                          std::function<void(const variable<size_t>&)> && fn,
+                          const std::function<void(const variable<size_t>&)>& fn,
                           const S& step) {
     using namespace Xbyak;
 
@@ -828,7 +831,7 @@ void jit_kernel::foreach (const B& begin,
     cmp(idx, end);
     jge(exit, T_NEAR);
 
-    std::move(fn)(idx);
+    fn(idx);
 
     add(idx, step);
     jmp(loop, T_NEAR);
