@@ -29,7 +29,8 @@ jobs:
       volumes:
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      options: "-e HF_TOKEN" # Needed for HuggingFace cache authentication
+        - /run/secrets/hf:/run/secrets/hf:ro # Needed for HuggingFace cache authentication
+      options: "-e HF_TOKEN_PATH=/run/secrets/hf/token" # Needed for HuggingFace cache authentication
     defaults:
       run:
         shell: bash
@@ -48,13 +49,13 @@ jobs:
             .github/actions
           sparse-checkout-cone-mode: false
           submodules: 'false'
-      
+
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
