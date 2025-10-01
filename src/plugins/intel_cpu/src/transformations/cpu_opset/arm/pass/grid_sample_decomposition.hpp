@@ -202,15 +202,14 @@ public:
 };
 
 /**
- * @brief GridSampleDecomposition is a composite transformation that registers
- * all three GridSample decomposition passes (Nearest, Bilinear, Bicubic).
+ * @brief GridSampleDecomposition installs a single unified matcher that handles
+ * GridSample decomposition for all interpolation modes (Nearest, Bilinear, Bicubic).
  *
- * This pass registers the following transformations:
- * - GridSampleDecompositionNearest
- * - GridSampleDecompositionBilinear
- * - GridSampleDecompositionBicubic
+ * The matcher selects the appropriate decomposition path based on
+ * ov::op::v9::GridSample::Attributes::mode and applies special-case handling
+ * for known problematic combinations.
  */
-class GridSampleDecomposition : public ov::pass::GraphRewrite {
+class GridSampleDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("GridSampleDecomposition", "0");
     GridSampleDecomposition();

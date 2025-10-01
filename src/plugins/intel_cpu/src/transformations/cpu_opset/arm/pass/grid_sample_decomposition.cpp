@@ -849,11 +849,63 @@ GridSampleDecompositionBicubic::GridSampleDecompositionBicubic() {
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionBicubic"), callback);
 }
 
-// Composite GraphRewrite that installs the 3 matchers
+// Unified matcher that handles all interpolation modes
 GridSampleDecomposition::GridSampleDecomposition() {
-    add_matcher<GridSampleDecompositionNearest>();
-    add_matcher<GridSampleDecompositionBilinear>();
-    add_matcher<GridSampleDecompositionBicubic>();
+    auto data_pattern = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
+    auto grid_pattern = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(4));
+    auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>({data_pattern, grid_pattern});
+
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& matcher) {
+        auto grid_sample = std::dynamic_pointer_cast<op::v9::GridSample>(matcher.get_match_root());
+        if (!grid_sample || transformation_callback(grid_sample)) {
+            return false;
+        }
+        const auto& attrs = grid_sample->get_attributes();
+        const bool is_f32_data = grid_sample->get_input_element_type(0) == element::f32;
+        const bool is_f32_grid = grid_sample->get_input_element_type(1) == element::f32;
+
+        switch (attrs.mode) {
+        case op::v9::GridSample::InterpolationMode::NEAREST: {
+            if (is_f32_data && is_f32_grid && is_nearest_problematic(attrs)) {
+                return false;  // keep original GridSample -> plugin will fallback to Reference
+            }
+            if ((!is_f32_data || !is_f32_grid) && is_nearest_problematic(attrs)) {
+                auto out = grid_sample_in_f32_and_back(grid_sample);
+                out->set_friendly_name(grid_sample->get_friendly_name());
+                copy_rt_to_subgraph(grid_sample, out);
+                ov::replace_node_update_name(grid_sample, out);
+                return true;
+            }
+            return decompose_impl(grid_sample, build_nearest_nhwc);
+        }
+        case op::v9::GridSample::InterpolationMode::BILINEAR: {
+            return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& a) {
+                return build_bilinear_nhwc(context, a);
+            });
+        }
+        case op::v9::GridSample::InterpolationMode::BICUBIC: {
+            if (is_f32_data && is_f32_grid && attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS &&
+                !attrs.align_corners) {
+                return false;  // keep original GridSample
+            }
+            if ((!is_f32_data || !is_f32_grid) && attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS &&
+                !attrs.align_corners) {
+                auto out = grid_sample_in_f32_and_back(grid_sample);
+                out->set_friendly_name(grid_sample->get_friendly_name());
+                copy_rt_to_subgraph(grid_sample, out);
+                ov::replace_node_update_name(grid_sample, out);
+                return true;
+            }
+            return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& a) {
+                return build_bicubic_nhwc(context, a);
+            });
+        }
+        default:
+            return false;
+        }
+    };
+
+    this->register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecomposition"), callback);
 }
 
 }  // namespace ov::intel_cpu
