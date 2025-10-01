@@ -7,7 +7,6 @@
 #include <optional>
 
 #include "common.hpp"
-#include "dynamic.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
