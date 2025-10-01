@@ -271,6 +271,7 @@ std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
     const auto it = config.find(ov::cache_model_path.name());
     return it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
 }
+
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -1506,9 +1507,17 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                     plugin.get_property(ov::internal::compiled_model_runtime_properties.name(), {}).as<std::string>();
             }
             cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
+                uint32_t header_size_alignment{};
+                if (device_supports_internal_property(plugin, ov::internal::cache_header_alignment.name())) {
+                    header_size_alignment =
+                        plugin.get_property(ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
+                }
+
                 networkStream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
                                                         ov::ModelCache::calculate_file_info(cacheContent.modelPath),
-                                                        compiled_model_runtime_properties);
+                                                        compiled_model_runtime_properties,
+                                                        header_size_alignment);
+
                 compiled_model->export_model(networkStream);
             });
         } catch (...) {
