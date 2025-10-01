@@ -161,7 +161,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
     const auto layout_bytes_count = layout.bytes_count();
     auto it = _non_padded_pool.lower_bound(layout_bytes_count);
     while (it != _non_padded_pool.end()) {
-        if ((!is_dynamic || (layout_bytes_count > it->second._memory->get_layout().bytes_count() * 0.5)) &&
+        if ((!is_dynamic || (layout_bytes_count > it->second._memory->get_layout().bytes_count() * _pool_mem_utilization)) &&
             (it->second._network_id == network_id &&
             it->second._type == type &&
             it->second._memory->get_layout().format != format::fs_b_yx_fsv32 &&
@@ -375,7 +375,13 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 }
 
 memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engine(&engine), _config(config) {
-    (void)(_config); // Silence unused warning
+    _pool_mem_utilization = _config.get_pool_mem_utilization();
+    if (_pool_mem_utilization < 0.f || _pool_mem_utilization > 1.f) {
+        _pool_mem_utilization = std::clamp(_pool_mem_utilization, 0.f, 1.f);
+        GPU_DEBUG_TRACE_DETAIL << "[WARNING] pool_mem_utilization should be in range [0.f, 1.f]. Reset to "
+            << _pool_mem_utilization << std::endl;
+    }
+    GPU_DEBUG_TRACE_DETAIL << "pool_mem_utilization set to " << _pool_mem_utilization << std::endl;
 }
 
 #ifdef GPU_DEBUG_CONFIG
