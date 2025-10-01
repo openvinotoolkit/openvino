@@ -787,9 +787,7 @@ GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
             ov::replace_node_update_name(grid_sample, out);
             return true;
         }
-        return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& attrs) {
-            return build_nearest_nhwc(context, attrs);
-        });
+        return decompose_impl(grid_sample, build_nearest_nhwc);
     };
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionNearest"), callback);
 }
