@@ -14,11 +14,11 @@
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mvn_config.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
-#include "nodes/executors/debug_messages.hpp"
 
 namespace ov::intel_cpu {
 
