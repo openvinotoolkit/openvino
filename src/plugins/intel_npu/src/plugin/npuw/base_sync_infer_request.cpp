@@ -263,7 +263,7 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
-        m_profile[profile_tag(idx)] += ov::npuw::perf::ms_to_run([&]() {
+        m_profile[profile_tag(idx)].record([&]() {
             run_subrequest_for_success(idx, failover);
         });
         failover_happened |= failover;
@@ -576,7 +576,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     handle_quant_host_gather(idx, request);
 
     // Handle attention inputs, if required
-    m_profile["attn(io)"] += ov::npuw::perf::ms_to_run([&]() {
+    m_profile["attn(io)"].record([&]() {
         bind_attention_inputs(idx, request);
     });
 

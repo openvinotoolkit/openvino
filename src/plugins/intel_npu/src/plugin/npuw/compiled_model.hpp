@@ -151,7 +151,7 @@ private:
     // Shouldn't this be counter instead? There's nothing much to
     // average across compilation processes per model (it's a single
     // process).
-    using MS = ov::npuw::perf::metric<float, ov::npuw::perf::MSec>;
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
     ov::npuw::perf::Profile<MS> m_profile;
 
     void init_profiling();
