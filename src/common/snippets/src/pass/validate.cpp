@@ -55,10 +55,6 @@ bool Validate::is_supported_constant(const std::shared_ptr<const ov::Node>& op) 
                         }));
 }
 
-bool Validate::is_supported_convert(const std::shared_ptr<const ov::Node>& op) {
-    return ov::is_type_any_of<const op::ConvertTruncation, const op::ConvertSaturation>(op);
-}
-
 bool Validate::is_supported_matmul(const std::shared_ptr<const ov::Node>& op) {
     // If ExplicitTransposeMatMulInputs pass is enabled, MatMul should have not transposed inputs
     const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(op);
@@ -98,7 +94,6 @@ bool Validate::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
     for (const auto& op : m->get_ordered_ops()) {
         VALIDATE(op, ov::op::v0::Constant, is_supported_constant)
-        VALIDATE(op, ov::op::v0::Convert, is_supported_convert)
         VALIDATE(op, ov::op::v0::MatMul, is_supported_matmul)
         VALIDATE(op, ov::op::v1::Softmax, is_supported_softmax)
         VALIDATE(op, ov::op::v8::Softmax, is_supported_softmax)

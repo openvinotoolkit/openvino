@@ -27,7 +27,6 @@ public:
 
 private:
     static bool is_supported_constant(const std::shared_ptr<const ov::Node>& op);
-    static bool is_supported_convert(const std::shared_ptr<const ov::Node>& op);
     bool is_supported_matmul(const std::shared_ptr<const ov::Node>& op);
     static bool is_supported_softmax(const std::shared_ptr<const ov::Node>& op);
     bool is_supported_fq(const std::shared_ptr<const ov::Node>& node);
