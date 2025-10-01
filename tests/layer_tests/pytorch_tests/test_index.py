@@ -90,7 +90,7 @@ class TestIndex(PytorchLayerTest):
     @pytest.mark.precommit
     def test_index_bool_with_axis(self, ie_device, precision, ir_version):
         self._test(*self.create_model("bool_with_axis"), ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={"input_shape": (2,2,5)}, trace_model=True)
+                   kwargs_to_prepare_input={"input_shape": (2, 2, 5)}, trace_model=True)
 
 
 class TestIndexRange(PytorchLayerTest):
