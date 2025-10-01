@@ -370,7 +370,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
     auto q = pattern::any_input();
     auto scale_input = pattern::any_input(scale_predicate);
-    auto sinks = pattern::any_input();
+    auto sinks = pattern::any_input(pattern::has_static_shape() && pattern::rank_equals(4));
 
     auto k_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
@@ -669,10 +669,14 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pa_arguments.insert(pa_arguments.begin() + 19, v0::Constant::create(element::i32, Shape{}, {0}));
         }
 
-        // TODO: I think some additional checks may be present, but the default constant is goning to be 4d 0s
-        pa_arguments.insert(pa_arguments.begin() + 20,
-                            pattern_map.count(sinks) ? pattern_map.at(sinks).get_node_shared_ptr()
-                                                     : v0::Constant::create(real_q.get_element_type(), Shape{0}, {}));
+        // For now we haven't seen sinks in any other model than gpt-oss, so taking -3 is generally safe
+        // as there's going to be num_q_heads at -3.
+        if (pattern_map.count(sinks) &&
+            pattern_map.at(sinks).get_partial_shape()[-3] == real_q.get_partial_shape()[-3]) {
+            pa_arguments.insert(pa_arguments.begin() + 20, pattern_map.at(sinks).get_node_shared_ptr());
+        } else {
+            pa_arguments.insert(pa_arguments.begin() + 20, v0::Constant::create(real_q.get_element_type(), Shape{0}, {}));
+        }
 
         OPENVINO_ASSERT(pa_arguments.size() == 21);
 

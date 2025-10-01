@@ -592,7 +592,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, MOCK_VALUE);
         auto score_aggregation_window_const = std::make_shared<v0::Constant>(element::i32, Shape{0}, 0);
-        auto sinks = makeConst(element::f32, {0}, {});
+        auto sinks = v0::Constant::create(element::f32, Shape{0}, {});
 
         // PagedAttention:
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
@@ -975,7 +975,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         // PA cannot be instantiated uding makeOP hence creating constants for it manually
         auto c1 = makeConst(element::f32, {}, {0.088388f});
         auto c2 = makeConst(element::i32, {}, {0});
-        auto sinks = makeConst(element::f32, {0}, {});
+        auto sinks = v0::Constant::create(element::f32, Shape{0}, {});
         auto PagedAttentionExtension168 =
             std::make_shared<ov::op::PagedAttentionExtension>(ov::OutputVector{Reshape138,
                                                                                Reshape147,
@@ -1338,7 +1338,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto c2 = makeConst(element::i32, {}, {0});
         // an empty Constant needs to be created in a usual way, not using makeConst()
         auto c3 = v0::Constant::create(element::f32, {0}, {});
-        auto sinks = makeConst(element::f32, {0}, {});
+        auto sinks = v0::Constant::create(element::f32, Shape{0}, {});
         auto PagedAttentionExtension_51962 =
             std::make_shared<ov::op::PagedAttentionExtension>(ov::OutputVector{Reshape_51953,
                                                                                Reshape_51957,
@@ -1657,7 +1657,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
 
         auto scale = v0::Constant::create(element::f32, {}, {0.102062f});
         auto alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
-        auto sinks = makeConst(element::f32, {0}, {});
+        auto sinks = v0::Constant::create(element::f32, Shape{0}, {});
         auto PagedAttentionExtension =
             std::make_shared<ov::op::PagedAttentionExtension>(OutputVector{Q,
                                                                            K,
@@ -1995,7 +1995,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto sliding_window = v0::Constant::create(element::i32, {}, {0});
         auto scale = v0::Constant::create(element::f32, {}, {0.062500f});
         auto alibi_slopes_stub = v0::Constant::create(element::f32, Shape{0}, {});
-        auto sinks = makeConst(element::f32, {0}, {});
+        auto sinks = v0::Constant::create(element::f32, Shape{0}, {});
         auto PagedAttentionExtension =
             std::make_shared<ov::op::PagedAttentionExtension>(OutputVector{Reshape11,
                                                                            Reshape13,

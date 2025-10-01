@@ -1031,23 +1031,6 @@ inline std::shared_ptr<Node> makePattern(values_info vt) {
 }
 
 // unknown const
-inline std::shared_ptr<Node> makeConst(const ov::element::Type& type,
-                                       const ov::PartialShape& pshape,
-                                       std::function<bool(ov::op::v0::Constant& node)> pred) {
-    return ov::pass::pattern::wrap_type<ov::op::v0::Constant>([type, pshape, pred](const Output<Node>& value) {
-        auto cnode = ov::as_type_ptr<opset1::Constant>(value.get_node_shared_ptr());
-        if (!cnode)
-            return false;
-
-        if (!type.compatible(value.get_element_type()) || !pshape.compatible(value.get_partial_shape())) {
-            return false;
-        }
-        if (pred && !pred(*cnode)) {
-            return false;
-        }
-        return true;
-    });
-}
 
 template <typename T>
 std::shared_ptr<Node> makeConst(const ov::element::Type& type,

@@ -104,7 +104,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 17, "xattention_threshold", {1}, {element::f16, element::f32});
     input_check(this, 18, "xattention_block_size", {0}, {element::i32});
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
-    input_check(this, 20, "sinks", {0, 1, 2, 3, 4}, {}); //TODO: find out what real shapes we have to support here
+    input_check(this, 20, "sinks", {1, 4}, {});
 
     // value head_size may be not same with key
     auto out_ps = get_input_partial_shape(0);
