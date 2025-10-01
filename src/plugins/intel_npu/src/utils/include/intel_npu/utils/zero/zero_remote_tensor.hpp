@@ -11,7 +11,7 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "intel_npu/utils/zero/zero_memory.hpp"
+#include "intel_npu/utils/zero/zero_mem.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
@@ -75,7 +75,6 @@ public:
 
 private:
     void allocate(const size_t bytes);
-    bool deallocate() noexcept;
     bool is_allocated() const noexcept;
     void update_strides();
     void update_properties();
