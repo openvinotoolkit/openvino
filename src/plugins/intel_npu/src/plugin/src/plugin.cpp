@@ -57,17 +57,6 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     ov::ParameterVector parameters;
     ov::ResultVector results;
 
-    // Check if tensor was originally dynamic by looking for encoded markers
-    // This information is needed to restore the original dynamic batching behavior
-    auto wasOriginallyDynamic = [](const std::unordered_set<std::string>& tensorNames) -> bool {
-        for (const auto& name : tensorNames) {
-            if (name.find(intel_npu::utils::DYNBATCH_SUFFIX) != std::string::npos) {
-                return true;
-            }
-        }
-        return false;
-    };
-
     for (const IODescriptor& inputDescriptor : inputDescriptors) {
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
             inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
@@ -77,7 +66,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         auto shape = inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
                                                                   : inputDescriptor.shapeFromCompiler;
 
-        if (wasOriginallyDynamic(inputDescriptor.outputTensorNames)) {
+        if (intel_npu::utils::wasOriginallyDynamic(inputDescriptor.outputTensorNames)) {
             shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(-1);
         }
 
@@ -105,7 +94,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         auto shape = outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
                                                                    : outputDescriptor.shapeFromCompiler;
 
-        if (wasOriginallyDynamic(outputDescriptor.outputTensorNames)) {
+        if (intel_npu::utils::wasOriginallyDynamic(outputDescriptor.outputTensorNames)) {
             shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(-1);
         }
 
