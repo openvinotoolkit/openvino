@@ -28,7 +28,7 @@ void ZeroGraphTest::SetUp() {
 
     model = ov::test::utils::make_multi_single_conv();
 
-    zeroInitMock = std::make_shared<ZeroInitStructsMock>(extVersion);
+    std::shared_ptr<ZeroInitStructsMock> zeroInitMock = std::make_shared<ZeroInitStructsMock>(extVersion);
 
     zeroInitStruct = std::reinterpret_pointer_cast<ZeroInitStructsHolder>(zeroInitMock);
 
@@ -37,6 +37,10 @@ void ZeroGraphTest::SetUp() {
     auto compilerProperties = zeroInitStruct->getCompilerProperties();
     const auto maxOpsetVersion = compilerProperties.maxOVOpsetVersionSupported;
     irSerializer = std::make_shared<IRSerializer>(IRSerializer(model, maxOpsetVersion));
+}
+
+void ZeroGraphTest::TearDown() {
+    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 void ZeroGraphTest::serializeIR() {
@@ -55,8 +59,6 @@ TEST_P(ZeroGraphTest, GetGraphInitIR) {
                            zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
                                                                    ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
-
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, GetGraphInitBlob) {
@@ -79,8 +81,6 @@ TEST_P(ZeroGraphTest, GetGraphInitBlob) {
                            zeroUtils::findCommandQueueGroupOrdinal(zeroInitStruct->getDevice(),
                                                                    ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE));
     OV_ASSERT_NO_THROW(zeGraphExt->initializeGraph(graphDescriptor, initCommandQueueOrdinal));
-
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, GetNetworkMeta) {
@@ -90,15 +90,11 @@ TEST_P(ZeroGraphTest, GetNetworkMeta) {
     NetworkMetadata meta;
     // init matters?
     OV_ASSERT_NO_THROW(meta = zeGraphExt->getNetworkMeta(graphDescriptor));
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, QueryGraph) {
     serializeIR();
-    // init matters?
     OV_ASSERT_NO_THROW(zeGraphExt->queryGraph(std::move(serializedIR), ""));
-
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, GetGraphBinary) {
@@ -118,8 +114,20 @@ TEST_P(ZeroGraphTest, GetGraphBinary) {
 
     const uint8_t* blobPtr = nullptr;
     OV_ASSERT_NO_THROW(zeGraphExt->getGraphBinary(graphDescriptor, blob, blobPtr, size));
+}
 
-    zeGraphExt->destroyGraph(graphDescriptor);
+TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
+    serializeIR();
+
+    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
+
+    size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
+    void* ptr = nullptr;
+    OV_ASSERT_NO_THROW(ptr = allocate_zero_memory(zeroInitStruct, totalSize, utils::STANDARD_PAGE_SIZE));
+
+    ASSERT_ANY_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, nullptr));
+
+    OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, ptr));
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
@@ -134,7 +142,6 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, ptr));
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, ptr));
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
@@ -159,7 +166,6 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer));
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
@@ -185,7 +191,6 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer));
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryIR) {
@@ -200,7 +205,6 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryIR) {
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(ptr) + 1));
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, ptr));
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
@@ -224,7 +228,6 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer) + 1));
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryZeMemAllocBlob) {
@@ -249,7 +252,6 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryZeMemAllocBlob) 
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(buffer) + 1));
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 TEST_P(ZeroGraphTest, SetGraphArgsOnDestroyedBlob) {
@@ -274,7 +276,6 @@ TEST_P(ZeroGraphTest, SetGraphArgsOnDestroyedBlob) {
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer));
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
-    zeGraphExt->destroyGraph(graphDescriptor);
 }
 
 std::vector<int> graphDescflags = {ZE_GRAPH_FLAG_NONE,

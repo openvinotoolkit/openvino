@@ -15,12 +15,10 @@ class ZeroGraphTest : public ::testing::TestWithParam<std::tuple<int, int>> {
 protected:
     void SetUp() override;
 
-    void TearDown() override {};
+    void TearDown() override;
 
 public:
     void serializeIR();
-
-    std::shared_ptr<ZeroInitStructsMock> zeroInitMock;
 
     std::shared_ptr<ZeroInitStructsHolder> zeroInitStruct;
 
