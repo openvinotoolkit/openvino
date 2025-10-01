@@ -25,6 +25,7 @@ public:
         static constexpr const char* output_embeds = "npuw_output_embed";
         static constexpr const char* logits = "logits";
         static constexpr const char* token_type_ids = "token_type_ids";
+        static constexpr const char* gemma_sliding_mask = "npuw_gemma_sliding_mask";
     };
 
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
@@ -95,7 +96,8 @@ private:
 
     bool m_first_run = true;
 
-    int64_t m_zero_position_id = 0;
+    int64_t m_first_position_id = 0;
+    int32_t m_gemma_sliding_window_size = 0;
 
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;

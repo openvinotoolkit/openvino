@@ -302,6 +302,86 @@ public:
     }
 };
 
+class GemmaSlidingMask : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GemmaSlidingMask");
+
+    struct Result {
+        Result() = default;
+
+        bool found = false;
+        int32_t window_size = 0;
+        std::shared_ptr<ov::op::v0::Parameter> mask_input;
+    };
+
+    explicit GemmaSlidingMask(Result* result) {
+        // Searching for gemma sliding mask pattern and replace it's output
+        // with Paramater of the same size and type.
+        /*                                                            -\
+          range -> unsqueeze -> unsqueeze -> unsqueeze1 -> convert -\/  => LessEqual -\
+                                                             \      /\-/               \
+                                                        /-----\----/                    =>BWAnd_res
+                                                       /       \                       /
+          range -> unsqueeze -> unsqueeze -> unsqueeze2 -> add -=> Greater -> BWAnd --/
+                                 const (-window_size) ----/
+        */
+        // Basically this subgrapgh is doing the following check:
+        // unsqueze2 - window_size < unsqueeze1 <= unsqueeze2
+
+        auto range_sequqence = [&]() {
+            auto range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
+            auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({range, opp::any_input()});
+            auto unsqueeze2 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze1, opp::any_input()});
+            auto unsqueeze3 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze2, opp::any_input()});
+
+            return unsqueeze3;
+        };
+
+        auto unsqueeze1 = range_sequqence();
+        auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze1});
+        auto unsqueeze2 = range_sequqence();
+        auto window_size = opp::wrap_type<ov::op::v0::Constant>();
+        auto add = opp::wrap_type<ov::op::v1::Add>({unsqueeze2, window_size});
+        auto greater = opp::wrap_type<ov::op::v1::Greater>({convert, add});
+        auto bwand = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), greater});
+        auto less_equal = opp::wrap_type<ov::op::v1::LessEqual>({convert, unsqueeze2});
+        auto bwand_res = opp::wrap_type<ov::op::v13::BitwiseAnd>({bwand, less_equal});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+            auto* bwand_matched_node = node_to_output.at(bwand_res).get_node();
+            auto* window_size_node = node_to_output.at(window_size).get_node();
+            auto output = bwand_matched_node->output(0);
+            auto target_inputs = output.get_target_inputs();
+
+            if (target_inputs.size() == 0) {
+                return false;
+            }
+
+            auto* window_size_constant = static_cast<ov::op::v0::Constant*>(window_size_node);
+            OPENVINO_ASSERT(window_size_constant->get_output_size() == 1,
+                            "Sidling window size constant must be of size 1, but got " +
+                                std::to_string(window_size_constant->get_output_size()));
+
+            auto input = std::make_shared<ov::op::v0::Parameter>(output.get_element_type(), output.get_partial_shape());
+            input->set_friendly_name(ov::npuw::LLMInferRequest::layer_names::gemma_sliding_mask);
+            output.replace(input->output(0));
+
+            auto window_size_vec = window_size_constant->cast_vector<int32_t>(1);
+
+            OPENVINO_ASSERT(!result->found, "Second gemma sliding mask pattern found");
+            // Is it thread safe?
+            result->found = true;
+            // since we are doing Add and need to do subtract window size is stored as negative value
+            result->window_size = -window_size_vec[0];
+            result->mask_input = input;
+
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(bwand_res, "OptGemmaSlidingMask"), std::move(callback));
+    }
+};
+
 namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
@@ -786,6 +866,30 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
     model->add_parameters(new_parameters);
 }
 
+void ov::npuw::LLMCompiledModel::gemma_transformations(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
+    auto RewrRes = std::make_unique<GemmaSlidingMask::Result>();
+    rewr.add_matcher<GemmaSlidingMask>(RewrRes.get());
+    rewr.run_on_model(model);
+
+    if (RewrRes->found) {
+        OPENVINO_ASSERT(RewrRes->found == 1,
+                        "Only one Gemma sliding mask should be present, but found " + std::to_string(RewrRes->found));
+        OPENVINO_ASSERT(
+            RewrRes->window_size > 0,
+            "Gemma sliding window size must be strictly positive, but got " + std::to_string(RewrRes->window_size));
+
+        m_gemma_sliding_window_size = RewrRes->window_size;
+        auto mask_input = RewrRes->mask_input;
+        model->add_parameters({mask_input});
+        for (auto&& input : model->inputs()) {
+            if (input.get_node() == mask_input.get()) {
+                input.set_names({mask_input->get_friendly_name()});
+            }
+        }
+    }
+}
+
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
@@ -911,6 +1015,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                       m_kvcache_desc.total_size,
                       axes,
                       m_max_lora_rank);
+    gemma_transforms(kvcache_model);
+
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
