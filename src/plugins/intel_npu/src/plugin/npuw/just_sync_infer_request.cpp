@@ -633,7 +633,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
 
     // 1.5: Do attention prologue if needed
     if (is_dynamic) {
-        m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&](){
+        m_profile["attn(act)"] += ov::npuw::perf::ms_to_run([&]() {
             function_prologue_attn(real_idx, idx);
         });
     }

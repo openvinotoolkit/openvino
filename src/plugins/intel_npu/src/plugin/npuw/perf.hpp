@@ -17,19 +17,30 @@ namespace ov {
 namespace npuw {
 namespace perf {
 
-float ms_to_run(std::function<void()>&& body);
+float ms_to_run(const std::function<void()>& body);
 
 struct MSec {
     constexpr static const char* name = "ms";
+
+    using type_t = float;
+
+    static type_t sample(const std::function<void()>& body) {
+        return ms_to_run(body);
+    }
 };
 
 struct Bytes {
     constexpr static const char* name = "MB";
-    constexpr static float scaler = 1024.0*1024;
+    constexpr static float scaler = 1024.0 * 1024;
+
+    using type_t = uint64_t;
 };
 
-template <typename T, typename U>
+template <typename U>
 class metric {
+    using T = typename U::type_t;
+
+private:
     std::vector<T> records;
     T vmin = std::numeric_limits<T>::max();
     T vmax = std::numeric_limits<T>::min();
@@ -39,13 +50,9 @@ class metric {
 
 public:
     metric() = default;
-    metric(metric&& m)
-        : records(std::move(m.records)), name(std::move(m.name)), enabled(m.enabled) {
-    }
+    metric(metric&& m) : records(std::move(m.records)), name(std::move(m.name)), enabled(m.enabled) {}
 
-    explicit metric(const std::string &named, bool active = false)
-        : name(named), enabled(active) {
-    }
+    explicit metric(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
     void enable() {
         enabled = true;
@@ -77,15 +84,26 @@ public:
         return cpy[cpy.size() / 2];
     }
 
-    friend std::ostream& operator<<(std::ostream& os, const metric<T, U>& m) {
+    template<typename F>
+    void record(F &&f) {
+        if (!enabled) {
+            f();
+        } else {
+            *this += U::sample(f);
+        }
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const metric<U>& m) {
         const char* units = U::name;
         os << std::left << std::setw(20) << (m.name.empty() ? std::string("<unnamed timer>") : m.name);
         if (m.enabled) {
-            os << "[ avg = " << m.avg() << " " << units
-               << ", med = " << m.med() << " " << units
-               << " in " << m.vmin << ".." << m.vmax << " " << units
-               << " range over " << m.records.size() << " records"
-               << ", total = " << m.total << units << " ]";
+            if (m.records.empty()) {
+                os << "[ no data ]";
+            } else {
+                os << "[ avg = " << m.avg() << " " << units << ", med = " << m.med() << " " << units << " in " << m.vmin
+                   << ".." << m.vmax << " " << units << " range over " << m.records.size() << " records"
+                   << ", total = " << m.total << units << " ]";
+            }
         } else {
             os << "[ disabled ]";
         }
@@ -93,8 +111,12 @@ public:
     }
 };
 
-template <typename T, typename U>
+template <typename U>
 class counter {
+public:
+    using T = typename U::type_t;
+
+private:
     T total = 0;
     std::size_t calls = 0;
     std::string name;
@@ -102,13 +124,9 @@ class counter {
 
 public:
     counter() = default;
-    counter(counter&& c)
-        : total(std::move(c.total)), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {
-    }
+    counter(counter&& c) : total(std::move(c.total)), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {}
 
-    explicit counter(const std::string &named, bool active = false)
-        : name(named), enabled(active) {
-    }
+    explicit counter(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
     void enable() {
         enabled = true;
@@ -121,12 +139,12 @@ public:
         }
     }
 
-    friend std::ostream& operator<<(std::ostream& os, const counter<T, U>& c) {
+    friend std::ostream& operator<<(std::ostream& os, const counter<U>& c) {
         const char* units = U::name;
         os << std::left << std::setw(20) << (c.name.empty() ? std::string("<unnamed counter>") : c.name);
         if (c.enabled) {
-            os << "[ " << static_cast<decltype(U::scaler) >(c.total) / U::scaler
-               << " " << units << " total in " << c.calls << " records ]";
+            os << "[ " << static_cast<decltype(U::scaler)>(c.total) / U::scaler << " " << units << " total in "
+               << c.calls << " records ]";
         } else {
             os << "[ disabled ]";
         }
@@ -134,16 +152,18 @@ public:
     }
 };
 
-template<class Metric>
+template <class Metric>
 struct Profile {
     std::map<std::string, Metric> metrics;
     std::string area;
     bool report_on_die = false;
 
-    Metric& operator[](const std::string &tag) {
+    Metric& operator[](const std::string& tag) {
         auto iter = metrics.find(tag);
         if (iter == metrics.end()) {
-            return metrics.insert({tag, Metric(tag, true)}).first->second;
+            // Use report_on_die as a "enabled" marker here
+            auto [new_iter, unused] = metrics.insert({tag, Metric(tag, report_on_die)});
+            return new_iter->second;
         }
         return iter->second;
     }
@@ -157,7 +177,7 @@ struct Profile {
         } else {
             std::cout << std::hex << this << ":" << std::endl;
         }
-        for (auto &&m : metrics) {
+        for (auto&& m : metrics) {
             std::cout << "  " << m.second << std::endl;
         }
     }

@@ -12,10 +12,10 @@
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -1830,8 +1830,8 @@ void Partitioner::identifyAttentionParams(ov::npuw::Function& f) {
     const auto& f_params = f._model->get_parameters();
     NPUW_ASSERT(f_params.size() > 0);
 
-    auto find_context_dim = [&](const auto& param, auto &&f) {
-        const auto &param_shape = param->get_shape();
+    auto find_context_dim = [&](const auto& param, auto&& f) {
+        const auto& param_shape = param->get_shape();
         // Look for the dynamic parameter size - past size in this case
         // With our approach it is context_size - query_size
         auto past_len = dyn.context_len() - dyn.query_len();
@@ -1852,9 +1852,9 @@ void Partitioner::identifyAttentionParams(ov::npuw::Function& f) {
         // A bad test but it is what it is
         if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
             if (!find_context_dim(param, [&](std::size_t dim) {
-                dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, 2});
-            })) {
-                return;             // Couldn't identify parameter's dynamic dimension
+                    dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, 2});
+                })) {
+                return;  // Couldn't identify parameter's dynamic dimension
             }
         }
     }
@@ -2031,7 +2031,7 @@ void Partitioner::attention(const std::string& func_name) {
     // block, its shape argument is normally a precomputed Const (which would be
     // an expression/a subgraph in the original dynamic IR). Since we retrofit
     // dynamism into a static shape environment here, we need to patch it back.
-    for (auto &&op : f._model->get_ordered_ops()) {
+    for (auto&& op : f._model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v3::Broadcast>(op)) {
             continue;
         }
@@ -2044,7 +2044,7 @@ void Partitioner::attention(const std::string& func_name) {
 
         auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
         auto shape_values = shape_const->cast_vector<int32_t>();
-        for (auto &&d : shape_values) {
+        for (auto&& d : shape_values) {
             //  Assume the context length is the mask's innermost dimension
             if (static_cast<std::size_t>(d) == f._attention->context_len()) {
                 d = 1;

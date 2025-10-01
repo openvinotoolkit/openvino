@@ -5,7 +5,9 @@
 
 #include "util.hpp"
 
-ov::npuw::runtime::attention::PositionIDs::PositionIDs(std::size_t param_idx, const ov::npuw::compiled::Attention &d, const ov::ISyncInferRequest& rq)
+ov::npuw::runtime::attention::PositionIDs::PositionIDs(std::size_t param_idx,
+                                                       const ov::npuw::compiled::Attention& d,
+                                                       const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
       m_d(d),
       m_rq(rq) {
@@ -14,7 +16,7 @@ ov::npuw::runtime::attention::PositionIDs::PositionIDs(std::size_t param_idx, co
 }
 
 ov::npuw::runtime::attention::Selector::Ptr ov::npuw::runtime::attention::PositionIDs::find(
-    const ov::npuw::compiled::Attention &d,
+    const ov::npuw::compiled::Attention& d,
     const ov::ISyncInferRequest& rq) {
     auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
         const auto& shape = p.get_shape();
