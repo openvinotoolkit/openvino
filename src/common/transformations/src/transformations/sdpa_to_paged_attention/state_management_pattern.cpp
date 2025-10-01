@@ -675,7 +675,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             pattern_map.at(sinks).get_partial_shape()[-3] == real_q.get_partial_shape()[-3]) {
             pa_arguments.insert(pa_arguments.begin() + 20, pattern_map.at(sinks).get_node_shared_ptr());
         } else {
-            pa_arguments.insert(pa_arguments.begin() + 20, v0::Constant::create(real_q.get_element_type(), Shape{0}, {}));
+            pa_arguments.insert(pa_arguments.begin() + 20,
+                                v0::Constant::create(real_q.get_element_type(), Shape{0, 0, 0, 0}, {}));
         }
 
         OPENVINO_ASSERT(pa_arguments.size() == 21);

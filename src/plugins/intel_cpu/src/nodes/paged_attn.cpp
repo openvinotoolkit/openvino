@@ -176,7 +176,6 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     config.inConfs[PagedAttentionExecutor::ID_SINKS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_SINKS)));
-    
 
     // TODO: perhaps, some additional changes from the CPU team required here to handle the new input
 

@@ -2056,9 +2056,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // TODO: add assertions on the block size and stride limitations as defined by the
             // block sparse operation and importance score computation impls
         }
-        
+
         if (sinks) {
-            sinks.assert_dims({1, H, 1, 1}); //for now. TODO: check what this really should be
+            sinks.assert_dims({1, H, 1, 1});  // for now. TODO: check what this really should be
         }
 
         output_emb.assert_dims({B_token, H * SV});

@@ -123,7 +123,7 @@ public:
         auto xattention_stride =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
         auto sinks =
-            std::make_shared<ov::op::v0::Constant>(data_type, Shape{0}, std::vector<int32_t>{});
+            std::make_shared<ov::op::v0::Constant>(data_type, Shape{0, 0, 0, 0}, std::vector<float>{});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
