@@ -801,9 +801,7 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 ov::replace_node_update_name(grid_sample, out);
                 return true;
             }
-            return decompose_impl(grid_sample, [&](const Ctx& context, const op::v9::GridSample::Attributes& a) {
-                return build_bicubic_nhwc(context, a);
-            });
+            return decompose_impl(grid_sample, build_bicubic_nhwc(context, a));
         }
         default:
             return false;
