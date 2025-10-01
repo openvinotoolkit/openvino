@@ -1040,9 +1040,9 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimization) {
 
 TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimization_OutputReshape) {
     // Init.
-    const PartialShape query_shape{-1, -1, 52};
-    const PartialShape key_shape{-1, -1, -1, 52};
-    const PartialShape value_shape{-1, -1, 52};
+    const PartialShape query_shape{1, 1, 49, 52};
+    const PartialShape key_shape{1, 1, 49, 52};
+    const PartialShape value_shape{1, 1, 49, 52};
 
     SDPA sdpa(f16, query_shape, key_shape, value_shape);
     SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
