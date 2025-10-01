@@ -432,9 +432,8 @@ public:
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
-        attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
         auto prim_desc = get_gemm_primitive_descriptor(impl_params, *attr);
-        
+
         return std::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
     }
 
