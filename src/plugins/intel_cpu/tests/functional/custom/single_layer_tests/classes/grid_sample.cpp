@@ -4,9 +4,12 @@
 
 #include "grid_sample.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/op/grid_sample.hpp"
+#include "openvino/core/enum_names.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
 
@@ -25,30 +28,19 @@ std::string GridSampleLayerTestCPU::getTestCaseName(testing::TestParamInfo<GridS
                  cpuParams,
                  additionalConfig] = obj.param;
     std::ostringstream result;
-    result << "IS=(";
-    for (size_t i = 0lu; i < inputShapes.size(); i++) {
-        result << ov::test::utils::partialShape2str({inputShapes[i].first})
-               << (i < inputShapes.size() - 1lu ? "_" : "");
-    }
-    result << ")_TS=";
-    for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
-        result << "{";
-        for (size_t j = 0lu; j < inputShapes.size(); j++) {
-            result << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
-        }
-        result << "}_";
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
+        result << "IS[" << i << "]=" << inputShapes[i] << "_";
     }
 
-    result << "interpMode="
-           << (interpolateMode == ov::op::v9::GridSample::InterpolationMode::BILINEAR  ? "BILINEAR"
-               : interpolateMode == ov::op::v9::GridSample::InterpolationMode::BICUBIC ? "BICUBIC"
-                                                                                       : "NEAREST")
-           << "_";
-    result << "padMode="
-           << (paddingMode == ov::op::v9::GridSample::PaddingMode::ZEROS    ? "ZEROS"
-               : paddingMode == ov::op::v9::GridSample::PaddingMode::BORDER ? "BORDER"
-                                                                            : "REFLECTION")
-           << "_";
+    // Use EnumNames to get string representation and convert to uppercase for compatibility with skip patterns
+    auto to_upper = [](const std::string& str) {
+        std::string upper_str = str;
+        std::transform(upper_str.begin(), upper_str.end(), upper_str.begin(), ::toupper);
+        return upper_str;
+    };
+
+    result << "interpMode=" << to_upper(ov::EnumNames<ov::op::v9::GridSample::InterpolationMode>::as_string(interpolateMode)) << "_";
+    result << "padMode=" << to_upper(ov::EnumNames<ov::op::v9::GridSample::PaddingMode>::as_string(paddingMode)) << "_";
     result << "alignCorners=" << (alignCorners ? "True" : "False") << "_";
     result << "dataPrc=" << dataPrecision << "_";
     result << "gridPrc=" << gridPrecision;
