@@ -15,6 +15,7 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
+#include "perf.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"

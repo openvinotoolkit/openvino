@@ -1465,7 +1465,7 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
 
     try {
         // WARNING: These requests can be issues in parallel, so timer should be thread-safe
-        m_profile["compile/" + device_to_try].record([&](){
+        m_profile["compile/" + device_to_try].record([&]() {
             m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
         });
     } catch (const std::exception& ex) {
@@ -1800,7 +1800,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::fold, NPUW_FOLD),
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),
                           BIND(npuw::partitioning::dyn_quant, NPUW_DQ),
-                          BIND(npuw::partitioning::dyn_quant_full, NPUW_rDQ_FULL),
+                          BIND(npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL),
                           BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
                           BIND(npuw::partitioning::slice_out, NPUW_SLICE_OUT),
                           BIND(npuw::partitioning::spatial, NPUW_SPATIAL),

@@ -50,13 +50,9 @@ private:
 
 public:
     metric() = default;
-    metric(metric&& m)
-        : records(std::move(m.records)), name(std::move(m.name)), enabled(m.enabled) {
-    }
+    metric(metric&& m) : records(std::move(m.records)), name(std::move(m.name)), enabled(m.enabled) {}
 
-    explicit metric(const std::string &named, bool active = false)
-        : name(named), enabled(active) {
-    }
+    explicit metric(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
     void enable() {
         enabled = true;
@@ -88,8 +84,8 @@ public:
         return cpy[cpy.size() / 2];
     }
 
-    template<typename F>
-    void record(F &&f) {
+    template <typename F>
+    void record(F&& f) {
         if (!enabled) {
             f();
         } else {
@@ -128,13 +124,9 @@ private:
 
 public:
     counter() = default;
-    counter(counter&& c)
-        : total(std::move(c.total)), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {
-    }
+    counter(counter&& c) : total(std::move(c.total)), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {}
 
-    explicit counter(const std::string &named, bool active = false)
-        : name(named), enabled(active) {
-    }
+    explicit counter(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
     void enable() {
         enabled = true;
@@ -151,8 +143,8 @@ public:
         const char* units = U::name;
         os << std::left << std::setw(20) << (c.name.empty() ? std::string("<unnamed counter>") : c.name);
         if (c.enabled) {
-            os << "[ " << static_cast<decltype(U::scaler) >(c.total) / U::scaler
-               << " " << units << " total in " << c.calls << " records ]";
+            os << "[ " << static_cast<decltype(U::scaler)>(c.total) / U::scaler << " " << units << " total in "
+               << c.calls << " records ]";
         } else {
             os << "[ disabled ]";
         }
@@ -160,13 +152,13 @@ public:
     }
 };
 
-template<class Metric>
+template <class Metric>
 struct Profile {
     std::map<std::string, Metric> metrics;
     std::string area;
     bool report_on_die = false;
 
-    Metric& operator[](const std::string &tag) {
+    Metric& operator[](const std::string& tag) {
         auto iter = metrics.find(tag);
         if (iter == metrics.end()) {
             // Use report_on_die as a "enabled" marker here
@@ -185,7 +177,7 @@ struct Profile {
         } else {
             std::cout << std::hex << this << ":" << std::endl;
         }
-        for (auto &&m : metrics) {
+        for (auto&& m : metrics) {
             std::cout << "  " << m.second << std::endl;
         }
     }
