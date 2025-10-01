@@ -799,8 +799,8 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
             auto nonzero = rg.make<v3::NonZero>(idx);
             Output<Node> masked_id;
             if (indices.size() == 1) {
-            auto input_order = rg.make<v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 0});
-            masked_id = rg.make<v1::Transpose>(nonzero, input_order);
+                auto input_order = rg.make<v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{1, 0});
+                masked_id = rg.make<v1::Transpose>(nonzero, input_order);
             } else {
                 auto zero_const = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
                 masked_id = rg.make<v0::Squeeze>(nonzero, zero_const);
