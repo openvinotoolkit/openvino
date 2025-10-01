@@ -2040,7 +2040,7 @@ template <>
 struct ReferenceHandler<cl_mem>
 {
     static cl_int retain(cl_mem memory)
-    { return ::clRetainMemObject(memory); }
+    { return call_clRetainMemObject(memory); }
     static cl_int release(cl_mem memory)
     { return ::clReleaseMemObject(memory); }
 };
@@ -2076,7 +2076,7 @@ template <>
 struct ReferenceHandler<cl_event>
 {
     static cl_int retain(cl_event event)
-    { return ::clRetainEvent(event); }
+    { return call_clRetainEvent(event); }
     static cl_int release(cl_event event)
     { return ::clReleaseEvent(event); }
 };
@@ -3710,7 +3710,7 @@ public:
     cl_int getInfo(cl_event_info name, T* param) const
     {
         return detail::errHandler(
-            detail::getInfo(&::clGetEventInfo, object_, name, param),
+            detail::getInfo(&call_clGetEventInfo, object_, name, param),
             __GET_EVENT_INFO_ERR);
     }
 
@@ -3773,7 +3773,7 @@ public:
         void * user_data = nullptr)
     {
         return detail::errHandler(
-            ::clSetEventCallback(
+            call_clSetEventCallback(
                 object_,
                 type,
                 pfn_notify,
@@ -3899,7 +3899,7 @@ public:
     cl_int getInfo(cl_mem_info name, T* param) const
     {
         return detail::errHandler(
-            detail::getInfo(&::clGetMemObjectInfo, object_, name, param),
+            detail::getInfo(&call_clGetMemObjectInfo, object_, name, param),
             __GET_MEM_OBJECT_INFO_ERR);
     }
 
@@ -4544,7 +4544,7 @@ public:
     {
         Buffer result;
         cl_int error;
-        result.object_ = ::clCreateSubBuffer(
+        result.object_ = call_clCreateSubBuffer(
             object_, 
             flags, 
             buffer_create_type, 
@@ -4822,7 +4822,7 @@ public:
     cl_int getImageInfo(cl_image_info name, T* param) const
     {
         return detail::errHandler(
-            detail::getInfo(&::clGetImageInfo, object_, name, param),
+            detail::getInfo(&::call_clGetImageInfo, object_, name, param),
             __GET_IMAGE_INFO_ERR);
     }
     

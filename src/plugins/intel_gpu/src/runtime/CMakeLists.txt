@@ -60,10 +60,10 @@ if(ENABLE_ONEDNN_FOR_GPU)
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
+target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../thirdparty/ocl/cl_headers)
+target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../thirdparty/ocl/clhpp_headers/include)
 
 target_link_libraries(${TARGET_NAME} PRIVATE
-    OpenCL::OpenCLHeaders
-    OpenCL::HeadersCpp
     openvino::itt
     openvino::runtime::dev
   )
