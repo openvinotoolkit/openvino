@@ -18,7 +18,6 @@ protected:
     void TearDown() override {};
 
 public:
-
     void serializeIR();
 
     std::shared_ptr<ZeroInitStructsMock> zeroInitMock;
@@ -33,6 +32,8 @@ public:
 
     std::shared_ptr<ov::Model> model;
 
+    std::shared_ptr<driver_compiler_utils::IRSerializer> irSerializer;
+
     int extVersion;
 
     int graphDescFlag;
@@ -46,16 +47,11 @@ public:
         result << "targetDevice=" << targetDevice << "_";
         result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
         result << "graphDescriptorFlag=" + std::to_string(flag) << "_";
-        result << "extVersion=" + std::to_string(ZE_MAJOR_VERSION(version)) + "." + std::to_string(ZE_MINOR_VERSION(version));
+        result << "extVersion=" + std::to_string(ZE_MAJOR_VERSION(version)) + "." +
+                      std::to_string(ZE_MINOR_VERSION(version));
         return result.str();
     }
 };
-
-SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                         ze_graph_compiler_version_info_t compilerVersion,
-                         const uint32_t supportedOpsetVersion);
-
-void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes);
 
 void* allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                            const size_t bytes,
