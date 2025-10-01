@@ -22,6 +22,8 @@ import openvino.properties.hint as hints
 
 logging.basicConfig(level=logging.DEBUG)
 
+orig_compile = torch.compile
+torch.compile = lambda func: func
 default_cfg = {hints.inference_precision: Type.f32}
 
 
@@ -999,16 +1001,15 @@ def test_patched_8bit_model_converts():
     np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
 
 
-
 def test_patched_bitnet_model_converts():
     from openvino import convert_model, compile_model
     from transformers.integrations.bitnet import AutoBitLinear, pack_weights
     from transformers import PretrainedConfig, BitNetQuantConfig
 
     class TestModel(torch.nn.Module):
-        config = PretrainedConfig(quantization_config = BitNetQuantConfig(linear_class = "autobitlinear"))
         def __init__(self, size):
             super().__init__()
+            self.config = PretrainedConfig(quantization_config = BitNetQuantConfig(linear_class = "autobitlinear"))
             self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
             self.linear.weight = torch.nn.Parameter(torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32))
             self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
@@ -1041,5 +1042,5 @@ class InlinedInputsModel(torch.nn.Module):
 def test_inlined_inputs():
     model = InlinedInputsModel()
     model.eval()
-    model = torch.compile(model, backend="openvino", options={"testing": 1})
+    model = orig_compile(model, backend="openvino", options={"testing": 1})
     model()
