@@ -23,7 +23,7 @@ namespace low_precision {
 class LP_TRANSFORMATIONS_API FQStrippingTransformation : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("FQStrippingTransformation", "0", MatcherPass);
-    FQStrippingTransformation(const std::set<size_t>& levels_to_strip);
+    FQStrippingTransformation(const std::set<size_t>& levels_to_strip, bool replace_with_clamp);
 };
 
 } // namespace low_precision
