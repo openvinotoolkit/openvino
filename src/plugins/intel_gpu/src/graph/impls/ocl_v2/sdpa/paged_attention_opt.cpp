@@ -1171,7 +1171,10 @@ public:
 
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
-        return use_micro_sdpa ? get_micro_tile_qsize(pa_sdpa_micro->kd) : default_block_size;
+        if (use_micro_sdpa) {
+            return (stage == PagedAttentionStage::PREFILL) ? get_micro_tile_qsize(pa_sdpa_micro->kd) : get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
+        }
+        return default_block_size;
     }
 #else
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
@@ -1451,7 +1454,7 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         if (can_use_micro_sdpa) {
-            const auto wg_tile_q = get_micro_tile_qsize(pa_sdpa_micro->kd);
+            const auto wg_tile_q = 8; // This is set as the minimum size of query block for sharing between sdpa_micro_prefill and mixed.
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
