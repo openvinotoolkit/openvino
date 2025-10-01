@@ -33,6 +33,9 @@ class TRANSFORMATIONS_API ConvertQuantizeDequantize;
 class ov::pass::ConvertQuantizeDequantize : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertQuantizeDequantize");
-    ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions = {ov::element::i8, ov::element::u8, ov::element::i16, ov::element::u16},
+    ConvertQuantizeDequantize(const ov::element::TypeVector& supported_low_precisions = {ov::element::i8,
+                                                                                         ov::element::u8,
+                                                                                         ov::element::i16,
+                                                                                         ov::element::u16},
                               const ov::element::TypeVector& supported_original_precisions = {ov::element::f32});
 };
