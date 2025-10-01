@@ -786,7 +786,7 @@ GridSampleDecomposition::GridSampleDecomposition() {
             return decompose_impl(grid_sample, build_nearest_nhwc);
         }
         case op::v9::GridSample::InterpolationMode::BILINEAR: {
-            return decompose_impl(grid_sample, build_bilinear_nhwc(context, a));
+            return decompose_impl(grid_sample, build_bilinear_nhwc);
         }
         case op::v9::GridSample::InterpolationMode::BICUBIC: {
             if (is_f32_data && is_f32_grid && attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS &&
@@ -801,7 +801,7 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 ov::replace_node_update_name(grid_sample, out);
                 return true;
             }
-            return decompose_impl(grid_sample, build_bicubic_nhwc(context, a));
+            return decompose_impl(grid_sample, build_bicubic_nhwc);
         }
         default:
             return false;
