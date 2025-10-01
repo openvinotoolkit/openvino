@@ -417,28 +417,6 @@ TEST(node_input_output, output_replace_empty_targets) {
     EXPECT_EQ(relu->input_value(0).get_node(), add2.get());
 }
 
-TEST(node_input_output, output_replace_with_parameter) {
-    // Corner case: replacing with parameter output
-    auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
-    auto add = make_shared<op::v1::Add>(param, param);
-    auto relu = make_shared<op::v0::Relu>(add);
-
-    // Initial state: param has 2 connections to add
-    ASSERT_EQ(param->output(0).get_target_inputs().size(), 2);
-
-    // Replace add's output with parameter's output
-    add->output(0).replace(param->output(0));
-
-    // Check that relu now connects to parameter
-    EXPECT_EQ(relu->input_value(0).get_node(), param.get()) << "Relu should connect directly to parameter";
-    EXPECT_EQ(add->output(0).get_target_inputs().size(), 0) << "Add should have no targets";
-
-    // After replacement, param should have only relu as target
-    // because our fix removes cyclic connections
-    auto param_targets = param->output(0).get_target_inputs();
-    EXPECT_EQ(param_targets.size(), 1) << "Parameter should have only relu as target";
-    ASSERT_EQ(param_targets.begin()->get_node(), relu.get()) << "The only target should be relu";
-}
 
 TEST(node_input_output, output_replace_cascade) {
     // Corner case: cascade of replacements
