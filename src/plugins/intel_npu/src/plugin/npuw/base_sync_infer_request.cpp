@@ -263,7 +263,7 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
-        m_profile[profile_tag(idx)] += ov::npuw::perf::ms_to_run([&](){
+        m_profile[profile_tag(idx)].record([&]() {
             run_subrequest_for_success(idx, failover);
         });
         failover_happened |= failover;
