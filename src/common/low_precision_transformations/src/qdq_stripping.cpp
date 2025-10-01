@@ -53,14 +53,14 @@ FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& lev
         auto input_high = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(input_high_m).get_node_shared_ptr());
         auto output_low = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(output_low_m).get_node_shared_ptr());
         auto output_high = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(output_high_m).get_node_shared_ptr());
-        
-        // TODO: need to check that input and output intervals are equal
+
         if (!input_low || !input_high || !output_low || !output_high) {
             return false;
         }
         auto constants_are_equal = [](const std::shared_ptr<ov::op::v0::Constant>& lhs,
                                       const std::shared_ptr<ov::op::v0::Constant>& rhs) {
-            auto equal = ov::as_type_ptr<ov::op::v0::Constant>(ov::op::util::make_try_fold<ov::op::v1::Equal>(lhs, rhs));
+            auto equal =
+                ov::as_type_ptr<ov::op::v0::Constant>(ov::op::util::make_try_fold<ov::op::v1::Equal>(lhs, rhs));
             OPENVINO_ASSERT(equal && ov::shape_size(equal->get_shape()) == 1,
                             "constants_are_equal expects scalar constant as a comparison result");
             return equal->get_vector<bool>()[0] == true;
@@ -83,6 +83,6 @@ FQStrippingTransformation::FQStrippingTransformation(const std::set<size_t>& lev
     this->register_matcher(m, callback);
 }
 
-} // namespace low_precision
-} // namespace pass
-} // namespace ov
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ov
