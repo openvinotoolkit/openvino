@@ -804,7 +804,7 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
             } else {
                 auto zero_const = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
                 masked_id = rg.make<v0::Squeeze>(nonzero, zero_const);
-            }                
+            }
             masked_indicies.push_back(masked_id);
             is_masked_bool.push_back(true);
         } else {
