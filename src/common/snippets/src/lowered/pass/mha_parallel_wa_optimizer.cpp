@@ -61,7 +61,7 @@ MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& line
     }
 }
 
-bool MHAParallelWAOptimizer::run(const lowered::LinearIR& /*linear_ir*/) {
+bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MHAParallelWAOptimizer")
     const auto& config = m_configurator->get_config();
     size_t new_batch_dim = 0, new_kernel_dim = 0;
@@ -74,13 +74,14 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& /*linear_ir*/) {
     m_configurator->update_tensor_rank(master_shape);
 
     RuntimeConfigurator::LoopInfoRuntimeParamsMap initialized_info;
+    const auto& loop_manager = linear_ir.get_loop_manager();
     auto updater = [&](const lowered::LoopInfoPtr& loop_info) {
         if (const auto unified_loop_info = ov::as_type_ptr<lowered::UnifiedLoopInfo>(loop_info)) {
             if (initialized_info.count(unified_loop_info) == 0) {
                 if (!ov::is_type<lowered::InnerSplittedUnifiedLoopInfo>(unified_loop_info)) {
                     unified_loop_info->set_work_amount(new_kernel_dim);
                 }
-                snippets::utils::update_data_pointer_shifts(unified_loop_info);
+                snippets::utils::update_data_pointer_shifts(loop_manager, unified_loop_info);
                 initialized_info[unified_loop_info] = RuntimeConfigurator::get_loop_runtime_params(unified_loop_info);
             }
         } else if (const auto expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(loop_info)) {
