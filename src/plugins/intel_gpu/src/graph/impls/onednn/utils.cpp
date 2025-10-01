@@ -834,7 +834,7 @@ int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout
     }
 
     if (is_scalar)
-        return (1 << 0);
+        return 0;
     else
         return (1 << 1);
 }
