@@ -181,7 +181,6 @@ public:
     explicit CWAI3(Results scales);
 };
 
-
 }  // namespace SymmZP
 
 namespace AsymmZP {
