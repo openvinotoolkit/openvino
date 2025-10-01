@@ -91,34 +91,46 @@ void CompiledModel::export_model(std::ostream& stream) const {
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     ov::ParameterVector parameters;
     ov::ResultVector results;
+    std::shared_ptr<const ov::Model> dummyModel;
 
-    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-        std::shared_ptr<ov::Node> clonedParameter =
-            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())
-                ->clone_with_new_inputs({});
-        parameters.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(clonedParameter));
-    }
+    try {
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            std::shared_ptr<ov::Node> clonedParameter =
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())
+                    ->clone_with_new_inputs({});
+            parameters.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(clonedParameter));
+        }
 
-    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-        const auto resultOriginal =
-            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr());
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            const auto resultOriginal =
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr());
 
-        std::shared_ptr<ov::Node> constantDummy =
-            std::make_shared<ov::op::v0::Constant>(nodeOutput.get_element_type(),
-                                                   nodeOutput.get_partial_shape().get_max_shape());
-        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
-            std::make_shared<ov::descriptor::Tensor>(nodeOutput.get_element_type(),
-                                                     nodeOutput.get_partial_shape(),
-                                                     nodeOutput.get_names());
+            // A dummy node is required for constructing and populating the Result node. A Constant one is perhaps the
+            // most fitting choice here.
+            std::shared_ptr<ov::Node> constantDummy =
+                std::make_shared<ov::op::v0::Constant>(nodeOutput.get_element_type(),
+                                                       nodeOutput.get_partial_shape().get_max_shape());
+            // Attached to the Result node as output tensor in order to provide the correct tensor names. Additionally,
+            // the dummy Constant node could use only static shapes. If the shape is dynamic, this construct can provide
+            // the correct shape to the Result node.
+            const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
+                std::make_shared<ov::descriptor::Tensor>(nodeOutput.get_element_type(),
+                                                         nodeOutput.get_partial_shape(),
+                                                         nodeOutput.get_names());
 
-        auto& resultCopy = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
-        resultCopy->output(0).set_tensor_ptr(tensorDummy);
-        resultCopy->set_friendly_name(resultOriginal->get_friendly_name());
+            auto& resultCopy = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
+            resultCopy->output(0).set_tensor_ptr(tensorDummy);
+            resultCopy->set_friendly_name(resultOriginal->get_friendly_name());
+
+            dummyModel = std::make_shared<ov::Model>(results, parameters);
+        }
+    } catch (const std::exception& e) {
+        OPENVINO_THROW("Failed to construct a dummy ov::Model object as runtime model. ", e.what());
     }
 
     _logger.warning("Returning a dummy ov::Model object that contains only the given parameter and result nodes");
 
-    return std::make_shared<ov::Model>(results, parameters);
+    return dummyModel;
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
