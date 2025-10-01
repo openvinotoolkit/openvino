@@ -111,27 +111,10 @@ MVNJitExecutor::MVNJitExecutor(MVNAttrs mvnAttrs, MemoryArgs memory, ExecutorCon
 }
 
 void MVNJitExecutor::executeImpl(const MemoryArgs& memory) {
-    // Extract memory pointers from MemoryArgs
     const auto srcMem = memory.at(ARG_SRC);
     const auto dstMem = memory.at(ARG_DST);
     const auto* src_data = srcMem->getDataAs<const uint8_t>();
     auto* dst_data = dstMem->getDataAs<uint8_t>();
-
-    // Special-case: 2D across-channels MVN path mapped to 5D as {1, N, 1, C, 1}
-    // Use a precise scalar fallback to match reference numerics while keeping JIT impl type.
-    const bool is2DInput = srcMem->getDesc().getShape().getRank() == 2;
-    const bool planar2DAcross = attrs.initAcrossChannels_ && !attrs.execAcrossChannels_ && shape5D.size() == 5 &&
-                                /* 2D mapping produces D=1 and W=1 */ shape5D[2] == 1 && shape5D[4] == 1;
-
-    if (is2DInput && attrs.initAcrossChannels_) {
-        // Delegate to reference executor to ensure numerically stable behavior across layouts
-        MVNRefExecutor refExec(attrs, memory, context);
-        refExec.executeImpl(memory);
-        return;
-    }
-
-    // Pass post-ops data to legacy executor
-    // Legacy MVN expects an array of float* pointers
     const void* postOpsData = postOpsPtrArray.empty() ? nullptr : reinterpret_cast<const void*>(postOpsPtrArray.data());
     legacyJitExecutor->exec(src_data, dst_data, postOpsData, shape5D);
 }

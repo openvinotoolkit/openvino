@@ -205,10 +205,15 @@ void MVN::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    // Create initial memory descriptors (planar as baseline)
+    // Create initial memory descriptors
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(inputPrecision, getInputShapeAtPort(0));
-    auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
+    const bool enforce_formats = !memoryFormatFilter.input.empty() || !memoryFormatFilter.output.empty();
+    // rank is not used in the following logic; remove to avoid unused warning
+    bool prefer_nspc = false;  // Let factory enumerate; do not bias to nspc blindly for enforced filters
+    auto srcDesc = creatorsMap.at(prefer_nspc ? LayoutType::nspc : LayoutType::ncsp)
+                       ->createSharedDesc(inputPrecision, getInputShapeAtPort(0));
+    auto dstDesc = creatorsMap.at(prefer_nspc ? LayoutType::nspc : LayoutType::ncsp)
+                       ->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
 
     MemoryDescArgs descs;
     descs[ARG_SRC_0] = srcDesc;
@@ -216,10 +221,13 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
     // Init factory and preconfigure memory descriptors
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority());
-    auto factory = std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs, executionContext, descs);
+    // Respect externally enforced memory formats (e.g., from tests) via memoryFormatFilter
+    auto factory = std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs, executionContext, descs, memoryFormatFilter);
     const std::vector<MemoryDescArgs> nodeDescriptorsList = factory->getProperMemoryDescriptors(descs);
 
-    // Build supported primitive descriptors
+    // Build supported primitive descriptors; prefer nspc when formats are enforced
+    std::vector<NodeDesc> nspc_spds;
+    std::vector<NodeDesc> other_spds;
     for (const auto& nodeDescriptors : nodeDescriptorsList) {
         NodeConfig nodeConfig;
         nodeConfig.inConfs.resize(getParentEdges().size());
@@ -244,7 +252,29 @@ void MVN::initSupportedPrimitiveDescriptors() {
             nodeConfig.inConfs[1].constant(true);
         }
 
-        supportedPrimitiveDescriptors.emplace_back(nodeConfig, ov::intel_cpu::impl_desc_type::undef);
+        const bool is_nspc = nodeDescriptors.at(ARG_SRC_0)->hasLayoutType(LayoutType::nspc);
+        if (is_nspc) {
+            nspc_spds.emplace_back(nodeConfig, ov::intel_cpu::impl_desc_type::undef);
+        } else {
+            other_spds.emplace_back(nodeConfig, ov::intel_cpu::impl_desc_type::undef);
+        }
+    }
+
+    if (enforce_formats) {
+        // If formats enforced, and nspc variants exist, keep only nspc to avoid accidental planar selection
+        if (!nspc_spds.empty()) {
+            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
+                                                 nspc_spds.begin(),
+                                                 nspc_spds.end());
+        } else {
+            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
+                                                 other_spds.begin(),
+                                                 other_spds.end());
+        }
+    } else {
+        // Preserve original order when no filter enforced
+        supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(), other_spds.begin(), other_spds.end());
+        supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(), nspc_spds.begin(), nspc_spds.end());
     }
 }
 
@@ -266,24 +296,21 @@ void MVN::prepareParams() {
     mvnAttrs.shape5D = shape5D;
 
     auto* selectedPD = getSelectedPrimitiveDescriptor();
-    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
+    // Derive layout from the selected primitive descriptor rather than runtime memory,
+    // to honor the chosen memory format (e.g., NHWC) before memory is materialized.
+    auto selectedInDesc = selectedPD->getConfig().inConfs[0].getMemDesc();
+    if (selectedInDesc->hasLayoutType(LayoutType::ncsp)) {
         mvnAttrs.layout = MVNLayoutType::mvn_planar;
-    } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
+    } else if (selectedInDesc->hasLayoutType(LayoutType::nspc)) {
         mvnAttrs.layout = MVNLayoutType::mvn_by_channel;
     } else {
         mvnAttrs.layout = MVNLayoutType::mvn_block;
     }
 
-    // Determine actual channel size based on original dimensions and layout
+    // Determine actual channel size based on logical 5D shape (N, C, D, H, W)
     // This is needed for post-ops to have correct channel dimension
     if (shape5D.size() >= 2) {
-        // For standard layouts, channels are at dimension 1
-        // For channel-last layouts, channels are at the last dimension
-        if (mvnAttrs.layout == MVNLayoutType::mvn_by_channel) {
-            mvnAttrs.actualChannelSize = shape5D[shape5D.size() - 1];
-        } else {
-            mvnAttrs.actualChannelSize = shape5D[1];
-        }
+        mvnAttrs.actualChannelSize = shape5D[1];
     } else if (shape5D.size() == 1) {
         // For 1D case, the entire dimension might be channels
         mvnAttrs.actualChannelSize = mvnAttrs.initAcrossChannels_ ? 1 : shape5D[0];
@@ -291,58 +318,15 @@ void MVN::prepareParams() {
         mvnAttrs.actualChannelSize = 1;
     }
 
-    // Populate post-ops from fused nodes
+    // Populate post-ops from fused nodes (no adjustments)
     mvnAttrs.postOps = getPostOps(fusedWith);
-
-    // Special handling for Instance Normalization pattern
-    // When MVN is followed by Multiply/Add with [1,C,1,1] shape tensors,
-    // we need to handle them specially to avoid dimension mismatch
-    PostOps adjustedPostOps;
-    for (const auto& postOp : mvnAttrs.postOps) {
-        try {
-            if (postOp.type() == typeid(ScaleShiftPostOp)) {
-                const auto& scaleShiftOp = std::any_cast<const ScaleShiftPostOp&>(postOp);
-
-                std::vector<float> adjustedScales = scaleShiftOp.scales();
-                std::vector<float> adjustedShifts = scaleShiftOp.shifts();
-
-                // Check if scales have broadcasting pattern [1,C,1,1]
-                if (adjustedScales.size() > 1 && adjustedScales.size() != mvnAttrs.actualChannelSize) {
-                    // This is likely a [1,C,1,1] pattern - use scalar broadcast
-                    float firstScale = adjustedScales[0];
-                    adjustedScales.clear();
-                    adjustedScales.push_back(firstScale);
-                }
-
-                // Check if shifts have broadcasting pattern [1,C,1,1]
-                if (adjustedShifts.size() > 1 && adjustedShifts.size() != mvnAttrs.actualChannelSize) {
-                    // This is likely a [1,C,1,1] pattern - use scalar broadcast
-                    float firstShift = adjustedShifts[0];
-                    adjustedShifts.clear();
-                    adjustedShifts.push_back(firstShift);
-                }
-
-                // Create new ScaleShiftPostOp with adjusted values
-                adjustedPostOps.push_back(
-                    std::make_any<ScaleShiftPostOp>(scaleShiftOp.type(), adjustedScales, adjustedShifts));
-            } else {
-                // Keep other post-ops as is
-                adjustedPostOps.push_back(postOp);
-            }
-        } catch (const std::bad_any_cast&) {
-            // Not a ScaleShiftPostOp, keep as is
-            adjustedPostOps.push_back(postOp);
-        }
-    }
-    mvnAttrs.postOps = std::move(adjustedPostOps);
 
     // Update executor with memory arguments
     MemoryArgs memoryArgs;
     memoryArgs[ARG_SRC_0] = getSrcMemoryAtPort(0);
     memoryArgs[ARG_DST] = getDstMemoryAtPort(0);
 
-    if (!executorPtr) {
-        // Create at first prepareParams if not created earlier
+    {
         auto execCtx = std::make_shared<ExecutorContext>(context, getImplPriority());
         auto makeFactory =
             std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs,
@@ -367,7 +351,7 @@ void MVN::createPrimitive() {
     descs[ARG_SRC_0] = getSrcMemoryAtPort(0)->getDescPtr();
     descs[ARG_DST] = getDstMemoryAtPort(0)->getDescPtr();
 
-    auto factory = std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs, execCtx, descs);
+    auto factory = std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs, execCtx, descs, memoryFormatFilter);
     executorPtr = factory->make(memoryArgs);
 
     Node::createPrimitive();

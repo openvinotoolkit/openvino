@@ -253,7 +253,6 @@ static void mvn_ref_impl(const MVNAttrs& attrs,
                             for (size_t w = 0; w < W; w++) {
                                 float* dst_ptr = &dst_data_ptr[idx];
                                 const float* src_ptr = &src_data_ptr[idx];
-                                // Vectorizable loop
                                 for (size_t c = 0; c < C; c++) {
                                     dst_ptr[c] = (src_ptr[c] - mean_f) * inv_sigma_f;
                                 }
@@ -474,7 +473,7 @@ static void mvn_ref_impl(const MVNAttrs& attrs,
                         }
                     } else {
                         const size_t b_offset = b * data_size * C;
-                        size_t base_idx = b_offset + c;
+                        size_t base_idx = b_offset + c;  // write only current channel c
                         for (size_t d = 0; d < D; d++) {
                             for (size_t h = 0; h < H; h++) {
                                 for (size_t w = 0; w < W; w++) {
@@ -581,38 +580,48 @@ void MVNRefExecutor::executeImpl(const MemoryArgs& memory) {
     const auto* src_data = src->getDataAs<const uint8_t>();
     auto* dst_data = dst->getDataAs<uint8_t>();
 
-    // Derive 5D shape and effective execAcrossChannels from input dims
+    // Derive 5D shape and effective execAcrossChannels from input dims.
+    // Map to a canonical [N, C, D, H, W] regardless of memory layout.
     const auto& dims = src->getStaticDims();
     VectorDims local5D;
-    const size_t rank = dims.size();
-    switch (rank) {
-    case 0:
-        local5D = {1, 1, 1, 1, 1};
-        break;
-    case 1:
-        if (attrs.initAcrossChannels_) {
-            local5D = {1, 1, 1, 1, dims[0]};
-        } else {
-            local5D = {1, dims[0], 1, 1, 1};
+
+    auto map_ncsp = [&](const VectorDims& d) -> VectorDims {
+        switch (d.size()) {
+        case 0:
+            return {1, 1, 1, 1, 1};
+        case 1:
+            return attrs.initAcrossChannels_ ? VectorDims{1, 1, 1, 1, d[0]} : VectorDims{1, d[0], 1, 1, 1};
+        case 2:
+            return attrs.initAcrossChannels_ ? VectorDims{1, d[0], 1, d[1], 1} : VectorDims{d[0], d[1], 1, 1, 1};
+        case 3:
+            return {d[0], d[1], 1, d[2], 1};
+        case 4:
+            return {d[0], d[1], 1, d[2], d[3]};
+        default:
+            return {d[0], d[1], d[2], d[3], d[4]};
         }
-        break;
-    case 2:
-        if (attrs.initAcrossChannels_) {
-            local5D = {1, dims[0], 1, dims[1], 1};
-        } else {
-            local5D = {dims[0], dims[1], 1, 1, 1};
+    };
+
+    auto map_nspc = [&](const VectorDims& d) -> VectorDims {
+        // Channel-last: 3D assumed [N, W, C], 4D [N, H, W, C], 5D [N, D, H, W, C]
+        switch (d.size()) {
+        case 0:
+            return {1, 1, 1, 1, 1};
+        case 1:
+            return attrs.initAcrossChannels_ ? VectorDims{1, 1, 1, 1, d[0]} : VectorDims{1, d[0], 1, 1, 1};
+        case 2:
+            return attrs.initAcrossChannels_ ? VectorDims{1, d[1], 1, d[0], 1} : VectorDims{d[0], d[1], 1, 1, 1};
+        case 3:
+            return {d[0], d[2], 1, d[1], 1};
+        case 4:
+            return {d[0], d[3], 1, d[1], d[2]};
+        default:
+            return {d[0], d[4], d[1], d[2], d[3]};
         }
-        break;
-    case 3:
-        local5D = {dims[0], dims[1], 1, dims[2], 1};
-        break;
-    case 4:
-        local5D = {dims[0], dims[1], 1, dims[2], dims[3]};
-        break;
-    default:
-        local5D = {dims[0], dims[1], dims[2], dims[3], dims[4]};
-        break;
-    }
+    };
+
+    // Map according to layout
+    local5D = (attrs.layout == mvn_by_channel) ? map_nspc(dims) : map_ncsp(dims);
 
     // Effective execAcrossChannels matches node::transformTo5DCase behavior
     MVNAttrs effectiveAttrs = attrs;
