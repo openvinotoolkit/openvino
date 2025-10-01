@@ -5,6 +5,7 @@
 #pragma once
 
 #include <iostream>
+#include <unordered_set>
 
 #include "openvino/runtime/allocator.hpp"
 
@@ -48,6 +49,17 @@ static inline bool memory_and_size_aligned_to_standard_page_size(const void* add
 
 static inline size_t align_size_to_standard_page_size(size_t size) {
     return (size + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
+}
+
+// Check if tensor was originally dynamic by looking for encoded markers
+// This information is needed to restore the original dynamic batching behavior
+static inline bool wasOriginallyDynamic(const std::unordered_set<std::string>& tensorNames) {
+    for (const auto& name : tensorNames) {
+        if (name.find(DYNBATCH_SUFFIX) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
 }
 
 }  // namespace utils
