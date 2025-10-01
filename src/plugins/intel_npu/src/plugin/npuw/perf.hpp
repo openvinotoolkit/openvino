@@ -84,8 +84,8 @@ public:
         return cpy[cpy.size() / 2];
     }
 
-    template<typename F>
-    void record(F &&f) {
+    template <typename F>
+    void record(F&& f) {
         if (!enabled) {
             f();
         } else {

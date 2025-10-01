@@ -1474,7 +1474,7 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
 
     try {
         // WARNING: These requests can be issues in parallel, so timer should be thread-safe
-        m_profile["compile/" + device_to_try].record([&](){
+        m_profile["compile/" + device_to_try].record([&]() {
             m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
         });
     } catch (const std::exception& ex) {

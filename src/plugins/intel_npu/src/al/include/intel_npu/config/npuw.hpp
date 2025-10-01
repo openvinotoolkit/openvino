@@ -246,14 +246,13 @@ struct ATTN_HINT_BASE : OptionBase<ATTN_HINT_BASE, ::intel_npu::npuw::llm::Atten
     }
 };
 
-struct NPUW_LLM_GENERATE_ATTENTION_HINT final: ATTN_HINT_BASE {
+struct NPUW_LLM_GENERATE_ATTENTION_HINT final : ATTN_HINT_BASE {
     static std::string_view key() {
         return ov::intel_npu::npuw::llm::generate_attn_hint.name();
     }
 };
 
-
-struct NPUW_LLM_PREFILL_ATTENTION_HINT final: ATTN_HINT_BASE {
+struct NPUW_LLM_PREFILL_ATTENTION_HINT final : ATTN_HINT_BASE {
     static std::string_view key() {
         return ov::intel_npu::npuw::llm::prefill_attn_hint.name();
     }
