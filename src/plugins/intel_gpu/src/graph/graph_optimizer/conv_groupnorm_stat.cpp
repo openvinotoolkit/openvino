@@ -20,7 +20,7 @@ void conv_groupnorm_stat::run(program& p) {
             auto &gn_node = node->as<group_normalization>();
             auto gn_prim = gn_node.get_primitive();
             auto parent = gn_node.get_dependencies()[0].first;
-            if (parent->is_type<convolution>()) {
+            if (!parent->is_dynamic() && parent->is_type<convolution>()) {
                 auto conv_prim = parent->as<convolution>().get_primitive();
                 auto weights_nodes_id = conv_prim->weights;
                 auto biases_nodes_id = conv_prim->bias;
@@ -38,7 +38,7 @@ void conv_groupnorm_stat::run(program& p) {
                 p.replace(gn_node, new_gn_node);
                 p.add_connection(*parent, new_gn_node, 1);
                 p.add_connection(*parent, new_gn_node, 2);
-                new_gn_node.recalc_output_layouts();
+                auto batch_size = parent->get_output_pshape(0)[0];
                 auto new_conv_prim = std::make_shared<convolution>(parent->id() + "_tmp",
                                                            conv_prim->get_dependency(0),
                                                            weights_nodes_id.pid,
@@ -53,7 +53,9 @@ void conv_groupnorm_stat::run(program& p) {
                                                            gn_prim->num_groups);
                 program_node& new_conv_node = p.get_or_create(new_conv_prim);
                 p.replace(*parent, new_conv_node);
-                new_conv_node.recalc_output_layouts();
+                auto stat_layout = layout({batch_size, gn_prim->num_groups, 1, 1}, data_types::f32, format::bfyx);
+                new_conv_node.set_output_layout(stat_layout, false, 1);
+                new_conv_node.set_output_layout(stat_layout, false, 2);
                 update_processing_order = true;
             }
         }

@@ -149,7 +149,7 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             desc.padding = conv_prim->padding_begin[0];
             desc.group_count = conv_prim->groupnorm_groups;
             if (desc.group_count > 0) {
-                desc.group_size = desc.c / conv_prim->groupnorm_groups;
+                desc.group_size = desc.k / conv_prim->groupnorm_groups;
             }
 
             if (!desc.process_fused_ops(conv_node.get_fused_primitives(), conv_node.bias_term(), conv_prim->groupnorm_groups))
@@ -180,7 +180,7 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             desc.padding = conv_prim->padding_begin[0];
             desc.group_count = conv_prim->groupnorm_groups;
             if (desc.group_count > 0) {
-                desc.group_size = desc.c / conv_prim->groupnorm_groups;
+                desc.group_size = desc.k / conv_prim->groupnorm_groups;
             }
 
             const auto& fused_ops = params.fused_desc;
