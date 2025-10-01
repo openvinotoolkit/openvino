@@ -1014,3 +1014,127 @@ TEST(GraphComparatorTests, OnlyDisconnectedSubgraphs) {
     auto res = comparator.compare(function, function_ref);
     EXPECT_TRUE(res.valid) << "CVS-140357: Should match disconnected subgraphs regardless of order. Error: " << res.message;
 }
+
+// Stress tests with many disconnected subgraphs
+
+TEST(GraphComparatorTests, ManyDisconnectedSubgraphsSameOrder) {
+    // Test with 10 disconnected subgraphs in same order
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        // Model 1: Main graph + 10 disconnected constants
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        ov::ResultVector results{result_main};
+        for (int i = 0; i < 10; ++i) {
+            auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {static_cast<float>(i) * 0.1f});
+            results.push_back(std::make_shared<ov::op::v0::Result>(const_val));
+        }
+
+        function_ref = std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+    }
+    {
+        // Model 2: Identical structure and order
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        ov::ResultVector results{result_main};
+        for (int i = 0; i < 10; ++i) {
+            auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {static_cast<float>(i) * 0.1f});
+            results.push_back(std::make_shared<ov::op::v0::Result>(const_val));
+        }
+
+        function = std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(GraphComparatorTests, ManyDisconnectedSubgraphsOneMissing) {
+    // Test with 10 disconnected subgraphs but one is missing - should FAIL
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        // Model 1: Main graph + 10 disconnected constants
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        ov::ResultVector results{result_main};
+        for (int i = 0; i < 10; ++i) {
+            auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {static_cast<float>(i) * 0.1f});
+            results.push_back(std::make_shared<ov::op::v0::Result>(const_val));
+        }
+
+        function_ref = std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+    }
+    {
+        // Model 2: Main graph + only 9 disconnected constants (missing one with value 0.5)
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        ov::ResultVector results{result_main};
+        for (int i = 0; i < 10; ++i) {
+            if (i == 5) continue;  // Skip index 5 (value 0.5)
+            auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {static_cast<float>(i) * 0.1f});
+            results.push_back(std::make_shared<ov::op::v0::Result>(const_val));
+        }
+
+        function = std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << "Should detect missing disconnected subgraph";
+}
+
+TEST(GraphComparatorTests, ManyDisconnectedSubgraphsOneWrongValue) {
+    // Test with 10 disconnected subgraphs but one has wrong value - should FAIL
+    FunctionsComparator comparator(FunctionsComparator::no_default());
+    comparator.enable(FunctionsComparator::NODES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+
+    std::shared_ptr<ov::Model> function, function_ref;
+    {
+        // Model 1: Main graph + 10 disconnected constants with values 0.0 to 0.9
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        ov::ResultVector results{result_main};
+        for (int i = 0; i < 10; ++i) {
+            auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {static_cast<float>(i) * 0.1f});
+            results.push_back(std::make_shared<ov::op::v0::Result>(const_val));
+        }
+
+        function_ref = std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+    }
+    {
+        // Model 2: Same but one constant has wrong value (0.55 instead of 0.5)
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+        auto add = std::make_shared<ov::op::v1::Add>(param, param);
+        auto result_main = std::make_shared<ov::op::v0::Result>(add);
+
+        ov::ResultVector results{result_main};
+        for (int i = 0; i < 10; ++i) {
+            float value = (i == 5) ? 0.55f : static_cast<float>(i) * 0.1f;  // Wrong value at index 5
+            auto const_val = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {value});
+            results.push_back(std::make_shared<ov::op::v0::Result>(const_val));
+        }
+
+        function = std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+    }
+
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_FALSE(res.valid) << "Should detect wrong value in disconnected subgraph";
+}
