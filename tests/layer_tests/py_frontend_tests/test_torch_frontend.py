@@ -18,8 +18,11 @@ import pytest
 from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
 from openvino import PartialShape, Type
 import openvino.opset10 as ops
+import openvino.properties.hint as hints
 
 logging.basicConfig(level=logging.DEBUG)
+
+default_cfg = {hints.inference_precision: Type.f32}
 
 
 class aten_relu(torch.nn.Module):
@@ -471,7 +474,7 @@ def verify_model(model, example_input, expected_ops):
     # Convert and compile the model
     converted_model = ov.convert_model(model, example_input=(example_input,))
     assert converted_model, "Model conversion failed."
-    compiled_model = ov.compile_model(converted_model, "CPU")
+    compiled_model = ov.compile_model(converted_model, "CPU", default_cfg)
     assert compiled_model, "Model compilation failed."
 
     # Verify model operations
@@ -890,7 +893,7 @@ def test_patched_16bit_model_converts():
     with torch.no_grad():
         converted_model = convert_model(model_fp16, example_input=example)
     assert converted_model
-    cm_fp16 = compile_model(converted_model, "CPU")
+    cm_fp16 = compile_model(converted_model, "CPU", default_cfg)
     res_fp16 = cm_fp16([x.numpy() for x in example])
     np.testing.assert_allclose(res_fp16[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_fp16[1], res_ref[1].numpy(), atol=1e-2)
@@ -901,7 +904,7 @@ def test_patched_16bit_model_converts():
     with torch.no_grad():
         converted_model = convert_model(model_bf16, example_input=example)
     assert converted_model
-    cm_bf16 = compile_model(converted_model, "CPU")
+    cm_bf16 = compile_model(converted_model, "CPU", default_cfg)
     res_bf16 = cm_bf16([x.numpy() for x in example])
     np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
@@ -976,7 +979,7 @@ def test_patched_8bit_model_converts():
     with torch.no_grad():
         converted_model = convert_model(model_f8_e4m3, example_input=example)
     assert converted_model
-    cm_f8_e4m3 = compile_model(converted_model, "CPU")
+    cm_f8_e4m3 = compile_model(converted_model, "CPU", default_cfg)
     res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
     np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
@@ -990,7 +993,7 @@ def test_patched_8bit_model_converts():
     with torch.no_grad():
         converted_model = convert_model(model_f8_e5m2, example_input=example)
     assert converted_model
-    cm_f8_e5m2 = compile_model(converted_model, "CPU")
+    cm_f8_e5m2 = compile_model(converted_model, "CPU", default_cfg)
     res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
     np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
@@ -1022,7 +1025,7 @@ def test_patched_bitnet_model_converts():
     with torch.no_grad():
         converted_model = convert_model(model, example_input=(torch.randn(1, size[0]),))
     assert converted_model
-    cm = compile_model(converted_model, "CPU")
+    cm = compile_model(converted_model, "CPU", default_cfg)
     res = cm([x.numpy()])
     np.testing.assert_allclose(res[0], res_ref.numpy(), atol=1e-2)
 
