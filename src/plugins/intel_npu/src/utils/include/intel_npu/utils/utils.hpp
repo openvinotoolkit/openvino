@@ -37,7 +37,7 @@ private:
     const size_t _align_size;
 };
 
-static inline bool memory_and_size_aligned_to_standard_page_size(void* addr, size_t size) {
+static inline bool memory_and_size_aligned_to_standard_page_size(const void* addr, size_t size) {
     auto addr_int = reinterpret_cast<uintptr_t>(addr);
 
     // addr is aligned to standard page size

@@ -11,24 +11,12 @@
 
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
+#include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 using namespace ov::intel_npu;
-
-namespace {
-
-static uint32_t to_alloc_flag(TensorType tensor_type) {
-    if (tensor_type == TensorType::INPUT) {
-        return ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
-    }
-    return 0;
-}
-
-}  // namespace
-
-namespace intel_npu {
+using namespace intel_npu;
 
 ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -146,10 +134,10 @@ void ZeroRemoteTensor::copy_file_data_to_level_zero_memory(const size_t size_to_
 
     fin.seekg(offset, std::ios::beg);
 
-    _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
-                                                                               size_to_read,
-                                                                               utils::STANDARD_PAGE_SIZE,
-                                                                               to_alloc_flag(_tensor_type));
+    _host_memory = ZeroMemPool::get_instance().allocate_zero_memory(_init_structs,
+                                                                    size_to_read,
+                                                                    utils::STANDARD_PAGE_SIZE,
+                                                                    _tensor_type == TensorType::INPUT ? true : false);
     _data = _host_memory->_ptr;
 
     std::streamoff bytes_to_read = static_cast<std::streamoff>(size_to_read);
@@ -164,38 +152,33 @@ void ZeroRemoteTensor::copy_file_data_to_level_zero_memory(const size_t size_to_
 void ZeroRemoteTensor::allocate(const size_t bytes) {
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF: {
-        _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
-                                                                                   bytes,
-                                                                                   utils::STANDARD_PAGE_SIZE,
-                                                                                   to_alloc_flag(_tensor_type));
+        _host_memory =
+            ZeroMemPool::get_instance().allocate_zero_memory(_init_structs,
+                                                             bytes,
+                                                             utils::STANDARD_PAGE_SIZE,
+                                                             _tensor_type == TensorType::INPUT ? true : false);
         _data = _host_memory->_ptr;
         break;
     }
     case MemType::SHARED_BUF: {
-        if (!_init_structs->isExternalMemoryFdWin32Supported()) {
-            OPENVINO_THROW("Remote tensor functionality is not supported with this driver version");
-        }
-
-        if (_mem == nullptr) {
-            OPENVINO_THROW("Parameter ", mem_handle.name(), " is required for MemType::SHARED_BUF");
-        }
-
         // set up the request to import the external memory handle
-        _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
-                                                                                   bytes,
-                                                                                   utils::STANDARD_PAGE_SIZE,
-                                                                                   to_alloc_flag(_tensor_type),
-                                                                                   _mem,
-                                                                                   true);
+        OPENVINO_ASSERT(_mem != nullptr,
+                        "Memory handle is required for importing memory through file descriptor or Win32 handle");
+
+        _host_memory = ZeroMemPool::get_instance().import_fd_win32_zero_memory(_init_structs,
+                                                                               bytes,
+                                                                               utils::STANDARD_PAGE_SIZE,
+                                                                               _mem);
 
         _data = _host_memory->_ptr;
         break;
     }
     case MemType::MMAPED_FILE: {
         // File_descriptor shall be set if mem_type is a mmaped file type.
-        if (!_file_descriptor.has_value()) {
-            OPENVINO_THROW("No parameter ", file_descriptor.name(), " found in parameters map");
-        }
+        OPENVINO_ASSERT(_file_descriptor.has_value(),
+                        "No parameter ",
+                        file_descriptor.name(),
+                        " found in parameters map");
 
         if (!_init_structs->isExternalMemoryStandardAllocationSupported()) {
             _logger.info("Importing mmaped memory isn't supported for this configuration. File data will be copied to "
@@ -223,18 +206,18 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
 
         try {
             size_t aligned_size = utils::align_size_to_standard_page_size(bytes);
-            _host_memory = ZeroMemoryPool::get_instance().allocate_and_get_zero_memory(_init_structs,
-                                                                                       aligned_size,
-                                                                                       utils::STANDARD_PAGE_SIZE,
-                                                                                       to_alloc_flag(_tensor_type),
-                                                                                       _mmap_tensor.data());
-        } catch (const ZeroTensorException&) {
+            _host_memory = ZeroMemPool::get_instance().import_standard_allocation_zero_memory(
+                _init_structs,
+                aligned_size,
+                utils::STANDARD_PAGE_SIZE,
+                _mmap_tensor.data(),
+                _tensor_type == TensorType::INPUT ? true : false);
+            _data = _host_memory->_ptr;
+        } catch (const ZeroMemException&) {
             _logger.info("Failed to import mmaped memory. File data will be copied to the level zero memory");
             _mmap_tensor = {};  // destroy memory if it couldn't be imported
             copy_file_data_to_level_zero_memory(bytes);
         }
-
-        _data = _host_memory->_ptr;
         break;
     }
     default:
@@ -274,5 +257,3 @@ void* ZeroRemoteTensor::get_original_memory() const {
 ze_context_handle_t ZeroRemoteTensor::get_zero_context_handle() const {
     return _init_structs->getContext();
 }
-
-}  // namespace intel_npu

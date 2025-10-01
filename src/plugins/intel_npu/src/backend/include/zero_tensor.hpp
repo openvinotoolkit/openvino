@@ -9,7 +9,7 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "intel_npu/utils/zero/zero_memory.hpp"
+#include "intel_npu/utils/zero/zero_mem.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -29,25 +29,25 @@ public:
      * @param config NPU plugin configuration
      * @param type Data type of tensor elements
      * @param shape Tensor shape
-     * @param isInput Indicates if the tensor is used as a network input ( true) or output (false)
+     * @param is_input Indicates if the tensor is used as a network input ( true) or output (false)
      */
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                const Config& config,
                const ov::element::Type element_type,
                const ov::Shape& shape,
-               const bool isInput);
+               const bool is_input);
 
     /**
      * @brief Creates a ZeroTensor from the given tensor. This constructor will throw if the memory of the given tensor
      * is not allocated in the level zero context specified through init_structs or in case the memory cannot be
      * imported in that context ( to be implemented). ZeroTensor will keep a reference to the source tensor.
      * @param init_structs Shared pointer to ZeroInitStructsHolder
-     * @param user_tensor Tensor to create ZeroTensor from
      * @param config NPU plugin configuration
+     * @param user_tensor Tensor to create ZeroTensor from
      */
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-               const ov::SoPtr<ov::ITensor>& user_tensor,
-               const Config& config);
+               const Config& config,
+               const ov::SoPtr<ov::ITensor>& user_tensor);
 
     void* data() override;
     void* data(const ov::element::Type& type) override;
@@ -86,11 +86,10 @@ private:
     mutable std::once_flag _strides_once;
     void* _ptr = nullptr;
     bool _reset_tensor_memory = false;
-    uint32_t _zero_memory_flag = 0;
+    bool _is_input = false;
     bool _can_be_reused = false;
 
     ov::SoPtr<ov::ITensor> _user_tensor;
-    ov::SoPtr<ov::ITensor> _imported_tensor;
 
     std::shared_ptr<ZeroMem> _host_memory;
 };
