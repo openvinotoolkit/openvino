@@ -417,7 +417,6 @@ TEST(node_input_output, output_replace_empty_targets) {
     EXPECT_EQ(relu->input_value(0).get_node(), add2.get());
 }
 
-
 TEST(node_input_output, output_replace_cascade) {
     // Corner case: cascade of replacements
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3});
