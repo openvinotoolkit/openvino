@@ -195,6 +195,9 @@ const auto TestCases021 = ::testing::Combine(
 , Tensors {
     input = {1, 16, 300};
 }
+, Tensors {
+    input = {32,128,1288};
+}
 }),
 ::testing::ValuesIn(
     {
