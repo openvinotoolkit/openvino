@@ -628,6 +628,14 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         filter_config_by_compiler_support(_globalConfig);
         // 2. Reset properties for the new options
         _properties->registerProperties();
+    } else {
+        // at this point, queried property might be either a runtime, compiler internal or inexistent
+        // however, other props that are both runtimes and comiletime e.g. LOG_LEVEL, they should be locally activated
+        auto localConfig = _globalConfig;
+        localConfig.enableBoths();
+        Properties localProperties(PropertiesType::PLUGIN, localConfig, _metrics, _backend);
+        localProperties.registerProperties();
+        return localProperties.get_property(name);
     }
 
     return _properties->get_property(name, arguments);
