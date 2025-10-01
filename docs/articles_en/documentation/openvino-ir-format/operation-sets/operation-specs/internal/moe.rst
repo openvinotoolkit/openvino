@@ -64,8 +64,8 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
     x_proj = matmul(reshaped_hidden_states, weight_0, transpose_a=False, transpose_b=True)
     x_proj2 = matmul(reshaped_hidden_states, weight_1, transpose_a=False, transpose_b=True)
     swiglu = swish(x_proj, beta=expert_beta)
-    x_proj = x_proj * swiglu
-    down_proj = matmul(swiglu, weight_2, transpose_a=False, transpose_b=True)
+    x_proj = x_proj2 * swiglu
+    down_proj = matmul(x_proj, weight_2, transpose_a=False, transpose_b=True)
     
     # Common part: Routing and summation
     routed_experts = reshape(down_proj, [num_experts, batch_size, -1, hidden_size]) * routing_weights
