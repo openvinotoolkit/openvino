@@ -97,6 +97,7 @@ TEST_P(OVPropertiesTestsMismatchesNPU, DetectPotentialPropertyMismatches) {
 }
 
 TEST_P(OVPropertiesTestsNPU, GetSupportedPropertiesImplyCompilerLoad) {
+    // ASSERT_TRUE(!is_cid_loaded() && !is_cip_loaded())
     invalidate_umd_caching();
     core->get_property(target_device, ov::supported_properties, properties);
     if (auto it = properties.find(ov::intel_npu::compiler_type.name());
@@ -105,6 +106,18 @@ TEST_P(OVPropertiesTestsNPU, GetSupportedPropertiesImplyCompilerLoad) {
     } else {
         ASSERT_TRUE(is_cid_loaded() && !is_cip_loaded());
     }
+}
+
+TEST_P(OVPropertiesArgumentsTestsNPU, GetRunTimePropertiesNoCompilerLoad) {
+    // Need to exclude properties that are not registered in plugin properties, e.g. LOADED_FROM_CACHE (compiled_model
+    // prop)
+    auto registered_properties = core->get_property(target_device, ov::intel_npu::registered_properties);
+    if (std::find(registered_properties.begin(), registered_properties.end(), propertyName) ==
+        registered_properties.end()) {
+        GTEST_SKIP() << propertyName << " was not found within plugin registered properties!";
+    }
+    core->get_property(target_device, propertyName, properties);
+    ASSERT_TRUE(!is_cid_loaded() && !is_cip_loaded());
 }
 
 }  // namespace ov::test::behavior
@@ -118,7 +131,7 @@ constexpr std::vector<T> operator+(const std::vector<T>& vec1, const std::vector
     return result;
 }
 
-const std::vector<ov::AnyMap> runtimeProperties = {
+const std::vector<ov::AnyMap> runTimeProperties = {
     {{ov::cache_dir.name(), ""}},
     {{ov::hint::compiled_blob.name(), ov::Tensor()}},
     {{ov::loaded_from_cache.name(), true}},
@@ -225,20 +238,35 @@ const std::vector<ov::AnyMap> metrics = {
 
 const std::vector<ov::AnyMap> allProperties = {
     {{"",
-      runtimeProperties + compileTimeProperties + bothProperties + metrics}}  // std::vector<std::vector<ov::AnyMap>>
+      runTimeProperties + compileTimeProperties + bothProperties + metrics}},  // std::vector<std::vector<ov::AnyMap>>
 };
+
+std::vector<std::string> convertToStringVec(const std::vector<ov::AnyMap>& anyMapVec) {
+    std::vector<std::string> retVec;
+    for (const auto& anyMap : anyMapVec) {
+        retVec.push_back(anyMap.begin()->first);
+    }
+    return retVec;
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesTestsMismatchesNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(allProperties)),
-                         ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsNPU>);
+                         ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsMismatchesNPU>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(runtimeProperties + compileTimeProperties +
+                                            ::testing::ValuesIn(runTimeProperties + compileTimeProperties +
                                                                 bothProperties)),
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsNPU, true>));
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVPropertiesArgumentsTestsNPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(convertToStringVec(runTimeProperties)),
+                                            ::testing::ValuesIn(compileTimeProperties + bothProperties)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesArgumentsTestsNPU, true>));
 
 }  // namespace

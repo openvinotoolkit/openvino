@@ -16,6 +16,8 @@
 namespace ov::test::behavior {
 
 using PropertiesParamsNPU = std::tuple<std::string, AnyMap>;
+using PropertiesWithArgumentsParamsNPU =
+    std::tuple</* target_device = */ std::string, /* propertyName = */ std::string, /* arguments = */ AnyMap>;
 
 class OVPropertiesTestsNPU : public testing::WithParamInterface<PropertiesParamsNPU>, public OVPropertiesBase {
 public:
@@ -24,6 +26,18 @@ public:
     inline void SetUp() override;
 
     inline void TearDown() override;
+};
+
+class OVPropertiesArgumentsTestsNPU : public testing::WithParamInterface<PropertiesWithArgumentsParamsNPU>,
+                                      public OVPropertiesBase {
+public:
+    static inline std::string getTestCaseName(testing::TestParamInfo<PropertiesWithArgumentsParamsNPU> obj);
+
+    inline void SetUp() override;
+
+    inline void TearDown() override;
+
+    std::string propertyName;
 };
 
 using OVPropertiesIncorrectTestsNPU = OVPropertiesTestsNPU;
@@ -111,6 +125,36 @@ void OVPropertiesTestsWithCompileModelPropsNPU::SetUp() {
 }
 
 void OVPropertiesTestsWithCompileModelPropsNPU::TearDown() {
+    if (!properties.empty()) {
+        utils::PluginCache::get().reset();
+    }
+    APIBaseTest::TearDown();
+}
+
+std::string OVPropertiesArgumentsTestsNPU::getTestCaseName(
+    testing::TestParamInfo<PropertiesWithArgumentsParamsNPU> obj) {
+    std::string target_device, property_name;
+    AnyMap arguments;
+    std::tie(target_device, property_name, arguments) = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
+    std::ostringstream result;
+    result << "target_device=" << target_device << "_";
+    result << "property_name=" << property_name << "_";
+    if (!arguments.empty()) {
+        result << "arguments=" << util::join(util::split(util::to_string(arguments), ' '), "_");
+    }
+
+    return result.str();
+}
+
+void OVPropertiesArgumentsTestsNPU::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    std::tie(target_device, propertyName, properties) = this->GetParam();
+    APIBaseTest::SetUp();
+    model = ov::test::utils::make_split_concat();
+}
+
+void OVPropertiesArgumentsTestsNPU::TearDown() {
     if (!properties.empty()) {
         utils::PluginCache::get().reset();
     }

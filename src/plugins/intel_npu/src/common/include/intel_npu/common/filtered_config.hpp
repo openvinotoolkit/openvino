@@ -82,6 +82,11 @@ public:
     void enableRuntimes();
 
     /**
+     * @brief Enables only both configuration options.
+     */
+    void enableBoths();
+
+    /**
      * @brief Iterates over all enabled options and applies a callback function to each enabled key.
      * @param cb A callback function that takes a string (key) as input and performs an operation on it.
      */
