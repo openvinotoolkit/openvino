@@ -83,7 +83,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                      block_size);
     CHECK_VALID_NODE(node, accuracy_level >= 0 && accuracy_level <= 4, "Unsupported accuracy level: ", accuracy_level);
 
-    if (inputs.size() > 3 && !ov::as_type_ptr<NullNode>(inputs[3].get_node_shared_ptr())) {
+    if (common::is_input_valid(node, 3)) {
         zero_points = inputs[3];
         CHECK_VALID_NODE(node,
                          zero_points.get_element_type() == ov::element::u8 ||
@@ -94,7 +94,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                          zero_points.get_element_type());
     }
 
-    if (inputs.size() > 4 && !ov::as_type_ptr<NullNode>(inputs[4].get_node_shared_ptr())) {
+    if (common::is_input_valid(node, 4)) {
         group_idx = inputs[4];
         CHECK_VALID_NODE(node,
                          group_idx.get_element_type() == ov::element::i32,
@@ -102,7 +102,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                          group_idx.get_element_type());
     }
 
-    if (inputs.size() > 5 && !ov::as_type_ptr<NullNode>(inputs[5].get_node_shared_ptr())) {
+    if (common::is_input_valid(node, 5)) {
         bias = inputs[5];
         CHECK_VALID_NODE(node,
                          bias.get_element_type() == a.get_element_type() ||
