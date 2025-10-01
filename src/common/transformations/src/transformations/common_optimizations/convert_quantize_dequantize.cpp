@@ -62,27 +62,32 @@
 //                                        v
 //
 
-ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
+ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
+    const ov::element::TypeVector& supported_low_precisions,
+    const ov::element::TypeVector& supported_original_precisions) {
     MATCHER_SCOPE(ConvertQuantizeDequantize);
-    auto data_pattern = pass::pattern::any_input();
-    auto input_low_pattern = pass::pattern::any_input();
-    auto input_high_pattern = pass::pattern::any_input();
-    auto output_low_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto output_high_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>(
-        {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
-    auto convert1_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>(
-        {fq_pattern},
-        pattern::type_matches_any({element::i8, element::u8, element::i16, element::u16}));
-    auto convert2_pattern =
-        ov::pass::pattern::wrap_type<ov::op::v0::Convert>({convert1_pattern}, pattern::type_matches(element::f32));
-    auto zero_point_pattern = pass::pattern::any_input();
-    auto sub_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Subtract>({convert2_pattern, zero_point_pattern},
-                                                                          pattern::consumers_count(1));
-    auto scale_pattern = pass::pattern::any_input();
-    auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_pattern, scale_pattern});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    using namespace ov::pass::pattern;
+    using namespace ov::op;
+
+    auto data_pattern = any_input(type_matches_any(supported_original_precisions));
+    auto input_low_pattern = any_input();
+    auto input_high_pattern = any_input();
+    auto output_low_pattern = wrap_type<v0::Constant>();
+    auto output_high_pattern = wrap_type<v0::Constant>();
+    auto fq_pattern = wrap_type<v0::FakeQuantize>(
+        {data_pattern, input_low_pattern, input_high_pattern, output_low_pattern, output_high_pattern});
+    auto convert1_pattern =
+        wrap_type<v0::Convert>({fq_pattern}, type_matches_any(supported_low_precisions) && consumers_count(1));
+    auto convert2_pattern =
+        wrap_type<v0::Convert>({convert1_pattern},
+                               type_matches_any(supported_original_precisions) && consumers_count(1));
+    auto zero_point_pattern = any_input();
+    auto sub_pattern = wrap_type<v1::Subtract>({convert2_pattern, zero_point_pattern}, consumers_count(1));
+    auto scale_pattern = any_input();
+    auto mul_pattern = wrap_type<v1::Multiply>({sub_pattern, scale_pattern});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -108,47 +113,27 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
         auto convert2 = pattern_map[convert2_pattern];
         auto mul = pattern_map[mul_pattern].get_node_shared_ptr();
 
-        // convert1 and convert2 should have only one input
-        if (convert1.get_target_inputs().size() != 1)
-            return false;
-        if (convert2.get_target_inputs().size() != 1)
-            return false;
-
-        // we support:
-        // i8 or u8: 'levels' attribute must be 256
-        // i16 or u16: 'levels' attribute must be 65536
-        size_t levels = fq->get_levels();
-        if (levels != 256 && levels != 65536)
+        static const std::unordered_set<size_t> supported_levels{256, 65536};
+        const auto levels = fq->get_levels();
+        if (!supported_levels.count(levels))
             return false;
 
-        // check if (out_low_val, out_high_val) is (-128, 127) or (0, 255) or (-32768, 32767) or (0, 65535)
         float out_low_val;
-        if (!op::util::get_single_value(output_low, out_low_val))
+        if (!ov::op::util::get_single_value(output_low, out_low_val))
             return false;
         float out_high_val;
-        if (!op::util::get_single_value(output_high, out_high_val))
+        if (!ov::op::util::get_single_value(output_high, out_high_val))
             return false;
+
+        static const std::unordered_map<ov::element::Type_t, std::pair<float, float>> supported_intervals{
+            {ov::element::i8, {-128.f, 127.f}},
+            {ov::element::u8, {0.f, 255.f}},
+            {ov::element::i16, {-32768.f, 32767.f}},
+            {ov::element::u16, {0.f, 65535.f}}};
         const auto& type = convert1.get_element_type();
-        switch (type) {
-        case element::Type_t::i8:
-            if (out_low_val != -128 || out_high_val != 127)
-                return false;
-            break;
-        case element::Type_t::u8:
-            if (out_low_val != 0 || out_high_val != 255)
-                return false;
-            break;
-        case element::Type_t::i16:
-            if (out_low_val != -32768 || out_high_val != 32767)
-                return false;
-            break;
-        case element::Type_t::u16:
-            if (out_low_val != 0 || out_high_val != 65535)
-                return false;
-            break;
-        default:
+        if (supported_intervals.count(type) == 0 ||
+            supported_intervals.at(type) != std::make_pair(out_low_val, out_high_val))
             return false;
-        }
 
         std::shared_ptr<Node> new_out_low =
             std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::Subtract>(output_low, zero_point),
@@ -181,6 +166,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
 
         copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
         replace_node(mul, new_fq);
+        std::cout << "[ INFO ] ConvertQuantizeDequantize is finished for node " << new_fq->get_friendly_name() << std::endl;
 
         return true;
     };
