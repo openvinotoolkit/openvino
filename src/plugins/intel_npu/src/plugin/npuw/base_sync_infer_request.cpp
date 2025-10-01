@@ -285,7 +285,6 @@ ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const
     return allocMem(node.get_element_type(), node.get_shape(), device);
 }
 
-
 std::string ov::npuw::IBaseInferRequest::global_input_mem_device(std::size_t idx) const {
     // Use the consumer subgraph device if it is alone;
     // resort to global if there's many
