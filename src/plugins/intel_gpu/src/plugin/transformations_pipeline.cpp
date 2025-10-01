@@ -398,7 +398,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // 2. Fuse FQ->Convert->DQ to a single FQ
             manager.register_pass<ov::pass::ConvertQuantizeDequantize>(ov::element::TypeVector{ov::element::i16, ov::element::u16});
             // 3. Strip FQ layers with unsupported levels
-            bool replace_with_clamp = false;
+            bool replace_with_clamp = true;
             manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, replace_with_clamp);
         }
 
