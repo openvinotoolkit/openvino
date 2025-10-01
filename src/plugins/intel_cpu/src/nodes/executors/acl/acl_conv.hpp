@@ -13,6 +13,7 @@ class ACLConvolutionExecutor : public ACLCommonExecutor {
 public:
     ACLConvolutionExecutor(const ConvAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
+    static bool supports(const ConvConfig& config);
     void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;

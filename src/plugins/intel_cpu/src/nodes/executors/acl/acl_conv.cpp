@@ -22,6 +22,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/convolution_config.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
@@ -84,6 +85,16 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     } else if (attrs.postOps.size() > 1) {
         OPENVINO_THROW("ACLConvolutionExecutor: ACL does not support more than 1 post op");
     }
+}
+
+bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
+    bool isQuantized = any_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8) &&
+                       config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8;
+
+    VERIFY(isQuantized, UNSUPPORTED_SRC_PRECISIONS);
+    VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
+
+    return true;
 }
 
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {

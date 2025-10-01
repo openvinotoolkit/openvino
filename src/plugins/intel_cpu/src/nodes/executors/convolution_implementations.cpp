@@ -278,8 +278,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
-                VERIFY(isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
-                VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
+                VERIFY(ACLConvolutionExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
                 return true;
             },
             CreateOptimalConfigAclLowp{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
