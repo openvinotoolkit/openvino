@@ -166,7 +166,6 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize(
 
         copy_runtime_info({fq, convert1.get_node_shared_ptr(), convert2.get_node_shared_ptr()}, new_fq);
         replace_node(mul, new_fq);
-        std::cout << "[ INFO ] ConvertQuantizeDequantize is finished for node " << new_fq->get_friendly_name() << std::endl;
 
         return true;
     };
