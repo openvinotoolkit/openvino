@@ -62,6 +62,8 @@ endif()
 ov_set_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE
+    OpenCL::OpenCLHeaders
+    OpenCL::HeadersCpp
     openvino::itt
     openvino::runtime::dev
   )

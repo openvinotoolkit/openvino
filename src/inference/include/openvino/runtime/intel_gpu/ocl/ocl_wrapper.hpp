@@ -47,7 +47,7 @@
 #ifdef OV_GPU_USE_OPENCL_HPP
 #    include <CL/opencl.hpp>
 #else
-#    include <CL/cl2.hpp>
+#    include "cl2.hpp"
 #endif
 
 #ifdef __GNUC__
