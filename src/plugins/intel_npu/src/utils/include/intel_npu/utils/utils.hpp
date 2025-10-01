@@ -17,6 +17,8 @@ constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
 constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
 constexpr std::size_t BATCH_AXIS = 0;
 
+const std::string DYNBATCH_SUFFIX = "_DYNBATCH_ORIG";
+
 struct AlignedAllocator {
 public:
     AlignedAllocator(const size_t align_size) : _align_size(align_size) {}
