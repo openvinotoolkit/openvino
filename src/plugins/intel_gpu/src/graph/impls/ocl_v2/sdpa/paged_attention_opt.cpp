@@ -1454,7 +1454,7 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         if (can_use_micro_sdpa) {
-            const auto wg_tile_q = 8; // This is set as the minimum size of query block for sharing between sdpa_micro_prefill and mixed.
+            const auto wg_tile_q = 8;  // This is set as the minimum size of query block for sharing between sdpa_micro_prefill and mixed.
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
