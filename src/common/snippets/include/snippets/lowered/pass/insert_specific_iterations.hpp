@@ -81,31 +81,29 @@ private:
     /**
      * @brief Make a copy of Loop with ID `loop_id` and insert to LinearIR before `insert_pos`
      * @param linear_ir target Linear IR
-     * @param loop_id the target loop ID
+     * @param bounds loop bounds of current loop
      * @param insert_pos insertion position iterator
-     * @param new_entry_ports reference of vector with Loop input ports that will be updated after insertion
-     * @param new_exit_ports reference of vector with Loop output ports that will be updated after insertion
+     * @param expression_map expression map to store pairs [original_expr, new_expr]
      * @return LoopBounds: iterators of new LoopBegin and LoopEnd
      */
     static LoopManager::LoopBounds insert_copy_loop(LinearIR& linear_ir,
-                                                    size_t loop_id,
+                                                    const LoopManager::LoopBounds& bounds,
                                                     const LinearIR::constExprIt& insert_pos,
-                                                    std::vector<LoopPort>& new_entry_ports,
-                                                    std::vector<LoopPort>& new_exit_ports);
+                                                    ExpressionMap& expression_map);
     /**
      * @brief Initializes decomposed loop: update ptr arithmetic, work_amout, increment, ID
      * @param linear_ir target Linear IR
      * @param begin iterator of LoopBegin
      * @param end iterator of LoopEnd
      * @param decomposed_loop_info loop info of the corresponding decomposed loop
-     * @param unified_loop_id ID of the unified loop
+     * @param loop_id_to_replace ID of the loop which should be replaced by the decomposed one
      * @param decomposed_loop_end LoopEnd of the decomposed loop
      */
     static void init_decomposed_loop(LinearIR& linear_ir,
                                      LinearIR::constExprIt begin,
                                      LinearIR::constExprIt end,
                                      const ExpandedLoopInfoPtr& decomposed_loop_info,
-                                     size_t unified_loop_id,
+                                     size_t loop_id_to_replace,
                                      const std::shared_ptr<op::LoopEnd>& decomposed_loop_end);
 };
 
