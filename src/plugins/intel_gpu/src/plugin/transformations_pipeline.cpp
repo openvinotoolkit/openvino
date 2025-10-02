@@ -396,10 +396,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::disable_keep_const_precision(node);
         }
 
-        auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        using namespace ov::pass::low_precision;
+        auto is_model_quantized = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int8, levels::int8_narrow_range});
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
         {
-            using namespace ov::pass::low_precision;
             // QDQ stripping pipeline
             // 1. Transform DQ part to canonicalized form: Multiply->Add => Subtract->Multiply
             manager.register_pass<AddTransformation>();
