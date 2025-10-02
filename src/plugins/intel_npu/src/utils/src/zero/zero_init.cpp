@@ -72,8 +72,20 @@ void ZeroInitStructsHolder::initNpuDriver() {
         }
     };
 
+    uint32_t loader_version;
+    if (zero_api != nullptr) {
+        loader_version = zero_api->getVersion();
+    } else {
+        loader_version = 0;
+    }
+
     auto fallbackToZeDriverGet = [&]() {
         log.debug("ZeroInitStructsHolder - zeInitDrivers not supported, fallback to zeDriverGet");
+
+        if (loader_version > 0) {
+            log.debug("ZeroInitStructsHolder - performing zeInit on NPU only");
+            THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
+        }
 
         uint32_t drivers_count = 0;
         THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGet", zeDriverGet(&drivers_count, nullptr));
@@ -85,31 +97,40 @@ void ZeroInitStructsHolder::initNpuDriver() {
         setNpuDriver(drivers_count, std::move(all_drivers));
     };
 
-    zel_version_t loader_version = {};
-    size_t num_components;
-    auto result = zelLoaderGetVersions(&num_components, nullptr);
-    if (result == ZE_RESULT_SUCCESS) {
-        zel_component_version_t* versions = new zel_component_version_t[num_components];
-        result = zelLoaderGetVersions(&num_components, versions);
+    uint32_t major;
+    uint32_t minor;
 
+    if (loader_version == 0) {
+        log.debug("ZeroInitStructsHolder - performing zeInit on NPU only");
+        THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
+
+        zel_version_t zel_loader_version = {};
+        size_t num_components;
+        auto result = zelLoaderGetVersions(&num_components, nullptr);
         if (result == ZE_RESULT_SUCCESS) {
-            for (size_t i = 0; i < num_components; ++i) {
-                if (strncmp(versions[i].component_name, "loader", strlen("loader")) == 0) {
-                    loader_version = versions[i].component_lib_version;
-
-                    log.debug("ZeroInitStructsHolder - ze_loader.dll version: %d.%d.%d",
-                              loader_version.major,
-                              loader_version.minor,
-                              loader_version.patch);
+            std::vector<zel_component_version_t> versions(num_components);
+            result = zelLoaderGetVersions(&num_components, versions.data());
+            if (result == ZE_RESULT_SUCCESS) {
+                for (size_t i = 0; i < num_components; ++i) {
+                    if (strncmp(versions[i].component_name, "loader", strlen("loader")) == 0) {
+                        zel_loader_version = versions[i].component_lib_version;
+                        log.debug("ZeroInitStructsHolder - ze_loader.dll version: %d.%d.%d",
+                                  zel_loader_version.major,
+                                  zel_loader_version.minor,
+                                  zel_loader_version.patch);
+                    }
                 }
             }
         }
 
-        delete[] versions;
+        major = zel_loader_version.major > 0 ? zel_loader_version.major : 0;
+        minor = zel_loader_version.minor > 0 ? zel_loader_version.minor : 0;
+    } else {
+        major = (loader_version >> 16) & 0xffff;
+        minor = loader_version & 0xffff;
     }
 
-    if (loader_version.major > 1 || (loader_version.major == 1 && loader_version.minor > 18) ||
-        (loader_version.major == 1 && loader_version.minor == 18 && loader_version.patch >= 5)) {
+    if (major > 1 || (major == 1 && minor >= 19)) {
         uint32_t drivers_count = 0;
         ze_init_driver_type_desc_t desc = {};
         desc.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC;
@@ -139,9 +160,6 @@ void ZeroInitStructsHolder::initNpuDriver() {
 ZeroInitStructsHolder::ZeroInitStructsHolder()
     : zero_api(ZeroApi::getInstance()),
       log("NPUZeroInitStructsHolder", Logger::global().level()) {
-    log.debug("ZeroInitStructsHolder - performing zeInit on NPU only");
-    THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
-
     log.debug("ZeroInitStructsHolder - initialize NPU Driver");
     initNpuDriver();
 

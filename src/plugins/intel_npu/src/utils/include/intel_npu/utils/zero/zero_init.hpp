@@ -85,7 +85,7 @@ private:
     void initNpuDriver();
 
     // keep zero_api alive until context is destroyed
-    std::shared_ptr<ZeroApi> zero_api;
+    std::shared_ptr<ZeroApi> zero_api = nullptr;
 
     static const ze_driver_uuid_t uuid;
     Logger log;
