@@ -2037,30 +2037,21 @@ void primitive_inst::prepare_primitive() {
 
     // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
     // is a convolution that requires zeroed-out data paddings)
-    auto skip_reset = true;
     if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
         const auto& users = get_user_insts();
         const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
                                  users.front()->_allocation_done_by_other;
-        skip_reset = skip_concat;
-    }
-    // Need to reset crop's output to zeros, if followed by onednn concatenation that requires zero-padding for blocked format memory
-    if (get_node().is_type<crop>() && get_node().can_share_buffer() && _impl_params->get_output_layout(0).format.is_blocked() &&
-        get_node().get_users().size() == 1 && get_node().get_users().front()->is_type<concatenation>() &&
-        get_node().get_users().front()->get_selected_impl() && get_node().get_users().front()->get_selected_impl()->is_onednn()) {
-        if (get_node().get_selected_impl()->get_kernel_name().find("eltwise_blocked_opt") == std::string::npos || is_dynamic()) {
-            skip_reset = false;
-        }
-    }
+        const auto skip_reset = skip_concat;
 
-    if (!skip_reset) {
-        for (const auto& output : _outputs) {
-            if (output != nullptr) {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
-                // Use marker to ensure proper synchronization for both events and barriers
-                auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
-                                                     : std::vector<event::ptr>{};
-                add_dep_event(output->fill(get_network().get_stream(), dep_events));
+        if (!skip_reset) {
+            for (const auto& output : _outputs) {
+                if (output != nullptr) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
+                    // Use marker to ensure proper synchronization for both events and barriers
+                    auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                         : std::vector<event::ptr>{};
+                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
+                }
             }
         }
     }
