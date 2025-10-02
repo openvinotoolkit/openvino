@@ -25,7 +25,6 @@
 #include "utils/common.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/make_stateful.hpp"
-#include "../../../../../common/snippets/include/snippets/pass/manager.hpp"
 #include "openvino/op/gather.hpp"
 #include <openvino/core/graph_util.hpp>
 #include <openvino/op/shape_of.hpp>
@@ -225,7 +224,7 @@ bool model_has_input_output_name(const std::shared_ptr<ov::Model>& model, const 
 }
 
 int index_of_model_input_output(const std::shared_ptr<ov::Model>& model, const std::string& name) {
-    for (auto i = 0; i < model->inputs().size(); i++) {
+    for (size_t i = 0; i < model->inputs().size(); i++) {
         if (model->inputs().at(i).get_any_name() == name)
             return i;
     }
