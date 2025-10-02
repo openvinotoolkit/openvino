@@ -69,7 +69,6 @@ CL_INDIRECT_API(clEnqueueUnmapMemObject)
 CL_INDIRECT_API(clFinish)
 CL_INDIRECT_API(clGetContextInfo)
 CL_INDIRECT_API(clGetDeviceIDs)
-CL_INDIRECT_API(clGetDeviceInfo)
 CL_INDIRECT_API(clGetExtensionFunctionAddressForPlatform)
 CL_INDIRECT_API(clGetKernelArgInfo)
 CL_INDIRECT_API(clGetKernelInfo)
@@ -126,6 +125,11 @@ cl_int call_clGetMemObjectInfo(cl_mem a1, cl_mem_info a2, size_t a3, void* a4, s
     }
 cl_int call_clGetEventInfo(cl_event a1, cl_event_info a2, size_t a3, void* a4, size_t* a5) { \
         static auto f_ = find_cl_symbol<decltype(&clGetEventInfo)>("clGetEventInfo");              \
+        return f_(a1, a2, a3, a4, a5);                         \
+    }
+
+cl_int call_clGetDeviceInfo(cl_device_id a1, cl_device_info a2, size_t a3, void* a4, size_t* a5) { \
+        static auto f_ = find_cl_symbol<decltype(&clGetDeviceInfo)>("clGetDeviceInfo");              \
         return f_(a1, a2, a3, a4, a5);                         \
     }
 #undef CL_INDIRECT_API

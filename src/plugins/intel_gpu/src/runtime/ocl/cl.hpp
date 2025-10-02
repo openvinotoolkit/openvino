@@ -530,8 +530,8 @@ typedef unsigned long cl_sync_point_khr;
 typedef unsigned long cl_mutable_command_info_khr;
 typedef void* cl_mutable_command_khr;
 // === Symulacja funkcji C API (bez call_... - tylko właściwe API OpenCL) ===
-inline cl_int clGetPlatformIDs(cl_uint, cl_platform_id*, cl_uint*) { return CL_SUCCESS; }
-inline cl_int clGetDeviceIDs(cl_platform_id, cl_device_type, cl_uint, cl_device_id*, cl_uint*) { return CL_SUCCESS; }
+//inline cl_int clGetPlatformIDs(cl_uint, cl_platform_id*, cl_uint*) { return CL_SUCCESS; }
+//inline cl_int clGetDeviceIDs(cl_platform_id, cl_device_type, cl_uint, cl_device_id*, cl_uint*) { return CL_SUCCESS; }
 inline cl_context clCreateContext(const cl_context_properties*, cl_uint, const cl_device_id*, void(*)(const char*, const void*, size_t, void*), void*, cl_int*) { return nullptr; }
 inline cl_command_queue clCreateCommandQueue(cl_context, cl_device_id, cl_command_queue_properties, cl_int*) { return nullptr; }
 inline cl_program clCreateProgramWithSource(cl_context, cl_uint, const char**, const size_t*, cl_int*) { return nullptr; }
@@ -611,7 +611,7 @@ inline cl_int clGetKernelInfo(cl_kernel, cl_kernel_info, size_t, void*, size_t*)
 inline cl_int clGetKernelWorkGroupInfo(cl_kernel, cl_device_id, cl_kernel_work_group_info, size_t, void*, size_t*) { return CL_SUCCESS; }
 inline cl_int clGetCommandQueueInfo(cl_command_queue, cl_command_queue_info, size_t, void*, size_t*) { return CL_SUCCESS; }
 inline cl_int clGetPlatformInfo(cl_platform_id, cl_platform_info, size_t, void*, size_t*) { return CL_SUCCESS; }
-inline cl_int clGetDeviceInfo(cl_device_id, cl_device_info, size_t, void*, size_t*) { return CL_SUCCESS; }
+//inline cl_int clGetDeviceInfo(cl_device_id, cl_device_info, size_t, void*, size_t*) { return CL_SUCCESS; }
 inline cl_int clCreateKernelsInProgram(cl_program, cl_uint, cl_kernel*, cl_uint*) { return CL_SUCCESS; }
 inline cl_kernel clCloneKernel(cl_kernel, cl_int*) { return nullptr; }
 inline cl_int clSetKernelExecInfo(cl_kernel, cl_kernel_exec_info, size_t, const void*) { return CL_SUCCESS; }
@@ -2279,7 +2279,7 @@ static cl_uint getPlatformVersion(cl_platform_id platform)
 static cl_uint getDevicePlatformVersion(cl_device_id device)
 {
     cl_platform_id platform;
-    clGetDeviceInfo(device, CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
+    call_clGetDeviceInfo(device, CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
     return getPlatformVersion(platform);
 }
 
@@ -2667,7 +2667,7 @@ public:
     cl_int getInfo(cl_device_info name, T* param) const
     {
         return detail::errHandler(
-            detail::getInfo(&::clGetDeviceInfo, object_, name, param),
+            detail::getInfo(&call_clGetDeviceInfo, object_, name, param),
             __GET_DEVICE_INFO_ERR);
     }
 
@@ -2825,7 +2825,7 @@ private:
             // Otherwise set it
             cl_uint n = 0;
 
-            cl_int err = ::clGetPlatformIDs(0, nullptr, &n);
+            cl_int err = call_clGetPlatformIDs(0, nullptr, &n);
             if (err != CL_SUCCESS) {
                 default_error_ = err;
                 return;
@@ -2836,7 +2836,7 @@ private:
             }
 
             vector<cl_platform_id> ids(n);
-            err = ::clGetPlatformIDs(n, ids.data(), nullptr);
+            err = call_clGetPlatformIDs(n, ids.data(), nullptr);
             if (err != CL_SUCCESS) {
                 default_error_ = err;
                 return;
@@ -2956,14 +2956,14 @@ public:
         if( devices == nullptr ) {
             return detail::errHandler(CL_INVALID_ARG_VALUE, __GET_DEVICE_IDS_ERR);
         }
-        cl_int err = ::clGetDeviceIDs(object_, type, 0, nullptr, &n);
+        cl_int err = call_clGetDeviceIDs(object_, type, 0, nullptr, &n);
         if (err != CL_SUCCESS  && err != CL_DEVICE_NOT_FOUND) {
             return detail::errHandler(err, __GET_DEVICE_IDS_ERR);
         }
 
         vector<cl_device_id> ids(n);
         if (n>0) {
-            err = ::clGetDeviceIDs(object_, type, n, ids.data(), nullptr);
+            err = call_clGetDeviceIDs(object_, type, n, ids.data(), nullptr);
             if (err != CL_SUCCESS) {
                 return detail::errHandler(err, __GET_DEVICE_IDS_ERR);
             }
@@ -3092,13 +3092,13 @@ public:
             return detail::errHandler(CL_INVALID_ARG_VALUE, __GET_PLATFORM_IDS_ERR);
         }
 
-        cl_int err = ::clGetPlatformIDs(0, nullptr, &n);
+        cl_int err = call_clGetPlatformIDs(0, nullptr, &n);
         if (err != CL_SUCCESS) {
             return detail::errHandler(err, __GET_PLATFORM_IDS_ERR);
         }
 
         vector<cl_platform_id> ids(n);
-        err = ::clGetPlatformIDs(n, ids.data(), nullptr);
+        err = call_clGetPlatformIDs(n, ids.data(), nullptr);
         if (err != CL_SUCCESS) {
             return detail::errHandler(err, __GET_PLATFORM_IDS_ERR);
         }

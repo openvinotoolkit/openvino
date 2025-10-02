@@ -364,7 +364,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
 bool does_device_support(int32_t param, const cl::Device& device) {
     cl_device_unified_shared_memory_capabilities_intel capabilities;
-    auto err = call_clGetDeviceInfo(device.get(), param, sizeof(cl_device_unified_shared_memory_capabilities_intel), &capabilities, nullptr);
+    auto err = call_clGetDeviceInfo(device.get(), static_cast<cl_uint>(param), sizeof(cl_device_unified_shared_memory_capabilities_intel), static_cast<void*>(&capabilities), nullptr);
     if (err) throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
 
     return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0u);
