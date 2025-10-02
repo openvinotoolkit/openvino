@@ -3,11 +3,11 @@
 # optimum still requires numpy<2.0.0
 numpy==1.26.4; python_version < "3.12"
 numpy==2.1.1; python_version >= "3.12"
-torch==2.7.0
+torch==2.8.0
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-torchvision==0.22.0
-torchaudio==2.7.0
+torchvision==0.23.0
+torchaudio==2.8.0
 # before updating transformers version, make sure no tests (esp. sdpa2pa) are failing
 transformers==4.47.1
 pytest==7.0.1; python_version < '3.10'
