@@ -720,15 +720,13 @@ static std::string get_origin_weights_path(const ov::AnyMap& config) {
 }
 
 static bool get_cache_decrypt_fn(const ov::AnyMap& config, CacheDecrypt& decrypt) {
-    bool decrypt_from_string = false;
-
     if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
         const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
-        decrypt_from_string = true;
+        return true;
+    } else {
+        return false;
     }
-
-    return decrypt_from_string;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
@@ -738,56 +736,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
     const auto origin_weights_path = get_origin_weights_path(config);
 
-    ModelDeserializer deserializer(
-        model_stream,
-        [this](const std::shared_ptr<ov::AlignedBuffer>& model,
-               const std::shared_ptr<ov::AlignedBuffer>& weights,
-               const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
-            if (origin_weights == nullptr) {
-                return get_core()->read_model(model, weights);
-            } else {
-                // Custom deserialization for weightless mode
-
-                pugi::xml_document xml_doc;
-                const auto root = [&] {
-                    auto res =
-                        xml_doc.load_buffer(model->get_ptr(), model->size(), pugi::parse_default, pugi::encoding_utf8);
-                    OPENVINO_ASSERT(res.status == pugi::status_ok, res.description(), " at offset ", res.offset);
-                    return xml_doc.document_element();
-                }();
-                const auto opsets = [] {
-                    std::unordered_map<std::string, ov::OpSet> opsets;
-                    for (const auto& [name, mk_opset] : ov::get_available_opsets()) {
-                        opsets[name] = mk_opset();
-                    }
-                    return opsets;
-                }();
-                const auto version = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 0));
-
-                auto create_extensions_map =
-                    [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
-                    std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
-                    std::vector<ov::Extension::Ptr> m_extensions;
-                    OV_CREATE_EXTENSION(m_extensions);
-                    for (const auto& ext : m_extensions) {
-                        if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
-                            exts.insert({base_ext->get_type_info(), base_ext});
-                    }
-                    return exts;
-                }();
-
-                std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
-                const auto& w = (weights != nullptr && weights->size() != 0) ? weights : origin_weights;
-                XmlDeserializer visitor(root, w, origin_weights, opsets, create_extensions_map, variables, version);
-                std::shared_ptr<ov::Model> model;
-                visitor.on_attribute("net", model);
-                model->get_rt_info()["version"] = int64_t(version);
-                return model;
-            }
-        },
-        decrypt,
-        decrypt_from_string,
-        origin_weights_path);
+    ModelDeserializer deserializer(model_stream, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 
     return deserialize_model(deserializer, config);
 }
@@ -805,56 +754,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
                                                        model_tensor.get_byte_size(),
                                                        model_tensor);
 
-    ModelDeserializer deserializer(
-        model_buffer,
-        [this](const std::shared_ptr<ov::AlignedBuffer>& model,
-               const std::shared_ptr<ov::AlignedBuffer>& weights,
-               const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
-            if (origin_weights == nullptr) {
-                return get_core()->read_model(model, weights);
-            } else {
-                // Custom deserialization for weightless mode
-
-                pugi::xml_document xml_doc;
-                const auto root = [&] {
-                    auto res =
-                        xml_doc.load_buffer(model->get_ptr(), model->size(), pugi::parse_default, pugi::encoding_utf8);
-                    OPENVINO_ASSERT(res.status == pugi::status_ok, res.description(), " at offset ", res.offset);
-                    return xml_doc.document_element();
-                }();
-                const auto opsets = [] {
-                    std::unordered_map<std::string, ov::OpSet> opsets;
-                    for (const auto& [name, mk_opset] : ov::get_available_opsets()) {
-                        opsets[name] = mk_opset();
-                    }
-                    return opsets;
-                }();
-                const auto version = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 0));
-
-                auto create_extensions_map =
-                    [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
-                    std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
-                    std::vector<ov::Extension::Ptr> m_extensions;
-                    OV_CREATE_EXTENSION(m_extensions);
-                    for (const auto& ext : m_extensions) {
-                        if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
-                            exts.insert({base_ext->get_type_info(), base_ext});
-                    }
-                    return exts;
-                }();
-
-                std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
-                const auto& w = (weights != nullptr && weights->size() != 0) ? weights : origin_weights;
-                XmlDeserializer visitor(root, w, origin_weights, opsets, create_extensions_map, variables, version);
-                std::shared_ptr<ov::Model> model;
-                visitor.on_attribute("net", model);
-                model->get_rt_info()["version"] = int64_t(version);
-                return model;
-            }
-        },
-        decrypt,
-        decrypt_from_string,
-        origin_weights_path);
+    ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 
     return deserialize_model(deserializer, config);
 }
