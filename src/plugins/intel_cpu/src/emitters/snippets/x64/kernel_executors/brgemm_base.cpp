@@ -119,10 +119,9 @@ void BrgemmBaseKernelExecutor::update_config(const ov::snippets::lowered::Expres
                                              const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                              BrgemmBaseKernelConfig& config) {
     // update M/N/K/beta
-    auto [M, N, K, beta] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
+    auto [M, N, K, beta, LDC] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
 
     const auto LDA = snippets::utils::get_dim_stride(expr->get_input_port(0));
-    const auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));
     auto LDB = snippets::utils::get_dim_stride(expr->get_input_port(1));
 
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
