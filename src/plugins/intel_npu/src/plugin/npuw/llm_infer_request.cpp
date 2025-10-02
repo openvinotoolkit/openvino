@@ -255,6 +255,18 @@ void copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITenso
                 reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
 }
 
+void fill_sliding_mask(const ov::SoPtr<ov::ITensor>& mask, int64_t curr_pos, int64_t window_size) {
+    auto start = curr_pos - window_size;
+    auto end = curr_pos + window_size;
+
+    auto* mask_data = mask->data<bool>();
+    for (int64_t i = 0; i < static_cast<int64_t>(mask->get_size()); ++i) {
+        mask_data[i] = i > start && i <= end;
+    }
+
+    mask_data[mask->get_size() - 1] = true;
+}
+
 constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
 
 constexpr std::size_t kStartOutputKVCacheLayers = 1;
@@ -823,18 +835,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Done");
 }
 
-void fill_sliding_mask(const ov::SoPtr<ov::ITensor>& mask, int64_t curr_pos, int64_t window_size) {
-    auto start = curr_pos - window_size;
-    auto end = curr_pos + window_size;
-
-    auto* mask_data = mask->data<bool>();
-    for (int64_t i = 0; i < static_cast<int64_t>(mask->get_size()); ++i) {
-        mask_data[i] = i > start && i <= end;
-    }
-
-    mask_data[mask->get_size() - 1] = true;
-}
-
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
                                                ov::SoPtr<ov::ITensor> position_ids,
@@ -857,6 +857,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
         fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)), 0);
         fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)), 0);
+        if (token_type_ids) {
+            fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)), 0);
+        }
         m_generate_initialized = true;
     }
 
