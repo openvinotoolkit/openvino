@@ -27,8 +27,8 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
-ov::pass::FuseVectorizedMOE::FuseVectorizedMOE() {
-    MATCHER_SCOPE(FuseVectorizedMOE);
+ov::pass::FuseVectorizedMOE2GEMM::FuseVectorizedMOE2GEMM() {
+    MATCHER_SCOPE(FuseVectorizedMOE2GEMM);
 
     auto experts_input = pattern::wrap_type<ov::op::v1::Reshape>({pattern::any_input(), pattern::any_input()});
     auto tile = pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()});
@@ -106,6 +106,83 @@ ov::pass::FuseVectorizedMOE::FuseVectorizedMOE() {
 
         // Set expert_type
         config.expert_type = ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP;
+
+        auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
+        moe->set_friendly_name(m.get_match_root()->get_friendly_name());
+        ov::copy_runtime_info(m.get_matched_nodes(), moe);
+        ov::replace_node(m.get_match_root(), moe);
+
+        register_new_node(moe);
+        return true;
+    };
+
+    auto matcher = std::make_shared<pattern::Matcher>(moe_pattern, matcher_name);
+    this->register_matcher(matcher, callback);
+}
+
+ov::pass::FuseVectorizedMOE3GEMM::FuseVectorizedMOE3GEMM() {
+    MATCHER_SCOPE(FuseVectorizedMOE3GEMM);
+
+    auto experts_input = pattern::wrap_type<ov::op::v1::Reshape>({pattern::any_input(), pattern::any_input()});
+    auto tile = pattern::wrap_type<ov::op::v0::Tile>({experts_input, pattern::any_input()});
+    auto after_tile_reshape = pattern::wrap_type<ov::op::v1::Reshape>({tile, pattern::any_input()});
+
+    // First GEMM (activation gate)
+    auto gate_matmul = pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, pattern::any_input()},
+                                                              {{"transpose_a", false}, {"transpose_b", false}});
+    auto swish = pattern::wrap_type<ov::op::v4::Swish>({gate_matmul});
+    // Second GEMM (up_projection)
+    auto up_matmul = pattern::wrap_type<ov::op::v0::MatMul>({after_tile_reshape, pattern::any_input()},
+                                                            {{"transpose_a", false}, {"transpose_b", false}});
+    // Join: Multiply (SwiGLU)
+    auto swiglu = pattern::wrap_type<ov::op::v1::Multiply>({swish, up_matmul});
+
+    // Third GEMM (down_projection)
+    auto down_matmul = pattern::wrap_type<ov::op::v0::MatMul>({swiglu, pattern::any_input()},
+                                                              {{"transpose_a", false}, {"transpose_b", false}});
+    auto end_reshape = pattern::wrap_type<ov::op::v1::Reshape>({down_matmul, pattern::any_input()});
+
+    // Routing weights/mask
+    auto router_topk_indices = pattern::any_input();
+    auto scatter_elements_update = pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>(
+        {pattern::any_input(), router_topk_indices, pattern::any_input(), pattern::any_input()});
+    auto router_transpose = pattern::wrap_type<ov::op::v1::Transpose>({scatter_elements_update, pattern::any_input()});
+    auto router_reshape = pattern::wrap_type<ov::op::v1::Reshape>({router_transpose, pattern::any_input()});
+    auto unsqueeze_routing_weights = pattern::wrap_type<ov::op::v0::Unsqueeze>({router_reshape, pattern::any_input()});
+
+    auto mul3 = pattern::wrap_type<ov::op::v1::Multiply>({end_reshape, unsqueeze_routing_weights});
+    auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul3, pattern::any_input()}, {{"keep_dims", false}});
+    auto moe_pattern = reduce_sum;
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto& pm = m.get_pattern_value_map();
+        auto experts_input_node = pm.at(experts_input).get_node()->input_value(0);
+        auto routing_weights_node = pm.at(unsqueeze_routing_weights).get_node_shared_ptr();
+        auto gate_weight = pm.at(gate_matmul).get_node()->input_value(1).get_node_shared_ptr();
+        auto up_weight = pm.at(up_matmul).get_node()->input_value(1).get_node_shared_ptr();
+        auto down_weight = pm.at(down_matmul).get_node()->input_value(1).get_node_shared_ptr();
+        auto topk_indices_node = pm.at(scatter_elements_update).get_node()->input_value(1);
+
+        ov::OutputVector moe_inputs = {
+            experts_input_node,
+            routing_weights_node,
+            topk_indices_node,
+            gate_weight,
+            up_weight,
+            down_weight,
+        };
+
+        ov::op::internal::MOE::Config config;
+        config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+        // Extract expert_beta if Swish has beta input provided
+        if (auto swish_op = ov::as_type_ptr<ov::op::v4::Swish>(pm.at(swish).get_node_shared_ptr())) {
+            if (swish_op->get_input_size() > 1) {
+                if (auto swish_beta_const =
+                        ov::as_type_ptr<ov::op::v0::Constant>(swish_op->get_input_node_shared_ptr(1))) {
+                    config.expert_beta = swish_beta_const->cast_vector<float>()[0];
+                }
+            }
+        }
 
         auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
         moe->set_friendly_name(m.get_match_root()->get_friendly_name());
