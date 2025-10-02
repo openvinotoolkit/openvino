@@ -497,8 +497,9 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
     auto softmax_pred = consumers_count(1) && axis_predicate;
     auto softmax = wrap_type<v8::Softmax>({sinks_sub}, softmax_pred);
 
-    auto sinks_ss = wrap_type<v1::StridedSlice>({softmax, any_input(), any_input(), any_input()});
-    auto qkv = wrap_type<v0::MatMul>({sinks_ss, v});
+    auto sinks_slice = wrap_type<v1::StridedSlice>({softmax, any_input(), any_input(), any_input()}) |
+                       wrap_type<v8::Slice>({softmax, any_input(), any_input(), any_input(), any_input()});
+    auto qkv = wrap_type<v0::MatMul>({sinks_slice, v});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
