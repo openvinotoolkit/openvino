@@ -18,9 +18,8 @@
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
-#include "transformations/utils/utils.hpp"
-
 #include "transformations/utils/print_model.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
 
