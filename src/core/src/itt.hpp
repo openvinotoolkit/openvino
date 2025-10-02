@@ -19,7 +19,7 @@ namespace ov {
 namespace itt {
 namespace domains {
 OV_ITT_DOMAIN(core);
-OV_ITT_DOMAIN(ov_pass);
+OV_ITT_DOMAIN(ov_pass, "ov::pass");
 OV_ITT_DOMAIN(ov_op_exec, "ov::Op::exec");
 }  // namespace domains
 }  // namespace itt

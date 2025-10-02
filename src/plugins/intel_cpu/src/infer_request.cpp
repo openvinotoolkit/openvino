@@ -108,7 +108,7 @@ void SyncInferRequest::infer() {
     using namespace openvino::itt;
     static std::atomic<uint64_t> request_counter{0};
     [[maybe_unused]] const auto region_id = request_counter.fetch_add(1);
-    OV_ITT_SCOPED_REGION_BASE(itt::domains::ov_intel_cpu, "Plugin::Infer" + std::to_string(region_id));
+    OV_ITT_SCOPED_REGION_BASE(itt::domains::ov_intel_cpu, std::string("Inference ") + m_compiled_model.name());
     auto graphLock = m_compiled_model.lock();
     auto&& graph = graphLock._graph;
     auto message = ov::threading::message_manager();

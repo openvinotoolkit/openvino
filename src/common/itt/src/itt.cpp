@@ -76,7 +76,7 @@ void regionBegin(domain_t d, handle_t t) {
                        reinterpret_cast<__itt_string_handle*>(t));
 }
 
-void regionEnd(domain_t d, handle_t t) {
+void regionEnd(domain_t d) {
     std::lock_guard<std::mutex> lock(region_mutex);
     if (current_region_counter == 0)
         return;
@@ -105,7 +105,7 @@ void threadName(const char*) {}
 
 void regionBegin(domain_t, handle_t) {}
 
-void regionEnd(domain_t, handle_t) {}
+void regionEnd(domain_t) {}
 
 #endif  // ENABLE_PROFILING_ITT
 

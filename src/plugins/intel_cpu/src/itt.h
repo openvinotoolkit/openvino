@@ -18,8 +18,8 @@
 #include <openvino/itt.hpp>
 
 namespace ov::intel_cpu::itt::domains {
-OV_ITT_DOMAIN(ov_intel_cpu);
-OV_ITT_DOMAIN(ov_intel_cpu_LT);
+OV_ITT_DOMAIN(ov_intel_cpu, "ov::intel_cpu");
+OV_ITT_DOMAIN(ov_intel_cpu_LT, "ov::intel_cpu::lt");
 }  // namespace ov::intel_cpu::itt::domains
 
 #if defined(SELECTIVE_BUILD_ANALYZER)
