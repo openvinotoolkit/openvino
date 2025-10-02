@@ -17,6 +17,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -29,6 +30,48 @@ namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
 ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed() {
+    using namespace ov::pass::pattern;
+
+    auto compressed_constant = [](const ov::Output<ov::Node>& output) {
+        return (output.get_element_type() == ov::element::u8 ||
+                output.get_element_type() == ov::element::i8 ||
+                output.get_element_type() == ov::element::u4 ||
+                output.get_element_type() == ov::element::i4 ||
+                output.get_element_type() == ov::element::f8e4m3 ||
+                output.get_element_type() == ov::element::f8e5m2);
+    };
+
+    auto reshape_3d_to_2d = [](const ov::Output<ov::Node>& output) {
+        auto in_ps = output.get_node()->get_input_partial_shape(0);
+        auto out_ps = output.get_node()->get_output_partial_shape(0);
+        return in_ps.rank().is_static() && out_ps.rank().is_static() && in_ps.size() == 3 && out_ps.size() == 2;
+    };
+
+    auto weights_m = wrap_type<ov::op::v0::Constant>(compressed_constant);
+    auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m});
+
+    auto sub_const_m = wrap_type<ov::op::v0::Constant>();
+    auto sub_convert_const_m = wrap_type<ov::op::v0::Convert>({sub_const_m});
+    auto sub_with_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_convert_const_m});
+    auto sub_no_convert_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m});
+    auto subtract_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{sub_with_convert_m, sub_no_convert_m});
+
+    auto mul_const_m = wrap_type<ov::op::v0::Constant>();
+    auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});
+    auto mul_const_convert_m = ov::pass::pattern::optional<ov::op::v0::Convert>(mul_const_m);
+    auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_convert_m});
+    auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});
+
+    auto reshape_const_m = wrap_type<ov::op::v0::Constant>();
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({mul_m, reshape_const_m}, reshape_3d_to_2d);
+
+    auto mul2_const_m = wrap_type<ov::op::v0::Constant>();
+    auto mul2_m = wrap_type<ov::op::v1::Multiply>({reshape_m, mul2_const_m});
+
+    auto transpose_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_m, mul_m});
+    auto transpose_const_m = wrap_type<ov::op::v0::Constant>();
+    auto transpose_m = wrap_type<ov::op::v1::Transpose>({transpose_input, transpose_const_m});
+
     auto data_m = any_input();
     auto bias_m = any_input();
 

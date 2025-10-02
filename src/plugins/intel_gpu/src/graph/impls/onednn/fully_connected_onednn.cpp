@@ -79,7 +79,10 @@ protected:
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
             }
-            bool is_dyn_quan_input = instance.get_input_layout(0).data_type == data_types::i8 || instance.get_input_layout(0).data_type == data_types::u8;
+
+            auto input_dt = instance.get_input_layout(0).data_type;
+            bool is_dyn_quan_input =
+                input_dt == data_types::i8 || input_dt == data_types::u8 || input_dt == data_types::f8e4m3 || input_dt == data_types::f8e5m2;
 
             if (is_dyn_quan_input && prim->activation_scale.is_valid()) {
                 auto activation_scale_idx = idx++;
@@ -340,7 +343,8 @@ public:
             }
         }
 
-        bool is_dyn_quan_input = impl_params->get_input_layout(0).data_type == data_types::i8 || impl_params->get_input_layout(0).data_type == data_types::u8;
+        auto input_dt = impl_params->get_input_layout(0).data_type;
+        bool is_dyn_quan_input = input_dt == data_types::i8 || input_dt == data_types::u8 || input_dt == data_types::f8e4m3 || input_dt == data_types::f8e5m2;
         if (is_dyn_quan_input && dynamic_quantized_activation) {
             auto src_scale_idx = ++idx;
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
@@ -387,7 +391,9 @@ public:
         int idx = !arg.bias_term() ? 1 : 2;
 
         if (prim->compressed_weights) {
-            bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
+            auto input_dt = impl_params.get_input_layout(0).data_type;
+            bool is_dyn_quan_input =
+                input_dt == data_types::i8 || input_dt == data_types::u8 || input_dt == data_types::f8e4m3 || input_dt == data_types::f8e5m2;
             if (is_dyn_quan_input) {
                 OPENVINO_ASSERT(prim->input_size <= 3, "[GPU] Dynamic quantization for 4D matmul is not implemented");
             } else {

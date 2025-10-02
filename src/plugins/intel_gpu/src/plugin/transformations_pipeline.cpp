@@ -351,7 +351,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
-    const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
+    const ov::element::TypeVector supported_woq_types =
+        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f8e8m0};
     bool enableInt8;
     ov::element::Type infer_precision = ov::element::dynamic;
     bool unroll_loop = config.get_enable_loop_unrolling();
@@ -398,9 +399,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
 
-        manager.register_pass<ov::pass::MarkDequantization>(
-            std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 },
-            !device_info.supports_immad);
+        manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{ov::element::i8,
+                                                                                           ov::element::u8,
+                                                                                           ov::element::i4,
+                                                                                           ov::element::u4,
+                                                                                           ov::element::f8e4m3,
+                                                                                           ov::element::f8e5m2,
+                                                                                           ov::element::f8e8m0},
+                                                            !device_info.supports_immad);
         const bool disable_moe_opt = GPU_DEBUG_VALUE_OR(config.get_disable_moe_opt(), false);
         if (!disable_moe_opt) {
             manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();

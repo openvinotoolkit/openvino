@@ -223,8 +223,10 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
     auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
+    std::vector<ov::element::Type> f8_precisions = {ov::element::f8e8m0};
     auto scale_pattern = any_input();
-    auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
+    auto scale_f8_pattern = any_input(check_precision(f8_precisions));
+    auto scale_convert_pattern = pattern::optional<v0::Convert>(std::make_shared<ov::pass::pattern::op::Or>(OutputVector{scale_pattern, scale_f8_pattern}));
     auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
     auto multiply_pattern = wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
@@ -252,7 +254,8 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
             converts_to_mark.push_back(zp_convert_pattern);
         }
 
-        if (fold_multiply_const) {
+        bool f8_scales = scale_f8_pattern != nullptr;
+        if (fold_multiply_const && !f8_scales) {
             converts_to_unmark.push_back(scale_convert_pattern);
         } else {
             converts_to_mark.push_back(scale_convert_pattern);
