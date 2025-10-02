@@ -1015,7 +1015,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                       m_kvcache_desc.total_size,
                       axes,
                       m_max_lora_rank);
-    gemma_transforms(kvcache_model);
+    gemma_transformations(kvcache_model);
 
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
