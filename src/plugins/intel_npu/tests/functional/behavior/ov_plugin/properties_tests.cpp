@@ -70,6 +70,9 @@ void invalidate_umd_caching() {}
 }  // namespace
 
 using OVPropertiesTestsMismatchesNPU = OVPropertiesTestsNPU;
+using OVRunTimePropertiesArgumentsTestsNPU = OVPropertiesArgumentsTestsNPU;
+using OVCompileTimePropertiesArgumentsTestsNPU = OVPropertiesArgumentsTestsNPU;
+using OVBothPropertiesArgumentsTestsNPU = OVPropertiesArgumentsTestsNPU;
 
 namespace ov::test::behavior {
 
@@ -99,7 +102,7 @@ TEST_P(OVPropertiesTestsMismatchesNPU, DetectPotentialPropertyMismatches) {
 TEST_P(OVPropertiesTestsNPU, GetSupportedPropertiesImplyCompilerLoad) {
     // ASSERT_TRUE(!is_cid_loaded() && !is_cip_loaded())
     invalidate_umd_caching();
-    core->get_property(target_device, ov::supported_properties, properties);
+    OV_ASSERT_NO_THROW(core->get_property(target_device, ov::supported_properties, properties));
     if (auto it = properties.find(ov::intel_npu::compiler_type.name());
         it != properties.end() && it->second == ov::intel_npu::CompilerType::MLIR) {
         ASSERT_TRUE(!is_cid_loaded() && is_cip_loaded());
@@ -108,7 +111,7 @@ TEST_P(OVPropertiesTestsNPU, GetSupportedPropertiesImplyCompilerLoad) {
     }
 }
 
-TEST_P(OVPropertiesArgumentsTestsNPU, GetRunTimePropertiesNoCompilerLoad) {
+TEST_P(OVRunTimePropertiesArgumentsTestsNPU, GetRunTimePropertiesNoCompilerLoad) {
     // Need to exclude properties that are not registered in plugin properties, e.g. LOADED_FROM_CACHE (compiled_model
     // prop)
     auto registered_properties = core->get_property(target_device, ov::intel_npu::registered_properties);
@@ -116,8 +119,18 @@ TEST_P(OVPropertiesArgumentsTestsNPU, GetRunTimePropertiesNoCompilerLoad) {
         registered_properties.end()) {
         GTEST_SKIP() << propertyName << " was not found within plugin registered properties!";
     }
-    core->get_property(target_device, propertyName, properties);
+    OV_ASSERT_NO_THROW(core->get_property(target_device, propertyName, properties));
     ASSERT_TRUE(!is_cid_loaded() && !is_cip_loaded());
+}
+
+TEST_P(OVCompileTimePropertiesArgumentsTestsNPU, GetCompileTimePropertiesCompilerLoad) {
+    OV_ASSERT_NO_THROW(core->get_property(target_device, propertyName, properties));
+    ASSERT_TRUE(is_cid_loaded() || is_cip_loaded());
+}
+
+TEST_P(OVBothPropertiesArgumentsTestsNPU, GetBothPropertiesCompilerLoad) {
+    OV_ASSERT_NO_THROW(core->get_property(target_device, propertyName, properties));
+    ASSERT_TRUE(is_cid_loaded() || is_cip_loaded());
 }
 
 }  // namespace ov::test::behavior
@@ -263,10 +276,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsNPU, true>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVPropertiesArgumentsTestsNPU,
+                         OVRunTimePropertiesArgumentsTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(convertToStringVec(runTimeProperties)),
-                                            ::testing::ValuesIn(compileTimeProperties + bothProperties)),
-                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesArgumentsTestsNPU, true>));
+                                            ::testing::ValuesIn(runTimeProperties + compileTimeProperties +
+                                                                bothProperties)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVRunTimePropertiesArgumentsTestsNPU, true>));
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVCompileTimePropertiesArgumentsTestsNPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(convertToStringVec(compileTimeProperties)),
+                                            ::testing::ValuesIn(runTimeProperties + compileTimeProperties +
+                                                                bothProperties)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVCompileTimePropertiesArgumentsTestsNPU, true>));
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVBothPropertiesArgumentsTestsNPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(convertToStringVec(bothProperties)),
+                                            ::testing::ValuesIn(runTimeProperties + compileTimeProperties +
+                                                                bothProperties)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVBothPropertiesArgumentsTestsNPU, true>));
 
 }  // namespace
