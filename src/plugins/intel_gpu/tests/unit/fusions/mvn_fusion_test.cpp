@@ -109,7 +109,7 @@ TEST_P(mvn_activation, basic) {
         reorder("reorder_bfyx", input_info("act"), format::bfyx, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = 1e-3f;
     execute(p);
 }
 

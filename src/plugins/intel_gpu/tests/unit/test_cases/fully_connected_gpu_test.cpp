@@ -3238,6 +3238,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network->get_output_layout(outputs.begin()->first);
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), input_b);
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
@@ -3403,6 +3404,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network->get_output_layout(outputs.begin()->first);
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), input_b);
             ASSERT_EQ(out_l.batch(), input_b);
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -3426,6 +3428,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network->get_output_layout(outputs.begin()->first);
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), input_b);
             ASSERT_EQ(out_l.batch(), input_b);
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -3484,6 +3487,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network->get_output_layout(outputs.begin()->first);
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), 2);
             ASSERT_EQ(out_l.batch(), 2);
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -3512,6 +3516,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             auto output_prim_mem = outputs.begin()->second.get_memory();
 
             auto out_l = network->get_output_layout(outputs.begin()->first);
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), 1);
             ASSERT_EQ(out_l.batch(), 1);
             ASSERT_EQ(out_l.feature(), weight_b);
             ASSERT_EQ(out_l.spatial(0), 1);
@@ -3569,7 +3574,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
                 auto output_prim_mem = outputs.begin()->second.get_memory();
 
                 auto out_l = network->get_output_layout(outputs.begin()->first);
-                ASSERT_EQ(out_l.batch(), 2); // fake_alignment
+                ASSERT_EQ(output_prim_mem->get_layout().batch(), 2);
+                ASSERT_EQ(out_l.batch(), 2);
                 ASSERT_EQ(out_l.feature(), weight_b);
                 ASSERT_EQ(out_l.spatial(0), 1);
                 ASSERT_EQ(out_l.spatial(1), 1);
@@ -3597,7 +3603,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
                 auto output_prim_mem = outputs.begin()->second.get_memory();
 
                 auto out_l = network->get_output_layout(outputs.begin()->first);
-                ASSERT_EQ(out_l.batch(), 1); // fake_alignment
+                ASSERT_EQ(output_prim_mem->get_layout().batch(), 1);
+                ASSERT_EQ(out_l.batch(), 1);
                 ASSERT_EQ(out_l.feature(), weight_b);
                 ASSERT_EQ(out_l.spatial(0), 1);
                 ASSERT_EQ(out_l.spatial(1), 1);
@@ -3660,6 +3667,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         ASSERT_TRUE(reorder_impl == nullptr);
 
         auto out_l = network->get_output_layout(outputs.begin()->first);
+        ASSERT_EQ(output_prim_mem->get_layout().batch(), input_b);
         ASSERT_EQ(out_l.batch(), input_b);
         ASSERT_EQ(out_l.feature(), weight_b);
         ASSERT_EQ(out_l.spatial(0), 1);
