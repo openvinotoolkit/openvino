@@ -8,19 +8,21 @@
 #include <iostream>
 #include <mutex>
 #include <string>
-#include <vector>
 
-#include "custom_stream_buffer.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "openvino/pass/manager.hpp"
+#include "openvino/core/model.hpp"
+#include "ze_graph_ext.h"
+
+namespace intel_npu {
+
+using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 
 /**
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and
  *  providing forward compatibility (OV model with opset N+M, external compiler with opset N)
  */
-namespace intel_npu::driver_compiler_utils {
-
-using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
+namespace driver_compiler_utils {
 
 class IRSerializerBase {
 public:
@@ -83,6 +85,32 @@ private:
     uint64_t _serializedModelSize = 0;
 };
 
+/**
+ * @brief Serialize input / output information to string format.
+ * @details Format:
+ * --inputs_precisions="0:<input1Precision> [1:<input2Precision>]"
+ * --inputs_layouts="0:<input1Layout> [1:<input2Layout>]"
+ * --outputs_precisions="0:<output1Precision>"
+ * --outputs_layouts="0:<output1Layout>"
+ *
+ * For older compiler versions, the name of the inputs/outputs may be used instead of their indices.
+ *
+ * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV
+ * API, the layout fields shall be filled with default values in order to assure the backward compatibility
+ * with the driver.
+ */
+SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                         ze_graph_compiler_version_info_t compilerVersion,
+                         const uint32_t supportedOpsetVersion,
+                         const bool useBetterModelSerialization = true);
+
+std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
+
+std::string serializeConfig(const Config& config,
+                            ze_graph_compiler_version_info_t compilerVersion,
+                            bool turboSupported = false);
+
 static std::mutex rtInfoMutex;
 
-}  // namespace intel_npu::driver_compiler_utils
+}  // namespace driver_compiler_utils
+}  // namespace intel_npu

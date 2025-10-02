@@ -84,7 +84,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     auto model = createModelWithLargeSize();
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
     IRSerializerWithWeightsCopy IRSerializerWithWeightsCopy(model, dummyCompilerVersion, 11);
-    ::intel_npu::driver_compiler_utils::SerializedIR serializedIR = IRSerializerWithWeightsCopy.serialize();
+    ::intel_npu::SerializedIR serializedIR = IRSerializerWithWeightsCopy.serialize();
     // TODO call the deserializer
     // EXPECT_NO_THROW(model = core.read_model(xmlFileName));
 }
