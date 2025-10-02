@@ -83,12 +83,17 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             return false;
         }
 
+        auto weight_dtype = m_fc->get_input_element_type(1);
+        bool is_fp8 = weight_dtype == element::f8e4m3 || weight_dtype == element::f8e5m2;
+
+        auto rank = m_fc->get_input_partial_shape(0).size();
         std::vector<uint64_t> shape_group_size(rank, 1);
         shape_group_size.back() = adj_group_size;
 
-        config.quantization_dt = element::i8;
+        ov::op::internal::DynamicQuantize::Attributes config;
+        config.quantization_dt = is_fp8 ? weight_dtype : element::i8;
         config.quantization_type = QuantizationType::Symmetric;
-        config.scale_dt = element::f16;
+        config.scale_dt = is_fp8 ? element::f8e8m0 : element::f16;
         config.group_sizes = shape_group_size;
 
         if (asymmetric && adj_group_size == UINT64_MAX) {

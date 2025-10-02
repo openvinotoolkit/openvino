@@ -1581,6 +1581,10 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::INT32, macroName);
         case WeightsType::BF16:
             return MakeTypeJitConstants(Datatype::BF16, macroName);
+        case WeightsType::F8E4M3:
+            return MakeTypeJitConstants(Datatype::F8E4M3, macroName);
+        case WeightsType::F8E5M2:
+            return MakeTypeJitConstants(Datatype::F8E5M2, macroName);
     }
     assert(false || "Unreachable!");
     // FIXME: Is there some builtin_unreachable available?

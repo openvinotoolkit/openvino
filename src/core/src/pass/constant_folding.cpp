@@ -108,6 +108,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
     for (const auto& original_node : model->get_ordered_ops()) {
         auto node = original_node;
+        std::cout << "Beginning of loop for node: " << node->get_friendly_name() << std::endl;
         if (!original_node->can_constant_fold(original_node->input_values())) {
             if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
                 // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
@@ -121,6 +122,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             if (rewritten) {
                 original_node->validate_and_infer_types();
             }
+            std::cout << "Skipping node: " << node->get_friendly_name() << ", rewritten: " << rewritten << std::endl;
             continue;
         }
         if (node_has_requires_precision_conversion_attribute(node)) {
@@ -134,6 +136,8 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             node->validate_and_infer_types();
         }
 
+        std::cout << "Trying to fold node: " << node->get_friendly_name() << std::endl;
+
         OutputVector replacements(node->get_output_size());
         if (node->constant_fold(replacements, node->input_values())) {
             OPENVINO_ASSERT(!constant_folding_is_disabled(original_node),
@@ -142,6 +146,8 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             OPENVINO_ASSERT(replacements.size() == node->get_output_size(),
                             "constant_fold_default returned incorrect number of replacements for ",
                             node);
+
+            std::cout << "Folding node: " << node->get_friendly_name() << std::endl;
 
             for (size_t i = 0; i < replacements.size(); ++i) {
                 auto node_output = original_node->output(i);
@@ -269,6 +275,9 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
 }
 
 void ov::pass::disable_constant_folding(const std::shared_ptr<Node>& node) {
+    if (node->get_friendly_name() == "Convert_534619") {
+        std::cout << "Debug here" << std::endl;
+    }
     node->get_rt_info().emplace(DisableConstantFolding::get_type_info_static(), DisableConstantFolding{});
 }
 
