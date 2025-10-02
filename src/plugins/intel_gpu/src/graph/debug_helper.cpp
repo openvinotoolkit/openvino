@@ -44,6 +44,63 @@ size_t get_x_pitch(const layout& layout) {
 }
 
 template <class T>
+void __validate_data_range(memory::ptr mem, stream& stream, std::string &info) {
+    auto&& size = mem->get_layout().get_tensor();
+
+    mem_lock<T, mem_lock_type::read> lock(mem, stream);
+    auto mem_ptr = lock.data();
+    auto x_pitch = get_x_pitch(mem->get_layout());
+    std::stringstream buffer;
+    float val_min = std::numeric_limits<float>::max();
+    float val_max = std::numeric_limits<float>::lowest();
+
+
+    for (ov::Dimension::value_type g = 0; g < size.group[0]; ++g) {
+        for (ov::Dimension::value_type b = 0; b < size.batch[0]; ++b) {
+            for (ov::Dimension::value_type f = 0; f < size.feature[0]; ++f) {
+                for (ov::Dimension::value_type w = 0; w < size.spatial[3]; ++w) {
+                    for (ov::Dimension::value_type z = 0; z < size.spatial[2]; ++z) {
+                        for (ov::Dimension::value_type y = 0; y < size.spatial[1]; ++y) {
+                            cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(0, y, z, w));
+                            size_t input_it = mem->get_layout().get_linear_offset(t);
+
+                            for (ov::Dimension::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
+                                auto val = convert_element(mem_ptr[input_it]);
+                                if (std::isinf(val) || std::isnan(val)) {
+                                    std::string err_str = std::isinf(val) ? "inf " : "nan ";
+                                    GPU_DEBUG_COUT << "===============================================" << std::endl;
+                                    GPU_DEBUG_COUT << err_str << " WAS FOUND: " << info << std::endl;
+                                    GPU_DEBUG_COUT << "===============================================" << std::endl;
+                                    return;
+                                }
+                                if (val > val_max)
+                                    val_max = val;
+                                if (val < val_min)
+                                    val_min = val;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    GPU_DEBUG_INFO << "min, max = " << val_min << ", " << val_max << "  : " << info << std::endl;
+}
+
+void validate_data_range(memory::ptr mem, stream& stream, ov::element::Type_t data_type, std::string &info) {
+    if (data_type == ov::element::Type_t::f32)
+        __validate_data_range<float>(mem, stream, info);
+    else if (data_type == ov::element::Type_t::f16)
+        __validate_data_range<ov::float16>(mem, stream, info);
+    else if (data_type == ov::element::Type_t::i8)
+        __validate_data_range<int8_t>(mem, stream, info);
+    else if (data_type == ov::element::Type_t::u8)
+        __validate_data_range<uint8_t>(mem, stream, info);
+    else
+        GPU_DEBUG_INFO << "Unsupport data type for validating data range " << data_type << std::endl;
+}
+
+template <class T>
 void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
     auto&& size = mem->get_layout().get_tensor();
 
@@ -427,6 +484,16 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
 
 NodeDebugHelper::~NodeDebugHelper() {
     const auto& config = m_network.get_config();
+
+    if (config.get_validate_output_buffer()) {
+        m_stream.finish(); // Wait for stream completion before checking output buffers
+        for (size_t i = 0; i < m_inst.outputs_memory_count(); i++) {
+            auto output_mem = m_inst.output_memory_ptr(i);
+            std::string info = m_inst.id() + "(" + std::to_string(i) + ") at iteration " + std::to_string(m_network.get_current_iteration_num());
+            validate_data_range(output_mem, m_stream, m_inst.get_output_layout(i).data_type, info);
+        }
+    }
+
     // Dump output buffers of 'inst'
     if (config.get_dump_tensors_path().length() > 0) {
         const std::string layer_name = m_inst.id();
