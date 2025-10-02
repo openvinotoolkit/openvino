@@ -4,6 +4,7 @@
 
 #include "driver_compiler_adapter.hpp"
 
+#include <chrono>
 #include <string_view>
 
 #include "graph.hpp"
@@ -57,6 +58,66 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
+int parseLine(char* line) {
+    // This assumes that a digit will be found and the line ends in " Kb".
+
+    int i = strlen(line);
+
+    const char* p = line;
+
+    while (*p < '0' || *p > '9')
+
+        p++;
+
+    line[i - 3] = '\0';
+
+    i = atoi(p);
+
+    return i;
+}
+
+int getVMValue() {  // Note: this value is in KB!
+
+    FILE* file = fopen("/proc/self/status", "r");
+
+    int result = -1;
+
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL) {
+        if (strncmp(line, "VmSize:", 7) == 0) {
+            result = parseLine(line);
+
+            break;
+        }
+    }
+
+    fclose(file);
+
+    return result;
+}
+
+int getPMValue() {  // Note: this value is in KB!
+
+    FILE* file = fopen("/proc/self/status", "r");
+
+    int result = -1;
+
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL) {
+        if (strncmp(line, "VmRSS:", 6) == 0) {
+            result = parseLine(line);
+
+            break;
+        }
+    }
+
+    fclose(file);
+
+    return result;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -89,12 +150,18 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("serialize IR");
 
+    std::cout << "Before serialization VM " << getVMValue() << "PM " << getPMValue() << "KB" << std::endl;
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     auto serializedIR = driver_compiler_utils::serializeIR(
         model,
         compilerVersion,
         maxOpsetVersion,
         config.isAvailable(ov::intel_npu::better_model_serialization.name()) ? config.get<BETTER_MODEL_SERIALIZATION>()
                                                                              : false);
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Time to serialize: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
+              << "[µs]" << std::endl;
+    std::cout << "After serialization VM " << getVMValue() << "PM " << getPMValue() << "KB" << std::endl;
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -153,12 +220,18 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("serialize IR");
+    std::cout << "Before serialization VM " << getVMValue() << "PM " << getPMValue() << "KB" << std::endl;
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     auto serializedIR = driver_compiler_utils::serializeIR(
         model,
         compilerVersion,
         maxOpsetVersion,
         config.isAvailable(ov::intel_npu::better_model_serialization.name()) ? config.get<BETTER_MODEL_SERIALIZATION>()
                                                                              : false);
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Time to serialize: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
+              << "[µs]" << std::endl;
+    std::cout << "After serialization VM " << getVMValue() << "PM " << getPMValue() << "KB" << std::endl;
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
