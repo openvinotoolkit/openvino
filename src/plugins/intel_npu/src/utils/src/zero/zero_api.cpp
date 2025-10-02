@@ -4,16 +4,45 @@
 
 #include "intel_npu/utils/zero/zero_api.hpp"
 
+#include <stdio.h>
+#ifdef _WIN32
+#    include <windows.h>
+#endif
+
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
 namespace intel_npu {
 ZeroApi::ZeroApi() {
-    const std::string baseName = "ze_loader";
+    const std::string base_name = "ze_loader";
     try {
-        auto libpath = ov::util::make_plugin_library_name({}, baseName);
+        auto libpath = ov::util::make_plugin_library_name({}, base_name);
 #if !defined(_WIN32) && !defined(ANDROID)
         libpath = libpath + LIB_ZE_LOADER_SUFFIX;
+#endif
+
+#ifdef _WIN32
+        // Get required size for wide string
+        int size_needed = MultiByteToWideChar(CP_UTF8, 0, libpath.c_str(), -1, nullptr, 0);
+        // Create a buffer to hold wide characters
+        std::wstring wide(size_needed, 0);
+        // Convert to wide string
+        MultiByteToWideChar(CP_UTF8, 0, libpath.c_str(), -1, &wide[0], size_needed);
+        // Get const wchar_t*
+        const wchar_t* path = wide.c_str();
+
+        DWORD handle = 0;
+        DWORD size = GetFileVersionInfoSizeW(path, &handle);
+        std::vector<BYTE> data(size);
+        if (GetFileVersionInfoW(path, handle, size, data.data())) {
+            VS_FIXEDFILEINFO* loader_version = NULL;
+            uint32_t loader_version_size = 0;
+            if (VerQueryValueW(data.data(), L"\\", (LPVOID*)&loader_version, &loader_version_size) ||
+                !loader_version_size) {
+                // Version is in dwFileVersionMS (high: major.minor) and dwFileVersionLS (low: build.revision)
+                version = loader_version->dwFileVersionMS;
+            }
+        }
 #endif
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -52,6 +81,10 @@ ZeroApi::ZeroApi() {
 const std::shared_ptr<ZeroApi>& ZeroApi::getInstance() {
     static std::shared_ptr<ZeroApi> instance = std::make_shared<ZeroApi>();
     return instance;
+}
+
+const uint32_t ZeroApi::getVersion() {
+    return version;
 }
 
 }  // namespace intel_npu
