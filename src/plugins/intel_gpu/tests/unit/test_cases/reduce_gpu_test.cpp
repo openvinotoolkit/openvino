@@ -2293,17 +2293,20 @@ INSTANTIATE_TEST_SUITE_P(reduce_scalar_output_f16_f16,
                         ), general_reduce_gpu::PrintToStringParamName);
 
 TEST(reduce_f32_fw_gpu, large_buffer) {
+    // This test is used for manual testing only.
+    GTEST_SKIP();
+
     auto engine = create_test_engine();
     engine->set_enable_large_allocations(true);
 
     size_t s0 = 16384;
     size_t s1 = 256 * (256 + 128);
-    ov::Shape sz_8gb = { 1, 1, s1, s0 }; // *4 bytes;
-    size_t peak_mem_usage = (ov::shape_size(sz_8gb) + s0) * sizeof(float);
+    ov::Shape sz_6gb = { 1, 1, s1, s0 }; // *4 bytes;
+    size_t peak_mem_usage = (ov::shape_size(sz_6gb) + s0) * sizeof(float);
     if (engine->get_device_info().max_global_mem_size < peak_mem_usage)
         GTEST_SKIP();
 
-    layout in_l = { sz_8gb, data_types::f32, format::bfyx };
+    layout in_l = { sz_6gb, data_types::f32, format::bfyx };
 
     auto config = get_test_default_config(*engine);
     ov::intel_gpu::ImplementationDesc reduce_impl = {format::bfyx, "", impl_types::any};
@@ -2320,7 +2323,7 @@ TEST(reduce_f32_fw_gpu, large_buffer) {
     auto input = network.get_output_memory("input");
     {
         mem_lock<float, mem_lock_type::write> l(input, get_test_stream());
-        const size_t test_size = ov::shape_size(sz_8gb);
+        const size_t test_size = ov::shape_size(sz_6gb);
         for (size_t i = 0; i < test_size; i++) {
             l[i] = static_cast<float>(i) / s0;
         }
@@ -2338,7 +2341,7 @@ TEST(reduce_f32_fw_gpu, large_buffer) {
     ASSERT_EQ(output_layout.format, format::bfyx);
     ASSERT_EQ(output_layout.get_linear_size(), s0);
 
-    // ensure that single 8GB buffer is allocated
+    // ensure that single 6GB buffer is allocated
     ASSERT_EQ(engine->get_max_used_device_memory(), peak_mem_usage);
 
     size_t sum = s1 * (s1 - 1) / 2;

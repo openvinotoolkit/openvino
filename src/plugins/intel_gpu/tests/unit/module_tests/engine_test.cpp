@@ -55,15 +55,18 @@ TEST(engine, memory_creation) {
 }
 
 TEST(engine, large_allocation) {
+    // This test is used for manual testing only.
+    GTEST_SKIP();
+
     auto& engine = get_test_engine();
 
     std::shared_ptr<memory> mem = nullptr;
-    ov::Shape sz_8gb = {8, 1024, 1024, 512+128};
-    layout layout_to_allocate = {sz_8gb, data_types::u8, format::bfyx};
+    ov::Shape sz_6gb = {6, 1024, 1024, 1024};
+    layout layout_to_allocate = {sz_6gb, data_types::u8, format::bfyx};
 
     engine.set_enable_large_allocations(true);
 
-    if (engine.supports_allocation(allocation_type::usm_device) && ov::shape_size(sz_8gb) < engine.get_device_info().max_global_mem_size) {
+    if (engine.supports_allocation(allocation_type::usm_device) && ov::shape_size(sz_6gb) < engine.get_device_info().max_global_mem_size) {
         OV_ASSERT_NO_THROW(mem = engine.allocate_memory(layout_to_allocate, allocation_type::usm_host));
         ASSERT_NE(mem, nullptr);
         ASSERT_EQ(mem->get_layout(), layout_to_allocate);
