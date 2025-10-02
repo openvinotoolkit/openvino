@@ -72,8 +72,8 @@ public:
                           int loop_id,
                           const ov::snippets::lowered::ExpandedLoopInfoPtr& current_expanded_loop_info);
 
-    // This function returns M, N, K dimensions and beta of brgemm as a tuple, based on loop info in linear_ir.
-    static std::tuple<int64_t, int64_t, int64_t, float> get_runtime_brgemm_params(
+    // This function returns M, N, K dimensions, beta, and LDC of brgemm as a tuple, based on loop info in linear_ir.
+    static std::tuple<int64_t, int64_t, int64_t, float, int64_t> get_runtime_brgemm_params(
         const ov::snippets::lowered::ExpressionPtr& expr,
         const ov::snippets::lowered::LinearIRCPtr& linear_ir);
 };

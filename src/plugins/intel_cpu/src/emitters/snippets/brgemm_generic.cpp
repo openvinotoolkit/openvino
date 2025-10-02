@@ -26,6 +26,7 @@
 #define HASH(X)  seed = dnnl::impl::hash_combine(seed, X)
 
 namespace ov::intel_cpu {
+using namespace ov::snippets::lowered;
 
 bool BrgemmGenericKernelConfig::is_completed() const {
     return none_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
@@ -93,10 +94,9 @@ std::string BrgemmGenericKernelConfig::to_string() const {
 }
 #endif
 
-float BrgemmKernelExecutorHelper::get_beta(
-    const ov::snippets::lowered::LoopManagerPtr& loop_manager,
-    int loop_id,
-    const ov::snippets::lowered::ExpandedLoopInfoPtr& current_expanded_loop_info) {
+float BrgemmKernelExecutorHelper::get_beta(const LoopManagerPtr& loop_manager,
+                                           int loop_id,
+                                           const ExpandedLoopInfoPtr& current_expanded_loop_info) {
     // Find all Expanded loops with the same Unified loop information -> they were decomposed from this Unified Loop.
     // Note that LoopInfo are normalized and sorted (due to NormalizedLoopIDs pass).
     // It means that previous executed Loops have Loop ID less the current Loop ID.
@@ -108,8 +108,7 @@ float BrgemmKernelExecutorHelper::get_beta(
         // Check the previous Loops
         --loop_id;
         while (loop_id >= 0) {
-            const auto& expanded_loop_info =
-                loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_id);
+            const auto& expanded_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(loop_id);
             if (expanded_loop_info->get_unified_loop_info() != current_unified_loop_info) {
                 return 0;
             }
@@ -123,9 +122,9 @@ float BrgemmKernelExecutorHelper::get_beta(
     return 0;
 }
 
-std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_runtime_brgemm_params(
-    const ov::snippets::lowered::ExpressionPtr& expr,
-    const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
+std::tuple<int64_t, int64_t, int64_t, float, int64_t> BrgemmKernelExecutorHelper::get_runtime_brgemm_params(
+    const ExpressionPtr& expr,
+    const LinearIRCPtr& linear_ir) {
     const auto& input_pds = expr->get_input_port_descriptors();
     const auto& output_pds = expr->get_output_port_descriptors();
     OV_CPU_JIT_EMITTER_ASSERT(input_pds.size() >= 2 && output_pds.size() == 1,
@@ -151,7 +150,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
     const auto& loop_manager = linear_ir->get_loop_manager();
     auto get_loop_info = [&]() {
         assert(loop_idx < loop_ids.size() && "Loop is missed");
-        return loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids[loop_idx++]);
+        return loop_manager->get_loop_info<ExpandedLoopInfo>(loop_ids[loop_idx++]);
     };
 
     /* ------- Dimension M ----------*/
@@ -164,7 +163,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         // Quick validation check: Should we check that port is really Brgemm port?
         // If BrgemmCopyB in the Loop by M -> first input port will be BrgemmCopyB with `incremented=false`
         // to avoid extra checks, we validate only first input port
-        auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
+        auto check_port = [&](const LoopPort& p) {
             return p.get_dim_idx() == 1 && p.is_processed();
         };
         OPENVINO_ASSERT(
@@ -175,6 +174,8 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         output_pds[0]->set_subtensor_dim(1, M);
     }
 
+    // Default LDC value if the N blocking loop is absent or cur brgemm is its output port
+    auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));
     /* ------- Dimension N ----------*/
     if (ov::snippets::utils::is_full_dim_value(N)) {
         N = *in1_shape.rbegin();
@@ -183,7 +184,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         const auto& in_ports = current_expanded_loop_info->get_input_ports();
         const auto& out_ports = current_expanded_loop_info->get_output_ports();
         // Quick validation check: Should we check that port is really Brgemm port?
-        auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
+        auto check_port = [&](const LoopPort& p) {
             return p.get_dim_idx() == 0 && p.is_processed();
         };
         OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_processed() && check_port(in_ports[1]) &&
@@ -192,6 +193,15 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         N = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[1]->set_subtensor_dim(0, N);
         output_pds[0]->set_subtensor_dim(0, N);
+        auto out_port = expr->get_output_port(0);
+        auto it = std::find_if(out_ports.cbegin(), out_ports.cend(), [&out_port](const LoopPort& lp) {
+            return *lp.get_expr_port() == out_port;
+        });
+        // Note: this means that brgemm output buffer is inside N blocking loop
+        // Output leading dimension equal to block size in this case
+        if (it == out_ports.cend()) {
+            LDC = N;
+        }
     }
 
     /* ------- Dimension K ----------*/
@@ -219,7 +229,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         }
     }
 
-    return std::make_tuple(M, N, K, beta);
+    return std::make_tuple(M, N, K, beta, LDC);
 }
 
 #undef PRINT
