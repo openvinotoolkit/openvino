@@ -4,19 +4,15 @@
 
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 
-#include <ze_api.h>
-#include <ze_mem_import_system_memory_ext.h>
-
 #include <fstream>
 
 #include "intel_npu/utils/utils.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 using namespace ov::intel_npu;
-using namespace intel_npu;
+namespace intel_npu {
 
 ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -138,7 +134,7 @@ void ZeroRemoteTensor::copy_file_data_to_level_zero_memory(const size_t size_to_
                                                                     size_to_read,
                                                                     utils::STANDARD_PAGE_SIZE,
                                                                     _tensor_type == TensorType::INPUT ? true : false);
-    _data = _host_memory->_ptr;
+    _data = _host_memory->data();
 
     std::streamoff bytes_to_read = static_cast<std::streamoff>(size_to_read);
     fin.read(static_cast<char*>(_data), bytes_to_read);
@@ -157,20 +153,13 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                                                              bytes,
                                                              utils::STANDARD_PAGE_SIZE,
                                                              _tensor_type == TensorType::INPUT ? true : false);
-        _data = _host_memory->_ptr;
+        _data = _host_memory->data();
         break;
     }
     case MemType::SHARED_BUF: {
         // set up the request to import the external memory handle
-        OPENVINO_ASSERT(_mem != nullptr,
-                        "Memory handle is required for importing memory through file descriptor or Win32 handle");
-
-        _host_memory = ZeroMemPool::get_instance().import_fd_win32_zero_memory(_init_structs,
-                                                                               bytes,
-                                                                               utils::STANDARD_PAGE_SIZE,
-                                                                               _mem);
-
-        _data = _host_memory->_ptr;
+        _host_memory = ZeroMemPool::get_instance().import_shared_memory(_init_structs, _mem, bytes);
+        _data = _host_memory->data();
         break;
     }
     case MemType::MMAPED_FILE: {
@@ -190,7 +179,6 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         if (_tensor_type == TensorType::OUTPUT) {
             _logger.info("Importing mmaped memory isn't supported for output tensors. File data will be copied to the "
                          "level zero memory");
-
             copy_file_data_to_level_zero_memory(bytes);
             break;
         } else if (_tensor_type == TensorType::BINDED) {
@@ -206,13 +194,12 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
 
         try {
             size_t aligned_size = utils::align_size_to_standard_page_size(bytes);
-            _host_memory = ZeroMemPool::get_instance().import_standard_allocation_zero_memory(
+            _host_memory = ZeroMemPool::get_instance().import_standard_allocation_memory(
                 _init_structs,
-                aligned_size,
-                utils::STANDARD_PAGE_SIZE,
                 _mmap_tensor.data(),
+                aligned_size,
                 _tensor_type == TensorType::INPUT ? true : false);
-            _data = _host_memory->_ptr;
+            _data = _host_memory->data();
         } catch (const ZeroMemException&) {
             _logger.info("Failed to import mmaped memory. File data will be copied to the level zero memory");
             _mmap_tensor = {};  // destroy memory if it couldn't be imported
@@ -257,3 +244,5 @@ void* ZeroRemoteTensor::get_original_memory() const {
 ze_context_handle_t ZeroRemoteTensor::get_zero_context_handle() const {
     return _init_structs->getContext();
 }
+
+}  // namespace intel_npu

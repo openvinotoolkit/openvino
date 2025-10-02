@@ -220,17 +220,14 @@ static inline std::string getLatestBuildError(ze_graph_dditable_ext_curr_t& _gra
     }
 }
 
-static inline uint64_t get_l0_context_memory_allocation_id(ze_context_handle_t hContext, const void* ptr) {
+static inline uint64_t get_l0_context_memory_allocation_id(ze_context_handle_t handle, const void* ptr) {
     ze_memory_allocation_properties_t desc = {};
     desc.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
-    auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
-    if (res == ZE_RESULT_SUCCESS) {
-        if (desc.id) {
-            if ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_DEVICE) ||
-                (desc.type == ZE_MEMORY_TYPE_SHARED)) {
-                return desc.id;
-            }
-        }
+    auto res = intel_npu::zeMemGetAllocProperties(handle, ptr, &desc, nullptr);
+    if (res == ZE_RESULT_SUCCESS && desc.id > 0 &&
+        ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_DEVICE) ||
+         (desc.type == ZE_MEMORY_TYPE_SHARED))) {
+        return desc.id;
     }
 
     return 0;
