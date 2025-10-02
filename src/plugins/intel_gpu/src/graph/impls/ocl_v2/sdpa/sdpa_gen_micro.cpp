@@ -1619,10 +1619,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_vs.B.layout = micro::MatrixLayout::Pr;
     problem_vs.C.layout = micro::MatrixLayout::N;
     problem_vs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
-    if (is_paged_attention && !is_prefill) {
-        const auto paged_attention_block_size = static_cast<int>(paged_attention::block_size);
-        problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta);
-    }
     problem_vs.B.setAlignment(64);  // S is packed in SLM
     problem_vs.B.crosspack = 16;
     sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();
