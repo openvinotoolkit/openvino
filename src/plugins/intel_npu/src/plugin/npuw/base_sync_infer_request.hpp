@@ -92,13 +92,16 @@ protected:
 
     struct TensorStorage {
         ov::SoPtr<ov::ITensor> tensor;
-        bool persistent = false;       // true for the parent I/O tensors
-        std::size_t num_readers = 0u;  // fixed during execution
-        std::size_t num_reads = 0u;    // changes during execution (ref-counter-like).
-                                       // reset to 0 before every new execution
+        bool persistent = false;           // true for the parent I/O tensors
+        bool allocated_on_device = false;  // mark for internally allocated I/O
+        bool set_from_outside = false;     // outside I/O tensors shouldn't be reallocated
+        std::size_t num_readers = 0u;      // fixed during execution
+        std::size_t num_reads = 0u;        // changes during execution (ref-counter-like).
+                                           // reset to 0 before every new execution
     };
     // FROM(Every subrequests' output port) TO(Its output tensor)
-    std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
+    mutable std::map<ov::Output<const ov::Node>, TensorStorage>
+        m_port_to_tensor;  // mutable due to lazy I/O allocation in get_tensor()
 
     struct QuantGatherTensors {
         ov::Tensor w, z, s;
@@ -137,15 +140,15 @@ protected:
     std::vector<GlobalIO> m_subrequests_gio;
 
     // Tracks tensors we allocated on our own - to recognize and avoid copies
-    std::unordered_set<void*> m_input_allocated;
+    mutable std::unordered_set<void*> m_input_allocated;  // mutable due to lazy I/O allocation in get_tensor()
 
     // Common functionality - shared for subclasses
     const std::size_t m_num_submodels;
 
-    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device);
-    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device);
+    TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device) const;
+    TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device) const;
     virtual void alloc_io();
-    virtual TensorPtr alloc_global_out(std::size_t out_idx);
+    virtual TensorPtr alloc_global_out(std::size_t out_idx) const;
 
     virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
@@ -163,7 +166,7 @@ protected:
 
     MS m_ms_unpack;
     ov::npuw::perf::Profile<MS> m_profile;
-    ov::npuw::perf::Profile<B> m_footprint;
+    mutable ov::npuw::perf::Profile<B> m_footprint;  // mutable due to lazy I/O allocation in get_tensor()
 
     std::string profile_tag(std::size_t idx) const;
 
