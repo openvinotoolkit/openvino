@@ -734,4 +734,8 @@ void Properties::set_property(const ov::AnyMap& properties) {
     }
 }
 
+bool Properties::isPropertyRegistered(const std::string& propertyName) {
+    return _properties.find(propertyName) != _properties.end();
+}
+
 }  // namespace intel_npu
