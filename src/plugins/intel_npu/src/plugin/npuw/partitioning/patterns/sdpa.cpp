@@ -56,12 +56,12 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
                                                                     past_v_in,
                                                                     past_v_cvt,
                                                                     past_v_cat,
-                                                                    opt_unsq_k ,
+                                                                    opt_unsq_k,
                                                                     opt_bcast_k,
-                                                                    opt_rshp_k ,
-                                                                    opt_unsq_v ,
+                                                                    opt_rshp_k,
+                                                                    opt_unsq_v,
                                                                     opt_bcast_v,
-                                                                    opt_rshp_v ,
+                                                                    opt_rshp_v,
                                                                     sdpa,
                                                                     trans,
                                                                     reshape};
@@ -105,13 +105,14 @@ AttentionBroadcast::AttentionBroadcast() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_concat_out = node_to_output.at(concat);
-        auto &matched_concat_tensor = matched_concat_out.get_tensor();
+        auto& matched_concat_tensor = matched_concat_out.get_tensor();
         if (matched_concat_tensor.has_and_set_bound()) {
             // Replace the dynamic shape calculation with a static constant
             // This is bad but it in the current realm it is what it is
             auto new_const = std::make_shared<ov::op::v0::Constant>(matched_concat_tensor.get_upper_value());
-            new_const->set_friendly_name("NPUW/Precalculated/" + matched_concat_out.get_node_shared_ptr()->get_friendly_name());
-            for (auto &&input : matched_concat_out.get_target_inputs()) {
+            new_const->set_friendly_name("NPUW/Precalculated/" +
+                                         matched_concat_out.get_node_shared_ptr()->get_friendly_name());
+            for (auto&& input : matched_concat_out.get_target_inputs()) {
                 input.replace_source_output(new_const);
             }
         }
@@ -130,11 +131,12 @@ ShapeOfParameter::ShapeOfParameter() {
         auto& node_to_output = m.get_pattern_value_map();
         // Replace the path with a known constant too
         auto matched_shape_out = node_to_output.at(param_shp);
-        auto &matched_shape_tensor = matched_shape_out.get_tensor();
+        auto& matched_shape_tensor = matched_shape_out.get_tensor();
         if (matched_shape_tensor.has_and_set_bound()) {
             auto new_const = std::make_shared<ov::op::v0::Constant>(matched_shape_tensor.get_upper_value());
-            new_const->set_friendly_name("NPUW/Precalculated/" + matched_shape_out.get_node_shared_ptr()->get_friendly_name());
-            for (auto &&input : matched_shape_out.get_target_inputs()) {
+            new_const->set_friendly_name("NPUW/Precalculated/" +
+                                         matched_shape_out.get_node_shared_ptr()->get_friendly_name());
+            for (auto&& input : matched_shape_out.get_target_inputs()) {
                 input.replace_source_output(new_const);
             }
         }
