@@ -49,8 +49,10 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
     auto add = wrap_type<v1::Add>({mul, position_embed});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
+        std::cout << "start " << matcher_name << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         replace_node(pattern_map.at(position_ids_pattern).get_node_shared_ptr(), position_ids.get_node_shared_ptr());
+        std::cout << "end " << matcher_name << std::endl;
         return true;
     };
 

@@ -98,7 +98,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     }
 
     const size_t sinks_idx = cldnn::paged_attention::PagedAttentionInputIdx::SINKS;
-    auto sinks_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(sinks_idx)); //TODO: what if this is not a Constant?
+    auto sinks_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(sinks_idx));
     OPENVINO_ASSERT(sinks_const != nullptr);
     prim.has_sinks = ov::shape_size(sinks_const->get_output_shape(0)) > 0;
 

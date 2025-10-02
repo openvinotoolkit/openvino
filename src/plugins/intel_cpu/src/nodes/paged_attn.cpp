@@ -172,12 +172,10 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32,
                                getInputShapeAtPort(PagedAttentionExecutor::ID_XATTENTION_BLOCK_SIZE)));
-    // sinks, float, [1, H, 1, 1] TODO: for now
+    // sinks, float, [1, H, 1, 1]
     config.inConfs[PagedAttentionExecutor::ID_SINKS].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_SINKS)));
-
-    // TODO: perhaps, some additional changes from the CPU team required here to handle the new input
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }

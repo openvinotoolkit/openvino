@@ -41,7 +41,7 @@ struct PagedAttentionExecutor {
     static const size_t ID_XATTENTION_THRESHOLD = 17;      // [B_seq, H], f32
     static const size_t ID_XATTENTION_BLOCK_SIZE = 18;     // [], int32
     static const size_t ID_XATTENTION_STRIDE = 19;         // [], int32
-    static const size_t ID_SINKS = 20;                     // [1, H, 1, 1], float TODO: check what it really should be
+    static const size_t ID_SINKS = 20;                     // [1, H, 1, 1], float
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs,
                          std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
     virtual ~PagedAttentionExecutor() = default;

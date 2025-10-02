@@ -1913,7 +1913,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         xattention_block_size = *inputs[ID_XATTENTION_BLOCK_SIZE]->getDataAs<int32_t>();
 
         if (!inputs[ID_SINKS]->getShape().hasZeroDims()) {
-            sinks.reset(inputs[ID_SINKS]);  // [1, 64, 1, 1] TODO: for now
+            sinks.reset(inputs[ID_SINKS]);  // [1, 64, 1, 1]
         }
 
         output_emb.reset(outputs[0]);
@@ -2058,7 +2058,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         if (sinks) {
-            sinks.assert_dims({1, H, 1, 1});  // for now. TODO: check what this really should be
+            sinks.assert_dims({1, H, 1, 1});
         }
 
         output_emb.assert_dims({B_token, H * SV});
