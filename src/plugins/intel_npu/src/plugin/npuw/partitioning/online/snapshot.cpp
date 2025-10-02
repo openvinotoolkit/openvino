@@ -510,7 +510,7 @@ void Snapshot::earlyRegroup() {
     }
 #define HNDL_ATTN(p)                                                                         \
     if (isolate.pattern == #p) {                                                             \
-        rewr_fake.add_matcher<ov::npuw::patterns::attn::p>(shared_from_this(), isolate.tag); \
+        rewr.add_matcher<ov::npuw::patterns::attn::p>(shared_from_this(), isolate.tag); \
         handle_patterns = true;                                                              \
     }
             HNDL(RMSNorm);
