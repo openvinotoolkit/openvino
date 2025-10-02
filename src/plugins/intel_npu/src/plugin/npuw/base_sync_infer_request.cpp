@@ -23,6 +23,13 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
+
+    // Initialize profiling
+    m_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_profile.area = m_npuw_model->m_name + "/performance";
+
+    m_footprint.report_on_die = ov::npuw::profiling_enabled();
+    m_footprint.area = m_npuw_model->m_name + "/memory";
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
@@ -239,6 +246,12 @@ std::vector<ov::ProfilingInfo> ov::npuw::IBaseInferRequest::get_profiling_info()
     return info;
 }
 
+std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
+    // So far accumulate over devices involved
+    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    return *proto_comp_model_desc.device_it;
+}
+
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
     prepare_for_infer();
@@ -250,7 +263,9 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
-        run_subrequest_for_success(idx, failover);
+        m_profile[profile_tag(idx)].record([&]() {
+            run_subrequest_for_success(idx, failover);
+        });
         failover_happened |= failover;
         complete_subrequest(idx);
         if (m_npuw_model->m_acc_check) {
@@ -277,7 +292,9 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
                                                           const std::string& device) {
-    return ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    auto ptr = ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    m_footprint[device] += ptr->get_byte_size();
+    return ptr;
 }
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const ov::Node>& node,
