@@ -336,7 +336,6 @@ void insert_state_for_nodes(std::shared_ptr<ov::Model> model, const std::vector<
         
     }
     for (const auto& output : outputs) {
-      
         auto consumers = output.get_target_inputs();
         std::string variable_id = output.get_any_name();
         const auto& var_name = output.get_any_name();
@@ -361,21 +360,17 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
     std::vector<std::string> present_values;
     std::vector<ov::op::v0::Parameter> key_values;
     std::shared_ptr<ov::op::v0::Parameter> beam_idx;
-    bool found_input_id;
+    bool found_input_id = false;
     bool found_input_hidden_states;
     std::string param_name;
-    size_t input_id_index = 0;
 
     if (model_has_input_output_name(model, "beam_idx")) {
         OPENVINO_ASSERT("Model already has fused cache");
     }
     std::string main_input_name = model_has_input_output_name(model, "input_ids") ? "input_ids" : "input_hidden_states";
-    found_input_id =
-        model_has_input_output_name(model, "input_ids") || model_has_input_output_name(model, "input_hidden_states");
-    if (model_has_input_output_name(model, "input_ids"))
-        size_t input_id_index = index_of_model_input_output(model, "input_ids");
-    else if (model_has_input_output_name(model, "input_hidden_states"))
-        size_t input_id_index = index_of_model_input_output(model, "input_hidden_states");
+    if (main_input_name == "input_ids" || main_input_name == "input_hidden_states")
+        found_input_id = true;
+    size_t input_id_index = index_of_model_input_output(model, main_input_name);
 
     PartialShape input_batch_shape = model->input(main_input_name).get_partial_shape();
     Dimension batch_dim = input_batch_shape[0];
