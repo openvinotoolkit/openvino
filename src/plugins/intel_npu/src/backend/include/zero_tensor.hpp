@@ -91,7 +91,7 @@ private:
 
     ov::SoPtr<ov::ITensor> _user_tensor;
 
-    std::shared_ptr<ZeroMem> _host_memory;
+    std::shared_ptr<ZeroMem> _mem_ref;
 };
 
 }  // namespace intel_npu
