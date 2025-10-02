@@ -14,7 +14,10 @@ using namespace ov::pass::pattern;
                    ((in_ps.size() == 3 && out_ps.size() == 2) || (in_ps.size() == 4 && out_ps.size() == 3));\
         };\
         \
-        auto compressed_weights_m = wrap_type<ov::op::v0::Constant>(compressed_constant);\
+        auto weights_const_m = wrap_type<ov::op::v0::Constant>(compressed_constant);\
+        auto weights_param_m = wrap_type<ov::op::v0::Parameter>(compressed_constant);\
+        auto weights_param_reshape_m = wrap_type<ov::op::v1::Reshape>({weights_param_m, any_input()});\
+        auto compressed_weights_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weights_const_m, weights_param_m, weights_param_reshape_m});\
         auto convert_m = wrap_type<ov::op::v0::Convert>({compressed_weights_m});\
 \
         auto sub_const_m = wrap_type<ov::op::v0::Constant>();\
