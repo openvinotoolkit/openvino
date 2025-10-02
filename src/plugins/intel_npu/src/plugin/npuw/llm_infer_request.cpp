@@ -480,9 +480,9 @@ void ov::npuw::LLMInferRequest::apply_lora() {
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
-    if (auto totyids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
-        totyids_port != m_prefill_in_ports.end()) {
-        fill_tensor_bytes(m_prefill_request->get_tensor(totyids_port->second), 0u);
+    if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
+        type_ids_port != m_prefill_in_ports.end()) {
+        fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
     }
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);

@@ -873,8 +873,6 @@ void ov::npuw::LLMCompiledModel::gemma_transformations(const std::shared_ptr<ov:
     rewr.run_on_model(model);
 
     if (RewrRes->found) {
-        OPENVINO_ASSERT(RewrRes->found == 1,
-                        "Only one Gemma sliding mask should be present, but found " + std::to_string(RewrRes->found));
         OPENVINO_ASSERT(
             RewrRes->window_size > 0,
             "Gemma sliding window size must be strictly positive, but got " + std::to_string(RewrRes->window_size));
