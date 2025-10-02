@@ -48,12 +48,6 @@ struct GroupNormalizationFsv16Opt : public GroupNormalizationBase {
         }
 
         if (in0_layout.is_static() && out_layout.is_static()) {
-            // no support for spatial paddings in static case
-            if (in0_layout.data_padding._lower_size[3] > 0 || in0_layout.data_padding._lower_size[2] > 0 || in0_layout.data_padding._upper_size[3] > 0 ||
-                in0_layout.data_padding._upper_size[2] > 0) {
-                return false;
-            }
-
             if (!fused_ops_are_one_of<eltwise, activation, reorder>(node.get_fused_primitives())) {
                 return false;
             }
