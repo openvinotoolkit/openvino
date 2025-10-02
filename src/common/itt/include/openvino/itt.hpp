@@ -501,8 +501,7 @@ public:
                                          openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(handleOrTaskName));
 
 #define OV_ITT_REGION_END_IMPL_0(domain, ...)
-#define OV_ITT_REGION_END_IMPL_1(domain, ...) \
-    openvino::itt::internal::regionEnd(domain());
+#define OV_ITT_REGION_END_IMPL_1(domain, ...) openvino::itt::internal::regionEnd(domain());
 
 #define OV_ITT_SCOPED_REGION_IMPL_0(...)
 #define OV_ITT_SCOPED_REGION_IMPL_1(...) OV_PP_OVERLOAD(OV_ITT_SCOPED_REGION, __VA_ARGS__)
