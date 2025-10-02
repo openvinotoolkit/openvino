@@ -52,6 +52,11 @@ public:
      */
     void set_property(const ov::AnyMap& properties);
 
+    /**
+     * @brief Checks wether a property was registered
+     */
+    bool isPropertyRegistered(const std::string& propertyName);
+
 private:
     PropertiesType _pType;
     FilteredConfig& _config;

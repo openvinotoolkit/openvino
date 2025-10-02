@@ -72,14 +72,6 @@ void FilteredConfig::enableRuntimes() {
     });
 }
 
-void FilteredConfig::enableBoths() {
-    _desc->walk([&](const details::OptionConcept& opt) {
-        if (opt.mode() == OptionMode::Both) {
-            enable(opt.key().data(), true);
-        }
-    });
-}
-
 void FilteredConfig::walkEnables(std::function<void(const std::string&)> cb) const {
     for (const auto& itr : _enabled) {
         cb(itr.first);
