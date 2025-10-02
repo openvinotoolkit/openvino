@@ -366,9 +366,9 @@ available options and parameters:
                                     Required. Path to an .xml/.onnx file with a trained model or to a .blob file with a trained compiled model.
 
               -d TARGET_DEVICE, --target_device TARGET_DEVICE
-                                    Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma
-                                    separated devices list>' format to specify HETERO plugin. Use '-d MULTI:<comma separated devices list>' format to specify MULTI plugin. The
-                                    application looks for a suitable plugin for the specified device.
+                                     Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use '-d HETERO:<comma
+                                     separated devices list>' format to specify HETERO plugin. Use '-d AUTO[:<comma separated devices list>]' format to let the Auto plugin pick the
+                                     best device or execute across multiple devices. The application looks for a suitable plugin for the specified device.
 
               -hint {throughput,cumulative_throughput,latency,none}, --perf_hint {throughput,cumulative_throughput,latency,none}
                                     Optional. Performance hint (latency or throughput or cumulative_throughput or none). Performance hint allows the OpenVINO device to select the
@@ -533,7 +533,7 @@ available options and parameters:
                                           Currently supported data types: bmp, bin, npy.
                                           If OPENCV is enabled, this functionality is extended with the following data types:
                                           dib, jpeg, jpg, jpe, jp2, png, pbm, pgm, ppm, sr, ras, tiff, tif.
-                -d  <device>                  Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d    HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. The application looks for    a suitable plugin for the specified device.
+                -d  <device>                  Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU. Use "-d    HETERO:<comma-separated_devices_list>" format to specify HETERO plugin. Use "-d AUTO[:<comma-separated_devices_list>]" format to let the Auto plugin pick the best device or execute across multiple devices. The application looks for a suitable plugin for the specified device.
                 -hint  <performance hint> (latency or throughput or cumulative_throughput or none)   Optional. Performance hint allows the OpenVINO device to select the right model-specific    settings.
                                            'throughput' or 'tput': device performance mode will be set to THROUGHPUT.
                                            'cumulative_throughput' or 'ctput': device performance mode will be set to CUMULATIVE_THROUGHPUT.
