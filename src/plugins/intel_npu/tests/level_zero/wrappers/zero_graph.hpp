@@ -7,7 +7,6 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "ze_graph_ext_wrappers.hpp"
-#include "zero_init_mock.hpp"
 
 using namespace intel_npu;
 

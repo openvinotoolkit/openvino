@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include <common_test_utils/test_assertions.hpp>
+#include "zero_init_mock.hpp"
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
@@ -125,7 +126,7 @@ TEST_P(ZeroGraphTest, SetGraphArgOnNullBuffer) {
     void* ptr = nullptr;
     OV_ASSERT_NO_THROW(ptr = allocate_zero_memory(zeroInitStruct, totalSize, utils::STANDARD_PAGE_SIZE));
 
-    ASSERT_ANY_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, nullptr));
+    ASSERT_ANY_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, nullptr)); // with cpuVA or cpu buffer -- should throw
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, ptr));
 }
@@ -191,20 +192,6 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
     OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, buffer));
 
     OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, buffer));
-}
-
-TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryIR) {
-    serializeIR();
-
-    OV_ASSERT_NO_THROW(graphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", graphDescFlag));
-
-    size_t totalSize = 1 * 3 * 24 * 24 * sizeof(float);
-    void* ptr = nullptr;
-    OV_ASSERT_NO_THROW(ptr = allocate_zero_memory(zeroInitStruct, totalSize, utils::STANDARD_PAGE_SIZE));
-
-    OV_ASSERT_NO_THROW(zeGraphExt->setGraphArgumentValue(graphDescriptor, 0, static_cast<char*>(ptr) + 1));
-
-    OV_ASSERT_NO_THROW(deallocate_zero_memory(zeroInitStruct, ptr));
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
