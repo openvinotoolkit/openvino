@@ -103,6 +103,9 @@ protected:
     mutable std::map<ov::Output<const ov::Node>, TensorStorage>
         m_port_to_tensor;  // mutable due to lazy I/O allocation in get_tensor()
 
+    // Check to verify that m_port_to_tensor doesn't have anything stored at the port and it's I/O
+    bool is_not_stored_io(const ov::Output<const ov::Node>& port) const;
+
     struct QuantGatherTensors {
         ov::Tensor w, z, s;
     };
@@ -147,7 +150,7 @@ protected:
 
     TensorPtr allocMem(const ov::element::Type type, const ov::Shape& shape, const std::string& device) const;
     TensorPtr allocOut(const ov::Output<const ov::Node>& node, const std::string& device) const;
-    virtual void alloc_io();
+    virtual void alloc_quant_gather();
     virtual TensorPtr alloc_global_out(std::size_t out_idx) const;
 
     virtual void init_gio();
