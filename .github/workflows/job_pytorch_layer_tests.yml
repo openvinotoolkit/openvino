@@ -26,6 +26,8 @@ permissions: read-all
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
+  HF_HUB_CACHE_LIN: /mount/caches/huggingface
+  HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
 
 jobs:
   PyTorch_Layer_Tests:
