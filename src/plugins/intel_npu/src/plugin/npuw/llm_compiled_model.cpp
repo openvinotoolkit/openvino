@@ -983,10 +983,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Handle attention hints. FIXME: Maybe it makes sense to make those
     // mutually exclusive with the precise configuration sections as well
     const ov::AnyMap dyn_attn_opts = {
-        { "NPUW_ONLINE_PIPELINE", "REP" },
-        { "NPUW_ONLINE_ISOLATE", "ATTN" },
-        { "NPUW_ONLINE_KEEP_BLOCK_SIZE", "4" },
-        { "NPUW_UNFOLD_IREQS", "NO" },
+        {"NPUW_ONLINE_PIPELINE", "REP"},
+        {"NPUW_ONLINE_ISOLATE", "ATTN"},
+        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+        {"NPUW_UNFOLD_IREQS", "NO"},
     };
     if (prefill_attn_dyn) {
         merge_config_with(prefill_config, dyn_attn_opts);
@@ -1133,7 +1133,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.dim);
         write(model_stream, m_kvcache_desc.max_generation_token_len);
         write(model_stream, m_kvcache_desc.v_tensors_transposed_pre);
-        write(model_stream, m_kvcache_desc.v_tensors_transposed_gen); // FIXME: bump required
+        write(model_stream, m_kvcache_desc.v_tensors_transposed_gen);  // FIXME: bump required
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
@@ -1343,7 +1343,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.dim);
         read(model_stream, compiled->m_kvcache_desc.max_generation_token_len);
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_pre);
-        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_gen); // FIXME: bump required!
+        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_gen);  // FIXME: bump required!
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
