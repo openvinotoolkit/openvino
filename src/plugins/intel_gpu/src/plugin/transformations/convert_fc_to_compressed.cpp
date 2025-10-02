@@ -17,6 +17,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -32,7 +33,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         return (output.get_element_type() == ov::element::u8 ||
                 output.get_element_type() == ov::element::i8 ||
                 output.get_element_type() == ov::element::u4 ||
-                output.get_element_type() == ov::element::i4);
+                output.get_element_type() == ov::element::i4 ||
+                output.get_element_type() == ov::element::f8e4m3 ||
+                output.get_element_type() == ov::element::f8e5m2);
     };
 
     auto reshape_3d_to_2d = [](const ov::Output<ov::Node>& output) {
@@ -52,7 +55,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
     auto mul_const_m = wrap_type<ov::op::v0::Constant>();
     auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});
-    auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_m});
+    auto mul_const_convert_m = ov::pass::pattern::optional<ov::op::v0::Convert>(mul_const_m);
+    auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_convert_m});
     auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});
 
     auto reshape_const_m = wrap_type<ov::op::v0::Constant>();
