@@ -119,7 +119,7 @@ ov_dependent_option (ENABLE_PLUGINS_XML "Generate plugins.xml configuration file
 
 ov_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
-ov_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
+ov_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" OFF)
 
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
