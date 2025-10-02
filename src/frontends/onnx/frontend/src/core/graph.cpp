@@ -356,21 +356,19 @@ void insert_state_for_nodes(std::shared_ptr<ov::Model> model, const std::vector<
 
 void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& model) {
 
-    const auto& params = model->get_parameters();
-    const auto& results = model->get_results();
     std::vector<std::string> past_keys;
     std::vector<std::string> past_values;
     std::vector<std::string> present_keys;
     std::vector<std::string> present_values;
     std::vector<ov::op::v0::Parameter> key_values;
     std::shared_ptr<ov::op::v0::Parameter> beam_idx;
-    size_t found_input_id;
-    size_t found_input_hidden_states;
+    bool found_input_id;
+    bool found_input_hidden_states;
     std::string param_name;
     size_t input_id_index = 0;
-    bool input_id_found = false;
+
     if (model_has_input_output_name(model, "beam_idx")) {
-        throw std::runtime_error("Model already has fused cache");
+        OPENVINO_ASSERT("Model already has fused cache");
     }
     std::string main_input_name = model_has_input_output_name(model, "input_ids") ? "input_ids" : "input_hidden_states";
     found_input_id =
@@ -379,84 +377,79 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
         size_t input_id_index = index_of_model_input_output(model, "input_ids");
     else if (model_has_input_output_name(model, "input_hidden_states"))
         size_t input_id_index = index_of_model_input_output(model, "input_hidden_states");
+
     PartialShape input_batch_shape = model->input(main_input_name).get_partial_shape();
     Dimension batch_dim = input_batch_shape[0];
     beam_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{batch_dim});
     beam_idx->set_friendly_name("beam_idx");
-    // Add name to output tensor (via tensor pointer)
     beam_idx->output(0).get_tensor().add_names({"beam_idx"});
-    // Add the parameter to the model
+    const auto& params = model->get_parameters();
     model->add_parameters({beam_idx});
+    
     for (auto i = 0; i < params.size(); i++) {
         //iterate over all inputs and make a list of all KV ops
         auto param_name = params.at(i)->output(0).get_any_name();
-        size_t found_past_keys = param_name.find("past_keys");
-        size_t found_past_values = param_name.find("past_values");
-        size_t found_past = param_name.find("past_key_values");
-        size_t found_past_key_phi3 = param_name.find(".key");
-        size_t found_past_value_phi3 = param_name.find(".value");
-        auto batch_dim = 0; 
-        auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, std::vector<int64_t>({batch_dim}));
-        if (found_past_keys != std::string::npos) {
+        auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, std::vector<int64_t>({0}));
+        if (param_name.find("past_keys") != std::string::npos) {
             past_keys.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
                 auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
-                for (auto consumer : consumers)
+                for (const auto& consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
         }
-        if (found_past_values != std::string::npos) {
+        if (param_name.find("past_values") != std::string::npos) {
             past_values.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
                 auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
-                for (auto consumer : consumers)
+                for (const auto& consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
         }
-        if (found_past != std::string::npos && found_past_key_phi3 != std::string::npos) {
+        if (param_name.find("past_key_values") != std::string::npos && param_name.find(".key") != std::string::npos) {
             past_keys.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
                 auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
-                for (auto consumer : consumers)
+                for (const auto& consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
         }
-        if (found_past != std::string::npos && found_past_value_phi3 != std::string::npos) {
+        if (param_name.find("past_key_values") != std::string::npos && param_name.find(".value") != std::string::npos) {
             past_values.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
                 auto gather_op = std::make_shared<ov::op::v8::Gather>(params.at(i), beam_idx, axis);
-                for (auto consumer : consumers)
+                for (const auto& consumer : consumers)
                     consumer.replace_source_output(gather_op);
             }
         }
             
     }
-     for(auto i = 0; i < results.size(); i++){
+    const auto& results = model->get_results();
+    for(size_t i = 0; i < results.size(); i++){
+
         auto res_name = results.at(i)->output(0).get_any_name();
-        size_t found_present_keys = res_name.find("present_keys");
-        size_t found_present_values = res_name.find("present_values");
-        size_t found_present = res_name.find("present");
-        size_t found_key = res_name.find(".key");
-        size_t found_value = res_name.find(".value");
-         if (found_present_keys != std::string::npos )
+        if (res_name.find("present_keys") != std::string::npos)
             present_keys.push_back(res_name);
-         if (found_present_values != std::string::npos )
+        if (res_name.find("present_values") != std::string::npos)
              present_values.push_back(res_name);
-        if (found_present != std::string::npos && found_key != std::string::npos)
+        if (res_name.find("present") != std::string::npos && res_name.find(".key") != std::string::npos)
             present_keys.push_back(res_name);
-        if (found_present != std::string::npos && found_value != std::string::npos)
+        if (res_name.find("present") != std::string::npos && res_name.find(".value") != std::string::npos)
             present_values.push_back(res_name);
+
     }
     std::map<std::string, std::string> param_res_names;
     OPENVINO_ASSERT(past_values.size() == past_keys.size());
     OPENVINO_ASSERT(present_keys.size() == present_values.size());
-    for (auto i = 0; i < past_keys.size(); i++) {
+    for (size_t i = 0; i < past_keys.size(); i++) {
+
         param_res_names.insert({past_keys[i], present_keys[i]});
         param_res_names.insert({past_values[i], present_values[i]});
+
     }
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::MakeStateful>(param_res_names);
@@ -553,7 +546,6 @@ std::shared_ptr<ov::Model> Graph::convert() {
     remove_dangling_parameters();
     auto function = create_model();
     convert_stateless_LLM_to_stateful_LLM(function);
-    save_model(function, "ov-IR.xml");
     set_metadata(function);
     return function;
 }
