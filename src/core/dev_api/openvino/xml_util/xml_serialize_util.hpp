@@ -102,4 +102,9 @@ public:
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override;
     void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override;
 };  // class XmlSerializer
+
+OPENVINO_API std::string rt_info_get_user_name(const std::string& custom_name);
+OPENVINO_API Any& rt_info_get_user_data(AnyMap& rt_map, const std::string& custom_name);
+OPENVINO_API const Any& rt_info_get_user_data(const AnyMap& rt_map, const std::string& custom_name);
+OPENVINO_API void rt_info_set_user_data(AnyMap& rt_map, const std::string& custom_name, const Any& value);
 }  // namespace ov::util
