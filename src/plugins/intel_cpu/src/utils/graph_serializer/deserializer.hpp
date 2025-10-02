@@ -15,6 +15,9 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "utils/codec_xor.hpp"
 
+namespace ov {
+class ICore;
+}
 namespace ov::intel_cpu {
 
 template <class T>
@@ -70,21 +73,17 @@ private:
 
 class ModelDeserializer {
 public:
-    using ModelBuilder = std::function<std::shared_ptr<ov::Model>(const std::shared_ptr<ov::AlignedBuffer>&,
-                                                                  const std::shared_ptr<ov::AlignedBuffer>&,
-                                                                  const std::shared_ptr<ov::AlignedBuffer>&)>;
-
     ModelDeserializer(std::shared_ptr<ov::AlignedBuffer>& model_buffer,
-                      ModelBuilder fn,
+                      const std::shared_ptr<ov::ICore>& core,
                       const CacheDecrypt& decrypt_fn,
                       bool decript_from_string,
-                      std::string origin_weights_path = "");
+                      const std::string& origin_weights_path = "");
 
     ModelDeserializer(std::istream& model_stream,
-                      ModelBuilder fn,
+                      const std::shared_ptr<ov::ICore>& core,
                       const CacheDecrypt& decrypt_fn,
                       bool decript_from_string,
-                      std::string origin_weights_path = "");
+                      const std::string& origin_weights_path = "");
 
     virtual ~ModelDeserializer() = default;
 
@@ -94,13 +93,18 @@ protected:
     static void set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model);
 
     void process_model(std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::AlignedBuffer>& model_buffer);
+
     void process_model(std::shared_ptr<ov::Model>& model, std::reference_wrapper<std::istream> model_stream);
 
+    std::shared_ptr<ov::Model> create_ov_model(const std::shared_ptr<ov::AlignedBuffer>& model,
+                                               const std::shared_ptr<ov::AlignedBuffer>& weights,
+                                               const std::shared_ptr<ov::AlignedBuffer>& origin_weights);
+
     std::variant<std::shared_ptr<ov::AlignedBuffer>, std::reference_wrapper<std::istream>> m_model;
-    ModelBuilder m_model_builder;
+    std::shared_ptr<ov::ICore> m_core;
     CacheDecrypt m_cache_decrypt;
     bool m_decript_from_string;
-    std::string m_origin_weights_path;
+    std::shared_ptr<ov::AlignedBuffer> m_origin_weights_buf;
 };
 
 }  //  namespace ov::intel_cpu
