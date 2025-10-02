@@ -22,8 +22,7 @@ static std::vector<format> supported_dyn_formats = {
     format::bfyx,
     format::bfzyx,
     format::bfwzyx,
-    format::b_fs_yx_fsv16,
-    format::b_fs_zyx_fsv16
+    format::b_fs_yx_fsv16
 };
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<reorder>::get_implementations() {

@@ -146,5 +146,9 @@
     {
         "error_text": "connect: connection refused",
         "ticket": 171446
+    },
+    {
+        "error_text": "Connection reset by peer - SSL_connect",
+        "ticket": 173970
     }
 ]

@@ -206,9 +206,9 @@ public:
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
 
 #ifdef GPU_DEBUG_CONFIG
-    int64_t get_current_iteration_num() { return iteration; }
+    int64_t get_current_iteration_num() const { return iteration; }
 #else
-    int64_t get_current_iteration_num() { const int64_t NOT_AVAILABLE=-112233; return NOT_AVAILABLE; }
+    int64_t get_current_iteration_num() const { const int64_t NOT_AVAILABLE=-112233; return NOT_AVAILABLE; }
 #endif
 
 private:

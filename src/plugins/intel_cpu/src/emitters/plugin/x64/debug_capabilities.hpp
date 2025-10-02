@@ -74,10 +74,6 @@ private:
     static void print_vmm(jit_generator_t& h, REG_T vmm, const char* name);
     template <typename PRC_T, typename REG_T>
     static void print_reg(jit_generator_t& h, REG_T reg, const char* name);
-    template <typename PRC_T, size_t vlen>
-    static void print_vmm_prc(const char* name, const char* ori_name, PRC_T* ptr);
-    template <typename T>
-    static void print_reg_prc(const char* name, const char* ori_name, T* ptr);
     static void preamble(jit_generator_t& h);
     static void postamble(jit_generator_t& h);
     template <typename T>
