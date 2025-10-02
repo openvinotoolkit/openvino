@@ -173,6 +173,8 @@ ov::Any Configuration::Get(const std::string& name) const {
         return compiled_model_runtime_properties;
     } else if (name == ov::cache_mode) {
         return cache_mode;
+    } else if (name == ov::internal::cache_header_alignment) {
+        return 4096;  // page size in bytes
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }

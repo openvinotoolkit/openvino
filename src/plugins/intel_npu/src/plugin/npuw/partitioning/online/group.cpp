@@ -247,6 +247,25 @@ void Group::fuse(const Group::GPtr& gptr_prod) {
 
 // This group absorbs the consumer
 void Group::fuseWith(const Group::GPtr& gptr_cons) {
+    if (ov::npuw::debug_groups()) {
+        LOG_DEBUG("Fusing...");
+        LOG_BLOCK();
+        {
+            LOG_DEBUG("Merger:");
+            LOG_BLOCK();
+            for (auto&& layer : m_content) {
+                LOG_DEBUG(layer);
+            }
+        }
+        {
+            LOG_DEBUG("Mergee:");
+            LOG_BLOCK();
+            for (auto&& layer : gptr_cons->m_content) {
+                LOG_DEBUG(layer);
+            }
+        }
+    }
+
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
     for (const auto& layer : gptr_cons->m_content) {

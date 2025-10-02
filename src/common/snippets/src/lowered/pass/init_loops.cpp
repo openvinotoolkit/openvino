@@ -56,13 +56,12 @@ bool InitLoops::run(LinearIR& linear_ir) {
         return false;
     }
 
-    const auto& loops = linear_ir.get_loop_manager()->get_map();
-    for (const auto& loop : loops) {
+    const auto& loop_manager = linear_ir.get_loop_manager();
+    for (const auto& loop : loop_manager->get_map()) {
         const auto& loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop.second);
         update_compile_parameters(loop_info);
-        ov::snippets::utils::update_runtime_parameters(loop_info);
+        ov::snippets::utils::update_runtime_parameters(loop_manager, loop_info);
     }
-
     return true;
 }
 
