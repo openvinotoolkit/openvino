@@ -61,7 +61,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                << " to wei_zp_group_size " << wei_zp_group_size << " and wei_scale_group_size " << wei_scale_group_size << std::endl;
                 adj_group_size = required_group_size;
             }
-            if (required_group_size % adj_group_size == 0) {
+            const bool is_per_token = adj_group_size == innermost_size;
+            if (required_group_size % adj_group_size == 0 && !is_per_token) {
                 config.precomputed_reduction_dt = element::i32; // it supports i32 only now
                 config.precomputed_reduction = true;
             } else {
