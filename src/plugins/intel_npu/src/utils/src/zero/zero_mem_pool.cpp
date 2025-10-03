@@ -25,6 +25,7 @@ std::shared_ptr<ZeroMem> ZeroMemPool::allocate_zero_memory(const std::shared_ptr
             delete_pool_entry(ptr);
         });
 
+    std::lock_guard<std::mutex> lock(_mutex);
     update_pool(zero_memory);
 
     return zero_memory;
@@ -33,6 +34,7 @@ std::shared_ptr<ZeroMem> ZeroMemPool::allocate_zero_memory(const std::shared_ptr
 std::shared_ptr<ZeroMem> ZeroMemPool::import_shared_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                                            const void* data,
                                                            const size_t bytes) {
+    std::lock_guard<std::mutex> lock(_mutex);
     auto zero_memory =
         std::shared_ptr<ZeroMem>(new ZeroMem(init_structs, data, bytes, false, false), [this](ZeroMem* ptr) {
             delete_pool_entry(ptr);
@@ -48,6 +50,7 @@ std::shared_ptr<ZeroMem> ZeroMemPool::import_standard_allocation_memory(
     const void* data,
     const size_t bytes,
     const bool is_input) {
+    std::lock_guard<std::mutex> lock(_mutex);
     auto zero_memory =
         std::shared_ptr<ZeroMem>(new ZeroMem(init_structs, data, bytes, is_input, true), [this](ZeroMem* ptr) {
             delete_pool_entry(ptr);
@@ -61,12 +64,12 @@ std::shared_ptr<ZeroMem> ZeroMemPool::import_standard_allocation_memory(
 std::shared_ptr<ZeroMem> ZeroMemPool::get_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                                       const void* data,
                                                       const size_t bytes) {
+    std::lock_guard<std::mutex> lock(_mutex);
     auto memory_id = zeroUtils::get_l0_context_memory_allocation_id(init_structs->getContext(), data);
     if (memory_id == 0) {
         return nullptr;
     }
 
-    std::lock_guard<std::mutex> lock(_mutex);
     if (_pool.find(memory_id) != _pool.end()) {
         // found one weak pointer in the pool; check it if it's valid
         auto obj = _pool.at(memory_id).lock();
@@ -87,8 +90,6 @@ std::shared_ptr<ZeroMem> ZeroMemPool::get_zero_memory(const std::shared_ptr<Zero
 void ZeroMemPool::update_pool(const std::shared_ptr<intel_npu::ZeroMem>& zero_memory) {
     auto pair = std::make_pair(zero_memory->id(), zero_memory);
 
-    std::lock_guard<std::mutex> lock(_mutex);
-
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     if (_pool.find(zero_memory->id()) != _pool.end()) {
         if (_pool.at(zero_memory->id()).lock()) {
@@ -103,9 +104,12 @@ void ZeroMemPool::update_pool(const std::shared_ptr<intel_npu::ZeroMem>& zero_me
 void ZeroMemPool::delete_pool_entry(ZeroMem* zero_memory) {
     std::lock_guard<std::mutex> lock(_mutex);
     if (_pool.at(zero_memory->id()).lock()) {
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
         OPENVINO_THROW("Memory is still in use, at this point ref count must be 0!");
+#endif
         return;
     }
+
     _pool.erase(zero_memory->id());
     // Destroy zero memory
     delete zero_memory;
