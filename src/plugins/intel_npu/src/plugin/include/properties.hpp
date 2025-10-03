@@ -53,9 +53,9 @@ public:
     void set_property(const ov::AnyMap& properties);
 
     /**
-     * @brief Checks wether a property was registered
+     * @brief Checks wether a property was registered by its name
      */
-    bool isPropertyRegistered(const std::string& propertyName);
+    bool isPropertyRegistered(const std::string& propertyName) const;
 
 private:
     PropertiesType _pType;

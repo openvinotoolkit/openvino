@@ -70,6 +70,10 @@ void invalidate_umd_caching() {}
 }  // namespace
 
 using OVPropertiesTestsMismatchesNPU = OVPropertiesTestsNPU;
+using OVSetRunTimePropertiesTestsNPU = OVPropertiesTestsNPU;
+using OVSetCompileTimePropertiesTestsNPU = OVPropertiesTestsNPU;
+using OVSetBothPropertiesTestsNPU = OVPropertiesTestsNPU;
+using OVSetCartesianProductPropertiesTestsNPU = OVPropertiesTestsNPU;
 using OVRunTimePropertiesArgumentsTestsNPU = OVPropertiesArgumentsTestsNPU;
 using OVCompileTimePropertiesArgumentsTestsNPU = OVPropertiesArgumentsTestsNPU;
 using OVBothPropertiesArgumentsTestsNPU = OVPropertiesArgumentsTestsNPU;
@@ -99,19 +103,8 @@ TEST_P(OVPropertiesTestsMismatchesNPU, DetectPotentialPropertyMismatches) {
         << "Mismatching properties: " << ov::Any(mismatchingProperties).as<std::string>();
 }
 
-TEST_P(OVPropertiesTestsNPU, GetSupportedPropertiesImplyCompilerLoad) {
-    // ASSERT_TRUE(!is_cid_loaded() && !is_cip_loaded())
-    invalidate_umd_caching();
-    OV_ASSERT_NO_THROW(core->get_property(target_device, ov::supported_properties, properties));
-    if (auto it = properties.find(ov::intel_npu::compiler_type.name());
-        it != properties.end() && it->second == ov::intel_npu::CompilerType::MLIR) {
-        ASSERT_TRUE(!is_cid_loaded() && is_cip_loaded());
-    } else {
-        ASSERT_TRUE(is_cid_loaded() && !is_cip_loaded());
-    }
-}
-
 TEST_P(OVRunTimePropertiesArgumentsTestsNPU, GetRunTimePropertiesNoCompilerLoad) {
+    invalidate_umd_caching();
     // Need to exclude properties that are not registered in plugin properties, e.g. LOADED_FROM_CACHE (compiled_model
     // prop)
     auto registered_properties = core->get_property(target_device, ov::intel_npu::registered_properties);
@@ -120,16 +113,60 @@ TEST_P(OVRunTimePropertiesArgumentsTestsNPU, GetRunTimePropertiesNoCompilerLoad)
         GTEST_SKIP() << propertyName << " was not found within plugin registered properties!";
     }
     OV_ASSERT_NO_THROW(core->get_property(target_device, propertyName, properties));
+    if (propertyName == ov::supported_properties.name()) {
+        ASSERT_TRUE(is_cid_loaded() && !is_cip_loaded());
+    } else if (propertyName == ov::intel_npu::compiler_version.name()) {
+        ASSERT_TRUE(is_cid_loaded() || is_cip_loaded());
+    } else {
+        ASSERT_TRUE(!is_cid_loaded() && !is_cip_loaded());
+    }
+}
+
+TEST_P(OVSetRunTimePropertiesTestsNPU, SetRunTimePropertiesNoCompilerLoad) {
+    invalidate_umd_caching();
+    // Need to exclude properties that are not registered in plugin properties, e.g. LOADED_FROM_CACHE (compiled_model
+    // prop)
+    auto registered_properties = core->get_property(target_device, ov::intel_npu::registered_properties);
+    if (std::find(registered_properties.begin(), registered_properties.end(), properties.begin()->first) ==
+        registered_properties.end()) {
+        GTEST_SKIP() << properties.begin()->first << " was not found within plugin registered properties!";
+    }
+    core->get_property(target_device, ov::available_devices);
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
     ASSERT_TRUE(!is_cid_loaded() && !is_cip_loaded());
 }
 
 TEST_P(OVCompileTimePropertiesArgumentsTestsNPU, GetCompileTimePropertiesCompilerLoad) {
+    invalidate_umd_caching();
     OV_ASSERT_NO_THROW(core->get_property(target_device, propertyName, properties));
     ASSERT_TRUE(is_cid_loaded() || is_cip_loaded());
 }
 
+TEST_P(OVSetCompileTimePropertiesTestsNPU, SetCompileTimePropertiesCompilerLoad) {
+    invalidate_umd_caching();
+    core->get_property(target_device, ov::available_devices);
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    ASSERT_TRUE(is_cid_loaded() || is_cip_loaded());
+}
+
 TEST_P(OVBothPropertiesArgumentsTestsNPU, GetBothPropertiesCompilerLoad) {
+    invalidate_umd_caching();
+    core->get_property(target_device, ov::available_devices);
     OV_ASSERT_NO_THROW(core->get_property(target_device, propertyName, properties));
+    ASSERT_TRUE(is_cid_loaded() || is_cip_loaded());
+}
+
+TEST_P(OVSetBothPropertiesTestsNPU, SetBothPropertiesCompilerLoad) {
+    invalidate_umd_caching();
+    core->get_property(target_device, ov::available_devices);
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    ASSERT_TRUE(is_cid_loaded() || is_cip_loaded());
+}
+
+TEST_P(OVSetCartesianProductPropertiesTestsNPU, SetCartesianProducthPropertiesCompilerLoad) {
+    invalidate_umd_caching();
+    core->get_property(target_device, ov::available_devices);
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
     ASSERT_TRUE(is_cid_loaded() || is_cip_loaded());
 }
 
@@ -148,7 +185,6 @@ const std::vector<ov::AnyMap> runTimeProperties = {
     {{ov::cache_dir.name(), ""}},
     {{ov::hint::compiled_blob.name(), ov::Tensor()}},
     {{ov::loaded_from_cache.name(), true}},
-    {{ov::internal::caching_properties.name(), ""}},
     {{ov::internal::exclusive_async_requests.name(), true}},
     {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER}},
     {{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}},
@@ -197,7 +233,6 @@ const std::vector<ov::AnyMap> bothProperties = {
     {{ov::log::level.name(), ov::log::Level::INFO}},
     {{ov::intel_npu::platform.name(), ov::intel_npu::Platform::AUTO_DETECT}},
     {{ov::device::id.name(), "NPU.0"}},
-    {{ov::internal::supported_properties.name(), ""}},
     {{ov::intel_npu::turbo.name(), true}},
 };
 
@@ -218,6 +253,7 @@ const std::vector<ov::AnyMap> metrics = {
                           /* .device = */ 0x77665544,
                           /* .function = */ 0x33221100}}},
     {{ov::device::type.name(), ov::device::Type::DISCRETE}},
+    {{ov::internal::supported_properties.name(), ""}},
     {{ov::device::uuid.name(),
       ov::device::UUID{/* .MAX_UUID_SIZE = 16, */ /* .uuid  = */ std::array<uint8_t, /* MAX_UUID_SIZE = */ 16>{0xAB,
                                                                                                                0xCD,
@@ -239,6 +275,7 @@ const std::vector<ov::AnyMap> metrics = {
     {{ov::device::full_name.name(), "Intel(R) AI Boost"}},
     {{ov::intel_npu::backend_name.name(), "LEVEL0"}},
     {{ov::intel_npu::compiler_version.name(), 123456}},
+    {{ov::internal::caching_properties.name(), ""}},
     {{ov::intel_npu::device_alloc_mem_size.name(), 0}},
     {{ov::intel_npu::device_total_mem_size.name(), 16 * 1024 * 1024}},
     {{ov::intel_npu::driver_version.name(), 1688}},
@@ -247,7 +284,8 @@ const std::vector<ov::AnyMap> metrics = {
     {{ov::device::capabilities.name(), std::vector<std::string>{"FP16", "INT8", "EXPORT_IMPORT"}}},
     {{ov::range_for_async_infer_requests.name(), std::tuple<unsigned int, unsigned int, unsigned int>{1, 10, 1}}},
     {{ov::range_for_streams.name(), std::tuple<unsigned int, unsigned int>{1, 4}}},
-    {{ov::supported_properties.name(), ""}}};
+    {{ov::supported_properties.name(), ""}},
+};
 
 const std::vector<ov::AnyMap> allProperties = {
     {{"",
@@ -262,26 +300,39 @@ std::vector<std::string> convertToStringVec(const std::vector<ov::AnyMap>& anyMa
     return retVec;
 }
 
+std::vector<ov::AnyMap> CartesianProductAnyMapVec(const std::vector<ov::AnyMap>& anyMapVec1,
+                                                  const std::vector<ov::AnyMap>& anyMapVec2,
+                                                  const std::vector<ov::AnyMap>& anyMapVec3) {
+    std::vector<ov::AnyMap> retAnyMapVec = {};
+    for (const auto& anyMap1 : anyMapVec1) {
+        for (const auto& anyMap2 : anyMapVec2) {
+            for (const auto& anyMap3 : anyMapVec3) {
+                retAnyMapVec.push_back({*anyMap1.begin(), *anyMap2.begin(), *anyMap3.begin()});
+            }
+        }
+    }
+    return retAnyMapVec;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesTestsMismatchesNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(allProperties)),
                          ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsMismatchesNPU>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVPropertiesTestsNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(runTimeProperties + compileTimeProperties +
-                                                                bothProperties)),
-                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsNPU, true>));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_BehaviorTests,
+    OVRunTimePropertiesArgumentsTestsNPU,
+    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                       ::testing::ValuesIn(convertToStringVec(runTimeProperties) + convertToStringVec(metrics)),
+                       ::testing::ValuesIn(runTimeProperties + compileTimeProperties + bothProperties)),
+    (ov::test::utils::appendPlatformTypeTestName<OVRunTimePropertiesArgumentsTestsNPU, true>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVRunTimePropertiesArgumentsTestsNPU,
+                         OVSetRunTimePropertiesTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(convertToStringVec(runTimeProperties)),
-                                            ::testing::ValuesIn(runTimeProperties + compileTimeProperties +
-                                                                bothProperties)),
-                         (ov::test::utils::appendPlatformTypeTestName<OVRunTimePropertiesArgumentsTestsNPU, true>));
+                                            ::testing::ValuesIn(runTimeProperties)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVSetRunTimePropertiesTestsNPU, true>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompileTimePropertiesArgumentsTestsNPU,
@@ -292,11 +343,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          (ov::test::utils::appendPlatformTypeTestName<OVCompileTimePropertiesArgumentsTestsNPU, true>));
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVSetCompileTimePropertiesTestsNPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(compileTimeProperties)),
+                         ov::test::utils::appendPlatformTypeTestName<OVSetCompileTimePropertiesTestsNPU>);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVBothPropertiesArgumentsTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(convertToStringVec(bothProperties)),
                                             ::testing::ValuesIn(runTimeProperties + compileTimeProperties +
                                                                 bothProperties)),
                          (ov::test::utils::appendPlatformTypeTestName<OVBothPropertiesArgumentsTestsNPU, true>));
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVSetBothPropertiesTestsNPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(bothProperties)),
+                         ov::test::utils::appendPlatformTypeTestName<OVSetBothPropertiesTestsNPU>);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVSetCartesianProductPropertiesTestsNPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(CartesianProductAnyMapVec(runTimeProperties,
+                                                                                          compileTimeProperties,
+                                                                                          bothProperties))),
+                         (ov::test::utils::appendPlatformTypeTestName<OVSetCartesianProductPropertiesTestsNPU, true>));
 
 }  // namespace
