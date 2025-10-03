@@ -110,7 +110,6 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (m_xmlFile && m_binFile) {
         serialize_func(*m_xmlFile, *m_binFile, model, m_version);
     } else {
-        std::cout << "[+]1 create_directory_recursive - dotted path crash" << std::endl;
         ov::util::create_directory_recursive(m_xmlPath.parent_path());
 
         std::ofstream bin_file(m_binPath, std::ios::binary);
