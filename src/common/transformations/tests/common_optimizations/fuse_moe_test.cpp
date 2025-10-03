@@ -46,7 +46,8 @@ std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
     auto topk_TopK = makeOP<opset11::TopK>(
         {softmax_Softmax, topk},
         {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i64"}, {"stable", false}});
-    auto sum_ReduceSum = makeOP<opset1::ReduceSum>({topk_TopK->output(0), {-1}}, {{"keep_dims", true}});
+    auto axis_minus_one = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto sum_ReduceSum = makeOP<opset1::ReduceSum>({topk_TopK->output(0), axis_minus_one}, {{"keep_dims", true}});
     auto div__Divide = makeOP<opset1::Divide>({topk_TopK->output(0), sum_ReduceSum},
                                               {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
     auto one_hot_OneHot = makeOP<opset1::OneHot>({topk_TopK->output(1), expert_num, 1, 0}, {{"axis", 2}});
@@ -57,8 +58,16 @@ std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
     // auto view_Reshape = makeOP(ov::Rank(2));
     auto hidden_states_2d = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 2048});
     auto hidden_states_ = makeOP<opset1::Convert>({hidden_states_2d}, {{"destination_type", "f32"}});
+    auto target_shape = makeOP<opset3::ShapeOf>({hidden_states_}, {{"output_type", "i64"}});
     // param3: hidden_states: f32[1, -1, 2048]
-    auto hidden_states = makeOP<opset1::Unsqueeze>({hidden_states_, 0});
+    auto axis0_scalar = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
+    auto axis0_vector_const = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto axis0_vector = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto axis2_vector = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
+    auto reduce_axis1 = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+    auto transpose_axes = makeConst(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0});
+
+    auto hidden_states = makeOP<opset1::Unsqueeze>({hidden_states_, axis0_scalar});
 
     auto unsqueeze_Unsqueeze_1 = makeOP<opset1::Unsqueeze>({div__Divide, 2});
     auto index_ShapeOf_1 = makeOP<opset3::ShapeOf>({unsqueeze_Unsqueeze_1}, {{"output_type", "i32"}});
@@ -183,16 +192,20 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto residual_input = makeOP<opset1::Convert>({final_hidden_states_}, {{"destination_type", "f32"}});
     auto hidden_states_ = makeOP<opset1::Convert>({hidden_states_2d}, {{"destination_type", "f32"}});
 
+    auto single_gate_weight_f16 = makeConst(ov::element::f16, ov::Shape{static_cast<size_t>(intermediate_size), static_cast<size_t>(hidden_size)}, {0});
+    auto single_gate_weight_convert = makeOP<opset1::Convert>({single_gate_weight_f16}, {{"destination_type", "f32"}});
+    ov::mark_as_decompression(single_gate_weight_convert);
+
     auto softmax_Softmax = makeOP<opset8::Softmax>({router_logits}, {{"axis", 1}});
     auto topk_TopK = makeOP<opset11::TopK>(
         {softmax_Softmax, topk},
         {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i64"}, {"stable", false}});
-    auto sum_ReduceSum = makeOP<opset1::ReduceSum>({topk_TopK->output(0), {-1}}, {{"keep_dims", true}});
+    auto axis_minus_one = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+    auto sum_ReduceSum = makeOP<opset1::ReduceSum>({topk_TopK->output(0), axis_minus_one}, {{"keep_dims", true}});
     auto div__Divide = makeOP<opset1::Divide>({topk_TopK->output(0), sum_ReduceSum},
                                               {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
 
-    auto slice_for_shape = makeOP<opset8::Slice>({residual_input, {0, 0}, {1, INT_MAX}, {1, 1}, {0, 1}});
-    auto original_shape = makeOP<opset3::ShapeOf>({slice_for_shape}, {{"output_type", "i32"}});
+    auto target_shape = makeOP<opset3::ShapeOf>({hidden_states_}, {{"output_type", "i64"}});
 
     // Create fused weights with f16 constants and decompression Converts to match transformation output
     auto fused_gate_weights_f16 = makeConst(ov::element::f16, ov::Shape{static_cast<size_t>(expert_num), static_cast<size_t>(hidden_size), static_cast<size_t>(intermediate_size)}, {0});
@@ -217,10 +230,18 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto repeated_input = makeOP<opset6::Tile>({hidden_states_, tile_shape});
 
     // Reshape for batched computation
+    auto axis0_scalar = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
+    auto axis0_vector_const = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+    auto axis2_vector = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
+    auto reduce_axis1 = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+    auto transpose_axes = makeConst(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0});
     auto minus_one = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
-    auto hidden_dim_const = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{hidden_size});
     auto axes0_i64 = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
-    auto batched_shape = makeOP<opset1::Concat>({makeOP<opset1::Unsqueeze>({num_experts_const, axes0_i64}), minus_one, hidden_dim_const}, {{"axis", 0}});
+    auto gate_weight_shape = makeOP<opset3::ShapeOf>({single_gate_weight_convert}, {{"output_type", "i64"}});
+    auto gather_index_one = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
+    auto hidden_dim_scalar = makeOP<opset8::Gather>({gate_weight_shape, gather_index_one, axes0_i64}, {{"batch_dims", 0}});
+    auto hidden_dim_unsqueeze = makeOP<opset1::Unsqueeze>({hidden_dim_scalar, axis0_scalar});
+    auto batched_shape = makeOP<opset1::Concat>({makeOP<opset1::Unsqueeze>({num_experts_const, axis0_scalar}), minus_one, hidden_dim_unsqueeze}, {{"axis", 0}});
     auto batched_input = makeOP<opset1::Reshape>({repeated_input, batched_shape}, {{"special_zero", true}});
 
     // Apply fused expert computation
@@ -230,16 +251,25 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto swiglu_mul = makeOP<opset1::Multiply>({gate_swish, up_bmm}, {{"auto_broadcast", "numpy"}});
     auto down_bmm = makeOP<opset1::MatMul>({swiglu_mul, fused_down_weights->output(0)}, {{"transpose_a", false}, {"transpose_b", false}});
 
+    auto expert_output_shape = makeOP<opset1::Concat>({makeOP<opset1::Unsqueeze>({num_experts_const, axis0_vector_const}), minus_one, hidden_dim_unsqueeze}, {{"axis", 0}});
+    auto expert_outputs = makeOP<opset1::Reshape>({down_bmm, expert_output_shape}, {{"special_zero", false}});
+
     // Create routing weights
+    auto topk_indices_i64 = makeOP<opset1::Convert>({topk_TopK->output(1)}, {{"destination_type", "i64"}});
+    auto routing_one_hot = makeOP<opset1::OneHot>({topk_indices_i64, num_experts_const, 1.0f, 0.0f}, {{"axis", 2}});
     auto routing_weights = div__Divide;
-    auto routing_unsqueeze = makeOP<opset1::Unsqueeze>({routing_weights, 2});
+    auto routing_unsqueeze_topk = makeOP<opset1::Unsqueeze>({routing_weights, axis2_vector});
+    auto weighted_one_hot = makeOP<opset1::Multiply>({routing_unsqueeze_topk, routing_one_hot}, {{"auto_broadcast", "numpy"}});
+    auto routing_reduce = makeOP<opset1::ReduceSum>({weighted_one_hot, reduce_axis1}, {{"keep_dims", false}});
+    auto routing_transpose = makeOP<opset1::Transpose>({routing_reduce, transpose_axes});
+    auto routing_unsqueeze = makeOP<opset1::Unsqueeze>({routing_transpose, axis2_vector});
 
     // Apply routing and sum
-    auto weighted_outputs = makeOP<opset1::Multiply>({down_bmm, routing_unsqueeze}, {{"auto_broadcast", "numpy"}});
+    auto weighted_outputs = makeOP<opset1::Multiply>({expert_outputs, routing_unsqueeze}, {{"auto_broadcast", "numpy"}});
     auto final_sum_axis = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
     auto final_output = makeOP<opset1::ReduceSum>({weighted_outputs, final_sum_axis}, {{"keep_dims", false}});
 
-    auto final_reshape = makeOP<opset1::Reshape>({final_output, original_shape}, {{"special_zero", false}});
+    auto final_reshape = makeOP<opset1::Reshape>({final_output, target_shape}, {{"special_zero", false}});
     auto final_add = makeOP<opset1::Add>({residual_input, final_reshape}, {{"auto_broadcast", "numpy"}});
     final_add->set_friendly_name("moe_decomposed");
 
