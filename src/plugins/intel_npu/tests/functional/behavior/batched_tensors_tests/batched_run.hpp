@@ -66,9 +66,9 @@ public:
     }
 
     void SetUp() override {
-        std::tie(target_device, configuration) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        std::tie(target_device, configuration) = this->GetParam();
         OVPluginTestBase::SetUp();
         ov_model = getDefaultNGraphFunctionForTheDeviceNPU();  // FIXME: E#80555
     }
@@ -139,8 +139,7 @@ void executeContiguousTensorBatchInfer(ov::InferRequest req,
                                        ov::RemoteContext& context);
 
 TEST_P(BatchedTensorsRunTests, SetInputRemoteTensorsMultipleInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};
@@ -179,8 +178,7 @@ TEST_P(BatchedTensorsRunTests, SetInputRemoteTensorsMultipleInfer) {
 }
 
 TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};
@@ -226,8 +224,7 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInfer) {
 }
 
 TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     auto one_shape = Shape{1, 16, 16, 16};
@@ -310,8 +307,7 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
 }
 
 TEST_P(BatchedTensorsRunTests, SetInputDifferentRemoteTensorsMultipleInferMCL) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};
@@ -436,8 +432,7 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentRemoteTensorsMultipleInferMCL) {
 using DynamicBatchedTensorsRunTests = BatchedTensorsRunTests;
 
 TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsMultipleInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};
@@ -530,8 +525,7 @@ void executeMutlipleTensorsBatchInfer(ov::InferRequest req,
 }
 
 TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsDynamicBatchInflation) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};
@@ -559,8 +553,7 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsDynamicBatchIn
 }
 
 TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsDynamicBatchDeflation) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};
@@ -588,8 +581,7 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsDynamicBatchDe
 }
 
 TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorSingleInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     size_t tensor_batch = 3;
@@ -674,8 +666,7 @@ void executeContiguousTensorBatchInfer(ov::InferRequest req,
 }
 
 TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBatchInflation) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};
@@ -705,8 +696,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBa
 }
 
 TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBatchDeflation) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};
@@ -736,8 +726,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBa
 }
 
 TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputDifferentTensorsMultipleInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     size_t batch = 4;
     auto one_shape = Shape{1, 2, 2, 2};

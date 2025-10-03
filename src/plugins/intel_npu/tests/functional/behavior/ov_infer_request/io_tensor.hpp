@@ -16,11 +16,9 @@ namespace behavior {
 
 struct OVInferRequestIOTensorTestNPU : public OVInferRequestIOTensorTest {
     void SetUp() override {
-        // Skip test according to plugin specific disabledTestPatterns() (if any)
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
         std::tie(target_device, configuration) = this->GetParam();
-        // Skip test according to plugin specific disabledTestPatterns() (if any)
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
         function = ov::test::behavior::getDefaultNGraphFunctionForTheDeviceNPU();
         ov::AnyMap params;
@@ -31,7 +29,7 @@ struct OVInferRequestIOTensorTestNPU : public OVInferRequestIOTensorTest {
         try {
             req = execNet.create_infer_request();
         } catch (const std::exception& ex) {
-            FAIL() << "Can't Create Infer Requiest in SetUp \nException [" << ex.what() << "]" << std::endl;
+            FAIL() << "Can't create infer request\n" << ex.what() << "\n";
         }
         input = execNet.input();
         output = execNet.output();
@@ -226,9 +224,10 @@ TEST_P(OVInferRequestIOTensorTestNPU, InferStaticNetworkSetChangedOutputTensorTh
 
 struct OVInferRequestIOTensorSetPrecisionTestNPU : OVInferRequestIOTensorSetPrecisionTest {
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
         const ov::Shape shape = {1, 2, 32, 32};
         std::tie(element_type, target_device, config) = this->GetParam();
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
         function = ov::test::utils::make_split_concat(shape, element_type);
         execNet = core->compile_model(function, target_device, config);
