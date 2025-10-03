@@ -13,7 +13,7 @@ namespace ze {
 // Interface for creating and destroying l0 events using event pools
 struct ze_event_pool_manager : public ze_event_manager {
 public:
-    ze_event_pool_manager(const ze_engine &engine, bool enable_profiling, uint32_t capacity = 255);
+    ze_event_pool_manager(const ze_engine &engine, ze_command_list_handle_t cmd_list, bool enable_profiling, uint32_t capacity = 255);
     ~ze_event_pool_manager();
     std::shared_ptr<ze_event> create_event(uint64_t queue_stamp) override;
     void destroy_event(ze_event *event) override;

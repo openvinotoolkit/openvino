@@ -11,8 +11,8 @@
 using namespace cldnn;
 using namespace ze;
 
-ze_event_pool_manager::ze_event_pool_manager(const ze_engine &engine, bool enable_profiling, uint32_t capacity)
-: ze_event_manager(engine, enable_profiling)
+ze_event_pool_manager::ze_event_pool_manager(const ze_engine &engine, ze_command_list_handle_t cmd_list, bool enable_profiling, uint32_t capacity)
+: ze_event_manager(engine, cmd_list, enable_profiling)
 , m_current_pool(nullptr)
 , m_capacity(capacity)
 , m_num_used(0) {}

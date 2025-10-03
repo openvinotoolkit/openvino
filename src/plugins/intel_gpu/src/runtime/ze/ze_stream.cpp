@@ -205,9 +205,9 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     command_queue_desc.ordinal = info.copy_queue_group_ordinal;
     ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_copy_command_list));
     if (m_queue_type == QueueTypes::in_order) {
-        m_ev_manager = std::make_unique<ze_cb_event_manager>(engine, config.get_enable_profiling());
+        m_ev_manager = std::make_unique<ze_cb_event_manager>(engine, m_command_list, config.get_enable_profiling());
     } else {
-        m_ev_manager = std::make_unique<ze_event_pool_manager>(engine, config.get_enable_profiling());
+        m_ev_manager = std::make_unique<ze_event_pool_manager>(engine, m_command_list, config.get_enable_profiling());
     }
 }
 

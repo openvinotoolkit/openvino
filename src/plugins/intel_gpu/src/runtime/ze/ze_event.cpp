@@ -35,7 +35,11 @@ void ze_event::wait_impl() {
 
 void ze_event::set_impl() {
     if (m_event != nullptr) {
-        ZE_CHECK(zeEventHostSignal(m_event));
+        if (m_event_manager != nullptr) {
+            zeCommandListAppendSignalEvent(m_event_manager->get_cmd_list(), m_event);
+        } else {
+            ZE_CHECK(zeEventHostSignal(m_event));// Does not work with cb events
+        }
     }
 }
 

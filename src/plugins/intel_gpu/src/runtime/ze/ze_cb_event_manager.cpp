@@ -19,8 +19,8 @@ namespace {
     }
 }
 
-ze_cb_event_manager::ze_cb_event_manager(const ze_engine &engine, bool enable_profiling)
-    : ze_event_manager(engine, enable_profiling) {
+ze_cb_event_manager::ze_cb_event_manager(const ze_engine &engine, ze_command_list_handle_t cmd_list, bool enable_profiling)
+    : ze_event_manager(engine, cmd_list, enable_profiling) {
     if (func_zexCounterBasedEventCreate2 == nullptr) {
         find_function_address(engine.get_driver());
     }

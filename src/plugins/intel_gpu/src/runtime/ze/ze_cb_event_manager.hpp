@@ -13,7 +13,7 @@ namespace ze {
 // Should only be used with in-order queue
 struct ze_cb_event_manager : public ze_event_manager {
 public:
-    ze_cb_event_manager(const ze_engine &engine, bool enable_profiling);
+    ze_cb_event_manager(const ze_engine &engine, ze_command_list_handle_t cmd_list, bool enable_profiling);
     ~ze_cb_event_manager();
     std::shared_ptr<ze_event> create_event(uint64_t queue_stamp) override;
     void destroy_event(ze_event *event) override;
