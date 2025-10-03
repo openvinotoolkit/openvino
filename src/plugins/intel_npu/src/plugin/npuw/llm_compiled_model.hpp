@@ -79,6 +79,9 @@ private:
     // Support LoRA
     void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     uint32_t m_max_lora_rank = 32;
+
+    void gemma_transformations(const std::shared_ptr<ov::Model>& model);
+    int32_t m_gemma_sliding_window_size = 0;
 };
 
 }  // namespace npuw
