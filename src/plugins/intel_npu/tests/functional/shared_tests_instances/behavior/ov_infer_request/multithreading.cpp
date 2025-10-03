@@ -3,7 +3,6 @@
 //
 
 #include <behavior/ov_infer_request/multithreading.hpp>
-#include "behavior/ov_infer_request/multithreading.hpp"
 
 #include <vector>
 
