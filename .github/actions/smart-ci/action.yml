@@ -67,6 +67,7 @@ runs:
     - name: checkout wait-for-check action
       uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
       with:
+        repository: openvinotoolkit/openvino
         sparse-checkout: .github/actions/wait-for-check-completion
         sparse-checkout-cone-mode: false
 
