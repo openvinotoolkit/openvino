@@ -26,6 +26,8 @@ permissions: read-all
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
+  HF_HUB_CACHE_LIN: /mount/caches/huggingface
+  HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
 
 jobs:
   PyTorch_Layer_Tests:
@@ -56,13 +58,13 @@ jobs:
             .github/actions
           sparse-checkout-cone-mode: false
           submodules: 'false'
-      
+
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
@@ -72,6 +74,7 @@ jobs:
       - name: Setup Variables
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "HUGGINGFACE_HUB_CACHE=$HF_HUB_CACHE" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'

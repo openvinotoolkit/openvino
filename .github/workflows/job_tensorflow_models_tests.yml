@@ -52,13 +52,13 @@ jobs:
             .github/actions
           sparse-checkout-cone-mode: false
           submodules: 'false'
-          
+
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
@@ -70,16 +70,17 @@ jobs:
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Setup Variables
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "HUGGINGFACE_HUB_CACHE=$HF_HUB_CACHE" >> "$GITHUB_ENV"
           echo "TFHUB_CACHE_DIR=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))/tfhub_models" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO artifacts (Linux and macOS)
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
         working-directory: ${{ env.INSTALL_DIR }}
-        
+
       - name: Extract OpenVINO artifacts (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
