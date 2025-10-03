@@ -58,13 +58,7 @@ void FilteredConfig::enable(std::string key, bool enabled) {
     _enabled[key] = enabled;
 }
 
-void FilteredConfig::enableAll() {
-    _desc->walk([&](const details::OptionConcept& opt) {
-        enable(opt.key().data(), true);
-    });
-}
-
-void FilteredConfig::enableRuntimes() {
+void FilteredConfig::enableRuntimeOptions() {
     _desc->walk([&](const details::OptionConcept& opt) {
         if (opt.mode() == OptionMode::RunTime) {
             enable(opt.key().data(), true);

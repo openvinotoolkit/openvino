@@ -361,7 +361,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
 
-    _globalConfig.enableRuntimes();
+    _globalConfig.enableRuntimeOptions();
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -516,10 +516,15 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 
     // 1. Check if configs have been filtered
     if (!_globalConfig.wasFiltered()) {
-        // filter out unsupported options
-        filter_config_by_compiler_support(_globalConfig);
-        // 2. Reset properties for the new options
-        _properties->registerProperties();
+        for (const auto& prop : properties) {
+            if (!_globalConfig.isAvailable(prop.first)) {
+                // filter out unsupported options
+                filter_config_by_compiler_support(_globalConfig);
+                // 2. Reset properties for the new options
+                _properties->registerProperties();
+                break;
+            }
+        }
     }
 
     // 2. Check for compiler change
@@ -561,50 +566,11 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     // 3.3 Regular metric
     // 3.4 SUPPORTED_PROPERTY - need to check for compiler load
 
-    bool shouldFilterConfigsAndRegister = false;
-    bool isPropertyRegistered = _properties->isPropertyRegistered(name);
-    if (!_globalConfig.wasFiltered()) {
-        if (_globalConfig.hasOpt(name)) {  // 3.2
-            if (_globalConfig.getOpt(name).mode() != OptionMode::RunTime) {
-                shouldFilterConfigsAndRegister = true;
-            }
-        } else if (name == ov::supported_properties.name() || !isPropertyRegistered) {  // 3.4 + 1 + 2
-            shouldFilterConfigsAndRegister = true;
-        }
-    }
-
-    FilteredConfig localConfig = _globalConfig;  // potential localConfig for RunTime properties
-    bool compileTimeOptionPresent = false;
-    std::map<std::string, std::string> amends;
-    for (auto&& value : npu_plugin_properties) {
-        if (_globalConfig.hasOpt(value.first)) {
-            compileTimeOptionPresent = true;
-            if (_globalConfig.getOpt(value.first).mode() == OptionMode::Both) {
-                localConfig.enable(value.first, true);
-                localConfig.update({{value.first, value.second.as<std::string>()}});
-            }
-        }
-        amends.emplace(value.first, value.second.as<std::string>());
-    }
-    if (compileTimeOptionPresent && shouldFilterConfigsAndRegister) {
-        // create compiler
-        CompilerAdapterFactory compilerAdapterFactory;
-        auto compiler =
-            compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
-
-        localConfig = fork_local_config(amends, compiler);
-        Properties localProperties(PropertiesType::PLUGIN, localConfig, _metrics, _backend);
-        localProperties.registerProperties();
-        return localProperties.get_property(name);
-    } else if (shouldFilterConfigsAndRegister) {
+    if (!_globalConfig.wasFiltered() && !_globalConfig.isAvailable(name)) {
         // filter out unsupported options
         filter_config_by_compiler_support(_globalConfig);
         // 2. Reset properties for the new options
         _properties->registerProperties();
-    } else if (isPropertyRegistered) {  // RunTime props
-        Properties localProperties(PropertiesType::PLUGIN, localConfig, _metrics, _backend);
-        localProperties.registerProperties();
-        return localProperties.get_property(name);
     }
     return _properties->get_property(name, npu_plugin_properties);
 }

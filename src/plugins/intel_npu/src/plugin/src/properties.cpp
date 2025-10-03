@@ -682,22 +682,23 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
 void Properties::set_property(const ov::AnyMap& properties) {
     std::map<std::string, std::string> cfgs_to_set;
 
-    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    if (_pType == PropertiesType::PLUGIN) {
-        try {
-            // Only accepting unknown config keys in plugin
-            CompilerAdapterFactory compilerAdapterFactory;
-            compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
-        } catch (...) {
-            // nothing to do here. we will just throw exception bellow in case unknown property check is called
-            // if its not called, nothing to do
-        }
-    }
-
     for (auto&& value : properties) {
-        if (_properties.find(value.first) == _properties.end()) {
+        if (properties.find(value.first) == properties.end()) {
             // property doesn't exist
             // checking as internal now
+
+            std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+            if (_pType == PropertiesType::PLUGIN) {
+                try {
+                    // Only accepting unknown config keys in plugin
+                    CompilerAdapterFactory compilerAdapterFactory;
+                    compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
+                } catch (...) {
+                    // nothing to do here. we will just throw exception bellow in case unknown property check is called
+                    // if its not called, nothing to do
+                }
+            }
+
             if (compiler != nullptr) {
                 if (compiler->is_option_supported(value.first)) {
                     // if compiler reports it supported > registering as internal
@@ -720,10 +721,6 @@ void Properties::set_property(const ov::AnyMap& properties) {
     if (!cfgs_to_set.empty()) {
         _config.update(cfgs_to_set);
     }
-}
-
-bool Properties::isPropertyRegistered(const std::string& propertyName) {
-    return _properties.find(propertyName) != _properties.end();
 }
 
 }  // namespace intel_npu
