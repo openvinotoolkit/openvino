@@ -580,7 +580,7 @@ typedef void* cl_mutable_command_khr;
 //inline cl_int clGetDeviceIDs(cl_platform_id, cl_device_type, cl_uint, cl_device_id*, cl_uint*) { return CL_SUCCESS; }
 inline cl_context clCreateContext(const cl_context_properties*, cl_uint, const cl_device_id*, void(*)(const char*, const void*, size_t, void*), void*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
 inline cl_command_queue clCreateCommandQueue(cl_context a, cl_device_id b, cl_command_queue_properties c, cl_int* d) { return call_clCreateCommandQueue(a, b, c, d); }
-inline cl_program clCreateProgramWithSource(cl_context a, cl_uint b, const char** c, const size_t* d, cl_int* e) { return clCreateProgramWithSource(a, b, c, d, e); }
+inline cl_program clCreateProgramWithSource(cl_context a, cl_uint b, const char** c, const size_t* d, cl_int* e) { return call_clCreateProgramWithSource(a, b, c, d, e); }
 inline cl_int clBuildProgram(cl_program, cl_uint, const cl_device_id*, const char*, void(*)(cl_program, void*), void*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_kernel clCreateKernel(cl_program, const char*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
 inline cl_mem clCreateBuffer(cl_context, cl_mem_flags, size_t, void*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
