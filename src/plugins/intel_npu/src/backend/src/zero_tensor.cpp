@@ -81,16 +81,12 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     }
 
     // Check if [data, data + size] was previously imported or allocated in the current level zero context. In such case
-    // _mem_ref will keep a reference to that allocation. Otherwise the function returns nullptr.
-    _logger.debug("ZeroTensor::ZeroTensor - try to get tensor from pool");
-    _mem_ref = ZeroMemPool::get_instance().get_zero_memory(_init_structs, _ptr, _user_tensor->get_byte_size());
-
-    if (_mem_ref == nullptr) {
-        _logger.debug("ZeroTensor::ZeroTensor - try to import memory from a system memory pointer");
-        _mem_ref = ZeroMemPool::get_instance().import_standard_allocation_memory(_init_structs,
-                                                                                 _ptr,
-                                                                                 _user_tensor->get_byte_size());
-    }
+    // _mem_ref will keep a reference to that allocation. Otherwise the function will try to import it into the level
+    // zero context.
+    _logger.debug("ZeroTensor::ZeroTensor - get tensor from pool or import it");
+    _mem_ref = ZeroMemPool::get_instance().import_standard_allocation_memory(_init_structs,
+                                                                             _ptr,
+                                                                             _user_tensor->get_byte_size());
 }
 
 // Note: Override data() members to not used OpenVINO library code to improve performance

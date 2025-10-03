@@ -55,10 +55,12 @@ public:
                                                   const size_t bytes);
 
     /**
-     * @brief Returns an imported standard allocation memory in the level zero and adds it to the pool.
+     * @brief Performs a look-up in the pool to check if the entire range given by [data, data + bytes] was previously
+     * allocated or imported. Returns a reference to the ZeroMem object stored in the pool in case the check is
+     * successful, or tries to import memory in the level zero context, adds it to the pool, and returns it.
      * @param init_structs  Holder for the level zero structures.
-     * @param data Memory to be imported.
-     * @param bytes Size in bytes of the memory that must be allocated.
+     * @param data User memory to be checked.
+     * @param bytes Size in bytes of the memory.
      * @param is_input Memory is used only as input or not.
      */
     std::shared_ptr<ZeroMem> import_standard_allocation_memory(
@@ -66,18 +68,6 @@ public:
         const void* data,
         const size_t bytes,
         const bool is_input = false);
-
-    /**
-     * @brief Performs a look-up in the pool to check if the entire range given by [data, data + bytes] was previously
-     * allocated or imported. Returns a reference to the ZeroMem object stored in the pool in case the check is
-     * successful or nullptr otherwise.
-     * @param init_structs  Holder for the level zero structures.
-     * @param data User memory to be checked.
-     * @param bytes Size in bytes of the memory.
-     */
-    std::shared_ptr<ZeroMem> get_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                                             const void* data,
-                                             const size_t bytes);
 
 private:
     void update_pool(const std::shared_ptr<intel_npu::ZeroMem>& zero_memory);

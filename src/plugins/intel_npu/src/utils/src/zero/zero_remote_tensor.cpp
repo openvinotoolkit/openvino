@@ -177,10 +177,8 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         }
 
         if (_tensor_type == TensorType::OUTPUT) {
-            _logger.info("Importing mmaped memory isn't supported for output tensors. File data will be copied to the "
-                         "level zero memory");
-            copy_file_data_to_level_zero_memory(bytes);
-            break;
+            // It is impossible to work on output today since ov::read_tensor_data opens the file in read-only mode.
+            OPENVINO_THROW("Importing memory from a memory-mapped file is supported only for input tensors");
         } else if (_tensor_type == TensorType::BINDED) {
             _logger.warning("Importing memory from a memory-mapped file is supported only for input tensors");
             _tensor_type = TensorType::INPUT;

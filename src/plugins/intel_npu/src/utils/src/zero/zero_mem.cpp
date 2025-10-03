@@ -40,46 +40,42 @@ ZeroMem::ZeroMem(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _logger("ZeHostMem", Logger::global().level()),
       _size(bytes) {
     if (standard_allocation) {
+        if (!_init_structs->isExternalMemoryStandardAllocationSupported()) {
+            throw ZeroMemException("Importing standard allocation is not supported with this driver version");
+        }
+
+        if (!utils::memory_and_size_aligned_to_standard_page_size(data, _size)) {
+            throw ZeroMemException(
+                "Importing standard allocation is not supported if memory is not aligned to standard page size");
+        }
+
+        // We need to check if the end of the current region is part of a previous imported region
+        // The other cases are handled by the driver
+        if (zeroUtils::get_l0_context_memory_allocation_id(
+                _init_structs->getContext(),
+                static_cast<void*>(static_cast<uint8_t*>(const_cast<void*>(data)) + _size)) > 0) {
+            throw ZeroMemException("Can not import a memory which is part of an existing allocation");
+        }
+
         uint32_t zero_memory_flag = 0;
         if (is_input) {
             zero_memory_flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
         }
+        _ze_external_memory_import_system_memory_t memory_import = {
+            ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
+            nullptr,
+            const_cast<void*>(data),
+            _size};
+        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, zero_memory_flag};
+        auto result = zeMemAllocHost(_init_structs->getContext(), &desc, _size, utils::STANDARD_PAGE_SIZE, &_ptr);
 
-        if (_init_structs->isExternalMemoryStandardAllocationSupported()) {
-            // We need to check if the end of the current region is part of a previous imported region
-            // The other cases are handled by the driver
-            if (utils::memory_and_size_aligned_to_standard_page_size(data, _size)) {
-                if (zeroUtils::get_l0_context_memory_allocation_id(
-                        _init_structs->getContext(),
-                        static_cast<void*>(static_cast<uint8_t*>(const_cast<void*>(data)) + _size)) > 0) {
-                    throw ZeroMemException("Can not import a memory which is part of an existing allocation");
-                }
+        if (result != ZE_RESULT_SUCCESS) {
+            _logger.info("Importing memory through zeMemAllocHost failed, result: %s, code %#X - %s",
+                         ze_result_to_string(result).c_str(),
+                         uint64_t(result),
+                         ze_result_to_description(result).c_str());
 
-                _ze_external_memory_import_system_memory_t memory_import = {
-                    ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
-                    nullptr,
-                    const_cast<void*>(data),
-                    _size};
-                ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC,
-                                                 &memory_import,
-                                                 zero_memory_flag};
-                auto result =
-                    zeMemAllocHost(_init_structs->getContext(), &desc, _size, utils::STANDARD_PAGE_SIZE, &_ptr);
-
-                if (result != ZE_RESULT_SUCCESS) {
-                    _logger.info("Importing memory through zeMemAllocHost failed, result: %s, code %#X - %s",
-                                 ze_result_to_string(result).c_str(),
-                                 uint64_t(result),
-                                 ze_result_to_description(result).c_str());
-
-                    throw ZeroMemException("Importing memory failed");
-                }
-            } else {
-                throw ZeroMemException(
-                    "Importing standard allocation is not if memory is not aligned to standard page size");
-            }
-        } else {
-            throw ZeroMemException("Importing standard allocation is not supported with this driver version");
+            throw ZeroMemException("Importing memory failed");
         }
     } else {
         OPENVINO_ASSERT(_init_structs->isExternalMemoryFdWin32Supported(),
