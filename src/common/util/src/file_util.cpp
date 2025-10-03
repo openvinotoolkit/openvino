@@ -296,6 +296,14 @@ void ov::util::create_directory_recursive(const std::filesystem::path& path) {
     auto dir_path = fs::weakly_canonical(path);
 
     if (!dir_path.empty() && !directory_exists(dir_path)) {
+        // NOTE: Some standard library implementations (MSVC STL, libc++) may return `false`
+        // from create_directories(path, ec) (with ec == 0) when the path ends with a
+        // trailing separator (e.g. "a/b/c/"). Internally they create "a", "a/b", "a/b/c"
+        // and then the extra mkdir on "a/b/c/" yields an "already exists" condition,
+        // leading to a final `false` even though the directory tree was actually created.
+        // libstdc++ (GCC) returns `true` in that situation. The extra exists() check
+        // lets us treat "false + exists()" as success while still detecting a real failure
+        // ("false + !exists()"), keeping behavior consistent across platforms.
         if (std::error_code ec; !fs::create_directories(dir_path, ec) && !std::filesystem::exists(dir_path)) {
             std::stringstream ss;
             ss << "Couldn't create directory [" << dir_path << "], err=" << ec.message() << ")";
