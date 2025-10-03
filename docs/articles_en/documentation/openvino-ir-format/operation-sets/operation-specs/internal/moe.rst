@@ -1,4 +1,3 @@
-.. {#openvino_docs_ops_internal_MOE}
 
 MOE
 ===
@@ -14,9 +13,10 @@ MOE
 The *MOE* (Mixture of Experts) operation fuses the computation of multiple experts, using routing weights and indices to select and combine expert outputs.
 
 **Detailed description**:  
-The MOE op receives hidden states, routing weights, and indices of selected experts, along with expert weights and (optionally) biases. It performs the expert computation as specified by the ``expert_type`` attribute, applying the routing_weights and combining the results. This enables efficient, fused computation of Mixture of Experts architectures excluding the router part (computation of routing weights).
+The MOE operation receives hidden states, routing weights, and indices of selected experts, along with expert weights and (optionally) biases. It performs the expert computation as specified by the ``expert_type`` attribute, applying the routing_weights and combining the results. This enables efficient, fused computation of Mixture of Experts architectures excluding the router part (computation of routing weights).
 
 **Pseudocode for expert_type**
+
 The ``router_topk_output_indices`` are used to select the top-k experts for optimized computation, not included in the pseudocode below.
 
 * ``GEMM2_BIAS_SWIGLU_CLAMP``:
@@ -80,12 +80,13 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
   * **Type**: ``enum`` (see below)
   * **Required**: *yes*
   * **Supported values**:
-    * ``GEMM2_BIAS_SWIGLU_CLAMP``: Two GEMMs with bias, SwiGLU activation, and clamp.
+   
+     * ``GEMM2_BIAS_SWIGLU_CLAMP``: Two GEMMs with bias, SwiGLU activation, and clamp.
     * ``GEMM3_SWIGLU``: Three GEMMs with SwiGLU activation.
 
 * *expert_alpha*
 
-  * **Description**: Alpha attribute - used as value for clamp min/max bounds (used with GEMM2_BIAS_SWIGLU_CLAMP).
+  * **Description**: Alpha attribute - used as the value for clamp min/max bounds (used with GEMM2_BIAS_SWIGLU_CLAMP).
   * **Type**: ``float``
   * **Default value**: ``0.0``
   * **Required**: *no*
