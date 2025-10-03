@@ -76,6 +76,8 @@ ov::Tensor transpose(const ov::Tensor& t);
 ov::Tensor permute(const ov::Tensor& t, const std::vector<std::size_t>& axes);
 ov::Tensor concat(const std::vector<ov::Tensor>& tt, std::size_t axis);
 
+void permute_i4d(const ov::SoPtr<ov::ITensor>& src, ov::SoPtr<ov::ITensor>& dst, const std::array<int, 4> order);
+
 // Start is inclusive, end is exclusive
 using range_1d = std::pair<std::size_t, std::size_t>;
 range_1d validMaskRange(const ov::SoPtr<ov::ITensor>& t);
