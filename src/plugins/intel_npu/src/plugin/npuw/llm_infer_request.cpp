@@ -800,8 +800,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
         OPENVINO_ASSERT(m_gemma_sliding_window_size == 0,
-            "Chunking is not implemented for Gemma model family yet. "
-            "Please use set NPUW_LLM_PREFILL_HINT to 'STATIC'");
+                        "Chunking is not implemented for Gemma model family yet. "
+                        "Please use set NPUW_LLM_PREFILL_HINT to 'STATIC'");
         infer_chunked_prefill(input_ids, attention_mask, position_ids);
     } else {
         infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids);
