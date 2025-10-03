@@ -294,12 +294,9 @@ void ov::util::create_directory_recursive(const std::wstring& path) {
 void ov::util::create_directory_recursive(const std::filesystem::path& path) {
     namespace fs = std::filesystem;
     auto dir_path = fs::weakly_canonical(path);
-    if (!dir_path.has_filename() || dir_path.has_extension()) {
-        dir_path = get_directory(dir_path);
-    }
 
     if (!dir_path.empty() && !directory_exists(dir_path)) {
-        if (std::error_code ec; !fs::create_directories(dir_path, ec)) {
+        if (std::error_code ec; !fs::create_directories(dir_path, ec) && !std::filesystem::exists(dir_path)) {
             std::stringstream ss;
             ss << "Couldn't create directory [" << dir_path << "], err=" << ec.message() << ")";
             throw std::runtime_error(ss.str());
