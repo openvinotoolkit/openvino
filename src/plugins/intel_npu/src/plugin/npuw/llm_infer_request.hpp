@@ -14,7 +14,7 @@
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest final : public ov::ISyncInferRequest {
+class LLMInferRequest : public ov::ISyncInferRequest {
 public:
     struct layer_names {
         static constexpr const char* input_ids = "input_ids";
@@ -39,8 +39,8 @@ public:
     }
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
-private:
-    void prepare_for_new_conversation();
+protected:
+    virtual void prepare_for_new_conversation();
 
     void apply_lora();
 
