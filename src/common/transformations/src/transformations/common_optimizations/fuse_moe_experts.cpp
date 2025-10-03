@@ -9,6 +9,7 @@
 #include <iostream>
 #include <limits>
 #include <tuple>
+#include <unordered_map>
 
 #include "itt.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -72,6 +73,7 @@ struct expert_data {
     std::shared_ptr<Node> up_proj_weight;
     std::shared_ptr<Node> down_proj_weight;
     size_t expert_id;
+    std::shared_ptr<Node> permute_node;
 };
 
 std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(const Output<Node>& permute_Transpose, // Transpose -> OneHot -> TopK -> Softmax -> MatMul -> Hidden States
@@ -130,7 +132,7 @@ std::shared_ptr<pattern::op::Block> mlp3_no_bias_swiglu_block(const Output<Node>
         {index_add__ScatterElementsUpdate_2, index_add__Broadcast_16, index_add__Broadcast_17, 0},
         {{"reduction", "sum"}, {"use_init_val", true}});
     auto block = std::make_shared<pattern::op::Block>(OutputVector{permute_Transpose, unsqueeze_Unsqueeze, index_Split_out_1, index_Reshape}, OutputVector{index_add__ScatterElementsUpdate_5}, "expert_block");
-    REGISTER_ANCHORS(block, expert_id, gate_proj_weight, up_proj_weight, down_proj_weight);
+    REGISTER_ANCHORS(block, expert_id, gate_proj_weight, up_proj_weight, down_proj_weight, permute_Transpose);
     return block;
 }
 
@@ -189,6 +191,7 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
         
         // Collect all experts first
         std::vector<expert_data> all_experts;
+        all_experts.reserve(matches.at(expert_scatter).size());
         for (const auto& pm : matches.at(expert_scatter)) {
             auto block_node = ov::as_type_ptr<ov::pass::pattern::op::Block>(pm.at(expert_scatter).get_node_shared_ptr());
             auto gate_proj_node = expert_scatter->get_anchor("gate_proj_weight", pm).value().get_node_shared_ptr();
@@ -196,17 +199,20 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto down_proj_node = expert_scatter->get_anchor("down_proj_weight", pm).value().get_node_shared_ptr();
             auto expert_id_node = expert_scatter->get_anchor("expert_id", pm).value().get_node_shared_ptr();
             auto expert_id_const = ov::as_type_ptr<ov::op::v0::Constant>(expert_id_node);
-            all_experts.push_back({block_node, gate_proj_node, up_proj_node, down_proj_node, expert_id_const->cast_vector<size_t>()[0]});
+            auto permute_node = expert_scatter->get_anchor("permute_Transpose", pm).value().get_node_shared_ptr();
+            all_experts.push_back({block_node,
+                                   gate_proj_node,
+                                   up_proj_node,
+                                   down_proj_node,
+                                   expert_id_const->cast_vector<size_t>()[0],
+                                   permute_node});
         }
-        
-        // Sort all experts by ID first
-        std::sort(all_experts.begin(), all_experts.end(), [](const expert_data& a, const expert_data& b) {
-            return a.expert_id < b.expert_id;
-        });
-        
-        // Assume experts are evenly distributed across MoE layers
-        size_t experts_per_moe = all_experts.size() / num_last_add;
-        
+
+        std::unordered_map<const ov::Node*, std::vector<expert_data>> experts_by_permute;
+        for (const auto& expert : all_experts) {
+            experts_by_permute[expert.permute_node.get()].push_back(expert);
+        }
+
         // Process each MoE layer separately
         for (size_t moe_idx = 0; moe_idx < num_last_add; moe_idx++) {
             
@@ -214,19 +220,17 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             const auto& last_add_match = matches.at(last_add)[moe_idx];
             auto last_add_node = last_add_match.at(last_add).get_node_shared_ptr();
             auto last_reshape_node = last_add_match.at(last_reshape).get_node_shared_ptr();
-            
-            // Get experts for this MoE layer
-            std::vector<expert_data> experts;
-            size_t start_idx = moe_idx * experts_per_moe;
-            size_t end_idx = (moe_idx == num_last_add - 1) ? all_experts.size() : (moe_idx + 1) * experts_per_moe;
-            
-            for (size_t i = start_idx; i < end_idx; i++) {
-                experts.push_back(all_experts[i]);
-            }
-            
-            if (experts.empty()) {
+
+            auto permute_node = expert_scatter->get_anchor("permute_Transpose", last_add_match).value().get_node_shared_ptr();
+            auto experts_it = experts_by_permute.find(permute_node.get());
+            if (experts_it == experts_by_permute.end() || experts_it->second.empty()) {
                 continue;
             }
+
+            auto& experts = experts_it->second;
+            std::sort(experts.begin(), experts.end(), [](const expert_data& a, const expert_data& b) {
+                return a.expert_id < b.expert_id;
+            });
 
             std::cout << "Processing MoE layer " << moe_idx + 1 << "/" << num_last_add
                       << " with " << experts.size() << " experts" << std::endl;
@@ -283,8 +287,6 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto fused_gate_weights = build_fused_weight([](const expert_data& expert) { return expert.gate_proj_weight; });
             auto fused_up_weights = build_fused_weight([](const expert_data& expert) { return expert.up_proj_weight; });
             auto fused_down_weights = build_fused_weight([](const expert_data& expert) { return expert.down_proj_weight; });
-
-            auto last_scatter_node = experts.back().expert_block->outputs()[0];
             
             // Debug output for the collected operations
             // Get input from the pattern - this should be the post-attention layernorm output
