@@ -27,6 +27,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/gen_pattern.hpp"
@@ -95,6 +96,9 @@ bool SDPAFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+    // symbolic_ctx_manager->register_pass<ov::pass::Serialize>(std::string("before_sdpa_fusion.xml"),
+    // std::string("before_sdpa_fusion.bin"));
+    symbolic_ctx_manager->register_pass<ov::pass::VisualizeTree>("before_before_sdpa_fusion.svg");
     symbolic_ctx_manager->register_pass<ov::pass::SDPAFusionMatcher>();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAFusionMatcherSinks>();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAReshapeFusion>();
