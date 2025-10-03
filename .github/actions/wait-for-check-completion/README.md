@@ -31,7 +31,7 @@ A GitHub Action that waits for multiple checks to complete before proceeding.
 
 | Output | Description |
 |--------|-------------|
-| `conclusion` | The overall conclusion of the checks (success, failure, neutral, action_required, mixed) |
+| `conclusion` | The overall conclusion of the checks (success, failure, action_required, mixed) |
 | `status` | The overall status of the checks (completed, mixed) |
 | `results` | JSON object containing results for each check with their individual status and conclusion |
 

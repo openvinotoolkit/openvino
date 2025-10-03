@@ -1,6 +1,16 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
 
+const CONCLUSION_STATES = {
+    SUCCESS: 'success',
+    FAILURE: 'failure',
+    MIXED: 'mixed',
+    ACTION_REQUIRED: 'action_required',
+    TIMED_OUT: 'timed_out',
+    CANCELLED: 'cancelled',
+    COMPLETED: 'completed'
+};
+
 /**
  * Wait for multiple checks to complete
  * @param {Object} octokit - GitHub API client
@@ -23,7 +33,7 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
     const checkResults = {};
     const pendingChecks = new Set(checkNames);
 
-    while ((Date.now() - startTime < timeoutMs) && (pendingChecks.size > 0)) {
+    while ((Date.now() - startTime < timeoutMs) && pendingChecks.size) {
         try {
             // Get all check runs for the specific commit
             const { data: checkRuns } = await octokit.rest.checks.listForRef({
@@ -36,10 +46,10 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
             core.info(`Found ${checkRuns.check_runs.length} total check runs`);
 
             // Process each pending check
-            for (const checkName of Array.from(pendingChecks)) {
+            for (const checkName of pendingChecks) {
                 const matchingRuns = checkRuns.check_runs.filter(run => run.name === checkName);
 
-                if (matchingRuns.length === 0) {
+                if (!matchingRuns.length) {
                     core.info(`No check runs found for "${checkName}" yet, waiting...`);
                     continue;
                 }
@@ -65,12 +75,14 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
                     core.info(`Check "${checkName}" is queued...`);
                 }
             }
-
-            if (pendingChecks.size === 0) {
+            
+            if (pendingChecks.size) {
+                core.info(`Still waiting for [${Array.from(pendingChecks).join(', ')}]. Waiting ${waitInterval} seconds before next check...`);
+                await new Promise(resolve => setTimeout(resolve, waitIntervalMs));
+            } else {
                 core.info('All checks completed, parsing conclusions...');
                 break;
             }
-
         } catch (error) {
             core.warning(`Error fetching check runs: ${error.message}`);
 
@@ -82,14 +94,9 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
                 core.error(`API error: ${error.message}`);
             }
         }
-
-        if (pendingChecks.size > 0) {
-            core.info(`Still waiting for [${Array.from(pendingChecks).join(', ')}]. Waiting ${waitInterval} seconds before next check...`);
-            await new Promise(resolve => setTimeout(resolve, waitIntervalMs));
-        }
     }
 
-    if (pendingChecks.size > 0) {
+    if (pendingChecks.size) {
         const pendingChecksList = Array.from(pendingChecks).join(', ');
         throw new Error(`Timeout: Checks [${pendingChecksList}] did not complete within ${timeout} seconds`);
     }
@@ -144,37 +151,37 @@ async function run() {
 
         // Determine overall conclusion
         let overallConclusion;
-        if (allConclusions.every(c => c === 'success')) {
-            overallConclusion = 'success';
-        } else if (allConclusions.some(c => ['failure', 'cancelled', 'timed_out'].includes(c))) {
-            overallConclusion = 'failure';
-        } else if (allConclusions.some(c => c === 'action_required')) {
-            overallConclusion = 'action_required';
+        if (allConclusions.every(c => c === CONCLUSION_STATES.SUCCESS)) {
+            overallConclusion = CONCLUSION_STATES.SUCCESS;
+        } else if (allConclusions.some(c => [CONCLUSION_STATES.FAILURE, CONCLUSION_STATES.CANCELLED, CONCLUSION_STATES.TIMED_OUT].includes(c))) {
+            overallConclusion = CONCLUSION_STATES.FAILURE;
+        } else if (allConclusions.some(c => c === CONCLUSION_STATES.ACTION_REQUIRED)) {
+            overallConclusion = CONCLUSION_STATES.ACTION_REQUIRED;
         } else {
-            overallConclusion = 'mixed';
+            overallConclusion = CONCLUSION_STATES.MIXED;
         }
 
         // Set outputs
-        core.setOutput('status', allStatuses.every(s => s === 'completed') ? 'completed' : 'mixed');
+        core.setOutput('status', allStatuses.every(s => s === CONCLUSION_STATES.COMPLETED) ? CONCLUSION_STATES.COMPLETED : CONCLUSION_STATES.MIXED);
         core.setOutput('conclusion', overallConclusion);
         core.setOutput('results', JSON.stringify(results));
 
         // Log results
         for (const [checkName, result] of Object.entries(results)) {
-            core.info(`${checkName}: ${result.status} (${result.conclusion})`);
+            core.info(`${checkName}: Status is "${result.status}", Conclusion is "${result.conclusion}"`);
         }
 
         // Exit with appropriate code based on overall conclusion
-        if (overallConclusion === 'success') {
+        if (overallConclusion === CONCLUSION_STATES.SUCCESS) {
             core.info('All checks completed with successful conclusions');
-        } else if (overallConclusion === 'failure') {
+        } else if (overallConclusion === CONCLUSION_STATES.FAILURE) {
             const failedChecks = Object.entries(results)
-                .filter(([_, result]) => ['failure', 'cancelled', 'timed_out'].includes(result.conclusion))
+                .filter(([_, result]) => [CONCLUSION_STATES.FAILURE, CONCLUSION_STATES.CANCELLED, CONCLUSION_STATES.TIMED_OUT].includes(result.conclusion))
                 .map(([name, _]) => name);
             core.setFailed(`Some checks failed: [${failedChecks.join(', ')}]`);
-        } else if (overallConclusion === 'action_required') {
+        } else if (overallConclusion === CONCLUSION_STATES.ACTION_REQUIRED) {
             const actionRequiredChecks = Object.entries(results)
-                .filter(([_, result]) => result.conclusion === 'action_required')
+                .filter(([_, result]) => result.conclusion === CONCLUSION_STATES.ACTION_REQUIRED)
                 .map(([name, _]) => name);
             core.setFailed(`Some checks require action: [${actionRequiredChecks.join(', ')}]`);
         } else {
