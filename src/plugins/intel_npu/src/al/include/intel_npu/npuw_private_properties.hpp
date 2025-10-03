@@ -547,7 +547,7 @@ static constexpr ov::Property<ov::AnyMap> additional_generate_config{"++NPUW_LLM
 /**
  * @brief
  * Type: std::string.
- * Hint for the attention handling. NPUW will use optimal configuration based on the passed preference via hint.
+ * Hint for the attention handling in generate stage. NPUW will use optimal configuration based on the passed preference via hint.
  * Possible values: "DYNAMIC", "STATIC".
  * Default value: "STATIC".
  */
