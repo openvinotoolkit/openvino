@@ -523,6 +523,51 @@
 #else
 #include "opencl.h"
 #endif // !__APPLE__
+
+#if __cplusplus >= 201703L
+# define CL_HPP_DEFINE_STATIC_MEMBER_ inline
+#elif defined(_MSC_VER)
+# define CL_HPP_DEFINE_STATIC_MEMBER_ __declspec(selectany)
+#elif defined(__MINGW32__)
+# define CL_HPP_DEFINE_STATIC_MEMBER_ __attribute__((selectany))
+#else
+# define CL_HPP_DEFINE_STATIC_MEMBER_ __attribute__((weak))
+#endif // !_MSC_VER
+
+// Define deprecated prefixes and suffixes to ensure compilation
+// in case they are not pre-defined
+#if !defined(CL_API_PREFIX__VERSION_1_1_DEPRECATED)
+#define CL_API_PREFIX__VERSION_1_1_DEPRECATED
+#endif // #if !defined(CL_API_PREFIX__VERSION_1_1_DEPRECATED)
+#if !defined(CL_API_SUFFIX__VERSION_1_1_DEPRECATED)
+#define CL_API_SUFFIX__VERSION_1_1_DEPRECATED
+#endif // #if !defined(CL_API_SUFFIX__VERSION_1_1_DEPRECATED)
+
+#if !defined(CL_API_PREFIX__VERSION_1_2_DEPRECATED)
+#define CL_API_PREFIX__VERSION_1_2_DEPRECATED
+#endif // #if !defined(CL_API_PREFIX__VERSION_1_2_DEPRECATED)
+#if !defined(CL_API_SUFFIX__VERSION_1_2_DEPRECATED)
+#define CL_API_SUFFIX__VERSION_1_2_DEPRECATED
+#endif // #if !defined(CL_API_SUFFIX__VERSION_1_2_DEPRECATED)
+
+#if !defined(CL_API_PREFIX__VERSION_2_2_DEPRECATED)
+#define CL_API_PREFIX__VERSION_2_2_DEPRECATED
+#endif // #if !defined(CL_API_PREFIX__VERSION_2_2_DEPRECATED)
+#if !defined(CL_API_SUFFIX__VERSION_2_2_DEPRECATED)
+#define CL_API_SUFFIX__VERSION_2_2_DEPRECATED
+#endif // #if !defined(CL_API_SUFFIX__VERSION_2_2_DEPRECATED)
+
+#if !defined(CL_CALLBACK)
+#define CL_CALLBACK
+#endif //CL_CALLBACK
+
+#include <utility>
+#include <limits>
+#include <iterator>
+#include <mutex>
+#include <cstring>
+#include <functional>
+#include "ocl_indirect.hpp"
 typedef void* cl_command_buffer_khr;
 typedef unsigned long cl_command_buffer_properties_khr;
 typedef unsigned long cl_command_buffer_info_khr;
@@ -611,7 +656,7 @@ inline cl_int clGetKernelInfo(cl_kernel, cl_kernel_info, size_t, void*, size_t*)
 inline cl_int clGetKernelWorkGroupInfo(cl_kernel, cl_device_id, cl_kernel_work_group_info, size_t, void*, size_t*) { return CL_SUCCESS; }
 inline cl_int clGetCommandQueueInfo(cl_command_queue, cl_command_queue_info, size_t, void*, size_t*) { return CL_SUCCESS; }
 inline cl_int clGetPlatformInfo(cl_platform_id, cl_platform_info, size_t, void*, size_t*) { return CL_SUCCESS; }
-//inline cl_int clGetDeviceInfo(cl_device_id, cl_device_info, size_t, void*, size_t*) { return CL_SUCCESS; }
+inline cl_int clGetDeviceInfo(cl_device_id a, cl_device_info b, size_t c, void* d, size_t* e) { return call_clGetDeviceInfo(a, b, c, d, e); }
 inline cl_int clCreateKernelsInProgram(cl_program, cl_uint, cl_kernel*, cl_uint*) { return CL_SUCCESS; }
 inline cl_kernel clCloneKernel(cl_kernel, cl_int*) { return nullptr; }
 inline cl_int clSetKernelExecInfo(cl_kernel, cl_kernel_exec_info, size_t, const void*) { return CL_SUCCESS; }
@@ -630,51 +675,6 @@ inline cl_int clGetContextInfo(cl_context context, cl_context_info param_name, s
 inline cl_mem clCreateImage(cl_context context, cl_mem_flags flags, const cl_image_format* image_format, const cl_image_desc* image_desc, void* host_ptr, cl_int* errcode_ret) { return CL_SUCCESS; }
 inline cl_program clCreateProgramWithBinary(cl_context context, cl_uint num_devices, const cl_device_id* device_list, const size_t* lengths, const unsigned char** binaries, cl_int* binary_status, cl_int* errcode_ret) { return nullptr; }
 inline cl_command_queue clCreateCommandQueueWithProperties(cl_context context, cl_device_id device, const cl_queue_properties* properties, cl_int* errcode_ret) { return nullptr; }
-#if __cplusplus >= 201703L
-# define CL_HPP_DEFINE_STATIC_MEMBER_ inline
-#elif defined(_MSC_VER)
-# define CL_HPP_DEFINE_STATIC_MEMBER_ __declspec(selectany)
-#elif defined(__MINGW32__)
-# define CL_HPP_DEFINE_STATIC_MEMBER_ __attribute__((selectany))
-#else
-# define CL_HPP_DEFINE_STATIC_MEMBER_ __attribute__((weak))
-#endif // !_MSC_VER
-
-// Define deprecated prefixes and suffixes to ensure compilation
-// in case they are not pre-defined
-#if !defined(CL_API_PREFIX__VERSION_1_1_DEPRECATED)
-#define CL_API_PREFIX__VERSION_1_1_DEPRECATED
-#endif // #if !defined(CL_API_PREFIX__VERSION_1_1_DEPRECATED)
-#if !defined(CL_API_SUFFIX__VERSION_1_1_DEPRECATED)
-#define CL_API_SUFFIX__VERSION_1_1_DEPRECATED
-#endif // #if !defined(CL_API_SUFFIX__VERSION_1_1_DEPRECATED)
-
-#if !defined(CL_API_PREFIX__VERSION_1_2_DEPRECATED)
-#define CL_API_PREFIX__VERSION_1_2_DEPRECATED
-#endif // #if !defined(CL_API_PREFIX__VERSION_1_2_DEPRECATED)
-#if !defined(CL_API_SUFFIX__VERSION_1_2_DEPRECATED)
-#define CL_API_SUFFIX__VERSION_1_2_DEPRECATED
-#endif // #if !defined(CL_API_SUFFIX__VERSION_1_2_DEPRECATED)
-
-#if !defined(CL_API_PREFIX__VERSION_2_2_DEPRECATED)
-#define CL_API_PREFIX__VERSION_2_2_DEPRECATED
-#endif // #if !defined(CL_API_PREFIX__VERSION_2_2_DEPRECATED)
-#if !defined(CL_API_SUFFIX__VERSION_2_2_DEPRECATED)
-#define CL_API_SUFFIX__VERSION_2_2_DEPRECATED
-#endif // #if !defined(CL_API_SUFFIX__VERSION_2_2_DEPRECATED)
-
-#if !defined(CL_CALLBACK)
-#define CL_CALLBACK
-#endif //CL_CALLBACK
-
-#include <utility>
-#include <limits>
-#include <iterator>
-#include <mutex>
-#include <cstring>
-#include <functional>
-#include "ocl_indirect.hpp"
-
 // Define a size_type to represent a correctly resolved size_t
 #if defined(CL_HPP_ENABLE_SIZE_T_COMPATIBILITY)
 namespace cl {
