@@ -54,3 +54,21 @@ By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set to f
 Skip filters can be enabled/disabled according to rules defining the device, backend or operating system, depending on where tests are supposed to run.
 Rules are optional, multiple rules can be chained together. Users can negate a rule by using "!".
 When determining if a skip filter is active, rules across different categories (backend, device, operating_system) are combined using an AND operation. While multiple entries of the same category will use an OR operation.
+
+## Folder structure
+
+### Behavior
+- should contain E2E OV tests with *specific/internal* NPU plugin
+- TODOs:
+    - should compile_and_infer_different_element_type be moved in compiled_model dir?
+    - should infer_request_dynamic / infer_request_run be moved in ov_infer_request?
+
+### Internal
+- no more overload dir
+- to keep here only our own test classes
+- mirror folder structure from plugin
+- 
+
+### Shared tests instances
+- keep here only OV test instantiations
+- TODO: what's the deal with namespace discrepancies?

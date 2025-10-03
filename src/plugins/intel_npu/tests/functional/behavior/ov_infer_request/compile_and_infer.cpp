@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "overload/compile_and_infer.hpp"
+#include "compile_and_infer.hpp"
 
 #include <intel_npu/npu_private_properties.hpp>
 

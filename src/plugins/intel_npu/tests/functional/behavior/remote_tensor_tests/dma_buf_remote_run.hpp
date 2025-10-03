@@ -16,7 +16,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
-#include "overload/overload_test_utils_npu.hpp"
+#include "test_utils_npu.hpp"
 
 #ifdef __linux__
 #    include <linux/version.h>

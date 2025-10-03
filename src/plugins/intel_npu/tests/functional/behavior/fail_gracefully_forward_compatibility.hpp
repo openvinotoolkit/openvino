@@ -112,7 +112,7 @@ private:
     }
 };
 
-TEST_P(FailGracefullyTest, OnUnsupprotedOperator) {
+TEST_P(FailGracefullyTest, OnUnsupportedOperator) {
     auto compilerType = configuration[ov::intel_npu::compiler_type.name()].as<std::string>();
     try {
         core->compile_model(ov_model, target_device, configuration);

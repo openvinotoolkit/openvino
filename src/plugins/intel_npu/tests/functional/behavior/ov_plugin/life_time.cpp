@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "overload/ov_plugin/life_time.hpp"
+#include "life_time.hpp"
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"

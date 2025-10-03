@@ -33,6 +33,8 @@ ov_add_test_target(
   EXCLUDED_SOURCE_PATHS
   ${EXCLUDED_FUNC_TESTS_DIR}
   INCLUDES
+  # TODO: leave a comment here about why we need this
+  "${OpenVINO_SOURCE_DIR}/src/tests/functional/base_func_tests/include"
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${OPTIONAL_FUNC_TESTS_INCLUDES}
   "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances"
@@ -67,6 +69,8 @@ if(MSVC)
 endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
+
+# target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:base_func_tests,INTERFACE_INCLUDE_DIRECTORIES>)
 
 file(GLOB_RECURSE BLOBS "*.blob")
 file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/intel_npu_blobs)

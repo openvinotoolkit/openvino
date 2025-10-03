@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "behavior/ov_plugin/life_time.hpp"
+#include "life_time.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
