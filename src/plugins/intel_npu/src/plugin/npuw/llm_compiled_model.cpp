@@ -1343,7 +1343,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.dim);
         read(model_stream, compiled->m_kvcache_desc.max_generation_token_len);
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_pre);
-        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_gen);  // FIXME: bump required!
+        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_gen);
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
