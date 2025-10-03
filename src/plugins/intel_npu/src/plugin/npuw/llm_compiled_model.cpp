@@ -1133,7 +1133,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.dim);
         write(model_stream, m_kvcache_desc.max_generation_token_len);
         write(model_stream, m_kvcache_desc.v_tensors_transposed_pre);
-        write(model_stream, m_kvcache_desc.v_tensors_transposed_gen);  // FIXME: bump required
+        write(model_stream, m_kvcache_desc.v_tensors_transposed_gen);
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
