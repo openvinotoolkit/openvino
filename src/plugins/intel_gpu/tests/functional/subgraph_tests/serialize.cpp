@@ -72,21 +72,9 @@ protected:
     ov::Core core;
     std::string cacheDir;
 
-    static bool has_gpu(ov::Core& c) {
-        for (auto&& d : c.get_available_devices())
-            if (d.find("GPU") != std::string::npos)
-                return true;
-        return false;
-    }
-
     void SetUp() override {
-        if (!has_gpu(core)) {
-            GTEST_SKIP() << "GPU device not available";
-        }
         std::stringstream ss;
-        ss << std::hex
-           << std::hash<std::string>{}(
-                  std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+        ss << std::hex << std::hash<std::string>{}(std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
 
         // Base (no trailing slash first)
         cacheDir = ss.str() + GetParam();
@@ -106,7 +94,7 @@ protected:
     }
 };
 
-TEST_P(GpuCacheDirWithDotsParamTest, PopulateAndReuseCache) {
+TEST_P(GpuCacheDirWithDotsParamTest, smoke_PopulateAndReuseCache) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 8, 8});
     auto relu = std::make_shared<ov::op::v0::Relu>(param);
     auto res = std::make_shared<ov::op::v0::Result>(relu);
