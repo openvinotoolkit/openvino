@@ -175,6 +175,8 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
             kernel_string->options = exe_mode + " -cl-mad-enable";
             if (engine_info.bOptHintsSupport)
                 kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
+            if (engine_info.enable_large_allocations)
+                kernel_string->options += " -cl-intel-greater-than-4GB-buffer-required";
         }
 
         if (engine_info.supports_work_group_collective_functions)
