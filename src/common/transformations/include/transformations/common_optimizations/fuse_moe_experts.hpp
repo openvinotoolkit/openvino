@@ -17,11 +17,11 @@ public:
     FuseMOEExperts();
 };
 
-// class TRANSFORMATIONS_API FuseMOE : public ModelPass {
-// public:
-//     OPENVINO_MODEL_PASS_RTTI("FuseMOE");
-//     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
-// };
+class TRANSFORMATIONS_API FuseMOE : public ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("FuseMOE");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
 
 }  // namespace pass
 }  // namespace ov

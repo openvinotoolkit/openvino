@@ -96,7 +96,7 @@
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
-#include "transformations/common_optimizations/fuse_moe.hpp"
+#include "transformations/common_optimizations/fuse_moe_experts.hpp"
 
 using namespace ov::element;
 

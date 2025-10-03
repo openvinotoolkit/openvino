@@ -11,6 +11,7 @@
 #include <tuple>
 
 #include "itt.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rank.hpp"
@@ -418,18 +419,20 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     register_patterns({expert_scatter, last_add}, callback, true);
 }
 
-// bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
-//     RUN_ON_MODEL_SCOPE(FuseMOE);
-//     ov::pass::Manager manager(get_pass_config(), "FuseMOE");
+bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(FuseMOE);
+    ov::pass::Manager manager(get_pass_config(), "FuseMOE");
 
-//     // manager.register_pass<ov::pass::EliminateSqueeze>();
-//     // Use the unified FuseMOE transformation
-//     manager.register_pass<ov::pass::PrintModel>("before_fuse_moe_pseudocode.cpp");
-//     manager.register_pass<ov::pass::FuseMOEUnified>();
+    // manager.register_pass<ov::pass::EliminateSqueeze>();
+    // Use the unified FuseMOE transformation
+    manager.register_pass<ov::pass::PrintModel>("before_fuse_moe_pseudocode.cpp");
+    manager.register_pass<ov::pass::FuseMOEExperts>();
+    manager.register_pass<ov::pass::Serialize>("fuse_moe_after_experts.xml", "fuse_moe_after_experts.bin");
+    
 
-//     manager.run_passes(model);
-//     return false;
-// }
+    manager.run_passes(model);
+    return false;
+}
 
 }  // namespace pass
 }  // namespace ov
