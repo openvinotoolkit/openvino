@@ -109,6 +109,7 @@ jobs:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+          HF_HUB_OFFLINE: 0  # Can't use offline mode - these tests use `model_info` call, which can't be cached
 
       - name: PyTorch Models Tests Not Timm or Torchvision
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
@@ -119,6 +120,7 @@ jobs:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+          HF_HUB_OFFLINE: 0  # Can't use offline mode - these tests use `model_info` call, which can't be cached
 
       - name: PagedAttention Test
         if: ${{ inputs.model_scope == 'precommit' }}
