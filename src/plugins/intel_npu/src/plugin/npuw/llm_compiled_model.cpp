@@ -317,18 +317,32 @@ public:
     explicit GemmaSlidingMask(Result* result) {
         // Searching for gemma sliding mask pattern and replace it's output
         // with Paramater of the same size and type.
-        /*                                                            -\
-          range -> unsqueeze -> unsqueeze -> unsqueeze1 -> convert -\/  => LessEqual -\
-                                                             \      /\-/               \
-                                                        /-----\----/                    =>BWAnd_res
-                                                       /       \                       /
-          range -> unsqueeze -> unsqueeze -> unsqueeze2 -> add -=> Greater -> BWAnd --/
-                                 const (-window_size) ----/
+        /*                                                              -\
+          range_w -> unsqueeze -> unsqueeze -> unsqueeze1 -> convert -\/  => LessEqual -\
+                                                               \      /\-/               \
+                                                          /-----\----/                    =>BWAnd_res
+                                                         /       \                       /
+          range_h -> unsqueeze -> unsqueeze -> unsqueeze2 -> add -=> Greater -> BWAnd --/
+                                   const (-window_size) ----/
         */
-        // Basically this subgrapgh is doing the following check:
-        // unsqueze2 - window_size < unsqueeze1 <= unsqueeze2
+        // Basically this subgrapgh is doing the following:
+        // range_w is range (0, ..., width - 1) (probably + something)
+        // renge_h is range (0, ..., height - 1)  (probably + something)
+        // And then doing the following check:
+        // y - window_size < x <= y
+        // Producing squared sliding mask:
+        // 1 0 0 0 0 0
+        // 1 1 0 0 0 0
+        // 1 1 1 0 0 0
+        // 0 1 1 1 0 0
+        // 0 0 1 1 1 0
+        // 0 0 0 1 1 1
+        //
+        // Please also note, that sliding windows size is stored as negative value and the
+        // subgraph is actually doing:
+        // y + (negative)window_size < x <= y
 
-        auto range_sequqence = [&]() {
+        auto range_sequence = [&]() {
             auto range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
             auto unsqueeze1 = opp::wrap_type<ov::op::v0::Unsqueeze>({range, opp::any_input()});
             auto unsqueeze2 = opp::wrap_type<ov::op::v0::Unsqueeze>({unsqueeze1, opp::any_input()});
@@ -337,9 +351,9 @@ public:
             return unsqueeze3;
         };
 
-        auto unsqueeze1 = range_sequqence();
+        auto unsqueeze1 = range_sequence();
         auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze1});
-        auto unsqueeze2 = range_sequqence();
+        auto unsqueeze2 = range_sequence();
         auto window_size = opp::wrap_type<ov::op::v0::Constant>();
         auto add = opp::wrap_type<ov::op::v1::Add>({unsqueeze2, window_size});
         auto greater = opp::wrap_type<ov::op::v1::Greater>({convert, add});
@@ -354,14 +368,11 @@ public:
             auto output = bwand_matched_node->output(0);
             auto target_inputs = output.get_target_inputs();
 
-            if (target_inputs.size() == 0) {
-                return false;
-            }
-
             auto* window_size_constant = static_cast<ov::op::v0::Constant*>(window_size_node);
             OPENVINO_ASSERT(window_size_constant->get_output_size() == 1,
-                            "Sidling window size constant must be of size 1, but got " +
+                            "Sliding window size constant must be of size 1, but got " +
                                 std::to_string(window_size_constant->get_output_size()));
+            OPENVINO_ASSERT(!result->found, "Second gemma sliding mask pattern found, what is unexpected!");
 
             auto input = std::make_shared<ov::op::v0::Parameter>(output.get_element_type(), output.get_partial_shape());
             input->set_friendly_name(ov::npuw::LLMInferRequest::layer_names::gemma_sliding_mask);
@@ -369,8 +380,6 @@ public:
 
             auto window_size_vec = window_size_constant->cast_vector<int32_t>(1);
 
-            OPENVINO_ASSERT(!result->found, "Second gemma sliding mask pattern found");
-            // Is it thread safe?
             result->found = true;
             // since we are doing Add and need to do subtract window size is stored as negative value
             result->window_size = -window_size_vec[0];
@@ -378,7 +387,7 @@ public:
 
             return true;
         };
-        register_matcher(std::make_shared<opp::Matcher>(bwand_res, "OptGemmaSlidingMask"), std::move(callback));
+        register_matcher(std::make_shared<opp::Matcher>(bwand_res, "GemmaSlidingMask"), std::move(callback));
     }
 };
 
@@ -885,6 +894,7 @@ void ov::npuw::LLMCompiledModel::gemma_transformations(const std::shared_ptr<ov:
                 input.set_names({mask_input->get_friendly_name()});
             }
         }
+        model->validate_nodes_and_infer_types();
     }
 }
 
@@ -1219,6 +1229,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
+        write(model_stream, m_gemma_sliding_window_size);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1428,6 +1439,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
+        read(model_stream, compiled->m_gemma_sliding_window_size);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);

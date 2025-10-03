@@ -257,11 +257,13 @@ void copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITenso
 
 void fill_sliding_mask(const ov::SoPtr<ov::ITensor>& mask, int64_t curr_pos, int64_t window_size) {
     auto start = curr_pos - window_size;
-    auto end = curr_pos + window_size;
+    auto end = curr_pos;
 
     auto* mask_data = mask->data<bool>();
     for (int64_t i = 0; i < static_cast<int64_t>(mask->get_size()); ++i) {
-        mask_data[i] = i > start && i <= end;
+        // Unlike original subgraph which do i <= end we are excluding end
+        // as it is a new token and is located in last position of mask buffer
+        mask_data[i] = i > start && i < end;
     }
 
     mask_data[mask->get_size() - 1] = true;
@@ -653,8 +655,7 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 
 void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                       ov::SoPtr<ov::ITensor> attention_mask,
-                                                      ov::SoPtr<ov::ITensor> position_ids,
-                                                      ov::SoPtr<ov::ITensor> token_type_ids) {
+                                                      ov::SoPtr<ov::ITensor> position_ids) {
     LOG_DEBUG("Calling chunked inference for prefill model.");
     LOG_BLOCK();
 
@@ -670,12 +671,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
     auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
-
-    auto type_ids_in_tensor = ov::npuw::util::TensorPtr();
-
-    if (token_type_ids) {
-        auto type_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
-    }
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
@@ -694,18 +689,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // If the current prompt length is smaller than the chunk prompt length,
             // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
             fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
-            if (type_ids_in_tensor) {
-                fill_tensor<int64_t>(type_ids_in_tensor, 0, last_chunk_offset);
-            }
         }
         std::copy_n(attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
                     current_prompts_len,
                     attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
-        if (type_ids_in_tensor) {
-            std::copy_n(token_type_ids->data<int64_t>() + kvcache_desc.num_stored_tokens,
-                        current_prompts_len,
-                        type_ids_in_tensor->data<int64_t>() + type_ids_in_tensor->get_size() - current_prompts_len);
-        }
 
         auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
         auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
@@ -751,11 +738,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         std::copy_n(attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
                     current_prompts_len,
                     attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
-        if (type_ids_in_tensor) {
-            std::copy_n(type_ids_in_tensor->data<int64_t>() + type_ids_in_tensor->get_size() - current_prompts_len,
-                        current_prompts_len,
-                        type_ids_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
-        }
     }
 
     LOG_DEBUG("Done.");
@@ -817,7 +799,10 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
-        infer_chunked_prefill(input_ids, attention_mask, position_ids, token_type_ids);
+        OPENVINO_ASSERT(m_gemma_sliding_window_size == 0,
+            "Chunking is not implemented for Gemma model family yet. "
+            "Please use set NPUW_LLM_PREFILL_HINT to 'STATIC'");
+        infer_chunked_prefill(input_ids, attention_mask, position_ids);
     } else {
         infer_whole_prefill(input_ids, attention_mask, position_ids, token_type_ids);
     }
@@ -870,9 +855,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     if (auto sliding_mask_port = m_kvcache_in_ports.find(layer_names::gemma_sliding_mask);
         sliding_mask_port != m_kvcache_in_ports.end()) {
-        // Fill once and update on each iteration instead?
+        // TODO: Fill once and update on each iteration instead
         fill_sliding_mask(m_kvcache_request->get_tensor(sliding_mask_port->second),
-                          kvcache_desc.num_stored_tokens,
+                          kvcache_desc.num_stored_tokens + input_tokens_len,
                           m_gemma_sliding_window_size);
     }
 

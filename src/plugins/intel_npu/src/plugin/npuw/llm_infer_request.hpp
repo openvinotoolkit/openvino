@@ -58,8 +58,7 @@ private:
 
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,
-                               ov::SoPtr<ov::ITensor> position_ids,
-                               ov::SoPtr<ov::ITensor> input_token_ids);
+                               ov::SoPtr<ov::ITensor> position_ids);
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
