@@ -106,20 +106,16 @@ protected:
     }
 };
 
-
 TEST_P(GpuCacheDirWithDotsParamTest, PopulateAndReuseCache) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 8, 8});
-    auto relu  = std::make_shared<ov::op::v0::Relu>(param);
-    auto res   = std::make_shared<ov::op::v0::Result>(relu);
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    auto res = std::make_shared<ov::op::v0::Result>(relu);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param}, "CacheDotsModel");
     core.compile_model(model, "GPU");
 }
 
 INSTANTIATE_TEST_SUITE_P(CacheDirDotVariants,
                          GpuCacheDirWithDotsParamTest,
-                         ::testing::Values(
-                            "/test_encoder/test_encoder.encrypted/",
-                            "/test_encoder/test_encoder.encrypted"
-                        ));
+                         ::testing::Values("/test_encoder/test_encoder.encrypted/", "/test_encoder/test_encoder.encrypted"));
 
 }  // namespace
