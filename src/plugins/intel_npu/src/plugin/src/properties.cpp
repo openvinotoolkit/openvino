@@ -523,7 +523,6 @@ void Properties::registerPluginProperties() {
                                _metrics->GetDeviceTotalMemSize(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::intel_npu::driver_version, true, _metrics->GetDriverVersion());
         REGISTER_SIMPLE_METRIC(ov::intel_npu::backend_name, false, _metrics->GetBackendName());
-        REGISTER_SIMPLE_METRIC(ov::intel_npu::batch_mode, false, _metrics->GetDriverVersion());
         REGISTER_CUSTOM_METRIC(ov::device::architecture,
                                !_metrics->GetAvailableDevicesNames().empty(),
                                [&](const Config& config) {
@@ -629,6 +628,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::ws_compile_call_number, WS_COMPILE_CALL_NUMBER);
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);
 
@@ -697,22 +697,23 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
 void Properties::set_property(const ov::AnyMap& properties) {
     std::map<std::string, std::string> cfgs_to_set;
 
-    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    if (_pType == PropertiesType::PLUGIN) {
-        try {
-            // Only accepting unknown config keys in plugin
-            CompilerAdapterFactory compilerAdapterFactory;
-            compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
-        } catch (...) {
-            // nothing to do here. we will just throw exception bellow in case unknown property check is called
-            // if its not called, nothing to do
-        }
-    }
-
     for (auto&& value : properties) {
-        if (_properties.find(value.first) == _properties.end()) {
+        if (properties.find(value.first) == properties.end()) {
             // property doesn't exist
             // checking as internal now
+
+            std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+            if (_pType == PropertiesType::PLUGIN) {
+                try {
+                    // Only accepting unknown config keys in plugin
+                    CompilerAdapterFactory compilerAdapterFactory;
+                    compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
+                } catch (...) {
+                    // nothing to do here. we will just throw exception bellow in case unknown property check is called
+                    // if its not called, nothing to do
+                }
+            }
+
             if (compiler != nullptr) {
                 if (compiler->is_option_supported(value.first)) {
                     // if compiler reports it supported > registering as internal
@@ -737,7 +738,7 @@ void Properties::set_property(const ov::AnyMap& properties) {
     }
 }
 
-bool Properties::isPropertyRegistered(const std::string& propertyName) {
+bool Properties::isPropertyRegistered(const std::string& propertyName) const {
     return _properties.find(propertyName) != _properties.end();
 }
 
