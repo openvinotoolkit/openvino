@@ -20,6 +20,7 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -37,6 +38,7 @@ using namespace ov::pass;
 using namespace ov::element;
 
 enum class InputType : int { Q, K, V, SDPA };
+enum class SinksSliceType : int { None, Slice, StridedSlice };
 
 class SDPA {
 public:
@@ -62,10 +64,13 @@ public:
         m_scale = new_scale;
     }
 
-    void set_sinks(const PartialShape& sinks_shape, const std::vector<size_t>& sinks_broadcast_shape) {
+    void set_sinks(const PartialShape& sinks_shape,
+                   const std::vector<size_t>& sinks_broadcast_shape,
+                   SinksSliceType sinks_slice_type = SinksSliceType::None) {
         // Adjust the code for sinks if you see other values for them.
         // For now, there has been only one model with sinks: gpt-oss
         with_sinks = true;
+        m_sinks_slice_type = sinks_slice_type;
         std::vector<size_t> broadcast_shape_value(sinks_broadcast_shape.begin(), sinks_broadcast_shape.end());
         auto broadcast_to_shape =
             v0::Constant::create(element::i32, Shape{sinks_broadcast_shape.size()}, broadcast_shape_value);
@@ -153,25 +158,34 @@ public:
         }
 
         std::shared_ptr<ov::Node> softmax = make_shared<op::v8::Softmax>(attn_scores_with_mask, softmax_axis);
-        if (with_sinks) {
+        if (with_sinks && m_sinks_slice_type != SinksSliceType::None) {
             // Adjust the code for sinks if you see other values for them.
             // For now, there has been only one model with sinks: gpt-oss
-            std::vector<int> start(m_sinks_rank, 0);
-            std::vector<int> stop(m_sinks_rank, 0);
-            std::vector<int> step(m_sinks_rank, 1);
-            stop[stop.size() - 1] = -1;
+            if (m_sinks_slice_type == SinksSliceType::Slice) {
+                softmax = make_shared<op::v8::Slice>(softmax,
+                                                     v0::Constant::create(element::i64, Shape{1}, {0}),
+                                                     v0::Constant::create(element::i64, Shape{1}, {-1}),
+                                                     v0::Constant::create(element::i64, Shape{1}, {1}),
+                                                     v0::Constant::create(element::i64, Shape{1}, {m_sinks_rank - 1}));
+            } else {
+                std::vector<int> start(m_sinks_rank, 0);
+                std::vector<int> stop(m_sinks_rank, 0);
+                std::vector<int> step(m_sinks_rank, 1);
+                stop[stop.size() - 1] = -1;
 
-            std::vector<int64_t> begin_mask(m_sinks_rank, 1);
-            std::vector<int64_t> end_mask(m_sinks_rank, 1);
-            begin_mask[begin_mask.size() - 1] = 0;
-            end_mask[end_mask.size() - 1] = 0;
+                std::vector<int64_t> begin_mask(m_sinks_rank, 1);
+                std::vector<int64_t> end_mask(m_sinks_rank, 1);
+                begin_mask[begin_mask.size() - 1] = 0;
+                end_mask[end_mask.size() - 1] = 0;
 
-            softmax = make_shared<op::v1::StridedSlice>(softmax,
-                                                        v0::Constant::create(element::i64, Shape{m_sinks_rank}, start),
-                                                        v0::Constant::create(element::i64, Shape{m_sinks_rank}, stop),
-                                                        v0::Constant::create(element::i64, Shape{m_sinks_rank}, step),
-                                                        begin_mask,
-                                                        end_mask);
+                softmax =
+                    make_shared<op::v1::StridedSlice>(softmax,
+                                                      v0::Constant::create(element::i64, Shape{m_sinks_rank}, start),
+                                                      v0::Constant::create(element::i64, Shape{m_sinks_rank}, stop),
+                                                      v0::Constant::create(element::i64, Shape{m_sinks_rank}, step),
+                                                      begin_mask,
+                                                      end_mask);
+            }
         }
         auto output = make_shared<op::v0::MatMul>(softmax, nodes[InputType::V]);
 
@@ -258,6 +272,7 @@ private:
     bool with_mask = false;
     bool with_scale = false;
     bool with_sinks = false;
+    SinksSliceType m_sinks_slice_type = SinksSliceType::None;
     bool causal = false;
 
     element::Type m_type = f32;
@@ -917,7 +932,56 @@ TEST_F(TransformationTestsF, SDPAFusionTest13) {
     {
         sdpa.set_mask(mask_shape);
         sdpa.set_scale(0.125f);
-        sdpa.set_sinks(sinks_shape, sinks_broadcast_shape);
+        sdpa.set_sinks(sinks_shape, sinks_broadcast_shape, SinksSliceType::Slice);
+
+        sdpa.reshape_k(key_reshaped);
+        sdpa.reshape_v(value_reshaped);
+
+        sdpa.create_pattern_sdpa(true);
+        sdpa.transpose_sdpa(final_order);
+        model = sdpa.build_model();
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    {
+        sdpa_ref.set_mask(mask_shape);
+        sdpa_ref.set_scale(0.125f);
+        sdpa_ref.set_sinks(sinks_shape, sinks_broadcast_shape);
+
+        sdpa_ref.reshape_k(key_reshaped);
+        sdpa_ref.reshape_v(value_reshaped);
+
+        sdpa_ref.create_reference_sdpa();
+        sdpa_ref.transpose_sdpa(final_order);
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest14) {
+    const PartialShape query_shape{1, 64, 1, 64};
+    const PartialShape key_shape{1, 8, 8, 3, 64};
+    const PartialShape value_shape{1, 8, 8, 3, 64};
+
+    const PartialShape mask_shape{1, 1, 1, 3};
+
+    const Shape key_reshaped{1, 64, 3, 64};
+    const Shape value_reshaped{1, 64, 3, 64};
+
+    const Shape sinks_shape{1, 64, 1, 1};
+    std::vector<size_t> sinks_broadcast_shape{1, 64, 1, 1};
+
+    const Shape final_order{0, 2, 1, 3};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    {
+        sdpa.set_mask(mask_shape);
+        sdpa.set_scale(0.125f);
+        sdpa.set_sinks(sinks_shape, sinks_broadcast_shape, SinksSliceType::StridedSlice);
 
         sdpa.reshape_k(key_reshaped);
         sdpa.reshape_v(value_reshaped);
