@@ -348,6 +348,8 @@ static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_
  */
 static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
 
+static constexpr ov::Property<bool> better_model_serialization{"NPU_BETTER_MODEL_SERIALIZATION"};
+
 /**
  * @brief [Experimental, only for NPU Plugin]
  * Type: integer.

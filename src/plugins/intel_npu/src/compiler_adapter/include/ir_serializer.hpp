@@ -3,11 +3,15 @@
 //
 
 #pragma once
+#include <ze_graph_ext.h>
+
 #include <iostream>
+#include <mutex>
 #include <string>
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/core/model.hpp"
 #include "ze_graph_ext.h"
 
 namespace intel_npu {
@@ -20,48 +24,35 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
  */
 namespace driver_compiler_utils {
 
-class IRSerializer {
+class IRSerializerBase {
 public:
-    IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset = 11);
+    IRSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
+                     const ze_graph_compiler_version_info_t compilerVersion,
+                     const uint32_t supportedOpset = 11);
 
-    size_t getXmlSize() const {
-        return _xmlSize;
-    }
+    virtual SerializedIR serialize() = 0;
 
-    size_t getWeightsSize() const {
-        return _weightsSize;
-    }
+protected:
+    Logger _logger;
+    std::shared_ptr<ov::Model> _model = nullptr;
+    ze_graph_compiler_version_info_t _compilerVersion;
+    uint32_t _supportedOpset = 11;
+};
 
+class IRSerializerWithWeightsCopy : public IRSerializerBase {
+public:
+    IRSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                const ze_graph_compiler_version_info_t compilerVersion,
+                                const uint32_t supportedOpset = 11);
+
+    SerializedIR serialize() override;
+
+private:
     /**
      * @brief Serialize OpenVINO model to target buffer
      */
     void serializeModelToBuffer(uint8_t* xml, uint8_t* weights);
 
-    /**
-     * @brief Serialize input / output information to string format.
-     * @details Format:
-     * --inputs_precisions="0:<input1Precision> [1:<input2Precision>]"
-     * --inputs_layouts="0:<input1Layout> [1:<input2Layout>]"
-     * --outputs_precisions="0:<output1Precision>"
-     * --outputs_layouts="0:<output1Layout>"
-     *
-     * For older compiler versions, the name of the inputs/outputs may be used instead of their indices.
-     *
-     * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV
-     * API, the layout fields shall be filled with default values in order to assure the backward compatibility
-     * with the driver.
-     */
-    SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
-                             ze_graph_compiler_version_info_t compilerVersion,
-                             const uint32_t supportedOpsetVersion);
-
-    std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
-
-    std::string serializeConfig(const Config& config,
-                                ze_graph_compiler_version_info_t compilerVersion,
-                                bool turboSupported = false);
-
-private:
     /**
      * @brief Serialize OpenVINO model to target stream
      */
@@ -72,11 +63,54 @@ private:
      */
     void countModelSize();
 
-    Logger _logger;
-    std::shared_ptr<ov::Model> _model = nullptr;
-    uint32_t _supportedOpset = 11;
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
 };
+
+class IRSerializerWithoutWeightsCopy : public IRSerializerBase {
+public:
+    IRSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                   const ze_graph_compiler_version_info_t compilerVersion,
+                                   const uint32_t supportedOpset = 11);
+
+    SerializedIR serialize() override;
+
+private:
+    void serializeModelToBuffer(uint8_t* buffer);
+
+    void serializeModelToStream(std::ostream& stream);
+
+    void countModelSize();
+
+    uint64_t _serializedModelSize = 0;
+};
+
+/**
+ * @brief Serialize input / output information to string format.
+ * @details Format:
+ * --inputs_precisions="0:<input1Precision> [1:<input2Precision>]"
+ * --inputs_layouts="0:<input1Layout> [1:<input2Layout>]"
+ * --outputs_precisions="0:<output1Precision>"
+ * --outputs_layouts="0:<output1Layout>"
+ *
+ * For older compiler versions, the name of the inputs/outputs may be used instead of their indices.
+ *
+ * Since the layout information is no longer an important part of the metadata values when using the 2.0 OV
+ * API, the layout fields shall be filled with default values in order to assure the backward compatibility
+ * with the driver.
+ */
+SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                         ze_graph_compiler_version_info_t compilerVersion,
+                         const uint32_t supportedOpsetVersion,
+                         const bool useBetterModelSerialization = true);
+
+std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
+
+std::string serializeConfig(const Config& config,
+                            ze_graph_compiler_version_info_t compilerVersion,
+                            bool turboSupported = false);
+
+static std::mutex rtInfoMutex;
+
 }  // namespace driver_compiler_utils
 }  // namespace intel_npu
