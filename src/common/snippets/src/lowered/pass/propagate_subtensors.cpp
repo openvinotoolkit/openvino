@@ -10,6 +10,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -91,25 +92,52 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
         }
     }
 
-    auto update_only_dim_idx_with_subtensor_value = [&](const LoopPort& port) {
-        if (port.is_processed()) {
+    auto update_only_dim_idx_with_subtensor_value = [&](const std::vector<LoopPort>& ports) {
+        // WA: currently, not all loop ports may have subtensor defined,
+        // so we have to find common subtensor value for the same dim_idx and use it for all of the loop
+        // (we exploit here the knowledge that all subtensor values for the same dim_idx must be equal in one loop)
+        // After blocked shapes support (ticket: 155651) this WA should be removed
+        std::optional<size_t> subtensor_common_value;
+        for (const auto& port : ports) {
+            if (!port.is_processed()) {
+                continue;
+            }
+            const auto desc = port.get_expr_port()->get_descriptor_ptr();
+            if (desc->get_subtensor().size() < port.get_dim_idx() + 1) {
+                continue;
+            }
+            const auto subtensor_value = *(desc->get_subtensor().rbegin() + port.get_dim_idx());
+            if (subtensor_common_value.has_value()) {
+                OPENVINO_ASSERT(subtensor_value == subtensor_common_value.value(),
+                                "Different subtensor values for the same dim_idx in Loop!");
+            } else {
+                subtensor_common_value = subtensor_value;
+            }
+        }
+        if (!subtensor_common_value.has_value()) {
+            return false;
+        }
+
+        for (const auto& port : ports) {
+            if (!port.is_processed()) {
+                continue;
+            }
             const auto desc = port.get_expr_port()->get_descriptor_ptr();
             const auto expr = port.get_expr_port()->get_expr();
             const auto parent_desc =
                 expr->get_input_port_connector(port.get_expr_port()->get_index())->get_source().get_descriptor_ptr();
-
             const auto& parent_shape = parent_desc->get_shape();
-            const auto& desc_subtensor = desc->get_subtensor();
-            if (port.get_dim_idx() < desc_subtensor.size()) {
-                if (original_shapes.find(parent_desc) == original_shapes.end()) {
-                    original_shapes[parent_desc] = parent_shape;
-                }
-                auto new_shape = parent_shape;
-                new_shape[*(desc->get_layout().rbegin() + port.get_dim_idx())] =
-                    *(desc_subtensor.rbegin() + port.get_dim_idx());
-                parent_desc->set_shape(new_shape);
+            if (original_shapes.find(parent_desc) == original_shapes.end()) {
+                original_shapes[parent_desc] = parent_shape;
             }
+            auto new_shape = parent_shape;
+            size_t layout_idx = *(desc->get_layout().rbegin() + port.get_dim_idx());
+            OPENVINO_ASSERT(subtensor_common_value.has_value(),
+                            "subtensor_common_value must be set if the port subtensor is empty!");
+            new_shape[layout_idx] = subtensor_common_value.value();
+            parent_desc->set_shape(new_shape);
         }
+        return true;
     };
 
     auto update_subtensors = [](const std::vector<PortDescriptorPtr>& descs, bool is_input) {
@@ -155,12 +183,10 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             const auto inner_end = linear_ir.find_after(inner_begin, linear_ir.get_expr_by_node(loop_end));
 
             // The corresponding shapes of inner loops input ports must be updated using existing subtensor values
-            if (!most_outer_loop) {
-                for (const auto& port : loop_info->get_input_ports()) {
-                    update_only_dim_idx_with_subtensor_value(port);
-                }
+            if (update_only_dim_idx_with_subtensor_value(inner_loop_info->get_input_ports())) {
+                // If no subtensors were updated, there is no meaning in subtensor propagation
+                propagate_updated_subtensor_through_loop(linear_ir, inner_loop_info, inner_begin, inner_end, false);
             }
-            propagate_updated_subtensor_through_loop(linear_ir, inner_loop_info, inner_begin, inner_end, false);
             expr_it = inner_end;
             continue;
         }
