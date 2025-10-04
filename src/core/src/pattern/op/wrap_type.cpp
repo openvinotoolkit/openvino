@@ -12,6 +12,12 @@
 bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
                                                   const Output<Node>& pattern_value,
                                                   const Output<Node>& graph_value) {
+    // Check output indices match (for single-output nodes both will be 0)
+    if (pattern_value.get_index() != graph_value.get_index()) {
+        OPENVINO_LOG_WRAPTYPE0(matcher, pattern_value, graph_value);
+        return false;
+    }
+
     if (std::none_of(m_wrapped_types.begin(), m_wrapped_types.end(), [&](const NodeTypeInfo& type_info) {
             return graph_value.get_node_shared_ptr()->get_type_info().is_castable(type_info);
         })) {

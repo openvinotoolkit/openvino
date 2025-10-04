@@ -584,6 +584,18 @@ bool is_verbose_logging();
         } while (0);
 
 // pattern/op/wrap_type.cpp
+#    define OPENVINO_LOG_WRAPTYPE0(matcher, pattern_value, graph_value)        \
+        do {                                                                   \
+            OPENVINO_LOG_MATCHING(matcher,                                     \
+                                  ov::util::LevelString::get(),                \
+                                  OPENVINO_BLOCK_END,                          \
+                                  OPENVINO_RED,                                \
+                                  "  OUTPUT INDICES DIDN'T MATCH. EXPECTED: ", \
+                                  pattern_value.get_index(),                   \
+                                  ". OBSERVED: ",                              \
+                                  graph_value.get_index());                    \
+        } while (0);
+
 #    define OPENVINO_LOG_WRAPTYPE1(matcher, pattern_value, graph_value)                                  \
         do {                                                                                             \
             OPENVINO_LOG_MATCHING(matcher,                                                               \
@@ -834,6 +846,9 @@ bool is_verbose_logging();
         do {                            \
         } while (0)
 
+#    define OPENVINO_LOG_WRAPTYPE0(...) \
+        do {                            \
+        } while (0)
 #    define OPENVINO_LOG_WRAPTYPE1(...) \
         do {                            \
         } while (0)
