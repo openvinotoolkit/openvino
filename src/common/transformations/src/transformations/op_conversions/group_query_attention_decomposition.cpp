@@ -134,19 +134,30 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Broadcast KV if grouped query attention
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
     if (kv_num_heads_factor > 1) {
+        auto K_unsqueeze = register_new_node<v0::Unsqueeze>(K, two);
+        auto V_unsqueeze = register_new_node<v0::Unsqueeze>(V, two);
+
         const auto kv_shape = register_new_node<v3::ShapeOf>(K);
         const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
         const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
-        auto new_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{kv_shape_prev_2, one, kv_shape_last_2}, 0);
-        K = register_new_node<v1::Reshape>(K, new_kv_shape, false);
-        V = register_new_node<v1::Reshape>(V, new_kv_shape, false);
-        K = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, K), 2);
-        V = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, V), 2);
+        const auto kv_num_heads_factor_const = register_new_node(
+            v0::Constant::create(ov::element::i64,
+                                 ov::Shape{1},
+                                 {Q.get_partial_shape()[1].get_length() / K.get_partial_shape()[1].get_length()}));
+        auto new_kv_shape =
+            register_new_node<v0::Concat>(ov::NodeVector{kv_shape_prev_2, kv_num_heads_factor_const, kv_shape_last_2},
+                                          0);
+
+        auto K_broadcast =
+            register_new_node<v3::Broadcast>(K_unsqueeze, new_kv_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto V_broadcast =
+            register_new_node<v3::Broadcast>(V_unsqueeze, new_kv_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+
         const auto q_shape = register_new_node<v3::ShapeOf>(Q);
         const auto q_shape_prev_2 = get_dimensions(q_shape, {0, 1});
         auto extended_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{q_shape_prev_2, kv_shape_last_2}, 0);
-        K = register_new_node<v1::Reshape>(K, extended_kv_shape, false);
-        V = register_new_node<v1::Reshape>(V, extended_kv_shape, false);
+        K = register_new_node<v1::Reshape>(K_broadcast, extended_kv_shape, false);
+        V = register_new_node<v1::Reshape>(V_broadcast, extended_kv_shape, false);
     }
 
     // Make attention mask
