@@ -64,6 +64,7 @@ enum class KernelType {
     BATCH_TO_SPACE,
     SHAPE_OF,
     SDPA,
+    MSDA,
     SHUFFLE_CHANNELS,
     SLICE,
     STRIDED_SLICE,
