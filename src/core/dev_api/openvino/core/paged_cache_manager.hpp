@@ -66,6 +66,9 @@ public:
     void* get_value_base() const noexcept;
     std::size_t get_total_bytes() const noexcept;
     ov::element::Type get_element_type() const noexcept;
+    std::size_t get_num_blocks() noexcept;
+    std::size_t get_block_size() noexcept;
+    std::size_t get_block_bytes() noexcept;
 
     // per-operator metadata
     subsequence_view get_subsequence_begins(std::shared_ptr<ov::Node> node) const;
@@ -164,6 +167,15 @@ inline std::size_t PagedCacheManager::get_total_bytes() const noexcept {
 }
 inline ov::element::Type PagedCacheManager::get_element_type() const noexcept {
     return m_elem_type;
+}
+inline std::size_t PagedCacheManager::get_num_blocks() noexcept {
+    return m_num_blocks;
+}
+inline std::size_t PagedCacheManager::get_block_size() noexcept {
+    return m_block_size;
+}
+inline std::size_t PagedCacheManager::get_block_bytes() noexcept {
+    return m_block_bytes;
 }
 
 template <typename T>

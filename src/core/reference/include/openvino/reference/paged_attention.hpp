@@ -140,12 +140,11 @@ struct paged_attention_kernel_context {
 
 struct cache_manager_adapter {
     ov::internal::PagedCacheManager& cm;
-    ov::internal::PagedCacheManager::handle_t h;
+    std::shared_ptr<ov::Node> node;
 
-    explicit cache_manager_adapter(ov::internal::PagedCacheManager& mgr,
-                                   ov::internal::PagedCacheManager::handle_t handle)
+    explicit cache_manager_adapter(ov::internal::PagedCacheManager& mgr, std::shared_ptr<ov::Node> node)
         : cm(mgr),
-          h(handle) {}
+          node(node) {}
 
     inline void* get_key_cache_base() const {
         return cm.get_cache_blocks().key_base;
@@ -155,7 +154,7 @@ struct cache_manager_adapter {
     }
 
     inline const int32_t* get_subsequence_begins_or_null() const {
-        auto sv = cm.get_subsequence_begins(h);
+        auto sv = cm.get_subsequence_begins(node);
         return sv.data;
     }
 
@@ -184,10 +183,10 @@ struct cache_manager_adapter {
         L.query_head_size = qf / best_h;
         L.key_head_size = kf / best_h;
         L.value_head_size = vf / best_h;
-        L.num_blocks = cm.get_num_pages();
+        L.num_blocks = cm.get_num_blocks();
         const size_t elem_bytes = (size_t)cm.get_element_type().size();
         const size_t denom = L.num_heads * std::max(L.key_head_size, L.value_head_size) * elem_bytes;
-        L.block_size = denom ? (cm.get_page_bytes() / denom) : 0;
+        L.block_size = denom ? (cm.get_block_bytes() / denom) : 0;
         return L;
     }
 };
@@ -308,11 +307,15 @@ inline void accumulate_value_from_new_key(int32_t abs_token_idx,
 }
 
 template <typename T>
-void paged_attention(T* out,
+void paged_attention(std::shared_ptr<ov::Node> node,
+                     const std::shared_ptr<ov::internal::PagedCacheManager>& cache_manager,
+                     T* out,
                      T* out_scores,
                      const T* query,
                      const T* key,
                      const T* value,
+                     const T* key_cache,
+                     const T* value_cache,
                      const int32_t* past_lens,
                      const int32_t* subseq_begins_opt,
                      int32_t* block_indices,
@@ -327,13 +330,13 @@ void paged_attention(T* out,
                      const ov::Shape& query_shape,
                      const ov::Shape& key_shape,
                      const ov::Shape& value_shape,
+                     const ov::Shape& key_cache_shape,
+                     const ov::Shape& value_cache_shape,
                      const ov::Shape& past_lens_shape,
                      const ov::Shape& rotated_block_indices_shape,
                      const ov::Shape& rotation_deltas_shape,
-                     const ov::Shape& rotation_trig_lut_shape,
-                     ov::internal::PagedCacheManager::handle_t cache_handle,
-                     const std::shared_ptr<ov::internal::PagedCacheManager>& cache_manager) {
-    cache_manager_adapter cm(*cache_manager, cache_handle);
+                     const ov::Shape& rotation_trig_lut_shape) {
+    cache_manager_adapter cm(*cache_manager, node);
     const auto L = cm.infer_layout_from_shapes(query_shape, key_shape, value_shape);
 
     paged_attention_kernel_context ctx{};
