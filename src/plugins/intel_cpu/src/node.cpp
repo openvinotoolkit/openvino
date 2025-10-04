@@ -21,11 +21,13 @@
 #include <utility>
 #include <vector>
 
+#include "../../core/src/itt.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "edge.h"
 #include "graph_context.h"
+#include "itt.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -76,7 +78,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
-      profiling(op->get_friendly_name()) {
+      profiling(op->get_type_name()) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto& shape = op->get_input_partial_shape(i);
         OPENVINO_ASSERT(!shape.rank().is_dynamic(),
@@ -820,6 +822,7 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_op_exec, getTypeStr())
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {
