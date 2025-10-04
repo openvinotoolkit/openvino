@@ -185,6 +185,35 @@ static memory::ptr get_memory_from_pool(engine& _engine,
     return pool.get_memory(layout, type, reset);
 }
 
+static memory::ptr get_memory_from_pool_like_static(engine& _engine,
+                                uint32_t net_id,
+                                memory_pool& pool,
+                                const program_node& _node,
+                                const layout& layout,
+                                allocation_type type,
+                                bool reusable_across_network,
+                                const memory_restricter<uint32_t>& memory_dependencies,
+                                bool reset = true,
+                                memory* curr_memory = nullptr) {
+    OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(),
+                    "[GPU] Can't allocate output for dynamic layout without upper bound");
+    // Use layout with max tensor for dynamic shape with upper bound
+    if (_node.get_program().get_config().get_enable_memory_pool()) {
+        if (curr_memory != nullptr)
+            pool.release_memory(curr_memory, _node.get_unique_id(), _node.id(), net_id);
+        return pool.get_memory(layout,
+                               _node.id(),
+                               _node.get_unique_id(),
+                               net_id,
+                               memory_dependencies,
+                               type,
+                               reusable_across_network,
+                               reset,
+                               false);
+    }
+    return pool.get_memory(layout, type, reset);
+}
+
 std::shared_ptr<kernel_impl_params> primitive_impl::get_weights_reorder_kernel_params() const {
     if (!need_weights_reorder())
         return nullptr;
@@ -588,7 +617,115 @@ void primitive_inst::clear_output_memory() {
     _max_output_layout_count[0] = 0;
 }
 
-void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
+void primitive_inst::release_memory(memory* mem) {
+    get_network().get_memory_pool().release_memory(mem, _node->get_unique_id(), id(), get_network_id());
+}
+
+// POC: 재활용 가능한 메모리인지 판별하는 함수
+bool primitive_inst::is_reusable_memory_allocation(const layout& required_layout,
+                                                  size_t output_idx,
+                                                  bool is_output_buffer,
+                                                  bool runtime_alloc) const {
+    // 1. 패딩이 있는 메모리는 재활용 불가능으로 간주
+    if (required_layout.data_padding != padding()) {
+        return false;
+    }
+
+    // 2. 특수한 케이스들은 재활용 불가능
+    if (get_node().is_type<input_layout>() ||
+        get_node().is_type<kv_cache>() ||
+        is_output_buffer) {
+        return false;
+    }
+
+    // 3. shape_of 서브그래프의 노드들은 재활용 불가능 (CPU 구현으로 인한 동기화 문제)
+    if (get_node().is_in_shape_of_subgraph()) {
+        return false;
+    }
+
+    // 4. 변수 메모리를 사용하는 경우 재활용 불가능
+    if (dynamic_cast<const memory_state::variable*>(this)) {
+        return false;
+    }
+
+    // 5. concat 최적화가 적용되는 경우 재활용 불가능
+    const auto& users = get_user_insts();
+    if (users.size() == 1 && users.front()->get_node().is_type<concatenation>() &&
+        users.front()->get_node().is_runtime_skippable() && users.front()->can_be_optimized()) {
+        return false;
+    }
+
+    // 6. reorder 최적화가 적용되는 경우 재활용 불가능
+    if (users.size() == 1 && users.front()->get_node().is_type<reorder>() &&
+        users.front()->can_be_optimized()) {
+        return false;
+    }
+
+    // 7. 최적화된 primitive는 재활용 불가능
+    if (can_be_optimized()) {
+        return false;
+    }
+
+    // 8. 기존 메모리가 있고 크기가 충분한 경우는 이미 재사용 로직에서 처리됨
+    if (_outputs.size() > output_idx && _outputs[output_idx] &&
+        required_layout.get_linear_size() <= _max_output_layout_count[output_idx]) {
+        return false;  // 이미 재사용 가능한 상태
+    }
+
+    // 위 조건들을 모두 통과하면 재활용 가능한 새로운 메모리 할당
+    return true;
+}
+
+// 메모리 할당 타입을 결정하는 함수 (allocate_output 로직에서 추출)
+allocation_type primitive_inst::determine_allocation_type(const layout& layout,
+                                                         bool is_output_buffer,
+                                                         bool runtime_alloc) const {
+    auto& engine = get_network().get_engine();
+    const auto& device_info = engine.get_device_info();
+    const auto& node = get_node();
+
+    // 1. Device memory 할당 가능 여부 확인
+    bool usm_device_allocatable = true;
+    auto device_mem_acc = [&](size_t a, const cldnn::layout& l) {
+        if (l.is_static())
+            return a + l.bytes_count();
+        return a;
+    };
+
+    const auto& total_device_input_mem_size = std::accumulate(
+        _impl_params->input_layouts.begin(),
+        _impl_params->input_layouts.end(),
+        (uint64_t)0,
+        device_mem_acc);
+
+    if (total_device_input_mem_size > device_info.max_global_mem_size)
+        usm_device_allocatable = false;
+
+    // 2. CPU 구현 여부 확인
+    bool is_cpu = node.get_selected_impl() ? node.get_selected_impl()->is_cpu() :
+                                              node.get_preferred_impl_type() == impl_types::cpu;
+
+    // 3. Lockable memory 사용 여부 결정
+    auto total_output_bytes = layout.bytes_count();
+    auto use_lockable_memory =
+        (is_output_buffer && ov::intel_gpu::can_use_usm_host(engine, total_output_bytes)) ||
+        is_cpu || has_any_cpu_user_not_shape_of(node.get_users()) ||
+        !engine.supports_allocation(allocation_type::usm_device) ||
+        (node.is_shape_infer_dep() && device_info.dev_type == device_type::integrated_gpu);
+
+    // 4. 최종 allocation type 결정
+    const auto& lockable_mem_type = engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
+
+    if (use_lockable_memory) {
+        return lockable_mem_type;
+    } else if (!usm_device_allocatable) {
+        return lockable_mem_type;
+    } else {
+        return allocation_type::usm_device;
+    }
+}
+
+void primitive_inst::realloc_if_needed(bool prev_execution_skipped, DeferredMemoryCollector collector) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
@@ -940,6 +1077,9 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             updated_params.output_layouts[i] = updated_layouts[i];
         }
 
+        // POC: 재사용 가능한 메모리인지 확인 (deferred allocation 가능성 체크)
+        bool is_deferrable = is_reusable_memory_allocation(updated_layouts[i], i, is_output_buffer(this, true), true);
+
         if (can_reuse_buffer) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer[" << i << "] - "
                                    << actual_layouts[i].get_linear_size() << "/" << _max_output_layout_count[i]
@@ -962,6 +1102,9 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 set_flag(ExecutionFlags::SHAPE_CHANGED);
             } else {
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
+                if (is_deferrable && collector) {
+                    collector(updated_layouts[i], _outputs[i]->get_allocation_type(), i, is_output_buffer(this, true));
+                }
             }
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
         } else {
@@ -970,24 +1113,44 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                                    << " Current buffer_size=" << _max_output_layout_count[i]
                                    << " Requested buffer_size=" << updated_layouts[i].get_linear_size()
                                    << std::endl;
-            _outputs[i] = allocate_output(get_network().get_engine(),
-                                          get_network().get_memory_pool(),
-                                          *_node,
-                                          updated_params,
-                                          _runtime_memory_dependencies,
-                                          get_network_id(),
-                                          get_network().is_internal(),
-                                          i,
-                                          false /* reset */,
-                                          is_output_buffer(this, true),
-                                          output_memory_ptr(i).get(),
-                                          true);
+
+            if (is_deferrable && collector) {
+                // 할당될 메모리 타입 미리 계산
+                allocation_type alloc_type = determine_allocation_type(updated_layouts[i], is_output_buffer(this, true), true);
+                GPU_DEBUG_TRACE_DETAIL << id() << ": output[" << i << "] - "
+                                       << "linear_size: " << updated_layouts[i].get_linear_size()
+                                       << ", bytes: " << updated_layouts[i].bytes_count()
+                                       << ", alloc_type: " << static_cast<int>(alloc_type)
+                                       << ", padding: " << (updated_layouts[i].data_padding != padding() ? "yes" : "no")
+                                       << std::endl;
+                collector(updated_layouts[i], alloc_type, i, is_output_buffer(this, true));
+                if (_outputs[i])
+                    release_memory(_outputs[i].get());
+                _outputs[i] = nullptr;
+            } else {
+                _outputs[i] = allocate_output(get_network().get_engine(),
+                                            get_network().get_memory_pool(),
+                                            *_node,
+                                            updated_params,
+                                            _runtime_memory_dependencies,
+                                            get_network_id(),
+                                            get_network().is_internal(),
+                                            i,
+                                            false /* reset */,
+                                            is_output_buffer(this, true),
+                                            output_memory_ptr(i).get(),
+                                            true);
+            }
             _max_output_layout_count[i] = updated_params.output_layouts[i].get_linear_size();
             set_flag(ExecutionFlags::MEMORY_CHANGED);
-            GPU_DEBUG_CODE(std::string memalloc_info = "");
-            GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
-                                  (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
-            GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
+            // GPU_DEBUG_CODE(std::string memalloc_info = "");
+            // GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
+            //                       (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
+
+            // // POC: deferrable 정보를 메모리 할당 정보에 추가
+            // GPU_DEBUG_CODE(if (is_deferrable) memalloc_info += "_deferrable");
+
+            // GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
         }
     }
 
@@ -2250,16 +2413,26 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable) {
-    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
+    if (_impl == nullptr || _outputs.empty() || (_outputs[0] == nullptr && !_execution_context.is_deferred()))
         return nullptr;
 
     auto device_mem_acc = [&](size_t a, std::pair<primitive_inst*, int32_t> b) {
         if (!b.first->mem_allocated()) return a;
         auto res = a;
-        for (size_t i = 0; i < b.first->outputs_memory_count(); ++i) {
-            if (b.first->output_memory(i).get_allocation_type() == allocation_type::usm_device ||
-                b.first->output_memory(i).get_allocation_type() == allocation_type::cl_mem)
-                return a + b.first->output_memory().size();
+        if (b.first->_execution_context.is_deferred() && !b.first->_execution_context.deferred_mem_infos.empty()) {
+            auto& exec_ctx = b.first->_execution_context;
+            for (size_t i = 0; i < b.first->outputs_memory_count(); ++i) {
+                auto& mem_info = exec_ctx.deferred_mem_infos[i];
+                if (mem_info.alloc_type == allocation_type::usm_device ||
+                    mem_info.alloc_type == allocation_type::cl_mem)
+                    return a + mem_info.mem_layout.bytes_count();
+            }
+        } else {
+            for (size_t i = 0; i < b.first->outputs_memory_count(); ++i) {
+                if (b.first->output_memory(i).get_allocation_type() == allocation_type::usm_device ||
+                    b.first->output_memory(i).get_allocation_type() == allocation_type::cl_mem)
+                    return a + b.first->output_memory().size();
+            }
         }
         return res;
     };
@@ -2272,9 +2445,17 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
     const auto& inst_deps = get_network().get_primitives(get_node().get_dependencies());
 
     auto total_device_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), size_t(0), device_mem_acc);
-    for (const auto& output : _outputs) {
-        if (output->get_allocation_type() == allocation_type::usm_device)
-            total_device_mem_size += output->size();
+
+    if (_execution_context.is_deferred() && !_execution_context.deferred_mem_infos.empty()) {
+        for (const auto& [idx, mem_info] : _execution_context.deferred_mem_infos) {
+            if (mem_info.alloc_type == allocation_type::usm_device)
+                total_device_mem_size += mem_info.mem_layout.bytes_count();
+        }
+    } else {
+        for (const auto& output : _outputs) {
+            if (output->get_allocation_type() == allocation_type::usm_device)
+                total_device_mem_size += output->size();
+        }
     }
 
     int64_t available_device_mem_size = engine.get_device_info().max_global_mem_size - total_device_mem_size;
@@ -2282,13 +2463,23 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
     // check if there is any device mem input
     if (engine.supports_allocation(allocation_type::usm_device)) {
         for (const auto& dep : inst_deps) {
-            if (dep.first->output_memory_ptr() &&
-                dep.first->output_memory_ptr()->get_allocation_type() == allocation_type::usm_device) {
-                input_device_mem = true;
-                break;
+            if (dep.first->_execution_context.is_deferred()
+                && dep.first->_execution_context.deferred_mem_infos.count(0)) {
+                auto& exec_ctx = dep.first->_execution_context;
+                if (exec_ctx.deferred_mem_infos[0].alloc_type == allocation_type::usm_device) {
+                    input_device_mem = true;
+                    break;
+                }
+            } else {
+                if (dep.first->output_memory_ptr() &&
+                    dep.first->output_memory_ptr()->get_allocation_type() == allocation_type::usm_device) {
+                    input_device_mem = true;
+                    break;
+                }
             }
         }
     }
+
     // allocate intermediate memory for the updated layout of buffer
     auto alloc_type = allocation_type::unknown;
     GPU_DEBUG_LOG << "[" << get_node().id() << ": internal buf " << idx << "] "
@@ -2471,6 +2662,67 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
         }
     }
     return false;
+}
+
+void primitive_inst::allocate_deferred_outputs() {
+    if (!_execution_context.is_deferred()) {
+        GPU_DEBUG_COUT << id() << " skipped allocating deferred outputs" << std::endl;
+        return; // No deferred memory to allocate
+    }
+
+    auto& exec_ctx = _execution_context;
+
+    auto& engine = get_network().get_engine();
+    auto& pool = get_network().get_memory_pool();
+
+    GPU_DEBUG_LOG << "[" << id() << ": allocating " << exec_ctx.deferred_mem_infos.size()
+                  << " deferred outputs]" << std::endl;
+
+    // Process each deferred memory info
+    for (const auto& [output_idx, info] : exec_ctx.deferred_mem_infos) {
+        const auto& layout = info.mem_layout;
+
+        OPENVINO_ASSERT(layout.is_static() || layout.has_upper_bound(),
+                        "[GPU] Can't allocate deferred output for dynamic layout");
+
+        // Ensure _outputs vector is large enough
+        if (_outputs.size() <= output_idx) {
+            _outputs.resize(output_idx + 1);
+            _max_output_layout_count.resize(output_idx + 1, 0);
+        }
+
+        // Determine allocation type based on layout and requirements
+        bool use_lockable_memory = info.is_output_buffer ||
+                                   !engine.supports_allocation(allocation_type::usm_device);
+        const auto& lockable_mem_type = engine.get_lockable_preferred_memory_allocation_type(
+            layout.format.is_image_2d());
+
+        auto alloc_type = use_lockable_memory ? lockable_mem_type : allocation_type::usm_device;
+
+        // For deferred allocation, we assume it should be reusable across network
+        bool reusable_across_network = true;
+
+        GPU_DEBUG_LOG << "[" << id() << ": deferred_output[" << output_idx << "] - "
+                      << "linear_size: " << layout.get_linear_size()
+                      << ", bytes: " << layout.bytes_count() << "]" << std::endl;
+
+        // Allocate memory from pool and assign to _outputs
+        _outputs[output_idx] = get_memory_from_pool_like_static(engine,
+                                                    get_network_id(),
+                                                    pool,
+                                                    get_node(),
+                                                    layout,
+                                                    alloc_type,
+                                                    reusable_across_network,
+                                                    _runtime_memory_dependencies,
+                                                    false /* reset */,
+                                                    _outputs[output_idx].get() /* curr_memory */);
+        // Update max output layout count
+        _max_output_layout_count[output_idx] = layout.get_linear_size();
+    }
+
+    // Set memory changed flag
+    set_flag(ExecutionFlags::MEMORY_CHANGED);
 }
 
 memory::ptr primitive_inst::allocate_output(engine& _engine,
@@ -3022,6 +3274,241 @@ bool ImplementationsFactory::has(impl_types impl_type) const {
     return std::any_of(m_available_impls.begin(), m_available_impls.end(), [&impl_type](const std::shared_ptr<ImplementationManager>& m) {
         return m->get_impl_type() == impl_type;
     });
+}
+
+void primitive_inst::clear_deferred_outputs() {
+    if (_execution_context.is_deferred()) {
+        for (const auto& [out_idx, mem_info] : _execution_context.deferred_mem_infos) {
+            if (_outputs[out_idx])
+                release_memory(_outputs[out_idx].get());
+            _outputs[out_idx] = nullptr;
+            _max_output_layout_count[out_idx] = 0;
+        }
+    }
+}
+
+void primitive_inst::prepare_memory_and_impl() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
+    const auto& primitive_id = id();
+    if (!_has_valid_input) {
+        // For unfused network with dynamic_quantization, we may have empty/unused input
+        GPU_DEBUG_TRACE_DETAIL << primitive_id << " does not have valid input. do nothing" << std::endl;
+        return;
+    }
+    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
+    for (size_t i = 0; i < _deps.size(); ++i) {
+        GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
+    }
+    GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
+
+    // If it is optimized out or skipped for zero dimension at the previous iteration,
+    // Set this flag true to reset output memory in realloc_if_needed.
+    const bool prev_execution_skipped = can_be_optimized()
+                        || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
+    _execution_context.original_outputs = _outputs;
+
+    // shape_of should be executed in advance.
+    if (get_node().is_type<shape_of>()) {
+        _execution_context.needs_immediate_execution = true;
+        _execution_context.execution_completed = false;
+    }
+
+    if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
+        do_runtime_in_place_concat();
+        update_shape();
+
+        if (_impl_params->output_layouts[0].count() == 0) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
+            set_flag(ExecutionFlags::SKIP);
+        }
+
+        // subgraph_input_changed can be available only shape_of is dynamic.
+        // shape_of_subgraph for static shape_of could be run every inference if constant propagation does not work.
+        if (get_node().is_in_shape_of_subgraph() && _dependant_shape_of_insts.front()->is_dynamic()) {
+            bool subgraph_input_changed = false;
+            for (size_t i = 0; i < _dependant_shape_of_insts.size(); i++) {
+                if (_dependant_shape_of_insts[i]->get_flag(ExecutionFlags::SHAPE_CHANGED)) {
+                    subgraph_input_changed = true;
+                    break;
+                }
+            }
+            if (!subgraph_input_changed) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping execution because dependent shapeof node is not changed " << std::endl;
+                set_flag(ExecutionFlags::SKIP);
+            }
+        }
+
+        if (get_flag(ExecutionFlags::SKIP)) {
+            _update_shape_done_by_other = false; // reset
+            return;
+        }
+
+        if (_node->is_type<read_value>()) {
+            auto prim = get_node().as<read_value>().get_primitive();
+            auto& variable = get_network().get_variable(prim->variable_id);
+
+            if (variable.is_set() && can_be_optimized()) {
+                set_flag(ExecutionFlags::SKIP);
+            }
+        }
+
+        // Check successor reorder if layouts are same
+        // Need to set can_be_optimized for user reorder at predecessor because
+        // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
+        do_runtime_skip_reorder();
+        do_runtime_skip_gather();
+        update_paddings();
+        do_runtime_in_place_kv_cache();
+        do_runtime_skip_permute();
+        do_runtime_skip_strided_slice();
+        do_runtime_skip_broadcast();
+        do_runtime_skip_scatter_update();
+        do_runtime_skip_lora();
+        do_runtime_in_place_crop();
+
+        if (!is_valid_fusion()) {
+            OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
+            get_unfused_subgraph();
+            return;
+        }
+
+        // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
+        // Only try update weight and realloc when impl is updated.
+        const bool can_use_async_compilation = use_async_compilation();
+        const bool shape_changed = get_flag(ExecutionFlags::SHAPE_CHANGED);
+        if (shape_changed || !_impl || (!shape_changed && _impl->is_dynamic() && can_use_async_compilation)) {
+            update_impl(can_use_async_compilation);
+            if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
+                update_weights();
+                // POC: Define lambda function to collect deferred memory info
+                auto collect_deferred_memory = [this](const layout& mem_layout, allocation_type alloc_type, size_t output_idx, bool is_output_buffer) {
+                    ExecutionContext::MemoryInfo info;
+                    info.mem_layout = mem_layout;
+                    info.output_idx = output_idx;
+                    info.is_output_buffer = is_output_buffer;
+                    info.alloc_type = alloc_type;
+                    this->_execution_context.need_deferred_allocation = true;
+                    this->_execution_context.deferred_mem_infos[output_idx] = info;
+                };
+
+                // ⭐ 핵심 메모리 할당 지점 - collector 함수와 함께 호출
+                realloc_if_needed(prev_execution_skipped, collect_deferred_memory);
+            }
+        }
+
+        // Paged Attention may require dispatch data update and internal buffers reallocation
+        // even if the input shapes haven't been changed
+        if (get_node().is_type<paged_attention>() && !get_flag(ExecutionFlags::IMPL_CHANGED) && _impl->requires_update(*this, *_impl_params)) {
+            _impl->update(*this, *_impl_params);
+            realloc_if_needed(prev_execution_skipped);
+        }
+
+        OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
+                        "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
+    }
+    _update_shape_done_by_other = false; // reset
+    OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
+
+    _execution_context.need_notify_mem_changed = false;
+    if (!get_node().is_type<condition>() && !get_node().is_type<loop>()) {
+        for (size_t i = 0; i < _outputs.size(); ++i) {
+            if (!_execution_context.original_outputs[i] && !_outputs[i])
+                continue;
+
+            if ((!_execution_context.original_outputs[i] && _outputs[i]) ||
+                (_execution_context.original_outputs[i] && !_outputs[i])) {
+                _execution_context.need_notify_mem_changed = true;
+                break;
+            }
+            if (!get_network().get_engine().is_the_same_buffer(*_execution_context.original_outputs[i], *_outputs[i])) {
+                _execution_context.need_notify_mem_changed = true;
+                break;
+            }
+        }
+    }
+    _execution_context.original_outputs.clear();
+}
+
+void primitive_inst::prepare_execution() {
+    std::function<bool(const cldnn::primitive_inst*)> has_dynamic_dependencies_insts =
+        [&has_dynamic_dependencies_insts](const cldnn::primitive_inst* prim_inst) {
+        for (auto& dep : prim_inst->_deps) {
+            const cldnn::primitive_inst* dep_inst = dep.first;
+            if (dep_inst->get_flag(ExecutionFlags::MEMORY_CHANGED)) {
+                return true;
+            } else if (dep_inst->can_be_optimized()) {
+                if (has_dynamic_dependencies_insts(dep_inst)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    bool need_args_update = get_flag(ExecutionFlags::IMPL_CHANGED) || get_flag(ExecutionFlags::MEMORY_CHANGED);
+
+    // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this) || _use_shared_kernels) {
+        // For ocl_v2 impls we call set args based in flag in the execute() impl, so need to update the flag here
+        set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
+        set_arguments();
+    }
+    on_execute();
+
+    if (_execution_context.need_notify_mem_changed) {
+        set_flag(ExecutionFlags::MEMORY_CHANGED);
+        _execution_context.need_notify_mem_changed = false;
+    }
+
+    GPU_DEBUG_TRACE << id() << ": execute " << _impl->get_kernel_name() << " (is_dynamic=" << _impl->is_dynamic()
+                    << ", "
+                    << "can_be_optimized=" << can_be_optimized() << ")" << std::endl;
+
+    const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
+    if (!_exec_deps.empty()) {
+        // Prepare dependencies events in case of OOO queue, CPU implementation,
+        // or optimized_out impl which has CPU users (needs_completion_event() && !is_output() condition)
+        if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {
+            for (auto& input : _exec_deps) {
+                add_dep_event(input->get_impl_params()->out_event);
+            }
+        }
+    }
+
+    // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
+    // is a convolution that requires zeroed-out data paddings)
+    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+        const auto& users = get_user_insts();
+        const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
+                                 users.front()->_allocation_done_by_other;
+        const auto skip_reset = skip_concat;
+
+        if (!skip_reset) {
+            for (const auto& output : _outputs) {
+                if (output != nullptr) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
+                    // Use marker to ensure proper synchronization for both events and barriers
+                    auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                         : std::vector<event::ptr>{};
+                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
+                }
+            }
+        }
+    }
+
+    // Replace multiple events with single grouped event in case of barriers synchronization to prevent `_last_barrier_ev` usage as a dependency
+    // event of optimized_out instance's users, which may lead to unwanted extra synchronization of CPU impls with GPU kernels
+    if (get_node().is_in_shape_of_subgraph() && can_be_optimized() && _impl_params->dep_events.size() > 1 && out_of_order_queue) {
+        auto grouped_ev = get_network().get_stream().group_events(_impl_params->dep_events);
+        _impl_params->dep_events = {grouped_ev};
+    }
+}
+
+// 호환성을 위한 기존 prepare_primitive2() 함수
+void primitive_inst::prepare_primitive2() {
+    prepare_memory_and_impl();
+    prepare_execution();
 }
 
 }  // namespace cldnn
