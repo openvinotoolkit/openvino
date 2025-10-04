@@ -210,6 +210,7 @@ public:
 #else
     int64_t get_current_iteration_num() const { const int64_t NOT_AVAILABLE=-112233; return NOT_AVAILABLE; }
 #endif
+    bool _has_range = false;
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<primitive_inst*>>;
@@ -248,6 +249,8 @@ private:
     output_chains_map _output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
+
+    std::map<size_t, size_t> _primitives_with_size_cache;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
