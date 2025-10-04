@@ -177,13 +177,6 @@ void ScaledAttnLayerGPUTest::SetUp() {
 
     function = std::make_shared<ov::Model>(ov::OutputVector{output}, inputParams, "sdpa_model");
 
-    functionRefs = function->clone();
-    ov::pass::Manager manager;
-
-    // Decompose ScaledDotProductAttention
-    manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
-    manager.run_passes(functionRefs);
-
     auto it = std::find_if(inputShapes[1].second.begin(), inputShapes[1].second.end(), [&](const ov::Shape& shape){
         return shape[0] >= 128 || shape[2] >= 384 || shape[3] >= 128;
     });
@@ -732,7 +725,7 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D_sink {
         },
         // attn shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, -1},
-            {ov::Shape{1, 8, 100, 100}, ov::Shape{1, 8, 1, 1}, ov::Shape{2, 8, 10, 10}}}
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
         },
     },
     // 4D inputs, 2D mask
