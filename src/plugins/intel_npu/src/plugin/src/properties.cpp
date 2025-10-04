@@ -310,6 +310,8 @@ Properties::Properties(const PropertiesType pType,
 void Properties::registerProperties() {
     // Reset
     _properties.clear();
+    _supportedProperties.clear();
+    _registeredProperties.clear();
 
     switch (_pType) {
     case PropertiesType::PLUGIN:
@@ -326,9 +328,13 @@ void Properties::registerProperties() {
     // 2.3. Common metrics (exposed same way by both Plugin and CompiledModel)
     REGISTER_SIMPLE_METRIC(ov::supported_properties, true, _supportedProperties);
 
+    // 2.4. All registered properties
+    REGISTER_SIMPLE_METRIC(ov::intel_npu::registered_properties, false, _registeredProperties);
+
     // 3. Populate supported properties list
     // ========
     for (auto& property : _properties) {
+        _registeredProperties.emplace_back(ov::PropertyName(property.first));
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
         }
@@ -678,22 +684,23 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
 void Properties::set_property(const ov::AnyMap& properties) {
     std::map<std::string, std::string> cfgs_to_set;
 
-    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    if (_pType == PropertiesType::PLUGIN) {
-        try {
-            // Only accepting unknown config keys in plugin
-            CompilerAdapterFactory compilerAdapterFactory;
-            compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
-        } catch (...) {
-            // nothing to do here. we will just throw exception bellow in case unknown property check is called
-            // if its not called, nothing to do
-        }
-    }
-
     for (auto&& value : properties) {
-        if (_properties.find(value.first) == _properties.end()) {
+        if (properties.find(value.first) == properties.end()) {
             // property doesn't exist
             // checking as internal now
+
+            std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+            if (_pType == PropertiesType::PLUGIN) {
+                try {
+                    // Only accepting unknown config keys in plugin
+                    CompilerAdapterFactory compilerAdapterFactory;
+                    compiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
+                } catch (...) {
+                    // nothing to do here. we will just throw exception bellow in case unknown property check is called
+                    // if its not called, nothing to do
+                }
+            }
+
             if (compiler != nullptr) {
                 if (compiler->is_option_supported(value.first)) {
                     // if compiler reports it supported > registering as internal

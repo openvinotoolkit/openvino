@@ -58,9 +58,11 @@ void FilteredConfig::enable(std::string key, bool enabled) {
     _enabled[key] = enabled;
 }
 
-void FilteredConfig::enableAll() {
+void FilteredConfig::enableRuntimeOptions() {
     _desc->walk([&](const details::OptionConcept& opt) {
-        enable(opt.key().data(), true);
+        if (opt.mode() == OptionMode::RunTime) {
+            enable(opt.key().data(), true);
+        }
     });
 }
 
@@ -125,6 +127,14 @@ std::string FilteredConfig::toStringForCompiler() const {
     }
 
     return resultStream.str();
+}
+
+void FilteredConfig::setFiltered() {
+    _filtered = true;
+}
+
+bool FilteredConfig::wasFiltered() const {
+    return _filtered;
 }
 
 }  // namespace intel_npu

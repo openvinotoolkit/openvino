@@ -72,9 +72,9 @@ public:
     void enable(std::string key, bool enable);
 
     /**
-     * @brief Enables all available configuration options.
+     * @brief Enables only runtime configuration options.
      */
-    void enableAll();
+    void enableRuntimeOptions();
 
     /**
      * @brief Iterates over all enabled options and applies a callback function to each enabled key.
@@ -115,10 +115,22 @@ public:
      */
     std::string toStringForCompiler() const;
 
+    /**
+     * @brief Marks config as filtered
+     */
+    void setFiltered();
+
+    /**
+     * @brief Checks wether config was filtered
+     */
+    bool wasFiltered() const;
+
 private:
     EnableMap _enabled;  ///< Map to track whether specific configuration keys are enabled or disabled.
 
     ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.
+
+    bool _filtered = false;  ///< Boolean to check wether config was filtered with compiler supported properties
 };
 
 }  // namespace intel_npu

@@ -301,6 +301,7 @@ void Plugin::init_options() {
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
+            // Can we always register workload type and to enable only when contidion above is true?
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
         // register backend options
@@ -309,9 +310,6 @@ void Plugin::init_options() {
 
     // parse again env_variables to update registered configs which have env vars set
     _globalConfig.parseEnvVars();
-
-    // filter out unsupported options
-    filter_config_by_compiler_support(_globalConfig);
 
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
@@ -364,6 +362,8 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_GENERATE_ATTENTION_HINT);
     REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
+
+    _globalConfig.enableRuntimeOptions();
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -450,6 +450,7 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     if (_backend && _backend->isCommandQueueExtSupported()) {
         cfg.enable(ov::intel_npu::turbo.name(), true);
     }
+    cfg.setFiltered();
 }
 
 FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
@@ -473,6 +474,13 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
             compiler_changed = true;
         }
     }
+
+    // If localConfig was not filtered not even by compiler type change, then _globalConfig needs also initialization
+    if (!localConfig.wasFiltered()) {
+        filter_config_by_compiler_support(localConfig);
+        _globalConfig = localConfig;
+    }
+
     // 2. Revalidate unknown internal configs
     // look for unsupported internals
     // first in what we inherited from globalconfig by forking it - ONLY if compiler has changed
@@ -504,7 +512,24 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
-    // 1. Check for compiler change
+    if (properties.empty()) {
+        return;
+    }
+
+    // 1. Check if configs have been filtered
+    if (!_globalConfig.wasFiltered()) {
+        for (const auto& prop : properties) {
+            if (!_globalConfig.isAvailable(prop.first)) {
+                // filter out unsupported options
+                filter_config_by_compiler_support(_globalConfig);
+                // 2. Reset properties for the new options
+                _properties->registerProperties();
+                break;
+            }
+        }
+    }
+
+    // 2. Check for compiler change
     if (properties.count(std::string(COMPILER_TYPE::key())) != 0) {
         // Compiler change detected
         // Set new compiler in _globalConfig
@@ -518,10 +543,10 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         }
     }
 
-    // 2. Set the property via Properties interface
+    // 3. Set the property via Properties interface
     _properties->set_property(properties);
 
-    // 3. Extra hooks
+    // 4. Extra hooks
     // Update log level if it was provided
     if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
         Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
@@ -535,6 +560,20 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     auto npu_plugin_properties = arguments;
     exclude_model_ptr_from_map(npu_plugin_properties);
+    // 1. Incorrect property - compiler load redundant, but can't avoid this
+    // 2. Unknown property (private compiler property) - need to check for compiler load
+    // 3. Valid property
+    // 3.1 Option was already enabled (runtime case)
+    // 3.2 Option was not yet enabled (deffered compiler load) - need to check for compiler load
+    // 3.3 Regular metric
+    // 3.4 SUPPORTED_PROPERTY - need to check for compiler load
+
+    if (!_globalConfig.wasFiltered() && !_globalConfig.isAvailable(name)) {
+        // filter out unsupported options
+        filter_config_by_compiler_support(_globalConfig);
+        // 2. Reset properties for the new options
+        _properties->registerProperties();
+    }
     return _properties->get_property(name, npu_plugin_properties);
 }
 

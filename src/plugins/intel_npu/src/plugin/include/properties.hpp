@@ -61,6 +61,7 @@ private:
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
+    std::vector<ov::PropertyName> _registeredProperties;
 
     // internal registration functions basd on client object
     void registerPluginProperties();
@@ -129,8 +130,12 @@ private:
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
         ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
 
-    const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name()};
+    const std::vector<ov::PropertyName> _internalSupportedProperties = {
+        ov::cache_dir.name(), /* OV queries internal supported properties for cache_dir instead */
+        ov::hint::model.name(),
+        ov::weights_path.name(),
+        ov::internal::caching_properties.name(),
+        ov::internal::caching_with_mmap.name()};
 };
 
 }  // namespace intel_npu
