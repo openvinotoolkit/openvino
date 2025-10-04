@@ -25,6 +25,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "utils/general_utils.h"
+#include "utils/precision_support.h"
 
 using namespace Xbyak_aarch64;
 
@@ -57,8 +58,11 @@ jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
 
 std::set<std::vector<element::Type>> jit_gemm_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    // Note: currently supports only fp32 on arm
-    return {{element::f32, element::f32}};
+    std::set<std::vector<element::Type>> result{{element::f32, element::f32}};
+    if (ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
+        result.insert({element::f16, element::f16});
+    }
+    return result;
 }
 
 void jit_gemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
