@@ -38,6 +38,7 @@
 #include "utils/general_utils.h"
 #include "utils/memory_stats_dump.hpp"
 #include "utils/serialize.hpp"
+#include "transformations/common_optimizations/convert_type_relaxed_to_base.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
 #    include <arm_compute/runtime/IScheduler.h>
@@ -404,8 +405,41 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
+    // Before exporting, we need to handle type_relaxed operations
+    // These are internal operations that shouldn't be serialized to IR
+    // We convert them to their base opset equivalents for compatibility
+    
+    std::shared_ptr<ov::Model> export_model = m_model;
+    
+    // Check if the model contains any type_relaxed operations
+    bool has_type_relaxed_ops = false;
+    for (const auto& node : m_model->get_ordered_ops()) {
+        // Check if the node is a type_relaxed operation by looking at its type_info
+        const auto& type_info = node->get_type_info();
+        if (type_info.version_id.find("type_relaxed_") == 0) {
+            has_type_relaxed_ops = true;
+            break;
+        }
+    }
+    
+    if (has_type_relaxed_ops) {
+        // Clone the model to avoid modifying the original
+        export_model = m_model->clone();
+        
+        // Apply transformations to convert type_relaxed operations to base opset
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        
+        // Convert type_relaxed operations to their base opset equivalents
+        // This ensures the exported model can be imported without errors
+        manager.register_pass<ov::pass::ConvertTypeRelaxedToBase>();
+        
+        // Run the transformations
+        manager.run_passes(export_model);
+    }
+    
     ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt);
-    serializer << m_model;
+    serializer << export_model;
 }
 
 void CompiledModel::release_memory() {
