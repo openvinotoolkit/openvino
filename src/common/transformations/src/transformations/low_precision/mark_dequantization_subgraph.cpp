@@ -19,6 +19,13 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/gather.hpp"
+#include <openvino/core/graph_util.hpp>
+#include <openvino/op/shape_of.hpp>
+#include <openvino/op/convert.hpp>
+#include <openvino/op/concat.hpp>
+#include <openvino/op/broadcast.hpp>
+#include <openvino/pass/constant_folding.hpp>
 
 using namespace ov;
 using namespace ov::op;
@@ -384,7 +391,59 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     auto m = std::make_shared<Matcher>(multiply_pattern, "KeepDequantizationPrecision");
     this->register_matcher(m, callback);
 }
+//We apply Stateful transformation in onnx frontend, which convert stateless LLM model to stateful LLM model.
+//The reason of stateful transformation is enabling kvcache on GPU and avoid unnecessary mem copies to device 
+//However, we need to disable all nodes in the subgraph from constant folding which are used for shape inference.
+ov::pass::markStatefulSubgraph::markStatefulSubgraph() {
+    MATCHER_SCOPE(markStatefulSubgraph);
+    auto param_m = wrap_type<ov::op::v0::Parameter>();
+    auto convert_param_m = wrap_type < ov::op::v0::Convert>(param_m);
+    auto output_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{param_m, convert_param_m});
+    auto shapeof_m = pattern::wrap_type<ov::op::v3::ShapeOf>({output_m});
+    auto const_gather_arg1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_gather_arg2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto Gather_m =
+        ov::pass::pattern::wrap_type<ov::op::v8::Gather>({shapeof_m, const_gather_arg1_m, const_gather_arg2_m});
+    auto const_concat_arg1_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_concat_arg2_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto const_concat_arg3_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto Concat_m = ov::pass::pattern::wrap_type<ov::op::v0::Concat>(
+        {Gather_m, const_concat_arg1_m, const_concat_arg2_m, const_concat_arg3_m
+    });
+    auto const_broadcast_m = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto broadcast_out1_m = ov::pass::pattern::wrap_type<ov::op::v3::Broadcast>({const_broadcast_m, Concat_m});
+    auto broadcast_out2_m = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>({const_broadcast_m, Concat_m});
+    auto broadcast_output_m =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{broadcast_out1_m, broadcast_out2_m});
+   
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto& pm = m.get_pattern_map();
+        if (pattern_map.count(convert_param_m) > 0) {
+            auto convert_param = ov::as_type_ptr<ov::op::v0::Convert>(pattern_map.at(convert_param_m).get_node_shared_ptr());
+            ov::disable_constant_folding(pm.at(convert_param_m));
+        }
+        if (pattern_map.count(param_m) > 0) {
+            auto param =
+                ov::as_type_ptr<ov::op::v0::Parameter>(pattern_map.at(param_m).get_node_shared_ptr());
+            ov::disable_constant_folding(pm.at(param_m));
+        }
+        auto shapeof = ov::as_type_ptr<ov::op::v3::ShapeOf>(pattern_map.at(shapeof_m).get_node_shared_ptr());
+        ov::disable_constant_folding(pm.at(shapeof_m));
+        auto gather = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(Gather_m).get_node_shared_ptr());
+        ov::disable_constant_folding(pm.at(Gather_m));
+        auto concat = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(Concat_m).get_node_shared_ptr());
+        ov::disable_constant_folding(pm.at(Concat_m));
+        auto broadcast =ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_output_m).get_node_shared_ptr());
+        ov::disable_constant_folding(pm.at(broadcast_output_m));
+        
+        return true;
+    };
 
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(broadcast_output_m, "MarkStatefulMatcher");
+    this->register_matcher(m, callback);
+
+}
 ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& table_values_precisions,
                                                  const element::TypeVector& indices_precisions) {
     MATCHER_SCOPE(MarkGatherSubgraph);
