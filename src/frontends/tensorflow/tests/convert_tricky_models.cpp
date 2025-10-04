@@ -326,7 +326,16 @@ TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithConstResultSubgraphs) {
         auto inverse_order = make_shared<v0::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 2, 3, 1});
         auto transpose_to_nhwc = make_shared<v1::Transpose>(max_pool, inverse_order);
 
-        model_ref = make_shared<Model>(OutputVector{transpose_to_nhwc}, ParameterVector{x});
+        // These constants (Adam/beta_1, Adam/beta_2) are not connected to the main graph
+        auto beta_1 = make_shared<v0::Constant>(element::f32, Shape{}, vector<float>{0.8999999761581421f});
+        auto result_beta_1 = make_shared<v0::Result>(beta_1);
+
+        auto beta_2 = make_shared<v0::Constant>(element::f32, Shape{}, vector<float>{0.9990000128746033f});
+        auto result_beta_2 = make_shared<v0::Result>(beta_2);
+
+        auto result_main = make_shared<v0::Result>(transpose_to_nhwc);
+
+        model_ref = make_shared<Model>(ResultVector{result_main, result_beta_1, result_beta_2}, ParameterVector{x});
     }
 }
 
