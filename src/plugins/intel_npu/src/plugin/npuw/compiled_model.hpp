@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "attention.hpp"
 #include "common.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
@@ -166,6 +167,7 @@ private:
         Subgraph::Gather host_gather;
         Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
+        std::optional<ov::npuw::compiled::Attention> attention;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls

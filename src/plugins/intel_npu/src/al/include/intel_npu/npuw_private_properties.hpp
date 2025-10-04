@@ -236,6 +236,22 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 
 /**
  * @brief
+ * Type: boolean.
+ * Enable dynamic dispatch for the attention block, if detected
+ * Default value: true
+ */
+static constexpr ov::Property<bool> attn_dyn{"NPUW_ATTN_DYN"};
+
+/**
+ * @brief
+ * Type: boolean.
+ * Force no-copy mode for the attention block, if detected
+ * Default value: false
+ */
+static constexpr ov::Property<bool> attn_no_copy{"NPUW_ATTN_NO_COPY"};
+
+/**
+ * @brief
  * Type: boolean
  * Force subgraph interconnect tensors to f16 precision if those are in f32
  * Default value: false
