@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/type_prop.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 
 namespace ov {
@@ -167,6 +170,7 @@ TEST(type_prop, paged_attention_invalid_rank_query) {
     auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     auto dummy = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
+    auto dummy1D = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
     auto scalar = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
     ov::OutputVector args =
         {query, key, value, dummy, dummy, scalar, scalar, scalar, scalar, dummy, scalar, dummy, scalar};
