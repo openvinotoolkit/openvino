@@ -50,6 +50,8 @@ std::unique_ptr<surfaces_lock> surfaces_lock::create(engine_types engine_type, s
     case engine_types::sycl:
     case engine_types::ocl:
         return std::unique_ptr<ocl::ocl_surfaces_lock>(new ocl::ocl_surfaces_lock(mem, stream));
+    case engine_types::ze:
+        return nullptr; // TODO: implement once we have support for surface sharing
     default: throw std::runtime_error("Unsupported engine type in surfaces_lock::create");
     }
 }
