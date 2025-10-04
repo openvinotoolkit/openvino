@@ -1,0 +1,5 @@
+--trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org
+--pre
+--extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+
+-r standalone_mode_requirements.txt

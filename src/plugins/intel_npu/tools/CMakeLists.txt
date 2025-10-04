@@ -1,6 +1,6 @@
 #
 # Copyright (C) 2024 Intel Corporation.
-# SPDX-License-Identifier: Apache 2.0
+# SPDX-License-Identifier: Apache-2.0
 #
 
 add_subdirectory(common)
