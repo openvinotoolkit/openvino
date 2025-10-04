@@ -15,13 +15,13 @@
 #include <random>
 #include <thread>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
@@ -30,6 +30,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
 #include "overload/overload_test_utils_npu.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -1727,6 +1728,61 @@ TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
             ::operator delete(output_data[i], std::align_val_t(4096));
         }
     }
+}
+
+TEST_P(CpuVaTensorsTests, SetAndDestroyDifferentAlignedTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request0, inference_request1;
+
+    const auto input_byte_size = shape_size * sizeof(float);
+    auto input_data = static_cast<float*>(::operator new(input_byte_size, std::align_val_t(4096)));
+    auto input_tensor0 = ov::Tensor{ov::element::f32, shape, input_data};
+    auto input_tensor1 = ov::Tensor{ov::element::f32, shape, input_data};
+
+    inference_request0 = compiled_model.create_infer_request();
+    inference_request1 = compiled_model.create_infer_request();
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 6.f;
+    }
+
+    inference_request0.set_input_tensor(input_tensor0);
+    inference_request0.infer();
+    inference_request0.set_input_tensor(input_tensor1);
+    inference_request1.set_input_tensor(input_tensor1);
+    inference_request0.infer();
+
+    auto output_tensor0 = inference_request0.get_output_tensor();
+    inference_request0 = {};
+
+    inference_request1.infer();
+    inference_request1.set_input_tensor(input_tensor0);
+    inference_request1.infer();
+
+    auto output_tensor1 = inference_request1.get_output_tensor();
+    inference_request1 = {};
+
+    float expected_result = 7.f;
+
+    auto* output_tensor_data = reinterpret_cast<float*>(output_tensor0.data());
+    for (size_t j = 0; j < shape_size; ++j) {
+        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
+    }
+
+    output_tensor_data = reinterpret_cast<float*>(output_tensor1.data());
+    for (size_t j = 0; j < shape_size; ++j) {
+        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
+    }
+
+    ::operator delete(input_data, std::align_val_t(4096));
 }
 
 TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
