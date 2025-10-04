@@ -91,6 +91,7 @@
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/pass/reduce_to_snippets_reduce.hpp"
 #include "snippets/pass/softmax_decomposition.hpp"
+#include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/remarks.hpp"
 #include "snippets/runtime_configurator.hpp"
@@ -464,6 +465,7 @@ void Subgraph::data_flow_transformations(
     }
 
     ov::snippets::pass::Manager manager(pass_config, "SnippetsDataFlowManager");
+    manager.register_pass<snippets::pass::TransformConvertToConvertTruncation>();
     manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
     manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
 

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov::snippets::pass {
 
@@ -15,10 +15,11 @@ namespace ov::snippets::pass {
  *              This op is used for real Convert ops inside subgraph body in CPU Plugin
  * @ingroup snippets
  */
-class TransformConvertToConvertTruncation : public ov::pass::MatcherPass {
+class TransformConvertToConvertTruncation : public ov::pass::ModelPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TransformConvertToConvertTruncation");
-    TransformConvertToConvertTruncation();
+    OPENVINO_MODEL_PASS_RTTI("snippets::pass::TransformConvertToConvertTruncation");
+    TransformConvertToConvertTruncation() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 }  // namespace ov::snippets::pass
