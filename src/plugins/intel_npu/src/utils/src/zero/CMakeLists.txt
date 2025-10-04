@@ -25,7 +25,11 @@ target_include_directories(${TARGET_NAME}
     $<TARGET_PROPERTY:LevelZero::NPUExt,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${NPU_UTILS_SOURCE_DIR}/include>)
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev)
+if(WIN32)
+    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev Version.lib)
+else()
+    target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev)
+endif()
 
 #
 # targets install
