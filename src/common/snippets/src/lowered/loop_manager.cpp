@@ -89,7 +89,7 @@ std::vector<size_t> LoopManager::get_common_outer_loops(const std::vector<Expres
     };
 
     const auto& first_loop_ids = exprs.front()->get_loop_ids();
-    size_t common_idx = 0;
+    size_t common_idx = first_loop_ids.size();
     for (size_t i = 1; i < exprs.size(); ++i) {
         common_idx = std::min(common_idx, get_first_diff_id_idx(first_loop_ids, exprs[i]->get_loop_ids()));
     }
