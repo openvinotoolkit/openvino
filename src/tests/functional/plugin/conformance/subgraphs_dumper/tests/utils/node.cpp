@@ -117,7 +117,7 @@ TEST_F(NodeUtilsTest, get_node_priority_by_version) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{1, 3, 16, 16});
 
     auto one_opset_node = std::make_shared<ov::op::v0::Convert>(param, ov::element::u16);
-    ASSERT_EQ(ov::util::get_node_priority_by_version(one_opset_node), 3);
+    ASSERT_EQ(ov::util::get_node_priority_by_version(one_opset_node), 1);
 
     auto max_of_several_opset_node = std::make_shared<ov::op::v3::ShapeOf>(param);
     ASSERT_EQ(ov::util::get_node_priority_by_version(max_of_several_opset_node), 3);

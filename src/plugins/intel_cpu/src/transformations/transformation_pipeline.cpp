@@ -59,6 +59,7 @@
 #include "selective_build.h"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/augru_cell_fusion.hpp"
+#include "transformations/common_optimizations/cast_to_convert.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
@@ -380,7 +381,8 @@ bool Transformations::fuse_type_to_pa(const std::shared_ptr<ov::Node>& node,
 
 bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node);
-    if (!convert) {
+    auto convert_v16 = ov::as_type_ptr<ov::op::v16::Convert>(node);
+    if (!convert && !convert_v16) {
         return false;
     }
     const auto& from = node->get_output_element_type(0);
@@ -390,7 +392,10 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
     }
     const auto& to = it->second;
 
-    if (convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
+    bool is_convert_to_bool = convert ? convert->get_convert_element_type() == ov::element::boolean
+                                      : convert_v16->get_convert_element_type() == ov::element::boolean;
+
+    if (is_convert_to_bool && to.is_integral_number()) {
         // For Convert node, converting precision from numerical data types to boolean will lead to mathematical
         // error, because here the output precision boolean is replaced by u8:
         //  - floating point value 0.01 is converted to be 1 for boolean, but 0 for u8 - need to insert Ceil.
@@ -399,8 +404,9 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
         //  - to perform clamping correctly an Abs op should be inserted before Clamp
         // Thus an Abs, Ceil and Clamp nodes should be added before the Convert node for this scenario.
         ov::pass::NodeRegistry reg;
-        const auto& in_prec = convert->get_input_element_type(0);
-        auto parent_node = convert->input_value(0).get_node_shared_ptr();
+        const auto& in_prec = convert ? convert->get_input_element_type(0) : convert_v16->get_input_element_type(0);
+        auto parent_node =
+            convert ? convert->input_value(0).get_node_shared_ptr() : convert_v16->input_value(0).get_node_shared_ptr();
         auto item = precisions.find(in_prec);
         if (item != precisions.end()) {
             // Add convert node for unsupported precision, such as FP64 or INT64
@@ -413,13 +419,25 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
             parent_node = reg.make<ov::op::v0::Ceiling>(parent_node);
         }
         parent_node = reg.make<ov::op::v0::Clamp>(parent_node, 0, 1);
-        const auto new_convert = reg.make<ov::op::v0::Convert>(parent_node, to);
-        new_convert->set_friendly_name(convert->get_friendly_name());
-        ov::copy_runtime_info(convert, reg.get());
-        ov::replace_node(convert, new_convert);
+        if (convert) {
+            const auto new_convert = reg.make<ov::op::v0::Convert>(parent_node, to);
+            new_convert->set_friendly_name(convert->get_friendly_name());
+            ov::copy_runtime_info(convert, reg.get());
+            ov::replace_node(convert, new_convert);
+        } else {
+            const auto new_convert = reg.make<ov::op::v16::Convert>(parent_node, to, convert_v16->get_cast());
+            new_convert->set_friendly_name(convert_v16->get_friendly_name());
+            ov::copy_runtime_info(convert_v16, reg.get());
+            ov::replace_node(convert_v16, new_convert);
+        }
         return true;
     }
-    convert->set_convert_element_type(to);
+
+    if (convert) {
+        convert->set_convert_element_type(to);
+    } else {
+        convert_v16->set_convert_element_type(to);
+    }
     return true;
 }
 
@@ -527,7 +545,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         return map;
     };
 
-    type_to_fuse_map type_to_fuse = {{ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert}};
+    type_to_fuse_map type_to_fuse = {{ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert},
+                                     {ov::op::v16::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
@@ -652,6 +671,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                              convert_input_output_precision);
 
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::CastToConvert);
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);
