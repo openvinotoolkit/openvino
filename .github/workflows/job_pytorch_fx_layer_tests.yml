@@ -74,6 +74,7 @@ jobs:
         run: |
           Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
           Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=C:\\mount\\caches\\huggingface"
+          Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_OFFLINE=1"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
