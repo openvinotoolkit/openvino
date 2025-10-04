@@ -14,6 +14,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestFlux,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RoPETestFlux::getTestCaseName);
 
+const std::vector<std::string> vit_param = {"VariadicSplit", "Slice", "StridedSlice"};
+INSTANTIATE_TEST_SUITE_P(smoke_RoPEQwenVL,
+                         RoPETestQwenVL,
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f16, ov::element::f32),
+                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                            ::testing::ValuesIn(vit_param)),
+                         RoPETestQwenVL::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                          RoPETestChatGLMStridedSlice,
                          ::testing::Combine(
