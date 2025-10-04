@@ -317,8 +317,8 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {ov::op::v0::Clamp::get_type_info_static(),
          [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              auto clampOp = getNgraphOpAs<ov::op::v0::Clamp>(op);
-             auto alpha_ = static_cast<float>(clampOp->get_min());
-             auto beta_ = static_cast<float>(clampOp->get_max());
+             auto alpha_ = static_cast<double>(clampOp->get_min());
+             auto beta_ = static_cast<double>(clampOp->get_max());
              if (clampOp->get_input_element_type(0).is_integral_number()) {
                  // according to spec, when Clamp has integer element type, min and max mist be converted to
                  // integer
@@ -1068,7 +1068,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
             break;
         case dnnl::algorithm::eltwise_linear:
             // call dnnlpoc's specialized API to generate optimized postOps sequence
-            dnnlpoc.appendLinear({getAlpha()}, {getBeta()}, isLastPostOp);
+            dnnlpoc.appendLinear({static_cast<float>(getAlpha())}, {static_cast<float>(getBeta())}, isLastPostOp);
             break;
         default:
             CPU_NODE_THROW("as post operation is not supported");
