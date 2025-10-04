@@ -11,6 +11,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -84,7 +85,22 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
 
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning, CURRENT_OPENVINO_VERSION, initBlobSizes)
+    std::optional<int64_t> originalBatchSize = std::nullopt;
+    auto metadata = _graph->get_metadata();
+    auto inputMeta = metadata.inputs;
+    for (auto in : inputMeta) {
+        // Plugin batching applied, saving original batch value
+        if (in.shapeFromIRModel.has_value() && in.shapeFromCompiler[intel_npu::utils::BATCH_AXIS] == 1) {
+            originalBatchSize =
+                std::optional(in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS].get_max_length());
+            break;
+        }
+    }
+
+    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
+                                       CURRENT_OPENVINO_VERSION,
+                                       initBlobSizes,
+                                       originalBatchSize)
         .write(stream);
 }
 
