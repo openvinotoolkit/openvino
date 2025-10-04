@@ -172,11 +172,17 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     auto weights_layout = *impl_param.weights_layout;
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0])
+    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0]) {
         output_type = *desc->output_data_types[0];
+    }
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
+    }
+
+    // If FC node is output by fusing of coming reorder, then selected output data_type should be used.
+    if (node.is_output() && desc->output_data_types[0].has_value()) {
+        output_type = desc->output_data_types[0].value();
     }
 
     ov::op::v0::MatMul matmul_op;
@@ -314,6 +320,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         updated_param.input_layouts[0] = orig_input_layout.clone_with_other_shape(input_shape);
         updated_param.output_layouts[0] = orig_output_layout.clone_with_other_shape(output_shape);
 
+        GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment to " << orig_impl_param.desc->id << std::endl;
         GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment: input(" << orig_input_layout.to_short_string() << " -> "
                                << updated_param.input_layouts[0].to_short_string() << "), output("
                                << orig_output_layout.to_short_string() << " -> "
