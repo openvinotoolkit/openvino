@@ -26,6 +26,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
+  HF_HUB_OFFLINE: 1
 
 jobs:
   PyTorch_FX_Layer_Tests:
