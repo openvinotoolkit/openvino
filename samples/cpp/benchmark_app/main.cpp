@@ -13,6 +13,7 @@
 
 // clang-format off
 #include "openvino/openvino.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/pass/serialize.hpp"
 
 #ifndef IN_OV_COMPONENT
@@ -838,6 +839,7 @@ int main(int argc, char* argv[]) {
             // ----------------- 7. Loading the model to the device
             // --------------------------------------------------------
             next_step();
+            // ov::pass::SDPAToPagedAttention(/*use_block_indices_inputs = */ false, /*use_score_outputs = */ false, /* allow_score_aggregation = */ true, /*allow_cache_rotation = */ false).run_on_model(model);
             auto compile_model_mem_start = get_peak_memory_usage();
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name, device_config);
