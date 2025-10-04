@@ -27,6 +27,8 @@ namespace ov::pass {
  * @brief Serialize transformation converts ov::Model into IR files
  * @attention
  * - dynamic shapes are not supported
+ * - any parent directory traversal (e.g. ".." in path) will be removed from output file paths
+ * - symbolic links are not allowed as output file paths
  * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API Serialize : public ov::pass::ModelPass {
