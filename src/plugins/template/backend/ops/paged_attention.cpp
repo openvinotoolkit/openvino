@@ -53,7 +53,10 @@ bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> no
                                                     ov::TensorVector& outputs,
                                                     const ov::TensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
-    auto cache_manager = std::static_pointer_cast<ov::op::PagedAttentionExtension>(node)->get_cache_manager();
+    auto pa = std::static_pointer_cast<ov::op::PagedAttentionExtension>(node);
+    auto cache_manager = pa->get_cache_manager();
+    cache_manager->register_operator(pa);
+
     switch (element_type) {
     case ov::element::bf16:
         return evaluate<ov::element::bf16>(outputs, inputs, cache_manager);
