@@ -83,7 +83,7 @@ public:
         APIBaseTest::SetUp();
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<BlobCompatibilityParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<BlobCompatibilityParams>& obj) {
         std::string target_device, model_name, platform, ov_release, driver;
         std::tie(target_device, model_name, platform, ov_release, driver) = obj.param;
         std::ostringstream result;

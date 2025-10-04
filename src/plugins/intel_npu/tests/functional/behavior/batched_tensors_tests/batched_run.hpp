@@ -45,7 +45,7 @@ protected:
     std::string m_cache_dir;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
@@ -56,7 +56,7 @@ public:
         result << "targetDevice=" << targetDevice << "_";
         result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
         if (!configuration.empty()) {
-            for (auto& configItem : configuration) {
+            for (const auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";
                 configItem.second.print(result);
             }
