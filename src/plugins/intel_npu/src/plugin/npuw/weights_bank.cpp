@@ -125,6 +125,7 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
 // FIXME: this whole flow could be improved for the same bank
 // processing from different threads. We could separate LazyTensors
 // evaluation and the bank access. But it requires additional rework.
+/*
 void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
                                            const std::vector<LazyTensor>& to_process,
                                            const std::string& device) {
@@ -167,6 +168,57 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         // Detach the evaluated LazyTensor from its memory here - when it is 100%
         // not needed anymore (transformations, if any, and copies are done)
         // Note: this is the non-CPU path!
+        const_cast<LazyTensor&>(stored_tensor.lt).detach();
+    });
+}
+*/
+
+void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
+                                           const std::vector<LazyTensor>& to_process,
+                                           const std::string& device) {
+    // Note: not locking here. This is a private function, so Bank should handle the locks around it
+    // as we lock in evaluate_and_allocate() now.
+    std::vector<TensorToAllocate> uids_to_allocated;
+    uids_to_allocated.reserve(uid_count);
+
+    for (const auto& lt : to_process) {
+        auto iter_device_registered = device_bank.registered_tensors.find(lt);
+        NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
+                    "Tensor should be registered first!");
+        auto uid = iter_device_registered->second;
+        uids_to_allocated.push_back({lt.eval_meta(), ov::Tensor(), uid});
+    }
+    // Sort by UIDs, lowest first
+    std::sort(uids_to_allocated.begin(),
+              uids_to_allocated.end(),
+              [](const TensorToAllocate& a, const TensorToAllocate& b) {
+                  return a.uid < b.uid;
+              });
+
+    ov::parallel_for(uids_to_allocated.size(), [&](std::size_t idx) {
+        auto& allocated = uids_to_allocated[idx];
+        auto& stored_tensor = device_bank.storage.at(allocated.uid);
+
+        auto remote_ctx = m_core->get_default_context(device)._ptr;
+        ov::SoPtr<ov::ITensor> remote_tensor =
+            remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
+        allocated.allocated_tensor = ov::make_tensor(remote_tensor);
+
+        // eval
+        auto transformed = stored_tensor.lt.eval();
+
+        size_t total_bytes = transformed.get_byte_size();
+        size_t num_threads = std::thread::hardware_concurrency();
+        ov::parallel_for(num_threads, [&](size_t t) {
+            size_t chunk = total_bytes / num_threads;
+            size_t start = t * chunk;
+            size_t end = (t == num_threads - 1) ? total_bytes : start + chunk;
+            std::memcpy(static_cast<uint8_t*>(allocated.allocated_tensor.data()) + start,
+                        static_cast<const uint8_t*>(transformed.data()) + start,
+                        end - start);
+        });
+
+        stored_tensor.tensor = std::move(allocated.allocated_tensor);
         const_cast<LazyTensor&>(stored_tensor.lt).detach();
     });
 }
