@@ -96,6 +96,8 @@
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
+#include "transformations/common_optimizations/fuse_moe_experts.hpp"
+
 using namespace ov::element;
 
 static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
@@ -251,6 +253,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
     common_fusions->set_name("ov::pass::CommonFusions");
 
+
     REGISTER_PASS(manager, SDPAFusion)
     REGISTER_PASS(manager, BinarizeWeights)
     REGISTER_PASS(manager, ConvToBinaryConv)
@@ -289,7 +292,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, ResolveNameCollisions, true);
+    REGISTER_PASS(manager, FuseMOE)
+
     manager.run_passes(f);
+
 
     if (!m_use_shapes) {
         // Restore original shapes to the ov::Model
