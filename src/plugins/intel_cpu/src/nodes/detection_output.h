@@ -100,9 +100,9 @@ private:
                                                int* indicesBufData,
                                                int* detectionsData);
 
-    inline void decodeBBoxes(const float* priorData,
-                             const float* locData,
-                             const float* varianceData,
+    inline void decodeBBoxes(const float* prior_coords,
+                             const float* location_deltas,
+                             const float* variances,
                              float* decodedBboxes,
                              float* decodedBboxSizes,
                              const int* numPriorsActual,

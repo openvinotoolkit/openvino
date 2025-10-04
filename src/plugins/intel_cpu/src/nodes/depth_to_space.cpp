@@ -295,13 +295,13 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
         params.order[lastIdx] = attrs.mode == Mode::DEPTH_FIRST ? attrs.nSpatialDims + 1 : lastIdx;
         params.src_block_dims[params.order[lastIdx]] = attrs.srcBlockedDims.back() / attrs.blockStep;
 
-        reshapeAndSetPermOrder(firstSpatialOrder, shift, firstSpatialOrder, attrs.srcBlockedDims);
+        reshapeAndSetPermOrder(firstSpatialOrder, firstSpatialOrder, shift, attrs.srcBlockedDims);
     } else {
         size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + 1;
         params.order[1] = attrs.mode == DEPTH_FIRST ? 1 : attrs.nSpatialDims + 1;
         params.src_block_dims[params.order[1]] = attrs.srcBlockedDims[1] / attrs.blockStep;
 
-        reshapeAndSetPermOrder(attrs.nSpatialDims + firstSpatialOrder, shift, firstSpatialOrder, attrs.srcBlockedDims);
+        reshapeAndSetPermOrder(attrs.nSpatialDims + firstSpatialOrder, firstSpatialOrder, shift, attrs.srcBlockedDims);
     }
 
     std::iota(params.src_block_order.begin(), params.src_block_order.end(), 0);

@@ -10,10 +10,10 @@
 
 namespace ov::Extensions::Cpu::XARCH {
 
-void attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
-                 const ov::intel_cpu::PlainTensor& v_input,
-                 const ov::intel_cpu::PlainTensor& past_k_output,
-                 const ov::intel_cpu::PlainTensor& past_v_output);
+void attn_memcpy(const ov::intel_cpu::PlainTensor& k_src,
+                 const ov::intel_cpu::PlainTensor& v_src,
+                 const ov::intel_cpu::PlainTensor& k_dst,
+                 const ov::intel_cpu::PlainTensor& v_dst);
 
 void paged_attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
                        const ov::intel_cpu::PlainTensor& v_input,

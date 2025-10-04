@@ -129,21 +129,21 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
     });
 }
 
-void attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
-                 const ov::intel_cpu::PlainTensor& v_input,
-                 const ov::intel_cpu::PlainTensor& past_k_output,
-                 const ov::intel_cpu::PlainTensor& past_v_output) {
-    if (past_k_output.get_precision() == k_input.get_precision()) {
-        attn_memcpy_kernel(k_input, v_input, past_k_output, past_v_output);
-    } else if (k_input.get_precision() == ov::element::f32 && past_k_output.get_precision() == ov::element::f16) {
-        attn_memcpy_kernel<float, ov::float16>(k_input, v_input, past_k_output, past_v_output);
-    } else if (k_input.get_precision() == ov::element::f32 && past_k_output.get_precision() == ov::element::bf16) {
-        attn_memcpy_kernel<float, ov::bfloat16>(k_input, v_input, past_k_output, past_v_output);
+void attn_memcpy(const ov::intel_cpu::PlainTensor& k_src,
+                 const ov::intel_cpu::PlainTensor& v_src,
+                 const ov::intel_cpu::PlainTensor& k_dst,
+                 const ov::intel_cpu::PlainTensor& v_dst) {
+    if (k_dst.get_precision() == k_src.get_precision()) {
+        attn_memcpy_kernel(k_src, v_src, k_dst, v_dst);
+    } else if (k_src.get_precision() == ov::element::f32 && k_dst.get_precision() == ov::element::f16) {
+        attn_memcpy_kernel<float, ov::float16>(k_src, v_src, k_dst, v_dst);
+    } else if (k_src.get_precision() == ov::element::f32 && k_dst.get_precision() == ov::element::bf16) {
+        attn_memcpy_kernel<float, ov::bfloat16>(k_src, v_src, k_dst, v_dst);
     } else {
         OPENVINO_THROW("unsupport src type: ",
-                       k_input.get_precision(),
+                       k_src.get_precision(),
                        ", dst type: ",
-                       past_k_output.get_precision(),
+                       k_dst.get_precision(),
                        " in attn_memcpy");
     }
 }
