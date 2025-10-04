@@ -11,22 +11,24 @@
 #include <array>
 
 #ifdef OV_GPU_USE_OPENCL_HPP
-#include <CL/opencl.hpp>
+#include "cl.hpp"
 #else
-#include <CL/cl2.hpp>
+
+#include "cl.hpp"
 #endif
+
 
 #ifndef CL_HPP_PARAM_NAME_CL_INTEL_UNIFIED_SHARED_MEMORY_
 #define OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 #endif
 
-#include <CL/cl_ext.h>
+#include "cl_ext.h"
 
 #ifdef _WIN32
 # ifndef NOMINMAX
 #  define NOMINMAX
 # endif
-# include <CL/cl_d3d11.h>
+# include "cl_d3d11.h"
 typedef cl_d3d11_device_source_khr cl_device_source_intel;
 typedef cl_d3d11_device_set_khr    cl_device_set_intel;
 #else
@@ -235,12 +237,6 @@ clEnqueueMemFillINTEL_fn)(
 using uuid_array = std::array<cl_uchar, CL_UUID_SIZE_KHR>;
 using luid_array = std::array<cl_uchar, CL_LUID_SIZE_KHR>;
 
-namespace cl {
-namespace detail {
-CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_UUID_KHR, uuid_array)
-CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_LUID_KHR, luid_array)
-}  // namespace detail
-}  // namespace cl
 
 #endif // OV_GPU_OPENCL_HPP_HAS_UUID
 
@@ -293,12 +289,6 @@ typedef struct _cl_device_pci_bus_info_khr {
 // we are checking it in cmake and defined macro OV_GPU_OPENCL_HPP_HAS_BUS_INFO if it is defined
 #ifndef OV_GPU_OPENCL_HPP_HAS_BUS_INFO
 
-namespace cl {
-namespace detail {
-CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_PCI_BUS_INFO_KHR, cl_device_pci_bus_info_khr)
-}  // namespace detail
-}  // namespace cl
-
 #endif // OV_GPU_OPENCL_HPP_HAS_BUS_INFO
 
 #ifndef CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_
@@ -342,12 +332,12 @@ T load_entrypoint(const cl_platform_id platform, const std::string name) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
-    T p = reinterpret_cast<T>(clGetExtensionFunctionAddressForPlatform(platform, name.c_str()));
+    T p = reinterpret_cast<T>(call_clGetExtensionFunctionAddressForPlatform(platform, name.c_str()));
 #if defined(__GNUC__) && __GNUC__ < 5
 #pragma GCC diagnostic pop
 #endif
     if (!p) {
-        throw std::runtime_error("clGetExtensionFunctionAddressForPlatform(" + name + ") returned NULL.");
+        throw std::runtime_error("call_clGetExtensionFunctionAddressForPlatform(" + name + ") returned NULL.");
     }
     return p;
 }
@@ -355,7 +345,7 @@ T load_entrypoint(const cl_platform_id platform, const std::string name) {
 template <typename T>
 T load_entrypoint(const cl_device_id device, const std::string name) {
     cl_platform_id platform;
-    cl_int error = clGetDeviceInfo(device, CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
+    cl_int error = call_clGetDeviceInfo(device, CL_DEVICE_PLATFORM, sizeof(platform), &platform, nullptr);
     if (error) {
         throw std::runtime_error("Failed to retrieve CL_DEVICE_PLATFORM: " + std::to_string(error));
     }
@@ -367,14 +357,14 @@ T load_entrypoint(const cl_device_id device, const std::string name) {
 template <typename T>
 T load_entrypoint(const cl_context context, const std::string name) {
     size_t size = 0;
-    cl_int error = clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, nullptr, &size);
+    cl_int error = call_clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, nullptr, &size);
     if (error) {
         throw std::runtime_error("Failed to retrieve CL_CONTEXT_DEVICES size: " + std::to_string(error));
     }
 
     std::vector<cl_device_id> devices(size / sizeof(cl_device_id));
 
-    error = clGetContextInfo(context, CL_CONTEXT_DEVICES, size, devices.data(), nullptr);
+    error = call_clGetContextInfo(context, CL_CONTEXT_DEVICES, size, devices.data(), nullptr);
     if (error) {
         throw std::runtime_error("Failed to retrieve CL_CONTEXT_DEVICES: " + std::to_string(error));
     }
@@ -403,7 +393,7 @@ T try_load_entrypoint(const cl_platform_id platform, const std::string name) {
 template <typename T>
 T load_entrypoint(const cl_kernel kernel, const std::string name) {
     cl_context context;
-    cl_int error = clGetKernelInfo(kernel, CL_KERNEL_CONTEXT, sizeof(context),
+    cl_int error = call_clGetKernelInfo(kernel, CL_KERNEL_CONTEXT, sizeof(context),
         &context, nullptr);
     if (error) {
         throw std::runtime_error("Failed to retrieve CL_KERNEL_CONTEXT: " +
@@ -415,7 +405,7 @@ T load_entrypoint(const cl_kernel kernel, const std::string name) {
 template <typename T>
 T load_entrypoint(const cl_command_queue queue, const std::string name) {
     cl_context context;
-    cl_int error = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(context),
+    cl_int error = call_clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(context),
         &context, nullptr);
     if (error) {
         throw std::runtime_error("Failed to retrieve CL_QUEUE_CONTEXT: " +
@@ -531,7 +521,7 @@ public:
     /*! \brief Constructs a ImageVA, in a specified context, from a
     *         given vaSurfaceID.
     *
-    *  Wraps clCreateFromMediaSurfaceINTEL().
+    *  Wraps call_clCreateFromMediaSurfaceINTEL().
     */
     ImageVA(
         const Context& context,
