@@ -12,6 +12,7 @@
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/matmul_config.hpp"
+#include "nodes/executors/mvn_config.hpp"
 
 namespace ov::intel_cpu {
 
@@ -36,6 +37,9 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations();
 // Eltwise
 template <>
 const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations();
+// MVN
+template <>
+const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations();
 
 // MatMul
 template <>
