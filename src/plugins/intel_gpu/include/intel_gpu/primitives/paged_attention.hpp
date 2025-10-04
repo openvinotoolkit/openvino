@@ -10,6 +10,8 @@
 
 namespace cldnn {
 
+#define ENABLE_PA_CM_PATH 1
+
 struct paged_attention : public primitive_base<paged_attention> {
     CLDNN_DECLARE_PRIMITIVE(paged_attention)
 
