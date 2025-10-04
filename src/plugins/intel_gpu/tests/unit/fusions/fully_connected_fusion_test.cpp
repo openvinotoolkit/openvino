@@ -450,9 +450,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_quantize_u8_input_range, ::testing
 
 class fc_int8_quantize_u8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_quantize_u8, basic) {
-    // TODO: Fix me, refer PR(#15873)
-    if (engine.get_device_info().supports_immad)
-        return;
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -483,9 +480,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_quantize_u8, ::testing::ValuesIn(s
 
 class fc_int8_eltwise_quantize_i8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_eltwise_quantize_i8, basic) {
-    // TODO: Fix me, refer PR(#15873)
-    if (engine.get_device_info().supports_immad)
-        return;
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -515,6 +509,44 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_quantize_i8, ::testing::Va
     fully_connected_test_params{ CASE_FC_U8S8_3D_2, 2, 4 },
     fully_connected_test_params{ CASE_FC_U8S8_3D_3, 2, 4 },
 }));
+
+class fc_int8_eltwise_quantize_i8_dynamic : public FullyConnectedFusingTest {};
+
+TEST_P(fc_int8_eltwise_quantize_i8_dynamic, basic) {
+    auto p = GetParam();
+
+    auto test_input_layout = get_input_layout(p);
+    auto input_layout_dyn = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()), test_input_layout.data_type, test_input_layout.format};
+
+    create_topologies(
+        input_layout("input", input_layout_dyn),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / get_weights_layout(p).count() / 255)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, get_output_dim_size(p), get_input_weights_rank(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
+    );
+
+    bool is_dynamic = true;
+    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    tolerance = 1e-5f;
+    execute(p, is_dynamic);
+}
+
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_quantize_i8_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_U8S8_1, 2, 4 },
+    fully_connected_test_params{ CASE_FC_U8S8_3D_2, 2, 4 },
+}));
+
 
 class fc_int8_eltwise_activation_quantize_i8 : public FullyConnectedFusingTest {};
 TEST_P(fc_int8_eltwise_activation_quantize_i8, basic) {
