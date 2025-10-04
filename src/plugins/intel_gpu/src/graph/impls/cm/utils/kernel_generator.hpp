@@ -41,6 +41,8 @@ protected:
     // Returns build options that are passed to CM compiler
     [[nodiscard]] virtual std::string get_build_options(const RuntimeParams& params) const;
 
+    [[nodiscard]] JitConstants make_base_jit_constants(const RuntimeParams& params) const;
+    [[nodiscard]] static JitConstants make_tensors_jit_constants(const RuntimeParams& params);
     [[nodiscard]] static std::string build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& entry_point);
 
 private:
