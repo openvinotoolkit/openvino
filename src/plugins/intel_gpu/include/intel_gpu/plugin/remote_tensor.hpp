@@ -31,6 +31,17 @@ class RemoteTensorImpl : public ov::IRemoteTensor {
     friend class RemoteAllocator;
 public:
     RemoteTensorImpl(std::shared_ptr<RemoteContextImpl> context,
+                                         cldnn::memory::ptr external_memory)
+    : m_context(context),
+      m_element_type(external_memory->get_layout().data_type),
+      m_shape(external_memory->get_layout().get_shape()),
+      m_memory_object(external_memory),
+      m_layout(external_memory->get_layout()),
+      m_mem_type(TensorType::BT_USM_HOST_INTERNAL) {
+        update_strides();
+        update_properties();
+    }
+    RemoteTensorImpl(std::shared_ptr<RemoteContextImpl> context,
                      const ov::Shape& shape,
                      const ov::element::Type& element_type,
                      TensorType mem_type = TensorType::BT_BUF_INTERNAL,
