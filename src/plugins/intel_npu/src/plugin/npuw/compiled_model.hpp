@@ -19,6 +19,7 @@
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
+#include "logging.hpp"
 
 namespace intel_npu {
 class Plugin;
@@ -98,7 +99,8 @@ private:
     bool unpack_required(const std::size_t idx) const;
     bool unpack_required(const std::size_t idx, const std::size_t cidx) const;
 
-    void log_device_dist() const;
+    void log_device_dist(ov::npuw::LogLevel log_lvl = ov::npuw::LogLevel::Info) const;
+
     void implement_properties();
 
     bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
@@ -194,7 +196,9 @@ private:
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
-    std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
+    std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&, double*)> m_acc_check;
+    std::string m_acc_check_name;
+    double m_acc_check_threshold;
     std::string m_ref_device;
 
     execution_stats m_total_stat;

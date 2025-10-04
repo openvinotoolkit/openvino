@@ -77,8 +77,12 @@ protected:
     // their inference requests anymore - they must be stored
     // only once in the subrequests list
     RqPtrs create_infer_requests(std::size_t id, size_t nireq = 1, bool* recompiled = nullptr);
-    void ensure_subrequest_is_accurate(std::size_t idx, bool& failover);
-    virtual void update_subrequest_links(std::size_t idx) = 0;
+    void try_accurate_subinfer(std::size_t idx, bool& accuracy_failover);
+    void try_accurate_subinfer(std::size_t idx, std::size_t offset, std::size_t len,
+                               bool& accuracy_failover);
+    virtual void try_accurate_substart_async(std::size_t idx);
+    virtual void try_accurate_subwait(std::size_t idx, bool& accuracy_failover);
+    virtual void ensure_subrequest_is_accurate(std::size_t idx, bool& accuracy_failover);
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
     std::vector<IBaseInferRequest::Completed> m_completion_cbs;
@@ -157,8 +161,9 @@ protected:
     void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
-    void dump_input_tensors(std::size_t idx);
-    void dump_output_tensors(std::size_t idx);
+
+    void dump_input_tensors(std::size_t idx, bool forced = false);
+    void dump_output_tensors(std::size_t idx, bool forced = false);
 
     // Quick-and-dirty profiling
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
@@ -186,10 +191,10 @@ protected:
     std::size_t next(std::size_t idx_base) const;
     std::size_t real(std::size_t idx) const;
 
-    RqPtrs m_ref_subrequests;
-
     using now_t = std::optional<std::size_t>;
     now_t now_idx() const;
+
+    RqPtrs m_ref_subrequests;
 
 private:
     now_t m_now_idx;
