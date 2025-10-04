@@ -89,9 +89,13 @@ namespace test {
 
 namespace utils {
 
-template <typename T>
+template <typename T, bool COUNTER = false>
 std::string appendPlatformTypeTestName(testing::TestParamInfo<typename T::ParamType> obj) {
-    const std::string& test_name = GenericTestCaseNameClass::getTestCaseName<T>(obj);
+    std::string test_name = GenericTestCaseNameClass::getTestCaseName<T>(obj);
+    if constexpr (COUNTER == true) {  // used only when test name duplication has justification
+        static size_t testCounter = 0;
+        test_name += "_testCounter=" + std::to_string(testCounter++);
+    }
     return test_name + "_targetPlatform=" + getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
 }
 
@@ -102,6 +106,23 @@ std::string appendDriverVersionTestName(testing::TestParamInfo<typename T::Param
         pluginCacheCore->get_property(ov::test::utils::DEVICE_NPU, ov::intel_npu::driver_version.name());
     return ov::test::utils::appendPlatformTypeTestName<T>(obj) + "_driverVersion=" + driverVersion.as<std::string>();
 }
+
+class DefaultAllocatorNotAligned final {
+public:
+    void* allocate(const size_t bytes, const size_t alignment = 4096) {
+        auto handle = (::operator new(bytes + _offset, std::align_val_t(alignment)));
+        return static_cast<uint8_t*>(handle) + _offset;
+    }
+    void deallocate(void* handle, const size_t bytes, size_t alignment = 4096) noexcept {
+        ::operator delete(static_cast<uint8_t*>(handle) - _offset, std::align_val_t(alignment));
+    }
+    bool is_equal(const DefaultAllocatorNotAligned& other) const {
+        return false;
+    }
+
+private:
+    size_t _offset = 16;
+};
 
 }  // namespace utils
 

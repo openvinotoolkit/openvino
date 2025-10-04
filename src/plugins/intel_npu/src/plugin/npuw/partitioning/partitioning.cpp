@@ -12,6 +12,7 @@
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -23,7 +24,6 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
-#include "patterns/pre_compute.hpp"
 #include "traits.hpp"
 
 namespace ov {
@@ -331,7 +331,6 @@ public:
     void saveScaleFactors(const std::string& func_name);
     void saveRepeatedConstants(const std::string& func_name);
     void saveTailDictConstants(const std::string& func_name);
-    void saveRoPEConstants(const std::string& func_name);
     void matchParameters(const std::string& func_name);
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
@@ -1469,39 +1468,6 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
-    rewr.run_on_model(model_group.front());
-
-    for (auto&& const_to_keep : to_keep) {
-        LOG_DEBUG("[KEEP] " << const_to_keep);
-        func_group.consts_to_keep.insert(const_to_keep);
-    }
-    LOG_VERB("Done");
-}
-
-void Partitioner::saveRoPEConstants(const std::string& func_name) {
-    // RoPE patterns introduce new Constants to the model when applied. When we import the model
-    // as weightless blob, new Constants have no reference to the original weights.
-    // After they get folded into Parameters and handled as LazyTensors, deserialization will fail
-    // during read_weight() function. Thus, we need to keep newly introduced constants as Constants.
-    auto& func_group = all_functions.at(func_name);
-    auto& subgr_group = func_group.refs;
-
-    if (subgr_group.size() > 1) {
-        // RoPE should only be applied to the head
-        return;
-    }
-
-    LOG_VERB("Trying to preserve some (head) constants for " << func_name << " in model " << model->get_friendly_name()
-                                                             << "...");
-    LOG_BLOCK();
-
-    auto& model_group = func_group.mdls;
-
-    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
-    std::vector<CPtr> to_keep;
-
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::pre_compute::PreserveConstsRope>(std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
@@ -2650,7 +2616,6 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.sanityCheck(func_group);
                 p.saveRepeatedConstants(func_group);
                 p.saveTailDictConstants(func_group);
-                p.saveRoPEConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
