@@ -94,17 +94,22 @@ class TestTorchConvertModel(TestConvertModel):
 
     def convert_model(self, model_obj):
         try:
+            os.environ["HF_HUB_OFFLINE"] = "1"
             ov_model = self.convert_model_impl(model_obj)
-        except Exception as e:
-            report_filename = os.environ.get("OP_REPORT_FILE", None)
-            if report_filename:
-                mode = 'a' if os.path.exists(report_filename) else 'w'
-                with open(report_filename, mode) as f:
-                    ops = extract_unsupported_ops_from_exception(str(e))
-                    if ops:
-                        ops = [f"{op} {self.model_name}" for op in ops]
-                        f.write("\n".join(ops) + "\n")
-            raise e
+        except Exception as e_offline:
+            os.environ.pop("HF_HUB_OFFLINE", None)
+            try:
+                ov_model = self.convert_model_impl(model_obj)
+            except Exception as e_online:
+                report_filename = os.environ.get("OP_REPORT_FILE", None)
+                if report_filename:
+                    mode = 'a' if os.path.exists(report_filename) else 'w'
+                    with open(report_filename, mode) as f:
+                        ops = extract_unsupported_ops_from_exception(str(e_online))
+                        if ops:
+                            ops = [f"{op} {self.model_name}" for op in ops]
+                            f.write("\n".join(ops) + "\n")
+                raise e_online
         return ov_model
 
     def infer_fw_model(self, model_obj, inputs):
