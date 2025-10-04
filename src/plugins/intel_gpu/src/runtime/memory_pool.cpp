@@ -150,6 +150,21 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
 #endif
 }
 
+std::vector<memory_record> memory_pool::get_non_padded_memory_records(uint32_t network_id, size_t min_size, size_t max_size) const {
+    std::vector<memory_record> result;
+    std::for_each(_non_padded_pool.begin(), _non_padded_pool.end(), [&](const auto& pool_entry) {
+        const auto& record = pool_entry.second;
+        if (record._network_id == network_id) {
+            size_t memory_size = record._memory->size();
+            if (memory_size > min_size && memory_size <= max_size) {
+                GPU_DEBUG_TRACE_DETAIL << "Memory size: " << memory_size << ", (" << min_size << ", " << max_size << "]" << std::endl;
+                result.push_back(record);
+            }
+        }
+    });
+    return result;
+}
+
 memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   const primitive_id& prim_id,
                                                   size_t unique_id,
