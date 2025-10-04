@@ -8,11 +8,14 @@
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "translate_session.hpp"
 #include "utils/reshape.hpp"
+
 using namespace ov::op;
 
 namespace ov {
@@ -43,10 +46,24 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
 
     const ov::OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2), ng_inputs.end()};
 
-    const auto& subgraphs = node.get_subgraphs();
-    auto body_graph = subgraphs.at("body");
-    auto body_outputs = body_graph->get_ov_outputs();
-    const auto& body_inputs = body_graph->get_ng_parameters();
+    ParameterVector body_inputs{};
+    OutputVector body_outputs{};
+
+    std::shared_ptr<Subgraph> body_subgraph;
+    std::shared_ptr<ov::Model> body_graph;
+
+    if (!node.has_decoder()) {
+        const auto& subgraphs = node.get_subgraphs();
+        body_subgraph = subgraphs.at("body");
+        body_outputs = body_subgraph->get_ov_outputs();
+        body_inputs = body_subgraph->get_ng_parameters();
+    } else {
+        body_graph = node.get_attribute_value<std::shared_ptr<ov::Model>>("body");
+        for (const auto& res : body_graph->get_results()) {
+            body_outputs.push_back(res->get_input_source_output(0));
+        }
+        body_inputs = body_graph->get_parameters();
+    }
 
     // Infer loop body inputs' element type based on carried dependencies
     for (size_t i = 0; i < loop_carried_dependencies.size(); i++) {
@@ -96,10 +113,22 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     }
 
     const auto& cond_in = body_inputs[1];
-    const auto& cond_out = body_outputs[0];
-    // optimization allow to improve nG Loop shape inference
-    if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
-        body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
+    if (!node.has_decoder()) {
+        const auto& cond_out = body_outputs[0];
+        // optimization allow to improve nG Loop shape inference
+        if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
+            body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
+        }
+    } else {
+        if (body_outputs.size() > 0) {
+            const auto& cond_out = body_outputs[0];
+            // optimization allow to improve nG Loop shape inference
+            if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
+                body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
+            }
+        } else {
+            body_outputs.push_back(v0::Constant::create(ov::element::boolean, {1}, {true}));
+        }
     }
 
     CHECK_VALID_NODE(node,
@@ -141,18 +170,32 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
         final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
     }
 
-    const auto& inputs_from_parent = body_graph->get_inputs_from_parent();
-    CHECK_VALID_NODE(node,
-                     static_cast<size_t>(std::distance(body_inputs_it, body_inputs.end())) == inputs_from_parent.size(),
-                     "Expected number of invariant parameters is"
-                     " not equal number of provided inputs from parent scope");
+    if (!node.has_decoder()) {
+        const auto& inputs_from_parent = body_subgraph->get_inputs_from_parent();
+        CHECK_VALID_NODE(
+            node,
+            static_cast<size_t>(std::distance(body_inputs_it, body_inputs.end())) == inputs_from_parent.size(),
+            "Expected number of invariant parameters is"
+            " not equal number of provided inputs from parent scope");
+        // Set-up parameters from parent graph which are not changed during Loop's
+        // iterations
+        for (auto in_from_parent_it = inputs_from_parent.begin();
+             body_inputs_it != body_inputs.end() && in_from_parent_it != inputs_from_parent.end();
+             ++body_inputs_it, ++in_from_parent_it) {
+            loop->set_invariant_input(*body_inputs_it, *in_from_parent_it);
+        }
+    } else {
+        auto translate_session = node.get_translate_session();
 
-    // Set-up parameters from parent graph which are not changed during Loop's
-    // iterations
-    for (auto in_from_parent_it = inputs_from_parent.begin();
-         body_inputs_it != body_inputs.end() && in_from_parent_it != inputs_from_parent.end();
-         ++body_inputs_it, ++in_from_parent_it) {
-        loop->set_invariant_input(*body_inputs_it, *in_from_parent_it);
+        for (; body_inputs_it != body_inputs.end(); ++body_inputs_it) {
+            auto known_input = translate_session->lookup_tensor(body_inputs_it->get()->get_friendly_name());
+            if (known_input.get_node() != nullptr) {
+                loop->set_invariant_input(*body_inputs_it, known_input);
+            } else {
+                FRONT_END_THROW("Non-existent connection in body-graph to " +
+                                body_inputs_it->get()->get_friendly_name());
+            }
+        }
     }
 
     // Set-up scan outputs

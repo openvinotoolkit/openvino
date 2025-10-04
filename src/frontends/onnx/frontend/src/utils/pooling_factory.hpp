@@ -49,7 +49,7 @@ public:
     ov::OutputVector make_max_pool_with_indices() const;
 
 protected:
-    Node m_onnx_node;
+    const Node* m_onnx_node;
 
     const ov::OutputVector m_inputs;
     ov::Shape m_kernel_shape;
