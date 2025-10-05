@@ -24,6 +24,8 @@
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/reduce.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
+#include "intel_gpu/primitives/moe_gather.hpp"
+
 namespace cldnn {
 namespace cpu {
 void register_implementations();
@@ -59,6 +61,7 @@ REGISTER_CPU(reduce);
 REGISTER_CPU(fake_convert);
 REGISTER_CPU(moe_mask_gen);
 REGISTER_CPU(moe_mask_gen_reshape);
+REGISTER_CPU(moe_gather);
 
 #undef REGISTER_CPU
 

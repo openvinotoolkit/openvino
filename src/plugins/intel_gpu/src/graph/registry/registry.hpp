@@ -170,6 +170,7 @@ REGISTER_IMPLS(moe_mask_gen);
 REGISTER_IMPLS(moe_mask_gen_reshape);
 REGISTER_IMPLS(moe_gemm);
 REGISTER_IMPLS(moe_scatter_reduction);
+REGISTER_IMPLS(moe_gather);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
