@@ -7,17 +7,12 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include <type_traits>
-#include <utility>
-
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "intel_npu/utils/zero/zero_types.hpp"
+#include "ir_serializer.hpp"
 
 namespace intel_npu {
-
-using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 
 struct GraphDescriptor {
     GraphDescriptor(ze_graph_handle_t handle = nullptr, bool memoryPersistent = false);
@@ -36,10 +31,9 @@ public:
     ZeGraphExtWrappers& operator=(const ZeGraphExtWrappers&) = delete;
     ~ZeGraphExtWrappers();
 
-    std::unordered_set<std::string> queryGraph(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
-                                               const std::string& buildFlags) const;
+    std::unordered_set<std::string> queryGraph(SerializedIR serializedIR, const std::string& buildFlags) const;
 
-    GraphDescriptor getGraphDescriptor(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
+    GraphDescriptor getGraphDescriptor(SerializedIR serializedIR,
                                        const std::string& buildFlags,
                                        const uint32_t& flags) const;
 
@@ -64,10 +58,6 @@ public:
     void initializeGraph(const GraphDescriptor& graphDescriptor, uint32_t commandQueueGroupOrdinal) const;
 
 private:
-    std::unordered_set<std::string> getQueryResultFromSupportedLayers(
-        ze_result_t result,
-        ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
-
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t index,
                      std::vector<IODescriptor>& inputs,

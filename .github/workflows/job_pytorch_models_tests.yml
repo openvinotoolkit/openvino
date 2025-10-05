@@ -19,6 +19,10 @@ on:
 
 permissions: read-all
 
+env:
+  HF_HUB_CACHE_LIN: /mount/caches/huggingface
+  HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
+
 jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
@@ -48,13 +52,13 @@ jobs:
             .github/actions
           sparse-checkout-cone-mode: false
           submodules: 'false'
-      
+
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
@@ -67,9 +71,10 @@ jobs:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
 
-      - name: Setup HuggingFace Cache Directory (Windows)
-        if: runner.os == 'Windows'
-        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
+      - name: Setup Variables
+        run: |
+          echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO artifacts
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
