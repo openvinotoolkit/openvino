@@ -37,6 +37,9 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
         const auto& m_convert = pattern_map.at(convert).get_node_shared_ptr();
         auto output_type = m_convert->get_output_element_type(0);
 
+        if (m_data->outputs().size() > 1)
+            return false;
+
         std::shared_ptr<Node> m_fc = nullptr;
         std::shared_ptr<Node> new_fc = nullptr;
         auto it = pattern_map.find(fully_connected);
