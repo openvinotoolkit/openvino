@@ -614,7 +614,7 @@ def test_reshape_with_list_of_shapes():
     param_b = ops.parameter([3, 3, 224, 244], dtype=np.float32, name="B")
     param_c = ops.parameter([10], dtype=np.float32, name="C")
     # Simple output to complete the model (we won't compute Add to avoid broadcasting issues)
-    model = Model(param_a, [param_a, param_b, param_c])    
+    model = Model(param_a, [param_a, param_b, param_c])
     # Dict form; works
     model.reshape({0: [2, 2], 1: [2, 2], 2: [2, 2]})
     inputs = model.inputs
