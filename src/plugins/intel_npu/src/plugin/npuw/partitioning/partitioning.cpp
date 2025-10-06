@@ -13,9 +13,7 @@
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/validate.hpp"
@@ -242,9 +240,6 @@ private:
     // NB(dm): This method should get a better place, it is here only because
     // it is tied to the Function structure (but, in fact, not so much)
     void identifySpatialRange(ov::npuw::Function& f);
-
-    // NB(dm): Same note here
-    void identifyAttentionParams(ov::npuw::Function& f);
 
     template <typename T, typename M>
     void rearrange_to_function_protocol(ov::npuw::Subgraph::Ref func_ref,
@@ -1760,79 +1755,6 @@ void Partitioner::identifySpatialRange(ov::npuw::Function& f) {
     f._spatial = std::move(spatial);
 }
 
-void Partitioner::identifyAttentionParams(ov::npuw::Function& f) {
-    NPUW_ASSERT(f._tag == "attn");
-
-    ov::npuw::function::Attention dyn;
-
-    // Find the mask input (also sizeable). FIXME: We know too much at this point
-    auto ops = f._model->get_ordered_ops();
-    auto sdpa_iter = std::find_if(ops.begin(), ops.end(), [](auto&& node_ptr) {
-        return ov::is_type<ov::op::v13::ScaledDotProductAttention>(node_ptr);
-    });
-    if (sdpa_iter == ops.end()) {
-        LOG_WARN("SDPA is not found in the attn subgraph!");
-        return;  // do nothing
-    }
-
-    // Traverse the SDPA's mask input upwards to find the proper Parameter.
-    // Only unary ops are allowed along the way
-    auto sdpa_node = *sdpa_iter;
-    NPUW_ASSERT(sdpa_node->inputs().size() >= 4);
-
-    auto mask_in_node = sdpa_node->inputs()[3].get_source_output().get_node_shared_ptr();
-    while (mask_in_node && !ov::op::util::is_parameter(mask_in_node)) {
-        if (mask_in_node->inputs().size() != 1) {
-            LOG_WARN("Non-unary or disconnected op on the way from SDPA to input mask");
-            return;
-        }
-        mask_in_node = mask_in_node->inputs()[0].get_source_output().get_node_shared_ptr();
-    }
-    NPUW_ASSERT(ov::op::util::is_parameter(mask_in_node));
-    dyn._mask = std::static_pointer_cast<ov::op::v0::Parameter>(mask_in_node);
-    dyn._mask_shape = dyn._mask->get_shape();
-
-    // Find the attention inputs with dynamic range
-    const auto& f_params = f._model->get_parameters();
-    NPUW_ASSERT(f_params.size() > 0);
-
-    auto find_context_dim = [&](const auto& param, auto&& f) {
-        const auto& param_shape = param->get_shape();
-        // Look for the dynamic parameter size - past size in this case
-        // With our approach it is context_size - query_size
-        auto past_len = dyn.context_len() - dyn.query_len();
-        auto dim_iter = std::find(param_shape.begin(), param_shape.end(), past_len);
-        if (dim_iter == param_shape.end()) {
-            // No such dim found
-            return false;
-        }
-        if (std::find(dim_iter + 1, param_shape.end(), past_len) != param_shape.end()) {
-            // There must be no other such dim
-            return false;
-        }
-        f(*dim_iter);
-        return true;
-    };
-
-    for (auto&& param : f_params) {
-        // A bad test but it is what it is
-        if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
-            if (!find_context_dim(param, [&](std::size_t dim) {
-                    dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, 2});
-                })) {
-                return;  // Couldn't identify parameter's dynamic dimension
-            }
-        }
-    }
-
-    if (dyn._inputs.empty() || !dyn._mask) {
-        return;  // do nothing
-    }
-
-    // Accept the change
-    f._attention = std::move(dyn);
-}
-
 void Partitioner::createFunction(const std::string& func_name) {
     createFunction(all_functions.at(func_name));
 }
@@ -1970,58 +1892,14 @@ void Partitioner::attention(const std::string& func_name) {
         return;
     }
 
-    identifyAttentionParams(f);
+    LOG_VERB("Turn " << func_name << " into dynamic Attention block in model " << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    f._attention = ov::npuw::function::Attention::from(f._model);
     if (!f._attention) {
         LOG_WARN("Do dynamic ranges found in the ATTN block");
         return;
     }
-
-    // Apply transformation to the model. Note: only function body is modified
-    // Accumulate the reshape map
-    std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
-    for (auto&& p : f._attention->_inputs) {
-        ov::PartialShape dyn_shape = p.param->get_shape();  // Here it is yet static
-        dyn_shape[p.dim] = ov::Dimension();                 // ..and now is dynamic
-        new_shapes[p.param->output(0)] = std::move(dyn_shape);
-    }
-    // Mask
-    {
-        ov::PartialShape dyn_shape = f._attention->_mask_shape;
-        // Put the mask's innermost dimension dynamic
-        *dyn_shape.rbegin() = ov::Dimension();
-        new_shapes[f._attention->_mask->output(0)] = std::move(dyn_shape);
-    }
-    f._model->reshape(new_shapes);
-
-    // Patch Broadcast constants if there's any. If there's broadcast in the attention
-    // block, its shape argument is normally a precomputed Const (which would be
-    // an expression/a subgraph in the original dynamic IR). Since we retrofit
-    // dynamism into a static shape environment here, we need to patch it back.
-    for (auto&& op : f._model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v3::Broadcast>(op)) {
-            continue;
-        }
-        // Inspect the constant
-        auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v0::Constant>(shape_source)) {
-            LOG_WARN("SDPA Broadcast's 2nd input is not Const: " << shape_source << ", skipping");
-            continue;
-        }
-
-        auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
-        auto shape_values = shape_const->cast_vector<int32_t>();
-        for (auto&& d : shape_values) {
-            //  Assume the context length is the mask's innermost dimension
-            if (static_cast<std::size_t>(d) == f._attention->context_len()) {
-                d = 1;
-            }
-        }
-        auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
-                                                                shape_const->get_shape(),
-                                                                shape_values);
-        op->input(1).replace_source_output(new_const);
-    }
-    f._model->validate_nodes_and_infer_types();
     LOG_VERB("Done");
 }
 

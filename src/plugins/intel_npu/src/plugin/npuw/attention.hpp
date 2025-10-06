@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "logging.hpp"  // NPUW_ASSERT
@@ -45,6 +46,8 @@ struct Attention {
         NPUW_ASSERT(_mask_shape.size() == 4);
         return _mask_shape.at(3);
     }
+
+    static std::optional<Attention> from(const std::shared_ptr<ov::Model>& model);
 };
 
 }  // namespace function
