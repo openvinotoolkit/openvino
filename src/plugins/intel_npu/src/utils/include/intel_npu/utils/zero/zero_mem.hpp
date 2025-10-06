@@ -15,9 +15,9 @@ struct ZeroMem final {
 public:
     /**
      * @brief Allocates a new memory region in the level zero context provided through init_structs.
-     * @param init_structs  Holder for the level zero structures.
+     * @param init_structs Holder for the level zero structures.
      * @param bytes Size in bytes of the memory that must be allocated.
-     * @param alignment Alignment needed for the memory; it must be a multiple of the standatd page size
+     * @param alignment Alignment needed for the memory; it must be a multiple of the standard page size
      * @param is_input Optimize reads from this buffer. Specific level zero flags will be used for allocation in case
      * the buffer is intended to be used as an input.
      */
@@ -28,7 +28,7 @@ public:
 
     /**
      * @brief Imports an already allocated memory in the level zero context provided through init_structs.
-     * @param init_structs  Holder for the level zero structures.
+     * @param init_structs Holder for the level zero structures.
      * @param data Memory to be imported
      * @param bytes Size in bytes of the memory that must be allocated.
      * @param is_input Optimize reads from this buffer. Specific level zero flags will be used for allocation in case
@@ -69,8 +69,8 @@ private:
 };
 
 /**
- * @brief Default Zero Memory exception for the cases when we can not import a memory and must fallback on allocating a
- * new zero memory and do memcpy
+ * @brief Default Zero Memory exception for the cases when we can not import a memory from the given tensor and must
+ * fallback on allocating a new zero memory and do memcpy
  */
 class ZeroMemException final : public std::runtime_error {
 public:

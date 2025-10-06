@@ -33,9 +33,9 @@ public:
 
     /**
      * @brief Returns a new memory region allocated in the level zero and adds it to the pool.
-     * @param init_structs  Holder for the level zero structures.
+     * @param init_structs Holder for the level zero structures.
      * @param bytes Size in bytes of the memory that must be allocated.
-     * @param alignment Alignment needed for the memory; it must be a multiple of the standatd page size.
+     * @param alignment Alignment needed for the memory; it must be a multiple of the standard page size.
      * @param is_input Memory is used only as input or not.
      */
     std::shared_ptr<ZeroMem> allocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -46,7 +46,7 @@ public:
     /**
      * @brief Returns an imported shared(CMX-DMA in case of Linux, NT handle in case of Windows) memory in the level
      * zero and adds it to the pool.
-     * @param init_structs  Holder for the level zero structures.
+     * @param init_structs Holder for the level zero structures.
      * @param data Memory to be imported.
      * @param bytes Size in bytes of the memory that must be allocated.
      */
@@ -58,7 +58,7 @@ public:
      * @brief Performs a look-up in the pool to check if the entire range given by [data, data + bytes] was previously
      * allocated or imported. Returns a reference to the ZeroMem object stored in the pool in case the check is
      * successful, or tries to import memory in the level zero context, adds it to the pool, and returns it.
-     * @param init_structs  Holder for the level zero structures.
+     * @param init_structs Holder for the level zero structures.
      * @param data User memory to be checked.
      * @param bytes Size in bytes of the memory.
      * @param is_input Memory is used only as input or not.
