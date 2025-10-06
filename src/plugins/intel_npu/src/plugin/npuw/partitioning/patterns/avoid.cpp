@@ -113,7 +113,7 @@ GemmaRoPE::GemmaRoPE(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot
     auto unsqueeze3 = opp::wrap_type<ov::op::v0::Unsqueeze>({divide, opp::wrap_type<ov::op::v0::Constant>()});
     auto sin_cos = opp::wrap_type<ov::op::v0::Sin, ov::op::v0::Cos>({unsqueeze3});
     auto node_to_gptr = snapshot->getNodeToGroupMap();
-    
+
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
