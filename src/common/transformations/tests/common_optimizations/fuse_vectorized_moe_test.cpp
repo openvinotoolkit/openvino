@@ -37,7 +37,7 @@
 #include "transformations/common_optimizations/matmul_experts_fusion.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
-inline std::shared_ptr<ov::Model> build_moe_pattern_model() {
+inline std::shared_ptr<ov::Model> build_2gemm_moe_pattern_model() {
     using namespace ov;
 
     const size_t batch = 2;
@@ -151,7 +151,7 @@ inline std::shared_ptr<ov::Model> build_moe_pattern_model() {
         true);
     auto unsqueeze_routing_weights =
         std::make_shared<op::v0::Unsqueeze>(router_reshape,
-                                            op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{1}));
+                                            op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{-1}));
 
     auto mul3 = std::make_shared<op::v1::Multiply>(end_reshape, unsqueeze_routing_weights);
 
@@ -164,7 +164,7 @@ inline std::shared_ptr<ov::Model> build_moe_pattern_model() {
     return std::make_shared<ov::Model>(ov::OutputVector{reduce_sum}, ov::ParameterVector{input});
 }
 
-inline std::shared_ptr<ov::Model> build_fused_moe_reference_model() {
+inline std::shared_ptr<ov::Model> build_fused_2gemm_moe_reference_model() {
     using namespace ov;
 
     const size_t batch = 2;
@@ -220,8 +220,7 @@ inline std::shared_ptr<ov::Model> build_fused_moe_reference_model() {
         op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{number_of_experts, batch, -1}),
         true);
     auto unsqueeze_routing_weights =
-        std::make_shared<op::v0::Unsqueeze>(router_reshape,
-                                            op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{1}));
+        std::make_shared<op::v0::Unsqueeze>(router_reshape, op::v0::Constant::create(element::i64, Shape{1}, {-1}));
     // End of Router subgraph
 
     // Expert MatMuls weights fused into MOE
@@ -246,8 +245,207 @@ inline std::shared_ptr<ov::Model> build_fused_moe_reference_model() {
     return std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{input});
 }
 
-TEST_F(TransformationTestsF, FuseVectorizedMOE_basic) {
-    model = build_moe_pattern_model();
-    manager.register_pass<ov::pass::FuseVectorizedMOE>();
-    model_ref = build_fused_moe_reference_model();
+inline std::shared_ptr<ov::Model> build_3gemm_moe_pattern_model() {
+    using namespace ov;
+
+    const size_t batch = 2;
+    const Dimension in_dim = Dimension::dynamic();
+    const size_t hidden_size = 2048;
+    const size_t intermediate_size = 4096;
+    const size_t number_of_experts = 3;
+    const size_t topk = 2;
+
+    auto input_shape = PartialShape{batch, in_dim, hidden_size};
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
+    auto experts_reshape = std::make_shared<op::v1::Reshape>(
+        input,
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, hidden_size}),
+        false);
+
+    auto tile = std::make_shared<op::v0::Tile>(
+        experts_reshape,
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{number_of_experts, 1}));
+    auto after_tile_reshape = std::make_shared<op::v1::Reshape>(
+        tile,
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{number_of_experts, batch, hidden_size}),
+        false);
+
+    // First GEMM (gate)
+    auto gate_matmul = std::make_shared<op::v0::MatMul>(
+        after_tile_reshape,
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f}),
+        false,
+        false);
+
+    auto swish = std::make_shared<op::v4::Swish>(gate_matmul);
+
+    // Second GEMM (up)
+    auto up_matmul = std::make_shared<op::v0::MatMul>(
+        after_tile_reshape,
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f}),
+        false,
+        false);
+
+    auto swiglu = std::make_shared<op::v1::Multiply>(swish, up_matmul);
+
+    // Third GEMM (down)
+    auto down_matmul = std::make_shared<op::v0::MatMul>(
+        swiglu,
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f}),
+        false,
+        false);
+
+    auto experts_out_reshape = std::make_shared<op::v1::Reshape>(
+        down_matmul,
+        op::v0::Constant::create(element::i64,
+                                 Shape{4},
+                                 std::vector<int64_t>{number_of_experts, batch, -1, hidden_size}),
+        false);
+
+    // Router subgraph used to test correctness of routing weights connection
+    auto router_matmul = std::make_shared<op::v0::MatMul>(
+        experts_reshape,
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size}, {1.0f}),
+        false,
+        true);
+
+    auto router_topk_values_and_indices =
+        std::make_shared<op::v11::TopK>(router_matmul,
+                                        op::v0::Constant::create(element::i64, Shape{}, {topk}),
+                                        -1,
+                                        op::v11::TopK::Mode::MAX,
+                                        op::v11::TopK::SortType::SORT_VALUES,
+                                        element::i64);
+
+    auto router_topk_values = router_topk_values_and_indices->output(0);
+    auto router_topk_indices = router_topk_values_and_indices->output(1);
+
+    auto scatter_elements_update = std::make_shared<op::v12::ScatterElementsUpdate>(
+        router_topk_values,
+        router_topk_indices,
+        op::v0::Constant::create(element::f32, Shape{batch, topk}, {0}),
+        op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{1}));
+    auto router_transpose = std::make_shared<op::v1::Transpose>(
+        scatter_elements_update,
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1, 0}));
+    auto router_reshape = std::make_shared<op::v1::Reshape>(
+        router_transpose,
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{number_of_experts, batch, -1}),
+        true);
+    auto unsqueeze_routing_weights =
+        std::make_shared<op::v0::Unsqueeze>(router_reshape,
+                                            op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{-1}));
+
+    auto mul3 = std::make_shared<op::v1::Multiply>(experts_out_reshape, unsqueeze_routing_weights);
+
+    // ReduceSum - final node of the MOE pattern to be fused
+    auto reduce_sum =
+        std::make_shared<op::v1::ReduceSum>(mul3,
+                                            op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0}),
+                                            false);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{reduce_sum}, ov::ParameterVector{input});
+}
+
+inline std::shared_ptr<ov::Model> build_fused_3gemm_moe_reference_model() {
+    using namespace ov;
+
+    const size_t batch = 2;
+    const Dimension in_dim = Dimension::dynamic();
+    const size_t hidden_size = 2048;
+    const size_t intermediate_size = 4096;
+    const size_t number_of_experts = 3;
+    const size_t topk = 2;
+
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{batch, in_dim, hidden_size});
+
+    // Begin of Router subgraph (not fused, but valuable for testing)
+    auto experts_reshape = std::make_shared<op::v1::Reshape>(
+        input,
+        op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, hidden_size}),
+        false);
+
+    auto router_matmul = std::make_shared<op::v0::MatMul>(
+        experts_reshape,
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size}, {1.0f}),
+        false,
+        true);
+
+    auto router_topk = std::make_shared<op::v11::TopK>(router_matmul,
+                                                       op::v0::Constant::create(element::i64, Shape{}, {topk}),
+                                                       -1,
+                                                       op::v11::TopK::Mode::MAX,
+                                                       op::v11::TopK::SortType::SORT_VALUES,
+                                                       element::i64);
+
+    auto router_topk_values = router_topk->output(0);
+    auto router_topk_indices = router_topk->output(1);
+
+    auto scatter_elements_update = std::make_shared<op::v12::ScatterElementsUpdate>(
+        router_topk_values,
+        router_topk_indices,
+        op::v0::Constant::create(element::f32, Shape{batch, topk}, {0}),
+        op::v0::Constant::create(element::i64, Shape{1}, {1}));
+
+    auto router_transpose =
+        std::make_shared<op::v1::Transpose>(scatter_elements_update,
+                                            op::v0::Constant::create(element::i64, Shape{2}, {1, 0}));
+    auto router_reshape = std::make_shared<op::v1::Reshape>(
+        router_transpose,
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{number_of_experts, batch, -1}),
+        true);
+
+    auto unsqueeze_routing_weights =
+        std::make_shared<op::v0::Unsqueeze>(router_reshape, op::v0::Constant::create(element::i64, Shape{1}, {-1}));
+
+    // MOE fused op
+    auto w0_weight =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
+    auto w1_weight =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, hidden_size, intermediate_size}, {1.0f});
+    auto w2_weight =
+        op::v0::Constant::create(element::f32, Shape{number_of_experts, intermediate_size, hidden_size}, {1.0f});
+
+    ov::OutputVector moe_inputs =
+        {input, unsqueeze_routing_weights, router_topk_indices, w0_weight, w1_weight, w2_weight};
+
+    ov::op::internal::MOE::Config config;
+    config.expert_type = ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+
+    auto moe = std::make_shared<ov::op::internal::MOE>(moe_inputs, config);
+    return std::make_shared<ov::Model>(ov::OutputVector{moe}, ov::ParameterVector{input});
+}
+
+TEST_F(TransformationTestsF, FuseVectorizedMOE2GEMM_basic) {
+    model = build_2gemm_moe_pattern_model();
+    manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
+    model_ref = build_fused_2gemm_moe_reference_model();
+}
+
+TEST_F(TransformationTestsF, FuseVectorizedMOE2GEMM_VectorizedExpertsFusion) {
+    model = build_2gemm_moe_pattern_model();
+    manager.register_pass<ov::pass::VectorizedExpertsFusion>();
+    model_ref = build_fused_2gemm_moe_reference_model();
+}
+
+TEST_F(TransformationTestsF, FuseVectorizedMOE2GEMM_no_fusion) {
+    model = build_3gemm_moe_pattern_model();
+    manager.register_pass<ov::pass::FuseVectorizedMOE2GEMM>();
+}
+
+TEST_F(TransformationTestsF, FuseVectorizedMOE3GEMM_basic) {
+    model = build_3gemm_moe_pattern_model();
+    manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
+    model_ref = build_fused_3gemm_moe_reference_model();
+}
+
+TEST_F(TransformationTestsF, FuseVectorizedMOE3GEMM_VectorizedExpertsFusion) {
+    model = build_3gemm_moe_pattern_model();
+    manager.register_pass<ov::pass::VectorizedExpertsFusion>();
+    model_ref = build_fused_3gemm_moe_reference_model();
+}
+
+TEST_F(TransformationTestsF, FuseVectorizedMOE3GEMM_no_fusion) {
+    model = build_2gemm_moe_pattern_model();
+    manager.register_pass<ov::pass::FuseVectorizedMOE3GEMM>();
 }

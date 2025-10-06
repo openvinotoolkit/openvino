@@ -25,8 +25,8 @@ public:
 
     struct Config {
         Expert_type expert_type{Expert_type::GEMM2_BIAS_SWIGLU_CLAMP};
-        float expert_alpha{1.0f};  // Expert attribute, e.g. sigmoid alpha
-        float expert_beta{0.0f};   // Expert attribute, e.g. clamp limit
+        float expert_alpha{0.0f};  // Expert attribute for clamp bounds
+        float expert_beta{1.0f};   // Expert attribute for swish beta
     };
 
     /// \brief Constructs a MOE operation with config only
