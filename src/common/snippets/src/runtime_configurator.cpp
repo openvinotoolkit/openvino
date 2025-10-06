@@ -348,7 +348,7 @@ void RuntimeConfigurator::update_data_offsets() const {
             continue;
         }
         if (utils::is_dynamic_vdims(shape)) {
-            return;
+            continue;
         }
 
         const auto idx_stride = m_config->tensor_rank - shape.size();
