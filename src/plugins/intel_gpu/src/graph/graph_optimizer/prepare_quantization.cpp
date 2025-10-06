@@ -374,7 +374,7 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
         auto mem0 = get_scale_shift_mem(eltwise_dep, i);
        auto mem1 = get_scale_shift_mem(eltwise_node, i);
 
-        // ✅ FIXED: Check sizes first!
+        //  FIXED: Check sizes first!
         if (mem0->get_layout().bytes_count() != mem1->get_layout().bytes_count()) {
             same_params = false;
             // No need to check the rest of the dependencies if one is already different
