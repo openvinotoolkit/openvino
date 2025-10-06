@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from huggingface_hub import snapshot_download
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM, pipeline
 import torch
 import hashlib
@@ -40,11 +41,12 @@ def patch_gptq(config):
     return orig_cuda_check, orig_post_init_model
 
 def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
-    config = AutoConfig.from_pretrained(model_id, trust_remote_code=True, torch_dtype=torch.float32)
+    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    config = AutoConfig.from_pretrained(model_cached, trust_remote_code=True, torch_dtype=torch.float32)
     cuda, post_init = patch_gptq(config)
-    tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True, torch_dtype=torch.float32)
+    tokenizer = AutoTokenizer.from_pretrained(model_cached, trust_remote_code=True, torch_dtype=torch.float32)
     model = AutoModelForCausalLM.from_pretrained(
-        model_id,
+        model_cached,
         trust_remote_code=True,
         config=config,
         device_map='cpu',
