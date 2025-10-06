@@ -93,18 +93,18 @@ private:
     /**
      * @brief Initializes decomposed loop: update ptr arithmetic, work_amout, increment, ID
      * @param linear_ir target Linear IR
-     * @param begin iterator of LoopBegin
-     * @param end iterator of LoopEnd
+     * @param decomposed_loop_bounds decomposed loop bounds
      * @param decomposed_loop_info loop info of the corresponding decomposed loop
      * @param loop_id_to_replace ID of the loop which should be replaced by the decomposed one
      * @param decomposed_loop_end LoopEnd of the decomposed loop
+     * @param run_handlers flag to run handlers for the decomposed loop
      */
     static void init_decomposed_loop(LinearIR& linear_ir,
-                                     LinearIR::constExprIt begin,
-                                     LinearIR::constExprIt end,
+                                     const LoopManager::LoopBounds& decomposed_loop_bounds,
                                      const ExpandedLoopInfoPtr& decomposed_loop_info,
                                      size_t loop_id_to_replace,
-                                     const std::shared_ptr<op::LoopEnd>& decomposed_loop_end);
+                                     const std::shared_ptr<op::LoopEnd>& decomposed_loop_end,
+                                     bool run_handlers);
 };
 
 }  // namespace ov::snippets::lowered::pass

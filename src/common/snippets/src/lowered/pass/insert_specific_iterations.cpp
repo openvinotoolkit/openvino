@@ -159,22 +159,27 @@ LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& lin
 }
 
 void InsertSpecificIterations::init_decomposed_loop(LinearIR& linear_ir,
-                                                    LinearIR::constExprIt begin,
-                                                    LinearIR::constExprIt end,
+                                                    const LoopManager::LoopBounds& decomposed_loop_bounds,
                                                     const ExpandedLoopInfoPtr& decomposed_loop_info,
                                                     size_t loop_id_to_replace,
-                                                    const std::shared_ptr<op::LoopEnd>& decomposed_loop_end) {
+                                                    const std::shared_ptr<op::LoopEnd>& decomposed_loop_end,
+                                                    bool run_handlers) {
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto new_id =
-        loop_manager->replace_with_new_loop(linear_ir, begin, std::next(end), decomposed_loop_info, loop_id_to_replace);
+    const auto new_id = loop_manager->replace_with_new_loop(linear_ir,
+                                                            decomposed_loop_bounds.first,
+                                                            std::next(decomposed_loop_bounds.second),
+                                                            decomposed_loop_info,
+                                                            loop_id_to_replace);
     decomposed_loop_end->set_id(new_id);
     decomposed_loop_end->set_work_amount(decomposed_loop_info->get_work_amount());
     decomposed_loop_end->set_increment(decomposed_loop_info->get_increment());
     decomposed_loop_end->set_ptr_increments(decomposed_loop_info->get_ptr_increments());
     decomposed_loop_end->set_finalization_offsets(decomposed_loop_info->get_finalization_offsets());
-    // Note: handlers must be run on the range started with the first operation in the loop body.
-    const auto handlers = decomposed_loop_info->get_handler_passes();
-    handlers.run(linear_ir, std::next(begin), end);
+    if (run_handlers) {
+        const auto handlers = decomposed_loop_info->get_handler_passes();
+        // Note: handlers must be run on the range started with the first operation in the loop body.
+        handlers.run(linear_ir, std::next(decomposed_loop_bounds.first), decomposed_loop_bounds.second);
+    }
 }
 
 bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
@@ -238,6 +243,57 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
                                       offset = 0;
                                   }
                               });
+
+                std::map<UnifiedLoopInfoPtr, UnifiedLoopInfoPtr> unified_loop_map;
+                auto get_unified_cloned_info = [&unified_loop_map,
+                                                &expression_map](const ExpandedLoopInfoPtr& expanded_loop_info) {
+                    const auto& unified_loop_info = expanded_loop_info->get_unified_loop_info();
+                    if (unified_loop_map.count(unified_loop_info) == 0) {
+                        LoopInfoMap loop_info_map;
+                        // Note: we must clone UnifiedLoopInfo for the cloned ExpandedLoopInfos
+                        auto cloned_info = ov::as_type_ptr<UnifiedLoopInfo>(
+                            unified_loop_info->clone_with_new_expr(expression_map, loop_info_map));
+                        OPENVINO_ASSERT(cloned_info, "cloned info must be UnifiedLoopInfo");
+                        unified_loop_map[unified_loop_info] = cloned_info;
+                        const auto new_loop_info = unified_loop_map.at(unified_loop_info);
+                    }
+                    return unified_loop_map.at(unified_loop_info);
+                };
+
+                // Note: all internal decomposed loops must be also cloned to avoid a situation
+                // when 2 loops with the same ID exist in both specific iterations of the outer loop
+                for (auto it = std::next(decomposed_loop_bounds.first); it != decomposed_loop_bounds.second; ++it) {
+                    auto internal_loop_end = ov::as_type_ptr<op::LoopEnd>(it->get()->get_node());
+                    if (!internal_loop_end) {
+                        continue;
+                    }
+                    const auto loop_begin = internal_loop_end->get_loop_begin();
+                    auto begin_it = linear_ir.find_after(std::next(decomposed_loop_bounds.first), linear_ir.get_expr_by_node(loop_begin));
+                    OPENVINO_ASSERT(begin_it != linear_ir.cend(),
+                                    "Cannot find LoopBegin for LoopEnd with id ",
+                                    internal_loop_end->get_id());
+                    LoopManager::LoopBounds internal_loop_bounds {begin_it, it};
+                    const auto internal_loop_id = internal_loop_end->get_id();
+                    // Note: internal loops must be already decomposed to ExpandedLoops
+                    const auto internal_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(internal_loop_id);
+                    const auto cloned_loop_info = std::make_shared<ExpandedLoopInfo>(
+                        internal_loop_info->get_work_amount(),
+                        internal_loop_info->get_increment(),
+                        clone_ports(expression_map, internal_loop_info->get_input_ports()),
+                        clone_ports(expression_map, internal_loop_info->get_output_ports()),
+                        internal_loop_info->get_ptr_increments(),
+                        internal_loop_info->get_finalization_offsets(),
+                        internal_loop_info->get_data_sizes(),
+                        internal_loop_info->get_type(),
+                        get_unified_cloned_info(internal_loop_info),
+                        internal_loop_info->is_evaluate_once());
+                    init_decomposed_loop(linear_ir,
+                                         internal_loop_bounds,
+                                         cloned_loop_info,
+                                         internal_loop_id,
+                                         internal_loop_end,
+                                         false);
+                }
             }
 
             const auto decomposed_loop_info = std::make_shared<ExpandedLoopInfo>(work_amount,
@@ -250,11 +306,11 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
                                                                                  iter_type,
                                                                                  unified_loop_info);
             init_decomposed_loop(linear_ir,
-                                 decomposed_loop_bounds.first,
-                                 decomposed_loop_bounds.second,
+                                 decomposed_loop_bounds,
                                  decomposed_loop_info,
                                  unified_loop_id,
-                                 decomposed_loop_end);
+                                 decomposed_loop_end,
+                                 true);
 
             decomposed = true;
         }
