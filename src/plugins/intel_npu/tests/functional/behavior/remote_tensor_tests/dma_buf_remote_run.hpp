@@ -45,7 +45,7 @@ protected:
     int _fd_dma_heap = -1;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
