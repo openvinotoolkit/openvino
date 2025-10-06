@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <sstream>
 #include <string>

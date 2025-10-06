@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <openvino/runtime/intel_npu/properties.hpp>
 #include <vector>
 
