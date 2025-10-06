@@ -352,10 +352,13 @@ static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
  * @brief [Only for NPU Plugin]
  * Type: bool. Default is "true".
  *
+ * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
+ * passed through the driver.
+ *
  * The base serializer is the OV implementation of the "XmlSerializer" without any extensions. All weights are copied in
- * a separate buffer. By turning this off, the NPU extension of the serializer is enabled. Not all weights will be
- * copied in a separate buffer (see "serialization_weights_size_threshold"). However, this solution may be less
- * reliable.
+ * a separate buffer. By turning this off, the NPU extension of the serializer is enabled. This allows optimizing the
+ * process by reducing the amount of weights that will be copied in a separate buffer. However, this solution may be
+ * less reliable.
  */
 static constexpr ov::Property<bool> use_base_model_serializer{"NPU_USE_BASE_MODEL_SERIALIZER"};
 

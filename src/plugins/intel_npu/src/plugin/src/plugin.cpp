@@ -299,6 +299,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
     REGISTER_OPTION(USE_BASE_MODEL_SERIALIZER);
+    REGISTER_OPTION(SERIALIZATION_WEIGHTS_SIZE_THRESHOLD);
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {

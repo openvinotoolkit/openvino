@@ -411,8 +411,8 @@ SerializedIR IRSerializerWithoutWeightsCopy::serialize() {
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const ze_graph_compiler_version_info_t compilerVersion,
                          const uint32_t supportedOpsetVersion,
-                         const bool useBetterModelSerialization) {
-    if (useBetterModelSerialization) {
+                         const bool useBaseModelSerializer) {
+    if (!useBaseModelSerializer) {
         const std::shared_ptr<ov::Model> clonedModel = model->clone();
         storeWeightsPointerAttribute(clonedModel);
         return IRSerializerWithoutWeightsCopy(clonedModel, compilerVersion, supportedOpsetVersion).serialize();

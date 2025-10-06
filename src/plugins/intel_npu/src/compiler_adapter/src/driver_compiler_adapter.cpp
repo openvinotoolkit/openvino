@@ -157,7 +157,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
         compilerVersion,
         maxOpsetVersion,
         config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
-                                                                            : false);
+                                                                            : true);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to serialize: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
               << "[µs]" << std::endl;
@@ -227,7 +227,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
         compilerVersion,
         maxOpsetVersion,
         config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
-                                                                            : false);
+                                                                            : true);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to serialize: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
               << "[µs]" << std::endl;
@@ -382,7 +382,7 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
         compilerVersion,
         maxOpsetVersion,
         config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
-                                                                            : false);
+                                                                            : true);
 
     std::string buildFlags;
     buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
