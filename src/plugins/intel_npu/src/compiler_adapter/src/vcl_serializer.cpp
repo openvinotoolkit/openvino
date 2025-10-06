@@ -4,6 +4,7 @@
 
 #include "vcl_serializer.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <istream>
 #include <mutex>
@@ -382,7 +383,7 @@ SerializedIR VCLSerializerWithWeightsCopy::serialize() {
 }
 
 SerializedIR VCLSerializerWithoutWeightsCopy::serialize() {
-    countModelSize();
+    countModelSize();  // TODO refactor, we don't need this
 
     if (_serializedModelSize >= std::numeric_limits<uint64_t>::max()) {
         OPENVINO_THROW("The serialized model is too big to process. Size: ",
@@ -419,8 +420,12 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const bool useBaseModelSerializer,
                          const size_t weightsSizeThreshold) {
     if (!useBaseModelSerializer) {
-        const std::shared_ptr<ov::Model> clonedModel = model->clone();
+        const std::shared_ptr<ov::Model> clonedModel = model->clone();  // TODO avoid this
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         storeWeightsPointerAttribute(clonedModel, weightsSizeThreshold);
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        std::cout << "Time to store attributes: "
+                  << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
         return VCLSerializerWithoutWeightsCopy(clonedModel,
                                                compilerVersion,
                                                supportedOpsetVersion,
