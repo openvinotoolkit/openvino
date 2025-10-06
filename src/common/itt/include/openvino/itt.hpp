@@ -132,13 +132,11 @@ struct ScopedTask {
  */
 template <domain_t (*domain)()>
 struct ScopedRegion {
-    handle_t regionHandle;
-
     /**
      * @brief Construct ScopedRegion with defined annotation handle
      */
-    ScopedRegion(handle_t handle) noexcept : regionHandle(handle) {
-        internal::regionBegin(domain(), regionHandle);
+    ScopedRegion(handle_t handle) noexcept {
+        internal::regionBegin(domain(), handle);
     }
 
     /**
