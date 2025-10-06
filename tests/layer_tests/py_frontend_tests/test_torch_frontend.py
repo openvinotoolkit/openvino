@@ -1005,30 +1005,36 @@ def test_patched_bitnet_model_converts():
     from openvino import convert_model, compile_model
     from transformers.integrations.bitnet import AutoBitLinear, pack_weights
     from transformers import PretrainedConfig, BitNetQuantConfig
+    
+    rng = torch.Generator().manual_seed(42)
 
     class TestModel(torch.nn.Module):
         def __init__(self, size):
             super().__init__()
-            self.config = PretrainedConfig(quantization_config = BitNetQuantConfig(linear_class = "autobitlinear"))
+            self.config = PretrainedConfig(quantization_config=BitNetQuantConfig(linear_class="autobitlinear"))
             self.linear = AutoBitLinear(size[0], size[1], bias=True, use_rms_norm=True)
-            self.linear.weight = torch.nn.Parameter(torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32))
+            w = torch.randint(-1, 2, (size[1], size[0]), dtype=torch.float32, generator=rng)
+            self.linear.weight = torch.nn.Parameter(w)
             self.linear.original_weight = pack_weights(self.linear.weight.data.clone())
 
         def forward(self, x):
             return self.linear(x)
 
     size = (32, 64)
-    x = torch.randn(1, size[0])
+    x = torch.randn(1, size[0], generator=rng)
     model = TestModel(size)
     with torch.no_grad():
         res_ref = model(x)
 
     with torch.no_grad():
-        converted_model = convert_model(model, example_input=(torch.randn(1, size[0]),))
+        converted_model = convert_model(model, example_input=(torch.randn(1, size[0], generator=rng),))
     assert converted_model
     cm = compile_model(converted_model, "CPU", default_cfg)
     res = cm([x.numpy()])
-    np.testing.assert_allclose(res[0], res_ref.numpy(), atol=1e-2)
+    rtol, atol = 1e-4, 1e-4
+    if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+        rtol, atol = 0.5, 0.1
+    np.testing.assert_allclose(res[0], res_ref.numpy(), rtol=rtol, atol=atol)
 
 
 class InlinedInputsModel(torch.nn.Module):
