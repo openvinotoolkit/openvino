@@ -9,8 +9,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <map>
 #include <memory>
-#include <tuple>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -210,7 +210,7 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
             }
 
             auto decomposed_loop_end = loop_end;
-            LoopManager::LoopBounds decomposed_loop_bounds {begin, end};
+            LoopManager::LoopBounds decomposed_loop_bounds{begin, end};
             auto decomposed_loop_entry_ports = unified_loop_info->get_input_ports();
             auto decomposed_loop_exit_ports = unified_loop_info->get_output_ports();
             auto decomposed_ptr_increments = unified_loop_info->get_ptr_increments();

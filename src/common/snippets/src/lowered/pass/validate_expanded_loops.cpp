@@ -6,11 +6,11 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <set>
-#include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
+#include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
