@@ -17,13 +17,14 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     const uint in_data_set_idx = get_global_id(0);
     const uint workers_per_dataset = LWS0 / FSV;    // 16 datasets are handled by one local workgroup
     const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
-    const uint items_num = data_set_size / workers_per_dataset;
-    const uint leftovers = data_set_size - (items_num * workers_per_dataset);
+    const uint padded_data_set_size = (INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) * (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
+    const uint items_num = padded_data_set_size / workers_per_dataset;
+    const uint leftovers = padded_data_set_size - (items_num * workers_per_dataset);
 
     const uint INPUT0_ALIGNED_FEATURE_NUM = ALIGN(INPUT0_FEATURE_NUM, FSV);
     const uint b = (data_set_idx * FSV) / INPUT0_ALIGNED_FEATURE_NUM;
     const uint f_base = (data_set_idx * FSV) % INPUT0_ALIGNED_FEATURE_NUM;
-    const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, 0, 0);
+    const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, -INPUT0_PAD_BEFORE_SIZE_Y, -INPUT0_PAD_BEFORE_SIZE_X);
     const uint my_data_offset = data_set_offset + in_data_set_idx;
 
     __local ACCUMULATOR_TYPE sum_per_feature[SLM_SIZE];

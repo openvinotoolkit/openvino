@@ -1364,6 +1364,40 @@ LinuxCpuMapTestCase cache_1sockets_14cores = {
     },
     {},
 };
+LinuxCpuMapTestCase cache_1sockets_14cores_2 = {
+    8,
+    1,
+    1,
+    8,
+    {{8, 0, 8, 0, 0, 0, 0}},
+    {
+        {6, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1},
+        {7, 0, 0, 1, EFFICIENT_CORE_PROC, 0, -1},
+        {8, 0, 0, 2, EFFICIENT_CORE_PROC, 0, -1},
+        {9, 0, 0, 3, EFFICIENT_CORE_PROC, 0, -1},
+        {10, 0, 0, 4, EFFICIENT_CORE_PROC, 1, -1},
+        {11, 0, 0, 5, EFFICIENT_CORE_PROC, 1, -1},
+        {12, 0, 0, 6, EFFICIENT_CORE_PROC, 1, -1},
+        {13, 0, 0, 7, EFFICIENT_CORE_PROC, 1, -1},
+    },
+    {
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"6", "6-9", "6-13"},
+        {"7", "6-9", "6-13"},
+        {"8", "6-9", "6-13"},
+        {"9", "6-9", "6-13"},
+        {"10", "10-13", "6-13"},
+        {"11", "10-13", "6-13"},
+        {"12", "10-13", "6-13"},
+        {"13", "10-13", "6-13"},
+    },
+    {},
+};
 LinuxCpuMapTestCase cache_1sockets_10cores_hyperthreading = {
     12,
     1,
@@ -1614,6 +1648,62 @@ LinuxCpuMapTestCase cache_VM_cache_0 = {
     },
     {},
 };
+LinuxCpuMapTestCase cache_mock_0 = {
+    8,
+    1,
+    1,
+    8,
+    {{8, 0, 8, 0, 0, 0, 0}},
+    {
+        {6, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1},
+        {7, 0, 0, 1, EFFICIENT_CORE_PROC, 0, -1},
+        {8, 0, 0, 2, EFFICIENT_CORE_PROC, 0, -1},
+        {9, 0, 0, 3, EFFICIENT_CORE_PROC, 0, -1},
+        {10, 0, 0, 4, EFFICIENT_CORE_PROC, 1, -1},
+        {11, 0, 0, 5, EFFICIENT_CORE_PROC, 1, -1},
+        {12, 0, 0, 6, EFFICIENT_CORE_PROC, 1, -1},
+        {13, 0, 0, 7, EFFICIENT_CORE_PROC, 1, -1},
+    },
+    {
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"6", "6-9", "0-13"},
+        {"7", "6-9", "0-13"},
+        {"8", "6-9", "0-13"},
+        {"9", "6-9", "0-13"},
+        {"10", "10-13", "0-13"},
+        {"11", "10-13", "0-13"},
+        {"12", "10-13", "0-13"},
+        {"13", "10-13", "0-13"},
+    },
+    {},
+};
+LinuxCpuMapTestCase cache_mock_1 = {
+    2,
+    1,
+    1,
+    2,
+    {{2, 2, 0, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+    },
+    {
+        {"0,4", "0,4", "0-7"},
+        {"1,5", "1,5", "0-7"},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+        {"", "", ""},
+    },
+    {},
+};
 
 TEST_P(LinuxCpuMapCacheParserTests, LinuxCache) {}
 
@@ -1636,6 +1726,7 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          cache_1sockets_14cores_hyperthreading,
                                          cache_1sockets_14cores_hyperthreading_1,
                                          cache_1sockets_14cores,
+                                         cache_1sockets_14cores_2,
                                          cache_1sockets_10cores_hyperthreading,
                                          cache_1sockets_8cores_hyperthreading,
                                          cache_1sockets_8cores,
@@ -1644,7 +1735,9 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          cache_1sockets_4cores,
                                          cache_1sockets_4cores_1,
                                          cache_1sockets_4cores_2,
-                                         cache_VM_cache_0));
+                                         cache_VM_cache_0,
+                                         cache_mock_0,
+                                         cache_mock_1));
 
 TEST_P(LinuxGetCpuMapFromCoresTests, LinuxCore) {}
 
