@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdlib>
 #include <functional>
 #include <map>
 #include <memory>
@@ -97,9 +98,9 @@
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/debug_caps_config.hpp"
+#include "snippets/utils/linear_ir_pass_dumper.hpp"
 #include "snippets/utils/utils.hpp"
 
-using namespace std;
 using namespace ov::op::util;
 
 namespace ov::snippets::op {
@@ -221,7 +222,7 @@ Subgraph::Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& b
 
 std::shared_ptr<Node> Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    return make_shared<Subgraph>(inputs, body().clone());
+    return std::make_shared<Subgraph>(inputs, body().clone());
 }
 
 void Subgraph::validate_and_infer_types() {
@@ -413,6 +414,7 @@ std::shared_ptr<lowered::LinearIR> Subgraph::convert_body_to_linear_ir(
 #endif  // SNIPPETS_DEBUG_CAPS
 
     m_linear_ir = std::make_shared<lowered::LinearIR>(body_ptr(), shape_infer_factory, lowering_config);
+    m_linear_ir->set_friendly_name(get_friendly_name());
     m_shape_infer = m_linear_ir->get_shape_infer_instance();
     return m_linear_ir;
 }
@@ -427,7 +429,7 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     auto result = std::make_shared<snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     // Note: ov::copy_runtime_info accepts only shared_ptr<ov::Node> as "from" but never modifies it,
     // so we have to cast away constness to copy runtime info
-    ov::copy_runtime_info(const_pointer_cast<Node>(shared_from_this()), result);
+    ov::copy_runtime_info(std::const_pointer_cast<Node>(shared_from_this()), result);
     result->set_friendly_name(get_friendly_name());
     if (m_linear_ir) {
         result->m_linear_ir = lowered::LinearIRBuilder().clone(m_linear_ir);
@@ -619,6 +621,17 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
         shape_dependent_pipeline.run(*linear_ir);
     }
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    const auto& debug_conf = *linear_ir->get_config().debug_config;
+    const auto& dump_names = debug_conf.dumpLIR.passes;
+    const bool dump_final =
+        (std::find(dump_names.begin(), dump_names.end(), std::string("final")) != dump_names.end()) ||
+        (std::find(dump_names.begin(), dump_names.end(), std::string("all")) != dump_names.end());
+    if (dump_final) {
+        LIRPassDump final_dump(*linear_ir, std::string("Final"), LIRPassDump::DumpMode::SingleDump);
+    }
+#endif
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
     return Schedule{std::move(lowering_result)};
