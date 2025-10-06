@@ -20,19 +20,6 @@ struct ONNX_FRONTEND_API TensorMetaInfo {
     const std::string* m_tensor_name;
     std::shared_ptr<std::string> m_external_location;
     bool m_is_raw;
-    /*
-    // In case we need to reconstruct an original TensorProto
-    int m_onnx_datatype;
-    const float* m_float_data;
-    const double* m_double_data;
-    const int32_t* m_int32_data;
-    const int64_t* m_int64_data;
-    const uint64_t* m_uint64_data;
-    const void* m_raw_data;
-    int m_data_location;
-    size_t m_ext_data_offset;
-    size_t m_ext_data_length;
-    */
 };
 
 class ONNX_FRONTEND_API DecoderBase : public ov::frontend::DecoderBase {

@@ -37,7 +37,6 @@ extern const std::string EMPTY_OP_TYPE;
 
 class DecoderProtoTensor : public ov::frontend::onnx::DecoderBaseTensor {
     ov::frontend::onnx::TensorMetaInfo m_tensor_meta_info;
-    // GraphIteratorProto* m_parent; // For future use
     int64_t m_input_idx, m_output_idx;
 
 public:
@@ -46,8 +45,7 @@ public:
                        const int64_t input_idx,
                        const int64_t output_idx)
         // Probably, we may need to force it to 0/0
-        :  // m_parent(parent),
-          m_input_idx(input_idx),
+        : m_input_idx(input_idx),
           m_output_idx(output_idx) {
         m_tensor_meta_info = extract_tensor_meta_info(tensor_info, nullptr, parent);
     }
@@ -55,8 +53,7 @@ public:
                        GraphIteratorProto* parent,
                        const int64_t input_idx,
                        const int64_t output_idx)
-        :  // m_parent(parent),
-          m_input_idx(input_idx),
+        : m_input_idx(input_idx),
           m_output_idx(output_idx) {
         m_tensor_meta_info = extract_tensor_meta_info(nullptr, value_info, parent);
     }
@@ -64,8 +61,7 @@ public:
                        GraphIteratorProto* parent,
                        const int64_t input_idx,
                        const int64_t output_idx)
-        :  // m_parent(parent),
-          m_input_idx(input_idx),
+        :  m_input_idx(input_idx),
           m_output_idx(output_idx) {
         m_tensor_meta_info.m_tensor_name = &name;
         m_tensor_meta_info.m_element_type = ov::element::dynamic;
@@ -111,16 +107,12 @@ public:
 };
 
 class DecoderProto : public ov::frontend::onnx::DecoderBaseOperation {
-    // std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;
     const NodeProto* m_node;
     uint64_t m_opset;
     GraphIteratorProto* m_parent;  // For future use
     // For existence of NodeDef object corresponding to the main graph node,
     // GraphDef object must live in the memory
     const GraphProto* m_graph;
-    // For existence of NodeDef object corresponding to the body graph node,
-    // both GraphDef and FunctionDef objects must be alive in the memory
-    // const std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
     std::vector<const ov::frontend::onnx::TensorMetaInfo*> m_input_info, m_output_info;
 
 public:

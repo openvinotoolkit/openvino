@@ -524,11 +524,6 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         case ov::element::f8e5m2:
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e5m2>().data());
             break;
-        /*
-        case ov::element::string:
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
-            break;
-            */
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(
                 m_tensor_proto->data_type(),
