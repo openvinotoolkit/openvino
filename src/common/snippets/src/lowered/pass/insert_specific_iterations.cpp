@@ -268,11 +268,12 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
                         continue;
                     }
                     const auto loop_begin = internal_loop_end->get_loop_begin();
-                    auto begin_it = linear_ir.find_after(std::next(decomposed_loop_bounds.first), linear_ir.get_expr_by_node(loop_begin));
+                    auto begin_it = linear_ir.find_after(std::next(decomposed_loop_bounds.first),
+                                                         linear_ir.get_expr_by_node(loop_begin));
                     OPENVINO_ASSERT(begin_it != linear_ir.cend(),
                                     "Cannot find LoopBegin for LoopEnd with id ",
                                     internal_loop_end->get_id());
-                    LoopManager::LoopBounds internal_loop_bounds {begin_it, it};
+                    LoopManager::LoopBounds internal_loop_bounds{begin_it, it};
                     const auto internal_loop_id = internal_loop_end->get_id();
                     // Note: internal loops must be already decomposed to ExpandedLoops
                     const auto internal_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(internal_loop_id);
