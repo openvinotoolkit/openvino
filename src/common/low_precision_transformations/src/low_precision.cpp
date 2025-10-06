@@ -331,3 +331,61 @@ bool LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Model>& m
     }
     return false;
 }
+
+bool ov::pass::low_precision::LowPrecision::doesFunctionContainF8DynQuanPatterns(
+        const std::shared_ptr<const ov::Model>& model) {
+    std::vector<std::shared_ptr<ov::Node>> nodes = model->get_ops();
+    for (auto& node : nodes) {
+        const auto mult = as_type_ptr<ov::opset1::Multiply>(node);
+        if (mult == nullptr) {
+            continue;
+        }
+
+        const auto cvt1 = ov::as_type_ptr<ov::opset1::Convert>(mult->get_input_node_shared_ptr(0));
+        const auto cvt2 = ov::as_type_ptr<ov::opset1::Convert>(mult->get_input_node_shared_ptr(1));
+        if (cvt1 == nullptr || cvt2 == nullptr) {
+            continue;
+        }
+
+        const auto const1 = ov::as_type_ptr<ov::opset1::Constant>(
+            cvt1->get_input_node_shared_ptr(0));
+        const auto const2 = ov::as_type_ptr<ov::opset1::Constant>(
+            cvt2->get_input_node_shared_ptr(1));
+        if (const1 == nullptr || const2 == nullptr) {
+            continue;
+        }
+
+        const auto const1_type = const1->get_element_type();
+        const auto const2_type = const2->get_element_type();
+
+        if (const1_type != ov::element::f8e8m0 && const2_type != ov::element::f8e8m0) {
+            continue;
+        }
+
+        const auto scale = (const1_type == ov::element::f8e8m0) ? const1 : const2;
+        const auto weight = (const1_type == ov::element::f8e8m0) ? const2 : const1;
+        const auto scale_shape = scale->get_shape();
+        const auto weight_shape = weight->get_shape();
+
+        bool weight_dtype_check = (weight->get_element_type() == ov::element::f8e4m3 ||
+                                   weight->get_element_type() == ov::element::f8e5m2);
+
+        std::vector<size_t> possible_group_sizes{32}; // TODO: check all possible group sizes
+        bool shape_check = scale_shape.size() == weight_shape.size();
+        shape_check = shape_check && std::equal(scale_shape.begin(),
+                                                scale_shape.begin() + scale_shape.size() - 1,
+                                                weight_shape.begin(),
+                                                [](size_t a, size_t b) {
+                                                    return a == b;
+                                                });
+        shape_check = shape_check && scale_shape.back() == 1;
+        shape_check = shape_check && (std::find(possible_group_sizes.begin(), possible_group_sizes.end(), weight_shape.back()) != possible_group_sizes.end());
+
+        if (!weight_dtype_check || !shape_check) {
+            continue;
+        }
+        return true;
+    }
+
+    return false;
+}

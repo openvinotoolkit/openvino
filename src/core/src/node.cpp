@@ -703,10 +703,6 @@ bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Node::can_constant_fold");
 
     if (is_const_fold_disabled()) {
-        std::cout << "Constant folding is disabled for node: " << get_friendly_name() << std::endl;
-        if (get_friendly_name() == "Convert_534619") {
-            std::cout << "Debug here" << std::endl;
-        }
         return false;
     }
 

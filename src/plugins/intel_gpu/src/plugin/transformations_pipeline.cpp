@@ -90,6 +90,7 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
+#include "plugin/transformations/merge_dynamic_quantize.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
@@ -398,6 +399,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         enableInt8 = config.get_enable_lp_transformations() && is_model_quantized;
+        // bool does_model_contain_f8_dyn_quan_patterns = ov::pass::low_precision::LowPrecision::doesFunctionContainF8DynQuanPatterns(func);
 
         manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{ov::element::i8,
                                                                                            ov::element::u8,
@@ -1483,6 +1485,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     asymmetric_dyn_quant,
                                                                                     precomputed_reduction,
                                                                                     use_gs128_for_int8_per_token);
+                manager.register_pass<ov::intel_gpu::MergeDynamicQuantize>();
             }
         }
 
