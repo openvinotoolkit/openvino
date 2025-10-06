@@ -133,6 +133,8 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
         auto weight_sub = (pattern_map.count(weight_subtract_m) > 0) ? pattern_map.at(weight_subtract_m).get_node_shared_ptr() : nullptr;
         auto weight_mult = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(weight_mult_m).get_node_shared_ptr());
         auto convert_out = (pattern_map.count(convert_m) > 0) ? pattern_map.at(convert_m).get_node_shared_ptr() : nullptr;
+        auto out_order = (pattern_map.count(c_order_m) > 0) ? pattern_map.at(c_order_m).get_node_shared_ptr() : nullptr;
+        auto reshape_out = (pattern_map.count(reshape_output_m) > 0) ? pattern_map.at(reshape_output_m).get_node_shared_ptr() : nullptr;
         if (!conv1x1 || transformation_callback(conv1x1)) {
             return false;
         }
@@ -217,16 +219,30 @@ TransposeConv1x1TransposeMatcher::TransposeConv1x1TransposeMatcher(bool supports
         ov::disable_constant_folding(scaled_weight);
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(activation, scaled_weight, false, true);
-        // ToDo: handle out conversion if it exists
-        if (convert_out) {
-            auto convert_final = convert_out->clone_with_new_inputs({matmul});
-            convert_final->set_friendly_name(m.get_match_root()->get_friendly_name());
-            ov::copy_runtime_info(m.get_matched_nodes(), convert_final);
-            ov::replace_node(m.get_match_root(), convert_final);
+        if (reshape_out) {
+            if (convert_out) {
+                auto convert_final = convert_out->clone_with_new_inputs({matmul});
+                auto reshape_final = reshape_out->clone_with_new_inputs({convert_final, out_order});
+                reshape_final->set_friendly_name(m.get_match_root()->get_friendly_name());
+                ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
+                ov::replace_node(m.get_match_root(), reshape_final);
+            } else {
+                auto reshape_final = reshape_out->clone_with_new_inputs({matmul, out_order});
+                reshape_final->set_friendly_name(m.get_match_root()->get_friendly_name());
+                ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
+                ov::replace_node(m.get_match_root(), reshape_final);
+            }
         } else {
-            matmul->set_friendly_name(m.get_match_root()->get_friendly_name());
-            ov::copy_runtime_info(m.get_matched_nodes(), matmul);
-            ov::replace_node(m.get_match_root(), matmul);
+            if (convert_out) {
+                auto convert_final = convert_out->clone_with_new_inputs({matmul});
+                convert_final->set_friendly_name(m.get_match_root()->get_friendly_name());
+                ov::copy_runtime_info(m.get_matched_nodes(), convert_final);
+                ov::replace_node(m.get_match_root(), convert_final);
+            } else {
+                matmul->set_friendly_name(m.get_match_root()->get_friendly_name());
+                ov::copy_runtime_info(m.get_matched_nodes(), matmul);
+                ov::replace_node(m.get_match_root(), matmul);
+            }
         }
 
         return true;
