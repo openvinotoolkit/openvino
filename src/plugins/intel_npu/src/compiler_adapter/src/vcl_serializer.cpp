@@ -159,6 +159,20 @@ void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model, const
     }
 }
 
+void removeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
+    for (auto&& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+            continue;
+        }
+
+        ov::RTMap& runtimeInfoMap = node->get_rt_info();
+        const auto& resultIt = runtimeInfoMap.find(intel_npu::WeightsPointerAttribute::get_type_info_static());
+        if (resultIt != runtimeInfoMap.end()) {
+            runtimeInfoMap.erase(resultIt);
+        }
+    }
+}
+
 }  // namespace
 
 namespace intel_npu::driver_compiler_utils {
@@ -420,17 +434,19 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const bool useBaseModelSerializer,
                          const size_t weightsSizeThreshold) {
     if (!useBaseModelSerializer) {
-        const std::shared_ptr<ov::Model> clonedModel = model->clone();  // TODO avoid this
+        // Required for adding & removing weights pointer attributes
+        const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-        storeWeightsPointerAttribute(clonedModel, weightsSizeThreshold);
+        storeWeightsPointerAttribute(nonConstantModel, weightsSizeThreshold);
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         std::cout << "Time to store attributes: "
                   << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-        return VCLSerializerWithoutWeightsCopy(clonedModel,
-                                               compilerVersion,
-                                               supportedOpsetVersion,
-                                               weightsSizeThreshold)
-            .serialize();
+
+        SerializedIR serializedIR =
+            VCLSerializerWithoutWeightsCopy(model, compilerVersion, supportedOpsetVersion, weightsSizeThreshold)
+                .serialize();
+        removeWeightsPointerAttribute(nonConstantModel);
+        return serializedIR;
     }
     return VCLSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
 }
