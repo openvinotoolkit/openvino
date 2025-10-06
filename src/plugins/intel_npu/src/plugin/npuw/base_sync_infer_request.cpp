@@ -302,12 +302,37 @@ ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const
     return allocMem(node.get_element_type(), node.get_shape(), device);
 }
 
+std::string ov::npuw::IBaseInferRequest::global_input_mem_device(std::size_t idx) const {
+    // Use the consumer subgraph device if it is alone;
+    // resort to global if there's many
+    if (!m_npuw_model->m_param_subscribers[idx].empty()) {
+        // There's subscribers, so resort to global
+        return m_npuw_model->global_mem_device();
+    }
+
+    const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(idx);
+    if (to_submodel != CompiledModel::NO_LINK) {
+        const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(to_submodel.first)];
+        return *proto_comp_model_desc.device_it;
+    }
+
+    // Resort to global again
+    return m_npuw_model->global_mem_device();
+}
+
+std::string ov::npuw::IBaseInferRequest::global_output_mem_device(std::size_t idx) const {
+    // Pick the affinitiy based on the producer subgraph
+    const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(idx);
+    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(from_submodel.first)];
+    return *proto_comp_model_desc.device_it;
+}
+
 void ov::npuw::IBaseInferRequest::alloc_io() {
     // Preallocate input tensors
     LOG_INFO("Preallocating input tensors...");
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
-        ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
+        ov::SoPtr<ov::ITensor> allocated = allocOut(port, global_input_mem_device(i));
         m_input_allocated.insert(allocated->data());
         m_port_to_tensor[port] = TensorStorage{allocated, true};
     }  // for(inputs)
@@ -339,7 +364,7 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::alloc_global_out(std::size_t out_idx) {
     const auto& port = m_npuw_model->outputs().at(out_idx);
-    return allocOut(port, m_npuw_model->global_mem_device());
+    return allocOut(port, global_output_mem_device(out_idx));
 }
 
 void ov::npuw::IBaseInferRequest::init_gio() {
