@@ -354,9 +354,20 @@ static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
  *
  * The base serializer is the OV implementation of the "XmlSerializer" without any extensions. All weights are copied in
  * a separate buffer. By turning this off, the NPU extension of the serializer is enabled. Not all weights will be
- * copied. However, this solution may be less reliable.
+ * copied in a separate buffer (see "serialization_weights_size_threshold"). However, this solution may be less
+ * reliable.
  */
 static constexpr ov::Property<bool> use_base_model_serializer{"NPU_USE_BASE_MODEL_SERIALIZER"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: size_t. Default is 0.
+ *
+ * Effective only if "use_base_model_serializer" is set to false. All "ov::Constant" buffers smaller than this value
+ * (bytes size) will be copied in a separate buffer. The rest of the weights will be reconstructed at de-serialization
+ * time using buffer pointers.
+ */
+static constexpr ov::Property<size_t> serialization_weights_size_threshold{"NPU_SERIALIZATION_WEIGHTS_SIZE_THRESHOLD"};
 
 /**
  * @brief [Experimental, only for NPU Plugin]
