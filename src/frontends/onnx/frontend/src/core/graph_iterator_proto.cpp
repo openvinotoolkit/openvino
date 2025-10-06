@@ -260,7 +260,6 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             tensor_meta_info.m_tensor_data_size = tensor_info->double_data_size();
             break;
         default:
-            std::cout << ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type());
             throw std::runtime_error("Unsupported type " +
                                      ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type()));
             break;
@@ -451,7 +450,6 @@ void GraphIteratorProto::reset() {
         if (opset == -1) {
             // Forcing a first opset instead of failing
             opset = 1;
-            // throw std::runtime_error("Operation version isn't found");
         }
         auto decoder_node =
             std::make_shared<DecoderProto>(&node, static_cast<uint64_t>(opset), this, input_tensors, output_tensors);
