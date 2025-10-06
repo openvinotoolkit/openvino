@@ -229,6 +229,53 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     return node_tuple(kv_past_par, kv_current2, kv_current_reshaped, kv_concat);
 }
 
+static ov::Dimension extract_num_kv_heads(std::shared_ptr<ov::Node> unsqueeze,
+                                          const ov::Dimension& default_heads_num,
+                                          ov::pass::pattern::PatternValueMap& pattern_map) {
+    // Deduce number of k/v heads from Unsqueeze-Broadcast-Reshape (UBR pattern, if present)
+    // pattern that appears in case of MQA/GQA.
+    // In case if UBR pattern doesn't appear, the default number of heads is used passed as default_heads_num.
+    if (pattern_map.find(unsqueeze) != pattern_map.end()) {
+        std::cout << "one >> " << std::endl;
+        // based on unsqueeze index determine the dimension that will be broadcased
+        // if there is no expected dimension for any reason, return dynamic dimension
+        unsqueeze = pattern_map.at(unsqueeze).get_node_shared_ptr();
+        auto shape = unsqueeze->get_output_partial_shape(0);
+        auto rank = shape.rank();
+        if (rank.is_dynamic()) {
+            std::cout << "return two >> " << std::endl;
+            return ov::Dimension();
+        }
+        rank = rank.get_length();
+        auto axis = unsqueeze->input_value(1).get_node_shared_ptr();
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(axis);
+        if (!constant) {
+            std::cout << "return three >> " << std::endl;
+            return ov::Dimension();
+        }
+        auto data = constant->cast_vector<int64_t>();
+        if (data.size() != 1) {  // it should be only one axis
+            std::cout << "return four >> " << std::endl;
+            return ov::Dimension();
+        }
+        auto first_element = data[0];
+        if (first_element == 0 ||
+            first_element == -rank.get_length()) {  // there should be at least one dimension to the left
+            std::cout << "return five >> " << std::endl;
+            return ov::Dimension();
+        }
+        // In some cases of MQA, where KV cache is stored as 3D tensor there is no dimension that corresponds to
+        // num kv heads in KV tensor (because it is 1 and can be not exposed). Hence we should look at the
+        // first_element - 1 axis first, if it is static then it is our number of heads, if it is not staic,
+        // then the number of heads is 1, and Broadcast implements pure MQA logic within a single dimension.
+        return shape[first_element - 1].is_static() ? shape[first_element - 1] : ov::Dimension(1);
+        std::cout << "return six >> " << std::endl;
+    } else {
+        std::cout << "return default" << std::endl;
+        return default_heads_num;
+    }
+}
+
 ov::pass::StateManagementPattern::StateManagementPattern(
     ParameterVector& kv_parameters,
     ParameterVector& model_wide_params,
@@ -356,68 +403,28 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &rotated_block_indices_inputs_for_each_layer,
                                           &rotation_deltas_inputs_for_each_layer,
                                           &xattention_threshold_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
+        auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
 
         auto sdpa_node =
             pattern_map.at(pattern_map.count(sdpa_with_4_inputs) ? sdpa_with_4_inputs : sdpa_with_5_inputs).get_node();
+
         // E and Ev are from the SDPA specification at
         // https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/scaled-dot-product-attention.html
-        auto E = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];
-        auto Ev = sdpa_node->get_input_tensor(2).get_partial_shape()[-1];  // in common case may not match E
-
-        auto extract_num_kv_heads = [=, &pattern_map](std::shared_ptr<Node> unsqueeze,
-                                                      const Dimension& default_heads_num) {
-            // Deduce number of k/v heads from Unsqueeze-Broadcast-Reshape (UBR pattern, if present)
-            // pattern that appears in case of MQA/GQA.
-            // In case if UBR pattern doesn't appear, the default number of heads is used passed as default_heads_num.
-            if (pattern_map.find(unsqueeze) != pattern_map.end()) {
-                // based on unsqueeze index determine the dimension that will be broadcased
-                // if there is no expected dimension for any reason, return dynamic dimension
-                unsqueeze = pattern_map.at(unsqueeze).get_node_shared_ptr();
-                auto shape = unsqueeze->get_output_partial_shape(0);
-                auto rank = shape.rank();
-                if (rank.is_dynamic()) {
-                    return ov::Dimension();
-                }
-                rank = rank.get_length();
-                auto axis = unsqueeze->input_value(1).get_node_shared_ptr();
-                auto constant = ov::as_type_ptr<ov::op::v0::Constant>(axis);
-                if (!constant) {
-                    return ov::Dimension();
-                }
-                auto data = constant->cast_vector<int64_t>();
-                if (data.size() != 1) {  // it should be only one axis
-                    return ov::Dimension();
-                }
-                auto first_element = data[0];
-                if (first_element == 0 ||
-                    first_element == -rank.get_length()) {  // there should be at least one dimension to the left
-                    return ov::Dimension();
-                }
-                // In some cases of MQA, where KV cache is stored as 3D tensor there is no dimension that corresponds to
-                // num kv heads in KV tensor (because it is 1 and can be not exposed). Hence we should look at the
-                // first_element - 1 axis first, if it is static then it is our number of heads, if it is not staic,
-                // then the number of heads is 1, and Broadcast implements pure MQA logic within a single dimension.
-                return shape[first_element - 1].is_static() ? shape[first_element - 1] : ov::Dimension(1);
-            } else {
-                return default_heads_num;
-            }
-        };
+        auto k_head_size = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];  // E
+        auto v_head_size = sdpa_node->get_input_tensor(2).get_partial_shape()[-1];  // Ev (in common case may not match E)
 
         auto num_k_heads =
-            extract_num_kv_heads(k_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3]);
+            extract_num_kv_heads(k_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3], pattern_map);
         auto num_v_heads =
-            extract_num_kv_heads(v_heads_unsqueeze, sdpa_node->get_input_tensor(2).get_partial_shape()[-3]);
+            extract_num_kv_heads(v_heads_unsqueeze, sdpa_node->get_input_tensor(2).get_partial_shape()[-3], pattern_map);
         const ov::element::Type kv_cache_type = real_q.get_element_type();
         std::string layer_index_str = std::to_string(layer_index);
-        auto k_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, num_k_heads, E}),
-                                   std::string("key_cache.") + std::to_string(layer_index));
-        auto v_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, num_v_heads, Ev}),
-                                   std::string("value_cache.") + std::to_string(layer_index));
+        auto k_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, num_k_heads, k_head_size}),
+                                   std::string("key_cache.") + layer_index_str);
+        auto v_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, num_v_heads, v_head_size}),
+                                   std::string("value_cache.") + layer_index_str);
         layer_index += 1;
-        kv_parameters.push_back(k_parameter);
-        kv_parameters.push_back(v_parameter);
         auto kv_transpose_order = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
 
         auto q_transpose = std::make_shared<v1::Transpose>(real_q, kv_transpose_order);
@@ -658,6 +665,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
         replace_node(m.get_match_root(), pa_transpose);
+
+        paged_attention->get_rt_info()["num_k_heads"] = num_k_heads.get_length();
+        paged_attention->get_rt_info()["k_head_size"] = k_head_size.get_length();
+        paged_attention->get_rt_info()["num_v_heads"] = num_v_heads.get_length();
+        paged_attention->get_rt_info()["v_head_size"] = v_head_size.get_length();
+        k_parameter->set_partial_shape(ov::PartialShape::dynamic(4));
+        k_parameter->set_element_type(ov::element::dynamic);
+        v_parameter->set_partial_shape(ov::PartialShape::dynamic(4));
+        v_parameter->set_element_type(ov::element::dynamic);
+        kv_parameters.push_back(k_parameter);
+        kv_parameters.push_back(v_parameter);
+
         return true;
     };
 
