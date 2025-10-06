@@ -28,6 +28,7 @@
 #include "edge.h"
 #include "graph_context.h"
 #include "itt.h"
+#include "ittnotify.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -822,7 +823,8 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::ov_op_exec, getTypeStr())
+    openvino::itt::ScopedTask<ov::itt::domains::ov_op_exec>(
+        reinterpret_cast<openvino::itt::handle_t>(__itt_string_handle_create(getTypeStr().c_str())));
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {
