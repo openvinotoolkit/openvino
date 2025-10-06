@@ -67,15 +67,12 @@ CL_INDIRECT_API(clCreateSubDevices)
 CL_INDIRECT_API(clEnqueueMapBuffer)
 CL_INDIRECT_API(clEnqueueUnmapMemObject)
 CL_INDIRECT_API(clFinish)
-CL_INDIRECT_API(clGetContextInfo)
 CL_INDIRECT_API(clGetDeviceIDs)
 CL_INDIRECT_API(clGetExtensionFunctionAddressForPlatform)
 CL_INDIRECT_API(clGetKernelArgInfo)
-CL_INDIRECT_API(clGetKernelInfo)
 CL_INDIRECT_API(clGetMemObjectInfo)
 CL_INDIRECT_API(clGetPlatformIDs)
 CL_INDIRECT_API(clGetPlatformInfo)
-CL_INDIRECT_API(clGetProgramBuildInfo)
 CL_INDIRECT_API(clGetProgramInfo)
 CL_INDIRECT_API(clReleaseCommandQueue)
 CL_INDIRECT_API(clReleaseContext)
@@ -95,7 +92,6 @@ CL_INDIRECT_API(clRetainProgram)
 CL_INDIRECT_API(clRetainSampler)
 CL_INDIRECT_API(clCreateCommandQueueWithProperties)
 CL_INDIRECT_API(clCreateCommandQueue)
-CL_INDIRECT_API(clGetCommandQueueInfo)
 CL_INDIRECT_API(clWaitForEvents)
 CL_INDIRECT_API(clEnqueueBarrierWithWaitList)
 CL_INDIRECT_API(clEnqueueMarkerWithWaitList)
@@ -112,6 +108,10 @@ CL_INDIRECT_API(clFlush)
 CL_INDIRECT_API(clSetUserEventStatus)
 CL_INDIRECT_API(clSetEventCallback)
 CL_INDIRECT_API(clUnloadPlatformCompiler);
+CL_INDIRECT_API(clCreateUserEvent);
+CL_INDIRECT_API(clCreateBufferWithProperties);
+CL_INDIRECT_API(clCreateContextFromType);
+CL_INDIRECT_API(clSetKernelArg);
 
 cl_int call_clGetEventProfilingInfo(cl_event a1, cl_profiling_info a2, size_t a3, void* a4, size_t* a5) { \
         static auto f_ = find_cl_symbol<decltype(&clGetEventProfilingInfo)>("clGetEventProfilingInfo");              \
@@ -141,7 +141,25 @@ cl_int call_clCreateKernelsInProgram(cl_program a1, cl_uint a2, cl_kernel* a3, c
     }
 
 cl_int call_clGetPlatformInfo(cl_platform_id a1, cl_platform_info a2, size_t a3, void* a4, size_t* a5) { \
-        static auto f_ = find_cl_symbol<decltype(&clGetPlatformInfo )>("clGetPlatformInfo");              \
+        static auto f_ = find_cl_symbol<decltype(&clGetPlatformInfo)>("clGetPlatformInfo");              \
+        return f_(a1, a2, a3, a4, a5);                         \
+    }
+cl_int call_clGetKernelInfo(cl_kernel a1, cl_kernel_info a2, size_t a3, void* a4, size_t* a5) { \
+        static auto f_ = find_cl_symbol<decltype(&clGetKernelInfo)>("clGetKernelInfo");              \
+        return f_(a1, a2, a3, a4, a5);                         \
+    }
+cl_int call_clGetProgramBuildInfo(cl_program a1, cl_device_id a2, cl_program_build_info a3, size_t a4, void* a5, size_t* a6) { \
+        static auto f_ = find_cl_symbol<decltype(&clGetProgramBuildInfo)>("clGetProgramBuildInfo");              \
+        return f_(a1, a2, a3, a4, a5, a6);                         \
+    }
+    
+cl_int call_clGetContextInfo(cl_context a1, cl_context_info a2, size_t a3, void* a4, size_t* a5) { \
+        static auto f_ = find_cl_symbol<decltype(&clGetContextInfo)>("clGetContextInfo");              \
+        return f_(a1, a2, a3, a4, a5);                         \
+    }
+
+cl_int call_clGetCommandQueueInfo(cl_command_queue a1, cl_command_queue_info a2, size_t a3, void* a4, size_t* a5) { \
+        static auto f_ = find_cl_symbol<decltype(&clGetCommandQueueInfo)>("clGetCommandQueueInfo");              \
         return f_(a1, a2, a3, a4, a5);                         \
     }
 #undef CL_INDIRECT_API

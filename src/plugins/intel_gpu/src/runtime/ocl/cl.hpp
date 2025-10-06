@@ -589,7 +589,7 @@ inline cl_int clEnqueueNDRangeKernel(cl_command_queue, cl_kernel, cl_uint, const
 inline cl_int clFinish(cl_command_queue) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_int clReleaseMemObject(cl_mem) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_int clReleaseKernel(cl_kernel) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl;  return CL_SUCCESS; }
-inline cl_int clReleaseProgram(cl_program) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseProgram(cl_program program) { return call_clReleaseProgram(program); }
 inline cl_int clReleaseCommandQueue(cl_command_queue) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_int clReleaseContext(cl_context) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 
@@ -663,7 +663,7 @@ inline cl_kernel clCloneKernel(cl_kernel, cl_int*) { std::cout << "xxx" << std::
 inline cl_int clSetKernelExecInfo(cl_kernel, cl_kernel_exec_info, size_t, const void*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_event clCreateUserEvent(cl_context, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl;  return nullptr; }
 //
-inline cl_int clReleaseDevice(cl_device_id device) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseDevice(cl_device_id device) { return call_clReleaseDevice(device); }
 inline cl_int clReleaseEvent(cl_event event) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_int clRetainDevice(cl_device_id device) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_int clRetainProgram(cl_program program) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
@@ -2149,7 +2149,7 @@ struct ReferenceHandler<cl_mem>
     static cl_int retain(cl_mem memory)
     { return call_clRetainMemObject(memory); }
     static cl_int release(cl_mem memory)
-    { return ::clReleaseMemObject(memory); }
+    { return call_clReleaseMemObject(memory); }
 };
 
 template <>
@@ -2165,18 +2165,18 @@ template <>
 struct ReferenceHandler<cl_program>
 {
     static cl_int retain(cl_program program)
-    { return ::clRetainProgram(program); }
+    { return call_clRetainProgram(program); }
     static cl_int release(cl_program program)
-    { return ::clReleaseProgram(program); }
+    { return call_clReleaseProgram(program); }
 };
 
 template <>
 struct ReferenceHandler<cl_kernel>
 {
     static cl_int retain(cl_kernel kernel)
-    { return ::clRetainKernel(kernel); }
+    { return call_clRetainKernel(kernel); }
     static cl_int release(cl_kernel kernel)
-    { return ::clReleaseKernel(kernel); }
+    { return call_clReleaseKernel(kernel); }
 };
 
 template <>
@@ -3551,7 +3551,7 @@ public:
             properties = &prop[0];
         }
 #endif
-        object_ = ::clCreateContextFromType(
+        object_ = call_clCreateContextFromType(
             properties, type, notifyFptr, data, &error);
 
         detail::errHandler(error, __CREATE_CONTEXT_FROM_TYPE_ERR);
@@ -3616,7 +3616,7 @@ public:
     cl_int getInfo(cl_context_info name, T* param) const
     {
         return detail::errHandler(
-            detail::getInfo(&::clGetContextInfo, object_, name, param),
+            detail::getInfo(&call_clGetContextInfo, object_, name, param),
             __GET_CONTEXT_INFO_ERR);
     }
 
@@ -3900,7 +3900,7 @@ public:
         "Size of cl::Event must be equal to size of cl_event");
 
         return detail::errHandler(
-            ::clWaitForEvents(
+            call_clWaitForEvents(
                 (cl_uint) events.size(), (events.size() > 0) ? (cl_event*)&events.front() : nullptr),
             __WAIT_FOR_EVENTS_ERR);
     }
@@ -3923,7 +3923,7 @@ public:
         cl_int * err = nullptr)
     {
         cl_int error;
-        object_ = ::clCreateUserEvent(
+        object_ = call_clCreateUserEvent(
             context(),
             &error);
 
@@ -3957,7 +3957,7 @@ inline static cl_int
 WaitForEvents(const vector<Event>& events)
 {
     return detail::errHandler(
-        ::clWaitForEvents(
+        call_clWaitForEvents(
             (cl_uint) events.size(), (events.size() > 0) ? (cl_event*)&events.front() : nullptr),
         __WAIT_FOR_EVENTS_ERR);
 }
@@ -4465,7 +4465,7 @@ public:
         cl_int* err = nullptr)
     {
         cl_int error;
-        object_ = ::clCreateBuffer(context(), flags, size, host_ptr, &error);
+        object_ = call_clCreateBuffer(context(), flags, size, host_ptr, &error);
 
         detail::errHandler(error, __CREATE_BUFFER_ERR);
         if (err != nullptr) {
@@ -4495,11 +4495,11 @@ public:
         cl_int error;
 
         if (properties.empty()) {
-            object_ = ::clCreateBufferWithProperties(context(), nullptr, flags,
+            object_ = call_clCreateBufferWithProperties(context(), nullptr, flags,
                                                      size, host_ptr, &error);
         }
         else {
-            object_ = ::clCreateBufferWithProperties(
+            object_ = call_clCreateBufferWithProperties(
                 context(), properties.data(), flags, size, host_ptr, &error);
         }
 
@@ -4578,9 +4578,9 @@ public:
         Context context = Context::getDefault(err);
 
         if( useHostPtr ) {
-            object_ = ::clCreateBuffer(context(), flags, size, const_cast<DataType*>(&*startIterator), &error);
+            object_ = call_clCreateBuffer(context(), flags, size, const_cast<DataType*>(&*startIterator), &error);
         } else {
-            object_ = ::clCreateBuffer(context(), flags, size, 0, &error);
+            object_ = call_clCreateBuffer(context(), flags, size, 0, &error);
         }
 
         detail::errHandler(error, __CREATE_BUFFER_ERR);
@@ -6381,7 +6381,7 @@ public:
     cl_int getInfo(cl_kernel_info name, T* param) const
     {
         return detail::errHandler(
-            detail::getInfo(&::clGetKernelInfo, object_, name, param),
+            detail::getInfo(&call_clGetKernelInfo, object_, name, param),
             __GET_KERNEL_INFO_ERR);
     }
 
@@ -6403,7 +6403,7 @@ public:
     cl_int getArgInfo(cl_uint argIndex, cl_kernel_arg_info name, T* param) const
     {
         return detail::errHandler(
-            detail::getInfo(&::clGetKernelArgInfo, object_, argIndex, name, param),
+            detail::getInfo(&call_clGetKernelArgInfo, object_, argIndex, name, param),
             __GET_KERNEL_ARG_INFO_ERR);
     }
 
@@ -6518,7 +6518,7 @@ public:
         setArg(cl_uint index, const T &value)
     {
         return detail::errHandler(
-            ::clSetKernelArg(
+            call_clSetKernelArg(
                 object_,
                 index,
                 detail::KernelArgumentHandler<T>::size(value),
@@ -6529,7 +6529,7 @@ public:
     cl_int setArg(cl_uint index, size_type size, const void* argPtr)
     {
         return detail::errHandler(
-            ::clSetKernelArg(object_, index, size, argPtr),
+            call_clSetKernelArg(object_, index, size, argPtr),
             __SET_KERNEL_ARGS_ERR);
     }
 
@@ -7284,7 +7284,7 @@ public:
     {
         return detail::errHandler(
             detail::getInfo(
-                &::clGetProgramBuildInfo, object_, device(), name, param),
+                &call_clGetProgramBuildInfo, object_, device(), name, param),
                 __GET_PROGRAM_BUILD_INFO_ERR);
     }
 
@@ -8139,7 +8139,7 @@ public:
     {
         return detail::errHandler(
             detail::getInfo(
-                &::clGetCommandQueueInfo, object_, name, param),
+                &call_clGetCommandQueueInfo, object_, name, param),
                 __GET_COMMAND_QUEUE_INFO_ERR);
     }
 
