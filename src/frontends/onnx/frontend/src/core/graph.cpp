@@ -370,6 +370,10 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
     std::string main_input_name = model_has_input_output_name(model, "input_ids") ? "input_ids" : "input_hidden_states";
     if (main_input_name == "input_ids" || main_input_name == "input_hidden_states")
         found_input_id = true;
+    main_input_name = model_has_input_output_name(model, "input_hidden_states") ? "input_hidden_states"
+                                                                                : "/model/embed_tokens/Gather_output_0";
+    if (main_input_name == "input_hidden_states" || main_input_name == "/model/embed_tokens/Gather_output_0")
+        found_input_id = true;
     size_t input_id_index = index_of_model_input_output(model, main_input_name);
 
     PartialShape input_batch_shape = model->input(main_input_name).get_partial_shape();
