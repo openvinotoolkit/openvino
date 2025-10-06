@@ -17,7 +17,6 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/loop_manager.hpp"

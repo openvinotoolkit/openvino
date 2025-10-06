@@ -23,6 +23,13 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
+
+    // Initialize profiling
+    m_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_profile.area = m_npuw_model->m_name + "/performance";
+
+    m_footprint.report_on_die = ov::npuw::profiling_enabled();
+    m_footprint.area = m_npuw_model->m_name + "/memory";
 }
 
 ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_requests(std::size_t id,
@@ -239,6 +246,12 @@ std::vector<ov::ProfilingInfo> ov::npuw::IBaseInferRequest::get_profiling_info()
     return info;
 }
 
+std::string ov::npuw::IBaseInferRequest::profile_tag(std::size_t idx) const {
+    // So far accumulate over devices involved
+    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(idx)];
+    return *proto_comp_model_desc.device_it;
+}
+
 void ov::npuw::IBaseInferRequest::infer() {
     m_now_idx.reset();
     prepare_for_infer();
@@ -250,7 +263,9 @@ void ov::npuw::IBaseInferRequest::infer() {
         }
         subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
-        run_subrequest_for_success(idx, failover);
+        m_profile[profile_tag(idx)].record([&]() {
+            run_subrequest_for_success(idx, failover);
+        });
         failover_happened |= failover;
         complete_subrequest(idx);
         if (m_npuw_model->m_acc_check) {
@@ -277,7 +292,9 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
                                                           const std::string& device) {
-    return ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    auto ptr = ov::npuw::util::allocMem(type, shape, device, m_npuw_model->get_plugin());
+    m_footprint[device] += ptr->get_byte_size();
+    return ptr;
 }
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const ov::Node>& node,
@@ -285,12 +302,37 @@ ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocOut(const ov::Output<const
     return allocMem(node.get_element_type(), node.get_shape(), device);
 }
 
+std::string ov::npuw::IBaseInferRequest::global_input_mem_device(std::size_t idx) const {
+    // Use the consumer subgraph device if it is alone;
+    // resort to global if there's many
+    if (!m_npuw_model->m_param_subscribers[idx].empty()) {
+        // There's subscribers, so resort to global
+        return m_npuw_model->global_mem_device();
+    }
+
+    const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(idx);
+    if (to_submodel != CompiledModel::NO_LINK) {
+        const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(to_submodel.first)];
+        return *proto_comp_model_desc.device_it;
+    }
+
+    // Resort to global again
+    return m_npuw_model->global_mem_device();
+}
+
+std::string ov::npuw::IBaseInferRequest::global_output_mem_device(std::size_t idx) const {
+    // Pick the affinitiy based on the producer subgraph
+    const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(idx);
+    const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real(from_submodel.first)];
+    return *proto_comp_model_desc.device_it;
+}
+
 void ov::npuw::IBaseInferRequest::alloc_io() {
     // Preallocate input tensors
     LOG_INFO("Preallocating input tensors...");
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
-        ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
+        ov::SoPtr<ov::ITensor> allocated = allocOut(port, global_input_mem_device(i));
         m_input_allocated.insert(allocated->data());
         m_port_to_tensor[port] = TensorStorage{allocated, true};
     }  // for(inputs)
@@ -322,7 +364,7 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
 
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::alloc_global_out(std::size_t out_idx) {
     const auto& port = m_npuw_model->outputs().at(out_idx);
-    return allocOut(port, m_npuw_model->global_mem_device());
+    return allocOut(port, global_output_mem_device(out_idx));
 }
 
 void ov::npuw::IBaseInferRequest::init_gio() {
