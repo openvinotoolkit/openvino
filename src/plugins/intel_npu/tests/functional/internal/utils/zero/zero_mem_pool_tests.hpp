@@ -119,7 +119,7 @@ TEST_P(ZeroMemPoolTests, GetZeroMemoryData) {
     ::operator delete(data, std::align_val_t(4096));
 }
 
-TEST_P(ZeroMemPoolTests, MultiThreading0) {
+TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     if (init_struct->isExternalMemoryStandardAllocationSupported()) {
