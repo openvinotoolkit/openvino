@@ -20,6 +20,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
+#include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
@@ -922,15 +923,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     decompose_GQA(prefill_model, true);
     decompose_GQA(kvcache_model, false);
 
+    const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    const auto generate_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>();
+    const bool prefill_attn_dyn = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+    const bool generate_attn_dyn = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         LOG_DEBUG("Check and apply opt layout");
         LOG_BLOCK();
-        if (ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
-            NPUW_ASSERT(ov::npuw::util::optimize_value_tensors(prefill_model, true));
-            m_kvcache_desc.v_tensors_transposed = true;
-        } else {
-            LOG_DEBUG("vtensors optimisation not applied");
+        // Only optimize V tensors for static attention types
+        if (!generate_attn_dyn && ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
+            LOG_DEBUG("V-tensors tranposed in generate model");
+            m_kvcache_desc.v_tensors_transposed_gen = true;
+        }
+        if (!prefill_attn_dyn && ov::npuw::util::optimize_value_tensors(prefill_model, true)) {
+            LOG_DEBUG("V-tensors tranposed in prefill model");
+            m_kvcache_desc.v_tensors_transposed_pre = true;
         }
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
@@ -972,6 +981,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
+    // Handle attention hints. FIXME: Maybe it makes sense to make those
+    // mutually exclusive with the precise configuration sections as well
+    const ov::AnyMap dyn_attn_opts = {
+        {"NPUW_ONLINE_PIPELINE", "REP"},
+        {"NPUW_ONLINE_ISOLATE", "ATTN"},
+        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+        {"NPUW_UNFOLD_IREQS", "NO"},
+    };
+    if (prefill_attn_dyn) {
+        merge_config_with(prefill_config, dyn_attn_opts);
+    }
+    if (generate_attn_dyn) {
+        merge_config_with(generate_config, dyn_attn_opts);
+    }
+
     if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
         LOG_DEBUG("Caching preROPE ");
         const uint32_t CACHE_ROPE_START = 2048;
@@ -988,6 +1012,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             ov::npuw::patterns::pre_compute::RopeCache rope_generate_cacher(ctx_len);
             rope_generate_cacher.run_on_model(kvcache_model);
         }
+    }
+
+    // Regularize models for the better partitioning assuming it is a transformer
+    {
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
+        rewr.run_on_model(kvcache_model);
+        rewr.run_on_model(prefill_model);
     }
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
@@ -1109,7 +1142,8 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.num_stored_tokens);
         write(model_stream, m_kvcache_desc.dim);
         write(model_stream, m_kvcache_desc.max_generation_token_len);
-        write(model_stream, m_kvcache_desc.v_tensors_transposed);
+        write(model_stream, m_kvcache_desc.v_tensors_transposed_pre);
+        write(model_stream, m_kvcache_desc.v_tensors_transposed_gen);
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
@@ -1318,7 +1352,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
         read(model_stream, compiled->m_kvcache_desc.dim);
         read(model_stream, compiled->m_kvcache_desc.max_generation_token_len);
-        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
+        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_pre);
+        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed_gen);
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
@@ -1409,6 +1444,8 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE, get),
                           BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString),
+                          BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
+                          BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get)});
 #undef BIND
 }
