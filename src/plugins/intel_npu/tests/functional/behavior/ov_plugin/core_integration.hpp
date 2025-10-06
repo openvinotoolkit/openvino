@@ -7,7 +7,7 @@
 #include <filesystem>
 
 #include "behavior/ov_plugin/properties_tests.hpp"
-#include "common/functions.h"
+#include "common/functions.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/data_utils.hpp"
