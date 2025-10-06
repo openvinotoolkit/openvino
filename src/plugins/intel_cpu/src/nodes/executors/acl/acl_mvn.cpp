@@ -52,16 +52,17 @@ bool ACLMVNExecutor::supports(const MVNConfig& config) {
     VERIFY(srcPrecision == dstPrecision, UNSUPPORTED_DST_PRECISIONS);
 
     // ACL supports only INSIDE_SQRT with normalizeVariance=true
-    VERIFY(config.attrs.epsMode_ != MVNEpsMode::OUTSIDE_SQRT, UNSUPPORTED_BY_EXECUTOR);
-    VERIFY(config.attrs.normalizeVariance_, UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(config.attrs.epsMode_ != MVNEpsMode::OUTSIDE_SQRT, UNSUPPORTED_ATTRIBUTE);
+    VERIFY(config.attrs.normalizeVariance_, UNSUPPORTED_ATTRIBUTE);
 
     // Check layout compatibility
-    const bool ncsp_mismatch = srcDesc->hasLayoutType(LayoutType::ncsp) && !dstDesc->hasLayoutType(LayoutType::ncsp);
-    const bool nspc_mismatch = srcDesc->hasLayoutType(LayoutType::nspc) && !dstDesc->hasLayoutType(LayoutType::nspc);
-    VERIFY(!(ncsp_mismatch || nspc_mismatch), MEMORY_FORMAT_MISMATCH);
+    // Require src and dst layouts to match (either ncsp or nspc)
+    const bool both_ncsp = srcDesc->hasLayoutType(LayoutType::ncsp) && dstDesc->hasLayoutType(LayoutType::ncsp);
+    const bool both_nspc = srcDesc->hasLayoutType(LayoutType::nspc) && dstDesc->hasLayoutType(LayoutType::nspc);
+    VERIFY(both_ncsp || both_nspc, MEMORY_FORMAT_MISMATCH);
 
     // Original conditions from master: NHWC with initAcrossChannels=false is not supported
-    VERIFY(config.attrs.initAcrossChannels_ || !srcDesc->hasLayoutType(LayoutType::nspc), UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(config.attrs.initAcrossChannels_ || !srcDesc->hasLayoutType(LayoutType::nspc), UNSUPPORTED_ATTRIBUTE);
 
     return true;
 }

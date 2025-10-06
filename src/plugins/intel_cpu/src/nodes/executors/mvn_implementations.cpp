@@ -53,10 +53,10 @@ static const TypeMapping mvnTypeMapping{
     {{_f32, _f32}, {bypass(), bypass()}},
     {{_bf16, _bf16}, {bypass(), bypass()}},
     {{_f16, _f16}, {bypass(), bypass()}},
-    {{_i8, _f32}, {bypass(), bypass()}},  // i8 input -> f32 output
-    {{_u8, _f32}, {bypass(), bypass()}},  // u8 input -> f32 output
-    {{_i8, _i8}, {bypass(), bypass()}},   // i8 input -> i8 output
-    {{_u8, _u8}, {bypass(), bypass()}},   // u8 input -> u8 output
+    // Quantized inputs mapped to f32
+    {{_quant, _f32}, {bypass(), bypass()}},
+    // Identity quantized paths
+    {{_quant, _quant}, {bypass(), bypass()}},
     // Special handling for bf16 with blocked layouts to prevent precision loss
     {{_bf16, _f32}, {bypass(), just<ov::element::f32>()}},  // bf16 -> f32 conversion
     {{_f32, _bf16}, {just<ov::element::f32>(), bypass()}},  // f32 -> bf16 conversion

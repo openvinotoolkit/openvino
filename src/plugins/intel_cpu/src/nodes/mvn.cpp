@@ -321,21 +321,12 @@ void MVN::prepareParams() {
     // Populate post-ops from fused nodes (no adjustments)
     mvnAttrs.postOps = getPostOps(fusedWith);
 
-    // Update executor with memory arguments
+    // Update executor with memory arguments only (executor is created in createPrimitive)
     MemoryArgs memoryArgs;
     memoryArgs[ARG_SRC_0] = getSrcMemoryAtPort(0);
     memoryArgs[ARG_DST] = getDstMemoryAtPort(0);
 
-    {
-        auto execCtx = std::make_shared<ExecutorContext>(context, getImplPriority());
-        auto makeFactory =
-            std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs,
-                                                        execCtx,
-                                                        MemoryDescArgs{{ARG_SRC_0, getSrcMemoryAtPort(0)->getDescPtr()},
-                                                                       {ARG_DST, getDstMemoryAtPort(0)->getDescPtr()}});
-        executorPtr = makeFactory->make(memoryArgs);
-    }
-
+    OPENVINO_ASSERT(executorPtr, "Executor is not created. Call createPrimitive() before prepareParams().");
     executorPtr->update(memoryArgs);
     selectedPD->setImplementationType(executorPtr->implType());
 }
