@@ -8,6 +8,10 @@
 #include "openvino/op/util/op_types.hpp"  // is_parameter
 #include "util.hpp"
 
+namespace {
+enum class SDPA_Inputs : std::size_t { Q = 0, K, V, M, NUM_REQUIRED };
+}
+
 std::optional<ov::npuw::function::Attention> ov::npuw::function::Attention::from(
     const std::shared_ptr<ov::Model>& model) {
     ov::npuw::function::Attention dyn;
@@ -25,9 +29,9 @@ std::optional<ov::npuw::function::Attention> ov::npuw::function::Attention::from
     // Traverse the SDPA's mask input upwards to find the proper Parameter.
     // Only unary ops are allowed along the way
     auto sdpa_node = *sdpa_iter;
-    NPUW_ASSERT(sdpa_node->inputs().size() >= 4);
+    NPUW_ASSERT(sdpa_node->inputs().size() >= util::_v(SDPA_Inputs::NUM_REQUIRED));
 
-    auto mask_in_node = sdpa_node->inputs()[3].get_source_output().get_node_shared_ptr();
+    auto mask_in_node = sdpa_node->inputs()[util::_v(SDPA_Inputs::M)].get_source_output().get_node_shared_ptr();
     while (mask_in_node && !ov::op::util::is_parameter(mask_in_node)) {
         if (mask_in_node->inputs().size() != 1) {
             LOG_WARN("Non-unary or disconnected op on the way from SDPA to input mask");
@@ -57,15 +61,15 @@ std::optional<ov::npuw::function::Attention> ov::npuw::function::Attention::from
             // There must be no other such dim
             return false;
         }
-        f(*dim_iter);
+        f(std::distance(param_shape.begin(), dim_iter));
         return true;
     };
 
     for (auto&& param : f_params) {
         // A bad test but it is what it is
         if (ov::npuw::util::starts_with(param->get_friendly_name(), "past")) {
-            if (!find_context_dim(param, [&](std::size_t dim) {
-                    dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, 2});
+            if (!find_context_dim(param, [&](std::size_t dim_idx) {
+                    dyn._inputs.push_back(ov::npuw::function::Attention::Param{param, dim_idx});
                 })) {
                 LOG_WARN("Couldn't identify SDPA parameter's dynamic dimension");
                 return std::nullopt;
