@@ -21,10 +21,6 @@ public:
                        ov::intel_cpu::riscv64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
-    size_t get_inputs_num() const override {
-        return 0;
-    }
-
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 

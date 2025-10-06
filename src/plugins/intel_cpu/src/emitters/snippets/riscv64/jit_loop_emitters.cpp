@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(ov::intel_cpu::riscv64::jit_gener
     evaluate_once = loop_end->get_evaluate_once();
     loop_id = loop_end->get_id();
     is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(work_amount);
-    OPENVINO_ASSERT(wa_increment > 0, "Loop increment must be > 0");
+    OV_CPU_JIT_EMITTER_ASSERT(wa_increment > 0, "Loop increment must be > 0");
 
     loop_begin_label = std::make_shared<Xbyak_riscv::Label>();
     loop_end_label = nullptr;
@@ -176,10 +176,22 @@ jit_loop_end_emitter::jit_loop_end_emitter(ov::intel_cpu::riscv64::jit_generator
     num_outputs = loop_end->get_output_num();
     work_amount = loop_end->get_work_amount();
     wa_increment = loop_end->get_increment();
-    is_incremented = loop_end->get_is_incremented();
     ptr_increments = loop_end->get_ptr_increments();
     finalization_offsets = loop_end->get_finalization_offsets();
     data_sizes = loop_end->get_element_type_sizes();
+
+    const auto is_incremented = loop_end->get_is_incremented();
+    OV_CPU_JIT_EMITTER_ASSERT(is_incremented.size() == ptr_increments.size(),
+                              "LoopEnd must provide ptr increments for each data pointer");
+    OV_CPU_JIT_EMITTER_ASSERT(finalization_offsets.size() == ptr_increments.size(),
+                              "LoopEnd finalization offsets must align with ptr increments");
+    for (size_t idx = 0; idx < is_incremented.size(); ++idx) {
+        if (!is_incremented[idx]) {
+            ptr_increments[idx] = 0;
+            finalization_offsets[idx] = 0;
+        }
+    }
+
     evaluate_once = loop_end->get_evaluate_once();
     is_increment_dynamic = false;  // simplified
     are_ptr_increments_dynamic =
@@ -187,7 +199,8 @@ jit_loop_end_emitter::jit_loop_end_emitter(ov::intel_cpu::riscv64::jit_generator
     are_final_offsets_dynamic = std::any_of(finalization_offsets.cbegin(),
                                             finalization_offsets.cend(),
                                             ov::snippets::utils::is_dynamic_value<int64_t>);
-    OPENVINO_ASSERT(wa_increment > 0, "Loop increment must be > 0");
+    OV_CPU_JIT_EMITTER_ASSERT(wa_increment > 0, "Loop increment must be > 0");
+    loop_id = loop_end->get_id();
 
     // Get corresponding LoopBegin
     const auto begin_expr = get_loop_begin_expr(expr);
@@ -205,6 +218,15 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, con
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1,
                               "Invalid number of in arguments: expected " + std::to_string(io_size + 1) + " got " +
                                   std::to_string(in.size()));
+    OV_CPU_JIT_EMITTER_ASSERT(ptr_increments.size() == io_size,
+                              "Invalid ptr_increments size: expected " + std::to_string(io_size) + " got " +
+                                  std::to_string(ptr_increments.size()));
+    OV_CPU_JIT_EMITTER_ASSERT(finalization_offsets.size() == io_size,
+                              "Invalid finalization_offsets size: expected " + std::to_string(io_size) + " got " +
+                                  std::to_string(finalization_offsets.size()));
+    OV_CPU_JIT_EMITTER_ASSERT(
+        data_sizes.size() == io_size,
+        "Invalid data_sizes size: expected " + std::to_string(io_size) + " got " + std::to_string(data_sizes.size()));
 }
 
 void jit_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
@@ -234,28 +256,26 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
             auto add_increments = [&]() {
                 for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); ++idx) {
                     const auto& inc = increments[idx];
-                    if (is_incremented[idx] && inc != 0) {
-                        auto ptr_reg = Xbyak_riscv::Reg(data_ptr_reg_idxs[idx]);
-                        if (ov::snippets::utils::is_dynamic_value(inc)) {
-                            // ptr += ((int64*)reg_increments)[idx]
-                            h->uni_li(tmp, idx * sizeof(int64_t));
-                            h->add(tmp, reg_increments, tmp);
-                            // reuse tmp as inc_val after load
-                            h->ld(tmp, tmp, 0);
-                            // inc_val is in elements; convert to bytes = inc_val * scale * data_sizes[idx]
-                            size_t mul = scale * static_cast<size_t>(data_sizes[idx]);
-                            if (mul != 1) {
-                                jit_aux_gpr_holder h_mul(h, aux_gpr_idxs, used);
-                                auto mulreg = h_mul.get_reg();
-                                h->uni_li(mulreg, mul);
-                                h->mul(tmp, tmp, mulreg);
-                            }
-                            h->add(ptr_reg, ptr_reg, tmp);
-                        } else {
-                            size_t add_bytes = static_cast<size_t>(inc) * scale * static_cast<size_t>(data_sizes[idx]);
-                            h->uni_li(tmp, add_bytes);
-                            h->add(ptr_reg, ptr_reg, tmp);
+                    auto ptr_reg = Xbyak_riscv::Reg(data_ptr_reg_idxs[idx]);
+                    if (ov::snippets::utils::is_dynamic_value(inc)) {
+                        // ptr += ((int64*)reg_increments)[idx]
+                        h->uni_li(tmp, idx * sizeof(int64_t));
+                        h->add(tmp, reg_increments, tmp);
+                        // reuse tmp as inc_val after load
+                        h->ld(tmp, tmp, 0);
+                        // inc_val is in elements; convert to bytes = inc_val * scale * data_sizes[idx]
+                        size_t mul = scale * static_cast<size_t>(data_sizes[idx]);
+                        if (mul != 1) {
+                            jit_aux_gpr_holder h_mul(h, aux_gpr_idxs, used);
+                            auto mulreg = h_mul.get_reg();
+                            h->uni_li(mulreg, mul);
+                            h->mul(tmp, tmp, mulreg);
                         }
+                        h->add(ptr_reg, ptr_reg, tmp);
+                    } else if (inc != 0) {
+                        size_t add_bytes = static_cast<size_t>(inc) * scale * static_cast<size_t>(data_sizes[idx]);
+                        h->uni_li(tmp, add_bytes);
+                        h->add(ptr_reg, ptr_reg, tmp);
                     }
                 }
             };

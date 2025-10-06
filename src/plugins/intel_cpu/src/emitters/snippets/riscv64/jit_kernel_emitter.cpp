@@ -15,6 +15,7 @@
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
@@ -38,8 +39,8 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator_t* h,
                                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
-    OPENVINO_ASSERT(kernel != nullptr, "jit_kernel_emitter invoked with invalid op argument");
-    OPENVINO_ASSERT(!kernel->region->empty(), "jit_kernel_emitter invoked with empty body");
+    OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "jit_kernel_emitter invoked with invalid op argument");
+    OV_CPU_JIT_EMITTER_ASSERT(!kernel->region->empty(), "jit_kernel_emitter invoked with empty body");
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     const auto& parameters = body->get_parameters();
@@ -81,14 +82,15 @@ void jit_kernel_emitter::emit_code_impl(const std::vector<size_t>& in,
 }
 
 void jit_kernel_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    OPENVINO_ASSERT(in.size() == get_inputs_num() && out.empty(), "Unexpected number of input/output arguments");
+    OV_CPU_JIT_EMITTER_ASSERT(in.size() == get_inputs_num() && out.empty(),
+                              "Unexpected number of input/output arguments");
     const auto num_params = num_inputs + num_outputs + num_unique_buffers;
     // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
-    OPENVINO_ASSERT(data_ptr_regs_idx.size() == num_params,
-                    "Number of inputs and outputs is inconsistent with the number of allocated registers ",
-                    num_params,
-                    " data_ptr_regs_idx.size() = ",
-                    data_ptr_regs_idx.size());
+    OV_CPU_JIT_EMITTER_ASSERT(data_ptr_regs_idx.size() == num_params,
+                              "Number of inputs and outputs is inconsistent with the number of allocated registers ",
+                              num_params,
+                              " data_ptr_regs_idx.size() = ",
+                              data_ptr_regs_idx.size());
 }
 
 void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
@@ -132,27 +134,17 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
             OPENVINO_THROW("Unsupported emitter_in_out_map instance");
         }
     };
-    // Provide up to two temporary GPRs for pointer initialization math
-    std::vector<Xbyak_riscv::Reg> aux_tmp_regs{};
-    if (!available_gpr.empty()) {
-        auto it = available_gpr.begin();
-        aux_tmp_regs.emplace_back(static_cast<int>(it->idx));
-        ++it;
-        if (it != available_gpr.end()) {
-            aux_tmp_regs.emplace_back(static_cast<int>(it->idx));
-        }
-    }
-    init_data_pointers(utils::transform_idxs_to_regs(in), data_ptr_regs, aux_tmp_regs);
+    init_data_pointers(utils::transform_idxs_to_regs(in), data_ptr_regs, std::vector<Xbyak_riscv::Reg>{});
     for (const auto& expression : *body) {
         const auto reg_info = expression->get_reg_info();
         const auto& emitter = std::dynamic_pointer_cast<jit_emitter>(expression->get_emitter());
-        OPENVINO_ASSERT(emitter, "Unexpected emitter type");
+        OV_CPU_JIT_EMITTER_ASSERT(emitter, "Unexpected emitter type");
         auto expected_in_type = snippets::RegType::undefined;
         auto expected_out_type = snippets::RegType::undefined;
         const auto& node = expression->get_node();
         // Note: A few operations are allowed to have mixed register types on their inputs (or outputs) => skip
         // validation here
-        if (!ov::is_type_any_of<snippets::op::LoopEnd, snippets::op::LoopBegin, snippets::op::RegSpillBase>(node) &&
+        if (!ov::is_type_any_of<snippets::op::LoopEnd, snippets::op::RegSpillBase>(node) &&
             !std::dynamic_pointer_cast<jit_nop_emitter>(emitter)) {
             std::tie(expected_in_type, expected_out_type) = get_expected_reg_types(emitter);
         }
@@ -177,7 +169,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
         auto out_regs = snippets::utils::transform_snippets_regs_to_idxs(reg_info.second, expected_out_type);
         auto gpr_pool = snippets::utils::transform_snippets_regs_to_idxs(pool_gp_reg);
         auto vec_pool = snippets::utils::transform_snippets_regs_to_idxs(pool_vec_reg);
-        emitter->snippets::Emitter::emit_code(in_regs, out_regs, vec_pool, gpr_pool);
+        emitter->emit_code(in_regs, out_regs, vec_pool, gpr_pool, {});
     }
 
     h->postamble();
@@ -188,19 +180,19 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(jit_generator_t* h,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_kernel_emitter(h, isa, expr) {
     const auto kernel = ov::as_type_ptr<snippets::op::KernelStatic>(expr->get_node());
-    OPENVINO_ASSERT(kernel != nullptr, "jit_kernel_static_emitter expects KernelStatic expression");
+    OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "jit_kernel_static_emitter expects KernelStatic expression");
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     master_shape = jcp.exec_domain;
     data_offsets = jcp.data_offsets;
-    OPENVINO_ASSERT(data_offsets.size() == num_inputs + num_outputs, "Incompatible count of data offsets!");
-    OPENVINO_ASSERT(!data_offsets.empty() && data_offsets.front().size() == master_shape.size(),
-                    "Incompatible rank of data offsets!");
+    OV_CPU_JIT_EMITTER_ASSERT(data_offsets.size() == num_inputs + num_outputs, "Incompatible count of data offsets!");
+    OV_CPU_JIT_EMITTER_ASSERT(!data_offsets.empty() && data_offsets.front().size() == master_shape.size(),
+                              "Incompatible rank of data offsets!");
 }
 
 void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak_riscv::Reg>& arg_regs,
                                                    const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
                                                    const std::vector<Xbyak_riscv::Reg>& aux_gprs) const {
-    OPENVINO_ASSERT(arg_regs.size() == 2, "Invalid arg regs size");
+    OV_CPU_JIT_EMITTER_ASSERT(arg_regs.size() == 2, "Invalid arg regs size");
     auto reg_runtime_params = arg_regs[0];
     auto reg_indexes = arg_regs[1];
 
@@ -261,15 +253,15 @@ jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(jit_generator_t* h,
                                                        cpu_isa_t isa,
                                                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_kernel_emitter(h, isa, expr) {
-    OPENVINO_ASSERT(ov::is_type<snippets::op::KernelDynamic>(expr->get_node()),
-                    "jit_kernel_dynamic_emitter expects KernelDynamic expression");
+    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::KernelDynamic>(expr->get_node()),
+                              "jit_kernel_dynamic_emitter expects KernelDynamic expression");
 }
 
 void jit_kernel_dynamic_emitter::init_data_pointers(
     const std::vector<Xbyak_riscv::Reg>& arg_regs,
     const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
     [[maybe_unused]] const std::vector<Xbyak_riscv::Reg>& aux_gprs) const {
-    OPENVINO_ASSERT(arg_regs.size() == 1, "Invalid arg regs size");
+    OV_CPU_JIT_EMITTER_ASSERT(arg_regs.size() == 1, "Invalid arg regs size");
     auto reg_runtime_params = arg_regs[0];
 
     const auto num_params = num_inputs + num_outputs;

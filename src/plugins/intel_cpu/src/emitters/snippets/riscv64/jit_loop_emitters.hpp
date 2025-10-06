@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,7 +83,6 @@ private:
     int64_t work_amount = 0;
     size_t wa_increment = 0;
     size_t loop_id = 0;
-    std::vector<bool> is_incremented;
     std::vector<int64_t> ptr_increments;
     std::vector<int64_t> finalization_offsets;
     std::vector<int64_t> data_sizes;
