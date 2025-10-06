@@ -680,8 +680,13 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
     for (auto&& value : arguments) {
         amends.emplace(value.first, value.second.as<std::string>());
     }
+
     FilteredConfig amendedConfig = _config;
-    amendedConfig.update(amends, OptionMode::Both);
+    try {
+        amendedConfig.update(amends, OptionMode::Both);
+    } catch (const ov::Exception& /* unusedOVException */) {
+        Logger::global().warning("Amended config couldn't be updated with given arguments");
+    }
 
     auto&& configIterator = _properties.find(name);
     if (configIterator != _properties.cend()) {

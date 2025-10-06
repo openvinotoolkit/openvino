@@ -21,7 +21,7 @@ using PropertiesWithArgumentsParamsNPU =
 
 class OVPropertiesTestsNPU : public testing::WithParamInterface<PropertiesParamsNPU>, public OVPropertiesBase {
 public:
-    static inline std::string getTestCaseName(testing::TestParamInfo<PropertiesParamsNPU> obj);
+    static inline std::string getTestCaseName(const testing::TestParamInfo<PropertiesParamsNPU>& obj);
 
     inline void SetUp() override;
 
@@ -31,7 +31,7 @@ public:
 class OVPropertiesArgumentsTestsNPU : public testing::WithParamInterface<PropertiesWithArgumentsParamsNPU>,
                                       public OVPropertiesBase {
 public:
-    static inline std::string getTestCaseName(testing::TestParamInfo<PropertiesWithArgumentsParamsNPU> obj);
+    static inline std::string getTestCaseName(const testing::TestParamInfo<PropertiesWithArgumentsParamsNPU>& obj);
 
     inline void SetUp() override;
 
@@ -47,7 +47,7 @@ using CompileModelPropertiesParamsNPU = std::tuple<std::string, AnyMap>;
 class OVPropertiesTestsWithCompileModelPropsNPU : public testing::WithParamInterface<PropertiesParamsNPU>,
                                                   public OVPropertiesBase {
 public:
-    static inline std::string getTestCaseName(testing::TestParamInfo<PropertiesParamsNPU> obj);
+    static inline std::string getTestCaseName(const testing::TestParamInfo<PropertiesParamsNPU>& obj);
 
     inline void SetUp() override;
 
@@ -56,7 +56,7 @@ public:
     AnyMap compileModelProperties;
 };
 
-std::string OVPropertiesTestsNPU::getTestCaseName(testing::TestParamInfo<PropertiesParamsNPU> obj) {
+std::string OVPropertiesTestsNPU::getTestCaseName(const testing::TestParamInfo<PropertiesParamsNPU>& obj) {
     std::string target_device;
     AnyMap properties;
     std::tie(target_device, properties) = obj.param;
@@ -84,7 +84,7 @@ void OVPropertiesTestsNPU::TearDown() {
 }
 
 std::string OVPropertiesTestsWithCompileModelPropsNPU::getTestCaseName(
-    testing::TestParamInfo<PropertiesParamsNPU> obj) {
+    const testing::TestParamInfo<PropertiesParamsNPU>& obj) {
     std::string target_device;
     AnyMap properties;
     std::tie(target_device, properties) = obj.param;
@@ -132,7 +132,7 @@ void OVPropertiesTestsWithCompileModelPropsNPU::TearDown() {
 }
 
 std::string OVPropertiesArgumentsTestsNPU::getTestCaseName(
-    testing::TestParamInfo<PropertiesWithArgumentsParamsNPU> obj) {
+    const testing::TestParamInfo<PropertiesWithArgumentsParamsNPU>& obj) {
     std::string target_device, property_name;
     AnyMap arguments;
     std::tie(target_device, property_name, arguments) = obj.param;

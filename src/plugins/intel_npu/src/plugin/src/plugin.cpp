@@ -606,20 +606,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         // 2. Reset properties for the new options
         _properties->registerProperties();
     }
-    if (_properties->isPropertyRegistered(name)) {
-        // clean-up unkown arguments
-        auto currentIt = npu_plugin_properties.begin();
-        auto endIt = npu_plugin_properties.end();
-        for (; currentIt != endIt;) {
-            if (!_globalConfig.isAvailable(currentIt->first)) {
-                npu_plugin_properties.erase(currentIt);
-                currentIt = npu_plugin_properties.begin();
-                endIt = npu_plugin_properties.end();
-            } else {
-                ++currentIt;
-            }
-        }
-    }
     return _properties->get_property(name, npu_plugin_properties);
 }
 
