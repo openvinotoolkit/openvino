@@ -10,10 +10,12 @@
 #include <iterator>
 #include <memory>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "emitters/snippets/common/jit_loop_args_helper.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
@@ -175,31 +177,15 @@ jit_loop_end_emitter::jit_loop_end_emitter(ov::intel_cpu::riscv64::jit_generator
     num_outputs = loop_end->get_output_num();
     work_amount = loop_end->get_work_amount();
     wa_increment = loop_end->get_increment();
-    ptr_increments = loop_end->get_ptr_increments();
-    finalization_offsets = loop_end->get_finalization_offsets();
-    data_sizes = loop_end->get_element_type_sizes();
-
-    const auto is_incremented = loop_end->get_is_incremented();
-    OV_CPU_JIT_EMITTER_ASSERT(is_incremented.size() == ptr_increments.size(),
-                              "LoopEnd must provide ptr increments for each data pointer");
-    OV_CPU_JIT_EMITTER_ASSERT(finalization_offsets.size() == ptr_increments.size(),
-                              "LoopEnd finalization offsets must align with ptr increments");
-    for (size_t idx = 0; idx < is_incremented.size(); ++idx) {
-        if (!is_incremented[idx]) {
-            ptr_increments[idx] = 0;
-            finalization_offsets[idx] = 0;
-        }
-    }
-
     evaluate_once = loop_end->get_evaluate_once();
-    is_increment_dynamic = false;  // simplified
-    are_ptr_increments_dynamic =
-        std::any_of(ptr_increments.cbegin(), ptr_increments.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
-    are_final_offsets_dynamic = std::any_of(finalization_offsets.cbegin(),
-                                            finalization_offsets.cend(),
-                                            ov::snippets::utils::is_dynamic_value<int64_t>);
+    are_ptr_increments_dynamic = ov::snippets::utils::has_dynamic_values(loop_end->get_ptr_increments());
+    are_final_offsets_dynamic = ov::snippets::utils::has_dynamic_values(loop_end->get_finalization_offsets());
     OV_CPU_JIT_EMITTER_ASSERT(wa_increment > 0, "Loop increment must be > 0");
     loop_id = loop_end->get_id();
+    loop_args_offset = loop_id * sizeof(ov::intel_cpu::jit_snippets_call_args::loop_args_t);
+    loop_args = ov::intel_cpu::snippets_common::compose_loop_args(loop_end);
+    OV_CPU_JIT_EMITTER_ASSERT(loop_args.m_num_data_ptrs == static_cast<int64_t>(num_inputs + num_outputs),
+                              "Invalid loop args size for LoopEnd");
 
     // Get corresponding LoopBegin
     const auto begin_expr = get_loop_begin_expr(expr);
@@ -217,15 +203,9 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, con
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1,
                               "Invalid number of in arguments: expected " + std::to_string(io_size + 1) + " got " +
                                   std::to_string(in.size()));
-    OV_CPU_JIT_EMITTER_ASSERT(ptr_increments.size() == io_size,
-                              "Invalid ptr_increments size: expected " + std::to_string(io_size) + " got " +
-                                  std::to_string(ptr_increments.size()));
-    OV_CPU_JIT_EMITTER_ASSERT(finalization_offsets.size() == io_size,
-                              "Invalid finalization_offsets size: expected " + std::to_string(io_size) + " got " +
-                                  std::to_string(finalization_offsets.size()));
-    OV_CPU_JIT_EMITTER_ASSERT(
-        data_sizes.size() == io_size,
-        "Invalid data_sizes size: expected " + std::to_string(io_size) + " got " + std::to_string(data_sizes.size()));
+    OV_CPU_JIT_EMITTER_ASSERT(loop_args.m_num_data_ptrs == static_cast<int64_t>(io_size),
+                              "Invalid loop args size: expected " + std::to_string(io_size) + " got " +
+                                  std::to_string(loop_args.m_num_data_ptrs));
 }
 
 void jit_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
@@ -244,60 +224,52 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     data_ptr_reg_idxs.reserve(io_size);
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
-    auto apply_increments =
-        [&](bool use_runtime_args, size_t field_offset, const std::vector<int64_t>& increments, size_t scale) {
-            // Acquire two scratch regs
-            std::vector<size_t> used = in;  // exclude live inputs
-            jit_aux_gpr_holder h_incs(h, aux_gpr_idxs, used);
-            jit_aux_gpr_holder h_tmp(h, aux_gpr_idxs, used);
-            Xbyak_riscv::Reg reg_increments = h_incs.get_reg();
-            Xbyak_riscv::Reg tmp = h_tmp.get_reg();
-            auto add_increments = [&]() {
-                for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); ++idx) {
-                    const auto& inc = increments[idx];
-                    auto ptr_reg = Xbyak_riscv::Reg(data_ptr_reg_idxs[idx]);
-                    if (ov::snippets::utils::is_dynamic_value(inc)) {
-                        // ptr += ((int64*)reg_increments)[idx]
-                        h->uni_li(tmp, idx * sizeof(int64_t));
-                        h->add(tmp, reg_increments, tmp);
-                        // reuse tmp as inc_val after load
-                        h->ld(tmp, tmp, 0);
-                        // inc_val is in elements; convert to bytes = inc_val * scale * data_sizes[idx]
-                        size_t mul = scale * static_cast<size_t>(data_sizes[idx]);
-                        if (mul != 1) {
-                            jit_aux_gpr_holder h_mul(h, aux_gpr_idxs, used);
-                            auto mulreg = h_mul.get_reg();
-                            h->uni_li(mulreg, mul);
-                            h->mul(tmp, tmp, mulreg);
-                        }
-                        h->add(ptr_reg, ptr_reg, tmp);
-                    } else if (inc != 0) {
-                        size_t add_bytes = static_cast<size_t>(inc) * scale * static_cast<size_t>(data_sizes[idx]);
-                        h->uni_li(tmp, add_bytes);
-                        h->add(ptr_reg, ptr_reg, tmp);
-                    }
-                }
-            };
+    auto apply_increments = [&](const int64_t* increments, bool use_runtime_args, size_t field_offset) {
+        if (increments == nullptr || data_ptr_reg_idxs.empty()) {
+            return;
+        }
 
-            if (use_runtime_args) {
-                // reg_increments = *(a0 + GET_OFF(loop_args)); then +id_offset + field_offset
-                const auto id_offset = loop_id * sizeof(ov::intel_cpu::jit_snippets_call_args::loop_args_t);
-                // tmp is our address scratch
-                h->uni_li(tmp, GET_OFF(loop_args));
-                h->add(tmp, Xbyak_riscv::a0, tmp);
-                h->ld(reg_increments, tmp, 0);
-                h->uni_li(tmp, id_offset + field_offset);
-                h->add(reg_increments, reg_increments, tmp);
-                h->ld(reg_increments, reg_increments, 0);
+        std::vector<size_t> used = in;
+        std::unique_ptr<jit_aux_gpr_holder> reg_increments_holder;
+        std::optional<Xbyak_riscv::Reg> reg_increments;
+        if (use_runtime_args) {
+            reg_increments_holder = std::make_unique<jit_aux_gpr_holder>(h, aux_gpr_idxs, used);
+            reg_increments = reg_increments_holder->get_reg();
+            used.push_back(static_cast<size_t>(reg_increments->getIdx()));
+        }
+        jit_aux_gpr_holder h_tmp(h, aux_gpr_idxs, used);
+        Xbyak_riscv::Reg tmp = h_tmp.get_reg();
+
+        if (use_runtime_args) {
+            h->uni_li(tmp, GET_OFF(loop_args));
+            h->add(tmp, Xbyak_riscv::a0, tmp);
+            h->ld(*reg_increments, tmp, 0);
+            h->uni_li(tmp, loop_args_offset + field_offset);
+            h->add(*reg_increments, *reg_increments, tmp);
+            h->ld(*reg_increments, *reg_increments, 0);
+        }
+
+        for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); ++idx) {
+            const auto increment = increments[idx];
+            if (increment == 0) {
+                continue;
             }
-            add_increments();
-        };
+            auto ptr_reg = Xbyak_riscv::Reg(data_ptr_reg_idxs[idx]);
+            if (ov::snippets::utils::is_dynamic_value(increment)) {
+                OV_CPU_JIT_EMITTER_ASSERT(use_runtime_args, "Dynamic increments require runtime loop arguments");
+                h->uni_li(tmp, idx * sizeof(int64_t));
+                h->add(tmp, *reg_increments, tmp);
+                h->ld(tmp, tmp, 0);
+                h->add(ptr_reg, ptr_reg, tmp);
+            } else {
+                h->uni_li(tmp, static_cast<size_t>(increment));
+                h->add(ptr_reg, ptr_reg, tmp);
+            }
+        }
+    };
 
     if (!evaluate_once) {
-        apply_increments(are_ptr_increments_dynamic,
-                         GET_OFF_LOOP_ARGS(m_ptr_increments),
-                         ptr_increments,
-                         static_cast<size_t>(wa_increment));
+        apply_increments(loop_args.m_ptr_increments, are_ptr_increments_dynamic, GET_OFF_LOOP_ARGS(m_ptr_increments));
 
         auto reg_work_amount = Xbyak_riscv::Reg(in.back());
         // reg_work_amount -= wa_increment
@@ -310,7 +282,9 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
         h->bge(reg_work_amount, reg_inc, *loop_begin_label);
     }
 
-    apply_increments(are_final_offsets_dynamic, GET_OFF_LOOP_ARGS(m_finalization_offsets), finalization_offsets, 1);
+    apply_increments(loop_args.m_finalization_offsets,
+                     are_final_offsets_dynamic,
+                     GET_OFF_LOOP_ARGS(m_finalization_offsets));
 
     h->L(*loop_end_label);
 }
@@ -318,7 +292,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
 ov::snippets::lowered::ExpressionPtr jit_loop_end_emitter::get_loop_begin_expr(
     const ov::snippets::lowered::ExpressionPtr& expr) {
     auto begin_expr = expr->get_input_port_connectors().back()->get_source().get_expr();
-    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(begin_expr->get_node()),
+    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<ov::snippets::op::LoopBegin>(begin_expr->get_node()),
                               "LoopEnd expression must have the last port connector to LoopBegin");
     return begin_expr;
 }

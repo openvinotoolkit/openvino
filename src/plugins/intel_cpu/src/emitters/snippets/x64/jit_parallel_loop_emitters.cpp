@@ -19,6 +19,7 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/snippets/common/jit_loop_args_helper.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
@@ -49,7 +50,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t
       m_parallel_section_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
     const auto loop_end_expr = get_loop_end_expr(expr);
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(loop_end_expr->get_node());
-    m_loop_args = jit_loop_end_base_emitter::compose_loop_args(loop_end);
+    m_loop_args = ov::intel_cpu::snippets_common::compose_loop_args(loop_end);
     m_is_dynamic = loop_end->has_dynamic_params();
 
     const auto& loop_end_input_regs = loop_end_expr->get_reg_info().first;

@@ -83,13 +83,11 @@ private:
     int64_t work_amount = 0;
     size_t wa_increment = 0;
     size_t loop_id = 0;
-    std::vector<int64_t> ptr_increments;
-    std::vector<int64_t> finalization_offsets;
-    std::vector<int64_t> data_sizes;
     bool evaluate_once = false;
-    bool is_increment_dynamic = false;
     bool are_ptr_increments_dynamic = false;
     bool are_final_offsets_dynamic = false;
+    size_t loop_args_offset = 0;
+    jit_snippets_call_args::loop_args_t loop_args;
     mutable std::shared_ptr<const Xbyak_riscv::Label> loop_begin_label = nullptr;
     mutable std::shared_ptr<Xbyak_riscv::Label> loop_end_label = nullptr;
     mutable bool end_label_bound = false;
