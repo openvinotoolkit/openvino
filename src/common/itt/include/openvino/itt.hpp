@@ -321,7 +321,7 @@ public:
  * @brief Annotate region of code till scope exit for BASE/FULL modes regardless of profiling filter groups.
  * @details In case if handle or taskName absent, the current function name is used.
  * @param domain [in] Known at compile time name of module or library (the domain name).
- * @param handleOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
+ * @param handleOrRegionName [in] The annotation name or handle for section of code. Parameter is optional.
  */
 #define OV_ITT_SCOPED_REGION_BASE(...) OV_PP_OVERLOAD(OV_ITT_SCOPED_REGION_BASE, __VA_ARGS__)
 
@@ -329,9 +329,9 @@ public:
     openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
         openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(ITT_FUNCTION_NAME));
 
-#define OV_ITT_SCOPED_REGION_BASE_2(domain, taskOrTaskName)                   \
+#define OV_ITT_SCOPED_REGION_BASE_2(domain, regionOrRegionName)               \
     openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
-        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(taskOrTaskName));
+        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(regionOrRegionName));
 
 /**
  * @def OV_ITT_SCOPED_REGION(group, domain, handleOrTaskName)
