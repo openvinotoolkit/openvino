@@ -109,8 +109,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
         model,
         compilerVersion,
         maxOpsetVersion,
-        config.isAvailable(ov::intel_npu::better_model_serialization.name()) ? config.get<BETTER_MODEL_SERIALIZATION>()
-                                                                             : false);
+        config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
+                                                                            : false);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to serialize: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
               << "[µs]" << std::endl;
@@ -181,8 +181,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
         model,
         compilerVersion,
         maxOpsetVersion,
-        config.isAvailable(ov::intel_npu::better_model_serialization.name()) ? config.get<BETTER_MODEL_SERIALIZATION>()
-                                                                             : false);
+        config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
+                                                                            : false);
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to serialize: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
               << "[µs]" << std::endl;
@@ -337,8 +337,8 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
         model,
         compilerVersion,
         maxOpsetVersion,
-        config.isAvailable(ov::intel_npu::better_model_serialization.name()) ? config.get<BETTER_MODEL_SERIALIZATION>()
-                                                                             : false);
+        config.isAvailable(ov::intel_npu::use_base_model_serializer.name()) ? config.get<USE_BASE_MODEL_SERIALIZER>()
+                                                                            : false);
 
     std::string buildFlags;
     buildFlags += driver_compiler_utils::serializeConfig(config, compilerVersion);
