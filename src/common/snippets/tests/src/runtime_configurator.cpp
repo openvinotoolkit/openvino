@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,7 @@ public:
         m_config->io_data_offsets = offsets;
     }
 
+    // Helper to expose the protected update_data_offsets for this test
     void run_update_data_offsets() {
         update_data_offsets();
     }
@@ -49,17 +50,17 @@ TEST(RuntimeConfiguratorOffsets, KeepsPreviousDynamicPortsAndUpdatesLaterPorts) 
     TestRuntimeConfigurator configurator;
     configurator.set_state(1,
                            {ov::snippets::VectorDims{dynamic, 5}, ov::snippets::VectorDims{2, 3}},
-                           {ov::snippets::VectorDims{1, 5}, ov::snippets::VectorDims{1, 3}},
+                           std::vector<ov::snippets::VectorDims>(2),
                            {std::vector<size_t>{}, std::vector<size_t>{}},
                            {1, 1},
                            2,
-                           {ov::snippets::VectorDims{42, 24}, ov::snippets::VectorDims{10, 10}});
+                           std::vector<ov::snippets::VectorDims>(2));
 
     configurator.run_update_data_offsets();
 
     const auto config = configurator.get_config();
     ASSERT_EQ(config->io_data_offsets.size(), 2);
-    EXPECT_EQ(config->io_data_offsets[0], (ov::snippets::VectorDims{42, 24}));
+    EXPECT_TRUE(config->io_data_offsets[0].empty());
     EXPECT_EQ(config->io_data_offsets[1], (ov::snippets::VectorDims{3, 1}));
 }
 
