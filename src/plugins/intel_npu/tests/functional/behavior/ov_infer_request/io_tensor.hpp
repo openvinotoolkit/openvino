@@ -292,4 +292,4 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Auto_BehaviorTests,
                                             ::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
-}
+}  // namespace

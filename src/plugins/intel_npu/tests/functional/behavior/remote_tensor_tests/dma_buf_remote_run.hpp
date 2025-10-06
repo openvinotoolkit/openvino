@@ -8,14 +8,13 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
-#include "common/utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "test_utils_npu.hpp"
 
 #ifdef __linux__

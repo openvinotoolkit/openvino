@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include <behavior/compiled_model/import_export.hpp>
 #include <sstream>
 
-#include <behavior/compiled_model/import_export.hpp>
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"

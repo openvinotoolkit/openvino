@@ -8,12 +8,12 @@
 #include <common_test_utils/test_assertions.hpp>
 #include <sstream>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "openvino/runtime/intel_npu/properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {

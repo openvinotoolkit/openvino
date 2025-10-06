@@ -3,7 +3,6 @@
 //
 
 #include <behavior/ov_infer_request/callback.hpp>
-
 #include <vector>
 
 #include "common/npu_test_env_cfg.hpp"

@@ -5,6 +5,7 @@
 #include "import_export.hpp"
 
 #include <gtest/gtest.h>
+
 #include "common/utils.hpp"
 
 using namespace ov::test::behavior;

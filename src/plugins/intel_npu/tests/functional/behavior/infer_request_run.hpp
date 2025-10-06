@@ -85,8 +85,7 @@ public:
         auto hash = std::to_string(std::hash<std::string>()(test_name));
         std::stringstream ss;
         auto ts = duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch());
-        ss << hash << "_"
-           << "_" << ts.count();
+        ss << hash << "_" << "_" << ts.count();
         return ss.str();
     }
 

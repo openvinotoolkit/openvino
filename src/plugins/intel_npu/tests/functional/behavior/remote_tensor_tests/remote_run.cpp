@@ -4,10 +4,6 @@
 
 #include "remote_run.hpp"
 
-#include "common/npu_test_env_cfg.hpp"
-#include "common/utils.hpp"
-#include "intel_npu/config/options.hpp"
-
 using namespace ov::test::behavior;
 
 const std::vector<ov::AnyMap> remoteConfigs = {{}};
