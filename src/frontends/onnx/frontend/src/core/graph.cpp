@@ -388,7 +388,7 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
         //iterate over all inputs and make a list of all KV ops
         auto param_name = params.at(i)->output(0).get_any_name();
         auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, std::vector<int64_t>({0}));
-        if (param_name.find("past_keys") != std::string::npos) {
+        if (param_name.find("past_key") != std::string::npos) {
             past_keys.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
@@ -397,7 +397,7 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
                     consumer.replace_source_output(gather_op);
             }
         }
-        if (param_name.find("past_values") != std::string::npos) {
+        if (param_name.find("past_value") != std::string::npos) {
             past_values.push_back(param_name);
             if (found_input_id) {
                 auto consumers = params.at(i)->output(0).get_target_inputs();
@@ -430,9 +430,9 @@ void Graph::convert_stateless_LLM_to_stateful_LLM(std::shared_ptr<ov::Model>& mo
     for(size_t i = 0; i < results.size(); i++){
 
         auto res_name = results.at(i)->output(0).get_any_name();
-        if (res_name.find("present_keys") != std::string::npos)
+        if (res_name.find("present_key") != std::string::npos)
             present_keys.push_back(res_name);
-        if (res_name.find("present_values") != std::string::npos)
+        if (res_name.find("present_value") != std::string::npos)
              present_values.push_back(res_name);
         if (res_name.find("present") != std::string::npos && res_name.find(".key") != std::string::npos)
             present_keys.push_back(res_name);
