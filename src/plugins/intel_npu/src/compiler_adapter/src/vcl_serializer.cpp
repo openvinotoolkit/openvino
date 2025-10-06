@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ir_serializer.hpp"
-
 #include <cstdint>
 #include <istream>
 #include <mutex>
@@ -18,6 +16,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+#include "vcl_serializer.hpp"
 
 namespace {
 
@@ -159,10 +158,10 @@ void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
 
 namespace intel_npu::driver_compiler_utils {
 
-IRSerializerBase::IRSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
-                                   const ze_graph_compiler_version_info_t compilerVersion,
-                                   const uint32_t supportedOpset)
-    : _logger("IRSerializerBase", Logger::global().level()),
+VCLSerializerBase::VCLSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
+                                     const ze_graph_compiler_version_info_t compilerVersion,
+                                     const uint32_t supportedOpset)
+    : _logger("VCLSerializerBase", Logger::global().level()),
       _compilerVersion(compilerVersion),
       _supportedOpset(supportedOpset) {
     // There is no const variant of run_passes so use const_cast here
@@ -176,21 +175,21 @@ IRSerializerBase::IRSerializerBase(const std::shared_ptr<const ov::Model>& origM
     }
 }
 
-IRSerializerWithWeightsCopy::IRSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
-                                                         const ze_graph_compiler_version_info_t compilerVersion,
-                                                         const uint32_t supportedOpset)
-    : IRSerializerBase(origModel, compilerVersion, supportedOpset) {
-    _logger.setName("IRSerializerWithWeightsCopy");
+VCLSerializerWithWeightsCopy::VCLSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                                           const ze_graph_compiler_version_info_t compilerVersion,
+                                                           const uint32_t supportedOpset)
+    : VCLSerializerBase(origModel, compilerVersion, supportedOpset) {
+    _logger.setName("VCLSerializerWithWeightsCopy");
 };
 
-IRSerializerWithoutWeightsCopy::IRSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
-                                                               const ze_graph_compiler_version_info_t compilerVersion,
-                                                               const uint32_t supportedOpset)
-    : IRSerializerBase(origModel, compilerVersion, supportedOpset) {
-    _logger.setName("IRSerializerWithoutWeightsCopy");
+VCLSerializerWithoutWeightsCopy::VCLSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                                                 const ze_graph_compiler_version_info_t compilerVersion,
+                                                                 const uint32_t supportedOpset)
+    : VCLSerializerBase(origModel, compilerVersion, supportedOpset) {
+    _logger.setName("VCLSerializerWithoutWeightsCopy");
 };
 
-void IRSerializerWithWeightsCopy::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
+void VCLSerializerWithWeightsCopy::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
     ov::pass::Manager manager(std::move(passConfig), "NPU:serializeModelToStream");
@@ -230,7 +229,7 @@ void IRSerializerWithWeightsCopy::serializeModelToStream(std::ostream& xml, std:
     _logger.debug("serializeModelToStream end");
 }
 
-void IRSerializerWithoutWeightsCopy::serializeModelToStream(std::ostream& stream) {
+void VCLSerializerWithoutWeightsCopy::serializeModelToStream(std::ostream& stream) {
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
     ov::pass::Manager manager(std::move(passConfig), "NPU:serializeModelToStream");
@@ -269,7 +268,7 @@ void IRSerializerWithoutWeightsCopy::serializeModelToStream(std::ostream& stream
     _logger.debug("serializeModelToStream end");
 }
 
-void IRSerializerWithWeightsCopy::countModelSize() {
+void VCLSerializerWithWeightsCopy::countModelSize() {
     _logger.debug("countModelSize");
 
     counter_streambuf xmlStreamBuf;
@@ -285,7 +284,7 @@ void IRSerializerWithWeightsCopy::countModelSize() {
     _logger.debug("countModelSize completed, xml size: %d, weights size: %d", _xmlSize, _weightsSize);
 }
 
-void IRSerializerWithoutWeightsCopy::countModelSize() {
+void VCLSerializerWithoutWeightsCopy::countModelSize() {
     _logger.debug("countModelSize");
 
     counter_streambuf streamBuf;
@@ -298,7 +297,7 @@ void IRSerializerWithoutWeightsCopy::countModelSize() {
     _logger.debug("countModelSize completed, serialized model size: %d", _serializedModelSize);
 }
 
-void IRSerializerWithWeightsCopy::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
+void VCLSerializerWithWeightsCopy::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
     _logger.debug("serializeModelToBuffer");
 
     writer_streambuf xmlStreamBuf(xml);
@@ -311,7 +310,7 @@ void IRSerializerWithWeightsCopy::serializeModelToBuffer(uint8_t* xml, uint8_t* 
     _logger.debug("serializeModelToBuffer end");
 }
 
-void IRSerializerWithoutWeightsCopy::serializeModelToBuffer(uint8_t* buffer) {
+void VCLSerializerWithoutWeightsCopy::serializeModelToBuffer(uint8_t* buffer) {
     _logger.debug("serializeModelToBuffer");
 
     writer_streambuf streamBuf(buffer);
@@ -322,7 +321,7 @@ void IRSerializerWithoutWeightsCopy::serializeModelToBuffer(uint8_t* buffer) {
     _logger.debug("serializeModelToBuffer end");
 }
 
-SerializedIR IRSerializerWithWeightsCopy::serialize() {
+SerializedIR VCLSerializerWithWeightsCopy::serialize() {
     countModelSize();
 
     // Contract between adapter and compiler in driver
@@ -376,7 +375,7 @@ SerializedIR IRSerializerWithWeightsCopy::serialize() {
     return std::make_pair(sizeOfSerializedIR, buffer);
 }
 
-SerializedIR IRSerializerWithoutWeightsCopy::serialize() {
+SerializedIR VCLSerializerWithoutWeightsCopy::serialize() {
     countModelSize();
 
     if (_serializedModelSize >= std::numeric_limits<uint64_t>::max()) {
@@ -415,9 +414,9 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
     if (!useBaseModelSerializer) {
         const std::shared_ptr<ov::Model> clonedModel = model->clone();
         storeWeightsPointerAttribute(clonedModel);
-        return IRSerializerWithoutWeightsCopy(clonedModel, compilerVersion, supportedOpsetVersion).serialize();
+        return VCLSerializerWithoutWeightsCopy(clonedModel, compilerVersion, supportedOpsetVersion).serialize();
     }
-    return IRSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
+    return VCLSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
 }
 
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {

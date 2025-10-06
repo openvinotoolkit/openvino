@@ -24,11 +24,11 @@ using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
  */
 namespace driver_compiler_utils {
 
-class IRSerializerBase {
+class VCLSerializerBase {
 public:
-    IRSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
-                     const ze_graph_compiler_version_info_t compilerVersion,
-                     const uint32_t supportedOpset = 11);
+    VCLSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
+                      const ze_graph_compiler_version_info_t compilerVersion,
+                      const uint32_t supportedOpset = 11);
 
     virtual SerializedIR serialize() = 0;
 
@@ -39,11 +39,11 @@ protected:
     uint32_t _supportedOpset = 11;
 };
 
-class IRSerializerWithWeightsCopy : public IRSerializerBase {
+class VCLSerializerWithWeightsCopy : public VCLSerializerBase {
 public:
-    IRSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
-                                const ze_graph_compiler_version_info_t compilerVersion,
-                                const uint32_t supportedOpset = 11);
+    VCLSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                 const ze_graph_compiler_version_info_t compilerVersion,
+                                 const uint32_t supportedOpset = 11);
 
     SerializedIR serialize() override;
 
@@ -67,11 +67,11 @@ private:
     size_t _weightsSize = 0;
 };
 
-class IRSerializerWithoutWeightsCopy : public IRSerializerBase {
+class VCLSerializerWithoutWeightsCopy : public VCLSerializerBase {
 public:
-    IRSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
-                                   const ze_graph_compiler_version_info_t compilerVersion,
-                                   const uint32_t supportedOpset = 11);
+    VCLSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                    const ze_graph_compiler_version_info_t compilerVersion,
+                                    const uint32_t supportedOpset = 11);
 
     SerializedIR serialize() override;
 

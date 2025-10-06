@@ -8,15 +8,15 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/options.hpp"
-#include "ir_serializer.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "vcl_serializer.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
-using IRSerializerWithWeightsCopy = intel_npu::driver_compiler_utils::IRSerializerWithWeightsCopy;
+using VCLSerializerWithWeightsCopy = intel_npu::driver_compiler_utils::VCLSerializerWithWeightsCopy;
 
 namespace ov::test::behavior {
 
@@ -83,8 +83,8 @@ protected:
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     auto model = createModelWithLargeSize();
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
-    IRSerializerWithWeightsCopy IRSerializerWithWeightsCopy(model, dummyCompilerVersion, 11);
-    ::intel_npu::SerializedIR serializedIR = IRSerializerWithWeightsCopy.serialize();
+    VCLSerializerWithWeightsCopy VCLSerializerWithWeightsCopy(model, dummyCompilerVersion, 11);
+    ::intel_npu::SerializedIR serializedIR = VCLSerializerWithWeightsCopy.serialize();
     // TODO call the deserializer
     // EXPECT_NO_THROW(model = core.read_model(xmlFileName));
 }
