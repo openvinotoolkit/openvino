@@ -111,6 +111,7 @@ CL_INDIRECT_API(clEnqueueCopyImage)
 CL_INDIRECT_API(clFlush)
 CL_INDIRECT_API(clSetUserEventStatus)
 CL_INDIRECT_API(clSetEventCallback)
+CL_INDIRECT_API(clUnloadPlatformCompiler);
 
 cl_int call_clGetEventProfilingInfo(cl_event a1, cl_profiling_info a2, size_t a3, void* a4, size_t* a5) { \
         static auto f_ = find_cl_symbol<decltype(&clGetEventProfilingInfo)>("clGetEventProfilingInfo");              \
@@ -131,6 +132,16 @@ cl_int call_clGetEventInfo(cl_event a1, cl_event_info a2, size_t a3, void* a4, s
 
 cl_int call_clGetDeviceInfo(cl_device_id a1, cl_device_info a2, size_t a3, void* a4, size_t* a5) { \
         static auto f_ = find_cl_symbol<decltype(&clGetDeviceInfo)>("clGetDeviceInfo");              \
+        return f_(a1, a2, a3, a4, a5);                         \
+    }
+    
+cl_int call_clCreateKernelsInProgram(cl_program a1, cl_uint a2, cl_kernel* a3, cl_uint* a4) { \
+        static auto f_ = find_cl_symbol<decltype(&clCreateKernelsInProgram)>("clCreateKernelsInProgram");              \
+        return f_(a1, a2, a3, a4);                         \
+    }
+
+cl_int call_clGetPlatformInfo(cl_platform_id a1, cl_platform_info a2, size_t a3, void* a4, size_t* a5) { \
+        static auto f_ = find_cl_symbol<decltype(&clGetPlatformInfo )>("clGetPlatformInfo");              \
         return f_(a1, a2, a3, a4, a5);                         \
     }
 #undef CL_INDIRECT_API

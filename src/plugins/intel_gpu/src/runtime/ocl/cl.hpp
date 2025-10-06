@@ -578,104 +578,104 @@ typedef void* cl_mutable_command_khr;
 // === Symulacja funkcji C API (bez call_... - tylko właściwe API OpenCL) ===
 //inline cl_int clGetPlatformIDs(cl_uint, cl_platform_id*, cl_uint*) { return CL_SUCCESS; }
 //inline cl_int clGetDeviceIDs(cl_platform_id, cl_device_type, cl_uint, cl_device_id*, cl_uint*) { return CL_SUCCESS; }
-inline cl_context clCreateContext(const cl_context_properties*, cl_uint, const cl_device_id*, void(*)(const char*, const void*, size_t, void*), void*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
+inline cl_context clCreateContext(const cl_context_properties*, cl_uint, const cl_device_id*, void(*)(const char*, const void*, size_t, void*), void*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
 inline cl_command_queue clCreateCommandQueue(cl_context a, cl_device_id b, cl_command_queue_properties c, cl_int* d) { return call_clCreateCommandQueue(a, b, c, d); }
 inline cl_program clCreateProgramWithSource(cl_context a, cl_uint b, const char** c, const size_t* d, cl_int* e) { return call_clCreateProgramWithSource(a, b, c, d, e); }
-inline cl_int clBuildProgram(cl_program, cl_uint, const cl_device_id*, const char*, void(*)(cl_program, void*), void*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_kernel clCreateKernel(cl_program, const char*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
-inline cl_mem clCreateBuffer(cl_context, cl_mem_flags, size_t, void*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
-inline cl_int clSetKernelArg(cl_kernel, cl_uint, size_t, const void*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueNDRangeKernel(cl_command_queue, cl_kernel, cl_uint, const size_t*, const size_t*, const size_t*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clFinish(cl_command_queue) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseMemObject(cl_mem) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseKernel(cl_kernel) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl;  return CL_SUCCESS; }
-inline cl_int clReleaseProgram(cl_program) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseCommandQueue(cl_command_queue) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseContext(cl_context) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clBuildProgram(cl_program a, cl_uint b, const cl_device_id* c, const char* d, void(*e)(cl_program, void*), void* f) { return call_clBuildProgram(a, b, c, d, e, f); }
+inline cl_kernel clCreateKernel(cl_program, const char*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
+inline cl_mem clCreateBuffer(cl_context, cl_mem_flags, size_t, void*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
+inline cl_int clSetKernelArg(cl_kernel, cl_uint, size_t, const void*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueNDRangeKernel(cl_command_queue, cl_kernel, cl_uint, const size_t*, const size_t*, const size_t*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clFinish(cl_command_queue) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseMemObject(cl_mem) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseKernel(cl_kernel) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl;  return CL_SUCCESS; }
+inline cl_int clReleaseProgram(cl_program) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseCommandQueue(cl_command_queue) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseContext(cl_context) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 
 // 🔥 Funkcje z rozszerzenia cl_khr_command_buffer
-inline cl_int clCreateCommandBufferKHR(cl_uint, const cl_command_queue*, const cl_command_buffer_properties_khr*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clFinalizeCommandBufferKHR(cl_command_buffer_khr) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainCommandBufferKHR(cl_command_buffer_khr) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseCommandBufferKHR(cl_command_buffer_khr) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetCommandBufferInfoKHR(cl_command_buffer_khr, cl_command_buffer_info_khr, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueCommandBufferKHR(cl_uint, const cl_command_queue*, cl_command_buffer_khr, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clCommandBarrierWithWaitListKHR(cl_command_buffer_khr, cl_command_queue, const void*, cl_uint, const cl_sync_point_khr*, cl_sync_point_khr*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clCommandCopyBufferKHR(cl_command_buffer_khr, cl_command_queue, const void*, cl_mem, cl_mem, size_t, size_t, size_t, cl_uint, const cl_sync_point_khr*, cl_sync_point_khr*, cl_mutable_command_khr*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clCreateCommandBufferKHR(cl_uint, const cl_command_queue*, const cl_command_buffer_properties_khr*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clFinalizeCommandBufferKHR(cl_command_buffer_khr) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clRetainCommandBufferKHR(cl_command_buffer_khr) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseCommandBufferKHR(cl_command_buffer_khr) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetCommandBufferInfoKHR(cl_command_buffer_khr, cl_command_buffer_info_khr, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueCommandBufferKHR(cl_uint, const cl_command_queue*, cl_command_buffer_khr, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clCommandBarrierWithWaitListKHR(cl_command_buffer_khr, cl_command_queue, const void*, cl_uint, const cl_sync_point_khr*, cl_sync_point_khr*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clCommandCopyBufferKHR(cl_command_buffer_khr, cl_command_queue, const void*, cl_mem, cl_mem, size_t, size_t, size_t, cl_uint, const cl_sync_point_khr*, cl_sync_point_khr*, cl_mutable_command_khr*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 
 // 🔥 Funkcje z rozszerzenia cl_khr_semaphore
-inline cl_int clCreateSemaphoreKHR(cl_context, const cl_semaphore_properties_khr*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainSemaphoreKHR(cl_semaphore_khr) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseSemaphoreKHR(cl_semaphore_khr) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueWaitSemaphoresKHR(cl_command_queue, cl_uint, const cl_semaphore_khr*, const cl_semaphore_payload_khr*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueSignalSemaphoresKHR(cl_command_queue, cl_uint, const cl_semaphore_khr*, const cl_semaphore_payload_khr*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetSemaphoreInfoKHR(cl_semaphore_khr, cl_semaphore_info_khr, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clCreateSemaphoreKHR(cl_context, const cl_semaphore_properties_khr*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clRetainSemaphoreKHR(cl_semaphore_khr) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseSemaphoreKHR(cl_semaphore_khr) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueWaitSemaphoresKHR(cl_command_queue, cl_uint, const cl_semaphore_khr*, const cl_semaphore_payload_khr*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueSignalSemaphoresKHR(cl_command_queue, cl_uint, const cl_semaphore_khr*, const cl_semaphore_payload_khr*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetSemaphoreInfoKHR(cl_semaphore_khr, cl_semaphore_info_khr, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 
 // 🔥 Funkcje z D3D, IL, itp.
-inline cl_int clEnqueueAcquireD3D10ObjectsKHR(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueReleaseD3D10ObjectsKHR(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueAcquireGLObjects(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueReleaseGLObjects(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueAcquireD3D10ObjectsKHR(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueReleaseD3D10ObjectsKHR(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueAcquireGLObjects(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueReleaseGLObjects(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 
 // 🔥 Funkcje z IL
-inline cl_program clCreateProgramWithIL(cl_context, const void*, size_t, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_program clCreateProgramWithIL(cl_context, const void*, size_t, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 
 // 🔥 Funkcje SVM
 inline cl_int clSetKernelArgSVMPointer(cl_kernel, cl_uint, const void*) { return CL_SUCCESS; }
-inline cl_int clEnqueueSVMMemcpy(cl_command_queue, cl_bool, void*, const void*, size_t, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueSVMMap(cl_command_queue, cl_bool, cl_map_flags, void*, size_t, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueSVMUnmap(cl_command_queue, void*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueSVMMemcpy(cl_command_queue, cl_bool, void*, const void*, size_t, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueSVMMap(cl_command_queue, cl_bool, cl_map_flags, void*, size_t, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueSVMUnmap(cl_command_queue, void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 
 // 🔥 Funkcje z profiling, getInfo, itp.
-inline cl_int clGetEventInfo(cl_event, cl_event_info, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetEventProfilingInfo(cl_event, cl_profiling_info, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clWaitForEvents(cl_uint, const cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clFlush(cl_command_queue) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline void* clEnqueueMapBuffer(cl_command_queue, cl_mem, cl_bool, cl_map_flags, size_t, size_t, cl_uint, const cl_event*, cl_event*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueUnmapMemObject(cl_command_queue, cl_mem, void*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueReadBuffer(cl_command_queue, cl_mem, cl_bool, size_t, size_t, void*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueWriteBuffer(cl_command_queue, cl_mem, cl_bool, size_t, size_t, const void*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueCopyBuffer(cl_command_queue, cl_mem, cl_mem, size_t, size_t, size_t, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueReadImage(cl_command_queue, cl_mem, cl_bool, const size_t*, const size_t*, size_t, size_t, void*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueWriteImage(cl_command_queue, cl_mem, cl_bool, const size_t*, const size_t*, size_t, size_t, const void*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueCopyImage(cl_command_queue, cl_mem, cl_mem, const size_t*, const size_t*, const size_t*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueCopyImageToBuffer(cl_command_queue, cl_mem, cl_mem, const size_t*, const size_t*, size_t, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl;  return CL_SUCCESS; }
-inline cl_int clEnqueueCopyBufferToImage(cl_command_queue, cl_mem, cl_mem, size_t, const size_t*, const size_t*, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueMarkerWithWaitList(cl_command_queue, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueBarrierWithWaitList(cl_command_queue, cl_uint, const cl_event*, cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueWaitForEvents(cl_command_queue, cl_uint, const cl_event*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clSetMemObjectDestructorCallback(cl_mem, void(*)(cl_mem, void*), void*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetEventInfo(cl_event, cl_event_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetEventProfilingInfo(cl_event, cl_profiling_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clWaitForEvents(cl_uint, const cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clFlush(cl_command_queue) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline void* clEnqueueMapBuffer(cl_command_queue, cl_mem, cl_bool, cl_map_flags, size_t, size_t, cl_uint, const cl_event*, cl_event*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueUnmapMemObject(cl_command_queue, cl_mem, void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueReadBuffer(cl_command_queue, cl_mem, cl_bool, size_t, size_t, void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueWriteBuffer(cl_command_queue, cl_mem, cl_bool, size_t, size_t, const void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueCopyBuffer(cl_command_queue, cl_mem, cl_mem, size_t, size_t, size_t, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueReadImage(cl_command_queue, cl_mem, cl_bool, const size_t*, const size_t*, size_t, size_t, void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueWriteImage(cl_command_queue, cl_mem, cl_bool, const size_t*, const size_t*, size_t, size_t, const void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueCopyImage(cl_command_queue, cl_mem, cl_mem, const size_t*, const size_t*, const size_t*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueCopyImageToBuffer(cl_command_queue, cl_mem, cl_mem, const size_t*, const size_t*, size_t, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl;  return CL_SUCCESS; }
+inline cl_int clEnqueueCopyBufferToImage(cl_command_queue, cl_mem, cl_mem, size_t, const size_t*, const size_t*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueMarkerWithWaitList(cl_command_queue, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueBarrierWithWaitList(cl_command_queue, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clEnqueueWaitForEvents(cl_command_queue, cl_uint, const cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clSetMemObjectDestructorCallback(cl_mem, void(*)(cl_mem, void*), void*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 typedef void* cl_command_buffer_khr;
-inline cl_program clLinkProgram(cl_context, cl_uint, const cl_device_id*, const char*, cl_uint, const cl_program*, void(*)(cl_program, void*), void*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
-inline cl_int clGetKernelArgInfo(cl_kernel, cl_uint, cl_kernel_arg_info, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetImageRequirementsInfoEXT(cl_context, const cl_mem_properties*, cl_mem_flags, const cl_image_format*, const cl_image_desc*, cl_image_requirements_info_ext, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clCreateSubDevicesEXT(cl_device_id, const cl_device_partition_property*, cl_uint, cl_device_id*, cl_uint*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_context clCreateContextFromType(const cl_context_properties*, cl_device_type, void(*)(const char*, const void*, size_t, void*), void*, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
-inline cl_int clGetMemObjectInfo(cl_mem, cl_mem_info, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetProgramBuildInfo(cl_program, cl_device_id, cl_program_build_info, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetKernelInfo(cl_kernel, cl_kernel_info, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetKernelWorkGroupInfo(cl_kernel, cl_device_id, cl_kernel_work_group_info, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetCommandQueueInfo(cl_command_queue, cl_command_queue_info, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetPlatformInfo(cl_platform_id, cl_platform_info, size_t, void*, size_t*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_program clLinkProgram(cl_context, cl_uint, const cl_device_id*, const char*, cl_uint, const cl_program*, void(*)(cl_program, void*), void*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
+inline cl_int clGetKernelArgInfo(cl_kernel, cl_uint, cl_kernel_arg_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetImageRequirementsInfoEXT(cl_context, const cl_mem_properties*, cl_mem_flags, const cl_image_format*, const cl_image_desc*, cl_image_requirements_info_ext, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clCreateSubDevicesEXT(cl_device_id, const cl_device_partition_property*, cl_uint, cl_device_id*, cl_uint*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_context clCreateContextFromType(const cl_context_properties*, cl_device_type, void(*)(const char*, const void*, size_t, void*), void*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
+inline cl_int clGetMemObjectInfo(cl_mem, cl_mem_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetProgramBuildInfo(cl_program, cl_device_id, cl_program_build_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetKernelInfo(cl_kernel, cl_kernel_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetKernelWorkGroupInfo(cl_kernel, cl_device_id, cl_kernel_work_group_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetCommandQueueInfo(cl_command_queue, cl_command_queue_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetPlatformInfo(cl_platform_id a, cl_platform_info b , size_t c , void* d, size_t* e) { return call_clGetPlatformInfo(a, b, c, d, e); }
 inline cl_int clGetDeviceInfo(cl_device_id a, cl_device_info b, size_t c, void* d, size_t* e) { return call_clGetDeviceInfo(a, b, c, d, e); }
-inline cl_int clCreateKernelsInProgram(cl_program, cl_uint, cl_kernel*, cl_uint*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_kernel clCloneKernel(cl_kernel, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
-inline cl_int clSetKernelExecInfo(cl_kernel, cl_kernel_exec_info, size_t, const void*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_event clCreateUserEvent(cl_context, cl_int*) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl;  return nullptr; }
+inline cl_int clCreateKernelsInProgram(cl_program a, cl_uint b , cl_kernel* c , cl_uint* d) { return call_clCreateKernelsInProgram(a, b, c, d); }
+inline cl_kernel clCloneKernel(cl_kernel, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
+inline cl_int clSetKernelExecInfo(cl_kernel, cl_kernel_exec_info, size_t, const void*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_event clCreateUserEvent(cl_context, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl;  return nullptr; }
 //
-inline cl_int clReleaseDevice(cl_device_id device) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseEvent(cl_event event) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainDevice(cl_device_id device) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainProgram(cl_program program) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainKernel(cl_kernel kernel) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainCommandQueue(cl_command_queue queue) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainContext(cl_context context) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetProgramInfo(cl_program program, cl_program_info param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clCreateSubDevices(cl_device_id in_device, const cl_device_partition_property* properties, cl_uint num_entries, cl_device_id* out_devices, cl_uint* num_devices) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetContextInfo(cl_context context, cl_context_info param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_mem clCreateImage(cl_context context, cl_mem_flags flags, const cl_image_format* image_format, const cl_image_desc* image_desc, void* host_ptr, cl_int* errcode_ret) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseDevice(cl_device_id device) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseEvent(cl_event event) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clRetainDevice(cl_device_id device) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clRetainProgram(cl_program program) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clRetainKernel(cl_kernel kernel) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clRetainCommandQueue(cl_command_queue queue) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clRetainContext(cl_context context) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetProgramInfo(cl_program program, cl_program_info param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clCreateSubDevices(cl_device_id in_device, const cl_device_partition_property* properties, cl_uint num_entries, cl_device_id* out_devices, cl_uint* num_devices) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clGetContextInfo(cl_context context, cl_context_info param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_mem clCreateImage(cl_context context, cl_mem_flags flags, const cl_image_format* image_format, const cl_image_desc* image_desc, void* host_ptr, cl_int* errcode_ret) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_program clCreateProgramWithBinary(cl_context context, cl_uint num_devices, const cl_device_id* device_list, const size_t* lengths, const unsigned char** binaries, cl_int* binary_status, cl_int* errcode_ret) { return call_clCreateProgramWithBinary(context, num_devices, device_list, lengths, binaries, binary_status, errcode_ret); }
-inline cl_command_queue clCreateCommandQueueWithProperties(cl_context context, cl_device_id device, const cl_queue_properties* properties, cl_int* errcode_ret) { GPU_DEBUG_LOG << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
+inline cl_command_queue clCreateCommandQueueWithProperties(cl_context context, cl_device_id device, const cl_queue_properties* properties, cl_int* errcode_ret) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
 // Define a size_type to represent a correctly resolved size_t
 #if defined(CL_HPP_ENABLE_SIZE_T_COMPATIBILITY)
 namespace cl {
@@ -3154,7 +3154,7 @@ public:
     cl_int
     unloadCompiler()
     {
-        return ::clUnloadPlatformCompiler(object_);
+        return call_clUnloadPlatformCompiler(object_);
     }
 #endif // CL_HPP_TARGET_OPENCL_VERSION >= 120
 }; // class Platform
@@ -3165,7 +3165,7 @@ inline cl_int Device::createSubDevices(const cl_device_partition_property* prope
                          vector<Device>* devices)
 {
     cl_uint n = 0;
-    cl_int err = clCreateSubDevices(object_, properties, 0, nullptr, &n);
+    cl_int err = call_clCreateSubDevices(object_, properties, 0, nullptr, &n);
     if (err != CL_SUCCESS)
     {
         return detail::errHandler(err, __CREATE_SUB_DEVICES_ERR);
