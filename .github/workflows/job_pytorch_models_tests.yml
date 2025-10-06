@@ -74,7 +74,8 @@ jobs:
       - name: Setup Variables
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
-          echo "HUGGINGFACE_HUB_CACHE=$HF_HUB_CACHE" >> "$GITHUB_ENV"
+          echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "HF_HUB_OFFLINE=1" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO artifacts
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
@@ -118,6 +119,7 @@ jobs:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+          HF_HUB_OFFLINE: 0  # Can't use offline mode - these tests use `model_info` call, which can't be cached
 
       - name: PagedAttention Test
         if: ${{ inputs.model_scope == 'precommit' }}
