@@ -9,7 +9,7 @@ import importlib as importlib
 import os as os
 import sys as sys
 import typing
-__all__ = ['Callable', 'LazyLoader', 'ModuleType', 'Path', 'classproperty', 'deprecated', 'deprecatedclassproperty', 'get_cmake_path', 'importlib', 'os', 'sys', 'wraps']
+__all__: list[str] = ['Callable', 'LazyLoader', 'ModuleType', 'Path', 'classproperty', 'deprecated', 'deprecatedclassproperty', 'get_cmake_path', 'importlib', 'os', 'sys', 'wraps']
 class LazyLoader:
     """
     A class to lazily load a module, importing it only when an attribute is accessed.

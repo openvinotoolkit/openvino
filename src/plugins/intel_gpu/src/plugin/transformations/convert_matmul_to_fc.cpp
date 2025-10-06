@@ -13,10 +13,15 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/multiply.hpp"
+
+#include "compressed_weights_pattern.hpp"
 
 namespace ov::intel_gpu {
 
-ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
+ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad) {
+    using namespace ov::pass::pattern;
     auto static_rank_gt_1 = [](const ov::Output<ov::Node>& output) {
         const auto& r = output.get_partial_shape().rank();
         return r.is_static() && r.get_length() > 1;
@@ -25,13 +30,18 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         const auto& pshape = output.get_partial_shape();
         return ov::op::util::is_on_constant_path(output) &&
                static_rank_gt_1(output) &&
-               pshape.is_static() &&
-               std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& x) { return x != 1; }) <= 2;
+               pshape.is_static();
     };
 
+    FC_COMPRESSED_WEIGHT_PATTERN
+
     auto activations_m = ov::pass::pattern::any_input(static_rank_gt_1);
-    auto weights_m = ov::pass::pattern::any_input(weights_path);
-    auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({ activations_m, weights_m }, ov::pass::pattern::has_static_rank());
+    auto general_weights_m = ov::pass::pattern::any_input(weights_path);
+
+    auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(
+        ov::OutputVector{compressed_weights_input_m, general_weights_m});
+    auto matmul_m =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m}, ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -86,7 +96,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
          *  for example: [2, 32, 64] [3, 64, 64] it will raise an exception.
          */
 
-        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
+        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul, &supports_immad](const bool is_compressed_weight)
+            -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
             ov::PartialShape shape_a_aligned(shape_a);
             ov::PartialShape shape_b_aligned(shape_b);
             size_t max_size = std::max(rank_a, rank_b);
@@ -108,7 +119,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
             for (size_t i = 0; i < max_size - 2; ++i) {
                 if (shape_b_aligned[i] == 1) {
                     shape_b_aligned[i] = shape_a_aligned[i];
-                } else {
+                } else if (!is_compressed_weight || !supports_immad) {
                     return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
                 }
             }
@@ -141,10 +152,12 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
             return transpose;
         };
 
+        bool is_compressed_weight = ((pattern_map.find(compressed_weights_input_m) != pattern_map.end())
+                                    && (pattern_map.at(compressed_weights_input_m).get_node_shared_ptr() != nullptr));
         bool success = true;
         ov::PartialShape shape_a_aligned;
         ov::PartialShape shape_b_aligned;
-        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes();
+        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes(is_compressed_weight);
         if (!success) {
             return false;
         }

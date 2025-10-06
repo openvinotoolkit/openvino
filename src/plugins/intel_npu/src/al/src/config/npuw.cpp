@@ -66,8 +66,11 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
     desc.add<NPUW_LLM_CACHE_ROPE>();
     desc.add<NPUW_LLM_PREFILL_CHUNK_SIZE>();
+    desc.add<NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
     desc.add<NPUW_LLM_PREFILL_HINT>();
     desc.add<NPUW_LLM_GENERATE_HINT>();
+    desc.add<NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    desc.add<NPUW_LLM_GENERATE_ATTENTION_HINT>();
     desc.add<NPUW_LLM_SHARED_HEAD>();
 }
 

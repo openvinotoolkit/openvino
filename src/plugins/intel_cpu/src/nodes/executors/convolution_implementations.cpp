@@ -6,7 +6,10 @@
 #include <vector>
 
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_format_filter.hpp"
 #include "nodes/executors/convolution_config.hpp"
+#include "nodes/executors/debug_messages.hpp"
+#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
@@ -17,19 +20,17 @@
 #include "utils/arch_macros.h"
 #include "utils/general_utils.h"
 
-#if !defined(OPENVINO_ARCH_RISCV64)
-#    include "memory_format_filter.hpp"
-#    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
-#endif
-
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "post_ops.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OV_CPU_WITH_ACL)
-#    include "nodes/executors/debug_messages.hpp"
 #    include "nodes/executors/executor.hpp"
+#endif
+
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/acl/acl_conv.hpp"
 #endif
 
 namespace ov::intel_cpu {
@@ -67,10 +68,24 @@ static const TypeMapping dnnlConvTypeMapping {
     {{_any, _any, _any, _any},                                {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
 };
+
+static const TypeMapping aclLowpConvTypeMapping {
+    // {src, wei, bia, dst}                            pt<src, wei, bias, dst>
+    {{_u8, _u8 | _i8, _any, _u8},                      {bypass(), bypass(), just<i32>(), bypass()}},
+    {{_i8, _i8, _any, _i8},                            {bypass(), bypass(), just<i32>(), bypass()}},
+};
 // clang-format on
 struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
         return createOptimalConfigCommon(config, dnnlConvTypeMapping, layoutConfig, dnnlConvolutionMappingNotation);
+    }
+
+    LayoutConfig layoutConfig;
+};
+
+struct CreateOptimalConfigAclLowp {
+    std::optional<ConvConfig> operator()(const ConvConfig& config) const {
+        return createOptimalConfigCommon(config, aclLowpConvTypeMapping, layoutConfig, dnnlConvolutionMappingNotation);
     }
 
     LayoutConfig layoutConfig;
@@ -236,12 +251,39 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
-
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 return true;
             },
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
+            )
+        OV_CPU_INSTANCE_RISCV64(
+            "convolution_dnnl_ref_ncsp", ExecutorType::Dnnl, OperationType::Convolution,
+            // supports
+            [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(config.attrs.postOps.empty(), UNSUPPORTED_POST_OPS);
+                return MatchesMemoryFormatFilter(config.descs,
+                                                 LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp},
+                                                 memoryFormatFilter,
+                                                 dnnlConvolutionMappingNotation);
+            },
+            // createOptimalConfig
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
+            AcceptsAnyShape<ConvAttrs>,
+            CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
+            )
+        OV_CPU_INSTANCE_ACL(
+            "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution,
+            // supports
+            [](const ConvConfig& config, [[maybe_unused]] const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(ACLConvolutionExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
+            },
+            CreateOptimalConfigAclLowp{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
+            AcceptsAnyShape<ConvAttrs>,
+            CreateDefault<ACLConvolutionExecutor, ConvAttrs>{}
             )
     };
 

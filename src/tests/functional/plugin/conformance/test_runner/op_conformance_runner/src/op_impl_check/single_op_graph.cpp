@@ -841,6 +841,23 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::OneHot> &n
     return std::make_shared<ov::Model>(results, params, "OneHot-1");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::OneHot>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{})};
+    const auto depth = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{3});
+    const auto onvalue = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{1});
+    const auto offvalue =
+        std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int32_t>{0});
+    const int32_t axes = 0;
+    const auto onehot = std::make_shared<ov::op::v16::OneHot>(params[0],
+                                                              depth,
+                                                              onvalue,
+                                                              offvalue,
+                                                              axes,
+                                                              op::v16::OneHot::NegativeIndicesMode::NORMALIZE);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(onehot)};
+    return std::make_shared<ov::Model>(results, params, "OneHot-16");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::PRelu> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{6})};
     const auto slope = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{2});

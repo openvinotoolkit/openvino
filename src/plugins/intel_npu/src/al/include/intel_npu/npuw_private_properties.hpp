@@ -424,6 +424,14 @@ static constexpr ov::Property<uint32_t> seq_len_dim{"NPUW_LLM_SEQ_LEN_DIM"};
 static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"};
 
 /**
++ * @brief
++ * Type: uint32_t.
++ * Desirable max input token length for generation.
++ * Default value: 1.
++ */
+static constexpr ov::Property<uint32_t> max_generation_token_len{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN"};
+
+/**
  * @brief
  * Type: uint32_t.
  * Desirable min response length.
@@ -500,6 +508,14 @@ static constexpr ov::Property<ov::AnyMap> additional_prefill_config{"++NPUW_LLM_
 /**
  * @brief
  * Type: std::string.
+ * Hint for the attention handling in prefill stage. NPUW will use optimal configuration based on the passed preference
+ * via hint. Possible values: "DYNAMIC", "STATIC". Default value: "STATIC".
+ */
+static constexpr ov::Property<std::string> prefill_attn_hint{"NPUW_LLM_PREFILL_ATTENTION_HINT"};
+
+/**
+ * @brief
+ * Type: std::string.
  * Hint for generation stage. NPUW will use optimal configuration based on the passed preference via hint.
  * Passing this hint with "NPUW_LLM_GENERATE_CONFIG" will generate a error.
  * Possible values: "FAST_COMPILE", "BEST_PERF".
@@ -527,6 +543,14 @@ static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CON
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> additional_generate_config{"++NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: std::string.
+ * Hint for the attention handling in generate stage. NPUW will use optimal configuration based on the passed preference
+ * via hint. Possible values: "DYNAMIC", "STATIC". Default value: "STATIC".
+ */
+static constexpr ov::Property<std::string> generate_attn_hint{"NPUW_LLM_GENERATE_ATTENTION_HINT"};
 
 /**
  * @brief

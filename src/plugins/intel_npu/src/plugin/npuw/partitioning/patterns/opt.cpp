@@ -1895,7 +1895,8 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
         auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_res);
 
-        if (ov::element::f32 == matched_weight->get_element_type()) {
+        if (ov::element::f32 == matched_weight->get_element_type() &&
+            matched_matmul->output(0).get_target_inputs().size() == 1) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
             ctx.get().to_f16(matched_weight);
