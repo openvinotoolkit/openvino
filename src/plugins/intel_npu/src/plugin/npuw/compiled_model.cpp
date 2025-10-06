@@ -226,7 +226,11 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Identify based on compiler version, user config and pattern
     ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
 
-    auto partitioning = getPartitioning(model, m_cfg, ctx);
+    ov::npuw::Partitioning partitioning;
+    m_profile["partitioning"].record([&]() {
+        partitioning = getPartitioning(model, m_cfg, ctx);
+    });
+
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
@@ -528,6 +532,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
     ::intel_npu::registerNPUWOptions(*m_options_desc);
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
+}
+
+void ov::npuw::CompiledModel::init_profiling() {
+    // to be called from contructors
+    m_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_profile.area = m_name + "/compilation";
 }
 
 bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model,
@@ -1240,7 +1250,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     }
 
     // Evaluate and allocate all LazyTensors inside the bank
-    m_weights_bank->evaluate_and_allocate();
+    m_profile["weights bank"].record([&]() {
+        m_weights_bank->evaluate_and_allocate();
+    });
 
     // Set evaluated and allocated ov::Tensors to closures
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
@@ -1452,7 +1464,10 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     }
 
     try {
-        m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
+        // WARNING: These requests can be issues in parallel, so timer should be thread-safe
+        m_profile["compile/" + device_to_try].record([&]() {
+            m_compiled_submodels[id].compiled_model = compile_submodel(m_compiled_submodels[id].model, device_to_try);
+        });
     } catch (const std::exception& ex) {
         LOG_ERROR("Subgraph [" << id << "] Failed to compile: " << std::endl << ex.what());
         dump_on_fail(id, device_to_try, ex.what());
