@@ -6,7 +6,6 @@
 
 #include <intel_npu/npu_private_properties.hpp>
 
-#include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 
 namespace {

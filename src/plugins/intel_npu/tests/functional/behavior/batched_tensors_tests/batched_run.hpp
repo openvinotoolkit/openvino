@@ -9,13 +9,8 @@
 #include <gtest/gtest.h>
 
 #include "common/npu_test_env_cfg.hpp"
-#include "common/utils.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
-#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/core/type/element_iterator.hpp"
-#include "openvino/op/op.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
