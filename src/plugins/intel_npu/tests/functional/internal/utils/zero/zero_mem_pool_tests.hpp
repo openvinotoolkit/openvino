@@ -159,7 +159,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
     }
 }
 
-TEST_P(ZeroMemPoolTests, MultiThreading1) {
+TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     const int threads_no = 128;
