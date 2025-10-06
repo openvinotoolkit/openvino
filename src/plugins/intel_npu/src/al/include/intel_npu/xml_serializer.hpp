@@ -34,12 +34,26 @@ public:
                                   false,
                                   ov::element::dynamic,
                                   false),
-          m_weightless_writer(constant_write_handler) {}
+          m_weightless_constant_writer(constant_write_handler),
+          m_base_constant_writer(std::ref(constant_write_handler)) {}
 
 private:
     ov::util::ConstantWriter& get_constant_write_handler() override;
 
-    WeightlessWriter m_weightless_writer;
+    bool append_node_attributes(ov::Node& node) override;
+
+    std::unique_ptr<ov::util::XmlSerializer> make_visitor(pugi::xml_node& data,
+                                                          const std::string& node_type_name,
+                                                          ov::util::ConstantWriter& constant_write_handler,
+                                                          int64_t version,
+                                                          bool,
+                                                          bool,
+                                                          ov::element::Type,
+                                                          bool) const override;
+
+    WeightlessWriter m_weightless_constant_writer;
+    std::reference_wrapper<ov::util::ConstantWriter> m_base_constant_writer;
+    bool m_use_weightless_writer = false;
 };
 
 class StreamSerialize : public ov::pass::StreamSerialize {

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "vcl_serializer.hpp"
+
 #include <cstdint>
 #include <istream>
 #include <mutex>
@@ -16,7 +18,6 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
-#include "vcl_serializer.hpp"
 
 namespace {
 
@@ -140,13 +141,16 @@ std::string rankToLegacyLayoutString(const size_t rank) {
     }
 }
 
-void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
+void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model, const size_t weightSizeThreshold) {
     for (auto&& node : model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(node)) {
             continue;
         }
 
         auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        if (constantNode->get_byte_size() < weightSizeThreshold) {
+            continue;
+        }
 
         ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
         runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
@@ -184,8 +188,10 @@ VCLSerializerWithWeightsCopy::VCLSerializerWithWeightsCopy(const std::shared_ptr
 
 VCLSerializerWithoutWeightsCopy::VCLSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
                                                                  const ze_graph_compiler_version_info_t compilerVersion,
-                                                                 const uint32_t supportedOpset)
-    : VCLSerializerBase(origModel, compilerVersion, supportedOpset) {
+                                                                 const uint32_t supportedOpset,
+                                                                 const size_t weightsSizeThreshold)
+    : VCLSerializerBase(origModel, compilerVersion, supportedOpset),
+      _weightsSizeThreshold(weightsSizeThreshold) {
     _logger.setName("VCLSerializerWithoutWeightsCopy");
 };
 
@@ -410,11 +416,16 @@ SerializedIR VCLSerializerWithoutWeightsCopy::serialize() {
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          const ze_graph_compiler_version_info_t compilerVersion,
                          const uint32_t supportedOpsetVersion,
-                         const bool useBaseModelSerializer) {
+                         const bool useBaseModelSerializer,
+                         const size_t weightsSizeThreshold) {
     if (!useBaseModelSerializer) {
         const std::shared_ptr<ov::Model> clonedModel = model->clone();
-        storeWeightsPointerAttribute(clonedModel);
-        return VCLSerializerWithoutWeightsCopy(clonedModel, compilerVersion, supportedOpsetVersion).serialize();
+        storeWeightsPointerAttribute(clonedModel, weightsSizeThreshold);
+        return VCLSerializerWithoutWeightsCopy(clonedModel,
+                                               compilerVersion,
+                                               supportedOpsetVersion,
+                                               weightsSizeThreshold)
+            .serialize();
     }
     return VCLSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
 }

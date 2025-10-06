@@ -71,7 +71,8 @@ class VCLSerializerWithoutWeightsCopy : public VCLSerializerBase {
 public:
     VCLSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
                                     const ze_graph_compiler_version_info_t compilerVersion,
-                                    const uint32_t supportedOpset = 11);
+                                    const uint32_t supportedOpset = 11,
+                                    const size_t weightsSizeThreshold = 0);
 
     SerializedIR serialize() override;
 
@@ -83,6 +84,7 @@ private:
     void countModelSize();
 
     uint64_t _serializedModelSize = 0;
+    const size_t _weightsSizeThreshold = 0;
 };
 
 /**
@@ -102,7 +104,8 @@ private:
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                          ze_graph_compiler_version_info_t compilerVersion,
                          const uint32_t supportedOpsetVersion,
-                         const bool useBaseModelSerializer = true);
+                         const bool useBaseModelSerializer = true,
+                         const size_t weightsSizeThreshold = 0);
 
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 

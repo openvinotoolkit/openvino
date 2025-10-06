@@ -42,9 +42,13 @@ ov::Any NPUXmlDeserializer::parse_weights_pointer_attribute(const pugi::xml_node
 
 void NPUXmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
     const auto node = get_node();
-    const auto& dn = node.child("data");
-
     auto wl_attr = parse_weights_pointer_attribute(node);
+    if (!wl_attr.is<WeightsPointerAttribute>()) {
+        ov::util::XmlDeserializer::set_constant_num_buffer(adapter);
+        return;
+    }
+
+    const auto& dn = node.child("data");
     const auto el_type = ov::element::Type(ov::util::pugixml::get_str_attr(dn, "element_type"));
 
     char* ptr = reinterpret_cast<char*>(wl_attr.as<WeightsPointerAttribute>().memory_pointer);

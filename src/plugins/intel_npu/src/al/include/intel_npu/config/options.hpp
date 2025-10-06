@@ -1425,7 +1425,7 @@ struct USE_BASE_MODEL_SERIALIZER final : OptionBase<USE_BASE_MODEL_SERIALIZER, b
     }
 };
 
-struct SERIALIZATION_WEIGHTS_SIZE_THRESHOLD final : OptionBase<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD, bool> {
+struct SERIALIZATION_WEIGHTS_SIZE_THRESHOLD final : OptionBase<SERIALIZATION_WEIGHTS_SIZE_THRESHOLD, size_t> {
     static std::string_view key() {
         return ov::intel_npu::serialization_weights_size_threshold.name();
     }
