@@ -61,7 +61,7 @@ public:
                        GraphIteratorProto* parent,
                        const int64_t input_idx,
                        const int64_t output_idx)
-        :  m_input_idx(input_idx),
+        : m_input_idx(input_idx),
           m_output_idx(output_idx) {
         m_tensor_meta_info.m_tensor_name = &name;
         m_tensor_meta_info.m_element_type = ov::element::dynamic;
