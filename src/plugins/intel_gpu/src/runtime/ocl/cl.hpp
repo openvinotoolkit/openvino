@@ -664,11 +664,11 @@ inline cl_int clSetKernelExecInfo(cl_kernel, cl_kernel_exec_info, size_t, const 
 inline cl_event clCreateUserEvent(cl_context, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl;  return nullptr; }
 //
 inline cl_int clReleaseDevice(cl_device_id device) { return call_clReleaseDevice(device); }
-inline cl_int clReleaseEvent(cl_event event) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clReleaseEvent(cl_event event) { return call_clReleaseEvent(event); }
 inline cl_int clRetainDevice(cl_device_id device) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_int clRetainProgram(cl_program program) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_int clRetainKernel(cl_kernel kernel) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainCommandQueue(cl_command_queue queue) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
+inline cl_int clRetainCommandQueue(cl_command_queue queue) { return call_clRetainCommandQueue(queue); }
 inline cl_int clRetainContext(cl_context context) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
 inline cl_int clGetProgramInfo(cl_program program, cl_program_info param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret) { return call_clGetProgramInfo(program, param_name, param_value_size, param_value, param_value_size_ret); }
 inline cl_int clCreateSubDevices(cl_device_id in_device, const cl_device_partition_property* properties, cl_uint num_entries, cl_device_id* out_devices, cl_uint* num_devices) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
