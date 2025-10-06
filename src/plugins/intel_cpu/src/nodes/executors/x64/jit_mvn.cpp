@@ -85,29 +85,8 @@ MVNJitExecutor::MVNJitExecutor(MVNAttrs mvnAttrs, MemoryArgs memory, ExecutorCon
       memoryArgs(std::move(memory)),
       context(std::move(contextPtr)),
       shape5D(attrs.shape5D) {
-    // Compose post-ops attributes based on fused ops and memory args
-    dnnl::primitive_attr computedAttr;
-    setPostOps(computedAttr, true);
-
-    const auto& src_prc = memoryArgs.at(ARG_SRC_0)->getDesc().getPrecision();
-    const auto& dst_prc = memoryArgs.at(ARG_DST)->getDesc().getPrecision();
-
-    // Create a key for caching using computed attributes and IO types
-    MVNKey key{attrs, computedAttr, src_prc, dst_prc};
-
-    auto builder = [&](const MVNKey& key) -> std::shared_ptr<legacy::MVNJitExecutorLegacy> {
-        return std::make_shared<legacy::MVNJitExecutorLegacy>(key.mvnAttrs, key.attr, key.src_prc, key.dst_prc);
-    };
-
-    // Use context's cache if available
-    if (context) {
-        auto cache = context->getRuntimeCache();
-        auto result = cache->getOrCreate(key, builder);
-        legacyJitExecutor = result.first;
-    } else {
-        // Fallback if no context available
-        legacyJitExecutor = builder(key);
-    }
+    // Do not finalize kernel here: MVN node finalizes attrs (layout, exec flags)
+    // in prepareParams(). We'll construct/reuse the legacy JIT in update().
 }
 
 void MVNJitExecutor::executeImpl(const MemoryArgs& memory) {
@@ -126,13 +105,37 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
     }
 
     // Use DnnlPostOpsComposer to convert PostOps to dnnl format
-    // For post-ops, we need to use the actual channel size and create appropriate output dimensions
+    // For post-ops, we need to use the actual channel size and proper channel axis
     VectorDims outputDims = shape5D;
-    size_t idxOC = attrs.layout == MVNLayoutType::mvn_by_channel ? outputDims.size() - 1 : 1;
 
-    // Override the channel dimension with the actual channel size
-    // This ensures post-ops scale/shift sizes match the expected channel count
-    if (attrs.actualChannelSize > 0) {
+    // Derive logical channel axis (idxOC) consistent with MVN::prepareParams mapping
+    size_t idxOC = 1;  // default (N, C, D, H, W)
+    if (attrs.layout == MVNLayoutType::mvn_by_channel) {
+        idxOC = outputDims.size() - 1;  // NHWC-like
+    } else if (attrs.layout == MVNLayoutType::mvn_planar) {
+        if (!attrs.execAcrossChannels_) {
+            // Low-rank across-channels transformed cases
+            if (outputDims.size() == 5) {
+                // 1D across: {1,1,1,1,C}
+                if (outputDims[0] == 1 && outputDims[1] == 1 && outputDims[2] == 1 && outputDims[4] == attrs.actualChannelSize) {
+                    idxOC = 4;
+                }
+                // 2D across: {1,N,1,C,1}
+                else if (outputDims[0] == 1 && outputDims[2] == 1 && outputDims[3] == attrs.actualChannelSize) {
+                    idxOC = 3;
+                } else {
+                    idxOC = 1;
+                }
+            }
+        } else {
+            idxOC = 1;
+        }
+    } else {  // mvn_block
+        idxOC = 1;
+    }
+
+    // Override the channel dimension with the actual channel size to match composer expectations
+    if (attrs.actualChannelSize > 0 && idxOC < outputDims.size()) {
         outputDims[idxOC] = attrs.actualChannelSize;
     }
 
@@ -147,11 +150,9 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
                 std::vector<float> adjustedScales = scaleShiftOp.scales();
                 std::vector<float> adjustedShifts = scaleShiftOp.shifts();
 
-                // For MVN, if we're processing across channels, the actual output channel size might be shape5D[1]
+                // Expected channel size must align with logical channel dim
+                // computed in MVN::prepareParams (attrs.actualChannelSize)
                 size_t expectedChannelSize = attrs.actualChannelSize;
-                if (shape5D.size() > 1 && !attrs.execAcrossChannels_) {
-                    expectedChannelSize = shape5D[1];
-                }
 
                 // Check if scales have broadcasting pattern [1,C,1,1] or just C values
                 if (adjustedScales.size() != expectedChannelSize && adjustedScales.size() != 1) {
@@ -207,6 +208,7 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
         postOpsMemoryArgs[ARG_BIAS] = std::make_shared<Memory>(context->getEngine(), biasDesc);
     }
 
+    // Prefer legacy-style depthwise/quantization post-ops for MVN JIT to match legacy injectors
     DnnlPostOpsComposer composer(adjustedPostOps.empty() ? attrs.postOps : adjustedPostOps,
                                  context->getEngine(),
                                  outputDims,
@@ -214,47 +216,73 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
                                  isINT8,
                                  1 << 0,  // weight scale mask per channel
                                  postOpsMemoryArgs,
-                                 outDataType);
+                                 outDataType,
+                                 std::vector<float>{},
+                                 PostOpsMode::ForcedLegacy,
+                                 false);
 
     auto primAttrs = composer.compose();
     attr = primAttrs.attr;
 
-    // Clear previous data
-    postOpsDataPtrs.clear();
-    postOpsDataBuffer.clear();
+    // Build legacy-compatible pointer table for post-ops data in the same order as attrs.postOps
     postOpsPtrArray.clear();
     postOpsMemory.clear();
+    postOpsDataBuffer.clear();
 
-    // For legacy MVN, we need to create an array of pointers
-    // The legacy implementation expects an array where each element is a pointer to post-op data
+    auto append_array = [&](const std::vector<float>& src, size_t count) -> void* {
+        size_t bytes = count * sizeof(float);
+        size_t offset = postOpsDataBuffer.size();
+        postOpsDataBuffer.resize(offset + bytes);
+        std::memcpy(postOpsDataBuffer.data() + offset, src.data(), bytes);
+        return reinterpret_cast<void*>(postOpsDataBuffer.data() + offset);
+    };
 
-    // Collect all post-ops data memory from DnnlPostOpsComposer
-    for (const auto& cpuArg : primAttrs.cpuArgs) {
-        // Check if this is post-op data
-        if (cpuArg.first >= DNNL_ARG_ATTR_MULTIPLE_POST_OP(0)) {
-            // Keep the memory alive by storing the MemoryPtr
-            postOpsMemory.push_back(cpuArg.second);
+    const size_t C = attrs.actualChannelSize > 0 ? attrs.actualChannelSize : (shape5D.size() > 1 ? shape5D[1] : 1);
+    for (const auto& postOp : (attrs.postOps)) {
+        if (postOp.type() == typeid(FakeQuantizePostOp)) {
+            const auto& fq = std::any_cast<const FakeQuantizePostOp&>(postOp);
+            auto expand = [&](const std::vector<float>& v) {
+                if (v.size() == C) return v;
+                if (v.size() == 1) return std::vector<float>(C, v[0]);
+                return v;  // fallback
+            };
 
-            const auto* memPtr = cpuArg.second.get();
-            if (memPtr && memPtr->getData()) {
-                postOpsDataPtrs.push_back(memPtr->getData());
-            }
-        }
-    }
+            auto cropLow = expand(fq.cropLow());
+            auto cropHigh = expand(fq.cropHigh());
+            auto inputScale = expand(fq.inputScale());
+            auto inputShift = expand(fq.inputShift());
+            auto outputScale = expand(fq.outputScale());
+            auto outputShift = expand(fq.outputShift());
 
-    // For legacy MVN, we need to create an array of float* pointers
-    // The legacy implementation increments by sizeof(float*) when accessing post-ops data
-    if (!postOpsDataPtrs.empty()) {
-        // Legacy MVN expects an array of pointers where each pointer points to the data for one post-op
-        // For FakeQuantize, this should be a pointer to a buffer containing:
-        // [cropLow][cropHigh][inputScale][inputShift][outputScale][outputShift]
+            void* p0 = append_array(cropLow, cropLow.size());
+            void* p1 = append_array(cropHigh, cropHigh.size());
+            void* p2 = append_array(inputScale, inputScale.size());
+            void* p3 = append_array(inputShift, inputShift.size());
+            void* p4 = append_array(outputScale, outputScale.size());
+            void* p5 = append_array(outputShift, outputShift.size());
 
-        // Create the pointer array that legacy MVN expects
-        postOpsPtrArray.clear();
-
-        // For each post-op data pointer, add it to the array
-        for (const auto& ptr : postOpsDataPtrs) {
-            postOpsPtrArray.push_back(const_cast<void*>(ptr));
+            postOpsPtrArray.push_back(p0);
+            postOpsPtrArray.push_back(p1);
+            postOpsPtrArray.push_back(p2);
+            postOpsPtrArray.push_back(p3);
+            postOpsPtrArray.push_back(p4);
+            postOpsPtrArray.push_back(p5);
+        } else if (postOp.type() == typeid(ScaleShiftPostOp)) {
+            const auto& ss = std::any_cast<const ScaleShiftPostOp&>(postOp);
+            auto expand = [&](const std::vector<float>& v) {
+                if (v.size() == C) return v;
+                if (v.size() == 1) return std::vector<float>(C, v[0]);
+                return v;
+            };
+            auto scales = expand(ss.scales());
+            auto shifts = expand(ss.shifts());
+            void* pw = append_array(scales, scales.size());
+            void* pb = append_array(shifts, shifts.size());
+            postOpsPtrArray.push_back(pw);
+            postOpsPtrArray.push_back(pb);
+        } else {
+            // Other activation post-ops do not require external buffers
+            continue;
         }
     }
 }
@@ -306,10 +334,75 @@ static VectorDims to5D(const VectorDims& dims, const MVNAttrs& attrs) {
 
 bool MVNJitExecutor::update(const MemoryArgs& memory) {
     memoryArgs = memory;
-    // Update computed shape from memory
+
+    // 1) Refresh shape mapping from current input dims
+    VectorDims in_dims;
     if (auto it = memory.find(ARG_SRC_0); it != memory.end()) {
-        shape5D = to5D(it->second->getStaticDims(), attrs);
+        in_dims = it->second->getStaticDims();
+        shape5D = to5D(in_dims, attrs);
     }
+
+    // 2) Derive runtime layout from actual memory descriptor
+    //    This reflects the selected PD (ncsp/nspc/blocked)
+    if (auto it = memory.find(ARG_SRC_0); it != memory.end()) {
+        auto md = it->second->getDescPtr();
+        if (md->hasLayoutType(LayoutType::nspc)) {
+            attrs.layout = MVNLayoutType::mvn_by_channel;
+        } else if (md->hasLayoutType(LayoutType::ncsp)) {
+            attrs.layout = MVNLayoutType::mvn_planar;
+        } else {
+            attrs.layout = MVNLayoutType::mvn_block;
+        }
+    }
+
+    // 3) Harmonize execAcrossChannels_ for low-rank across-cases to match node::transformTo5DCase
+    const size_t inRank = in_dims.size();
+    if ((inRank == 1 || inRank == 2) && attrs.initAcrossChannels_) {
+        // node::transformTo5DCase forces per-channel execution for low ranks
+        attrs.execAcrossChannels_ = false;
+    } else {
+        attrs.execAcrossChannels_ = attrs.initAcrossChannels_;
+    }
+
+    // 4) Compute actual channel size for post-ops composition
+    //    Default channel index in 5D is 1 (N,C,D,H,W)
+    size_t chIndex5D = 1;
+    if (attrs.layout == MVNLayoutType::mvn_planar) {
+        if (inRank == 1 && attrs.initAcrossChannels_) {
+            chIndex5D = 4;  // {1,1,1,1,C}
+        } else if (inRank == 2 && attrs.initAcrossChannels_) {
+            chIndex5D = 3;  // {1,N,1,C,1}
+        } else {
+            chIndex5D = 1;  // {N,C,...}
+        }
+    } else if (attrs.layout == MVNLayoutType::mvn_by_channel) {
+        chIndex5D = 4;      // NHWC-like channel index
+    } else {                // mvn_block
+        chIndex5D = 1;
+    }
+    attrs.actualChannelSize = shape5D.size() > chIndex5D ? shape5D[chIndex5D] : 1;
+
+    // 5) Compose post-ops with updated dims/layout and rebuild/reuse legacy JIT by key
+    dnnl::primitive_attr computedAttr;
+    setPostOps(computedAttr, true);
+
+    const auto& src_prc = memoryArgs.at(ARG_SRC_0)->getDesc().getPrecision();
+    const auto& dst_prc = memoryArgs.at(ARG_DST)->getDesc().getPrecision();
+
+    MVNKey key{attrs, computedAttr, src_prc, dst_prc};
+
+    auto builder = [&](const MVNKey& k) -> std::shared_ptr<legacy::MVNJitExecutorLegacy> {
+        return std::make_shared<legacy::MVNJitExecutorLegacy>(k.mvnAttrs, k.attr, k.src_prc, k.dst_prc);
+    };
+
+    if (context) {
+        auto cache = context->getRuntimeCache();
+        auto result = cache->getOrCreate(key, builder);
+        legacyJitExecutor = result.first;
+    } else {
+        legacyJitExecutor = builder(key);
+    }
+
     return true;
 }
 

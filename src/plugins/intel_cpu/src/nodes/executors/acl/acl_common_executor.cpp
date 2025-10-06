@@ -104,8 +104,9 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
     // Validate arm_compute::TensorInfo objects for specific ACL function
     auto tensorsInfoValidateStatus = validateTensorsInfo(aclMemoryInfos);
     if (!tensorsInfoValidateStatus) {
-        DEBUG_LOG("ACL operator validation failed: ", tensorsInfoValidateStatus.error_description());
-        return false;
+        OPENVINO_ASSERT(false,
+                        "ACL operator validation failed: ",
+                        tensorsInfoValidateStatus.error_description());
     }
 
     // Initialize arm_compute::Tensor objects

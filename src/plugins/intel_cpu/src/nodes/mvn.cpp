@@ -34,6 +34,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
+#include "nodes/fake_quantize.h"
 #include "post_ops.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
@@ -133,7 +134,23 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     } else if (auto mvnOp = ov::as_type_ptr<ov::op::v0::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = static_cast<float>(mvnOp->get_eps());
-        mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
+        // v0 may be constructed either with across_channels flag or with reduction axes.
+        // Prefer reduction axes if provided to derive across-channels semantics consistent with v6.
+        ov::AxisSet axes;
+        try {
+            axes = mvnOp->get_reduction_axes();
+        } catch (...) {
+            axes = {};
+        }
+        if (!axes.empty()) {
+            const auto inDataRank = getInputShapeAtPort(0).getRank();
+            // Channel axis for planar/block layouts is 1 when rank >= 2
+            const size_t chAxis = inDataRank >= 2 ? 1 : 0;
+            // Across-channels when channel axis is included in reduction axes
+            mvnAttrs.initAcrossChannels_ = axes.count(chAxis) > 0;
+        } else {
+            mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
+        }
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED("Node is not an instance of MVN from the operation set v0 or v6");
     }
@@ -260,6 +277,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
         }
     }
 
+    const bool prefer_nspc_for_across_low_rank =
+        (getInputShapeAtPort(0).getRank() <= 2) && mvnAttrs.initAcrossChannels_;
+
     if (enforce_formats) {
         // If formats enforced, and nspc variants exist, keep only nspc to avoid accidental planar selection
         if (!nspc_spds.empty()) {
@@ -272,9 +292,23 @@ void MVN::initSupportedPrimitiveDescriptors() {
                                                  other_spds.end());
         }
     } else {
-        // Preserve original order when no filter enforced
-        supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(), other_spds.begin(), other_spds.end());
-        supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(), nspc_spds.begin(), nspc_spds.end());
+        // Prefer NHWC for low-rank across-channels to match normalization axes
+        if (prefer_nspc_for_across_low_rank && !nspc_spds.empty()) {
+            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
+                                                 nspc_spds.begin(),
+                                                 nspc_spds.end());
+            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
+                                                 other_spds.begin(),
+                                                 other_spds.end());
+        } else {
+            // Preserve original order when no preference
+            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
+                                                 other_spds.begin(),
+                                                 other_spds.end());
+            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
+                                                 nspc_spds.begin(),
+                                                 nspc_spds.end());
+        }
     }
 }
 
@@ -307,19 +341,50 @@ void MVN::prepareParams() {
         mvnAttrs.layout = MVNLayoutType::mvn_block;
     }
 
-    // Determine actual channel size based on logical 5D shape (N, C, D, H, W)
-    // This is needed for post-ops to have correct channel dimension
-    if (shape5D.size() >= 2) {
-        mvnAttrs.actualChannelSize = shape5D[1];
-    } else if (shape5D.size() == 1) {
-        // For 1D case, the entire dimension might be channels
-        mvnAttrs.actualChannelSize = mvnAttrs.initAcrossChannels_ ? 1 : shape5D[0];
-    } else {
-        mvnAttrs.actualChannelSize = 1;
+    // Determine actual channel size for post-ops based on mapping and layout
+    // Default channel index in 5D is 1 (N, C, D, H, W)
+    size_t chIndex5D = 1;
+    const size_t inRank = in_dims.size();
+    if (mvnAttrs.layout == MVNLayoutType::mvn_planar) {
+        // For planar layout, some transformed ranks shift channel position in 5D
+        if (inRank == 1 && mvnAttrs.initAcrossChannels_) {
+            chIndex5D = 4;  // {1,1,1,1,C}
+        } else if (inRank == 2 && mvnAttrs.initAcrossChannels_) {
+            chIndex5D = 3;  // {1,N,1,C,1}
+        } else {
+            chIndex5D = 1;  // {N,C,...}
+        }
+    } else if (mvnAttrs.layout == MVNLayoutType::mvn_by_channel) {
+        chIndex5D = 4;      // channels are the last dim in 5D (NHWC-like)
+    } else {                // mvn_block
+        chIndex5D = 1;      // block layout base channel dim
     }
+    mvnAttrs.actualChannelSize = shape5D.size() > chIndex5D ? shape5D[chIndex5D] : 1;
 
-    // Populate post-ops from fused nodes (no adjustments)
+    // Populate post-ops from fused nodes
     mvnAttrs.postOps = getPostOps(fusedWith);
+
+    // Align with master semantics: if FakeQuantize is not fused but is the direct parent,
+    // inline it as a post-op to preserve numerics (especially important for NV=false cases).
+    if (mvnAttrs.postOps.empty() && getParentEdges().size() >= 1) {
+        auto parent0 = getParentEdgeAt(0)->getParent();
+        if (parent0 && parent0->getType() == Type::FakeQuantize) {
+            auto fq = std::dynamic_pointer_cast<ov::intel_cpu::node::FakeQuantize>(parent0);
+            if (fq) {
+                FakeQuantizePostOp::Type fqType = FakeQuantizePostOp::Type::quantization_dequantization;
+                mvnAttrs.postOps.push_back(std::make_any<FakeQuantizePostOp>(fqType,
+                                                                             fq->getCropLow(),
+                                                                             fq->getCropHigh(),
+                                                                             fq->getInputScale(),
+                                                                             fq->getInputShift(),
+                                                                             fq->getOutputScale(),
+                                                                             fq->getOutputShift(),
+                                                                             fq->getLevels(),
+                                                                             fq->isInputLowBroadcast(),
+                                                                             fq->isOutputHighBroadcast()));
+            }
+        }
+    }
 
     // Update executor with memory arguments only (executor is created in createPrimitive)
     MemoryArgs memoryArgs;
@@ -409,6 +474,7 @@ bool MVN::canFuse(const NodePtr& node) const {
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::sse41)) {
         return false;
     }
+    // Follow master: allow fusing FakeQuantize and unary Eltwise post-ops
     // limit post-ops to unary when shape transformed on channel
     // 1D only fused with unary
     int inputRank = getInputShapeAtPort(0).getRank();
