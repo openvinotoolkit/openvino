@@ -136,6 +136,28 @@ void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionC
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
     TransformationsPipeline transformations(config, context);
 
+    auto ops = model->get_ordered_ops();
+    bool found_f8e8m0 = false, found_f8e4m3 = false;
+    for (const auto& op : ops) {
+        for (const auto& input : op->inputs()) {
+            if (input.get_element_type() == ov::element::f8e8m0) {
+                found_f8e8m0 = true;
+            }
+            if (input.get_element_type() == ov::element::f8e4m3) {
+                found_f8e4m3 = true;
+            }
+            if (found_f8e8m0 && found_f8e4m3) {
+                break;
+            }
+        }
+    }
+    if (found_f8e8m0) {
+        std::cout << "1. Model contains f8e8m0 data type" << std::endl;
+    }
+    if (found_f8e4m3) {
+        std::cout << "2. Model contains f8e4m3 data type" << std::endl;
+    }
+
     auto start = Time::now();
     transformations.apply(model);
     GPU_DEBUG_LOG << "Transformations time: " << std::chrono::duration_cast<ms>(Time::now() - start).count() << " ms" << std::endl;
