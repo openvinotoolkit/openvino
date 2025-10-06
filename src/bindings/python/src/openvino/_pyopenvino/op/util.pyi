@@ -5,7 +5,7 @@ import typing
 """
 module openvino.op.util
 """
-__all__ = ['ArithmeticReduction', 'BinaryElementwiseArithmetic', 'BinaryElementwiseComparison', 'BinaryElementwiseLogical', 'BodyOutputDescription', 'ConcatOutputDescription', 'IndexReduction', 'InputDescription', 'InvariantInputDescription', 'MergedInputDescription', 'OutputDescription', 'SliceInputDescription', 'UnaryElementwiseArithmetic', 'Variable', 'VariableInfo']
+__all__: list[str] = ['ArithmeticReduction', 'BinaryElementwiseArithmetic', 'BinaryElementwiseComparison', 'BinaryElementwiseLogical', 'BodyOutputDescription', 'ConcatOutputDescription', 'IndexReduction', 'InputDescription', 'InvariantInputDescription', 'MergedInputDescription', 'OutputDescription', 'SliceInputDescription', 'UnaryElementwiseArithmetic', 'Variable', 'VariableInfo']
 class ArithmeticReduction:
     reduction_axes: openvino._pyopenvino.AxisSet
     def __repr__(self) -> str:
