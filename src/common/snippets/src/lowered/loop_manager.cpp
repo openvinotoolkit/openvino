@@ -67,16 +67,6 @@ std::vector<size_t> LoopManager::get_outer_expr_loops(const ExpressionPtr& expr,
     return {loop_ids.cbegin(), it};
 }
 
-std::vector<size_t> LoopManager::get_common_outer_loops(const ExpressionPtr& lhs, const ExpressionPtr& rhs) {
-    const auto& rhs_ids = rhs->get_loop_ids();
-    const auto& lhs_ids = lhs->get_loop_ids();
-    size_t idx = 0;
-    while (idx < std::min(rhs_ids.size(), lhs_ids.size()) && rhs_ids[idx] == lhs_ids[idx]) {
-        idx++;
-    }
-    return {rhs_ids.cbegin(), rhs_ids.cbegin() + idx};
-}
-
 std::vector<size_t> LoopManager::get_common_outer_loops(const std::vector<ExpressionPtr>& exprs) {
     OPENVINO_ASSERT(!exprs.empty(), "Failed to find common outer loops for set of expressions: there no expressions");
 
