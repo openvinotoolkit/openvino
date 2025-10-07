@@ -253,8 +253,7 @@
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "low_precision/avg_pool.hpp"
-#    include "low_precision/convolution.hpp"
-#    include "low_precision/convolution_backprop_data.hpp"
+#    include "low_precision/fake_quantize.hpp"
 #    include "low_precision/group_convolution.hpp"
 #    include "low_precision/interpolate.hpp"
 #    include "low_precision/mat_mul.hpp"
@@ -266,6 +265,7 @@
 #    include "low_precision/reduce_mean.hpp"
 #    include "low_precision/reduce_min.hpp"
 #    include "low_precision/reduce_sum.hpp"
+#    include "openvino/opsets/opset1_decl.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
@@ -905,9 +905,12 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     ov::pass::Manager lptManager("CPU:LPT");
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
+        {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0})});
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
-        PrecisionsRestriction::create<ov::op::v0::MatMul>({{{0, 1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::Convolution>({{{0, 1}, {ov::element::u8, ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::op::v0::MatMul>(
+            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
     });
 #else
     // Only enable conv/group conv signed input on AMX and avx2_vnni_2 platform.
@@ -960,8 +963,6 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
@@ -984,6 +985,18 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                    !any_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3);
         },
         MatMulTransformation);
+
+    // Disable FakeQuantizeTransformation to preserve Convolution dequantization scale as a separate op
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            auto eltwise = node->get_input_node_shared_ptr(0);
+            if (ov::is_type<ov::op::v1::Multiply>(eltwise) && FakeQuantizeTransformation::checkElementwise(eltwise)) {
+                return ov::is_type<ov::op::v1::Convolution>(eltwise->get_input_node_shared_ptr(0));
+            }
+            return false;
+        },
+        FakeQuantizeTransformation);
 
     CPU_SET_CALLBACK_X64(
         lptManager,
@@ -1602,6 +1615,22 @@ void Transformations::PostSnippets() {
         [](const_node_ptr& node) -> bool {
             std::string errMsg;
             return node::FakeQuantize::isSupportedOperation(node, errMsg);
+        },
+        ov::pass::FakeQuantizeDecomposition);
+    // FQ node is not decomposed on ARM only if it is fused into Convolution node
+    // Otherwise FQ node is decomposed because there is no native support of FQ on ARM
+    CPU_SET_CALLBACK_ARM(
+        postSnippetsManager,
+        [](const_node_ptr& node) -> bool {
+            if (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
+                ov::intel_cpu::any_of(node->get_output_element_type(0), ov::element::u8, ov::element::i8)) {
+                auto parent = node->get_input_node_shared_ptr(0);
+                if (ov::is_type<const ov::op::v1::Multiply>(parent) && !parent->inputs().empty() &&
+                    ov::is_type<const ov::op::v1::Convolution>(parent->get_input_node_shared_ptr(0))) {
+                    return true;
+                }
+            }
+            return false;
         },
         ov::pass::FakeQuantizeDecomposition);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeConvertDecomposition);
