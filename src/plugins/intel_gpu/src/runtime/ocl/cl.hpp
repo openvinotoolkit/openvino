@@ -522,7 +522,7 @@
 #if defined(__APPLE__) || defined(__MACOSX)
 #include <OpenCL/opencl.h>
 #else
-#include "opencl.h"
+#include <CL/opencl.h>
 #endif // !__APPLE__
 
 #if __cplusplus >= 201703L
@@ -569,12 +569,7 @@
 #include <cstring>
 #include <functional>
 #include "ocl_indirect.hpp"
-typedef void* cl_command_buffer_khr;
-typedef unsigned long cl_command_buffer_properties_khr;
-typedef unsigned long cl_command_buffer_info_khr;
-typedef unsigned long cl_sync_point_khr;
-typedef unsigned long cl_mutable_command_info_khr;
-typedef void* cl_mutable_command_khr;
+
 
 // Define a size_type to represent a correctly resolved size_t
 #if defined(CL_HPP_ENABLE_SIZE_T_COMPATIBILITY)

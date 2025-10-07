@@ -28,7 +28,7 @@
 # ifndef NOMINMAX
 #  define NOMINMAX
 # endif
-# include "cl_d3d11.h"
+# include <CL/cl_d3d11.h>
 typedef cl_d3d11_device_source_khr cl_device_source_intel;
 typedef cl_d3d11_device_set_khr    cl_device_set_intel;
 #else
