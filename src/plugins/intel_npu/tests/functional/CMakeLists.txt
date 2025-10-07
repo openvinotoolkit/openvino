@@ -71,8 +71,6 @@ endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
-# target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:base_func_tests,INTERFACE_INCLUDE_DIRECTORIES>)
-
 file(GLOB_RECURSE BLOBS "*.blob")
 file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/intel_npu_blobs)
 add_custom_command(TARGET ${TARGET_NAME} POST_BUILD

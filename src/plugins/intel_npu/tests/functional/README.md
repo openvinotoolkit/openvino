@@ -58,17 +58,25 @@ When determining if a skip filter is active, rules across different categories (
 ## Folder structure
 
 ### Behavior
-- should contain E2E OV tests with *specific/internal* NPU plugin
-- TODOs:
-    - should compile_and_infer_different_element_type be moved in compiled_model dir?
-    - should infer_request_dynamic / infer_request_run be moved in ov_infer_request?
+The folder structure of the `behavior` directory follows the folder structure of the OpenVINO base tests.
+
+The OpenVINO convention requires the tests to be organized in at least three directories: `compiled_model`, `ov_infer_request`, and `ov_plugin`. If the scope of NPU plugin tests becomes broader, additional directories may be created.
+
+Here, the E2E tests should reside.
+
+### Common
+TODO
 
 ### Internal
-- no more overload dir
-- to keep here only our own test classes
-- mirror folder structure from plugin
-- 
+Here, the own implementation of test classes and their tests should reside.
+
+The folder structure is mirrored from the one in the `intel_npu/src` directory.
 
 ### Shared tests instances
-- keep here only OV test instantiations
-- TODO: what's the deal with namespace discrepancies?
+Here are kept only the OpenVINO test instantiations with the NPU Plugin's own arguments.
+
+---
+TODO?: enforce test developing convention:
+- cpp: instantiate wrapped in anonymous namespace
+- hpp: class + test_p
+- other?
