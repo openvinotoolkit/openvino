@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from huggingface_hub import snapshot_download
 from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension
 from optimum.intel import OVModelForCausalLM
@@ -127,7 +128,9 @@ def run_pa(tmp_path,
            allow_cache_rotation,
            allow_xattention,
            ie_device):
-    model = cls.from_pretrained(model_id, export=True, trust_remote_code=True)
+    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
+
     ov_model = model.model if cls is OVModelForCausalLM else model.lm_model
 
     apply_transformation_and_compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, ie_device)
