@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
