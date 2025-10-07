@@ -37,7 +37,6 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/grid_sample.hpp"
 #include "openvino/op/less.hpp"
-#include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
