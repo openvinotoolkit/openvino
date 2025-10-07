@@ -24,6 +24,7 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "nodes/executors/common/ref_mvn.hpp"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mvn_config.hpp"
 #include "nodes/kernels/x64/mlp_utils.hpp"
@@ -332,64 +333,32 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
     postOpsMemory.clear();
     postOpsDataBuffer.clear();
 
-    auto append_array = [&](const std::vector<float>& src, size_t count) -> void* {
-        size_t bytes = count * sizeof(float);
-        size_t offset = postOpsDataBuffer.size();
-        postOpsDataBuffer.resize(offset + bytes);
-        std::memcpy(postOpsDataBuffer.data() + offset, src.data(), bytes);
-        return reinterpret_cast<void*>(postOpsDataBuffer.data() + offset);
-    };
+    const auto* attrInternal = attr.get();
+    if (attrInternal != nullptr) {
+        const auto& postOps = attrInternal->post_ops_;
+        for (int idx = 0; idx < postOps.len(); ++idx) {
+            const auto& entry = postOps.entry_[idx];
+            const int argKey = DNNL_ARG_ATTR_MULTIPLE_POST_OP(idx) | DNNL_ARG_SRC_1;
 
-    const size_t C = attrs.actualChannelSize > 0 ? attrs.actualChannelSize : (shape5D.size() > 1 ? shape5D[1] : 1);
-    for (const auto& postOp : (attrs.postOps)) {
-        if (postOp.type() == typeid(FakeQuantizePostOp)) {
-            const auto& fq = std::any_cast<const FakeQuantizePostOp&>(postOp);
-            auto expand = [&](const std::vector<float>& v) {
-                if (v.size() == C)
-                    return v;
-                if (v.size() == 1)
-                    return std::vector<float>(C, v[0]);
-                return v;  // fallback
-            };
+            auto memoryIt = primAttrs.cpuArgs.find(argKey);
+            MemoryPtr postOpMemory = (memoryIt != primAttrs.cpuArgs.end()) ? memoryIt->second : MemoryPtr{};
 
-            auto cropLow = expand(fq.cropLow());
-            auto cropHigh = expand(fq.cropHigh());
-            auto inputScale = expand(fq.inputScale());
-            auto inputShift = expand(fq.inputShift());
-            auto outputScale = expand(fq.outputScale());
-            auto outputShift = expand(fq.outputShift());
-
-            void* p0 = append_array(cropLow, cropLow.size());
-            void* p1 = append_array(cropHigh, cropHigh.size());
-            void* p2 = append_array(inputScale, inputScale.size());
-            void* p3 = append_array(inputShift, inputShift.size());
-            void* p4 = append_array(outputScale, outputScale.size());
-            void* p5 = append_array(outputShift, outputShift.size());
-
-            postOpsPtrArray.push_back(p0);
-            postOpsPtrArray.push_back(p1);
-            postOpsPtrArray.push_back(p2);
-            postOpsPtrArray.push_back(p3);
-            postOpsPtrArray.push_back(p4);
-            postOpsPtrArray.push_back(p5);
-        } else if (postOp.type() == typeid(ScaleShiftPostOp)) {
-            const auto& ss = std::any_cast<const ScaleShiftPostOp&>(postOp);
-            auto expand = [&](const std::vector<float>& v) {
-                if (v.size() == C)
-                    return v;
-                if (v.size() == 1)
-                    return std::vector<float>(C, v[0]);
-                return v;
-            };
-            auto scales = expand(ss.scales());
-            auto shifts = expand(ss.shifts());
-            void* pw = append_array(scales, scales.size());
-            void* pb = append_array(shifts, shifts.size());
-            postOpsPtrArray.push_back(pw);
-            postOpsPtrArray.push_back(pb);
-        } else {
-            // Other activation post-ops do not require external buffers
-            continue;
+            if (entry.is_quantization()) {
+                OPENVINO_ASSERT(postOpMemory, "Quantization post-op memory is not set");
+                postOpsMemory.push_back(postOpMemory);
+                auto* base = postOpMemory->getDataAs<float>();
+                for (size_t offsetIdx = 0;
+                     offsetIdx < dnnl_post_ops::entry_t::quantization_t::fields_count;
+                     ++offsetIdx) {
+                    postOpsPtrArray.push_back(static_cast<void*>(base + entry.quantization.offset[offsetIdx]));
+                }
+            } else if (entry.is_depthwise()) {
+                OPENVINO_ASSERT(postOpMemory, "Depthwise post-op memory is not set");
+                postOpsMemory.push_back(postOpMemory);
+                auto* base = postOpMemory->getDataAs<float>();
+                postOpsPtrArray.push_back(static_cast<void*>(base + entry.depthwise.offset[entry.depthwise.scales]));
+                postOpsPtrArray.push_back(static_cast<void*>(base + entry.depthwise.offset[entry.depthwise.shifts]));
+            }
         }
     }
 }

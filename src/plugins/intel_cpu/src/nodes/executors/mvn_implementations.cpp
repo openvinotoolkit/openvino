@@ -53,6 +53,7 @@ static const TypeMapping mvnTypeMapping{
     {{_f32, _f32}, {bypass(), bypass()}},
     {{_bf16, _bf16}, {bypass(), bypass()}},
     {{_f16, _f16}, {bypass(), bypass()}},
+    {{_f16, _f32}, {bypass(), bypass()}},
     // Quantized inputs mapped to f32
     {{_quant, _f32}, {bypass(), bypass()}},
     // Identity quantized paths

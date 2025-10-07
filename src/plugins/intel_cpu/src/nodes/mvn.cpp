@@ -224,7 +224,16 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
-    if (!hasHardwareSupport(outputPrecision)) {
+    const auto inferencePrecision = context->getConfig().inferencePrecision;
+    const bool enforceFp16 = inferencePrecision == ov::element::f16 && hasHardwareSupport(ov::element::f16) &&
+                             inputPrecision == ov::element::f32 && outputPrecision == ov::element::f32;
+    if (enforceFp16) {
+        setOriginalInputPrecisionAtPort(0, ov::element::f16);
+        setOriginalOutputPrecisionAtPort(0, ov::element::f16);
+        inputPrecision = ov::element::f16;
+        outputPrecision = ov::element::f16;
+    }
+    if (!hasHardwareSupport(outputPrecision) && !(enforceFp16 && outputPrecision == ov::element::f16)) {
         outputPrecision = ov::element::f32;
     }
 
@@ -249,7 +258,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
     }
 
     if (!fusedWith.empty()) {
-        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+        if (!enforceFp16) {
+            outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+        }
         onlyUnaryPostOps = true;
         for (auto& node : fusedWith) {
             if (isUnaryEltwise(node)) {
