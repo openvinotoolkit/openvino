@@ -805,6 +805,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             dump_input_tensors(idx);
         }
 
+        std::string error_text;
         try {
             LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
             LOG_BLOCK();
@@ -812,20 +813,27 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             job_done = true;
             LOG_DEBUG("Done: " << idx << "(exec subrequest)");
         } catch (const std::exception& ex) {
-            LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request:" << std::endl << ex.what());
+            error_text = ex.what();
+            LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request:" << std::endl << error_text << std::endl);
             should_recreate = true;
         } catch (...) {
             LOG_ERROR("Subgraph [" << idx << "] - FAILED to run infer request: REASON UNKNOWN");
             should_recreate = true;
         }
         if (should_recreate) {
-            failover = true;
-            LOG_INFO("- Trying next device...");
-
             // Altering iterators here!! Contracts should be changed!
             comp_model_desc.device_it++;
+
+            // Check if failover is actually possible
+            if ((m_npuw_model->m_dev_list.cend() == comp_model_desc.device_it) ||
+                !m_npuw_model->m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>()) {
+                OPENVINO_THROW("Execution error: \"", error_text, "\" - no fallback possible");
+            }
+
+            failover = true;
+            LOG_INFO("- Trying next device...");
             if (!m_npuw_model->compile_for_success(real_idx)) {
-                OPENVINO_THROW("Failed to compile. No more devices are left!");
+                OPENVINO_THROW("Execution error: \"", error_text, "\" - failed to recompile the model in runtime");
             }
             recreate_subrequests(idx);
         }

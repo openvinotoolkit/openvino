@@ -319,6 +319,14 @@ static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
  */
 static constexpr ov::Property<bool> unfold_ireqs{"NPUW_UNFOLD_IREQS"};
 
+/**
+ * @brief
+ * Type: boolean
+ * Fallback in case of runtime failure
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> fallback_exec{"NPUW_FALLBACK_EXEC"};
+
 namespace accuracy {
 /**
  * @brief

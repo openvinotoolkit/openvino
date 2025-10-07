@@ -1109,13 +1109,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
-    // Handle attention hints. FIXME: Maybe it makes sense to make those
-    // mutually exclusive with the precise configuration sections as well
+    // Handle attention hints. FIXME: Maybe it makes sense to make
+    // those mutually exclusive with the precise configuration
+    // sections as well Note: with dynamic attention, we have to
+    // explicitly disable the run-time fallback to so extra ov::Model
+    // references won't be held by the npuw::CompiledModel, resulting
+    // in a higher memory consumption.
     const ov::AnyMap dyn_attn_opts = {
         {"NPUW_ONLINE_PIPELINE", "REP"},
         {"NPUW_ONLINE_ISOLATE", "ATTN"},
         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
         {"NPUW_UNFOLD_IREQS", "NO"},
+        {"NPUW_FALLBACK_EXEC", "NO"}
     };
     if (prefill_attn_dyn) {
         merge_config_with(prefill_config, dyn_attn_opts);

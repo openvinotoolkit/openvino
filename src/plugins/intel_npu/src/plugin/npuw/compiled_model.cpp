@@ -1318,13 +1318,16 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
 void ov::npuw::CompiledModel::detach_memory() {
     LOG_INFO("Detaching model & weight memory...");
     LOG_BLOCK();
+
+    const bool no_runtime_fallback = !m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>();
+
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
         auto& proto_comp_model_desc = m_compiled_submodels[comp_model_desc.replaced_by.value_or(idx)];
         if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
             continue;  // optimized-out OR already cleared - skip
         }
-        if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
+        if ((proto_comp_model_desc.device_it + 1 == m_dev_list.end()) || no_runtime_fallback) {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
         }
