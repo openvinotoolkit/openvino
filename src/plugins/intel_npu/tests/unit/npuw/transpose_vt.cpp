@@ -182,7 +182,7 @@ public:
         }
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<OptimizeVTTestParamsTuple> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<OptimizeVTTestParamsTuple>& obj) {
         auto test = OptimizeVTTestParams{obj.param};
 
         std::ostringstream result;

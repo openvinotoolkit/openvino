@@ -23,14 +23,18 @@ Troubleshooting Guide for OpenVINO™ Installation & Configuration
 
    .. code-block:: sh
 
-      pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
+      pip install openvino -i https://mirrors.aliyun.com/pypi/simple/
 
    Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
    You can also run the following command to install specific framework. For example:
 
    .. code-block:: sh
 
-      pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
+      pip install "openvino[tensorflow2]" -i https://mirrors.aliyun.com/pypi/simple/
+
+   .. note::
+
+      The ``openvino-dev`` metapackage has been discontinued. Use the ``openvino`` package and enable optional framework integrations with extras such as ``openvino[tensorflow2]`` or ``openvino[onnx]``.
 
 .. dropdown:: ImportError: cannot import name 'Core' from 'openvino'
 
