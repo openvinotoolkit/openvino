@@ -47,10 +47,13 @@ private:
 
 }  // namespace ov::intel_cpu::itt
 
-#define OV_CPU_NODE_SCOPE_CONCAT_IMPL(x, y) x##y
-#define OV_CPU_NODE_SCOPE_CONCAT(x, y)      OV_CPU_NODE_SCOPE_CONCAT_IMPL(x, y)
+#define OV_CPU_NODE_SCOPE_CONCAT_IMPL(x, y)                 x##y
+#define OV_CPU_NODE_SCOPE_CONCAT(x, y)                      OV_CPU_NODE_SCOPE_CONCAT_IMPL(x, y)
+#define OV_CPU_NODE_SCOPED_TASK_INTERNAL(varName, taskName) ::ov::intel_cpu::itt::ScopedOpExecTask varName(taskName)
 #define OV_CPU_NODE_SCOPED_TASK(taskName) \
-    ::ov::intel_cpu::itt::ScopedOpExecTask OV_CPU_NODE_SCOPE_CONCAT(cpuNodeScopedTaskGuard, __LINE__)(taskName)
+    OV_CPU_NODE_SCOPED_TASK_INTERNAL(OV_CPU_NODE_SCOPE_CONCAT(cpuNodeScopedTaskGuard, __LINE__), taskName)
+#define OV_CPU_NODE_SCOPED_TASK_BASE(taskName) \
+    OV_CPU_NODE_SCOPED_TASK_INTERNAL(OV_CPU_NODE_SCOPE_CONCAT(cpuNodeScopedTaskGuardBase, __LINE__), taskName)
 
 #if defined(SELECTIVE_BUILD_ANALYZER)
 #    define CPU_LPT_SCOPE(region)             OV_SCOPE(intel_cpu, region)

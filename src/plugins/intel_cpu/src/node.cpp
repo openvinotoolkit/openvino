@@ -822,7 +822,7 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
-    OV_CPU_NODE_SCOPED_TASK(getTypeStr());
+    OV_CPU_NODE_SCOPED_TASK_BASE(getTypeStr());
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {
