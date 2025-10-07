@@ -73,7 +73,6 @@ CL_INDIRECT_API(clGetKernelArgInfo)
 CL_INDIRECT_API(clGetMemObjectInfo)
 CL_INDIRECT_API(clGetPlatformIDs)
 CL_INDIRECT_API(clGetPlatformInfo)
-CL_INDIRECT_API(clGetProgramInfo)
 CL_INDIRECT_API(clReleaseCommandQueue)
 CL_INDIRECT_API(clReleaseContext)
 CL_INDIRECT_API(clReleaseDevice)
@@ -112,6 +111,25 @@ CL_INDIRECT_API(clCreateUserEvent);
 CL_INDIRECT_API(clCreateBufferWithProperties);
 CL_INDIRECT_API(clCreateContextFromType);
 CL_INDIRECT_API(clSetKernelArg);
+CL_INDIRECT_API(clFinalizeCommandBufferKHR)
+CL_INDIRECT_API(clEnqueueAcquireGLObjects)
+CL_INDIRECT_API(clEnqueueReleaseGLObjects)
+CL_INDIRECT_API(clSetKernelArgSVMPointer)
+CL_INDIRECT_API(clEnqueueSVMMemcpy)
+CL_INDIRECT_API(clEnqueueSVMMap)
+CL_INDIRECT_API(clEnqueueSVMUnmap)
+CL_INDIRECT_API(clEnqueueReadImage)
+CL_INDIRECT_API(clEnqueueCopyImageToBuffer)
+CL_INDIRECT_API(clEnqueueCopyBufferToImage)
+CL_INDIRECT_API(clEnqueueWaitForEvents)
+CL_INDIRECT_API(clSetMemObjectDestructorCallback)
+CL_INDIRECT_API(clLinkProgram)
+CL_INDIRECT_API(clGetKernelWorkGroupInfo)
+CL_INDIRECT_API(clCloneKernel)
+CL_INDIRECT_API(clSetKernelExecInfo)
+CL_INDIRECT_API(clCreateImage)
+CL_INDIRECT_API(clEnqueueReadBufferRect)
+CL_INDIRECT_API(clCreateProgramWithIL)
 
 cl_int call_clGetEventProfilingInfo(cl_event a1, cl_profiling_info a2, size_t a3, void* a4, size_t* a5) { \
         static auto f_ = find_cl_symbol<decltype(&clGetEventProfilingInfo)>("clGetEventProfilingInfo");              \
@@ -161,6 +179,11 @@ cl_int call_clGetContextInfo(cl_context a1, cl_context_info a2, size_t a3, void*
 cl_int call_clGetCommandQueueInfo(cl_command_queue a1, cl_command_queue_info a2, size_t a3, void* a4, size_t* a5) { \
         static auto f_ = find_cl_symbol<decltype(&clGetCommandQueueInfo)>("clGetCommandQueueInfo");              \
         return f_(a1, a2, a3, a4, a5);                         \
+    }
+
+cl_int call_clGetProgramInfo(cl_program program, cl_program_info param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret) {
+        static auto f_ = find_cl_symbol<decltype(&clGetProgramInfo)>("clGetProgramInfo");              \
+        return f_(program, param_name, param_value_size, param_value, param_value_size_ret);                         \
     }
 #undef CL_INDIRECT_API
 } // namespace

@@ -576,101 +576,6 @@ typedef unsigned long cl_sync_point_khr;
 typedef unsigned long cl_mutable_command_info_khr;
 typedef void* cl_mutable_command_khr;
 
-inline cl_int clBuildProgram(cl_program a, cl_uint b, const cl_device_id* c, const char* d, void(*e)(cl_program, void*), void* f) { return call_clBuildProgram(a, b, c, d, e, f); }
-inline cl_kernel clCreateKernel(cl_program a, const char* b, cl_int* c) { return call_clCreateKernel(a, b, c); }
-inline cl_mem clCreateBuffer(cl_context, cl_mem_flags, size_t, void*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
-inline cl_int clSetKernelArg(cl_kernel, cl_uint, size_t, const void*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueNDRangeKernel(cl_command_queue, cl_kernel, cl_uint, const size_t*, const size_t*, const size_t*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clFinish(cl_command_queue) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseMemObject(cl_mem) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseKernel(cl_kernel) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl;  return CL_SUCCESS; }
-inline cl_int clReleaseProgram(cl_program program) { return call_clReleaseProgram(program); }
-inline cl_int clReleaseCommandQueue(cl_command_queue) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseContext(cl_context) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-
-// 🔥 Funkcje z rozszerzenia cl_khr_command_buffer
-inline cl_int clCreateCommandBufferKHR(cl_uint, const cl_command_queue*, const cl_command_buffer_properties_khr*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clFinalizeCommandBufferKHR(cl_command_buffer_khr) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainCommandBufferKHR(cl_command_buffer_khr) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseCommandBufferKHR(cl_command_buffer_khr) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetCommandBufferInfoKHR(cl_command_buffer_khr, cl_command_buffer_info_khr, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueCommandBufferKHR(cl_uint, const cl_command_queue*, cl_command_buffer_khr, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clCommandBarrierWithWaitListKHR(cl_command_buffer_khr, cl_command_queue, const void*, cl_uint, const cl_sync_point_khr*, cl_sync_point_khr*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clCommandCopyBufferKHR(cl_command_buffer_khr, cl_command_queue, const void*, cl_mem, cl_mem, size_t, size_t, size_t, cl_uint, const cl_sync_point_khr*, cl_sync_point_khr*, cl_mutable_command_khr*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-
-// 🔥 Funkcje z rozszerzenia cl_khr_semaphore
-inline cl_int clCreateSemaphoreKHR(cl_context, const cl_semaphore_properties_khr*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainSemaphoreKHR(cl_semaphore_khr) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clReleaseSemaphoreKHR(cl_semaphore_khr) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueWaitSemaphoresKHR(cl_command_queue, cl_uint, const cl_semaphore_khr*, const cl_semaphore_payload_khr*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueSignalSemaphoresKHR(cl_command_queue, cl_uint, const cl_semaphore_khr*, const cl_semaphore_payload_khr*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetSemaphoreInfoKHR(cl_semaphore_khr, cl_semaphore_info_khr, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-
-// 🔥 Funkcje z D3D, IL, itp.
-inline cl_int clEnqueueAcquireD3D10ObjectsKHR(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueReleaseD3D10ObjectsKHR(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueAcquireGLObjects(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueReleaseGLObjects(cl_command_queue, cl_uint, const cl_mem*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-
-// 🔥 Funkcje z IL
-inline cl_program clCreateProgramWithIL(cl_context, const void*, size_t, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-
-// 🔥 Funkcje SVM
-inline cl_int clSetKernelArgSVMPointer(cl_kernel, cl_uint, const void*) { return CL_SUCCESS; }
-inline cl_int clEnqueueSVMMemcpy(cl_command_queue, cl_bool, void*, const void*, size_t, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueSVMMap(cl_command_queue, cl_bool, cl_map_flags, void*, size_t, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueSVMUnmap(cl_command_queue, void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-
-// 🔥 Funkcje z profiling, getInfo, itp.
-inline cl_int clGetEventInfo(cl_event, cl_event_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetEventProfilingInfo(cl_event, cl_profiling_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clWaitForEvents(cl_uint, const cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clFlush(cl_command_queue) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline void* clEnqueueMapBuffer(cl_command_queue, cl_mem, cl_bool, cl_map_flags, size_t, size_t, cl_uint, const cl_event*, cl_event*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueUnmapMemObject(cl_command_queue, cl_mem, void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueReadBuffer(cl_command_queue, cl_mem, cl_bool, size_t, size_t, void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueWriteBuffer(cl_command_queue, cl_mem, cl_bool, size_t, size_t, const void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueCopyBuffer(cl_command_queue, cl_mem, cl_mem, size_t, size_t, size_t, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueReadImage(cl_command_queue, cl_mem, cl_bool, const size_t*, const size_t*, size_t, size_t, void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueWriteImage(cl_command_queue, cl_mem, cl_bool, const size_t*, const size_t*, size_t, size_t, const void*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueCopyImage(cl_command_queue, cl_mem, cl_mem, const size_t*, const size_t*, const size_t*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueCopyImageToBuffer(cl_command_queue, cl_mem, cl_mem, const size_t*, const size_t*, size_t, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl;  return CL_SUCCESS; }
-inline cl_int clEnqueueCopyBufferToImage(cl_command_queue, cl_mem, cl_mem, size_t, const size_t*, const size_t*, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueMarkerWithWaitList(cl_command_queue, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueBarrierWithWaitList(cl_command_queue, cl_uint, const cl_event*, cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clEnqueueWaitForEvents(cl_command_queue, cl_uint, const cl_event*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clSetMemObjectDestructorCallback(cl_mem, void(*)(cl_mem, void*), void*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-typedef void* cl_command_buffer_khr;
-inline cl_program clLinkProgram(cl_context, cl_uint, const cl_device_id*, const char*, cl_uint, const cl_program*, void(*)(cl_program, void*), void*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
-inline cl_int clGetKernelArgInfo(cl_kernel, cl_uint, cl_kernel_arg_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetImageRequirementsInfoEXT(cl_context, const cl_mem_properties*, cl_mem_flags, const cl_image_format*, const cl_image_desc*, cl_image_requirements_info_ext, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clCreateSubDevicesEXT(cl_device_id, const cl_device_partition_property*, cl_uint, cl_device_id*, cl_uint*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_context clCreateContextFromType(const cl_context_properties*, cl_device_type, void(*)(const char*, const void*, size_t, void*), void*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
-inline cl_int clGetMemObjectInfo(cl_mem, cl_mem_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetProgramBuildInfo(cl_program, cl_device_id, cl_program_build_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetKernelInfo(cl_kernel, cl_kernel_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetKernelWorkGroupInfo(cl_kernel, cl_device_id, cl_kernel_work_group_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetCommandQueueInfo(cl_command_queue, cl_command_queue_info, size_t, void*, size_t*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetPlatformInfo(cl_platform_id a, cl_platform_info b , size_t c , void* d, size_t* e) { return call_clGetPlatformInfo(a, b, c, d, e); }
-inline cl_int clGetDeviceInfo(cl_device_id a, cl_device_info b, size_t c, void* d, size_t* e) { return call_clGetDeviceInfo(a, b, c, d, e); }
-inline cl_int clCreateKernelsInProgram(cl_program a, cl_uint b , cl_kernel* c , cl_uint* d) { return call_clCreateKernelsInProgram(a, b, c, d); }
-inline cl_kernel clCloneKernel(cl_kernel, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
-inline cl_int clSetKernelExecInfo(cl_kernel, cl_kernel_exec_info, size_t, const void*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_event clCreateUserEvent(cl_context, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl;  return nullptr; }
-//
-inline cl_int clReleaseDevice(cl_device_id device) { return call_clReleaseDevice(device); }
-inline cl_int clReleaseEvent(cl_event event) { return call_clReleaseEvent(event); }
-inline cl_int clRetainDevice(cl_device_id device) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainProgram(cl_program program) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainKernel(cl_kernel kernel) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clRetainCommandQueue(cl_command_queue queue) { return call_clRetainCommandQueue(queue); }
-inline cl_int clRetainContext(cl_context context) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetProgramInfo(cl_program program, cl_program_info param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret) { return call_clGetProgramInfo(program, param_name, param_value_size, param_value, param_value_size_ret); }
-inline cl_int clCreateSubDevices(cl_device_id in_device, const cl_device_partition_property* properties, cl_uint num_entries, cl_device_id* out_devices, cl_uint* num_devices) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_int clGetContextInfo(cl_context context, cl_context_info param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_mem clCreateImage(cl_context context, cl_mem_flags flags, const cl_image_format* image_format, const cl_image_desc* image_desc, void* host_ptr, cl_int* errcode_ret) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return CL_SUCCESS; }
-inline cl_program clCreateProgramWithBinary(cl_context context, cl_uint num_devices, const cl_device_id* device_list, const size_t* lengths, const unsigned char** binaries, cl_int* binary_status, cl_int* errcode_ret) { return call_clCreateProgramWithBinary(context, num_devices, device_list, lengths, binaries, binary_status, errcode_ret); }
-inline cl_command_queue clCreateCommandQueueWithProperties(cl_context context, cl_device_id device, const cl_queue_properties* properties, cl_int* errcode_ret) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
 // Define a size_type to represent a correctly resolved size_t
 #if defined(CL_HPP_ENABLE_SIZE_T_COMPATIBILITY)
 namespace cl {
@@ -2133,7 +2038,7 @@ template <>
 struct ReferenceHandler<cl_command_queue>
 {
     static cl_int retain(cl_command_queue queue)
-    { return ::clRetainCommandQueue(queue); }
+    { return call_clRetainCommandQueue(queue); }
     static cl_int release(cl_command_queue queue)
     { return call_clReleaseCommandQueue(queue); }
 };
@@ -2180,7 +2085,7 @@ struct ReferenceHandler<cl_event>
     static cl_int retain(cl_event event)
     { return call_clRetainEvent(event); }
     static cl_int release(cl_event event)
-    { return ::clReleaseEvent(event); }
+    { return call_clReleaseEvent(event); }
 };
 
 #ifdef cl_khr_semaphore
@@ -2265,10 +2170,10 @@ static cl_uint getVersion(const vector<char> &versionInfo)
 static cl_uint getPlatformVersion(cl_platform_id platform)
 {
     size_type size = 0;
-    clGetPlatformInfo(platform, CL_PLATFORM_VERSION, 0, nullptr, &size);
+    call_clGetPlatformInfo(platform, CL_PLATFORM_VERSION, 0, nullptr, &size);
 
     vector<char> versionInfo(size);
-    clGetPlatformInfo(platform, CL_PLATFORM_VERSION, size, versionInfo.data(), &size);
+    call_clGetPlatformInfo(platform, CL_PLATFORM_VERSION, size, versionInfo.data(), &size);
     return getVersion(versionInfo);
 }
 
@@ -2284,11 +2189,11 @@ static cl_uint getContextPlatformVersion(cl_context context)
     // The platform cannot be queried directly, so we first have to grab a
     // device and obtain its context
     size_type size = 0;
-    clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, nullptr, &size);
+    call_clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, nullptr, &size);
     if (size == 0)
         return 0;
     vector<cl_device_id> devices(size/sizeof(cl_device_id));
-    clGetContextInfo(context, CL_CONTEXT_DEVICES, size, devices.data(), nullptr);
+    call_clGetContextInfo(context, CL_CONTEXT_DEVICES, size, devices.data(), nullptr);
     return getDevicePlatformVersion(devices[0]);
 }
 #endif // CL_HPP_TARGET_OPENCL_VERSION && CL_HPP_MINIMUM_OPENCL_VERSION
@@ -2922,7 +2827,7 @@ public:
     cl_int getInfo(cl_platform_info name, T* param) const
     {
         return detail::errHandler(
-            detail::getInfo(&::clGetPlatformInfo, object_, name, param),
+            detail::getInfo(&call_clGetPlatformInfo, object_, name, param),
             __GET_PLATFORM_INFO_ERR);
     }
 
@@ -3167,7 +3072,7 @@ inline cl_int Device::createSubDevices(const cl_device_partition_property* prope
     }
 
     vector<cl_device_id> ids(n);
-    err = clCreateSubDevices(object_, properties, n, ids.data(), nullptr);
+    err = call_clCreateSubDevices(object_, properties, n, ids.data(), nullptr);
     if (err != CL_SUCCESS)
     {
         return detail::errHandler(err, __CREATE_SUB_DEVICES_ERR);
@@ -4038,7 +3943,7 @@ public:
         void * user_data = nullptr)
     {
         return detail::errHandler(
-            ::clSetMemObjectDestructorCallback(
+            call_clSetMemObjectDestructorCallback(
                 object_,
                 pfn_notify,
                 user_data), 
@@ -4971,7 +4876,7 @@ public:
         desc.image_type = CL_MEM_OBJECT_IMAGE1D;
         desc.image_width = width;
 
-        object_ = ::clCreateImage(
+        object_ = call_clCreateImage(
             context(), 
             flags, 
             &format, 
@@ -5068,7 +4973,7 @@ public:
         desc.image_width = width;
         desc.buffer = buffer();
 
-        object_ = ::clCreateImage(
+        object_ = call_clCreateImage(
             context(), 
             flags, 
             &format, 
@@ -5162,7 +5067,7 @@ public:
         desc.image_array_size = arraySize;
         desc.image_row_pitch = rowPitch;
 
-        object_ = ::clCreateImage(
+        object_ = call_clCreateImage(
             context(), 
             flags, 
             &format, 
@@ -5287,7 +5192,7 @@ public:
             desc.image_height = height;
             desc.image_row_pitch = row_pitch;
 
-            object_ = ::clCreateImage(
+            object_ = call_clCreateImage(
                 context(),
                 flags,
                 &format,
@@ -5342,7 +5247,7 @@ public:
         desc.image_row_pitch = row_pitch;
         desc.buffer = sourceBuffer();
 
-        object_ = ::clCreateImage(
+        object_ = call_clCreateImage(
             context(),
             0, // flags inherited from buffer
             &format,
@@ -5405,7 +5310,7 @@ public:
         desc.num_samples = sourceNumSamples;
         desc.buffer = sourceImage();
 
-        object_ = ::clCreateImage(
+        object_ = call_clCreateImage(
             context(),
             0, // flags should be inherited from mem_object
             &sourceFormat,
@@ -5749,7 +5654,7 @@ public:
             desc.image_row_pitch = row_pitch;
             desc.image_slice_pitch = slice_pitch;
 
-            object_ = ::clCreateImage(
+            object_ = call_clCreateImage(
                 context(), 
                 flags, 
                 &format, 
@@ -6422,7 +6327,7 @@ public:
     {
         return detail::errHandler(
             detail::getInfo(
-                &::clGetKernelWorkGroupInfo, object_, device(), name, param),
+                &call_clGetKernelWorkGroupInfo, object_, device(), name, param),
                 __GET_KERNEL_WORK_GROUP_INFO_ERR);
     }
 
@@ -6480,7 +6385,7 @@ public:
     cl_int setArg(cl_uint index, const cl::pointer<T, D> &argPtr)
     {
         return detail::errHandler(
-            ::clSetKernelArgSVMPointer(object_, index, argPtr.get()),
+            call_clSetKernelArgSVMPointer(object_, index, argPtr.get()),
             __SET_KERNEL_ARGS_ERR);
     }
 
@@ -6490,7 +6395,7 @@ public:
     cl_int setArg(cl_uint index, const cl::vector<T, Alloc> &argPtr)
     {
         return detail::errHandler(
-            ::clSetKernelArgSVMPointer(object_, index, argPtr.data()),
+            call_clSetKernelArgSVMPointer(object_, index, argPtr.data()),
             __SET_KERNEL_ARGS_ERR);
     }
 
@@ -6501,7 +6406,7 @@ public:
         setArg(cl_uint index, const T argPtr)
     {
         return detail::errHandler(
-            ::clSetKernelArgSVMPointer(object_, index, argPtr),
+            call_clSetKernelArgSVMPointer(object_, index, argPtr),
             __SET_KERNEL_ARGS_ERR);
     }
 #endif // #if CL_HPP_TARGET_OPENCL_VERSION >= 200
@@ -6536,7 +6441,7 @@ public:
     cl_int setSVMPointers(const vector<void*> &pointerList)
     {
         return detail::errHandler(
-            ::clSetKernelExecInfo(
+            call_clSetKernelExecInfo(
                 object_,
                 CL_KERNEL_EXEC_INFO_SVM_PTRS,
                 sizeof(void*)*pointerList.size(),
@@ -6551,7 +6456,7 @@ public:
     cl_int setSVMPointers(const std::array<void*, ArrayLength> &pointerList)
     {
         return detail::errHandler(
-            ::clSetKernelExecInfo(
+            call_clSetKernelExecInfo(
                 object_,
                 CL_KERNEL_EXEC_INFO_SVM_PTRS,
                 sizeof(void*)*pointerList.size(),
@@ -6573,7 +6478,7 @@ public:
     {
         cl_bool svmEnabled_ = svmEnabled ? CL_TRUE : CL_FALSE;
         return detail::errHandler(
-            ::clSetKernelExecInfo(
+            call_clSetKernelExecInfo(
                 object_,
                 CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM,
                 sizeof(cl_bool),
@@ -6618,7 +6523,7 @@ public:
 
         setSVMPointersHelper<0, 1 + sizeof...(Ts)>(pointerList, t0, ts...);
         return detail::errHandler(
-            ::clSetKernelExecInfo(
+            call_clSetKernelExecInfo(
             object_,
             CL_KERNEL_EXEC_INFO_SVM_PTRS,
             sizeof(void*)*(1 + sizeof...(Ts)),
@@ -6629,7 +6534,7 @@ public:
     cl_int setExecInfo(cl_kernel_exec_info param_name, const T& val)
     {
         return detail::errHandler(
-            ::clSetKernelExecInfo(
+            call_clSetKernelExecInfo(
             object_,
             param_name,
             sizeof(T),
@@ -6652,7 +6557,7 @@ public:
     Kernel clone()
     {
         cl_int error;
-        Kernel retValue(clCloneKernel(this->get(), &error));
+        Kernel retValue(call_clCloneKernel(this->get(), &error));
 
         detail::errHandler(error, __CLONE_KERNEL_ERR);
         return retValue;
@@ -6837,7 +6742,7 @@ public:
 
 #if CL_HPP_TARGET_OPENCL_VERSION >= 210
 
-        object_ = ::clCreateProgramWithIL(
+        object_ = call_clCreateProgramWithIL(
             context(), static_cast<const void*>(IL.data()), IL.size(), &error);
 
 #else // #if CL_HPP_TARGET_OPENCL_VERSION >= 210
@@ -6891,7 +6796,7 @@ public:
 
 #if CL_HPP_TARGET_OPENCL_VERSION >= 210
 
-        object_ = ::clCreateProgramWithIL(
+        object_ = call_clCreateProgramWithIL(
             context(), static_cast<const void*>(IL.data()), IL.size(), &error);
 
 #else // #if CL_HPP_TARGET_OPENCL_VERSION >= 210
@@ -7256,7 +7161,7 @@ public:
     cl_int getInfo(cl_program_info name, T* param) const
     {
         return detail::errHandler(
-            detail::getInfo(&::clGetProgramInfo, object_, name, param),
+            detail::getInfo(&call_clGetProgramInfo, object_, name, param),
             __GET_PROGRAM_INFO_ERR);
     }
 
@@ -7343,14 +7248,14 @@ public:
     cl_int createKernels(vector<Kernel>* kernels)
     {
         cl_uint numKernels;
-        cl_int err = ::clCreateKernelsInProgram(object_, 0, nullptr, &numKernels);
+        cl_int err = call_clCreateKernelsInProgram(object_, 0, nullptr, &numKernels);
         if (err != CL_SUCCESS) {
             return detail::errHandler(err, __CREATE_KERNELS_IN_PROGRAM_ERR);
         }
 
         vector<cl_kernel> value(numKernels);
         
-        err = ::clCreateKernelsInProgram(
+        err = call_clCreateKernelsInProgram(
             object_, numKernels, value.data(), nullptr);
         if (err != CL_SUCCESS) {
             return detail::errHandler(err, __CREATE_KERNELS_IN_PROGRAM_ERR);
@@ -7446,7 +7351,7 @@ inline Program linkProgram(
         detail::errHandler(error_local, __LINK_PROGRAM_ERR);
     }
 
-    cl_program prog = ::clLinkProgram(
+    cl_program prog = call_clLinkProgram(
         ctx(),
         0,
         nullptr,
@@ -7496,7 +7401,7 @@ inline Program linkProgram(
         }
     }
 
-    cl_program prog = ::clLinkProgram(
+    cl_program prog = call_clLinkProgram(
         ctx(),
         0,
         nullptr,
@@ -7547,7 +7452,7 @@ inline cl_int cl::Program::getInfo(cl_program_info name, vector<vector<unsigned 
         }
 
         return detail::errHandler(
-            detail::getInfo(&::clGetProgramInfo, object_, name, param),
+            detail::getInfo(&call_clGetProgramInfo, object_, name, param),
             __GET_PROGRAM_INFO_ERR);
     }
 
@@ -7598,7 +7503,7 @@ inline Kernel::Kernel(const Program& program, const char* name, cl_int* err)
 {
     cl_int error;
 
-    object_ = ::clCreateKernel(program(), name, &error);
+    object_ = call_clCreateKernel(program(), name, &error);
     detail::errHandler(error, __CREATE_KERNEL_ERR);
 
     if (err != nullptr) {
@@ -8241,7 +8146,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueReadBufferRect(
+            call_clEnqueueReadBufferRect(
                 object_, 
                 buffer(), 
                 blocking,
@@ -8481,7 +8386,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueReadImage(
+            call_clEnqueueReadImage(
                 object_, 
                 image(), 
                 blocking, 
@@ -8708,7 +8613,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueCopyImageToBuffer(
+            call_clEnqueueCopyImageToBuffer(
                 object_, 
                 src(), 
                 dst(), 
@@ -8756,7 +8661,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueCopyBufferToImage(
+            call_clEnqueueCopyBufferToImage(
                 object_, 
                 src(), 
                 dst(), 
@@ -8805,7 +8710,7 @@ public:
     {
         cl_event tmp;
         cl_int error;
-        void * result = ::clEnqueueMapBuffer(
+        void * result = call_clEnqueueMapBuffer(
             object_, buffer(), blocking, flags, offset, size,
             (events != nullptr) ? (cl_uint) events->size() : 0,
             (events != nullptr && events->size() > 0) ? (cl_event*) &events->front() : nullptr,
@@ -8888,7 +8793,7 @@ public:
             const vector<Event> *events = nullptr,
             Event *event = nullptr) const {
         cl_event tmp;
-        cl_int err = detail::errHandler(::clEnqueueSVMMemcpy(
+        cl_int err = detail::errHandler(call_clEnqueueSVMMemcpy(
                 object_, blocking, static_cast<void *>(dst_ptr), static_cast<const void *>(src_ptr), size,
                 (events != nullptr) ? (cl_uint) events->size() : 0,
                 (events != nullptr && events->size() > 0) ? (cl_event *) &events->front() : nullptr,
@@ -8913,7 +8818,7 @@ public:
             const vector<Event> *events = nullptr,
             Event *event = nullptr) const {
         cl_event tmp;
-        cl_int err = detail::errHandler(::clEnqueueSVMMemcpy(
+        cl_int err = detail::errHandler(call_clEnqueueSVMMemcpy(
                 object_, blocking, static_cast<void *>(dst_ptr.get()), static_cast<const void *>(src_ptr.get()),
                 size,
                 (events != nullptr) ? (cl_uint) events->size() : 0,
@@ -8941,7 +8846,7 @@ public:
         if(src_container.size() != dst_container.size()){
             return detail::errHandler(CL_INVALID_VALUE,__ENQUEUE_COPY_SVM_ERR);
         }
-        cl_int err = detail::errHandler(::clEnqueueSVMMemcpy(
+        cl_int err = detail::errHandler(call_clEnqueueSVMMemcpy(
                 object_, blocking, static_cast<void *>(dst_container.data()),
                 static_cast<const void *>(src_container.data()),
                 dst_container.size() * sizeof(T),
@@ -9044,7 +8949,7 @@ public:
         Event* event = nullptr) const
     {
         cl_event tmp;
-        cl_int err = detail::errHandler(::clEnqueueSVMMap(
+        cl_int err = detail::errHandler(call_clEnqueueSVMMap(
             object_, blocking, flags, static_cast<void*>(ptr), size,
             (events != nullptr) ? (cl_uint)events->size() : 0,
             (events != nullptr && events->size() > 0) ? (cl_event*)&events->front() : nullptr,
@@ -9072,7 +8977,7 @@ public:
         Event* event = nullptr) const
     {
         cl_event tmp;
-        cl_int err = detail::errHandler(::clEnqueueSVMMap(
+        cl_int err = detail::errHandler(call_clEnqueueSVMMap(
             object_, blocking, flags, static_cast<void*>(ptr.get()), size,
             (events != nullptr) ? (cl_uint)events->size() : 0,
             (events != nullptr && events->size() > 0) ? (cl_event*)&events->front() : nullptr,
@@ -9098,7 +9003,7 @@ public:
         Event* event = nullptr) const
     {
         cl_event tmp;
-        cl_int err = detail::errHandler(::clEnqueueSVMMap(
+        cl_int err = detail::errHandler(call_clEnqueueSVMMap(
             object_, blocking, flags, static_cast<void*>(container.data()), container.size()*sizeof(T),
             (events != nullptr) ? (cl_uint)events->size() : 0,
             (events != nullptr && events->size() > 0) ? (cl_event*)&events->front() : nullptr,
@@ -9147,7 +9052,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueSVMUnmap(
+            call_clEnqueueSVMUnmap(
             object_, static_cast<void*>(ptr),
             (events != nullptr) ? (cl_uint)events->size() : 0,
             (events != nullptr && events->size() > 0) ? (cl_event*)&events->front() : nullptr,
@@ -9172,7 +9077,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueSVMUnmap(
+            call_clEnqueueSVMUnmap(
             object_, static_cast<void*>(ptr.get()),
             (events != nullptr) ? (cl_uint)events->size() : 0,
             (events != nullptr && events->size() > 0) ? (cl_event*)&events->front() : nullptr,
@@ -9197,7 +9102,7 @@ public:
     {
         cl_event tmp;
         cl_int err = detail::errHandler(
-            ::clEnqueueSVMUnmap(
+            call_clEnqueueSVMUnmap(
             object_, static_cast<void*>(container.data()),
             (events != nullptr) ? (cl_uint)events->size() : 0,
             (events != nullptr && events->size() > 0) ? (cl_event*)&events->front() : nullptr,
@@ -9529,7 +9434,7 @@ public:
     cl_int enqueueWaitForEvents(const vector<Event>& events) const CL_API_SUFFIX__VERSION_1_1_DEPRECATED
     {
         return detail::errHandler(
-            ::clEnqueueWaitForEvents(
+            call_clEnqueueWaitForEvents(
                 object_,
                 (cl_uint) events.size(),
                 events.size() > 0 ? (const cl_event*) &events.front() : nullptr),
@@ -9544,7 +9449,7 @@ public:
      {
         cl_event tmp;
         cl_int err = detail::errHandler(
-             ::clEnqueueAcquireGLObjects(
+             call_clEnqueueAcquireGLObjects(
                  object_,
                  (mem_objects != nullptr) ? (cl_uint) mem_objects->size() : 0,
                  (mem_objects != nullptr && mem_objects->size() > 0) ? (const cl_mem *) &mem_objects->front(): nullptr,
@@ -9566,7 +9471,7 @@ public:
      {
         cl_event tmp;
         cl_int err = detail::errHandler(
-             ::clEnqueueReleaseGLObjects(
+             call_clEnqueueReleaseGLObjects(
                  object_,
                  (mem_objects != nullptr) ? (cl_uint) mem_objects->size() : 0,
                  (mem_objects != nullptr && mem_objects->size() > 0) ? (const cl_mem *) &mem_objects->front(): nullptr,
@@ -9883,7 +9788,7 @@ public:
     {
         return detail::errHandler(
             detail::getInfo(
-            &::clGetCommandQueueInfo, object_, name, param),
+            &call_clGetCommandQueueInfo, object_, name, param),
             __GET_COMMAND_QUEUE_INFO_ERR);
     }
 
@@ -10059,9 +9964,9 @@ Buffer::Buffer(
     size_type size = sizeof(DataType)*(endIterator - startIterator);
 
     if( useHostPtr ) {
-        object_ = ::clCreateBuffer(context(), flags, size, const_cast<DataType*>(&*startIterator), &error);
+        object_ = call_clCreateBuffer(context(), flags, size, const_cast<DataType*>(&*startIterator), &error);
     } else {
-        object_ = ::clCreateBuffer(context(), flags, size, 0, &error);
+        object_ = call_clCreateBuffer(context(), flags, size, 0, &error);
     }
 
     detail::errHandler(error, __CREATE_BUFFER_ERR);
@@ -10112,10 +10017,10 @@ Buffer::Buffer(
     Context context = queue.getInfo<CL_QUEUE_CONTEXT>();
 
     if (useHostPtr) {
-        object_ = ::clCreateBuffer(context(), flags, size, const_cast<DataType*>(&*startIterator), &error);
+        object_ = call_clCreateBuffer(context(), flags, size, const_cast<DataType*>(&*startIterator), &error);
     }
     else {
-        object_ = ::clCreateBuffer(context(), flags, size, 0, &error);
+        object_ = call_clCreateBuffer(context(), flags, size, 0, &error);
     }
 
     detail::errHandler(error, __CREATE_BUFFER_ERR);
@@ -10187,7 +10092,7 @@ inline void* enqueueMapBuffer(
         *err = error;
     }
 
-    void * result = ::clEnqueueMapBuffer(
+    void * result = call_clEnqueueMapBuffer(
             queue(), buffer(), blocking, flags, offset, size,
             (events != nullptr) ? (cl_uint) events->size() : 0,
             (events != nullptr && events->size() > 0) ? (cl_event*) &events->front() : nullptr,
@@ -10291,7 +10196,7 @@ inline cl_int enqueueUnmapMemObject(
 
     cl_event tmp;
     cl_int err = detail::errHandler(
-        ::clEnqueueUnmapMemObject(
+        call_clEnqueueUnmapMemObject(
         queue(), memory(), mapped_ptr,
         (events != nullptr) ? (cl_uint)events->size() : 0,
         (events != nullptr && events->size() > 0) ? (cl_event*)&events->front() : nullptr,
@@ -11629,7 +11534,7 @@ public:
 
     cl_int finalizeCommandBuffer() const
     {
-        return detail::errHandler(::clFinalizeCommandBufferKHR(object_), __FINALIZE_COMMAND_BUFFER_KHR_ERR);
+        return detail::errHandler(call_clFinalizeCommandBufferKHR(object_), __FINALIZE_COMMAND_BUFFER_KHR_ERR);
     }
 
     cl_int enqueueCommandBuffer(vector<CommandQueue> &queues,
