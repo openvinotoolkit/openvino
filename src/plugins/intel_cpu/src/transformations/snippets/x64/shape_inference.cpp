@@ -19,8 +19,6 @@
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "transformations/tpp/common/op/brgemm.hpp"
-#    include "transformations/tpp/x64/op/equation.hpp"
-#    include "transformations/tpp/x64/op/reduce.hpp"
 #    include "transformations/tpp/x64/op/scalar.hpp"
 #endif
 
@@ -49,10 +47,7 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
 #endif
 #ifdef SNIPPETS_LIBXSMM_TPP
     make_specific_external<ov::intel_cpu::tpp::op::BrgemmTPP, BrgemmShapeInfer>(),
-    make_predefined<ov::intel_cpu::tpp::op::EquationTPP, NumpyBroadcastShapeInfer>(),
     make_predefined<ov::intel_cpu::tpp::op::Scalar, SingleElementShapeInfer>(),
-    make_specific_external<ov::intel_cpu::tpp::op::ReduceMax, ReduceShapeInfer>(),
-    make_specific_external<ov::intel_cpu::tpp::op::ReduceSum, ReduceShapeInfer>(),
 #endif
     make_specific_external<ov::intel_cpu::BrgemmCPU, BrgemmShapeInfer>(),
     make_specific<ov::intel_cpu::BrgemmCopyB>(),

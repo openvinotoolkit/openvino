@@ -14,12 +14,17 @@
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "snippets/op/reduce.hpp"
-#include "transformations/tpp/x64/op/eltwise.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 
+ReduceTPP::ReduceTPP(libxsmm_meltw_unary_type op_type) : m_op_type(op_type) {}
+
+bool ReduceTPP::visit_attributes(AttributeVisitor& visitor) {
+    return true;
+}
+
 ReduceMax::ReduceMax(const Output<Node>& arg, size_t axis)
-    : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_REDUCE_X_OP_MAX),
+    : ReduceTPP(LIBXSMM_MELTW_TYPE_UNARY_REDUCE_X_OP_MAX),
       ov::snippets::op::ReduceMax(arg, axis) {}
 
 std::shared_ptr<Node> ReduceMax::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -31,11 +36,11 @@ std::shared_ptr<Node> ReduceMax::clone_with_new_inputs(const OutputVector& new_a
 
 bool ReduceMax::visit_attributes(AttributeVisitor& visitor) {
     ReduceBase::visit_attributes(visitor);
-    return UnaryEltwiseTPP::visit_attributes(visitor);
+    return ReduceTPP::visit_attributes(visitor);
 }
 
 ReduceSum::ReduceSum(const Output<Node>& arg, size_t axis)
-    : UnaryEltwiseTPP(LIBXSMM_MELTW_TYPE_UNARY_REDUCE_X_OP_ADD),
+    : ReduceTPP(LIBXSMM_MELTW_TYPE_UNARY_REDUCE_X_OP_ADD),
       ov::snippets::op::ReduceSum(arg, axis) {}
 
 std::shared_ptr<Node> ReduceSum::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -47,7 +52,7 @@ std::shared_ptr<Node> ReduceSum::clone_with_new_inputs(const OutputVector& new_a
 
 bool ReduceSum::visit_attributes(AttributeVisitor& visitor) {
     ReduceBase::visit_attributes(visitor);
-    return UnaryEltwiseTPP::visit_attributes(visitor);
+    return ReduceTPP::visit_attributes(visitor);
 }
 
 }  // namespace ov::intel_cpu::tpp::op
