@@ -9,6 +9,10 @@
 #include <mutex>
 #include <vector>
 
+#ifdef ENABLE_PROFILING_ITT
+#    include <ittnotify.h>
+#endif
+
 namespace openvino {
 namespace itt {
 namespace internal {

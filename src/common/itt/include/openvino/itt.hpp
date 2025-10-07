@@ -16,10 +16,6 @@
 #include "openvino/function_name.hpp"
 #include "openvino/util/pp.hpp"
 
-#ifdef ENABLE_PROFILING_ITT
-#    include <ittnotify.h>
-#endif
-
 /** @ingroup ov_dev_profiling
  * @brief openvino namespace
  */
