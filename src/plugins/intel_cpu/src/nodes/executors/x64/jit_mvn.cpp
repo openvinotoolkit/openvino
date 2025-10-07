@@ -346,8 +346,7 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
                 OPENVINO_ASSERT(postOpMemory, "Quantization post-op memory is not set");
                 postOpsMemory.push_back(postOpMemory);
                 auto* base = postOpMemory->getDataAs<float>();
-                for (size_t offsetIdx = 0;
-                     offsetIdx < dnnl_post_ops::entry_t::quantization_t::fields_count;
+                for (size_t offsetIdx = 0; offsetIdx < dnnl_post_ops::entry_t::quantization_t::fields_count;
                      ++offsetIdx) {
                     postOpsPtrArray.push_back(static_cast<void*>(base + entry.quantization.offset[offsetIdx]));
                 }

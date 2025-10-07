@@ -7,10 +7,10 @@
 #include <memory>
 #include <vector>
 
+#include "cpu_types.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mvn_config.hpp"
-#include "cpu_types.h"
 #include "post_ops.hpp"
 
 namespace ov::intel_cpu {
