@@ -55,10 +55,10 @@ template <>
 bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_ptr<ov::Node> node,
                                                     ov::TensorVector& outputs,
                                                     const ov::TensorVector& inputs) {
-    auto element_type = node->get_output_element_type(0);
-    auto pa = std::static_pointer_cast<ov::op::PagedAttentionExtension>(node);
-    auto cache_manager = pa->get_cache_manager();
-    cache_manager->register_operator(pa);
+    const auto& element_type = node->get_output_element_type(0);
+    const auto& pa = std::static_pointer_cast<ov::op::PagedAttentionExtension>(node);
+    const auto& cache_manager = pa->get_cache_manager();
+    cache_manager->register_operator(node);
 
     switch (element_type) {
     case ov::element::bf16:
