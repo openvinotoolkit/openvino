@@ -123,7 +123,11 @@ void parse_processor_info_win(const char* base_ptr,
             MaskToList(info->Processor.GroupMask->Mask);
             if (num_package > 0) {
                 _sockets++;
-                base_proc_socket = _processors;
+                if (_processors < 64) {
+                    l3_set.clear();
+                } else {
+                    base_proc_socket = _processors;
+                }
                 _proc_type_table.push_back(_proc_type_table[0]);
                 _proc_type_table[0] = proc_init_line;
             }

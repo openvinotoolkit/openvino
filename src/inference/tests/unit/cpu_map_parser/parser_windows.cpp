@@ -697,7 +697,7 @@ WinCpuMapTestCase _2sockets_104cores_hyperthreading = {
      "0"},  // param[in]: The CPU information string of this simulated platform
 };
 
-WinCpuMapTestCase _2sockets_192cores_hyperthreading = {
+WinCpuMapTestCase _2sockets_192cores = {
     192,
     2,
     2,
@@ -3271,6 +3271,7 @@ TEST_P(WinCpuMapParserTests, WinCache) {}
 INSTANTIATE_TEST_SUITE_P(CPUMap,
                          WinCpuMapParserTests,
                          testing::Values(_2sockets_104cores_hyperthreading,
+                                         _2sockets_192cores,
                                          _2sockets_48cores_hyperthreading,
                                          _2sockets_36cores_hyperthreading,
                                          _2sockets_48cores,
