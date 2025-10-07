@@ -12,6 +12,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
 #include "nodes/executors/memory_arguments.hpp"
