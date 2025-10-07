@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/xml_serializer.hpp"
+#include "xml_serializer.hpp"
 
 #include "intel_npu/weights_pointer_attribute.hpp"
 #include "openvino/op/util/op_types.hpp"

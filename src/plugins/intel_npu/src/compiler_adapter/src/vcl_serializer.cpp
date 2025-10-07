@@ -15,10 +15,10 @@
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/weights_pointer_attribute.hpp"
-#include "intel_npu/xml_serializer.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+#include "xml_serializer.hpp"
 
 namespace {
 
