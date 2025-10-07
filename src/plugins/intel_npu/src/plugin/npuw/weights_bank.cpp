@@ -252,13 +252,6 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
     std::unique_lock guard(m_mutex);
 
     auto& device_bank = m_device_banks[device];
-    auto iter_device = device_bank.storage.find(uid);
-
-    if (iter_device != device_bank.storage.end()) {
-        // Shouldn't be possible
-        NPUW_ASSERT(false);
-        return;
-    }
 
     if (device == "CPU") {
         // Just read deserialized tensor into the bank
