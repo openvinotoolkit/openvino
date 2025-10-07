@@ -21,10 +21,8 @@
 #include "openvino/itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/op/brgemm.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/pass/propagate_precision.hpp"
-#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -37,8 +35,8 @@ EnforcePrecision::EnforcePrecision(
         get_supported_precisions)
     : source(source),
       target(target),
-      get_supported_precisions(get_supported_precisions == nullptr ? get_supported_precisions_default
-                                                                   : get_supported_precisions) {
+      get_supported_precisions(get_supported_precisions) {
+    OPENVINO_ASSERT(get_supported_precisions != nullptr, "get_supported_precisions callback is not set");
     OPENVINO_ASSERT(source != target, "source and target precisions have to be different");
 }
 
@@ -131,18 +129,4 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
     }
 
     return was_updated;
-}
-
-std::set<std::vector<ov::element::Type>> EnforcePrecision::get_supported_precisions_default(
-    const std::shared_ptr<ov::Node>& op) noexcept {
-    std::set<std::vector<ov::element::Type>> types;
-    if (ov::is_type<snippets::op::Brgemm>(op)) {
-        if (brgemm_utils::is_fp16_supported()) {
-            types.insert({element::f16, element::f16});
-        }
-        if (brgemm_utils::is_bf16_supported()) {
-            types.insert({element::bf16, element::bf16});
-        }
-    }
-    return types;
 }
