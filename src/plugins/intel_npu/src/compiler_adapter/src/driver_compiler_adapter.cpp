@@ -150,7 +150,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("serialize IR");
 
-    std::cout << "Before serialization VM " << getVMValue() << "PM " << getPMValue() << "KB" << std::endl;
+    std::cout << "Before serialization VM " << getVMValue() << " PM " << getPMValue() << "KB" << std::endl;
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     auto serializedIR = driver_compiler_utils::serializeIR(
         model,
@@ -162,7 +162,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to serialize: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
               << "[µs]" << std::endl;
-    std::cout << "After serialization VM " << getVMValue() << "PM " << getPMValue() << "KB" << std::endl;
+    std::cout << "After serialization VM " << getVMValue() << " PM " << getPMValue() << "KB" << std::endl;
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -221,7 +221,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
 
     _logger.debug("serialize IR");
-    std::cout << "Before serialization VM " << getVMValue() << "PM " << getPMValue() << "KB" << std::endl;
+    std::cout << "Before serialization VM " << getVMValue() << " PM " << getPMValue() << "KB" << std::endl;
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     auto serializedIR = driver_compiler_utils::serializeIR(
         model,
@@ -233,7 +233,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to serialize: " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
               << "[µs]" << std::endl;
-    std::cout << "After serialization VM " << getVMValue() << "PM " << getPMValue() << "KB" << std::endl;
+    std::cout << "After serialization VM " << getVMValue() << " PM " << getPMValue() << "KB" << std::endl;
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));

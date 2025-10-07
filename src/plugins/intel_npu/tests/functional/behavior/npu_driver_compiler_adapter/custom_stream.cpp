@@ -46,7 +46,7 @@ public:
         binFileName = fileName + ".bin";
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
@@ -85,7 +85,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
     VCLSerializerWithWeightsCopy VCLSerializerWithWeightsCopy(model, dummyCompilerVersion, 11);
     ::intel_npu::SerializedIR serializedIR = VCLSerializerWithWeightsCopy.serialize();
-    // TODO call the deserializer
+    // TODO move the test in the compiler repo?
     // EXPECT_NO_THROW(model = core.read_model(xmlFileName));
 }
 

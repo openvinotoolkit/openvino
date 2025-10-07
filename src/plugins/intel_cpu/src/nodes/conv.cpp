@@ -427,6 +427,13 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
         }
     };
 
+// ACL requires dst precision matches src precision for int8
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    if (canBeExecutedInInt8()) {
+        return {getOriginalInputPrecisionAtPort(0), ov::element::dynamic};
+    }
+#endif
+
     auto dstType = getOriginalOutputPrecisionAtPort(0);
 
     // make sure dst type is equal to the output type of the last fused node

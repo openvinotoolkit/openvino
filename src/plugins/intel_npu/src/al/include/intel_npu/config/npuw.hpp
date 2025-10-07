@@ -156,6 +156,7 @@ namespace npuw {
 namespace llm {
 enum class PrefillHint { DYNAMIC, STATIC };
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
+enum class AttentionHint { DYNAMIC, STATIC };
 }  // namespace llm
 }  // namespace npuw
 
@@ -200,6 +201,58 @@ struct NPUW_LLM_PREFILL_HINT final : OptionBase<NPUW_LLM_PREFILL_HINT, ::intel_n
 
     static bool isPublic() {
         return false;
+    }
+};
+
+struct ATTN_HINT_BASE : OptionBase<ATTN_HINT_BASE, ::intel_npu::npuw::llm::AttentionHint> {
+    static constexpr std::string_view getTypeName() {
+        return "::intel_npu::npuw::llm::AttentionHint";
+    }
+
+    static ::intel_npu::npuw::llm::AttentionHint defaultValue() {
+        return ::intel_npu::npuw::llm::AttentionHint::STATIC;
+    }
+
+    static ::intel_npu::npuw::llm::AttentionHint parse(std::string_view val) {
+        if (val == "DYNAMIC") {
+            return ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+        } else if (val == "STATIC") {
+            return ::intel_npu::npuw::llm::AttentionHint::STATIC;
+        }
+        OPENVINO_THROW("Unsupported attention hint provided: ", val);
+        return {};
+    }
+
+    static std::string toString(const ::intel_npu::npuw::llm::AttentionHint& val) {
+        switch (val) {
+        case ::intel_npu::npuw::llm::AttentionHint::DYNAMIC:
+            return "DYNAMIC";
+        case ::intel_npu::npuw::llm::AttentionHint::STATIC:
+            return "STATIC";
+        default:
+            OPENVINO_THROW("Can't convert provided attention hint : ", int(val), " to string.");
+        }
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
+
+struct NPUW_LLM_GENERATE_ATTENTION_HINT final : ATTN_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::generate_attn_hint.name();
+    }
+};
+
+struct NPUW_LLM_PREFILL_ATTENTION_HINT final : ATTN_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::prefill_attn_hint.name();
     }
 };
 
