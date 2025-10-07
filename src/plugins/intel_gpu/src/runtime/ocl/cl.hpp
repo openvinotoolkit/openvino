@@ -575,12 +575,7 @@ typedef unsigned long cl_command_buffer_info_khr;
 typedef unsigned long cl_sync_point_khr;
 typedef unsigned long cl_mutable_command_info_khr;
 typedef void* cl_mutable_command_khr;
-// === Symulacja funkcji C API (bez call_... - tylko właściwe API OpenCL) ===
-//inline cl_int clGetPlatformIDs(cl_uint, cl_platform_id*, cl_uint*) { return CL_SUCCESS; }
-//inline cl_int clGetDeviceIDs(cl_platform_id, cl_device_type, cl_uint, cl_device_id*, cl_uint*) { return CL_SUCCESS; }
-inline cl_context clCreateContext(const cl_context_properties*, cl_uint, const cl_device_id*, void(*)(const char*, const void*, size_t, void*), void*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
-inline cl_command_queue clCreateCommandQueue(cl_context a, cl_device_id b, cl_command_queue_properties c, cl_int* d) { return call_clCreateCommandQueue(a, b, c, d); }
-inline cl_program clCreateProgramWithSource(cl_context a, cl_uint b, const char** c, const size_t* d, cl_int* e) { return call_clCreateProgramWithSource(a, b, c, d, e); }
+
 inline cl_int clBuildProgram(cl_program a, cl_uint b, const cl_device_id* c, const char* d, void(*e)(cl_program, void*), void* f) { return call_clBuildProgram(a, b, c, d, e, f); }
 inline cl_kernel clCreateKernel(cl_program a, const char* b, cl_int* c) { return call_clCreateKernel(a, b, c); }
 inline cl_mem clCreateBuffer(cl_context, cl_mem_flags, size_t, void*, cl_int*) { std::cout << "xxx" << std::endl; GPU_DEBUG_LOG << "xxxd " << __FILE__ << ":" << __LINE__ << std::endl; return nullptr; }
@@ -6698,7 +6693,7 @@ public:
 
         if (error == CL_SUCCESS && build) {
 
-            error = ::clBuildProgram(
+            error = call_clBuildProgram(
                 object_,
                 0,
                 nullptr,
@@ -6735,7 +6730,7 @@ public:
         detail::errHandler(error, __CREATE_PROGRAM_WITH_SOURCE_ERR);
 
         if (error == CL_SUCCESS && build) {
-            error = ::clBuildProgram(
+            error = call_clBuildProgram(
                 object_,
                 0,
                 nullptr,
@@ -6860,7 +6855,7 @@ public:
 
         if (error == CL_SUCCESS && build) {
 
-            error = ::clBuildProgram(
+            error = call_clBuildProgram(
                 object_,
                 0,
                 nullptr,
@@ -6913,7 +6908,7 @@ public:
         detail::errHandler(error, __CREATE_PROGRAM_WITH_IL_ERR);
 
         if (error == CL_SUCCESS && build) {
-            error = ::clBuildProgram(
+            error = call_clBuildProgram(
                 object_,
                 0,
                 nullptr,
@@ -7085,7 +7080,7 @@ public:
             deviceIDs[deviceIndex] = (devices[deviceIndex])();
         }
 
-        cl_int buildError = ::clBuildProgram(
+        cl_int buildError = call_clBuildProgram(
             object_,
             (cl_uint)
             devices.size(),
@@ -7114,7 +7109,7 @@ public:
     {
         cl_device_id deviceID = device();
 
-        cl_int buildError = ::clBuildProgram(
+        cl_int buildError = call_clBuildProgram(
             object_,
             1,
             &deviceID,
@@ -7140,7 +7135,7 @@ public:
         void (CL_CALLBACK * notifyFptr)(cl_program, void *) = nullptr,
         void* data = nullptr) const
     {
-        cl_int buildError = ::clBuildProgram(
+        cl_int buildError = call_clBuildProgram(
             object_,
             0,
             nullptr,
@@ -7782,7 +7777,7 @@ public:
 #endif // CL_HPP_TARGET_OPENCL_VERSION >= 200
 #if CL_HPP_MINIMUM_OPENCL_VERSION < 200
             if (!useWithProperties) {
-                object_ = ::clCreateCommandQueue(
+                object_ = call_clCreateCommandQueue(
                     context(), device(), properties, &error);
 
                 detail::errHandler(error, __CREATE_COMMAND_QUEUE_ERR);
@@ -7844,7 +7839,7 @@ public:
 #endif // CL_HPP_TARGET_OPENCL_VERSION >= 200
 #if CL_HPP_MINIMUM_OPENCL_VERSION < 200
            if (!useWithProperties) {
-               object_ = ::clCreateCommandQueue(
+               object_ = call_clCreateCommandQueue(
                    context(), device(), static_cast<cl_command_queue_properties>(properties), &error);
 
                detail::errHandler(error, __CREATE_COMMAND_QUEUE_ERR);
@@ -7913,7 +7908,7 @@ public:
 #endif // CL_HPP_TARGET_OPENCL_VERSION >= 200
 #if CL_HPP_MINIMUM_OPENCL_VERSION < 200
         if (!useWithProperties) {
-            object_ = ::clCreateCommandQueue(
+            object_ = call_clCreateCommandQueue(
                 context(), devices[0](), properties, &error);
 
             detail::errHandler(error, __CREATE_COMMAND_QUEUE_ERR);
@@ -7975,7 +7970,7 @@ public:
 #endif // CL_HPP_TARGET_OPENCL_VERSION >= 200
 #if CL_HPP_MINIMUM_OPENCL_VERSION < 200
         if (!useWithProperties) {
-            object_ = ::clCreateCommandQueue(
+            object_ = call_clCreateCommandQueue(
                 context(), devices[0](), static_cast<cl_command_queue_properties>(properties), &error);
 
             detail::errHandler(error, __CREATE_COMMAND_QUEUE_ERR);
@@ -8026,7 +8021,7 @@ public:
 #endif // CL_HPP_TARGET_OPENCL_VERSION >= 200
 #if CL_HPP_MINIMUM_OPENCL_VERSION < 200
         if (!useWithProperties) {
-            object_ = ::clCreateCommandQueue(
+            object_ = call_clCreateCommandQueue(
                 context(), device(), properties, &error);
 
             detail::errHandler(error, __CREATE_COMMAND_QUEUE_ERR);
@@ -8077,7 +8072,7 @@ public:
 #endif // CL_HPP_TARGET_OPENCL_VERSION >= 200
 #if CL_HPP_MINIMUM_OPENCL_VERSION < 200
         if (!useWithProperties) {
-            object_ = ::clCreateCommandQueue(
+            object_ = call_clCreateCommandQueue(
                 context(), device(), static_cast<cl_command_queue_properties>(properties), &error);
 
             detail::errHandler(error, __CREATE_COMMAND_QUEUE_ERR);
