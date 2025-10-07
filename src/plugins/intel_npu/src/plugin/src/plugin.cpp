@@ -326,7 +326,6 @@ void Plugin::init_options() {
 
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
-            // Can we always register workload type and to enable only when contidion above is true?
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
         // register backend options
@@ -591,13 +590,6 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     auto npu_plugin_properties = arguments;
     exclude_model_ptr_from_map(npu_plugin_properties);
-    // 1. Incorrect property - compiler load redundant, but can't avoid this
-    // 2. Unknown property (private compiler property) - need to check for compiler load
-    // 3. Valid property
-    // 3.1 Option was already enabled (runtime case)
-    // 3.2 Option was not yet enabled (deffered compiler load) - need to check for compiler load
-    // 3.3 Regular metric
-    // 3.4 SUPPORTED_PROPERTY - need to check for compiler load
 
     if (!_globalConfig.wasFiltered() &&
         (!_properties->isPropertyRegistered(name) || name == ov::supported_properties.name())) {

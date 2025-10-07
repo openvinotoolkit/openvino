@@ -72,6 +72,11 @@ public:
     void enable(std::string key, bool enable);
 
     /**
+     * @brief Enables all available configuration options.
+     */
+    void enableAll();
+
+    /**
      * @brief Enables only runtime configuration options.
      */
     void enableRuntimeOptions();

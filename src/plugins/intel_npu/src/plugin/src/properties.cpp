@@ -312,7 +312,6 @@ void Properties::registerProperties() {
     // Reset
     _properties.clear();
     _supportedProperties.clear();
-    _registeredProperties.clear();
 
     switch (_pType) {
     case PropertiesType::PLUGIN:
@@ -329,13 +328,9 @@ void Properties::registerProperties() {
     // 2.3. Common metrics (exposed same way by both Plugin and CompiledModel)
     REGISTER_SIMPLE_METRIC(ov::supported_properties, true, _supportedProperties);
 
-    // 2.4. All registered properties
-    REGISTER_SIMPLE_METRIC(ov::intel_npu::registered_properties, false, _registeredProperties);
-
     // 3. Populate supported properties list
     // ========
     for (auto& property : _properties) {
-        _registeredProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
         }
@@ -628,7 +623,6 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::ws_compile_call_number, WS_COMPILE_CALL_NUMBER);
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);
 
@@ -680,13 +674,12 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
     for (auto&& value : arguments) {
         amends.emplace(value.first, value.second.as<std::string>());
     }
-
     FilteredConfig amendedConfig = _config;
     try {
         amendedConfig.update(amends, OptionMode::Both);
     } catch (const ov::Exception& /* unusedOVException */) {
-        auto logger = Logger("Properties", ov::log::Level::WARNING);
-        logger.warning("Amended config couldn't be updated with the given arguments");
+        Logger("Properties", ov::log::Level::WARNING)
+            .warning("Amended config couldn't be updated with the given arguments");
     }
 
     auto&& configIterator = _properties.find(name);
