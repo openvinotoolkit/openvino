@@ -621,6 +621,18 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
     return std::nullopt;
 }
 
+void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
+    auto it = config.find("NPUW_WEIGHTS_BANK");
+    if (it != config.end()) {
+        if (it->second.as<std::string>().empty()) {
+            NPUW_ASSERT(false && "NPUW_WEIGHTS_BANK is empty in the provided config! Please use non-empty name to "
+                                 "share the model weights.");
+        }
+    } else {
+        config["NPUW_WEIGHTS_BANK"] = bank_name;
+    }
+}
+
 ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
     ov::AnyMap config = {
         {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
@@ -629,7 +641,6 @@ ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
         {"NPUW_FOLD", "YES"},
         {"NPUW_DCOFF_TYPE", "f16"},
         {"NPUW_DCOFF_SCALE", "YES"},
-        {"NPUW_WEIGHTS_BANK", "shared"},
         {"NPUW_SLICE_OUT", "YES"},
         {"NPUW_FUNCALL_ASYNC", "YES"}};
     // FIXME: this config logic is getting more and more complex
@@ -981,6 +992,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
+    // Generate a random weights bank name unique to this LLMCompiledModel object
+    auto weights_bank_name = ov::npuw::util::generate_random_string();
+    LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
+
+    apply_weights_bank_name(prefill_config, weights_bank_name);
+    apply_weights_bank_name(generate_config, weights_bank_name);
+
     // Handle attention hints. FIXME: Maybe it makes sense to make those
     // mutually exclusive with the precise configuration sections as well
     const ov::AnyMap dyn_attn_opts = {
@@ -1035,8 +1053,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
-
         merge_config_with(lm_head_config, lm_head_config_addition_value);
+
+        apply_weights_bank_name(lm_head_config, weights_bank_name);
+
         m_lm_head_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
             ov::npuw::ICompiledModel::create(lm_head_model, plugin, lm_head_config));
         NPUW_ASSERT(m_lm_head_compiled);
