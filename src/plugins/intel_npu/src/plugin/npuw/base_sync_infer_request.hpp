@@ -147,6 +147,9 @@ protected:
     virtual void alloc_io();
     virtual TensorPtr alloc_global_out(std::size_t out_idx);
 
+    std::string global_input_mem_device(std::size_t idx) const;
+    std::string global_output_mem_device(std::size_t idx) const;
+
     virtual void init_gio();
     void unpack_closure(std::size_t idx, RqPtr request);
     virtual void bind_global_params(std::size_t idx, RqPtr request);
@@ -158,7 +161,14 @@ protected:
     void dump_output_tensors(std::size_t idx);
 
     // Quick-and-dirty profiling
-    ov::npuw::perf::metric<float, ov::npuw::perf::MSec> m_ms_unpack;
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    using B = ov::npuw::perf::counter<ov::npuw::perf::Bytes>;
+
+    MS m_ms_unpack;
+    ov::npuw::perf::Profile<MS> m_profile;
+    ov::npuw::perf::Profile<B> m_footprint;
+
+    std::string profile_tag(std::size_t idx) const;
 
     // Various name/dump formatting methods
     // TODO: These methods should probably go to CompiledModel

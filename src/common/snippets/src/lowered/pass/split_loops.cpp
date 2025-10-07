@@ -127,6 +127,7 @@ void SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t oute
 
 namespace {
 InnerSplittedUnifiedLoopInfoPtr make_own_inner_splitted_unified_loop_info(
+    const LoopManagerPtr& loop_manager,
     const ExpandedLoopInfoPtr& inner_expanded,
     const ExpandedLoopInfoPtr& outer_expanded,
     const InnerSplittedUnifiedLoopInfoPtr& existing_inner_unified) {
@@ -138,7 +139,7 @@ InnerSplittedUnifiedLoopInfoPtr make_own_inner_splitted_unified_loop_info(
                                                        existing_inner_unified->get_output_port_descs(),
                                                        existing_inner_unified->get_handlers(),
                                                        outer_expanded);
-    ov::snippets::utils::update_runtime_parameters(loop_info);
+    ov::snippets::utils::update_runtime_parameters(loop_manager, loop_info);
     return loop_info;
 }
 ExpandedLoopInfoPtr make_own_inner_splitted_expanded_loop_info(const ExpandedLoopInfoPtr& inner_expanded,
@@ -196,7 +197,8 @@ bool SplitLoops::TransformInnerSplitLoop::run(LinearIR& linear_ir,
         // We have to make a new UnifiedLoopInfo to distinguish it from other unified loops in other specific iterations
         // of outer loop.
         const auto inner_splitted_unified_loop_info =
-            make_own_inner_splitted_unified_loop_info(inner_expanded_loop_info,
+            make_own_inner_splitted_unified_loop_info(loop_manager,
+                                                      inner_expanded_loop_info,
                                                       outer_loop_info,
                                                       inner_unified_loop_info);
 
