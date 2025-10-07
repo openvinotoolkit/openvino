@@ -9,6 +9,7 @@
 #include <memory>
 #include <queue>
 
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/reference/matmul.hpp"
 #include "openvino/reference/normalize_l2.hpp"
 #include "openvino/reference/reduce_mean.hpp"
@@ -59,7 +60,7 @@ public:
      * @param out_shape Shape of the output tensor data. Expected shape is [num_heads, num_query_tokens / block_size,
      * num_key_tokens / block_size].
      */
-    void fill_diagonal_(const T* in_out,
+    void fill_diagonal_(T* in_out,
                         const Shape& in_out_shape,
                         T val) {
         OPENVINO_ASSERT(in_out_shape.size() == 3);  // [num_heads, token_dim, token_dim]
@@ -76,7 +77,7 @@ public:
         }
     }
 
-    void fill_low_values_with_zeros_(const T* in_out,
+    void fill_low_values_with_zeros_(T* in_out,
                                      const Shape& in_out_shape,
                                      const T* means,
                                      const Shape& means_shape) {
@@ -121,7 +122,7 @@ public:
                size_t in_block_offset = (out_block_dim_idx * m_block_size) * out_shape[1];
                for (size_t in_token_in_block_idx = 0; in_token_in_block_idx < m_block_size; in_token_in_block_idx++) {
                   size_t source_offset = in_block_offset + in_token_in_block_idx * processed_similarity_token_data_shape[1] + out_token_dim_idx;
-                  out[out_block_offset + out_token_dim_idx] += processed_similarity_token_data[source_offset];
+                  out[out_block_offset + out_token_dim_idx] -= processed_similarity_token_data[source_offset];
                }
             }
         }
@@ -146,19 +147,22 @@ public:
     std::vector<std::vector<T>> calculate_block_diversity(const T* key_data,
                                                   const Shape& key_shape) {
         OPENVINO_ASSERT(key_shape.size() == 3);    // [num_heads, key_token_len, head_dim]
-        OPENVINO_ASSERT(key_shape[1] >= m_block_size * (m_start_size + m_eviction_size));
+        OPENVINO_ASSERT(key_shape[1] >= m_start_size + m_eviction_size);
 
+
+        auto normalized_key_data_buf = allocate_buf(key_shape);
         // Should be safe to use this in-place
-        ov::reference::normalize_l2(key_data, key_data, key_shape, {2}, std::numeric_limits<T>::epsilon());
+        ov::reference::normalize_l2(key_data, normalized_key_data_buf.get(), key_shape, {2}, std::numeric_limits<float>::epsilon(), ov::op::EpsMode::ADD);
 
         Shape cos_similar_shape = {key_shape[0], key_shape[1], key_shape[1]};
         auto cos_similar_buf = allocate_buf(cos_similar_shape);
-        ov::reference::matmul(key_data, key_data, cos_similar_buf.get(), key_shape, key_shape, cos_similar_shape, /* transpose_arg0 = */ false, /* transpose_arg1 = */ true);
+        ov::reference::matmul(normalized_key_data_buf.get(), normalized_key_data_buf.get(), cos_similar_buf.get(), key_shape, key_shape, cos_similar_shape, /* transpose_arg0 = */ false, /* transpose_arg1 = */ true);
+        normalized_key_data_buf.reset();
 
         Shape evictable_subset_shape = {key_shape[0], m_eviction_size, m_eviction_size};
         auto evictable_subset_buf = allocate_buf(evictable_subset_shape);
         // stops?
-        ov::reference::slice(cos_similar_buf.get(), cos_similar_shape, evictable_subset_buf.get(), evictable_subset_shape, sizeof(T), /* starts = */ {m_start_size, m_start_size}, /* steps = */ {1, 1}, /* axes = */{1, 2});
+        ov::reference::slice(reinterpret_cast<char*>(cos_similar_buf.get()), cos_similar_shape, reinterpret_cast<char*>(evictable_subset_buf.get()), evictable_subset_shape, sizeof(T), /* starts = */ {m_start_size, m_start_size}, /* steps = */ {1, 1}, /* axes = */{1, 2});
         cos_similar_buf.reset();
 
         fill_diagonal_(evictable_subset_buf.get(), evictable_subset_shape, 0.0);
@@ -168,6 +172,7 @@ public:
         ov::reference::reduce_mean(evictable_subset_buf.get(), means_buf.get(), evictable_subset_shape, {2});
 
         fill_low_values_with_zeros_(evictable_subset_buf.get(), evictable_subset_shape, means_buf.get(), means_shape);
+        means_buf.reset();
 
         Shape aggregated_token_similarities_shape = {m_eviction_size, m_eviction_size};
         auto aggregated_token_similarities_buf = allocate_buf(aggregated_token_similarities_shape);
@@ -180,7 +185,7 @@ public:
         std::vector<std::vector<T>> retval(block_diversity_shape[0], std::vector<T>(block_diversity_shape[1]));
         for (size_t block_idx = 0; block_idx < block_diversity_shape[0]; block_idx++) {
             for (size_t token_idx = 0; token_idx < block_diversity_shape[1]; token_idx++) {
-                retval[block_idx][token_idx] = block_diversity_buf.get() + block_idx * block_diversity_shape[1] + token_idx;
+                retval[block_idx][token_idx] = block_diversity_buf[block_idx * block_diversity_shape[1] + token_idx];
             }
         }
 
