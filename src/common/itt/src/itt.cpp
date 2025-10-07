@@ -19,6 +19,12 @@ namespace internal {
 
 #ifdef ENABLE_PROFILING_ITT
 
+static __itt_collection_state state = __itt_get_collection_state();
+
+static inline bool is_initialized() {
+    return state == __itt_collection_init_successful;
+}
+
 static size_t callStackDepth() {
     static const char* env = std::getenv("OPENVINO_TRACE_DEPTH");
     static const size_t depth = env ? std::strtoul(env, nullptr, 10) : 0;
@@ -37,14 +43,23 @@ static thread_local uint64_t current_region_counter = 0;
 static thread_local void* current_region_handle = nullptr;
 
 domain_t domain(const char* name) {
+    if (!is_initialized()) {
+        return nullptr;
+    }
     return reinterpret_cast<domain_t>(__itt_domain_create(name));
 }
 
 handle_t handle(const char* name) {
+    if (!is_initialized()) {
+        return nullptr;
+    }
     return reinterpret_cast<handle_t>(__itt_string_handle_create(name));
 }
 
 void taskBegin(domain_t d, handle_t t) {
+    if (!is_initialized() || d == nullptr || t == nullptr) {
+        return;
+    }
     if (!callStackDepth() || call_stack_depth++ < callStackDepth()) {
         __itt_id parent_id =
             current_region_counter != 0 ? __itt_id_make(current_region_handle, current_region_counter) : __itt_null;
@@ -56,15 +71,24 @@ void taskBegin(domain_t d, handle_t t) {
 }
 
 void taskEnd(domain_t d) {
+    if (!is_initialized() || d == nullptr) {
+        return;
+    }
     if (!callStackDepth() || --call_stack_depth < callStackDepth())
         __itt_task_end(reinterpret_cast<__itt_domain*>(d));
 }
 
 void threadName(const char* name) {
+    if (!is_initialized()) {
+        return;
+    }
     __itt_thread_set_name(name);
 }
 
 void regionBegin(domain_t d, handle_t t) {
+    if (!is_initialized() || d == nullptr || t == nullptr) {
+        return;
+    }
     std::lock_guard<std::mutex> lock(region_mutex);
     auto region_counter = nextRegionId();
     current_region_counter = region_counter;
@@ -77,6 +101,9 @@ void regionBegin(domain_t d, handle_t t) {
 }
 
 void regionEnd(domain_t d) {
+    if (!is_initialized() || d == nullptr) {
+        return;
+    }
     std::lock_guard<std::mutex> lock(region_mutex);
     if (current_region_counter == 0)
         return;
