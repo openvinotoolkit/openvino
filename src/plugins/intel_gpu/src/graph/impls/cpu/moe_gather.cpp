@@ -50,17 +50,14 @@ struct moe_gather_impl : public typed_primitive_impl<moe_gather> {
         if (!pass_through_events) {
             stream.wait_for_events(events);
         }
+        /*
         auto input_activations_mem_ptr = instance.dep_memory_ptr(0);
-        auto experts_info_offsets_mem_ptr = instance.dep_memory_ptr(1);
-        auto tokens_per_expert_mem_ptr = instance.dep_memory_ptr(2);
-        auto tokens_len_per_expert_mem_ptr = instance.dep_memory_ptr(3);
+        auto tokens_per_expert_mem_ptr = instance.dep_memory_ptr(1);
         auto out_mem_ptr = instance.output_memory_ptr(0);
         auto num_used_experts = instance.get_input_layout(1).get_shape()[0];
         auto hidden_size = instance.get_input_layout(0).get_shape()[1];
         cldnn::mem_lock<ov::float16, mem_lock_type::read> input_data(input_activations_mem_ptr, stream);
-        cldnn::mem_lock<int32_t, mem_lock_type::read> experts_info_offsets(experts_info_offsets_mem_ptr, stream);
         cldnn::mem_lock<int32_t, mem_lock_type::read> tokens_per_expert(tokens_per_expert_mem_ptr, stream);
-        cldnn::mem_lock<int32_t, mem_lock_type::read> tokens_len_per_expert(tokens_len_per_expert_mem_ptr, stream);
         cldnn::mem_lock<ov::float16, mem_lock_type::read_write> output(out_mem_ptr, stream);
 
         for (size_t e = 0; e < num_used_experts; ++e) {
@@ -75,6 +72,7 @@ struct moe_gather_impl : public typed_primitive_impl<moe_gather> {
                 }
             }
         }
+        */
 
         if (pass_through_events) {
             return stream.group_events(events);
@@ -119,4 +117,3 @@ attach_moe_gather_impl::attach_moe_gather_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::moe_gather_impl)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_gather)
