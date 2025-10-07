@@ -43,16 +43,10 @@ static thread_local uint64_t current_region_counter = 0;
 static thread_local void* current_region_handle = nullptr;
 
 domain_t domain(const char* name) {
-    if (!is_initialized()) {
-        return nullptr;
-    }
     return reinterpret_cast<domain_t>(__itt_domain_create(name));
 }
 
 handle_t handle(const char* name) {
-    if (!is_initialized()) {
-        return nullptr;
-    }
     return reinterpret_cast<handle_t>(__itt_string_handle_create(name));
 }
 
