@@ -122,10 +122,8 @@
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "emitters/tpp/x64/jit_brgemm_emitter.hpp"
 #    include "emitters/tpp/x64/jit_debug_emitter.hpp"
-#    include "emitters/tpp/x64/jit_scalar_emitter.hpp"
 #    include "transformations/tpp/common/op/brgemm.hpp"
 #    include "transformations/tpp/common/op/modifiers.hpp"
-#    include "transformations/tpp/x64/op/scalar.hpp"
 // Note: for reference implementations
 #    include <cmath>
 #endif
@@ -382,7 +380,6 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 #ifdef SNIPPETS_LIBXSMM_TPP
     jitters[intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(BrgemmTppEmitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
-    jitters[intel_cpu::tpp::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ScalarTppEmitter);
 #endif
 }
 
@@ -495,8 +492,7 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
     const auto op = out.get_node_shared_ptr();
     if (is_type_any_of<intel_cpu::BrgemmCPU, intel_cpu::BrgemmCopyB>(op)
 #ifdef SNIPPETS_LIBXSMM_TPP
-        || is_type<intel_cpu::tpp::op::Scalar>(op) ||
-        std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op)
+        || std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op)
 #endif
     ) {
         return ov::snippets::RegType::gpr;

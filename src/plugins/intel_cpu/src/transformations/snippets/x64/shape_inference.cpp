@@ -19,7 +19,6 @@
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "transformations/tpp/common/op/brgemm.hpp"
-#    include "transformations/tpp/x64/op/scalar.hpp"
 #endif
 
 namespace ov::snippets {
@@ -47,7 +46,6 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
 #endif
 #ifdef SNIPPETS_LIBXSMM_TPP
     make_specific_external<ov::intel_cpu::tpp::op::BrgemmTPP, BrgemmShapeInfer>(),
-    make_predefined<ov::intel_cpu::tpp::op::Scalar, SingleElementShapeInfer>(),
 #endif
     make_specific_external<ov::intel_cpu::BrgemmCPU, BrgemmShapeInfer>(),
     make_specific<ov::intel_cpu::BrgemmCopyB>(),
