@@ -21,6 +21,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -56,6 +57,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -73,6 +75,7 @@ struct Ctx {
     std::shared_ptr<Node> w_in = nullptr;
     std::shared_ptr<Node> h_out = nullptr;
     std::shared_ptr<Node> w_out = nullptr;
+    std::shared_ptr<Node> grid_shape = nullptr;  // 1D shape of grid [N, H_out, W_out, 2]
     // Types
     element::Type element_type = element::dynamic;
     element::Type calc_type = element::dynamic;  // set to f32 for math
@@ -90,6 +93,9 @@ struct Ctx {
     // Common axes
     std::shared_ptr<Node> axis_0 = nullptr;
     std::shared_ptr<Node> axis_3 = nullptr;
+    std::shared_ptr<Node> unsqueeze_axis_0 = nullptr;
+    std::shared_ptr<Node> unsqueeze_axis_neg1 = nullptr;
+    std::shared_ptr<Node> unsqueeze_axis_3 = nullptr;  // for [N,H,W] -> [N,H,W,1]
     // NHWC transpose pattern
     std::shared_ptr<Node> to_nhwc_perm = nullptr;
     // Pixels coords after normalization
@@ -108,10 +114,8 @@ struct Ctx {
 inline bool is_nearest_problematic(const op::v9::GridSample::Attributes& attrs) {
     using IM = op::v9::GridSample::InterpolationMode;
     using PM = op::v9::GridSample::PaddingMode;
-    if (attrs.mode != IM::NEAREST || attrs.align_corners) {
-        return false;
-    }
-    return attrs.padding_mode == PM::REFLECTION || attrs.padding_mode == PM::BORDER || attrs.padding_mode == PM::ZEROS;
+    return attrs.mode == IM::NEAREST && !attrs.align_corners &&
+           any_of(attrs.padding_mode, PM::REFLECTION, PM::BORDER, PM::ZEROS);
 }
 
 // ---- small helpers ----
@@ -200,40 +204,18 @@ void normalize_grid_to_pixels(const Ctx& ctx,
     }
 }
 
-// Create [N, H_out, W_out] batch indices tensor for GatherND (broadcasted)
-std::shared_ptr<Node> create_batch_indices(const Ctx& ctx) {
-    auto range = std::make_shared<op::v4::Range>(ctx.i32_0, ctx.n_dim, ctx.i32_1, element::i32);
-
-    auto n_dim_1d_bs = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, ctx.i32_0);
-    auto batch_shape = std::make_shared<op::v0::Concat>(OutputVector{n_dim_1d_bs,
-                                                                     op::v0::Constant::create(element::i32, {1}, {1}),
-                                                                     op::v0::Constant::create(element::i32, {1}, {1})},
-                                                        0);
-
-    auto batch_indices = std::make_shared<op::v1::Reshape>(range, batch_shape, false);
-
-    auto n_dim_1d = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, ctx.i32_0);
-    auto h_out_1d = std::make_shared<op::v0::Unsqueeze>(ctx.h_out, ctx.i32_0);
-    auto w_out_1d = std::make_shared<op::v0::Unsqueeze>(ctx.w_out, ctx.i32_0);
-    auto bshape = std::make_shared<op::v0::Concat>(OutputVector{n_dim_1d, h_out_1d, w_out_1d}, 0);
-    auto bcast = std::make_shared<op::v3::Broadcast>(batch_indices, bshape);
-    return std::make_shared<op::v0::Convert>(bcast, element::i32);
-}
-
 // Gather from NHWC by (b, y, x)
 std::shared_ptr<Node> gather_hw_nhwc(const Ctx& ctx,
                                      const std::shared_ptr<Node>& x_coord,
                                      const std::shared_ptr<Node>& y_coord) {
     auto x_i32 = std::make_shared<op::v0::Convert>(x_coord, element::i32);
     auto y_i32 = std::make_shared<op::v0::Convert>(y_coord, element::i32);
-    auto bidx = create_batch_indices(ctx);
 
-    auto b_exp = std::make_shared<op::v0::Unsqueeze>(bidx, ctx.i32_neg1);
-    auto y_exp = std::make_shared<op::v0::Unsqueeze>(y_i32, ctx.i32_neg1);
-    auto x_exp = std::make_shared<op::v0::Unsqueeze>(x_i32, ctx.i32_neg1);
-
-    auto indices = std::make_shared<op::v0::Concat>(OutputVector{b_exp, y_exp, x_exp}, -1);
-    return std::make_shared<op::v8::GatherND>(ctx.data_nhwc, indices, 0);
+    // indices shape: [N, H_out, W_out, 2] with batch_dims=1
+    auto y_exp = std::make_shared<op::v0::Unsqueeze>(y_i32, ctx.unsqueeze_axis_3);
+    auto x_exp = std::make_shared<op::v0::Unsqueeze>(x_i32, ctx.unsqueeze_axis_3);
+    auto indices = std::make_shared<op::v0::Concat>(OutputVector{y_exp, x_exp}, -1);
+    return std::make_shared<op::v8::GatherND>(ctx.data_nhwc, indices, 1);
 }
 
 // Reflection helpers (continuous/indexed)
@@ -242,6 +224,13 @@ std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
                                     const std::shared_ptr<Node>& size_f,
                                     bool align_corners) {
     auto size_is_one = std::make_shared<op::v1::Equal>(size_f, ctx.c1);
+    if (const auto size_flag = ov::util::get_constant_from_source(size_is_one)) {
+        const auto mask = size_flag->cast_vector<bool>();
+        if (!mask.empty() && mask.front()) {
+            auto target_shape = std::make_shared<op::v3::ShapeOf>(coord, element::i32);
+            return std::make_shared<op::v3::Broadcast>(ctx.c0, target_shape);
+        }
+    }
     if (align_corners) {
         auto size_m1 = std::make_shared<op::v1::Subtract>(size_f, ctx.c1);
         auto period = std::make_shared<op::v1::Multiply>(ctx.c2, size_m1);
@@ -260,12 +249,10 @@ std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
     auto two_size = std::make_shared<op::v1::Multiply>(ctx.c2, size_f);
     auto two_size_safe = std::make_shared<op::v1::Maximum>(two_size, ctx.c1);
     auto mod = std::make_shared<op::v1::FloorMod>(coord_positive, two_size_safe);
-
     auto need_ref = std::make_shared<op::v1::GreaterEqual>(mod, size_f);
     auto two_size_m1 = std::make_shared<op::v1::Subtract>(two_size_safe, ctx.c1);
     auto ref_val = std::make_shared<op::v1::Subtract>(two_size_m1, mod);
     auto result = std::make_shared<op::v1::Select>(need_ref, ref_val, mod);
-
     return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, result);
 }
 
@@ -274,6 +261,13 @@ std::shared_ptr<Node> reflect_index(const Ctx& ctx,
                                     const std::shared_ptr<Node>& size_f,
                                     bool align_corners) {
     auto size_is_one = std::make_shared<op::v1::Equal>(size_f, ctx.c1);
+    if (const auto size_flag = ov::util::get_constant_from_source(size_is_one)) {
+        const auto mask = size_flag->cast_vector<bool>();
+        if (!mask.empty() && mask.front()) {
+            auto target_shape = std::make_shared<op::v3::ShapeOf>(idx, element::i32);
+            return std::make_shared<op::v3::Broadcast>(ctx.c0, target_shape);
+        }
+    }
     if (align_corners) {
         auto size_m1 = std::make_shared<op::v1::Subtract>(size_f, ctx.c1);
         auto two_sm1 = std::make_shared<op::v1::Multiply>(ctx.c2, size_m1);
@@ -347,16 +341,9 @@ std::shared_ptr<Node> build_nearest_nhwc(const Ctx& ctx, const ov::op::v9::GridS
     std::shared_ptr<Node> out = gather_hw_nhwc(ctx, x_idx, y_idx);
 
     if (is_zeros) {
-        auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
-        auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
-        auto x_ge_0 = std::make_shared<op::v1::GreaterEqual>(x_unclamped, ctx.c0);
-        auto x_le_w1 = std::make_shared<op::v1::LessEqual>(x_unclamped, w_m1);
-        auto y_ge_0 = std::make_shared<op::v1::GreaterEqual>(y_unclamped, ctx.c0);
-        auto y_le_h1 = std::make_shared<op::v1::LessEqual>(y_unclamped, h_m1);
-        auto ok = std::make_shared<op::v1::LogicalAnd>(std::make_shared<op::v1::LogicalAnd>(x_ge_0, x_le_w1),
-                                                       std::make_shared<op::v1::LogicalAnd>(y_ge_0, y_le_h1));
+        auto ok = inside_mask_indexed(ctx, x_unclamped, y_unclamped, w_in_f, h_in_f);
         auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
-        auto maske = std::make_shared<op::v0::Unsqueeze>(mask, ctx.i32_neg1);
+        auto maske = std::make_shared<op::v0::Unsqueeze>(mask, ctx.unsqueeze_axis_neg1);
         if (ctx.element_type != ctx.calc_type) {
             out = std::make_shared<op::v0::Convert>(out, ctx.calc_type);
         }
@@ -393,8 +380,14 @@ std::shared_ptr<Node> build_bilinear_nhwc(const Ctx& ctx, const ov::op::v9::Grid
     std::shared_ptr<Node> x1 = std::make_shared<op::v1::Add>(x0, ctx.c1);
     std::shared_ptr<Node> y1 = std::make_shared<op::v1::Add>(y0, ctx.c1);
 
-    auto dx = std::make_shared<op::v1::Subtract>(x_pad, x0);
-    auto dy = std::make_shared<op::v1::Subtract>(y_pad, y0);
+    std::shared_ptr<Node> dx = std::make_shared<op::v1::Subtract>(x_pad, x0);
+    std::shared_ptr<Node> dy = std::make_shared<op::v1::Subtract>(y_pad, y0);
+    if (!is_zeros) {
+        auto eps = op::v0::Constant::create(ctx.calc_type, {}, {1e-7F});
+        auto one_m_eps = std::make_shared<op::v1::Subtract>(ctx.c1, eps);
+        dx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(dx, ctx.c0), one_m_eps);
+        dy = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(dy, ctx.c0), one_m_eps);
+    }
     auto omdx = std::make_shared<op::v1::Subtract>(ctx.c1, dx);
     auto omdy = std::make_shared<op::v1::Subtract>(ctx.c1, dy);
 
@@ -428,10 +421,11 @@ std::shared_ptr<Node> build_bilinear_nhwc(const Ctx& ctx, const ov::op::v9::Grid
         if (is_zeros) {
             auto ok = inside_mask_indexed(ctx, xs[i], ys[i], w_in_f, h_in_f);
             auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
-            v = std::make_shared<op::v1::Multiply>(v, std::make_shared<op::v0::Unsqueeze>(mask, ctx.i32_neg1));
+            v = std::make_shared<op::v1::Multiply>(v,
+                                                   std::make_shared<op::v0::Unsqueeze>(mask, ctx.unsqueeze_axis_neg1));
         }
 
-        auto wexp = std::make_shared<op::v0::Unsqueeze>(weights[i], ctx.i32_neg1);
+        auto wexp = std::make_shared<op::v0::Unsqueeze>(weights[i], ctx.unsqueeze_axis_neg1);
         auto tap = std::make_shared<op::v1::Multiply>(v, wexp);
         res = res ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(res, tap)) : tap;
     }
@@ -634,11 +628,13 @@ std::shared_ptr<Node> build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridS
             if (is_zeros) {
                 auto ok = std::make_shared<op::v1::LogicalAnd>(x_ok[ix], y_ok[iy]);
                 auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
-                val = std::make_shared<op::v1::Multiply>(val, std::make_shared<op::v0::Unsqueeze>(mask, ctx.i32_neg1));
+                val = std::make_shared<op::v1::Multiply>(
+                    val,
+                    std::make_shared<op::v0::Unsqueeze>(mask, ctx.unsqueeze_axis_neg1));
             }
 
             // Expand weight on last axis (NHWC)
-            auto wexp = std::make_shared<op::v0::Unsqueeze>(wxy, ctx.i32_neg1);
+            auto wexp = std::make_shared<op::v0::Unsqueeze>(wxy, ctx.unsqueeze_axis_neg1);
             auto tap = std::make_shared<op::v1::Multiply>(val, wexp);
 
             row = row ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(row, tap)) : tap;
@@ -672,6 +668,10 @@ void init_common_constants(Ctx& context) {
     // Common axes (just references to integer constants)
     context.axis_0 = context.i32_0;
     context.axis_3 = context.i32_3;
+    // Axes for Unsqueeze: opset1 expects i64 1D tensor
+    context.unsqueeze_axis_0 = op::v0::Constant::create(element::i64, {1}, {0});
+    context.unsqueeze_axis_neg1 = op::v0::Constant::create(element::i64, {1}, {-1});
+    context.unsqueeze_axis_3 = op::v0::Constant::create(element::i64, {1}, {3});
 
     // NHWC transpose pattern
     context.to_nhwc_perm = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
@@ -682,8 +682,17 @@ bool build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& grid_sample_op, Ct
     const auto& data = grid_sample_op->input_value(0);
     const auto& grid = grid_sample_op->input_value(1);
 
-    if (data.get_partial_shape().rank().get_length() != 4 || grid.get_partial_shape().rank().get_length() != 4) {
+    const auto& data_ps = data.get_partial_shape();
+    const auto& grid_ps = grid.get_partial_shape();
+    if ((data_ps.rank().is_static() && data_ps.rank().get_length() != 4) ||
+        (grid_ps.rank().is_static() && grid_ps.rank().get_length() != 4)) {
         return false;
+    }
+    if (grid_ps.rank().is_static() && grid_ps.rank().get_length() == 4) {
+        const auto& last_dim = grid_ps[3];
+        if (last_dim.is_static() && last_dim.get_length() != 2) {
+            return false;
+        }
     }
 
     context.element_type = data.get_element_type();
@@ -700,6 +709,7 @@ bool build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& grid_sample_op, Ct
     context.w_in = ov::op::util::make_try_fold<op::v8::Gather>(dshape, context.i32_3, context.axis_0);
 
     auto gshape = ov::op::util::make_try_fold<op::v3::ShapeOf>(grid, element::i32);
+    context.grid_shape = gshape;
     context.h_out = ov::op::util::make_try_fold<op::v8::Gather>(gshape, context.i32_1, context.axis_0);
     context.w_out = ov::op::util::make_try_fold<op::v8::Gather>(gshape, context.i32_2, context.axis_0);
 
@@ -772,22 +782,43 @@ GridSampleDecomposition::GridSampleDecomposition() {
 
         switch (attrs.mode) {
         case op::v9::GridSample::InterpolationMode::NEAREST: {
-            if (is_f32_data && is_f32_grid && is_nearest_problematic(attrs)) {
-                return false;  // keep original GridSample -> plugin will fallback to Reference
-            }
-            if ((!is_f32_data || !is_f32_grid) && is_nearest_problematic(attrs)) {
+            // For non-f32 inputs, convert to f32 for padding modes with ref path limitations
+            if ((!is_f32_data || !is_f32_grid) && any_of(attrs.padding_mode,
+                                                         op::v9::GridSample::PaddingMode::REFLECTION,
+                                                         op::v9::GridSample::PaddingMode::BORDER,
+                                                         op::v9::GridSample::PaddingMode::ZEROS)) {
                 auto out = grid_sample_in_f32_and_back(grid_sample);
                 out->set_friendly_name(grid_sample->get_friendly_name());
                 copy_rt_to_subgraph(grid_sample, out);
                 ov::replace_node_update_name(grid_sample, out);
                 return true;
             }
+            if (is_f32_data && is_f32_grid && is_nearest_problematic(attrs)) {
+                return false;  // keep original GridSample -> plugin will fallback to Reference
+            }
             return decompose_impl(grid_sample, build_nearest_nhwc);
         }
         case op::v9::GridSample::InterpolationMode::BILINEAR: {
+            if (attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION) {
+                if (!is_f32_data || !is_f32_grid) {
+                    auto out = grid_sample_in_f32_and_back(grid_sample);
+                    out->set_friendly_name(grid_sample->get_friendly_name());
+                    copy_rt_to_subgraph(grid_sample, out);
+                    ov::replace_node_update_name(grid_sample, out);
+                    return true;
+                }
+                return false;  // keep original GridSample for f32
+            }
             return decompose_impl(grid_sample, build_bilinear_nhwc);
         }
         case op::v9::GridSample::InterpolationMode::BICUBIC: {
+            if ((!is_f32_data || !is_f32_grid) && (attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION)) {
+                auto out = grid_sample_in_f32_and_back(grid_sample);
+                out->set_friendly_name(grid_sample->get_friendly_name());
+                copy_rt_to_subgraph(grid_sample, out);
+                ov::replace_node_update_name(grid_sample, out);
+                return true;
+            }
             if (is_f32_data && is_f32_grid && attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS &&
                 !attrs.align_corners) {
                 return false;  // keep original GridSample
