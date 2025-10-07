@@ -204,18 +204,39 @@ void normalize_grid_to_pixels(const Ctx& ctx,
     }
 }
 
-// Gather from NHWC by (b, y, x)
+// Create batch indices tensor of shape [N,H_out,W_out] (int32)
+std::shared_ptr<Node> create_batch_indices(const Ctx& ctx) {
+    // range(0, N)
+    auto range = std::make_shared<op::v4::Range>(ctx.i32_0, ctx.n_dim, ctx.i32_1, element::i32);
+    // reshape to [N,1,1]
+    auto n_dim_1d_bs = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, ctx.i32_0);
+    auto batch_shape = std::make_shared<op::v0::Concat>(
+        OutputVector{n_dim_1d_bs, op::v0::Constant::create(element::i32, {1}, {1}),
+                     op::v0::Constant::create(element::i32, {1}, {1})},
+        0);
+    auto batch_indices = std::make_shared<op::v1::Reshape>(range, batch_shape, false);
+    // broadcast to [N,H_out,W_out]
+    auto n_dim_1d = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, ctx.i32_0);
+    auto h_out_1d = std::make_shared<op::v0::Unsqueeze>(ctx.h_out, ctx.i32_0);
+    auto w_out_1d = std::make_shared<op::v0::Unsqueeze>(ctx.w_out, ctx.i32_0);
+    auto bshape = std::make_shared<op::v0::Concat>(OutputVector{n_dim_1d, h_out_1d, w_out_1d}, 0);
+    auto bcast = std::make_shared<op::v3::Broadcast>(batch_indices, bshape);
+    return std::make_shared<op::v0::Convert>(bcast, element::i32);
+}
+
+// Gather from NHWC by explicit (b, y, x) indices with batch_dims=0
 std::shared_ptr<Node> gather_hw_nhwc(const Ctx& ctx,
                                      const std::shared_ptr<Node>& x_coord,
                                      const std::shared_ptr<Node>& y_coord) {
     auto x_i32 = std::make_shared<op::v0::Convert>(x_coord, element::i32);
     auto y_i32 = std::make_shared<op::v0::Convert>(y_coord, element::i32);
+    auto bidx = create_batch_indices(ctx);
 
-    // indices shape: [N, H_out, W_out, 2] with batch_dims=1
-    auto y_exp = std::make_shared<op::v0::Unsqueeze>(y_i32, ctx.unsqueeze_axis_3);
-    auto x_exp = std::make_shared<op::v0::Unsqueeze>(x_i32, ctx.unsqueeze_axis_3);
-    auto indices = std::make_shared<op::v0::Concat>(OutputVector{y_exp, x_exp}, -1);
-    return std::make_shared<op::v8::GatherND>(ctx.data_nhwc, indices, 1);
+    auto b = std::make_shared<op::v0::Unsqueeze>(bidx, ctx.unsqueeze_axis_neg1);
+    auto yy = std::make_shared<op::v0::Unsqueeze>(y_i32, ctx.unsqueeze_axis_neg1);
+    auto xx = std::make_shared<op::v0::Unsqueeze>(x_i32, ctx.unsqueeze_axis_neg1);
+    auto indices = std::make_shared<op::v0::Concat>(OutputVector{b, yy, xx}, -1);
+    return std::make_shared<op::v8::GatherND>(ctx.data_nhwc, indices, 0);
 }
 
 // Reflection helpers (continuous/indexed)
@@ -668,10 +689,10 @@ void init_common_constants(Ctx& context) {
     // Common axes (just references to integer constants)
     context.axis_0 = context.i32_0;
     context.axis_3 = context.i32_3;
-    // Axes for Unsqueeze: opset1 expects i64 1D tensor
-    context.unsqueeze_axis_0 = op::v0::Constant::create(element::i64, {1}, {0});
-    context.unsqueeze_axis_neg1 = op::v0::Constant::create(element::i64, {1}, {-1});
-    context.unsqueeze_axis_3 = op::v0::Constant::create(element::i64, {1}, {3});
+    // Axes for Unsqueeze: match unit-test expectations (i32 scalars)
+    context.unsqueeze_axis_0 = op::v0::Constant::create(element::i32, {}, {0});
+    context.unsqueeze_axis_neg1 = op::v0::Constant::create(element::i32, {}, {-1});
+    context.unsqueeze_axis_3 = op::v0::Constant::create(element::i32, {}, {3});
 
     // NHWC transpose pattern
     context.to_nhwc_perm = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
@@ -799,16 +820,7 @@ GridSampleDecomposition::GridSampleDecomposition() {
             return decompose_impl(grid_sample, build_nearest_nhwc);
         }
         case op::v9::GridSample::InterpolationMode::BILINEAR: {
-            if (attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION) {
-                if (!is_f32_data || !is_f32_grid) {
-                    auto out = grid_sample_in_f32_and_back(grid_sample);
-                    out->set_friendly_name(grid_sample->get_friendly_name());
-                    copy_rt_to_subgraph(grid_sample, out);
-                    ov::replace_node_update_name(grid_sample, out);
-                    return true;
-                }
-                return false;  // keep original GridSample for f32
-            }
+            // Decompose for all padding modes, including REFLECTION
             return decompose_impl(grid_sample, build_bilinear_nhwc);
         }
         case op::v9::GridSample::InterpolationMode::BICUBIC: {
