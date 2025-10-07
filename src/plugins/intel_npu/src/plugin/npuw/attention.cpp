@@ -171,7 +171,7 @@ void ov::npuw::runtime::attention::PositionIDs::prepare() {
     // b. Generate input_ids, 1
     // c. Generate input_ids, N (speculative)
     // Prefill (even chunked) is left-padded, so for (a) it's enough to take the last element.
-    // Same works for b (there's no choise).
+    // Same works for b (there's no choice).
     // c may require traversing the tensor backwards as Generate with N>1 is right_padded (?)
 
     auto* pos_data_ptr = in_tensor->data<int64_t>();
