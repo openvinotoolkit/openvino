@@ -47,7 +47,7 @@
 #ifdef OV_GPU_USE_OPENCL_HPP
 #    include <CL/opencl.hpp>
 #else
-#    include "cl2.hpp"
+#    include "../../../../../../plugins/intel_gpu/src/runtime/ocl/cl.hpp"
 #endif
 
 #ifdef __GNUC__
