@@ -418,13 +418,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(
             extract_num_kv_heads(k_heads_unsqueeze, sdpa_node->get_input_tensor(1).get_partial_shape()[-3], pattern_map);
         auto num_v_heads =
             extract_num_kv_heads(v_heads_unsqueeze, sdpa_node->get_input_tensor(2).get_partial_shape()[-3], pattern_map);
-        const ov::element::Type kv_cache_type = real_q.get_element_type();
         std::string layer_index_str = std::to_string(layer_index);
-        auto k_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, num_k_heads, k_head_size}),
-                                   std::string("key_cache.") + layer_index_str);
-        auto v_parameter = setName(std::make_shared<v0::Parameter>(kv_cache_type, PartialShape{-1, num_v_heads, v_head_size}),
-                                   std::string("value_cache.") + layer_index_str);
+        auto k_parameter = setName(std::make_shared<v0::Parameter>(ov::element::dynamic, ov::PartialShape::dynamic(4)),
+                                   "key_cache." + layer_index_str);
+        auto v_parameter = setName(std::make_shared<v0::Parameter>(ov::element::dynamic, ov::PartialShape::dynamic(4)),
+                                   "value_cache." + layer_index_str);
         layer_index += 1;
+        kv_parameters.push_back(k_parameter);
+        kv_parameters.push_back(v_parameter);
+
         auto kv_transpose_order = v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3});
 
         auto q_transpose = std::make_shared<v1::Transpose>(real_q, kv_transpose_order);
@@ -616,6 +618,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         OPENVINO_ASSERT(pa_arguments.size() == 20);
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
+        paged_attention->get_rt_info()["num_k_heads"] = num_k_heads.get_length();
+        paged_attention->get_rt_info()["k_head_size"] = k_head_size.get_length();
+        paged_attention->get_rt_info()["num_v_heads"] = num_v_heads.get_length();
+        paged_attention->get_rt_info()["v_head_size"] = v_head_size.get_length();
 
         // The output shape of PagedAttention will be converted to [batch, 1, head_num, head_size_v], the head_size_v
         // may be different from head_size_q/head_size_k. The head_size_v could be got from the shape of value input
@@ -665,18 +671,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
         replace_node(m.get_match_root(), pa_transpose);
-
-        paged_attention->get_rt_info()["num_k_heads"] = num_k_heads.get_length();
-        paged_attention->get_rt_info()["k_head_size"] = k_head_size.get_length();
-        paged_attention->get_rt_info()["num_v_heads"] = num_v_heads.get_length();
-        paged_attention->get_rt_info()["v_head_size"] = v_head_size.get_length();
-        k_parameter->set_partial_shape(ov::PartialShape::dynamic(4));
-        k_parameter->set_element_type(ov::element::dynamic);
-        v_parameter->set_partial_shape(ov::PartialShape::dynamic(4));
-        v_parameter->set_element_type(ov::element::dynamic);
-        kv_parameters.push_back(k_parameter);
-        kv_parameters.push_back(v_parameter);
-
         return true;
     };
 

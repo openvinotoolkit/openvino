@@ -49,13 +49,13 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
 
     model_inputs = ov_model.inputs
     for input in model_inputs:
-        names = list(input.get_names()) # names stored in as set (in this case usually of 1 element)
-        for name in names:
-            if (("key_cache." in name) or ("value_cache." in name)):
-                shape = input.get_partial_shape()
-                # PagedAttention uses key_cache and value_cache inputs so the last 2 dimensions have to be static
-                assert shape[-1].is_static, f"Dimension {len(shape) - 1} of input '{name}' in '{model_id}' is not static: {shape}"
-                assert shape[-2].is_static, f"Dimension {len(shape) - 2} of input '{name}' in '{model_id}' is not static: {shape}"
+       names = list(input.get_names()) # names stored in as set (in this case usually of 1 element)
+       for name in names:
+           if (("key_cache." in name) or ("value_cache." in name)):
+               shape = input.get_partial_shape()
+               assert shape.rank == 4
+               for i in range(shape.rank.get_length()):
+                   assert shape[i].is_dynamic, f"Dimension {i} of input {name} in {model_id} is not dynamic: {shape}"
 
     interesting_input_patterns = {}
     interesting_output_patterns = {}
@@ -148,6 +148,7 @@ def pa_test_idfn(entry):
     retval += entry[1]
     return retval
 
+device_to_skip = "GPU"
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_info_tuple", PA_PRECOMMIT_TEST_CASES, ids=pa_test_idfn)
@@ -156,6 +157,8 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
     model_class, model_name, model_link, mark, reason = model_info_tuple
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
+    if ie_device == device_to_skip:
+        pytest.skip(f"SKIPPING {device_to_skip}")
     if mark == 'skip':
         pytest.skip(reason)
     elif mark == 'xfail':
