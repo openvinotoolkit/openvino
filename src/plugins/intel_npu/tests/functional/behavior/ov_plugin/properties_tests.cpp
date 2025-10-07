@@ -22,8 +22,40 @@ bool is_cid_loaded() {
 
 bool is_cip_loaded() {
     HMODULE phModule = NULL;
-    size_t ret = GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, L"npu_mlir_compiler.dll", &phModule);
-    return ret && phModule != NULL;
+    const WCHAR* npu_mlir_compiler = L"npu_mlir_compiler.dll";
+    size_t ret = GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, npu_mlir_compiler, &phModule);
+    if (ret && phModule != NULL) {
+        return true;
+    } else {  // Currently not working to retrieve unloaded modules list, need to find other approach
+        typedef struct _RTL_UNLOAD_EVENT_TRACE {
+            PVOID BaseAddress;    // Base address of dll
+            SIZE_T SizeOfImage;   // Size of image
+            ULONG Sequence;       // Sequence number for this event
+            ULONG TimeDateStamp;  // Time and date of image
+            ULONG CheckSum;       // Image checksum
+            WCHAR ImageName[32];  // Image name
+        } RTL_UNLOAD_EVENT_TRACE, *PRTL_UNLOAD_EVENT_TRACE;
+
+        using RtlGetUnloadEventTraceEx_Fnc = VOID (*)(PULONG*, PULONG*, PVOID*);
+        RtlGetUnloadEventTraceEx_Fnc RtlGetUnloadEventTraceEx = nullptr;
+        if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, L"ntdll.dll", &phModule)) {
+            RtlGetUnloadEventTraceEx =
+                reinterpret_cast<RtlGetUnloadEventTraceEx_Fnc>(GetProcAddress(phModule, "RtlGetUnloadEventTraceEx"));
+        }
+        ULONG* elementSize = nullptr;
+        ULONG* elementCount = nullptr;
+        PVOID pEventTrace = nullptr;
+        RtlGetUnloadEventTraceEx(&elementSize, &elementCount, &pEventTrace);
+        PBYTE pEventTraceByte = static_cast<PBYTE>(pEventTrace);
+        for (size_t i = 0; i < *elementCount; ++i) {
+            PRTL_UNLOAD_EVENT_TRACE pRtlUnloadEventTrace =
+                reinterpret_cast<PRTL_UNLOAD_EVENT_TRACE>(pEventTraceByte + i * *elementSize);
+            if (wmemcmp(pRtlUnloadEventTrace->ImageName, npu_mlir_compiler, sizeof(npu_mlir_compiler)) == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void invalidate_umd_caching() {
@@ -125,11 +157,12 @@ TEST_P(OVRunTimePropertiesArgumentsTestsNPU, GetRunTimePropertiesNoCompilerLoad)
 TEST_P(OVSetRunTimePropertiesTestsNPU, SetRunTimePropertiesNoCompilerLoad) {
     invalidate_umd_caching();
     // Need to exclude properties that are not registered in plugin properties, e.g. LOADED_FROM_CACHE (compiled_model
-    // prop)
+    // prop) or RO props
     auto registered_properties = core->get_property(target_device, ov::intel_npu::registered_properties);
-    if (std::find(registered_properties.begin(), registered_properties.end(), properties.begin()->first) ==
-        registered_properties.end()) {
-        GTEST_SKIP() << properties.begin()->first << " was not found within plugin registered properties!";
+    if (auto it = std::find(registered_properties.begin(), registered_properties.end(), properties.begin()->first);
+        it == registered_properties.end() || (it != registered_properties.end() && !it->is_mutable())) {
+        GTEST_SKIP() << properties.begin()->first
+                     << " was not found within plugin registered properties or it is immutable!";
     }
     core->get_property(target_device, ov::available_devices);
     OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
@@ -163,11 +196,116 @@ TEST_P(OVSetBothPropertiesTestsNPU, SetBothPropertiesCompilerLoad) {
     ASSERT_TRUE(is_cid_loaded() || is_cip_loaded());
 }
 
-TEST_P(OVSetCartesianProductPropertiesTestsNPU, SetCartesianProducthPropertiesCompilerLoad) {
+TEST_P(OVSetCartesianProductPropertiesTestsNPU, SetCartesianProductPropertiesCompilerLoad) {
     invalidate_umd_caching();
+    // Skip if RO property present
+    auto registered_properties = core->get_property(target_device, ov::intel_npu::registered_properties);
+    for (const auto& prop : properties) {
+        if (auto it = std::find(registered_properties.begin(), registered_properties.end(), prop.first);
+            (it != registered_properties.end() && !it->is_mutable()) || prop.first == ov::loaded_from_cache.name()) {
+            GTEST_SKIP() << "Property not registered or is immutable " << prop.first;
+        }
+    }
     core->get_property(target_device, ov::available_devices);
     OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
     ASSERT_TRUE(is_cid_loaded() || is_cip_loaded());
+}
+
+TEST_P(OVPropertiesTestsNPU, CompileModelDoesCompilerLoad) {
+    invalidate_umd_caching();
+    // Skip if RO property present
+    auto registered_properties = core->get_property(target_device, ov::intel_npu::registered_properties);
+    for (const auto& prop : properties) {
+        if (auto it = std::find(registered_properties.begin(), registered_properties.end(), prop.first);
+            (it != registered_properties.end() && !it->is_mutable()) || prop.first == ov::loaded_from_cache.name()) {
+            GTEST_SKIP() << "Property not registered or is immutable " << prop.first;
+        }
+    }
+    core->compile_model(model, target_device, properties);
+    if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
+        ASSERT_TRUE(!is_cid_loaded() && is_cip_loaded());
+    } else {
+        ASSERT_TRUE(is_cid_loaded() && !is_cip_loaded());
+    }
+}
+
+TEST_P(OVPropertiesTestsNPU, CompileModelWithCacheDoesNotCompilerLoad) {
+    invalidate_umd_caching();
+    // Skip if RO property present
+    auto registered_properties = core->get_property(target_device, ov::intel_npu::registered_properties);
+    for (const auto& prop : properties) {
+        if (auto it = std::find(registered_properties.begin(), registered_properties.end(), prop.first);
+            (it != registered_properties.end() && !it->is_mutable()) || prop.first == ov::loaded_from_cache.name()) {
+            GTEST_SKIP() << "Property not registered or is immutable " << prop.first;
+        }
+    }
+    const std::string cache_dir_name = "cache_dir";
+    properties[ov::cache_dir.name()] = cache_dir_name;
+    core->compile_model(model, target_device, properties);
+    if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
+        ASSERT_TRUE(!is_cid_loaded() && is_cip_loaded());
+    } else {
+        ASSERT_TRUE(is_cid_loaded() && !is_cip_loaded());
+    }
+    utils::PluginCache::get().reset();
+
+    core = utils::PluginCache::get().core(target_device);
+    core->compile_model(model, target_device, properties);
+    // ASSERT_TRUE(!is_cid_loaded() && !is_cip_loaded());  // to be done in further PR
+    ASSERT_TRUE(is_cid_loaded() && !is_cip_loaded());
+
+    ov::util::iterate_files(
+        cache_dir_name,
+        [](const std::string& file, bool is_dir) {
+            if (is_dir) {
+                ov::test::utils::removeDir(file);
+            } else {
+                ov::test::utils::removeFile(file);
+            }
+        },
+        /* recurse = */ true);
+}
+
+TEST_P(OVPropertiesTestsNPU, ImportModelDoesNotCompilerLoad) {
+    invalidate_umd_caching();
+    // Skip if RO property present
+    auto registered_properties = core->get_property(target_device, ov::intel_npu::registered_properties);
+    for (const auto& prop : properties) {
+        if (auto it = std::find(registered_properties.begin(), registered_properties.end(), prop.first);
+            (it != registered_properties.end() && !it->is_mutable()) || prop.first == ov::loaded_from_cache.name()) {
+            GTEST_SKIP() << "Property not registered or is immutable " << prop.first;
+        }
+    }
+    std::stringstream ss;
+    auto compiled_model = core->compile_model(model, target_device, properties);
+    if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
+        ASSERT_TRUE(!is_cid_loaded() && is_cip_loaded());
+    } else {
+        ASSERT_TRUE(is_cid_loaded() && !is_cip_loaded());
+    }
+    compiled_model.export_model(ss);
+
+    compiled_model = core->import_model(ss, target_device, properties);
+    // ASSERT_TRUE(!is_cid_loaded() && !is_cip_loaded());  // to be done in further PR
+    ASSERT_TRUE(is_cid_loaded() && !is_cip_loaded());
+}
+
+TEST_P(OVPropertiesTestsNPU, QueryModelDoesCompilerLoad) {
+    invalidate_umd_caching();
+    // Skip if RO property present
+    auto registered_properties = core->get_property(target_device, ov::intel_npu::registered_properties);
+    for (const auto& prop : properties) {
+        if (auto it = std::find(registered_properties.begin(), registered_properties.end(), prop.first);
+            (it != registered_properties.end() && !it->is_mutable()) || prop.first == ov::loaded_from_cache.name()) {
+            GTEST_SKIP() << "Property not registered or is immutable " << prop.first;
+        }
+    }
+    core->query_model(model, target_device, properties);
+    if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
+        ASSERT_TRUE(!is_cid_loaded() && is_cip_loaded());
+    } else {
+        ASSERT_TRUE(is_cid_loaded() && !is_cip_loaded());
+    }
 }
 
 }  // namespace ov::test::behavior
@@ -193,7 +331,7 @@ const std::vector<ov::AnyMap> runTimeProperties = {
     {{ov::weights_path.name(), ""}},
     {{ov::hint::model.name(), std::shared_ptr<ov::Model>(nullptr)}},
     {{ov::hint::model.name(), std::shared_ptr<const ov::Model>(nullptr)}},
-    {{ov::num_streams.name(), ov::streams::Num(2)}},
+    {{ov::num_streams.name(), /* ov::streams::Num(2) */ ov::streams::AUTO}},
     {{ov::hint::enable_cpu_pinning.name(), true}},
     {{ov::workload_type.name(), ov::WorkloadType::EFFICIENT}},
     {{ov::intel_npu::compiler_type.name(), ov::intel_npu::CompilerType::MLIR}},
@@ -206,7 +344,7 @@ const std::vector<ov::AnyMap> compileTimeProperties = {
     {{ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SIZE}},
     {{ov::intel_npu::batch_mode.name(), ov::intel_npu::BatchMode::PLUGIN}},
     {{ov::intel_npu::dma_engines.name(), 1}},
-    {{ov::intel_npu::compilation_mode.name(), ""}},
+    {{ov::intel_npu::compilation_mode.name(), /* "HostCompile" */ "ReferenceSW"}},
     {{ov::hint::execution_mode.name(), ov::hint::ExecutionMode::ACCURACY}},
     {{ov::intel_npu::dynamic_shape_to_static.name(), true}},
     {{ov::intel_npu::compilation_mode_params.name(), ""}},
@@ -232,7 +370,7 @@ const std::vector<ov::AnyMap> bothProperties = {
     {{ov::enable_profiling.name(), true}},
     {{ov::log::level.name(), ov::log::Level::INFO}},
     {{ov::intel_npu::platform.name(), ov::intel_npu::Platform::AUTO_DETECT}},
-    {{ov::device::id.name(), "NPU.0"}},
+    {{ov::device::id.name(), /* "NPU.0" */ /* "0" */ "3720"}},
     {{ov::intel_npu::turbo.name(), true}},
 };
 
@@ -319,6 +457,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(allProperties)),
                          ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsMismatchesNPU>);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVPropertiesTestsNPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(CartesianProductAnyMapVec(runTimeProperties,
+                                                                                          compileTimeProperties,
+                                                                                          bothProperties))),
+                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsNPU, true>));
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests,

@@ -335,7 +335,7 @@ void Properties::registerProperties() {
     // 3. Populate supported properties list
     // ========
     for (auto& property : _properties) {
-        _registeredProperties.emplace_back(ov::PropertyName(property.first));
+        _registeredProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
         if (std::get<0>(property.second)) {
             _supportedProperties.emplace_back(ov::PropertyName(property.first, std::get<1>(property.second)));
         }
@@ -685,7 +685,8 @@ ov::Any Properties::get_property(const std::string& name, const ov::AnyMap& argu
     try {
         amendedConfig.update(amends, OptionMode::Both);
     } catch (const ov::Exception& /* unusedOVException */) {
-        Logger::global().warning("Amended config couldn't be updated with given arguments");
+        auto logger = Logger("Properties", ov::log::Level::WARNING);
+        logger.warning("Amended config couldn't be updated with the given arguments");
     }
 
     auto&& configIterator = _properties.find(name);
@@ -703,7 +704,7 @@ void Properties::set_property(const ov::AnyMap& properties) {
     std::map<std::string, std::string> cfgs_to_set;
 
     for (auto&& value : properties) {
-        if (properties.find(value.first) == properties.end()) {
+        if (_properties.find(value.first) == _properties.end()) {
             // property doesn't exist
             // checking as internal now
 
