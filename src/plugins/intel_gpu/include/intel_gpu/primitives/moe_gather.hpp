@@ -23,29 +23,35 @@ struct moe_gather : public primitive_base<moe_gather> {
     /// @param tokens_len_per_expert         tokens len_per_expert
     moe_gather(const primitive_id& id,
               const input_info& data,
-              const input_info& experts_info_offsets,
               const input_info& tokens_per_expert,
-              const input_info& tokens_len_per_expert,
               int32_t num_experts_per_token = 0)
-        : primitive_base(id, {data, experts_info_offsets, tokens_per_expert, tokens_len_per_expert}), num_experts_per_token(num_experts_per_token) {}
+        : primitive_base(id, {data, tokens_per_expert}), num_experts_per_token(num_experts_per_token) {}
 
     int32_t num_experts_per_token = 0;
+
     size_t hash() const override {
-        return primitive::hash();
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, num_experts_per_token);
+        return seed;
     }
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
             return false;
-        return true;
+
+        auto rhs_casted = downcast<const moe_gather>(rhs);
+
+        return num_experts_per_token == rhs_casted.num_experts_per_token;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<moe_gather>::save(ob);
+        ob << num_experts_per_token;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<moe_gather>::load(ib);
+        ib >> num_experts_per_token;
     }
 };
 }

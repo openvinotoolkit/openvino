@@ -13,15 +13,23 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(moe_gather)
 
 layout moe_gather_inst::calc_output_layout(moe_gather_node const& node, kernel_impl_params const& impl_param) {
-    // TODO (not implemented yet)
-    return impl_param.input_layouts[0];
+    if (impl_param.input_layouts[0].is_static()) {
+        auto output_layouts = calc_output_layouts<ov::PartialShape>(node, impl_param);
+        return output_layouts[0];
+    } else {
+        return impl_param.input_layouts[0];
+    }
 }
 
 template<typename ShapeType>
 std::vector<layout> moe_gather_inst::calc_output_layouts(moe_gather_node const& /*node*/, const kernel_impl_params& impl_param) {
     const auto& desc = impl_param.typed_desc<moe_gather>();
     const auto num_experts_per_token = desc->num_experts_per_token;
-    const auto hidden_size = impl_param.input_layouts[0].get_shape()[1];
+
+    const auto& input_shapes = impl_param.input_layouts[0].get<ShapeType>();
+    const auto& hidden_size = input_shapes[1];
+    OPENVINO_ASSERT(hidden_size.is_static(), impl_param.desc->id, " hidden size dimension (shape[1]) must be static");
+
     if (impl_param.input_layouts[0].is_dynamic())
         return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
                 impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
