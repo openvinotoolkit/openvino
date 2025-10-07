@@ -22,7 +22,7 @@
 #define OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 #endif
 
-#include "cl_ext.h"
+#include <CL/cl_ext.h>
 
 #ifdef _WIN32
 # ifndef NOMINMAX
