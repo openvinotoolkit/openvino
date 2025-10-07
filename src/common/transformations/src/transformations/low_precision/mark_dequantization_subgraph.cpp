@@ -253,10 +253,7 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
             converts_to_mark.push_back(zp_convert_pattern);
         }
 
-        auto scale = pt_map.at(scale_pattern);
-        bool f8_scales = scale.get_element_type() == ov::element::f8e8m0;
-        if (fold_multiply_const && !f8_scales) {
-        // if (fold_multiply_const) {
+        if (fold_multiply_const) {
             converts_to_unmark.push_back(scale_convert_pattern);
         } else {
             converts_to_mark.push_back(scale_convert_pattern);

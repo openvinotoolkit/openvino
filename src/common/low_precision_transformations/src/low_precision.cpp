@@ -350,7 +350,7 @@ bool ov::pass::low_precision::LowPrecision::doesFunctionContainF8DynQuanPatterns
         const auto const1 = ov::as_type_ptr<ov::opset1::Constant>(
             cvt1->get_input_node_shared_ptr(0));
         const auto const2 = ov::as_type_ptr<ov::opset1::Constant>(
-            cvt2->get_input_node_shared_ptr(1));
+            cvt2->get_input_node_shared_ptr(0));
         if (const1 == nullptr || const2 == nullptr) {
             continue;
         }
