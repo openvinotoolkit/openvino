@@ -16,7 +16,7 @@ flake8-expression-complexity<=0.0.11
 flake8-pep585<=0.1.7
 flake8-print<=5.0.0
 flake8-pytest-style<=2.1.0
-flake8-rst-docstrings<=0.3.1
+flake8-rst-docstrings<=0.4.0
 pygments
 flake8-string-format<=0.3.0
 flake8-variables-names<=0.0.6
