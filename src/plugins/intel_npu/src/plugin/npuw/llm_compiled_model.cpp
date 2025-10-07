@@ -876,25 +876,37 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
 }
 
 void ov::npuw::LLMCompiledModel::gemma_transformations(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::GraphRewrite rewr;
-    auto RewrRes = std::make_unique<GemmaSlidingMask::Result>();
-    rewr.add_matcher<GemmaSlidingMask>(RewrRes.get());
-    rewr.run_on_model(model);
-
-    if (RewrRes->found) {
-        OPENVINO_ASSERT(
-            RewrRes->window_size > 0,
-            "Gemma sliding window size must be strictly positive, but got " + std::to_string(RewrRes->window_size));
-
-        m_gemma_sliding_window_size = RewrRes->window_size;
-        auto mask_input = RewrRes->mask_input;
-        model->add_parameters({mask_input});
-        for (auto&& input : model->inputs()) {
-            if (input.get_node() == mask_input.get()) {
-                input.set_names({mask_input->get_friendly_name()});
-            }
+    // For now only do transformations for gemma3 which has token_type_ids input.
+    bool token_type_ids_found = false;
+    for (const auto& input : model->inputs()) {
+        const auto& input_name = input.get_any_name();
+        if (input_name.find("token_type_ids") != std::string::npos) {
+            token_type_ids_found = true;
+            break;
         }
-        model->validate_nodes_and_infer_types();
+    }
+
+    if (token_type_ids_found) {
+        ov::pass::GraphRewrite rewr;
+        auto RewrRes = std::make_unique<GemmaSlidingMask::Result>();
+        rewr.add_matcher<GemmaSlidingMask>(RewrRes.get());
+        rewr.run_on_model(model);
+
+        if (RewrRes->found) {
+            OPENVINO_ASSERT(
+                RewrRes->window_size > 0,
+                "Gemma sliding window size must be strictly positive, but got " + std::to_string(RewrRes->window_size));
+
+            m_gemma_sliding_window_size = RewrRes->window_size;
+            auto mask_input = RewrRes->mask_input;
+            model->add_parameters({mask_input});
+            for (auto&& input : model->inputs()) {
+                if (input.get_node() == mask_input.get()) {
+                    input.set_names({mask_input->get_friendly_name()});
+                }
+            }
+            model->validate_nodes_and_infer_types();
+        }
     }
 }
 
