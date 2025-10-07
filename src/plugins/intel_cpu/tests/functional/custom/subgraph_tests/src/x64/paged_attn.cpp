@@ -660,7 +660,98 @@ public:
     }
 };
 
+
+class PagedAttnVSRefPluginTest : public PagedAttnTestBase {
+public:
+    std::shared_ptr<ov::Model> get_ref_model(ov::element::Type data_type,
+                                             ov::Dimension::value_type head_size = 64,
+                                             ov::Dimension::value_type head_num = 8) override {
+        // Use default model 
+        const auto& model = get_model(data_type, head_size, head_num);
+        return model;
+    }
+
+    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool extendBlockIndices) {
+        configuration[ov::hint::kv_cache_precision.name()] = ov::element::f16;
+        function = model;
+        prepare();
+        for (const auto& input : compiledModel.inputs()) {
+            for (auto& name : input.get_names()) {
+                auto cache_precision = input.get_element_type();
+                const size_t block_nums = 4;
+                ov::PartialShape pshape;
+                if (name.find("key_cache.") == 0) {
+                    pshape = input.get_partial_shape();
+                    pshape[0] = block_nums;
+                    key_cache = ov::Tensor(cache_precision, pshape.get_shape());
+                    break;
+                } else if (name.find("value_cache.") == 0) {
+                    pshape = input.get_partial_shape();
+                    pshape[0] = block_nums;
+                    value_cache = ov::Tensor(cache_precision, pshape.get_shape());
+                    break;
+                }
+            }
+        }
+        std::vector<ov::Tensor> outputs;
+        int idx = 0;
+        for (auto&& shapes : targetStaticShapes) {
+            generate(idx++, true, shapes, extendBlockIndices);
+            for (const auto& input : inputs) {
+                inferRequest.set_tensor(input.first, input.second);
+            }
+            inferRequest.infer();
+            auto outputTensor = inferRequest.get_output_tensor(0);
+            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
+            outputTensor.copy_to(copy);
+            outputs.push_back(copy);
+        }
+        return outputs;
+    }
+
+    std::vector<ov::Tensor> run_ref_test(std::shared_ptr<ov::Model> model) {
+        function = model;
+        prepare();
+        std::vector<ov::Tensor> outputs;
+        int idx = 0;
+        for (auto&& shapes : targetStaticShapes) {
+            generate(idx++, false, shapes, false);
+            for (const auto& input : inputs) {
+                inferRequest.set_tensor(input.first, input.second);
+            }
+            inferRequest.infer();
+            auto outputTensor = inferRequest.get_output_tensor(0);
+            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
+            outputTensor.copy_to(copy);
+            outputs.push_back(copy);
+        }
+        reset();
+        return outputs;
+    }
+};
+
+
 TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
+    const bool isSageAttn = intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+    if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
+        GTEST_SKIP();
+    // compare the logits from paged attn and sdpa
+    auto actualOutputs = run_test(function, extendBlockIndices);
+    // reference model doesn't support sage attention, disable it
+    if (isSageAttn) {
+        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+    }
+    auto expectedOutputs = run_ref_test(functionRefs);
+    for (size_t i = 0; i < actualOutputs.size(); i++) {
+        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
+    }
+}
+
+TEST_P(PagedAttnVSRefPluginTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
     const bool isSageAttn = intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
