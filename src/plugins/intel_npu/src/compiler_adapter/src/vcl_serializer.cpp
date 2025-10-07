@@ -260,7 +260,11 @@ void VCLSerializerWithoutWeightsCopy::serializeModelToStream(std::ostream& strea
         manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
         _logger.info("Downgrade op for opset smaller than 11");
     }
-    manager.register_pass<StreamSerialize>(stream);
+
+    const std::function<void(std::ostream&)>& compiler_version_serializer = [&](std::ostream& stream) {
+        stream.write(reinterpret_cast<const char*>(&_compilerVersion), sizeof(_compilerVersion));
+    };
+    manager.register_pass<StreamSerialize>(stream, compiler_version_serializer);
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
     // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
@@ -397,7 +401,7 @@ SerializedIR VCLSerializerWithWeightsCopy::serialize() {
 }
 
 SerializedIR VCLSerializerWithoutWeightsCopy::serialize() {
-    countModelSize();  // TODO refactor, we don't need this
+    countModelSize();
 
     if (_serializedModelSize >= std::numeric_limits<uint64_t>::max()) {
         OPENVINO_THROW("The serialized model is too big to process. Size: ",
@@ -406,26 +410,11 @@ SerializedIR VCLSerializerWithoutWeightsCopy::serialize() {
                        std::numeric_limits<uint64_t>::max());
     }
 
-    const uint64_t sizeOfSerializedIR = sizeof(_compilerVersion) + sizeof(_serializedModelSize) + _serializedModelSize;
-
     // use array to avoid vector's memory zero-ing overhead
-    std::shared_ptr<uint8_t> buffer(new uint8_t[sizeOfSerializedIR], std::default_delete<uint8_t[]>());
-    uint8_t* serializedIR = buffer.get();
+    std::shared_ptr<uint8_t> buffer(new uint8_t[_serializedModelSize], std::default_delete<uint8_t[]>());
+    serializeModelToBuffer(buffer.get());
 
-    checkedMemcpy(serializedIR, sizeOfSerializedIR, &_compilerVersion, sizeof(_compilerVersion));
-
-    uint64_t offset = sizeof(_compilerVersion);
-    checkedMemcpy(serializedIR + offset,
-                  sizeOfSerializedIR - offset,
-                  &_serializedModelSize,
-                  sizeof(_serializedModelSize));
-    offset += sizeof(_serializedModelSize);
-
-    serializeModelToBuffer(serializedIR + offset);
-
-    OPENVINO_ASSERT(offset + _serializedModelSize == sizeOfSerializedIR);
-
-    return SerializedIR(sizeOfSerializedIR, buffer);
+    return SerializedIR(_serializedModelSize, buffer);
 }
 
 SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,

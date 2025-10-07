@@ -59,8 +59,9 @@ private:
 class StreamSerialize : public ov::pass::StreamSerialize {
 public:
     StreamSerialize(std::ostream& stream,
+                    const std::function<void(std::ostream&)>& custom_data_serializer,
                     ov::pass::Serialize::Version version = ov::pass::Serialize::Version::UNSPECIFIED)
-        : ov::pass::StreamSerialize(stream, {}, {}, version) {}
+        : ov::pass::StreamSerialize(stream, custom_data_serializer, {}, version) {}
 
 private:
     std::unique_ptr<ov::util::XmlSerializer> make_serializer(pugi::xml_node& data,
