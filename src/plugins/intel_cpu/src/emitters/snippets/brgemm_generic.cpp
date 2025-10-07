@@ -4,9 +4,12 @@
 
 #include "brgemm_generic.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -244,11 +247,10 @@ std::tuple<int64_t, int64_t, int64_t, float, int64_t> BrgemmKernelExecutorHelper
                 return std::find_if(out_ports.cbegin(), out_ports.cend(), [&target_port](const LoopPort& lp) {
                     return *lp.get_expr_port() == *target_port;
                 });
-            } else {
-                return std::find_if(out_ports.cbegin(), out_ports.cend(), [&cur_out_port](const LoopPort& lp) {
-                    return *lp.get_expr_port() == cur_out_port;
-                });
             }
+            return std::find_if(out_ports.cbegin(), out_ports.cend(), [&cur_out_port](const LoopPort& lp) {
+                return *lp.get_expr_port() == cur_out_port;
+            });
         }();
         // Note: this means that brgemm output buffer is inside N blocking loop
         // Output leading dimension equal to block size in this case
