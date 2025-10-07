@@ -210,10 +210,10 @@ std::shared_ptr<Node> create_batch_indices(const Ctx& ctx) {
     auto range = std::make_shared<op::v4::Range>(ctx.i32_0, ctx.n_dim, ctx.i32_1, element::i32);
     // reshape to [N,1,1]
     auto n_dim_1d_bs = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, ctx.i32_0);
-    auto batch_shape = std::make_shared<op::v0::Concat>(
-        OutputVector{n_dim_1d_bs, op::v0::Constant::create(element::i32, {1}, {1}),
-                     op::v0::Constant::create(element::i32, {1}, {1})},
-        0);
+    auto batch_shape = std::make_shared<op::v0::Concat>(OutputVector{n_dim_1d_bs,
+                                                                     op::v0::Constant::create(element::i32, {1}, {1}),
+                                                                     op::v0::Constant::create(element::i32, {1}, {1})},
+                                                        0);
     auto batch_indices = std::make_shared<op::v1::Reshape>(range, batch_shape, false);
     // broadcast to [N,H_out,W_out]
     auto n_dim_1d = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, ctx.i32_0);
