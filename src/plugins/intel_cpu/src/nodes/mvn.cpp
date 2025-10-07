@@ -26,6 +26,7 @@
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mvn_config.hpp"
+#include "nodes/fake_quantize.h"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -34,13 +35,50 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
-#include "nodes/fake_quantize.h"
 #include "post_ops.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
 
 namespace ov::intel_cpu::node {
+
+namespace {
+
+void append_parent_fake_quantize_post_op(MVN& node, PostOps& postOps) {
+    const bool hasFakeQuantize = std::any_of(postOps.begin(), postOps.end(), [](const std::any& postOp) {
+        return postOp.type() == typeid(FakeQuantizePostOp);
+    });
+    if (hasFakeQuantize) {
+        return;
+    }
+    if (node.getParentEdges().size() < 1) {
+        return;
+    }
+
+    const auto parent0 = node.getParentEdgeAt(0)->getParent();
+    if (!parent0 || parent0->getType() != Type::FakeQuantize) {
+        return;
+    }
+
+    auto fq = std::dynamic_pointer_cast<ov::intel_cpu::node::FakeQuantize>(parent0);
+    if (!fq) {
+        return;
+    }
+
+    const FakeQuantizePostOp::Type fqType = FakeQuantizePostOp::Type::quantization_dequantization;
+    postOps.push_back(std::make_any<FakeQuantizePostOp>(fqType,
+                                                        fq->getCropLow(),
+                                                        fq->getCropHigh(),
+                                                        fq->getInputScale(),
+                                                        fq->getInputShift(),
+                                                        fq->getOutputScale(),
+                                                        fq->getOutputShift(),
+                                                        fq->getLevels(),
+                                                        fq->isInputLowBroadcast(),
+                                                        fq->isOutputHighBroadcast()));
+}
+
+}  // namespace
 
 bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -222,6 +260,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
         }
     }
 
+    mvnAttrs.postOps = getPostOps(fusedWith);
+    append_parent_fake_quantize_post_op(*this, mvnAttrs.postOps);
+
     // Create initial memory descriptors
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     const bool enforce_formats = !memoryFormatFilter.input.empty() || !memoryFormatFilter.output.empty();
@@ -355,36 +396,15 @@ void MVN::prepareParams() {
             chIndex5D = 1;  // {N,C,...}
         }
     } else if (mvnAttrs.layout == MVNLayoutType::mvn_by_channel) {
-        chIndex5D = 4;      // channels are the last dim in 5D (NHWC-like)
-    } else {                // mvn_block
-        chIndex5D = 1;      // block layout base channel dim
+        chIndex5D = 4;  // channels are the last dim in 5D (NHWC-like)
+    } else {            // mvn_block
+        chIndex5D = 1;  // block layout base channel dim
     }
     mvnAttrs.actualChannelSize = shape5D.size() > chIndex5D ? shape5D[chIndex5D] : 1;
 
     // Populate post-ops from fused nodes
     mvnAttrs.postOps = getPostOps(fusedWith);
-
-    // Align with master semantics: if FakeQuantize is not fused but is the direct parent,
-    // inline it as a post-op to preserve numerics (especially important for NV=false cases).
-    if (mvnAttrs.postOps.empty() && getParentEdges().size() >= 1) {
-        auto parent0 = getParentEdgeAt(0)->getParent();
-        if (parent0 && parent0->getType() == Type::FakeQuantize) {
-            auto fq = std::dynamic_pointer_cast<ov::intel_cpu::node::FakeQuantize>(parent0);
-            if (fq) {
-                FakeQuantizePostOp::Type fqType = FakeQuantizePostOp::Type::quantization_dequantization;
-                mvnAttrs.postOps.push_back(std::make_any<FakeQuantizePostOp>(fqType,
-                                                                             fq->getCropLow(),
-                                                                             fq->getCropHigh(),
-                                                                             fq->getInputScale(),
-                                                                             fq->getInputShift(),
-                                                                             fq->getOutputScale(),
-                                                                             fq->getOutputShift(),
-                                                                             fq->getLevels(),
-                                                                             fq->isInputLowBroadcast(),
-                                                                             fq->isOutputHighBroadcast()));
-            }
-        }
-    }
+    append_parent_fake_quantize_post_op(*this, mvnAttrs.postOps);
 
     // Update executor with memory arguments only (executor is created in createPrimitive)
     MemoryArgs memoryArgs;

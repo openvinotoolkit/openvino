@@ -40,6 +40,109 @@ namespace ov::intel_cpu {
 
 namespace {
 
+using namespace dnnl::impl::primitive_hashing;
+
+size_t hash_vector(const std::vector<float>& data) {
+    size_t seed = data.size();
+    for (float v : data) {
+        seed = hash_combine(seed, v);
+    }
+    return seed;
+}
+
+size_t hash_fake_quantize_post_op(const FakeQuantizePostOp& fq) {
+    size_t seed = static_cast<size_t>(fq.type());
+    seed = hash_combine(seed, fq.levels());
+    seed = hash_combine(seed, fq.isInputLowBroadcast());
+    seed = hash_combine(seed, fq.isOutputHighBroadcast());
+    seed = hash_combine(seed, hash_vector(fq.cropLow()));
+    seed = hash_combine(seed, hash_vector(fq.cropHigh()));
+    seed = hash_combine(seed, hash_vector(fq.inputScale()));
+    seed = hash_combine(seed, hash_vector(fq.inputShift()));
+    seed = hash_combine(seed, hash_vector(fq.outputScale()));
+    seed = hash_combine(seed, hash_vector(fq.outputShift()));
+    return seed;
+}
+
+size_t hash_scale_shift_post_op(const ScaleShiftPostOp& ss) {
+    size_t seed = static_cast<size_t>(ss.type());
+    seed = hash_combine(seed, hash_vector(ss.scales()));
+    seed = hash_combine(seed, hash_vector(ss.shifts()));
+    return seed;
+}
+
+size_t hash_activation_post_op(const ActivationPostOp& act) {
+    size_t seed = static_cast<size_t>(act.type());
+    seed = hash_combine(seed, act.alpha());
+    seed = hash_combine(seed, act.beta());
+    seed = hash_combine(seed, act.gamma());
+    return seed;
+}
+
+size_t hash_post_ops(const PostOps& postOps) {
+    size_t seed = postOps.size();
+    for (const auto& postOp : postOps) {
+        const auto& type = postOp.type();
+        seed = hash_combine(seed, type.hash_code());
+        if (type == typeid(FakeQuantizePostOp)) {
+            seed = hash_combine(seed, hash_fake_quantize_post_op(std::any_cast<const FakeQuantizePostOp&>(postOp)));
+        } else if (type == typeid(ScaleShiftPostOp)) {
+            seed = hash_combine(seed, hash_scale_shift_post_op(std::any_cast<const ScaleShiftPostOp&>(postOp)));
+        } else if (type == typeid(ActivationPostOp)) {
+            seed = hash_combine(seed, hash_activation_post_op(std::any_cast<const ActivationPostOp&>(postOp)));
+        }
+    }
+    return seed;
+}
+
+bool equal_fake_quantize_post_op(const FakeQuantizePostOp& lhs, const FakeQuantizePostOp& rhs) {
+    return lhs.type() == rhs.type() && lhs.cropLow() == rhs.cropLow() && lhs.cropHigh() == rhs.cropHigh() &&
+           lhs.inputScale() == rhs.inputScale() && lhs.inputShift() == rhs.inputShift() &&
+           lhs.outputScale() == rhs.outputScale() && lhs.outputShift() == rhs.outputShift() &&
+           lhs.levels() == rhs.levels() && lhs.isInputLowBroadcast() == rhs.isInputLowBroadcast() &&
+           lhs.isOutputHighBroadcast() == rhs.isOutputHighBroadcast();
+}
+
+bool equal_scale_shift_post_op(const ScaleShiftPostOp& lhs, const ScaleShiftPostOp& rhs) {
+    return lhs.type() == rhs.type() && lhs.scales() == rhs.scales() && lhs.shifts() == rhs.shifts();
+}
+
+bool equal_activation_post_op(const ActivationPostOp& lhs, const ActivationPostOp& rhs) {
+    return lhs.type() == rhs.type() && lhs.alpha() == rhs.alpha() && lhs.beta() == rhs.beta() &&
+           lhs.gamma() == rhs.gamma();
+}
+
+bool equal_post_ops(const PostOps& lhs, const PostOps& rhs) {
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < lhs.size(); ++i) {
+        if (lhs[i].type() != rhs[i].type()) {
+            return false;
+        }
+        const auto& type = lhs[i].type();
+        if (type == typeid(FakeQuantizePostOp)) {
+            if (!equal_fake_quantize_post_op(std::any_cast<const FakeQuantizePostOp&>(lhs[i]),
+                                             std::any_cast<const FakeQuantizePostOp&>(rhs[i]))) {
+                return false;
+            }
+        } else if (type == typeid(ScaleShiftPostOp)) {
+            if (!equal_scale_shift_post_op(std::any_cast<const ScaleShiftPostOp&>(lhs[i]),
+                                           std::any_cast<const ScaleShiftPostOp&>(rhs[i]))) {
+                return false;
+            }
+        } else if (type == typeid(ActivationPostOp)) {
+            if (!equal_activation_post_op(std::any_cast<const ActivationPostOp&>(lhs[i]),
+                                          std::any_cast<const ActivationPostOp&>(rhs[i]))) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
 struct MVNKey {
     MVNAttrs mvnAttrs;
     dnnl::primitive_attr attr;
@@ -51,9 +154,6 @@ struct MVNKey {
 };
 
 size_t MVNKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
     size_t seed = 0;
     seed = hash_combine(seed, mvnAttrs.initAcrossChannels_);
     seed = hash_combine(seed, mvnAttrs.execAcrossChannels_);
@@ -61,6 +161,7 @@ size_t MVNKey::hash() const {
     seed = hash_combine(seed, mvnAttrs.epsValue_);
     seed = hash_combine(seed, mvnAttrs.epsMode_);
     seed = hash_combine(seed, mvnAttrs.layout);
+    seed = hash_combine(seed, hash_post_ops(mvnAttrs.postOps));
     seed = hash_combine(seed, src_prc.hash());
     seed = hash_combine(seed, dst_prc.hash());
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
@@ -74,6 +175,7 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
              mvnAttrs.normalizeVariance_ == rhs.mvnAttrs.normalizeVariance_ &&
              mvnAttrs.epsValue_ == rhs.mvnAttrs.epsValue_ && mvnAttrs.epsMode_ == rhs.mvnAttrs.epsMode_ &&
              mvnAttrs.layout == rhs.mvnAttrs.layout;
+    retVal = retVal && equal_post_ops(mvnAttrs.postOps, rhs.mvnAttrs.postOps);
     retVal = retVal && src_prc == rhs.src_prc && dst_prc == rhs.dst_prc && *attr.get() == *rhs.attr.get();
     return retVal;
 }
@@ -117,7 +219,8 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
             // Low-rank across-channels transformed cases
             if (outputDims.size() == 5) {
                 // 1D across: {1,1,1,1,C}
-                if (outputDims[0] == 1 && outputDims[1] == 1 && outputDims[2] == 1 && outputDims[4] == attrs.actualChannelSize) {
+                if (outputDims[0] == 1 && outputDims[1] == 1 && outputDims[2] == 1 &&
+                    outputDims[4] == attrs.actualChannelSize) {
                     idxOC = 4;
                 }
                 // 2D across: {1,N,1,C,1}
@@ -242,8 +345,10 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
         if (postOp.type() == typeid(FakeQuantizePostOp)) {
             const auto& fq = std::any_cast<const FakeQuantizePostOp&>(postOp);
             auto expand = [&](const std::vector<float>& v) {
-                if (v.size() == C) return v;
-                if (v.size() == 1) return std::vector<float>(C, v[0]);
+                if (v.size() == C)
+                    return v;
+                if (v.size() == 1)
+                    return std::vector<float>(C, v[0]);
                 return v;  // fallback
             };
 
@@ -270,8 +375,10 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
         } else if (postOp.type() == typeid(ScaleShiftPostOp)) {
             const auto& ss = std::any_cast<const ScaleShiftPostOp&>(postOp);
             auto expand = [&](const std::vector<float>& v) {
-                if (v.size() == C) return v;
-                if (v.size() == 1) return std::vector<float>(C, v[0]);
+                if (v.size() == C)
+                    return v;
+                if (v.size() == 1)
+                    return std::vector<float>(C, v[0]);
                 return v;
             };
             auto scales = expand(ss.scales());
@@ -376,8 +483,8 @@ bool MVNJitExecutor::update(const MemoryArgs& memory) {
             chIndex5D = 1;  // {N,C,...}
         }
     } else if (attrs.layout == MVNLayoutType::mvn_by_channel) {
-        chIndex5D = 4;      // NHWC-like channel index
-    } else {                // mvn_block
+        chIndex5D = 4;  // NHWC-like channel index
+    } else {            // mvn_block
         chIndex5D = 1;
     }
     attrs.actualChannelSize = shape5D.size() > chIndex5D ? shape5D[chIndex5D] : 1;
@@ -388,7 +495,6 @@ bool MVNJitExecutor::update(const MemoryArgs& memory) {
 
     const auto& src_prc = memoryArgs.at(ARG_SRC_0)->getDesc().getPrecision();
     const auto& dst_prc = memoryArgs.at(ARG_DST)->getDesc().getPrecision();
-
     MVNKey key{attrs, computedAttr, src_prc, dst_prc};
 
     auto builder = [&](const MVNKey& k) -> std::shared_ptr<legacy::MVNJitExecutorLegacy> {
