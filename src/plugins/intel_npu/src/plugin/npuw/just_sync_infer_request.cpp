@@ -513,7 +513,7 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     }
 
     // FIXME: attention-specific, needs to be moved out after refactoring
-    m_cached_attention_mask = std::nullopt;
+    m_cached_attention_mask = {};
 
     LOG_DEBUG("Done");
 }
@@ -708,10 +708,10 @@ void ov::npuw::JustInferRequest::function_prologue_attn(std::size_t real_idx, st
             set_or_copy(view);
         } else if (this_case == attention::Selector::Case::PREFILL) {
             // Use our in-graph synthesized mask
-            if (m_cached_attention_mask.has_value()) {
+            if (m_cached_attention_mask) {
                 // All sub models are sharing the same attention mask, we can use the cached attention
                 // mask directly to avoid redundant tensor copy
-                m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask.value());
+                m_subrequests[real_idx]->set_tensor(mask_iport, m_cached_attention_mask);
                 return;
             }
 

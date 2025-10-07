@@ -926,7 +926,7 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
             } else if (ov::npuw::debug_groups()) {
                 LOG_DEBUG("Couldn't add the pair to the merge vector due to failed checks:");
                 LOG_BLOCK();
-#define INSPECT(x) LOG_DEBUG(#x" = " << (x))
+#define INSPECT(x) LOG_DEBUG(#x " = " << (x))
                 INSPECT(prod_group->specialTags());
                 INSPECT(prod_group->repeated() != this_rep_tag);
                 INSPECT(prod_group->hasCycle(group));

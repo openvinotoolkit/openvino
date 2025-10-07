@@ -57,10 +57,17 @@ namespace compiled {
 namespace {
 template <typename T>
 void prepare_mask(ov::SoPtr<ov::ITensor> tensor) {
+    // Initialize the top-right triangle with -inf
+    // e.g., for a matrix like below where i = -inf (of type T)
+    // <-past -> < q >
+    // 000000000 0iiii
+    // 000000000 00iii
+    // 000000000 000ii
+    // 000000000 0000i
+    // 000000000 00000
     NPUW_ASSERT(tensor->is_continuous());
     ov::npuw::util::fill_tensor<T>(tensor, 0);
 
-    // Initialize the top-right triangle with -inf
     const auto shape = tensor->get_shape();
     NPUW_ASSERT(shape.size() == 4);
     NPUW_ASSERT(shape[0] == 1);
@@ -74,14 +81,6 @@ void prepare_mask(ov::SoPtr<ov::ITensor> tensor) {
             pRow[j] = std::numeric_limits<T>::lowest();
         }
     }
-
-    // for a matrix like below where i = -inf (of type T)
-    // <-past -> < q >
-    // 000000000 0iiii
-    // 000000000 00iii
-    // 000000000 000ii
-    // 000000000 0000i
-    // 000000000 00000
 }
 }  // anonymous namespace
 

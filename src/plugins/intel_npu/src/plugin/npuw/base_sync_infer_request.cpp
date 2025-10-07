@@ -491,7 +491,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
 
     const auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     const bool is_spatial = proto_comp_model_desc.spatial.has_value();
-    const bool is_dynamic = proto_comp_model_desc.attention.has_value();
+    const bool is_attention = proto_comp_model_desc.attention.has_value();
 
     // a list of ports to copy tensors, if needed: FROM -> TO
     std::vector<std::pair<ov::SoPtr<ov::ITensor>, ov::Output<const ov::Node>>> copy_list;
@@ -508,12 +508,12 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     };
 
     // Check if the given subgraph's input is dynamic
-    auto is_dynamic_param = [&](std::size_t sub_in_idx) -> bool {
-        if (!is_dynamic) {
+    auto is_attn_param = [&](std::size_t sub_in_idx) -> bool {
+        if (!is_attention) {
             return false;  // Early return
         }
-        auto& dynamic = proto_comp_model_desc.attention.value();
-        return std::any_of(dynamic.params.begin(), dynamic.params.end(), [&](const auto& p) -> bool {
+        auto& attn = proto_comp_model_desc.attention.value();
+        return std::any_of(attn.params.begin(), attn.params.end(), [&](const auto& p) -> bool {
             return p.idx == sub_in_idx;
         });
     };
@@ -538,7 +538,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             // function pipelining
             NPUW_ASSERT(false && "Global parameter can't be spatial");
             m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
-        } else if (is_dynamic_param(sub_in_idx)) {
+        } else if (is_attn_param(sub_in_idx)) {
             // Register for future use
             m_attention_io[idx].inputs.at(sub_in_idx) = g_tnsr;
         } else {

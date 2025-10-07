@@ -647,6 +647,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, quant_unpack_gather.idx_idx);
 
     write(stream, spatial);
+    write(stream, attention);
 
     write(stream, is_remote);
     write(stream, closure_uid);
@@ -721,6 +722,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, quant_unpack_gather.idx_idx);
 
     read(stream, spatial);
+    read(stream, attention);
 
     read(stream, is_remote);
     read(stream, closure_uid);

@@ -133,7 +133,7 @@ protected:
     bool m_closure_update_required = false;
 
     // Cached attention mask for SDPA operations to avoid recomputing
-    std::optional<ov::SoPtr<ov::ITensor>> m_cached_attention_mask;
+    ov::SoPtr<ov::ITensor> m_cached_attention_mask;
 };
 
 }  // namespace npuw

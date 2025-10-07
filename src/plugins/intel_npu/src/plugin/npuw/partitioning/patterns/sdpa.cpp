@@ -130,7 +130,8 @@ AttentionBroadcast2::AttentionBroadcast2() {
 
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({past_kv_cat});
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
-    auto concat = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input()}); // THIS IS the difference
+    auto concat =
+        opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input()});  // THIS IS the difference
 
     // FIXME: using past_kv_cat as a 0th argument to this Unsqueeze breaks the pattern
     // for Phi-4
