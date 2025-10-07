@@ -66,7 +66,6 @@ private:
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
-    std::vector<ov::PropertyName> _registeredProperties;
 
     // internal registration functions basd on client object
     void registerPluginProperties();
