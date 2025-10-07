@@ -138,12 +138,9 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
     } else {
         h->uni_li(reg_work_amount, static_cast<size_t>(work_amount));
     }
-    // If evaluate_once and not dynamic increment, skip branch to end and simply mark begin
+    h->L(*loop_begin_label);
+    // If evaluate_once and not dynamic increment, skip branch to end
     if (evaluate_once && !ov::snippets::utils::is_dynamic_value(wa_increment)) {
-        if (!begin_label_bound) {
-            h->L(*loop_begin_label);
-            begin_label_bound = true;
-        }
         return;
     }
     // Compare work amount with increment and jump to end if less
@@ -155,10 +152,6 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
     Xbyak_riscv::Reg reg_inc = h_inc.get_reg();
     h->uni_li(reg_inc, eff_inc);
     h->blt(reg_work_amount, reg_inc, *loop_end_label);
-    if (!begin_label_bound) {
-        h->L(*loop_begin_label);
-        begin_label_bound = true;
-    }
 }
 
 /* =================== jit_loop_end_emitter ======================= */

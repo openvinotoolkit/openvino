@@ -50,7 +50,6 @@ private:
     bool is_work_amount_dynamic = false;
     mutable std::shared_ptr<Xbyak_riscv::Label> loop_begin_label = nullptr;
     mutable std::shared_ptr<const Xbyak_riscv::Label> loop_end_label = nullptr;
-    mutable bool begin_label_bound = false;
 };
 
 /* =================== jit_loop_end_emitter ======================= */
