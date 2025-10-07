@@ -27,7 +27,9 @@ static const std::unordered_map<int, ACLArgs> argConvert = {{ARG_SRC_0, ACL_SRC_
                                                             {ARG_BIAS, ACL_BIAS},
                                                             {ARG_WEI, ACL_WEI},
                                                             {ARG_DST, ACL_DST},
-                                                            {ARG_DST_DEQ_SCALE, ACL_DST_DEQ_SCALE}};
+                                                            {ARG_DST_DEQ_SCALE, ACL_DST_DEQ_SCALE},
+                                                            {ARG_ATTR_ZERO_POINTS | ARG_SRC_0, ACL_SRC_0_ZERO_POINTS},
+                                                            {ARG_ATTR_ZERO_POINTS | ARG_DST, ACL_DST_ZERO_POINTS}};
 
 using ACLTypes = std::array<arm_compute::DataType, ACLArgs::COUNT_OF_ARGS>;
 using ACLLayouts = std::array<arm_compute::DataLayout, ACLArgs::COUNT_OF_ARGS>;

@@ -46,7 +46,7 @@ typedef std::tuple<std::shared_ptr<ov::Model>,  // Model
 class OVCompileAndInferRequest : public testing::WithParamInterface<CompileAndInferRequestParams>,
                                  public OVInferRequestTestBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompileAndInferRequestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompileAndInferRequestParams>& obj) {
         std::shared_ptr<ov::Model> model;
         std::string targetDevice;
         ov::AnyMap configuration;

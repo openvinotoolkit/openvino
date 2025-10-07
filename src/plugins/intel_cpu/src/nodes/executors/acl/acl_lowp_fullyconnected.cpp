@@ -41,8 +41,10 @@ static bool checkPostOps(const PostOps& postOps) {
         return false;
     }
 
-    const auto& activation = std::any_cast<const ActivationPostOp&>(postOps[0]);
-    return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation.type()));
+    if (const auto& activation = std::any_cast<const ActivationPostOp>(postOps.data())) {
+        return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()));
+    }
+    return false;
 }
 
 static void initFCAttrs(const FCAttrs& attrs,
