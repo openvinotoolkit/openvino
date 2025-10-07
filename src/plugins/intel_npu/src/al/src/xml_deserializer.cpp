@@ -29,9 +29,9 @@ ov::Any NPUXmlDeserializer::parse_weights_pointer_attribute(const pugi::xml_node
     if (auto rt_info = node.child("rt_info")) {
         for (const auto& child : rt_info.children()) {
             for (const auto& attr : child.attributes()) {
-                if (strcmp(attr.name(), "ptr") == 0) {
-                    const auto ptr = reinterpret_cast<const void*>(ov::util::pugixml::get_uint64_attr(child, "ptr"));
-                    const auto byte_size = ov::util::pugixml::get_uint64_attr(child, "byte_size");
+                if (strcmp(attr.name(), "np") == 0) {
+                    const auto ptr = reinterpret_cast<const void*>(ov::util::pugixml::get_uint64_attr(child, "np"));
+                    const auto byte_size = ov::util::pugixml::get_uint64_attr(child, "ns");
                     return {WeightsPointerAttribute{ptr, byte_size}};
                 }
             }

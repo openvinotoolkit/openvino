@@ -19,8 +19,8 @@ public:
           byte_size(size) {}
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
-        visitor.on_attribute("ptr", memory_pointer);
-        visitor.on_attribute("byte_size", byte_size);
+        visitor.on_attribute("np", memory_pointer);
+        visitor.on_attribute("ns", byte_size);
         return true;
     }
 
