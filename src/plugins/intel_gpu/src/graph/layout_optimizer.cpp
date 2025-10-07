@@ -139,21 +139,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = has_all_enabled_onednn_impls_optimization_attribute();
 
-    auto is_input_idx = [&](size_t idx) -> bool {
-        if (&next.get_dependency(idx) == &prev)
-            return true;
-        if (next.get_dependency(idx).is_type<reorder>() && &next.get_dependency(idx).get_dependency(0) == &prev)
-            return true;
+    if ((prev.is_dynamic() || next.is_dynamic()) && !next.is_type<convolution>())
         return false;
-    };
-    auto get_channel_count = [](const layout& layout) -> int64_t {
-        return layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
-    };
-
-    if ((prev.is_dynamic() || next.is_dynamic()) &&
-        (!next.is_type<convolution>() || get_channel_count(prev_output_layout) == -1 || get_channel_count(next_output_layout) == -1)) {
-        return false;
-    }
 
     // Not to fuse reorder if this removal changes input format of its next node which has reuse in fused_op
     if (next.get_preferred_impl_type() == impl_types::onednn) {
@@ -173,37 +160,6 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<reorder>())
-        return true;
-
-    // Check whether the reorder between prev and next is the first input of next.
-    auto is_input_reorder = [](program_node& prev, program_node& next) {
-        auto found_reorder = std::find_if(next.get_dependencies().begin(), next.get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep){
-            return dep.first->is_type<reorder>();
-        });
-        // if there is no reorder between prev and next, it returns true.
-        // This case is needed for can_fuse_reorder in reorder_inputs pass.
-        if (found_reorder == std::end(next.get_dependencies()) && next.get_dependency_index(prev) == 0)
-            return true;
-        auto& next_dep = next.get_dependency(0);
-        if (!next_dep.is_type<reorder>())
-            return false;
-        for (auto& prev_usr : prev.get_users()) {
-            if (!prev_usr->is_type<reorder>())
-                continue;
-            if (&next_dep == prev_usr && next.get_dependency_index(next_dep) == 0) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    // Errata for onednn layout selection. First conv can receive both bfyx and byxf directly.
-    if (next.is_type<convolution>() &&
-        next.get_preferred_impl_type() == impl_types::onednn &&
-        ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
-         (fmt_prev == format::bfyx && fmt_next == format::byxf &&
-            (prev_dt == data_types::f16 && get_channel_count(next.get_input_layout(0)) <= 8))) &&
-        is_input_reorder(prev, next))
         return true;
 
     // Do not remove reorder if it is necessary to fulfill required_input
@@ -228,8 +184,35 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         ((fmt_prev == format::b_fs_yx_fsv4 && fmt_next == format::bfyx) && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))
         return true;
 
-    if (next.is_type<eltwise>() && prev_simple && next_simple)
-        return true;
+    if (next.is_type<eltwise>()) {
+        if (prev_simple && next_simple)
+            return true;
+        if (use_onednn_impls && (fmt_prev == format::bfyx) && (fmt_next == format::bs_fs_yx_bsv4_fsv2) &&
+            prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
+            return true;
+    }
+
+    // Check whether the reorder between prev and next is the first input of next.
+    auto is_input_reorder = [](program_node& prev, program_node& next) {
+        auto found_reorder = std::find_if(next.get_dependencies().begin(), next.get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep){
+            return dep.first->is_type<reorder>();
+        });
+        // if there is no reorder between prev and next, it returns true.
+        // This case is needed for can_fuse_reorder in reorder_inputs pass.
+        if (found_reorder == std::end(next.get_dependencies()) && next.get_dependency_index(prev) == 0)
+            return true;
+        auto& next_dep = next.get_dependency(0);
+        if (!next_dep.is_type<reorder>())
+            return false;
+        for (auto& prev_usr : prev.get_users()) {
+            if (!prev_usr->is_type<reorder>())
+                continue;
+            if (&next_dep == prev_usr && next.get_dependency_index(next_dep) == 0) {
+                return true;
+            }
+        }
+        return false;
+    };
 
     if (next.is_type<fully_connected>() &&
         (fmt_prev == format::bfyx || fmt_prev == format::yxfb ||
@@ -241,105 +224,133 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
           prev_output_layout.spatial(1) == 1)) && is_input_reorder(prev, next))
         return true;
 
-    if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv4 && is_input_idx(0))
-        return true;
-
-    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx) &&
-        prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
-        return true;
-
-    if (!use_onednn_impls || next.get_preferred_impl_type() == impl_types::ocl) {
-        if (next.is_type<convolution>() &&
-            (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
-            ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
-            (fmt_next == format::b_fs_yx_fsv32 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv16_fsv16 && get_channel_count(next_output_layout) % 16 == 0 && get_channel_count(prev_output_layout) == 3) ||
-            (fmt_next == format::bs_fs_yx_bsv16_fsv16 && get_channel_count(next_output_layout) >= 16 && get_channel_count(prev_output_layout) == 3 &&
-            (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8))))
+    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx)) {
+        if (prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
             return true;
-
-        if (next.is_type<convolution>() &&
-            fmt_prev == format::bfyx &&
-            (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16) &&
-            get_channel_count(next_output_layout) >= 16 && get_channel_count(prev_output_layout) <= 4 &&
-            !next.as<convolution>().get_primitive()->activations_zero_points.is_valid() &&
-            !next.as<convolution>().get_primitive()->weights_zero_points.is_valid())
+        if (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
+            fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4)
             return true;
-
-        if (next.is_type<convolution>() &&
-            (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
-            ((fmt_next == format::b_fs_yx_fsv32 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
-            (fmt_next == format::bs_fs_yx_bsv8_fsv4 && (get_channel_count(prev_output_layout) == 3 || get_channel_count(prev_output_layout) == 4)) ||
-            (fmt_next == format::b_fs_yx_fsv16 && get_channel_count(next_output_layout) >= 16 &&
-            (get_channel_count(prev_output_layout) == 3 || (get_channel_count(prev_output_layout) == 4 &&
-            (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
+        if (use_onednn_impls && prev.get_users().size() == 1)
             return true;
     }
 
-    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx) &&
-        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
-         fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4))
-        return true;
-
-    if (next.is_type<convolution>() &&
-        !(prev.is_type<quantize>() && (prev_dt == data_types::i8 || prev_dt == data_types::u8)) &&
-        (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bfyx)  && get_channel_count(prev_output_layout) == 3 &&
-        (fmt_next == format::b_fs_yx_fsv4 ||
-         fmt_next == format::bs_fs_yx_bsv16_fsv16))
-        return true;
-
-    if (next.is_type<convolution>() &&
-        fmt_prev == format::bfyx &&
-        ((fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16) &&
-            get_channel_count(next_output_layout) >= 16 && get_channel_count(prev_output_layout) == 3))
-        return true;
-
-    if (next.is_type<convolution>() &&
-        fmt_prev == format::bfzyx &&
-        ((fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_zyx_bsv16_fsv16) &&
-            get_channel_count(next_output_layout) >= 16 && get_channel_count(prev_output_layout) == 3))
-        return true;
-
     if (use_onednn_impls) {
-        if (next.is_type<eltwise>() && (fmt_prev == format::bfyx) && (fmt_next == format::bs_fs_yx_bsv4_fsv2) &&
-            prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
-            return true;
-
-        // Remove Reorder for Convolution if mixed layout.
         auto& node = prev.get_users().front();
         if (prev.get_output_layout().format == next.get_preferred_input_fmt() &&
                 node->get_output_layout().data_padding == prev.get_output_layout().data_padding)
             return true;
+    }
 
-        if (next.is_type<convolution>() &&
-            (fmt_prev == format::bfyx && fmt_next == format::bs_fs_yx_bsv32_fsv32) &&
-            // Condition to avoid execution in reorder_inputs.
-            prev.get_users().size() == 1 && prev.get_users().front()->is_type<reorder>()) {
-            const auto& cur = prev.get_users().front();
-            std::set<size_t> dep_idx_set;
-            for (auto& p : next.get_fused_primitives()) {
-                // find eltwise sum primitive which has dependency nodes, and gather dependency indices of it.
-                if (p.is_type<eltwise>() && p.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
-                    for (size_t i = p.outer_dep_start_idx; i < p.outer_dep_start_idx + p.total_num_deps; i++) {
-                        dep_idx_set.insert(i);
+    if (next.is_type<convolution>()) {
+        auto is_input_idx = [&](size_t idx) -> bool {
+            if (&next.get_dependency(idx) == &prev)
+                return true;
+            if (next.get_dependency(idx).is_type<reorder>() && &next.get_dependency(idx).get_dependency(0) == &prev)
+                return true;
+            return false;
+        };
+
+        auto get_conv_channel_count = [](const convolution_node& conv_node, const layout& layout, bool is_input) -> int64_t {
+            auto channel_count = layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
+            if (channel_count == -1) {
+                auto weights_layout = conv_node.weights().get_output_layout();
+                if (weights_layout.is_static()) {
+                    const auto& shape = weights_layout.get_partial_shape();
+                    if (is_input)
+                        channel_count = shape[conv_node.get_groups() > 1 ? 2 : 1].get_length();
+                    else
+                        channel_count = shape[conv_node.get_groups() > 1 ? 1 : 0].get_length();
+                }
+            }
+            return channel_count;
+        };
+
+        auto& conv_node = next.as<convolution>();
+        auto in_channel_count = get_conv_channel_count(conv_node, prev_output_layout, true);
+        auto out_channel_count = get_conv_channel_count(conv_node, next_output_layout, false);
+
+        if ((prev.is_dynamic() || next.is_dynamic()) && (in_channel_count == -1 || out_channel_count == -1))
+            return false;
+
+        // Errata for onednn layout selection. First conv can receive both bfyx and byxf directly.
+        if (next.get_preferred_impl_type() == impl_types::onednn &&
+            ((fmt_prev == format::byxf && fmt_next == format::byxf) ||
+             (fmt_prev == format::bfyx && fmt_next == format::byxf &&
+                (prev_dt == data_types::f16 && get_conv_channel_count(conv_node, next.get_input_layout(0), false) <= 8))) &&
+            is_input_reorder(prev, next))
+            return true;
+
+        if (fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv4 && is_input_idx(0))
+            return true;
+
+        if (!use_onednn_impls || next.get_preferred_impl_type() == impl_types::ocl) {
+            if ((fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
+                ((fmt_next == format::fs_b_yx_fsv32 && conv_node.get_primitive()->groups == 1) ||
+                (fmt_next == format::b_fs_yx_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                (fmt_next == format::bs_fs_yx_bsv16_fsv16 && out_channel_count % 16 == 0 && in_channel_count == 3) ||
+                (fmt_next == format::bs_fs_yx_bsv16_fsv16 && out_channel_count >= 16 && in_channel_count == 3 &&
+                (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8))))
+                return true;
+
+            if (fmt_prev == format::bfyx &&
+                (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16) &&
+                out_channel_count >= 16 && in_channel_count <= 4 &&
+                !conv_node.get_primitive()->activations_zero_points.is_valid() &&
+                !conv_node.get_primitive()->weights_zero_points.is_valid())
+                return true;
+
+            if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4 || fmt_prev == format::bs_fs_yx_bsv8_fsv4) &&
+                ((fmt_next == format::b_fs_yx_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                (fmt_next == format::bs_fs_yx_bsv8_fsv4 && (in_channel_count == 3 || in_channel_count == 4)) ||
+                (fmt_next == format::b_fs_yx_fsv16 && out_channel_count >= 16 &&
+                (in_channel_count == 3 || (in_channel_count == 4 &&
+                (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
+                return true;
+        }
+
+        if (!(prev.is_type<quantize>() && (prev_dt == data_types::i8 || prev_dt == data_types::u8)) &&
+            (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bfyx)  && in_channel_count == 3 &&
+            (fmt_next == format::b_fs_yx_fsv4 ||
+            fmt_next == format::bs_fs_yx_bsv16_fsv16))
+            return true;
+
+        if (fmt_prev == format::bfyx &&
+            ((fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16) &&
+                out_channel_count >= 16 && in_channel_count == 3))
+            return true;
+
+        if (fmt_prev == format::bfzyx &&
+            ((fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_zyx_bsv16_fsv16) &&
+                out_channel_count >= 16 && in_channel_count == 3))
+            return true;
+
+        if (use_onednn_impls) {
+            if ((fmt_prev == format::bfyx && fmt_next == format::bs_fs_yx_bsv32_fsv32) &&
+                // Condition to avoid execution in reorder_inputs.
+                prev.get_users().size() == 1 && prev.get_users().front()->is_type<reorder>()) {
+                const auto& cur = prev.get_users().front();
+                std::set<size_t> dep_idx_set;
+                for (auto& p : next.get_fused_primitives()) {
+                    // find eltwise sum primitive which has dependency nodes, and gather dependency indices of it.
+                    if (p.is_type<eltwise>() && p.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
+                        for (size_t i = p.outer_dep_start_idx; i < p.outer_dep_start_idx + p.total_num_deps; i++) {
+                            dep_idx_set.insert(i);
+                        }
+                    }
+                }
+                // The current reorder can be fused if it is a dependency of eltwise sum primitive fused.
+                for (size_t i = 0; i < next.get_dependencies().size(); i++) {
+                    auto& d_node = next.get_dependency(i);
+                    if (cur->id() == d_node.id() && dep_idx_set.find(i) != dep_idx_set.end()) {
+                        return true;
                     }
                 }
             }
-            // The current reorder can be fused if it is a dependency of eltwise sum primitive fused.
-            for (size_t i = 0; i < next.get_dependencies().size(); i++) {
-                auto& d_node = next.get_dependency(i);
-                if (cur->id() == d_node.id() && dep_idx_set.find(i) != dep_idx_set.end()) {
-                    return true;
-                }
-            }
         }
-
-        if (next.is_type<quantize>() && prev.get_users().size() == 1)
-            return true;
     }
 
     return false;
