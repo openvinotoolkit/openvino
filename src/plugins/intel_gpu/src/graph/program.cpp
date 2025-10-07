@@ -161,6 +161,7 @@ program::program(engine& engine_ref,
       _compilation_context(compilation_context) {
     init_primitives();
     _config.finalize(_engine);
+    _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
@@ -203,6 +204,7 @@ program::program(engine& engine_ref,
       processing_order(),
       is_internal(is_internal) {
     _config.finalize(_engine);
+    _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     init_primitives();
     init_program();
     prepare_nodes(nodes);
@@ -216,6 +218,7 @@ program::program(engine& engine, const ExecutionConfig& config)
       processing_order() {
     init_primitives();
     _config.finalize(_engine);
+    _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     new_shape_infer = _config.get_allow_new_shape_infer();
     _layout_optimizer = std::make_unique<layout_optimizer>();
 }
@@ -488,6 +491,7 @@ void program::set_options() {
 void program::build_program(bool is_internal) {
     init_graph();
     _config.finalize(_engine);
+    _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     { pre_optimize_graph(is_internal); }
     run_graph_compilation();
     { post_optimize_graph(is_internal); }
@@ -1204,8 +1208,7 @@ void program::fuse_nodes(program_node &fused_node,
             }
         }
 
-        auto port_idx = fused_node.get_port_from_deps(dep->id());
-        fused_node.dependencies.push_back({dep, port_idx});
+        fused_node.dependencies.push_back({dep, port});
         local_desc.inputs.emplace_back(FusedInputType::EXTERNAL, fused_node.dependencies.size() - 1, dep->get_output_layout(port).data_type);
         local_desc.deps.emplace_back(dep->id(), deps_idx++);
         dep->users.push_back(&fused_node);
@@ -1692,7 +1695,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
     for (const auto& node : nodes_to_allocate) {
         auto out_size = node->get_output_layout().bytes_count();
-        if (out_size > max_alloc_size) {
+        if (out_size > max_alloc_size && !get_config().get_enable_large_allocations()) {
             // to consider: if the base batch size is > 1, should we allow this single output allocation to host?
             host_alloc += out_size;
             continue;

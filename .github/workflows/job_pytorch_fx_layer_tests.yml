@@ -56,13 +56,13 @@ jobs:
             .github/actions
           sparse-checkout-cone-mode: false
           submodules: 'false'
-          
+
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
-      
+
       - name: Download OpenVINO artifacts (tests)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
@@ -71,7 +71,9 @@ jobs:
 
       - name: Setup HuggingFace Cache Directory (Windows)
         if: runner.os == 'Windows'
-        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
+        run: |
+          Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
+          Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=C:\\mount\\caches\\huggingface"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
