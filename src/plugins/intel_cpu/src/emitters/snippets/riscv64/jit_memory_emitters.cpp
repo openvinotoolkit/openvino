@@ -4,7 +4,6 @@
 
 #include "jit_memory_emitters.hpp"
 
-#include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -81,21 +80,14 @@ jit_load_memory_emitter::jit_load_memory_emitter(jit_generator_t* h, cpu_isa_t i
     OV_CPU_JIT_EMITTER_ASSERT(load != nullptr, "Expects Load expression");
     count = load->get_count();
     byte_size = src_prc.size();
+    OV_CPU_JIT_EMITTER_ASSERT(byte_size == 2 || byte_size == 4,
+                              "Only 2- or 4-byte element loads are supported, got: ",
+                              byte_size);
 }
 
 size_t jit_memory_emitter::aux_gprs_count() const {
     // for runtime arguments
     return is_offset_runtime ? 1 : 0;
-}
-
-std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
-    OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(is_offset_runtime, !aux_gpr_idxs.empty()),
-                              "If offset is dynamic, memory emitter need to have one aux gpr at least!");
-    auto available_aux_gprs = aux_gpr_idxs;
-    if (is_offset_runtime) {
-        available_aux_gprs.pop_back();
-    }
-    return available_aux_gprs;
 }
 
 void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
@@ -186,6 +178,9 @@ jit_store_memory_emitter::jit_store_memory_emitter(jit_generator_t* h, cpu_isa_t
     OV_CPU_JIT_EMITTER_ASSERT(store != nullptr, "Expects Store expression");
     count = store->get_count();
     byte_size = dst_prc.size();
+    OV_CPU_JIT_EMITTER_ASSERT(byte_size == 2 || byte_size == 4,
+                              "Only 2- or 4-byte element stores are supported, got: ",
+                              byte_size);
 }
 
 void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -222,10 +217,6 @@ void jit_store_memory_emitter::emit_isa(const std::vector<size_t>& in, const std
             h->vse32_v(src, tmp_gpr);
         }
     }
-}
-
-void jit_store_memory_emitter::emit_data() const {
-    // No additional data emission needed for basic store
 }
 
 /* ============== jit_load_broadcast_emitter =============== */

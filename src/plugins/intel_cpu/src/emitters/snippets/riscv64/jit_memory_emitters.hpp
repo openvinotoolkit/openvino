@@ -30,8 +30,6 @@ public:
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
-    std::vector<size_t> get_available_aux_gprs() const;
-
 protected:
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
@@ -74,7 +72,6 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
-    void emit_data() const override;
 
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;

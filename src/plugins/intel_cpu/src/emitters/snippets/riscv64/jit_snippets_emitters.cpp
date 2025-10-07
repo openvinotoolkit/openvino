@@ -50,7 +50,6 @@ jit_scalar_emitter::jit_scalar_emitter(jit_generator_t* h, cpu_isa_t isa, const 
         OV_CPU_JIT_EMITTER_THROW("Doesn't support precision ", precision);
     }
     }
-    // Store the value directly - no table needed for this simple implementation
 }
 
 void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
