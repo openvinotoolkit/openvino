@@ -196,58 +196,56 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     this->register_matcher(m, callback);
 }
 
-static bool get_scale(Output<ov::Node>& scale_node,
-                      std::shared_ptr<ov::Node> scale_pattern,
-                      element::Type default_scale_type,
-                      ov::pass::pattern::Matcher& matcher) {
+static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_pattern,
+                                           element::Type default_scale_type,
+                                           ov::pass::pattern::Matcher& matcher) {
     auto& pm = matcher.get_pattern_value_map();
     if (pm.count(scale_pattern)) {
-        scale_node = pm.at(scale_pattern);
+        auto scale_node = pm.at(scale_pattern);
 
         // According to the spec, scale should be a scalar or 1D with 1 element
         auto pshape = scale_node.get_partial_shape();
         auto rank = pshape.rank();
         if (rank.is_dynamic()) {
-            return false;
+            return nullptr;
         }
 
         if (pshape.is_static() && ov::shape_size(pshape.get_shape()) != 1) {
-            return false;
+            return nullptr;
         } else {
             if (rank.get_length() > 1) {
-                scale_node = op::util::make_try_fold<v1::Reshape>(scale_node,
-                                                                  v0::Constant::create(ov::element::i64, {1}, {1}),
-                                                                  false);
+                return op::util::make_try_fold<v1::Reshape>(scale_node,
+                                                            v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                            false);
             }
         }
     } else {
-        scale_node = v0::Constant::create(default_scale_type, ov::Shape{}, {1.0});
+        return v0::Constant::create(default_scale_type, ov::Shape{}, {1.0});
     }
-    return true;
+    return nullptr;
 }
 
-static bool get_mask(Output<ov::Node>& mask_node,
-                     std::shared_ptr<ov::Node> mask_pattern,
-                     std::shared_ptr<ov::Node> opt_mask_add,
-                     element::Type default_mask_type,
-                     bool mask_present,
-                     ov::pass::pattern::Matcher& matcher) {
+static std::shared_ptr<ov::Node> get_mask(std::shared_ptr<ov::Node> mask_pattern,
+                                          std::shared_ptr<ov::Node> opt_mask_add,
+                                          element::Type default_mask_type,
+                                          bool mask_present,
+                                          ov::pass::pattern::Matcher& matcher) {
     auto& pm = matcher.get_pattern_value_map();
     if (mask_present && pm.count(opt_mask_add)) {
         ov::Output<ov::Node> qk_out = pm.at(opt_mask_add);
         // Get shape of the first input
         auto qk_out_ps = qk_out.get_target_inputs().begin()->get_partial_shape();
 
-        mask_node = pm.at(mask_pattern);
+        auto mask_node = pm.at(mask_pattern);
         auto mask_input_ps = mask_node.get_partial_shape();
 
         if (!qk_out_ps.rank().is_static() || !mask_input_ps.rank().is_static())
-            return false;
+            return nullptr;
         if (qk_out_ps.size() > 4)
-            return false;
+            return nullptr;
         // mask should be broadcastable to qk shape
         if (!ov::PartialShape::broadcast_merge_into(qk_out_ps, mask_input_ps, AutoBroadcastType::NUMPY))
-            return false;
+            return nullptr;
 
         if (mask_input_ps.size() < 2) {
             // OpenVINO SDPA specification requires the attention mask to have rank >= 2.
@@ -278,22 +276,23 @@ static bool get_mask(Output<ov::Node>& mask_node,
             }
         }
     } else {
-        mask_node = v0::Constant::create(default_mask_type, ov::Shape{}, {0});
+        return v0::Constant::create(default_mask_type, ov::Shape{}, {0});
     }
-    return true;
+    return nullptr;
 }
 
-static bool get_qkv(ov::OutputVector& qkv,
-                    Output<ov::Node>& mask_node,
-                    element::Type default_mask_type,
-                    bool matmul_transposes_k,
-                    ov::pass::pattern::Matcher& matcher) {
+static ov::OutputVector get_qkv(const ov::OutputVector& qkv,
+                                Output<ov::Node> mask_node,
+                                element::Type default_mask_type,
+                                bool matmul_transposes_k,
+                                ov::pass::pattern::Matcher& matcher) {
+    OutputVector res_qkv(qkv.size());
     // 3 is the min supported rank according to the SDPA spec
     int64_t supported_rank = std::max(mask_node.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
     for (size_t i = 0; i < qkv.size(); ++i) {
         auto pshape = qkv[i].get_partial_shape();
         if (pshape.rank().is_dynamic())
-            return false;
+            return {};
         // align all inputs
         supported_rank = std::max(static_cast<int64_t>(pshape.size()), supported_rank);
     }
@@ -306,7 +305,7 @@ static bool get_qkv(ov::OutputVector& qkv,
             std::iota(axes.begin(), axes.end(), 0);
             auto axes_node = v0::Constant::create(ov::element::i64, ov::Shape{static_cast<size_t>(diff)}, axes);
             auto reshape = std::make_shared<v0::Unsqueeze>(qkv[i], axes_node);
-            qkv[i] = reshape;
+            res_qkv[i] = reshape;
             ov::copy_runtime_info(matcher.get_matched_nodes(), {reshape, axes_node});
         }
 
@@ -317,11 +316,11 @@ static bool get_qkv(ov::OutputVector& qkv,
             std::iota(axes_values.begin(), axes_values.end(), 0);
             std::swap(axes_values[axes_values.size() - 1], axes_values[axes_values.size() - 2]);
             auto axes = v0::Constant::create(ov::element::i64, {axes_values.size()}, axes_values);
-            qkv[i] = std::make_shared<v1::Transpose>(qkv[i], axes);
-            ov::copy_runtime_info(matcher.get_matched_nodes(), {axes, qkv[i].get_node_shared_ptr()});
+            res_qkv[i] = std::make_shared<v1::Transpose>(qkv[i], axes);
+            ov::copy_runtime_info(matcher.get_matched_nodes(), {axes, res_qkv[i].get_node_shared_ptr()});
         }
     }
-    return true;
+    return {};
 }
 
 SDPAFusionMatcher::SDPAFusionMatcher() {
@@ -431,16 +430,17 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
             return false;
 
         auto T = q_node.get_element_type();
-        ov::Output<ov::Node> scale_node;
-        if (!get_scale(scale_node, attn_scale, T, m))
+
+        std::shared_ptr<ov::Node> scale_node;
+        if (!(scale_node = get_scale(attn_scale, T, m)))
             return false;
 
-        Output<ov::Node> mask_input;
-        if (!get_mask(mask_input, mask, qk_opt_scaled_opt_mask_added, T, mask_present, m))
+        std::shared_ptr<ov::Node> mask_input;
+        if (!(mask_input = get_mask(mask, qk_opt_scaled_opt_mask_added, T, mask_present, m)))
             return false;
 
-        ov::OutputVector qkv = {q_node, k_node, v_node};
-        if (!get_qkv(qkv, mask_input, T, matmul_transposes_k, m))
+        ov::OutputVector qkv = get_qkv({q_node, k_node, v_node}, mask_input, T, matmul_transposes_k, m);
+        if (qkv.size() == 0)
             return false;
 
         std::shared_ptr<ov::Node> sdpa =
@@ -517,16 +517,17 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
             return false;
 
         auto T = q_node.get_element_type();
-        ov::Output<ov::Node> scale_node;
-        if (!get_scale(scale_node, attn_scale, T, m))
+
+        std::shared_ptr<ov::Node> scale_node;
+        if (!(scale_node = get_scale(attn_scale, T, m)))
             return false;
 
-        Output<ov::Node> mask_input;
-        if (!get_mask(mask_input, mask, opt_mask_add, T, mask_present, m))
+        std::shared_ptr<ov::Node> mask_input;
+        if (!(mask_input = get_mask(mask, opt_mask_add, T, mask_present, m)))
             return false;
 
-        ov::OutputVector qkv = {q_node, k_node, v_node};
-        if (!get_qkv(qkv, mask_input, T, matmul_transposes_k, m))
+        ov::OutputVector qkv = get_qkv({q_node, k_node, v_node}, mask_input, T, matmul_transposes_k, m);
+        if (qkv.size() == 0)
             return false;
 
         bool sinks_present = pm.count(sinks);
