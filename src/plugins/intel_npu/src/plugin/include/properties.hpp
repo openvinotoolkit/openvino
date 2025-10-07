@@ -121,9 +121,11 @@ private:
         ov::intel_npu::npuw::llm::prefill_hint.name(),
         ov::intel_npu::npuw::llm::prefill_config.name(),
         ov::intel_npu::npuw::llm::additional_prefill_config.name(),
+        ov::intel_npu::npuw::llm::prefill_attn_hint.name(),
         ov::intel_npu::npuw::llm::generate_hint.name(),
         ov::intel_npu::npuw::llm::generate_config.name(),
         ov::intel_npu::npuw::llm::additional_generate_config.name(),
+        ov::intel_npu::npuw::llm::generate_attn_hint.name(),
         ov::intel_npu::npuw::llm::shared_lm_head_config.name(),
         ov::intel_npu::npuw::llm::additional_shared_lm_head_config.name()};
 

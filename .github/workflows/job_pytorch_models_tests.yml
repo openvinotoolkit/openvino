@@ -19,6 +19,10 @@ on:
 
 permissions: read-all
 
+env:
+  HF_HUB_CACHE_LIN: /mount/caches/huggingface
+  HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
+
 jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
@@ -68,9 +72,11 @@ jobs:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
 
-      - name: Setup HuggingFace Cache Directory (Windows)
-        if: runner.os == 'Windows'
-        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
+      - name: Setup Variables
+        run: |
+          echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "HUGGINGFACE_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
+          echo "HF_HUB_OFFLINE=1" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO artifacts
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
@@ -114,6 +120,7 @@ jobs:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+          HF_HUB_OFFLINE: 0  # Can't use offline mode - these tests use `model_info` call, which can't be cached
 
       - name: PagedAttention Test
         if: ${{ inputs.model_scope == 'precommit' }}
