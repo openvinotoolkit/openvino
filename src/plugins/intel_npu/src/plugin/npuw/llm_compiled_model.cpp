@@ -1018,6 +1018,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     {
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
         rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
         rewr.run_on_model(kvcache_model);
         rewr.run_on_model(prefill_model);

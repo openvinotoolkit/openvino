@@ -77,7 +77,8 @@ std::optional<ov::npuw::function::Attention> ov::npuw::function::Attention::from
         }
     }  // for(f_params)
 
-    if (dyn._inputs.empty() || !dyn._mask) {
+    // There must be exactly two inputs found, for past_k and past_v.
+    if (dyn._inputs.size() != 2u || !dyn._mask) {
         return std::nullopt;
     }
 
