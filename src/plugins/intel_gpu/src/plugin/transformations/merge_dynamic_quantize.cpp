@@ -19,15 +19,7 @@ bool MergeDynamicQuantize::run_on_model(const std::shared_ptr<Model>& model) {
 
     bool changed = false;
 
-    std::cout << ops.size() << " ops in the model" << std::endl;
-    int counter = 0;
     for (const auto& node : ops) {
-        std::cout << (counter++) << " Node: " << node->get_friendly_name() << std::endl;
-    }
-    std::cout << "-------------------" << std::endl;
-
-    for (const auto& node : ops) {
-        std::cout << "Visiting node: " << node->get_friendly_name() << std::endl;
         if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             for (const auto& sub_graph : sub_graph_node->get_functions()) {
                 if (sub_graph) {
