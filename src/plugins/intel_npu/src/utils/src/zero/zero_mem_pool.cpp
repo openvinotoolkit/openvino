@@ -97,14 +97,7 @@ void ZeroMemPool::update_pool(const std::shared_ptr<intel_npu::ZeroMem>& zero_me
 
 void ZeroMemPool::delete_pool_entry(ZeroMem* zero_memory) {
     std::lock_guard<std::mutex> lock(_mutex);
-    if (_pool.at(zero_memory->id()).lock()) {
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-        OPENVINO_THROW("Memory is still in use, at this point ref count must be 0!");
-#endif
-        return;
-    }
     _pool.erase(zero_memory->id());
-    // Destroy zero memory
     delete zero_memory;
 }
 

@@ -838,12 +838,4 @@ Example:
             <filter>.*WeightsSeparationOneShotTests.*</filter>
         </filters>
     </skip_config>
-
-    <!-- E###### -->
-    <skip_config>
-        <message>Cannot import standard allocation if not having driver support</message>
-        <filters>
-            <filter>.*UseSameStandardAllocationMultipleTimesNeedDriverSupport.*</filter>
-        </filters>
-    </skip_config>
 </skip_configs>

@@ -126,23 +126,30 @@ TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
         const int threads_no = 256;
         std::array<std::thread, threads_no> threads;
         std::array<std::shared_ptr<::intel_npu::ZeroMem>, 5> zero_mem;
-        std::array<void*, 4> data;
+        std::array<void*, 3> data;
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 3; i++) {
             data[i] = ::operator new(4096, std::align_val_t(4096));
             zero_mem[i] =
                 ::intel_npu::ZeroMemPool::get_instance().import_standard_allocation_memory(init_struct, data[i], 4096);
         }
 
+        zero_mem[3] = ::intel_npu::ZeroMemPool::get_instance().allocate_zero_memory(init_struct, 4096, 4096);
         zero_mem[4] = ::intel_npu::ZeroMemPool::get_instance().allocate_zero_memory(init_struct, 4096, 4096);
 
         for (int i = 0; i < threads_no; ++i) {
             threads[i] = std::thread([this, &zero_mem, i]() -> void {
                 for (int j = 0; j < 256; j++) {
-                    auto get_zero_mem = ::intel_npu::ZeroMemPool::get_instance().import_standard_allocation_memory(
-                        init_struct,
-                        zero_mem[i % 5]->data(),
-                        4096);
+                    std::shared_ptr<::intel_npu::ZeroMem> get_zero_mem;
+                    try {
+                        get_zero_mem = ::intel_npu::ZeroMemPool::get_instance().import_standard_allocation_memory(
+                            init_struct,
+                            zero_mem[i % 5]->data(),
+                            4096);
+                    } catch (...) {
+                        ASSERT_FALSE(true) << "Test failed with unexpected throw.";
+                    }
+
                     SLEEP_MS(0);
                     get_zero_mem = {};
                 }
@@ -153,7 +160,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
             threads[i].join();
         }
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 3; i++) {
             ::operator delete(data[i], std::align_val_t(4096));
         }
     }
@@ -162,7 +169,7 @@ TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
 TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    const int threads_no = 128;
+    const int threads_no = 256;
     const int no_of_buffers = 5;
     std::array<std::thread, threads_no> threads;
     std::array<void*, no_of_buffers> data;
@@ -181,7 +188,11 @@ TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
                         data[j % no_of_buffers],
                         4096);
                 } catch (::intel_npu::ZeroMemException&) {
+                    // at some point the shared pointer counter could be 0 but still have the weak pointer in the pool.
+                    // We are not able to run .lock() on it, so we need to fallback to memcpy in these specific cases.
                     zero_mem = ::intel_npu::ZeroMemPool::get_instance().allocate_zero_memory(init_struct, 4096, 4096);
+                } catch (...) {
+                    ASSERT_FALSE(true) << "Test failed with unexpected throw.";
                 }
 
                 SLEEP_MS(0);

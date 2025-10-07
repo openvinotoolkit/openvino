@@ -11,7 +11,7 @@
 
 namespace intel_npu {
 
-struct ZeroMem final {
+class ZeroMem final {
 public:
     /**
      * @brief Allocates a new memory region in the level zero context provided through init_structs.
@@ -43,17 +43,17 @@ public:
             const bool standard_allocation);
 
     /**
-     *@brief Return allocated memory
+     * @brief Return allocated memory
      */
     void* data();
 
     /**
-     *@brief Return size of the allocated memory
+     * @brief Return size of the allocated memory
      */
     size_t size();
 
     /**
-     *@brief Return memory id of the allocated memory
+     * @brief Return memory id of the allocated memory
      */
     uint64_t id();
 
