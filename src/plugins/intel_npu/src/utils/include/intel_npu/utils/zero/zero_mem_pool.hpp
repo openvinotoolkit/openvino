@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <future>
 #include <mutex>
 
 #include "intel_npu/utils/logger/logger.hpp"
@@ -70,11 +71,21 @@ public:
         const bool is_input = false);
 
 private:
+    std::shared_ptr<ZeroMem> import_standard_allocation(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                                                        const void* data,
+                                                        const size_t bytes,
+                                                        const bool is_input);
     void update_pool(const std::shared_ptr<intel_npu::ZeroMem>& zero_memory);
     void delete_pool_entry(ZeroMem* ptr);
 
     std::unordered_map<uint64_t, std::weak_ptr<ZeroMem>> _pool;
+    // pool to synchronize shared_ptr<ZeroMem> deleter and import_standard_allocation_memory method
+    std::unordered_map<uint64_t, std::promise<void>> _notify_pool;
+
+    // mutex to synchronize memory pool
     std::mutex _mutex;
+    // mutex to synchronize shared_ptr<ZeroMem> deleter and import_standard_allocation_memory method
+    std::mutex _deleter_mutex;
 };
 
 }  // namespace intel_npu

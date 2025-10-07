@@ -88,6 +88,7 @@ public:
             utils::PluginCache::get().reset();
         }
 
+        init_struct = nullptr;
         APIBaseTest::TearDown();
     }
 };

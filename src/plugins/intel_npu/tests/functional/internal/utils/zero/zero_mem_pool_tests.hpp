@@ -89,6 +89,7 @@ public:
             utils::PluginCache::get().reset();
         }
 
+        init_struct = nullptr;
         APIBaseTest::TearDown();
     }
 };
@@ -141,15 +142,11 @@ TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
             threads[i] = std::thread([this, &zero_mem, i]() -> void {
                 for (int j = 0; j < 256; j++) {
                     std::shared_ptr<::intel_npu::ZeroMem> get_zero_mem;
-                    try {
-                        get_zero_mem = ::intel_npu::ZeroMemPool::get_instance().import_standard_allocation_memory(
-                            init_struct,
-                            zero_mem[i % 5]->data(),
-                            4096);
-                    } catch (...) {
-                        ASSERT_FALSE(true) << "Test failed with unexpected throw.";
-                    }
-
+                    OV_ASSERT_NO_THROW(get_zero_mem =
+                                           ::intel_npu::ZeroMemPool::get_instance().import_standard_allocation_memory(
+                                               init_struct,
+                                               zero_mem[i % 5]->data(),
+                                               4096));
                     SLEEP_MS(0);
                     get_zero_mem = {};
                 }
@@ -169,46 +166,40 @@ TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
 TEST_P(ZeroMemPoolTests, MultiThreadingImportMemoryReUseAndDestroyIt) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    const int threads_no = 256;
-    const int no_of_buffers = 5;
-    std::array<std::thread, threads_no> threads;
-    std::array<void*, no_of_buffers> data;
+    if (init_struct->isExternalMemoryStandardAllocationSupported()) {
+        const int threads_no = 256;
+        const int no_of_buffers = 5;
+        std::array<std::thread, threads_no> threads;
+        std::array<void*, no_of_buffers> data;
 
-    for (int i = 0; i < no_of_buffers; i++) {
-        data[i] = ::operator new(4096, std::align_val_t(4096));
-    }
+        for (int i = 0; i < no_of_buffers; i++) {
+            data[i] = ::operator new(4096, std::align_val_t(4096));
+        }
 
-    for (int i = 0; i < threads_no; ++i) {
-        threads[i] = std::thread([this, &data, &threads_no, &no_of_buffers]() -> void {
-            for (int j = 0; j < threads_no; j++) {
-                std::shared_ptr<::intel_npu::ZeroMem> zero_mem;
-                try {
-                    zero_mem = ::intel_npu::ZeroMemPool::get_instance().import_standard_allocation_memory(
-                        init_struct,
-                        data[j % no_of_buffers],
-                        4096);
-                } catch (::intel_npu::ZeroMemException&) {
-                    // at some point the shared pointer counter could be 0 but still have the weak pointer in the pool.
-                    // We are not able to run .lock() on it, so we need to fallback to memcpy in these specific cases.
-                    zero_mem = ::intel_npu::ZeroMemPool::get_instance().allocate_zero_memory(init_struct, 4096, 4096);
-                } catch (...) {
-                    ASSERT_FALSE(true) << "Test failed with unexpected throw.";
+        for (int i = 0; i < threads_no; ++i) {
+            threads[i] = std::thread([this, &data, &threads_no, &no_of_buffers]() -> void {
+                for (int j = 0; j < threads_no; j++) {
+                    std::shared_ptr<::intel_npu::ZeroMem> zero_mem;
+                    OV_ASSERT_NO_THROW(zero_mem =
+                                           ::intel_npu::ZeroMemPool::get_instance().import_standard_allocation_memory(
+                                               init_struct,
+                                               data[j % no_of_buffers],
+                                               4096));
+                    SLEEP_MS(0);
+                    if (j % 2 == 0) {
+                        zero_mem = {};
+                    }
                 }
+            });
+        }
 
-                SLEEP_MS(0);
-                if (j % 2 == 0) {
-                    zero_mem = {};
-                }
-            }
-        });
-    }
+        for (int i = 0; i < threads_no; ++i) {
+            threads[i].join();
+        }
 
-    for (int i = 0; i < threads_no; ++i) {
-        threads[i].join();
-    }
-
-    for (int i = 0; i < no_of_buffers; i++) {
-        ::operator delete(data[i], std::align_val_t(4096));
+        for (int i = 0; i < no_of_buffers; i++) {
+            ::operator delete(data[i], std::align_val_t(4096));
+        }
     }
 }
 
