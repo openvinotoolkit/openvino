@@ -5,6 +5,7 @@
 #include "ref_mvn.hpp"
 
 #include <any>
+#include <stdexcept>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>

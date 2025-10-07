@@ -9,7 +9,6 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "mvn_config.hpp"
-#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
@@ -227,7 +226,6 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                     !config.descs.at(ARG_DST)->hasLayoutType(LayoutType::nspc)) {
                     return false;
                 }
-                DEBUG_LOG("MVN Reference nspc executor support check: supported");
                 return true;
             },
             // createOptimalConfig
@@ -245,7 +243,6 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             OperationType::MVN,
             // supports - always returns true as fallback
             [](const executor::Config<MVNAttrs>& /*config*/) -> bool {
-                DEBUG_LOG("MVN Reference executor support check: always supported (fallback)");
                 return true;
             },
             // createOptimalConfig
