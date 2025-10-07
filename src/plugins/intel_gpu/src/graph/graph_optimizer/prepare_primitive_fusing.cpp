@@ -1024,8 +1024,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto dyn_quan_prim = dynamic_quantize_node.get_primitive();
             auto attrs = dyn_quan_prim->attrs;
-            // auto input_size = dyn_quan_prim->input_size;
-            // auto num_outputs = dyn_quan_prim->num_outputs;
 
             bool symmetric_quant = attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
             bool is_fp8 = attrs.scale_dt == ov::element::f8e8m0 &&
