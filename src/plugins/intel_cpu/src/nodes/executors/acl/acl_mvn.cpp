@@ -8,6 +8,7 @@
 #include <arm_compute/runtime/NEON/functions/NEMeanStdDevNormalizationLayer.h>
 
 #include <algorithm>
+#include <common/utils.hpp>
 #include <cstddef>
 #include <memory>
 
@@ -44,9 +45,10 @@ bool ACLMVNExecutor::supports(const MVNConfig& config) {
               " epsMode=",
               static_cast<int>(config.attrs.epsMode_));
 
-    VERIFY((srcPrecision == ov::element::f32 || srcPrecision == ov::element::f16) &&
-               (dstPrecision == ov::element::f32 || dstPrecision == ov::element::f16),
-           UNSUPPORTED_SRC_PRECISIONS);
+    const bool supportedSrcPrecision = dnnl::impl::utils::one_of(srcPrecision, ov::element::f32, ov::element::f16);
+    const bool supportedDstPrecision = dnnl::impl::utils::one_of(dstPrecision, ov::element::f32, ov::element::f16);
+
+    VERIFY(supportedSrcPrecision && supportedDstPrecision, UNSUPPORTED_SRC_PRECISIONS);
 
     // Input and output precisions must match
     VERIFY(srcPrecision == dstPrecision, UNSUPPORTED_DST_PRECISIONS);
@@ -56,13 +58,17 @@ bool ACLMVNExecutor::supports(const MVNConfig& config) {
     VERIFY(config.attrs.normalizeVariance_, UNSUPPORTED_ATTRIBUTE);
 
     // Check layout compatibility
-    // Require src and dst layouts to match (either ncsp or nspc)
-    const bool both_ncsp = srcDesc->hasLayoutType(LayoutType::ncsp) && dstDesc->hasLayoutType(LayoutType::ncsp);
-    const bool both_nspc = srcDesc->hasLayoutType(LayoutType::nspc) && dstDesc->hasLayoutType(LayoutType::nspc);
-    VERIFY(both_ncsp || both_nspc, MEMORY_FORMAT_MISMATCH);
+    const bool srcPlanar = srcDesc->hasLayoutType(LayoutType::ncsp);
+    const bool dstPlanar = dstDesc->hasLayoutType(LayoutType::ncsp);
+    const bool srcChannelLast = srcDesc->hasLayoutType(LayoutType::nspc);
+    const bool dstChannelLast = dstDesc->hasLayoutType(LayoutType::nspc);
+
+    // Require both planar or both channel-last layouts
+    VERIFY(srcPlanar == dstPlanar && srcChannelLast == dstChannelLast, MEMORY_FORMAT_MISMATCH);
+    VERIFY(srcPlanar || srcChannelLast, MEMORY_FORMAT_MISMATCH);
 
     // Original conditions from master: NHWC with initAcrossChannels=false is not supported
-    VERIFY(config.attrs.initAcrossChannels_ || !srcDesc->hasLayoutType(LayoutType::nspc), UNSUPPORTED_ATTRIBUTE);
+    VERIFY(config.attrs.initAcrossChannels_ || !srcChannelLast, UNSUPPORTED_ATTRIBUTE);
 
     return true;
 }

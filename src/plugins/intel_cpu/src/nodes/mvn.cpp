@@ -265,13 +265,8 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
     // Create initial memory descriptors
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    const bool enforce_formats = !memoryFormatFilter.input.empty() || !memoryFormatFilter.output.empty();
-    // rank is not used in the following logic; remove to avoid unused warning
-    bool prefer_nspc = false;  // Let factory enumerate; do not bias to nspc blindly for enforced filters
-    auto srcDesc = creatorsMap.at(prefer_nspc ? LayoutType::nspc : LayoutType::ncsp)
-                       ->createSharedDesc(inputPrecision, getInputShapeAtPort(0));
-    auto dstDesc = creatorsMap.at(prefer_nspc ? LayoutType::nspc : LayoutType::ncsp)
-                       ->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
+    auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(inputPrecision, getInputShapeAtPort(0));
+    auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
 
     MemoryDescArgs descs;
     descs[ARG_SRC_0] = srcDesc;
@@ -283,9 +278,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
     auto factory = std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs, executionContext, descs, memoryFormatFilter);
     const std::vector<MemoryDescArgs> nodeDescriptorsList = factory->getProperMemoryDescriptors(descs);
 
-    // Build supported primitive descriptors; prefer nspc when formats are enforced
-    std::vector<NodeDesc> nspc_spds;
-    std::vector<NodeDesc> other_spds;
+    // Build supported primitive descriptors in the order suggested by the factory
+    std::vector<NodeDesc> collectedSPDs;
+    collectedSPDs.reserve(nodeDescriptorsList.size());
     for (const auto& nodeDescriptors : nodeDescriptorsList) {
         NodeConfig nodeConfig;
         nodeConfig.inConfs.resize(getParentEdges().size());
@@ -310,47 +305,12 @@ void MVN::initSupportedPrimitiveDescriptors() {
             nodeConfig.inConfs[1].constant(true);
         }
 
-        const bool is_nspc = nodeDescriptors.at(ARG_SRC_0)->hasLayoutType(LayoutType::nspc);
-        if (is_nspc) {
-            nspc_spds.emplace_back(nodeConfig, ov::intel_cpu::impl_desc_type::undef);
-        } else {
-            other_spds.emplace_back(nodeConfig, ov::intel_cpu::impl_desc_type::undef);
-        }
+        collectedSPDs.emplace_back(std::move(nodeConfig), ov::intel_cpu::impl_desc_type::undef);
     }
 
-    const bool prefer_nspc_for_across_low_rank =
-        (getInputShapeAtPort(0).getRank() <= 2) && mvnAttrs.initAcrossChannels_;
-
-    if (enforce_formats) {
-        // If formats enforced, and nspc variants exist, keep only nspc to avoid accidental planar selection
-        if (!nspc_spds.empty()) {
-            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
-                                                 nspc_spds.begin(),
-                                                 nspc_spds.end());
-        } else {
-            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
-                                                 other_spds.begin(),
-                                                 other_spds.end());
-        }
-    } else {
-        // Prefer NHWC for low-rank across-channels to match normalization axes
-        if (prefer_nspc_for_across_low_rank && !nspc_spds.empty()) {
-            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
-                                                 nspc_spds.begin(),
-                                                 nspc_spds.end());
-            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
-                                                 other_spds.begin(),
-                                                 other_spds.end());
-        } else {
-            // Preserve original order when no preference
-            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
-                                                 other_spds.begin(),
-                                                 other_spds.end());
-            supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
-                                                 nspc_spds.begin(),
-                                                 nspc_spds.end());
-        }
-    }
+    supportedPrimitiveDescriptors.insert(supportedPrimitiveDescriptors.end(),
+                                         collectedSPDs.begin(),
+                                         collectedSPDs.end());
 }
 
 void MVN::prepareParams() {

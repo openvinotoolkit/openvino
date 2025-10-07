@@ -407,9 +407,15 @@ bool MVNJitExecutor::canReuseShapeAgnosticKernel(const VectorDims& newShape5D) {
     return false;
 }
 
-bool MVNJitExecutor::supports(const MVNConfig& /*config*/) {
-    // JIT implementation supports all configurations; special 2D across-channels
-    // is handled internally in executeImpl to match reference numerics.
+bool MVNJitExecutor::supports(const MVNConfig& config) {
+    const auto& srcDesc = config.descs.at(ARG_SRC_0);
+    const auto& dstDesc = config.descs.at(ARG_DST);
+
+    VERIFY(srcDesc, UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(dstDesc, UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(!srcDesc->empty(), UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(!dstDesc->empty(), UNSUPPORTED_BY_EXECUTOR);
+
     return true;
 }
 
