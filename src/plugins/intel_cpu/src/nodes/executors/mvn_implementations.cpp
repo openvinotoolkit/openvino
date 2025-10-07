@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_format_filter.hpp"
 #include "mvn_config.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"

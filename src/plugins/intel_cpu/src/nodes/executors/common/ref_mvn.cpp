@@ -4,12 +4,14 @@
 
 #include "ref_mvn.hpp"
 
+#include <any>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <utility>
 #include <vector>
 
+#include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/executor.hpp"
@@ -18,6 +20,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "post_ops.hpp"
 
 namespace ov::intel_cpu {
 

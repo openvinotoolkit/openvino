@@ -14,10 +14,10 @@
 #include <utility>
 #include <vector>
 
-#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
@@ -29,6 +29,7 @@
 #include "nodes/fake_quantize.h"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/axis_set.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
@@ -51,7 +52,7 @@ void append_parent_fake_quantize_post_op(MVN& node, PostOps& postOps) {
     if (hasFakeQuantize) {
         return;
     }
-    if (node.getParentEdges().size() < 1) {
+    if (node.getParentEdges().empty()) {
         return;
     }
 
@@ -233,7 +234,8 @@ void MVN::initSupportedPrimitiveDescriptors() {
         inputPrecision = ov::element::f16;
         outputPrecision = ov::element::f16;
     }
-    if (!hasHardwareSupport(outputPrecision) && !(enforceFp16 && outputPrecision == ov::element::f16)) {
+    const bool fp16OverrideActive = enforceFp16 && outputPrecision == ov::element::f16;
+    if (!hasHardwareSupport(outputPrecision) && !fp16OverrideActive) {
         outputPrecision = ov::element::f32;
     }
 
