@@ -37,7 +37,9 @@ std::vector<LoopPort> clone_ports(const ExpressionMap& expression_map, const std
     std::vector<LoopPort> new_ports(cur_ports.size());
     for (size_t i = 0; i < cur_ports.size(); ++i) {
         const auto& port = cur_ports[i];
-        new_ports[i] = *port.clone_with_new_expr(expression_map.at(port.get_expr_port()->get_expr().get()));
+        const auto& original_expr = port.get_expr_port()->get_expr().get();
+        OPENVINO_ASSERT(expression_map.count(original_expr), "Cannot find cloned expression for: ", original_expr);
+        new_ports[i] = *port.clone_with_new_expr(expression_map.at(original_expr));
     }
     return new_ports;
 }
@@ -255,7 +257,9 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
                         OPENVINO_ASSERT(cloned_info, "cloned info must be UnifiedLoopInfo");
                         unified_loop_map[unified_loop_info] = cloned_info;
                     }
-                    return unified_loop_map.at(unified_loop_info);
+                    OPENVINO_ASSERT(unified_loop_map.count(unified_loop_info),
+                                    "Cloned UnifiedLoopInfo must be cloned at this stage.");
+                    return unified_loop_map[unified_loop_info];
                 };
 
                 // Note: all internal decomposed loops must be also cloned to avoid a situation
