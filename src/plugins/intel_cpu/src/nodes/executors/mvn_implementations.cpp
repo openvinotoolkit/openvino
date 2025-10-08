@@ -38,6 +38,11 @@ namespace ov::intel_cpu {
 using namespace TypeMaskAlias;
 using namespace executor;
 
+namespace {
+// Ensure debug_messages.hpp is considered used in all build configs (even if VERIFY macros are compiled out)
+[[maybe_unused]] static const char* ov_cpu_dbg_keep_include = MEMORY_FORMAT_MISMATCH;
+}  // namespace
+
 // Mapping notation for MVN arguments
 static const MappingNotation mvnMappingNotation{{ARG_SRC, 0}, {ARG_DST, 1}};
 
