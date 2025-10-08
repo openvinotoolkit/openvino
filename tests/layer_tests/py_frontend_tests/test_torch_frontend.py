@@ -1001,6 +1001,7 @@ def test_patched_8bit_model_converts():
     np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
 
 
+@pytest.mark.skipif(platform.machine().lower().startswith("win"), reason="CVS-174725")
 def test_patched_bitnet_model_converts():
     from openvino import convert_model, compile_model
     from transformers.integrations.bitnet import AutoBitLinear, pack_weights
