@@ -206,8 +206,31 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
     // For post-ops, we need to use the actual channel size and proper channel axis
     VectorDims outputDims = shape5D;
 
-    // Use logical channel axis (C) consistently for post-ops composer
-    size_t idxOC = 1;  // (N, C, D, H, W)
+    // Derive logical channel axis (idxOC) consistent with MVN::prepareParams mapping and layout
+    size_t idxOC = 1;  // default (N, C, D, H, W)
+    if (attrs.layout == MVNLayoutType::mvn_by_channel) {
+        // Channel-last (NHWC-like): channel is the last dim in our 5D mapping
+        idxOC = outputDims.size() - 1;  // 4
+    } else if (attrs.layout == MVNLayoutType::mvn_planar) {
+        if (!attrs.execAcrossChannels_) {
+            // Low-rank across-channels transformed cases
+            // 1D across: {1,1,1,1,C} -> channel at index 4
+            if (outputDims.size() == 5 && outputDims[0] == 1 && outputDims[1] == 1 && outputDims[2] == 1 &&
+                outputDims[4] == outputDims[4]) {
+                idxOC = 4;
+            }
+            // 2D across: {1,N,1,C,1} -> channel at index 3
+            else if (outputDims.size() == 5 && outputDims[0] == 1 && outputDims[2] == 1) {
+                idxOC = 3;
+            } else {
+                idxOC = 1;
+            }
+        } else {
+            idxOC = 1;
+        }
+    } else {  // mvn_block
+        idxOC = 1;
+    }
 
     // Override the channel dimension with the actual channel size to match composer expectations
     if (attrs.actualChannelSize > 0 && idxOC < outputDims.size()) {
