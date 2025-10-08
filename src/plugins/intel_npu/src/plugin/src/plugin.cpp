@@ -723,7 +723,7 @@ void Plugin::encodeDynamicBatchInfo(std::shared_ptr<ov::Model> model) const {
 
     // Sanity check: ensure we don't transform static models
     if (!model->is_dynamic()) {
-        _logger.warning("Attempting to encode dynamic batch info on a static model. Skipping encoding.");
+        _logger.debug("Attempting to encode dynamic batch info on a static model. Skipping encoding.");
         return;
     }
 
