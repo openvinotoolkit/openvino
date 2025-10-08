@@ -65,11 +65,10 @@ outputs:
     description: "Whether the workflow should be run with Smart CI rules applied or skipped completely"
     value: ${{ steps.smart_ci.outputs.skip_workflow }}
 
-env:
-  CODE_STYLE_CHECK_NAMES: "clang-format,clang-format-aarch64,clang-format-riscv64,ShellCheck,NamingConventionCheck"
-
 runs:
   using: "composite"
+  env:
+    CODE_STYLE_CHECK_NAMES: "clang-format,clang-format-aarch64,clang-format-riscv64,ShellCheck,NamingConventionCheck"
   steps:
     - name: checkout wait-for-check action
       uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
