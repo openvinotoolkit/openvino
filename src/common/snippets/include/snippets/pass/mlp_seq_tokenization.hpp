@@ -73,7 +73,7 @@ private:
     static bool is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node);
     static bool is_tensor_supported(const ov::descriptor::Tensor& t);
 
-    static const size_t m_rank;
+    static constexpr size_t m_rank = 2;
 };
 
 }  // namespace ov::snippets::pass

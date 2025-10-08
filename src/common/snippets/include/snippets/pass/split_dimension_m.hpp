@@ -119,7 +119,7 @@ private:
 
     size_t m_concurrency;
 
-    static const size_t min_kernel_m;
-    static const size_t dim_M_index;
+    static constexpr size_t min_kernel_m = 32;
+    static constexpr size_t dim_M_index = 1;
 };
 }  // namespace ov::snippets::pass

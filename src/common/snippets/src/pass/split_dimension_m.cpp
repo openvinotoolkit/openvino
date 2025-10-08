@@ -54,9 +54,6 @@ bool is_prime_number(size_t value) {
 
 namespace ov::snippets::pass {
 
-const size_t SplitDimensionM::min_kernel_m = 32;
-const size_t SplitDimensionM::dim_M_index = 1;
-
 bool SplitDimensionM::is_supported_matmul(const std::shared_ptr<const ov::Node>& node) {
     const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(node);
     return matmul && !matmul->get_transpose_a() && !matmul->is_dynamic();
