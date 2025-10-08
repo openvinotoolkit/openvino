@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/file_util.hpp"
-
 #include <gtest/gtest.h>
 
 #include <random>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/util/file_path.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov::test {
 using std::string;
@@ -633,4 +635,51 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
     EXPECT_EQ(ov::util::file_size(ov::util::Path("android_test_file_20.txt!_to_cut.jar")), 20);
 }
 #endif
+
+using StringPathVariantP = std::variant<std::string, std::u16string, std::u32string, std::wstring>;
+
+class FileUtilTestP : public FileUtilTest, public ::testing::WithParamInterface<StringPathVariantP> {
+protected:
+    std::filesystem::path get_path_param() const {
+        return std::visit(
+            [](auto&& p) {
+                return std::filesystem::path(p);
+            },
+            GetParam());
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(string_paths,
+                         FileUtilTestP,
+                         testing::Values("test_encoder/test_encoder.encrypted/",
+                                         "test_encoder/test_encoder.encrypted"));
+INSTANTIATE_TEST_SUITE_P(u16_paths,
+                         FileUtilTestP,
+                         testing::Values(u"test_encoder/dot.folder", u"test_encoder/dot.folder/"));
+
+INSTANTIATE_TEST_SUITE_P(u32_paths,
+                         FileUtilTestP,
+                         testing::Values(U"test_encoder/dot.folder", U"test_encoder/dot.folder/"));
+
+INSTANTIATE_TEST_SUITE_P(wstring_paths,
+                         FileUtilTestP,
+                         testing::Values(L"test_encoder/test_encoder.encrypted",
+                                         L"test_encoder/test_encoder.encrypted/"));
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+INSTANTIATE_TEST_SUITE_P(
+    unicode_paths,
+    FileUtilTestP,
+    testing::Values("这是.folder", L"这是_folder", L"这是_folder/", u"这是_folder/", U"这是_folder/"));
+#endif
+
+TEST_P(FileUtilTestP, create_directories) {
+    const auto path = std::filesystem::path(utils::generateTestFilePrefix()) / get_path_param();
+
+    ov::util::create_directory_recursive(path);
+
+    EXPECT_TRUE(utils::fileExists(path));
+    EXPECT_EQ(utils::removeDir(path.string()), 0);
+    EXPECT_FALSE(utils::fileExists(path));
+}
 }  // namespace ov::test
