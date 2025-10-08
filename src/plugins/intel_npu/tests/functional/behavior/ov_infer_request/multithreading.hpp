@@ -100,23 +100,3 @@ TEST_P(OVInferRequestMultithreadingTestsNPU, canRun3AsyncRequestsParallelWithWai
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
-
-namespace {
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         ov::test::behavior::OVInferRequestMultithreadingTestsNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests,
-                         ov::test::behavior::OVInferRequestMultithreadingTestsNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(multiConfigs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Auto_BehaviorTests,
-                         ov::test::behavior::OVInferRequestMultithreadingTestsNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(autoConfigs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-}

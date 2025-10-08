@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <behavior/ov_infer_request/io_tensor.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
 
 #include "test_utils_npu.hpp"
@@ -258,38 +259,3 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTestNPU, CanSetInBlobWithDifferentPreci
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
-
-namespace {
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         ov::test::behavior::OVInferRequestIOTensorTestNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         ov::test::behavior::OVInferRequestIOTensorTestNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(multiConfigs)),
-                         InferRequestParamsAnyMapTestName::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVInferRequestIOTensorSetPrecisionTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests,
-                         OVInferRequestIOTensorSetPrecisionTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(multiConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Auto_BehaviorTests,
-                         OVInferRequestIOTensorSetPrecisionTestNPU,
-                         ::testing::Combine(::testing::ValuesIn(prcs),
-                                            ::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(autoConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
-}  // namespace
