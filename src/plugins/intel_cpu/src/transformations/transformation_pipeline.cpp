@@ -513,11 +513,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                               {ov::element::u32, ov::element::i32},
                               {ov::element::f64, ov::element::f32},
                               {ov::element::boolean, ov::element::u8},
-                              {ov::element::u4, ov::element::u8}};
-#ifndef OPENVINO_ARCH_ARM64
-        // do not convert i4 precision as it can be handled by kleidiai kernel for OPENVINO_ARCH_ARM64
-        map.insert({ov::element::i4, ov::element::i8});
-#endif
+                              {ov::element::u4, ov::element::u8},
+                              {ov::element::i4, ov::element::i8}};
+
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16)) {
             map.insert({ov::element::bf16, ov::element::f32});
@@ -603,8 +601,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     };
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
-    CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
-    CPU_SET_CALLBACK_X64(
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
+    CPU_SET_CALLBACK_COMMON(
         manager,
         [&](const_node_ptr& node) -> bool {
             return !is_decompression_multiply(node);
