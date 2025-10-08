@@ -10,30 +10,24 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestIndex(PytorchLayerTest):
     def _prepare_input(self, input_shape, idx=None):
-        import numpy as np
-        x = np.random.randn(*input_shape).astype(np.float32)
+        rng = np.random.default_rng(42)
+        x = rng.standard_normal(size=input_shape, dtype=np.float32)
         return (x,) if idx is None else (x, idx)
 
     def create_model(self, model="list"):
-        import torch
-
         class aten_index_list(torch.nn.Module):
-
             def forward(self, x, idx):
                 return x[idx]
 
         class aten_index_getitem(torch.nn.Module):
-
             def forward(self, x, idx):
                 return x.__getitem__(idx)
 
         class aten_index_list_bool(torch.nn.Module):
-
             def forward(self, x, idx):
                 return x[idx.to(torch.bool)]
 
         class aten_index_getitem_bool(torch.nn.Module):
-
             def forward(self, x, idx):
                 return x.__getitem__(idx.to(torch.bool))
 
@@ -55,9 +49,7 @@ class TestIndex(PytorchLayerTest):
 
         aten_index = cases[model]
 
-        ref_net = None
-
-        return aten_index(), ref_net, "aten::index"
+        return aten_index(), None, "aten::index"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -79,7 +71,8 @@ class TestIndex(PytorchLayerTest):
         ((1, 2), np.array([[1, 0]]).astype(bool)),
         ((2, 2, 5), np.zeros([2, 2, 5]).astype(bool)),
         ((2, 2, 5), np.ones([2, 2, 5]).astype(bool)),
-        ((2, 2, 5), np.random.rand(2, 2, 5) > 0)
+        ((2, 2, 5), np.array([[[1, 0, 1, 0, 1], [0, 1, 0, 1, 0]],
+                              [[1, 1, 0, 0, 1], [0, 0, 1, 1, 0]]], dtype=bool))
     ])
     def test_index_bool(self, input_shape, idx, case, ie_device, precision, ir_version):
         self._test(*self.create_model(case), ie_device, precision, ir_version,
@@ -94,34 +87,27 @@ class TestIndex(PytorchLayerTest):
 
 class TestIndexRange(PytorchLayerTest):
     def _prepare_input(self, input_shape, idx):
-        import numpy as np
-        return (np.random.randn(*input_shape).astype(np.float32), np.array(idx).astype(np.int32))
+        rng = np.random.default_rng(42)
+        x = rng.standard_normal(size=input_shape, dtype=np.float32)
+        return (x, np.array(idx).astype(np.int32))
 
     def create_model(self):
-        import torch
-
         class aten_index_arange(torch.nn.Module):
 
             def forward(self, x, y):
                 x = x.reshape(x.shape[0], -1)
                 return x[torch.arange(x.shape[0]), y]
 
-        ref_net = None
-
-        return aten_index_arange(), ref_net, "aten::index"
+        return aten_index_arange(), None, "aten::index"
 
     def create_model2(self):
-        import torch
-
         class aten_index_arange(torch.nn.Module):
 
             def forward(self, x, y):
                 x = x.reshape(x.shape[0], x.shape[1], -1, 1)
                 return x[torch.arange(x.shape[0]), y]
 
-        ref_net = None
-
-        return aten_index_arange(), ref_net, "aten::index"
+        return aten_index_arange(), None, "aten::index"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -148,8 +134,8 @@ class TestIndexRange(PytorchLayerTest):
 
 class TestIndexMask(PytorchLayerTest):
     def _prepare_input(self, input_shape):
-        import numpy as np
-        return (np.random.randn(*input_shape).astype(np.float32),)
+        rng = np.random.default_rng(42)
+        return (rng.standard_normal(size=input_shape, dtype=np.float32),)
 
     def create_model(self):
         import torch
@@ -158,9 +144,7 @@ class TestIndexMask(PytorchLayerTest):
             def forward(self, x):
                 return x[x > 0]
 
-        ref_net = None
-
-        return aten_index_mask(), ref_net, "aten::index"
+        return aten_index_mask(), None, "aten::index"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -175,12 +159,12 @@ class TestIndexMask(PytorchLayerTest):
 
 class TestIndexNone(PytorchLayerTest):
     def _prepare_input(self, input_shape):
-        import numpy as np
-        return (np.random.randn(*input_shape).astype(np.float32),)
+        rng = np.random.default_rng(42)
+        return (rng.standard_normal(size=input_shape, dtype=np.float32),)
 
     class aten_index_list(torch.nn.Module):
         def __init__(self, idxs):
-            super(TestIndexNone.aten_index_list, self).__init__()
+            super().__init__()
             self.idxs = idxs
 
         def forward(self, x):
