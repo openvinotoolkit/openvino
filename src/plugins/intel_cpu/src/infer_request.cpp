@@ -103,7 +103,8 @@ void SyncInferRequest::update_external_tensor_ptrs() {
 }
 
 void SyncInferRequest::infer() {
-    OV_ITT_SCOPED_REGION_BASE(itt::domains::ov_intel_cpu, std::string("Inference ") + m_compiled_model.name());
+    OV_ITT_SCOPED_REGION_BASE(itt::domains::ov_intel_cpu,
+                              std::string("SyncInferenceRequest:") + m_compiled_model.name());
     auto graphLock = m_compiled_model.lock();
     auto&& graph = graphLock._graph;
     auto message = ov::threading::message_manager();

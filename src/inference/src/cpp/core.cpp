@@ -83,7 +83,7 @@ std::map<std::string, Version> Core::get_versions(const std::string& device_name
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path,
                                             const std::wstring& bin_path,
                                             const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Read model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
     OV_CORE_CALL_STATEMENT(return _impl->read_model(ov::util::wstring_to_string(model_path),
                                                     ov::util::wstring_to_string(bin_path),
                                                     properties););
@@ -93,17 +93,18 @@ std::shared_ptr<ov::Model> Core::read_model(const std::wstring& model_path,
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model_path,
                                             const std::string& bin_path,
                                             const AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Read model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
     OV_CORE_CALL_STATEMENT(return _impl->read_model(model_path, bin_path, properties););
 }
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::Tensor& weights) const {
-    OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Read model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Read model");
     OV_CORE_CALL_STATEMENT(return _impl->read_model(model, weights););
 }
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
     OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     return compile_model(model, ov::DEFAULT_DEVICE_NAME, config);
 }
 
@@ -111,6 +112,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
     OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, device_name, config);
         return {exec._ptr, exec._so};
@@ -119,18 +121,21 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
 
 CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {
     OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     return compile_model(model_path, ov::DEFAULT_DEVICE_NAME, config);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 CompiledModel Core::compile_model(const std::wstring& model_path, const AnyMap& config) {
     OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     return compile_model(ov::util::wstring_to_string(model_path), config);
 }
 #endif
 
 CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
     OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model_path, device_name, config);
         return {exec._ptr, exec._so};
@@ -142,6 +147,7 @@ CompiledModel Core::compile_model(const std::wstring& model_path,
                                   const std::string& device_name,
                                   const AnyMap& config) {
     OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     return compile_model(ov::util::wstring_to_string(model_path), device_name, config);
 }
 #endif
@@ -151,6 +157,7 @@ CompiledModel Core::compile_model(const std::string& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
     OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, weights, device_name, config);
         return {exec._ptr, exec._so};
@@ -161,6 +168,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
     OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::OV, "Compile model");
+    OV_ITT_SCOPED_REGION_BASE(ov::itt::domains::OV, "Compile model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
         return {exec._ptr, exec._so};
