@@ -9,17 +9,24 @@
 
 namespace intel_npu {
 
-// Custom constant writer for weightless (skip store)
+/**
+ * @brief Nothing is stored. The weights are expected to be reconstruscted in some other way.
+ */
 class WeightlessWriter : public ov::util::ConstantWriter {
 public:
     explicit WeightlessWriter(ov::util::ConstantWriter& other) : ov::util::ConstantWriter(other) {}
 
     FilePosition write(const char*, size_t, size_t&, bool, ov::element::Type, bool) override {
-        // use new_size not modified and return offset 0 to store these in modifed IR (xmL) only
         return 0;
     }
 };
 
+/**
+ * @brief Overriden in order to allow serializing models without copying weights.
+ * @details Weights can be stored either as values (buffer copies, just like the parent algorithm), or as metadata
+ * (memory location + buffer size in bytes). The amount of weights that are copied as values can be controled by
+ * configuring the "intel_npu::serialization_weights_size_threshold" option.
+ */
 class XmlSerializer : public ov::util::XmlSerializer {
 public:
     XmlSerializer(pugi::xml_node& data,
@@ -38,8 +45,15 @@ public:
           m_base_constant_writer(std::ref(constant_write_handler)) {}
 
 private:
+    /**
+     * @brief Toggles between the two writers.
+     */
     ov::util::ConstantWriter& get_constant_write_handler() override;
 
+    /**
+     * @brief Overriden in order to choose which weights writer will be used based on the occurrence of the
+     * "WeightsPointerAttribute".
+     */
     bool append_node_attributes(ov::Node& node) override;
 
     std::unique_ptr<ov::util::XmlSerializer> make_visitor(pugi::xml_node& data,
@@ -51,11 +65,20 @@ private:
                                                           ov::element::Type,
                                                           bool) const override;
 
+    /**
+     * @brief Writes nothing. The visitor pattern will be used in order to store weights metadata instead.
+     */
     WeightlessWriter m_weightless_constant_writer;
+    /**
+     * @brief The base OV writer, copies the weights in a dedicated buffer.
+     */
     std::reference_wrapper<ov::util::ConstantWriter> m_base_constant_writer;
     bool m_use_weightless_writer = false;
 };
 
+/**
+ * @brief Leverages the "intel_npu::XmlSerializer" in order to allow serializing models without copying weights.
+ */
 class StreamSerialize : public ov::pass::StreamSerialize {
 public:
     StreamSerialize(std::ostream& stream,

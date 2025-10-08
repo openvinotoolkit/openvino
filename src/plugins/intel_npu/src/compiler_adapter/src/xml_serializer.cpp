@@ -18,7 +18,8 @@ ov::util::ConstantWriter& XmlSerializer::get_constant_write_handler() {
 }
 
 bool XmlSerializer::append_node_attributes(ov::Node& node) {
-    // depends on node RT info use custom constant writer when serialize attributes
+    // If the "WeightsPointerAttribute" is found, then we have the metadata required to avoid copying the weights
+    // corresponding to this node.
     m_use_weightless_writer = node.get_rt_info().count(WeightsPointerAttribute::get_type_info_static()) != 0;
     auto result = ov::util::XmlSerializer::append_node_attributes(node);
     m_use_weightless_writer = false;
