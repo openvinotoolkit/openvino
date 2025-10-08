@@ -379,7 +379,7 @@ jobs:
           echo 'libasas path'
           gcc -print-file-name=libasan.so
           echo 'end of path'
-          echo 'ls -la'
+          echo 'ls  -la'
           ls -la ${INSTALL_TEST_DIR}
           echo 'end of ls -la'
           export LD_PRELOAD=$(gcc -print-file-name=libasan.so)

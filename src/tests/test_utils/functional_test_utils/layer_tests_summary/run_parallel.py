@@ -40,7 +40,7 @@ except:
 
 FILENAME_LENGTH = 255
 LOG_NAME_REPLACE_STR = "##NAME##"
-DEFAULT_PROCESS_TIMEOUT = 3600
+DEFAULT_PROCESS_TIMEOUT = 13600
 DEFAULT_SUITE_TIMEOUT = 3600
 DEFAULT_TEST_TIMEOUT = 900
 MAX_LENGHT = 4096 if not constants.IS_WIN else 8191
@@ -699,6 +699,9 @@ class TestParallelRunner:
         if self._repeat_failed:
             if len(not_runned_tests) > 0:
                 logger.info(f"Execute not runned {len(not_runned_tests)} tests")
+                logger.info(f"Bad tests: ")
+                for bad in not_runned_tests:
+                    logger.info(f"Bad test: {bad}")
                 not_runned_test_filters = [
                     f'"{self.__replace_restricted_symbols(test)}"'
                     for test in not_runned_tests
