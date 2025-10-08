@@ -6,6 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -28,7 +29,7 @@ namespace ov::snippets::pass {
  *
  * @ingroup snippets
  */
-class ExtractPairsAfterMatmul : public ov::pass::MatcherPass {
+class SNIPPETS_API ExtractPairsAfterMatmul : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::ExtractPairsAfterMatmul");
     ExtractPairsAfterMatmul();
@@ -55,13 +56,13 @@ public:
  *
  * @ingroup snippets
  */
-class RankUpgradeToRankReduction : public ov::pass::MatcherPass {
+class SNIPPETS_API RankUpgradeToRankReduction : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::RankUpgradeToRankReduction");
     RankUpgradeToRankReduction();
 };
 
-class ExtractReshapesFromMHA : public ov::pass::GraphRewrite {
+class SNIPPETS_API ExtractReshapesFromMHA : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("ExtractReshapesFromMHA");
     ExtractReshapesFromMHA() {

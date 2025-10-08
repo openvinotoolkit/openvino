@@ -14,6 +14,7 @@
 #include "openvino/pass/pass_config.hpp"
 #include "openvino/pass/validate.hpp"
 #include "positioned_pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -21,7 +22,7 @@ namespace ov::snippets::pass {
  * @brief Manager is like ov::pass::Manager, but allows to insert new passes at arbitrary places in the pipeline
  * @ingroup snippets
  */
-class Manager : public ov::pass::Manager {
+class SNIPPETS_API Manager : public ov::pass::Manager {
 public:
     explicit Manager(std::shared_ptr<ov::pass::PassConfig> pass_config = std::make_shared<ov::pass::PassConfig>(),
                      std::string name = "UnnamedSnippetsManager");

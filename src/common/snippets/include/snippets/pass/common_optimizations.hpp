@@ -5,10 +5,11 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
-class CommonOptimizations : public ov::pass::MatcherPass {
+class SNIPPETS_API CommonOptimizations : public ov::pass::MatcherPass {
     class SubgraphPass;
     class SubgraphManager;
     friend class ExtractConstants;
@@ -23,7 +24,7 @@ public:
      * @brief Configuration for CommonOptimizations pass
      * @ingroup snippets
      */
-    struct Config {
+    struct SNIPPETS_API Config {
         Config(size_t concurrency, bool split_m_dimension)
             : m_concurrency(concurrency),
               m_split_m_dimension(split_m_dimension) {

@@ -16,6 +16,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -25,7 +26,7 @@ namespace ov::snippets::op {
  * dimension for blocked
  * @ingroup snippets
  */
-class BroadcastLoad : public modifier::MemoryAccess, public ov::op::Op {
+class SNIPPETS_API BroadcastLoad : public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("BroadcastLoad", "SnippetsOpset");
 
@@ -50,7 +51,7 @@ public:
     // but have identical shapeInfer semantics. In order to avoid code duplication,
     // we created dummy ShapeInfer classes that are essentially instantiations
     // of a common ShapeInfer class template;
-    struct ShapeInfer : public BroadcastShapeInfer<BroadcastLoad> {
+    struct SNIPPETS_API ShapeInfer : public BroadcastShapeInfer<BroadcastLoad> {
         explicit ShapeInfer(const std::shared_ptr<Node>& n) : BroadcastShapeInfer<BroadcastLoad>(n) {}
     };
 

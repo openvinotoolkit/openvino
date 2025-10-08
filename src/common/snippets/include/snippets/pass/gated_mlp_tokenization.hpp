@@ -6,6 +6,7 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -24,7 +25,7 @@ namespace ov::snippets::pass {
  *         FullyConnected
  * @ingroup snippets
  */
-class TokenizeGatedMLPSnippets : public ov::pass::MatcherPass {
+class SNIPPETS_API TokenizeGatedMLPSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeGatedMLPSnippets");
     explicit TokenizeGatedMLPSnippets(const TokenizationConfig& config);

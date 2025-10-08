@@ -11,6 +11,7 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/subgraph_pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 /**
@@ -20,7 +21,7 @@ namespace ov::snippets::pass {
  *        node in model.
  * @ingroup snippets
  */
-class CommonOptimizations::SubgraphManager {
+class SNIPPETS_API CommonOptimizations::SubgraphManager {
 public:
     SubgraphManager() = default;
 

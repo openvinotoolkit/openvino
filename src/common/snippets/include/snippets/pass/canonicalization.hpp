@@ -12,6 +12,7 @@
 #include "openvino/pass/pass.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -22,7 +23,7 @@ namespace ov::snippets::pass {
  *  - layouts mismatch (only planar + blocked is supported), planar shapes are postpended with 1
  *  @ingroup snippets
  */
-class Canonicalization : public ov::pass::ModelPass {
+class SNIPPETS_API Canonicalization : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::Canonicalization");
     using BlockedShapeVector = op::Subgraph::BlockedShapeVector;

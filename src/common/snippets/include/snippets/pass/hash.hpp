@@ -9,6 +9,7 @@
 #include <openvino/pass/pass.hpp>
 
 #include "openvino/core/model.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -16,7 +17,7 @@ namespace ov::snippets::pass {
  * @brief Hash transformation calculates hash value for snippets. Don't care about names as no difference from execution
  * perspective
  */
-class Hash : public ov::pass::ModelPass {
+class SNIPPETS_API Hash : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::Hash");
 

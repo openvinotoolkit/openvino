@@ -7,6 +7,7 @@
 #include <cstddef>
 
 #include "openvino/core/except.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -15,7 +16,7 @@ namespace ov::snippets::pass {
  * @brief Base configuration for tokenization passes containing common GPR management logic
  * @ingroup snippets
  */
-struct TokenizationConfig {
+struct SNIPPETS_API TokenizationConfig {
     explicit TokenizationConfig(size_t available_gprs_count) : m_available_gprs_count(available_gprs_count) {
         OPENVINO_ASSERT(available_gprs_count > 0, "available_gprs_count should be greater than 0");
     }

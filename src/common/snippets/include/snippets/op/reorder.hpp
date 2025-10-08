@@ -16,6 +16,7 @@
 #include "shape_infer_op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 /**
@@ -25,7 +26,7 @@ namespace ov::snippets::op {
  *        Note: Order is stored in input PortDescriptor
  * @ingroup snippets
  */
-class Reorder : public ShapeInferOp {
+class SNIPPETS_API Reorder : public ShapeInferOp {
 public:
     OPENVINO_OP("Reorder", "SnippetsOpset", ShapeInferOp);
     Reorder() = default;
@@ -35,7 +36,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 
-    class ShapeInfer : public IShapeInferSnippets {
+    class SNIPPETS_API ShapeInfer : public IShapeInferSnippets {
         std::vector<size_t> m_target_order;
 
     public:

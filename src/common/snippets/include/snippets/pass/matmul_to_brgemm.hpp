@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -13,7 +14,7 @@ namespace ov::snippets::pass {
  * @brief Replaces ov::MatMul with snippets::op::Brgemm operation (only non-trasposing MatMuls are currently supported)
  * @ingroup snippets
  */
-class MatMulToBrgemm : public ov::pass::MatcherPass {
+class SNIPPETS_API MatMulToBrgemm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::MatMulToBrgemm");
     MatMulToBrgemm();

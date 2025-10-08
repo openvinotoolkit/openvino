@@ -13,6 +13,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/op/memory_access.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -24,7 +25,7 @@ namespace ov::snippets::op {
  * memory ptr)
  * @ingroup snippets
  */
-class Store : public modifier::MemoryAccess, public ov::op::Op {
+class SNIPPETS_API Store : public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("Store", "SnippetsOpset");
 

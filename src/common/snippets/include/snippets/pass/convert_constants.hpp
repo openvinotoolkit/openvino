@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -14,7 +15,7 @@ namespace ov::snippets::pass {
  *        Only single-value (0D) constants are currently supported.
  * @ingroup snippets
  */
-class ConvertConstantsToScalars : public ov::pass::MatcherPass {
+class SNIPPETS_API ConvertConstantsToScalars : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::ConvertConstantsToScalars");
     ConvertConstantsToScalars();

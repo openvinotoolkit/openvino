@@ -13,6 +13,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::pass {
 
@@ -29,7 +30,7 @@ namespace ov::snippets::pass {
  *        0 (default) means the first pass with `pass_name` will be considered as the anchor pass.
  * @ingroup snippets
  */
-class PassPosition {
+class SNIPPETS_API PassPosition {
 public:
     enum class Place : uint8_t { Before, After, PipelineStart, PipelineEnd };
 
@@ -47,7 +48,7 @@ private:
 };
 
 template <typename PassType>
-struct PositionedPass {
+struct SNIPPETS_API PositionedPass {
     PositionedPass(PassPosition arg_pos, std::shared_ptr<PassType> arg_pass)
         : position(std::move(arg_pos)),
           pass(std::move(arg_pass)) {}

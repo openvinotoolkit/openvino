@@ -16,6 +16,7 @@
 #include "shape_infer_op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/snippets_visibility.hpp"
 
 namespace ov::snippets::op {
 
@@ -31,7 +32,7 @@ namespace ov::snippets::op {
 // but RankNormalization has a much narrower semantics, and hence allows for an easier control and a more efficient
 // shape infer.
 //
-class RankNormalization : public ShapeInferOp {
+class SNIPPETS_API RankNormalization : public ShapeInferOp {
 public:
     OPENVINO_OP("RankNormalization", "SnippetsOpset", ShapeInferOp);
 
@@ -49,7 +50,7 @@ public:
         return m_num_prepend;
     }
 
-    class ShapeInfer : public IShapeInferSnippets {
+    class SNIPPETS_API ShapeInfer : public IShapeInferSnippets {
         size_t m_num_prepend = 0;
         size_t m_num_append = 0;
 

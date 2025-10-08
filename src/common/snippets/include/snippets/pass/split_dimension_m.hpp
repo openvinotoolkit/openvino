@@ -16,6 +16,7 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/snippets_visibility.hpp"
 #include "subgraph_pass.hpp"
 
 namespace ov::snippets::pass {
@@ -29,7 +30,7 @@ namespace ov::snippets::pass {
  * @todo Ticket 148805: Move static cases handling in RuntimeConfigurator as well.
  * @ingroup snippets
  */
-class SplitDimensionM : public CommonOptimizations::SubgraphPass {
+class SNIPPETS_API SplitDimensionM : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("SplitDimensionM", "0");
     explicit SplitDimensionM(size_t concurrency) : SubgraphPass("SplitDimensionM"), m_concurrency(concurrency) {}
