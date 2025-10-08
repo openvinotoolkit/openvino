@@ -62,9 +62,9 @@ inline std::pair<LinearIR::constExprIt, std::shared_ptr<LoopEnd>> push_loop_end(
     std::vector<PortConnectorPtr> loop_end_inputs;
     loop_end_inputs.reserve(loop_info->get_input_count() + loop_info->get_output_count());
     loop_info->iterate_through_ports([&loop_end_inputs](const LoopPort& port) {
-        loop_end_inputs.push_back(port.get_expr_port()->get_port_connector_ptr());
+        loop_end_inputs.emplace_back(port.get_expr_port()->get_port_connector_ptr());
     });
-    loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
+    loop_end_inputs.emplace_back(loop_begin_expr->get_output_port_connector(0));
 
     const auto loop_begin = ov::as_type_ptr<LoopBegin>(loop_begin_expr->get_node());
     OPENVINO_ASSERT(loop_begin, "The expression is not LoopBegin");

@@ -34,8 +34,7 @@ namespace ov::snippets::lowered::pass {
 
 namespace {
 std::vector<LoopPort> clone_ports(const ExpressionMap& expression_map, const std::vector<LoopPort>& cur_ports) {
-    std::vector<LoopPort> new_ports;
-    new_ports.resize(cur_ports.size());
+    std::vector<LoopPort> new_ports(cur_ports.size());
     for (size_t i = 0; i < cur_ports.size(); ++i) {
         const auto& port = cur_ports[i];
         new_ports[i] = *port.clone_with_new_expr(expression_map.at(port.get_expr_port()->get_expr().get()));
@@ -255,7 +254,6 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir,
                             unified_loop_info->clone_with_new_expr(expression_map, loop_info_map));
                         OPENVINO_ASSERT(cloned_info, "cloned info must be UnifiedLoopInfo");
                         unified_loop_map[unified_loop_info] = cloned_info;
-                        const auto new_loop_info = unified_loop_map.at(unified_loop_info);
                     }
                     return unified_loop_map.at(unified_loop_info);
                 };
