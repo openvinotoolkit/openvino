@@ -15,8 +15,8 @@
 #include "openvino/core/visibility.hpp"
 #include "openvino/util/file_path.hpp"
 
-using namespace std;
-using namespace ov;
+namespace ov::test {
+using std::string;
 
 TEST(file_util, path_join) {
     {
@@ -633,3 +633,4 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
     EXPECT_EQ(ov::util::file_size(ov::util::Path("android_test_file_20.txt!_to_cut.jar")), 20);
 }
 #endif
+}  // namespace ov::test
