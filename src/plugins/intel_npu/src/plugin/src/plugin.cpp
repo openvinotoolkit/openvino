@@ -602,8 +602,8 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
         ov::Layout layout = ov::layout::get_layout(input);
 
         // Batching on plugin is working only when batching is found on 0th dimension
-        if (shape.size() ||
-            (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS)) {
+        if (shape[intel_npu::utils::BATCH_AXIS].is_dynamic() ||
+            ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS) {
             const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : input->get_shape();
             batchedInputs.insert(params[input_id]->output(0));
 
@@ -640,8 +640,8 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
         ov::Layout layout = ov::layout::get_layout(output);
 
         // Batching on plugin is working only when batching is found on 0th dimension
-        if (shape.size() ||
-            (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS)) {
+        if (shape[intel_npu::utils::BATCH_AXIS].is_dynamic() ||
+            ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS) {
             const auto& node = output->input_value(0);
             const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : output->get_shape();
             batchedOutputs.insert(ov::Output<const ov::Node>(node.get_node(), node.get_index()));
@@ -695,21 +695,33 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
     return true;
 }
 
-void deBatchModel(std::shared_ptr<ov::Model>& model, ov::Dimension newBatch) {
-    std::map<std::string, ov::PartialShape> newShapes;
-    for (auto&& item : model->get_parameters()) {
-        auto layout = item->get_layout();
-        auto partShape = item->get_partial_shape();
-        if (ov::layout::has_batch(layout)) {
-            partShape[ov::layout::batch_idx(layout)] = newBatch;
+bool deBatchModel(std::shared_ptr<ov::Model>& model, ov::Dimension newBatch) {
+    try {
+        std::map<std::string, ov::PartialShape> newShapes;
+        for (auto&& item : model->get_parameters()) {
+            auto layout = item->get_layout();
+            auto partShape = item->get_partial_shape();
+            if (ov::layout::has_batch(layout)) {
+                partShape[ov::layout::batch_idx(layout)] = newBatch;
+            }
+            newShapes.emplace(item->get_friendly_name(), partShape);
         }
-        newShapes.emplace(item->get_friendly_name(), partShape);
+        model->reshape(newShapes);
+        return true;
+    } catch (const std::exception&) {
+        // Don't throw - let caller handle the failure
+        return false;
     }
-    model->reshape(newShapes);
 }
 
 void Plugin::encodeDynamicBatchInfo(std::shared_ptr<ov::Model> model) const {
     const std::string suffix = intel_npu::utils::DYNBATCH_SUFFIX;
+
+    // Sanity check: ensure we don't transform static models
+    if (!model->is_dynamic()) {
+        _logger.warning("Attempting to encode dynamic batch info on a static model. Skipping encoding.");
+        return;
+    }
 
     // Encode info in input tensor names
     for (auto& input : model->inputs()) {
@@ -757,17 +769,20 @@ void Plugin::handleDynamicBatching(std::shared_ptr<ov::Model>& modelForCompilati
                             "Trying to debatch it...",
                             ex.what());
 
-            deBatchModel(modelForCompilation, ov::Dimension(1));
-            if (!modelForCompilation) {
+            if (!deBatchModel(modelForCompilation, ov::Dimension(1))) {
                 OPENVINO_THROW("Cannot debatch a model");
             }
             _logger.info("The model has been debatched successfully");
         }
+        // If we have successfully debatched the model on the PLUGIN side, we should
+        // avoid repeating the same in the compiler by resetting the batch mode
         updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
     } catch (const std::exception& ex) {
         _logger.info("Couldn't validate and reshape the model. Batching will be handled by compiler. Error: %s",
                      ex.what());
-        updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+        if (batchMode == ov::intel_npu::BatchMode::AUTO) {
+            updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+        }
     }
 }
 
