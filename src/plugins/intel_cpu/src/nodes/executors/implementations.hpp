@@ -12,6 +12,7 @@
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/matmul_config.hpp"
+#include "nodes/executors/interpolate_config.hpp"
 
 namespace ov::intel_cpu {
 
@@ -40,5 +41,9 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations();
 // MatMul
 template <>
 const std::vector<ExecutorImplementation<MatMulAttrs>>& getImplementations();
+
+// Interpolate
+template <>
+const std::vector<ExecutorImplementation<InterpolateAttrs>>& getImplementations();
 
 }  // namespace ov::intel_cpu
