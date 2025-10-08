@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/fuse_moe_experts.hpp"
-
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -19,6 +17,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/common_optimizations/fuse_moe_experts.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/print_model.hpp"
 
@@ -93,8 +92,12 @@ std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
         // expert_mask[expert_idx]
         std::shared_ptr<Node> select_Gather_2;
 
-    select_Gather_2 = makeOP<opset8::Gather>({expert_mask, i, 0}, {{"batch_dims", 0}});
-    auto squeeze_Squeeze_7 = makeOP<opset1::Squeeze>({select_Gather_2, squeeze_axis_const});   //  tensor_array<i64[2,?]> __module.model.layers.1.mlp/aten::squeeze/Squeeze_7(__module.model.layers.1.mlp/aten::select/Gather_7, 60)
+        select_Gather_2 = makeOP<opset8::Gather>({expert_mask, i, 0}, {{"batch_dims", 0}});
+        auto squeeze_Squeeze_7 = makeOP<opset1::Squeeze>(
+            {select_Gather_2,
+             squeeze_axis_const});  //  tensor_array<i64[2,?]>
+                                    //  __module.model.layers.1.mlp/aten::squeeze/Squeeze_7(__module.model.layers.1.mlp/aten::select/Gather_7,
+                                    //  60)
 
         // x = torch.where(expert_mask[expert_idx]), x shape: [2, nonzero], dim0: topk, dim1: batch
         auto ListUnpack_NonZero_2 = makeOP<opset3::NonZero>({squeeze_Squeeze_7}, {{"output_type", "i64"}});
@@ -106,8 +109,8 @@ std::shared_ptr<ov::Model> BuildMOE(int expert_num, int topk) {
         auto index_add__Convert_2 = makeOP<opset1::Convert>({ListUnpack_Squeeze_0_2}, {{"destination_type", "i32"}});
         auto index_add__Reshape_2 = makeOP<opset1::Reshape>({index_add__Convert_2, {-1, 1}}, {{"special_zero", false}});
         auto index_add__Slice_2 = makeOP<opset8::Slice>({final_hidden_states, {0, 0}, {1, INT_MAX}, {1, 1}, {0, 1}});
-    auto index_add__ShapeOf_22 = makeOP<opset3::ShapeOf>({index_add__Slice_2}, {{"output_type", "i32"}});
-    original_shape_node = index_add__ShapeOf_22;
+        auto index_add__ShapeOf_22 = makeOP<opset3::ShapeOf>({index_add__Slice_2}, {{"output_type", "i32"}});
+        original_shape_node = index_add__ShapeOf_22;
         auto index_add__Broadcast_25 =
             makeOP<opset3::Broadcast>({index_add__Reshape_2, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});
         auto index_Gather_4 = makeOP<opset8::Gather>({hidden_states /*unsqueeze_Unsqueeze*/, index_add__Convert_2, 1},
@@ -192,7 +195,10 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto residual_input = makeOP<opset1::Convert>({final_hidden_states_}, {{"destination_type", "f32"}});
     auto hidden_states_ = makeOP<opset1::Convert>({hidden_states_2d}, {{"destination_type", "f32"}});
 
-    auto single_gate_weight_f16 = makeConst(ov::element::f16, ov::Shape{static_cast<size_t>(intermediate_size), static_cast<size_t>(hidden_size)}, {0});
+    auto single_gate_weight_f16 =
+        makeConst(ov::element::f16,
+                  ov::Shape{static_cast<size_t>(intermediate_size), static_cast<size_t>(hidden_size)},
+                  {0});
     auto single_gate_weight_convert = makeOP<opset1::Convert>({single_gate_weight_f16}, {{"destination_type", "f32"}});
     ov::mark_as_decompression(single_gate_weight_convert);
 
@@ -208,17 +214,29 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto target_shape = makeOP<opset3::ShapeOf>({hidden_states_}, {{"output_type", "i64"}});
 
     // Create fused weights with f16 constants and decompression Converts to match transformation output
-    auto fused_gate_weights_f16 = makeConst(ov::element::f16, ov::Shape{static_cast<size_t>(expert_num), static_cast<size_t>(hidden_size), static_cast<size_t>(intermediate_size)}, {0});
+    auto fused_gate_weights_f16 = makeConst(ov::element::f16,
+                                            ov::Shape{static_cast<size_t>(expert_num),
+                                                      static_cast<size_t>(hidden_size),
+                                                      static_cast<size_t>(intermediate_size)},
+                                            {0});
     auto fused_gate_weights_convert = std::make_shared<ov::op::v0::Convert>(fused_gate_weights_f16, ov::element::f32);
     ov::mark_as_decompression(fused_gate_weights_convert);
     auto fused_gate_weights = fused_gate_weights_convert;
-    
-    auto fused_up_weights_f16 = makeConst(ov::element::f16, ov::Shape{static_cast<size_t>(expert_num), static_cast<size_t>(hidden_size), static_cast<size_t>(intermediate_size)}, {0});
+
+    auto fused_up_weights_f16 = makeConst(ov::element::f16,
+                                          ov::Shape{static_cast<size_t>(expert_num),
+                                                    static_cast<size_t>(hidden_size),
+                                                    static_cast<size_t>(intermediate_size)},
+                                          {0});
     auto fused_up_weights_convert = std::make_shared<ov::op::v0::Convert>(fused_up_weights_f16, ov::element::f32);
     ov::mark_as_decompression(fused_up_weights_convert);
     auto fused_up_weights = fused_up_weights_convert;
-    
-    auto fused_down_weights_f16 = makeConst(ov::element::f16, ov::Shape{static_cast<size_t>(expert_num), static_cast<size_t>(intermediate_size), static_cast<size_t>(hidden_size)}, {0});
+
+    auto fused_down_weights_f16 = makeConst(ov::element::f16,
+                                            ov::Shape{static_cast<size_t>(expert_num),
+                                                      static_cast<size_t>(intermediate_size),
+                                                      static_cast<size_t>(hidden_size)},
+                                            {0});
     auto fused_down_weights_convert = std::make_shared<ov::op::v0::Convert>(fused_down_weights_f16, ov::element::f32);
     ov::mark_as_decompression(fused_down_weights_convert);
     auto fused_down_weights = fused_down_weights_convert;
@@ -239,19 +257,27 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto axes0_i64 = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
     auto gate_weight_shape = makeOP<opset3::ShapeOf>({single_gate_weight_convert}, {{"output_type", "i64"}});
     auto gather_index_one = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
-    auto hidden_dim_scalar = makeOP<opset8::Gather>({gate_weight_shape, gather_index_one, axes0_i64}, {{"batch_dims", 0}});
+    auto hidden_dim_scalar =
+        makeOP<opset8::Gather>({gate_weight_shape, gather_index_one, axes0_i64}, {{"batch_dims", 0}});
     auto hidden_dim_unsqueeze = makeOP<opset1::Unsqueeze>({hidden_dim_scalar, axis0_scalar});
-    auto batched_shape = makeOP<opset1::Concat>({makeOP<opset1::Unsqueeze>({num_experts_const, axis0_scalar}), minus_one, hidden_dim_unsqueeze}, {{"axis", 0}});
+    auto batched_shape = makeOP<opset1::Concat>(
+        {makeOP<opset1::Unsqueeze>({num_experts_const, axis0_scalar}), minus_one, hidden_dim_unsqueeze},
+        {{"axis", 0}});
     auto batched_input = makeOP<opset1::Reshape>({repeated_input, batched_shape}, {{"special_zero", true}});
 
     // Apply fused expert computation
-    auto gate_bmm = makeOP<opset1::MatMul>({batched_input, fused_gate_weights->output(0)}, {{"transpose_a", false}, {"transpose_b", false}});
+    auto gate_bmm = makeOP<opset1::MatMul>({batched_input, fused_gate_weights->output(0)},
+                                           {{"transpose_a", false}, {"transpose_b", false}});
     auto gate_swish = makeOP<opset4::Swish>({gate_bmm});
-    auto up_bmm = makeOP<opset1::MatMul>({batched_input, fused_up_weights->output(0)}, {{"transpose_a", false}, {"transpose_b", false}});
+    auto up_bmm = makeOP<opset1::MatMul>({batched_input, fused_up_weights->output(0)},
+                                         {{"transpose_a", false}, {"transpose_b", false}});
     auto swiglu_mul = makeOP<opset1::Multiply>({gate_swish, up_bmm}, {{"auto_broadcast", "numpy"}});
-    auto down_bmm = makeOP<opset1::MatMul>({swiglu_mul, fused_down_weights->output(0)}, {{"transpose_a", false}, {"transpose_b", false}});
+    auto down_bmm = makeOP<opset1::MatMul>({swiglu_mul, fused_down_weights->output(0)},
+                                           {{"transpose_a", false}, {"transpose_b", false}});
 
-    auto expert_output_shape = makeOP<opset1::Concat>({makeOP<opset1::Unsqueeze>({num_experts_const, axis0_vector_const}), minus_one, hidden_dim_unsqueeze}, {{"axis", 0}});
+    auto expert_output_shape = makeOP<opset1::Concat>(
+        {makeOP<opset1::Unsqueeze>({num_experts_const, axis0_vector_const}), minus_one, hidden_dim_unsqueeze},
+        {{"axis", 0}});
     auto expert_outputs = makeOP<opset1::Reshape>({down_bmm, expert_output_shape}, {{"special_zero", false}});
 
     // Create routing weights
@@ -259,13 +285,15 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto routing_one_hot = makeOP<opset1::OneHot>({topk_indices_i64, num_experts_const, 1.0f, 0.0f}, {{"axis", 2}});
     auto routing_weights = div__Divide;
     auto routing_unsqueeze_topk = makeOP<opset1::Unsqueeze>({routing_weights, axis2_vector});
-    auto weighted_one_hot = makeOP<opset1::Multiply>({routing_unsqueeze_topk, routing_one_hot}, {{"auto_broadcast", "numpy"}});
+    auto weighted_one_hot =
+        makeOP<opset1::Multiply>({routing_unsqueeze_topk, routing_one_hot}, {{"auto_broadcast", "numpy"}});
     auto routing_reduce = makeOP<opset1::ReduceSum>({weighted_one_hot, reduce_axis1}, {{"keep_dims", false}});
     auto routing_transpose = makeOP<opset1::Transpose>({routing_reduce, transpose_axes});
     auto routing_unsqueeze = makeOP<opset1::Unsqueeze>({routing_transpose, axis2_vector});
 
     // Apply routing and sum
-    auto weighted_outputs = makeOP<opset1::Multiply>({expert_outputs, routing_unsqueeze}, {{"auto_broadcast", "numpy"}});
+    auto weighted_outputs =
+        makeOP<opset1::Multiply>({expert_outputs, routing_unsqueeze}, {{"auto_broadcast", "numpy"}});
     auto final_sum_axis = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
     auto final_output = makeOP<opset1::ReduceSum>({weighted_outputs, final_sum_axis}, {{"keep_dims", false}});
 
@@ -285,8 +313,6 @@ TEST_F(TransformationTestsF, ConvertMOEToFuseMOE_FP16) {
     int topk = 8;
 
     model = BuildMOE(expert_num, topk);
-    // manager.register_pass<ov::pass::FuseMOEExperts>();
     ov::pass::FuseMOE().run_on_model(model);
-    ov::pass::PrintModel("after_fuse.cpp").run_on_model(model);
     model_ref = BuildFusedMOE(expert_num, topk);
 }
