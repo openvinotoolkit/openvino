@@ -11,9 +11,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestIndex(PytorchLayerTest):
     def _prepare_input(self, input_shape, idx=None):
         import numpy as np
-        if idx is not None:
-            return (np.random.randn(*input_shape).astype(np.float32), idx)
-        return (np.random.randn(*input_shape).astype(np.float32),)
+        x = np.random.randn(*input_shape).astype(np.float32)
+        return (x,) if idx is None else (x, idx)
 
     def create_model(self, model="list"):
         import torch
@@ -51,7 +50,7 @@ class TestIndex(PytorchLayerTest):
             "getitem": aten_index_getitem,
             "list_with_bool": aten_index_list_bool,
             "getitem_with_bool": aten_index_getitem_bool,
-            "bool_with_axis": aten_index_bool_with_axis
+            "bool_with_axis": aten_index_bool_with_axis,
         }
 
         aten_index = cases[model]
