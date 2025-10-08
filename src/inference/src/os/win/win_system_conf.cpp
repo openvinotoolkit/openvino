@@ -72,6 +72,7 @@ void parse_processor_info_win(const char* base_ptr,
     std::vector<int> cpu_init_line(CPU_MAP_TABLE_SIZE, -1);
 
     constexpr int initial_core_type = -1;
+    constexpr int initial_numa_mask = -1;
     constexpr int group_with_1_core = 1;
     constexpr int group_with_2_cores = 2;
     constexpr int group_with_4_cores = 4;
@@ -89,6 +90,7 @@ void parse_processor_info_win(const char* base_ptr,
     int group_type = initial_core_type;
 
     int num_package = 0;
+    int cur_numa_mask = initial_numa_mask;
 
     _processors = 0;
     _sockets = 0;
@@ -125,10 +127,12 @@ void parse_processor_info_win(const char* base_ptr,
 
     auto check_numa_node = [&]() {
         if (l3_set.size() < 64) {
-            proc_info[CPU_MAP_NUMA_NODE_ID] = info->Processor.GroupMask->Group;
-            if (proc_info[CPU_MAP_NUMA_NODE_ID] != _numa_nodes) {
+            if (cur_numa_mask == initial_numa_mask) {
+                cur_numa_mask = info->Processor.GroupMask->Group;
+            } else if (cur_numa_mask != info->Processor.GroupMask->Group) {
                 create_new_proc_line();
-                _numa_nodes = proc_info[CPU_MAP_NUMA_NODE_ID];
+                _numa_nodes++;
+                cur_numa_mask = info->Processor.GroupMask->Group;
             }
         }
         return;
@@ -144,6 +148,7 @@ void parse_processor_info_win(const char* base_ptr,
             if (num_package > 0) {
                 _sockets++;
                 _numa_nodes++;
+                cur_numa_mask = initial_numa_mask;
                 if (_processors < 64) {
                     l3_set.clear();
                 } else {
