@@ -147,7 +147,8 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
 
         auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(pm.at(sdpa_pattern).get_node_shared_ptr());
 
-        // The mask will be ignored if causal is true; otherwise, the mask rank should be less than or equal to the SDPA input rank.
+        // The mask will be ignored if causal is true; otherwise, the mask rank should be less than or equal to the SDPA
+        // input rank.
         if (sdpa && !sdpa->get_causal() &&
             sdpa->get_input_partial_shape(3).rank().get_length() > q_node.get_partial_shape().rank().get_length()) {
             return false;

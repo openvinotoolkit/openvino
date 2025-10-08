@@ -1117,7 +1117,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimizationWithMaskCausal) {
     // SDPA reference model.
     {
         sdpa_ref.set_mask(mask_shape);
-        
+
         sdpa_ref.create_reference_sdpa(/*causal=*/true);
 
         model_ref = sdpa_ref.build_model();
