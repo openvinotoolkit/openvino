@@ -22,8 +22,6 @@ set(CODEGEN_CACHE_SOURCES "${CODEGEN_INCDIR}/${KERNEL_SOURCES}"
 file(GLOB_RECURSE KERNELS "${CMAKE_CURRENT_SOURCE_DIR}/*.cm")
 file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
 
-file(MAKE_DIRECTORY "${CODEGEN_CACHE_DIR}/cm_kernels")
-
 set_property(SOURCE ${CODEGEN_CACHE_SOURCES} PROPERTY GENERATED TRUE)
 
 set(XETLA_HEADER "cm_xetla.h")
@@ -38,6 +36,7 @@ foreach(KERNEL IN LISTS KERNELS)
     get_filename_component(FILENAME ${KERNEL} NAME)
     add_custom_command(
         OUTPUT "${CODEGEN_CACHE_DIR}/cm_kernels/${FILENAME}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CODEGEN_CACHE_DIR}/cm_kernels/"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${KERNEL} "${CODEGEN_CACHE_DIR}/cm_kernels/${FILENAME}"
         DEPENDS ${KERNEL}
         COMMENT "Copying ${FILE} ${CODEGEN_CACHE_DIR}/cm_kernels"
