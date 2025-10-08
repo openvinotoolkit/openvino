@@ -11,7 +11,7 @@
 #include <array>
 
 #ifdef OV_GPU_USE_OPENCL_HPP
-#include "cl.hpp"
+#include <CL/opencl.hpp>
 #else
 
 #include "cl.hpp"
