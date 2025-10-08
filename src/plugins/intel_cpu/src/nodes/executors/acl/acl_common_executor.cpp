@@ -106,7 +106,11 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
     // Validate arm_compute::TensorInfo objects for specific ACL function
     auto tensorsInfoValidateStatus = validateTensorsInfo(aclMemoryInfos);
     if (!tensorsInfoValidateStatus) {
-        OPENVINO_ASSERT(false, "ACL operator validation failed: ", tensorsInfoValidateStatus.error_description());
+        // On ARM, some shapes/dtypes may not have an optimized ACL kernel.
+        // Treat this as "unsupported by this executor" to enable fallback
+        // to alternative implementations instead of asserting.
+        DEBUG_LOG("ACL validation failed, fallback: ", tensorsInfoValidateStatus.error_description());
+        return false;
     }
 
     // Initialize arm_compute::Tensor objects
