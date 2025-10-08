@@ -299,7 +299,7 @@ static ov::OutputVector get_qkv(ov::OutputVector qkv,
 
     for (size_t i = 0; i < qkv.size(); ++i) {
         auto pshape = qkv[i].get_partial_shape();
-        int diff = supported_rank - static_cast<int>(pshape.size());
+        int64_t diff = supported_rank - static_cast<int64_t>(pshape.size());
         if (diff > 0) {
             std::vector<size_t> axes(diff, 0);
             std::iota(axes.begin(), axes.end(), 0);
