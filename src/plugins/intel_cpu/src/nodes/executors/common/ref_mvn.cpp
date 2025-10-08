@@ -8,7 +8,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 

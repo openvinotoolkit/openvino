@@ -7,8 +7,11 @@
 #include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -22,7 +25,6 @@
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mvn_config.hpp"
-#include "nodes/fake_quantize.h"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/axis_set.hpp"
@@ -320,7 +322,13 @@ void MVN::prepareParams() {
     // Determine actual (logical) channel size for post-ops independent of memory layout
     // Logical channel is dimension 1 for rank >= 2, and 0 for rank == 1.
     const size_t inRank = in_dims.size();
-    mvnAttrs.actualChannelSize = (inRank >= 2 ? in_dims[1] : (inRank == 1 ? in_dims[0] : 1));
+    size_t logicalC = 1;
+    if (inRank >= 2) {
+        logicalC = in_dims[1];
+    } else if (inRank == 1) {
+        logicalC = in_dims[0];
+    }
+    mvnAttrs.actualChannelSize = logicalC;
 
     // Populate post-ops from fused nodes in unified format
     mvnAttrs.postOps = getPostOps(fusedWith);

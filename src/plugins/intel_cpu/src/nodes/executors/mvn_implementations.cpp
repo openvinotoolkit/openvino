@@ -21,7 +21,6 @@
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
-#include "utils/debug_capabilities.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/executors/x64/jit_mvn.hpp"
@@ -222,12 +221,9 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             OperationType::MVN,
             // supports
             [](const executor::Config<MVNAttrs>& config) -> bool {
-                // Check if both src and dst have channel-last layout
-                if (!config.descs.at(ARG_SRC_0)->hasLayoutType(LayoutType::nspc) ||
-                    !config.descs.at(ARG_DST)->hasLayoutType(LayoutType::nspc)) {
-                    return false;
-                }
-                return true;
+                // Both src and dst must have channel-last layout
+                return config.descs.at(ARG_SRC_0)->hasLayoutType(LayoutType::nspc) &&
+                       config.descs.at(ARG_DST)->hasLayoutType(LayoutType::nspc);
             },
             // createOptimalConfig
             [](const executor::Config<MVNAttrs>& config) -> std::optional<executor::Config<MVNAttrs>> {
