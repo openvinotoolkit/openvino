@@ -100,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                                             ::testing::ValuesIn(configs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestIOTensorSetPrecisionTestNPU>);
 
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Mutli_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests,
                          OVInferRequestIOTensorSetPrecisionTestNPU,
                          ::testing::Combine(::testing::ValuesIn(prcs),
                                             ::testing::Values(ov::test::utils::DEVICE_MULTI),
