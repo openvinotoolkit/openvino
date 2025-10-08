@@ -26,6 +26,9 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
     auto RW_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
     };
+    auto WO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::WO);
+    };
 
     std::vector<ov::PropertyName> expectedSupportedProperties{
         // read only
@@ -38,6 +41,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::device::capabilities.name()),
         RO_property(ov::device::type.name()),
         RO_property(ov::device::architecture.name()),
+        // Write only
+        WO_property(ov::weights_path.name()),
         // read write
         RW_property(ov::num_streams.name()),
         RW_property(ov::inference_num_threads.name()),

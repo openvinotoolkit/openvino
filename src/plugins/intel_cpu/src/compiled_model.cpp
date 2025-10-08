@@ -36,8 +36,8 @@
 #include "sub_memory_manager.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/graph_serializer/serializer.hpp"
 #include "utils/memory_stats_dump.hpp"
-#include "utils/serialize.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
 #    include <arm_compute/runtime/IScheduler.h>
@@ -303,8 +303,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::key_cache_precision.name()),
             RO_property(ov::value_cache_precision.name()),
             RO_property(ov::key_cache_group_size.name()),
-            RO_property(ov::value_cache_group_size.name()),
-        };
+            RO_property(ov::value_cache_group_size.name())};
 
         return ro_properties;
     }
@@ -400,11 +399,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::value_cache_group_size) {
         return static_cast<decltype(ov::value_cache_group_size)::value_type>(config.valueCacheGroupSize);
     }
+    if (name == ov::weights_path) {
+        return static_cast<decltype(ov::weights_path)::value_type>("");
+    }
     OPENVINO_THROW("Unsupported property: ", name);
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt);
+    ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt, m_cfg.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE);
     serializer << m_model;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,13 @@
 
 bool ov::WeightlessCacheAttribute::is_copyable() const {
     return false;
+}
+
+bool ov::WeightlessCacheAttribute::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("original_dtype", original_dtype);
+    visitor.on_attribute("bin_offset", bin_offset);
+    visitor.on_attribute("original_size", original_size);
+    return true;
 }
 
 OPENVINO_API void ov::copy_weightless_cache_attr(const std::shared_ptr<ov::Node>& from,
