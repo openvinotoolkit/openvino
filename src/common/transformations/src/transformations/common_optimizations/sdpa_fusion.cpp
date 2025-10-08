@@ -125,7 +125,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     // this Transpose may be inserted by SDPAFusionMatcher
     auto opt_transpose_k = optional<v1::Transpose>({opt_unsq_k, any_input()}, shape_matches("..., S_kv, D"));
 
-    auto sdpa = wrap_type<v13::ScaledDotProductAttention>({
+    auto sdpa_pattern = wrap_type<v13::ScaledDotProductAttention>({
         opt_unsq_q,
         opt_transpose_k,
         opt_unsq_v,
@@ -133,7 +133,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         any_input(),
     });
 
-    auto opt_sdpa_reshape = optional<v1::Reshape, v0::Unsqueeze>({sdpa, any_input()});
+    auto opt_sdpa_reshape = optional<v1::Reshape, v0::Unsqueeze>({sdpa_pattern, any_input()});
     auto post_sdpa =
         wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_reshape, any_input()}, shape_matches("Batches..., S_q, D"));
 
@@ -143,8 +143,15 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         auto q_node = pm.at(q);
         auto k_node = pm.at(k);
         auto v_node = pm.at(v);
-        auto sdpa_node = pm.at(sdpa).get_node_shared_ptr();
         auto post_sdpa_node = pm.at(post_sdpa).get_node_shared_ptr();
+
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(pm.at(sdpa_pattern).get_node_shared_ptr());
+
+        // The mask will be ignored if causal is true; otherwise, the mask rank should be less than or equal to the SDPA input rank.
+        if (sdpa && !sdpa->get_causal() &&
+            sdpa->get_input_partial_shape(3).rank().get_length() > q_node.get_partial_shape().rank().get_length()) {
+            return false;
+        }
 
         const auto& sm = m.get_symbols();
 
@@ -181,12 +188,9 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
             }
         }
 
-        auto new_sdpa_node = sdpa_node->clone_with_new_inputs(
-            {q_node, k_node, v_node, sdpa_node->input(3).get_source_output(), sdpa_node->input(4).get_source_output()});
+        auto new_sdpa_node = sdpa->clone_with_new_inputs(
+            {q_node, k_node, v_node, sdpa->input(3).get_source_output(), sdpa->input(4).get_source_output()});
 
-        if (!new_sdpa_node->get_output_partial_shape(0).same_scheme(post_sdpa_node->get_output_partial_shape(0))) {
-            post_sdpa_node = post_sdpa_node->input(0).get_source_output().get_node_shared_ptr();
-        }
         new_sdpa_node->set_friendly_name(post_sdpa_node->get_friendly_name());
         ov::copy_runtime_info(post_sdpa_node, new_sdpa_node);
         ov::replace_node(post_sdpa_node, new_sdpa_node);

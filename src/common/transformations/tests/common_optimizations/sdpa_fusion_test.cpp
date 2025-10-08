@@ -179,7 +179,7 @@ public:
     }
 
     // fused ScaledDotProductAttention op
-    void create_reference_sdpa() {
+    void create_reference_sdpa(bool causal = false) {
         auto scale_const = op::v0::Constant::create(m_type, Shape{}, {m_scale});
 
         shared_ptr<Node> mask_input = m_mask;
@@ -258,7 +258,6 @@ private:
     bool with_mask = false;
     bool with_scale = false;
     bool with_sinks = false;
-    bool causal = false;
 
     element::Type m_type = f32;
 
@@ -1038,25 +1037,29 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimization) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimization_OutputReshape) {
+TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimizationWithMask) {
     // Init.
-    const PartialShape query_shape{1, 1, 49, 52};
-    const PartialShape key_shape{1, 1, 49, 52};
-    const PartialShape value_shape{1, 1, 49, 52};
+    const PartialShape query_shape{2, 49, 52};
+    const PartialShape key_shape{2, 49, 52};
+    const PartialShape value_shape{2, 49, 52};
+    const PartialShape mask_shape{-1, 1, 49, 49};
+    const Shape reshape_shape_4d{1, 2, 49, 52};
+    const Shape reshape_shape_3d{2, 49, 52};
 
     SDPA sdpa(f16, query_shape, key_shape, value_shape);
     SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
 
     // SDPA model.
     {
-        sdpa.reshape_q({1, 49, 1, 52});
-        sdpa.reshape_k({1, 49, 1, 52});
-        sdpa.reshape_v({1, 49, 1, 52});
+        sdpa.reshape_q(reshape_shape_4d);
+        sdpa.reshape_k(reshape_shape_4d);
+        sdpa.reshape_v(reshape_shape_4d);
+        sdpa.set_mask(mask_shape);
 
         sdpa.create_pattern_sdpa(true);
 
-        sdpa.reshape_sdpa({1, 1, 49, 52});
-        sdpa.reshape_sdpa({1, 49, 52});
+        sdpa.reshape_sdpa(reshape_shape_4d);
+        sdpa.reshape_sdpa(reshape_shape_3d);
 
         model = sdpa.build_model();
 
@@ -1065,9 +1068,57 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimization_OutputReshape) {
 
     // SDPA reference model.
     {
+        sdpa_ref.reshape_q(reshape_shape_4d);
+        sdpa_ref.reshape_k(reshape_shape_4d);
+        sdpa_ref.reshape_v(reshape_shape_4d);
+        sdpa_ref.set_mask(mask_shape);
+
         sdpa_ref.create_reference_sdpa();
 
-        sdpa_ref.reshape_sdpa({1, 49, 52});
+        sdpa_ref.reshape_sdpa(reshape_shape_4d);
+        sdpa_ref.reshape_sdpa(reshape_shape_3d);
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimizationWithMaskCausal) {
+    // Init.
+    const PartialShape query_shape{2, 49, 52};
+    const PartialShape key_shape{2, 49, 52};
+    const PartialShape value_shape{2, 49, 52};
+    const PartialShape mask_shape{-1, 1, 49, 49};
+    const Shape reshape_shape_4d{1, 2, 49, 52};
+    const Shape reshape_shape_3d{2, 49, 52};
+
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+
+    // SDPA model.
+    {
+        sdpa.reshape_q(reshape_shape_4d);
+        sdpa.reshape_k(reshape_shape_4d);
+        sdpa.reshape_v(reshape_shape_4d);
+        sdpa.set_mask(mask_shape);
+
+        sdpa.create_reference_sdpa(/*causal=*/true);
+
+        sdpa.reshape_sdpa(reshape_shape_4d);
+        sdpa.reshape_sdpa(reshape_shape_3d);
+
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.set_mask(mask_shape);
+        
+        sdpa_ref.create_reference_sdpa(/*causal=*/true);
 
         model_ref = sdpa_ref.build_model();
     }
