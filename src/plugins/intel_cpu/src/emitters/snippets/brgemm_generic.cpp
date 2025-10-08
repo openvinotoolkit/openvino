@@ -212,7 +212,7 @@ std::tuple<int64_t, int64_t, int64_t, float, int64_t> BrgemmKernelExecutorHelper
         output_pds[0]->set_subtensor_dim(0, N);
 
         const auto cur_out_port = expr->get_output_port(0);
-        auto it = [&]() {
+        auto it = [&, k_loop_idx]() {
             // Note: if there are K blocking loop, only brgemm in last K loop iteration is connected
             // to the output of N blocking loop. So we need to find the last K
             if (k_loop_idx) {
