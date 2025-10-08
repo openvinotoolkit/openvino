@@ -22,6 +22,7 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -214,15 +215,15 @@ static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_patte
             return nullptr;
         } else {
             if (rank.get_length() > 1) {
-                return op::util::make_try_fold<v1::Reshape>(scale_node,
-                                                            v0::Constant::create(ov::element::i64, {1}, {1}),
-                                                            false);
+                scale_node = op::util::make_try_fold<v1::Reshape>(scale_node,
+                                                                  v0::Constant::create(ov::element::i64, {1}, {1}),
+                                                                  false);
             }
+            return scale_node.get_node_shared_ptr();
         }
     } else {
         return v0::Constant::create(default_scale_type, ov::Shape{}, {1.0});
     }
-    return nullptr;
 }
 
 static std::shared_ptr<ov::Node> get_mask(std::shared_ptr<ov::Node> mask_pattern,
@@ -275,18 +276,17 @@ static std::shared_ptr<ov::Node> get_mask(std::shared_ptr<ov::Node> mask_pattern
                 mask_node = mask_squeeze;
             }
         }
+        return mask_node.get_node_shared_ptr();
     } else {
         return v0::Constant::create(default_mask_type, ov::Shape{}, {0});
     }
-    return nullptr;
 }
 
-static ov::OutputVector get_qkv(const ov::OutputVector& qkv,
+static ov::OutputVector get_qkv(ov::OutputVector qkv,
                                 Output<ov::Node> mask_node,
                                 element::Type default_mask_type,
                                 bool matmul_transposes_k,
                                 ov::pass::pattern::Matcher& matcher) {
-    OutputVector res_qkv(qkv.size());
     // 3 is the min supported rank according to the SDPA spec
     int64_t supported_rank = std::max(mask_node.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
     for (size_t i = 0; i < qkv.size(); ++i) {
@@ -305,7 +305,7 @@ static ov::OutputVector get_qkv(const ov::OutputVector& qkv,
             std::iota(axes.begin(), axes.end(), 0);
             auto axes_node = v0::Constant::create(ov::element::i64, ov::Shape{static_cast<size_t>(diff)}, axes);
             auto reshape = std::make_shared<v0::Unsqueeze>(qkv[i], axes_node);
-            res_qkv[i] = reshape;
+            qkv[i] = reshape;
             ov::copy_runtime_info(matcher.get_matched_nodes(), {reshape, axes_node});
         }
 
@@ -316,11 +316,11 @@ static ov::OutputVector get_qkv(const ov::OutputVector& qkv,
             std::iota(axes_values.begin(), axes_values.end(), 0);
             std::swap(axes_values[axes_values.size() - 1], axes_values[axes_values.size() - 2]);
             auto axes = v0::Constant::create(ov::element::i64, {axes_values.size()}, axes_values);
-            res_qkv[i] = std::make_shared<v1::Transpose>(qkv[i], axes);
-            ov::copy_runtime_info(matcher.get_matched_nodes(), {axes, res_qkv[i].get_node_shared_ptr()});
+            qkv[i] = std::make_shared<v1::Transpose>(qkv[i], axes);
+            ov::copy_runtime_info(matcher.get_matched_nodes(), {axes, qkv[i].get_node_shared_ptr()});
         }
     }
-    return {};
+    return qkv;
 }
 
 SDPAFusionMatcher::SDPAFusionMatcher() {
@@ -430,7 +430,6 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
             return false;
 
         auto T = q_node.get_element_type();
-
         std::shared_ptr<ov::Node> scale_node;
         if (!(scale_node = get_scale(attn_scale, T, m)))
             return false;
@@ -517,7 +516,6 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
             return false;
 
         auto T = q_node.get_element_type();
-
         std::shared_ptr<ov::Node> scale_node;
         if (!(scale_node = get_scale(attn_scale, T, m)))
             return false;
