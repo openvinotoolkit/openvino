@@ -105,8 +105,8 @@ The ``router_topk_output_indices`` are used to select the top-k experts for opti
   The input hidden representations.
 
 * **1**: ``routing_weights``  
-  *Tensor* of type *T* with shape ``[..., topk, 1]`` for example ``[num_experts, batch, topk, 1]``.  
-  The normalized weights for the selected top-k experts (after routing/normalization).
+  *Tensor* of type *T* with shape ``[num_experts, ..., 1]`` for example ``[num_experts, batch, seq_len, 1]``.  
+  The normalized weights for all of the experts with non-zero values at for the selected top-k experts (after routing/normalization). Used for multiplication of the experts subgraph result.
 
 * **2**: ``router_topk_output_indices``  
   *Tensor* of type *T_IND* with shape ``[..., topk]`` for example ``[batch, topk]``.  
