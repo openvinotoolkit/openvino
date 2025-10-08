@@ -678,8 +678,8 @@ TEST_P(FileUtilTestP, create_directories) {
 
     ov::util::create_directory_recursive(path);
 
-    EXPECT_TRUE(utils::fileExists(path));
+    EXPECT_TRUE(utils::fileExists(path.string()));
     EXPECT_EQ(utils::removeDir(path.string()), 0);
-    EXPECT_FALSE(utils::fileExists(path));
+    EXPECT_FALSE(utils::fileExists(path.string()));
 }
 }  // namespace ov::test
