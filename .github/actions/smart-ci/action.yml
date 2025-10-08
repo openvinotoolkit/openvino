@@ -65,6 +65,9 @@ outputs:
     description: "Whether the workflow should be run with Smart CI rules applied or skipped completely"
     value: ${{ steps.smart_ci.outputs.skip_workflow }}
 
+env:
+  CODE_STYLE_CHECK_NAMES: "clang-format,clang-format-aarch64,clang-format-riscv64,ShellCheck,NamingConventionCheck"
+
 runs:
   using: "composite"
   steps:
@@ -81,10 +84,10 @@ runs:
       with:
         ref: ${{ github.event.pull_request.head.sha }}
         # check-names: "${{ inputs.labeler_check_name }}"
-        check-names: "${{ inputs.labeler_check_name }},${{ inputs.wait_for_code_style == 'true' && 'Code Style' || '' }}"
+        check-names: "${{ inputs.labeler_check_name }},${{ inputs.wait_for_code_style == 'true' && env.CODE_STYLE_CHECK_NAMES || '' }}"
         repo-token: ${{ inputs.repo_token }}
         wait-interval: 10
-        timeout: 300
+        timeout: 600
 
     - name: checkout components file
       uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
