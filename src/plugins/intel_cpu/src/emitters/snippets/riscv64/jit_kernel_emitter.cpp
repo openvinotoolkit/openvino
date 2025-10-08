@@ -134,7 +134,17 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
             OPENVINO_THROW("Unsupported emitter_in_out_map instance");
         }
     };
-    init_data_pointers(utils::transform_idxs_to_regs(in), data_ptr_regs, std::vector<Xbyak_riscv::Reg>{});
+    // Provide up to two temporary GPRs for pointer initialization math
+    std::vector<Xbyak_riscv::Reg> aux_tmp_regs{};
+    if (!available_gpr.empty()) {
+        auto it = available_gpr.begin();
+        aux_tmp_regs.emplace_back(static_cast<int>(it->idx));
+        ++it;
+        if (it != available_gpr.end()) {
+            aux_tmp_regs.emplace_back(static_cast<int>(it->idx));
+        }
+    }
+    init_data_pointers(utils::transform_idxs_to_regs(in), data_ptr_regs, aux_tmp_regs);
     for (const auto& expression : *body) {
         const auto reg_info = expression->get_reg_info();
         const auto& emitter = std::dynamic_pointer_cast<jit_emitter>(expression->get_emitter());
