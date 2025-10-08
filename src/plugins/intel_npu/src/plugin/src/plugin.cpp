@@ -216,6 +216,169 @@ std::shared_ptr<const ov::Model> exclude_model_ptr_from_map(ov::AnyMap& properti
     return modelPtr;
 }
 
+// Helper function to detect if shape contains dynamic dimensions other than the batch dimension
+// Plugin-side batch handling can only be applied when batch is the sole dynamic dimension
+bool hasOtherDynamicDims(const ov::PartialShape& shape) {
+    for (size_t dim_idx = 1; dim_idx < shape.size(); dim_idx++) {
+        if (shape[dim_idx].is_dynamic()) {
+            return true;  // Found dynamic dimension other than batch
+        }
+    }
+    return false;
+}
+
+bool checkModelDynamicDims(const std::shared_ptr<const ov::Model>& model) {
+    // Check parameters (inputs)
+    const auto& params = model->get_parameters();
+    for (const auto& param : params) {
+        const auto& shape = param->get_partial_shape();
+        if (hasOtherDynamicDims(shape)) {
+            return true;
+        }
+    }
+
+    // Check results (outputs)
+    const auto& results = model->get_results();
+    for (const auto& result : results) {
+        const auto& shape = result->get_output_partial_shape(0);
+        if (hasOtherDynamicDims(shape)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger logger) {
+    std::set<ov::Output<const ov::Node>> batchedInputs;
+    std::set<ov::Output<const ov::Node>> batchedOutputs;
+    std::set<size_t> sBatchSize;
+
+    // Limitation: Plugin batching is not supported when there are dynamic
+    // dimensions other than the batch dimension.
+    if (checkModelDynamicDims(model)) {
+        return false;
+    }
+
+    const auto& params = model->get_parameters();
+    for (size_t input_id = 0; input_id < params.size(); input_id++) {
+        const auto& input = params[input_id];
+        const auto& shape = input->get_partial_shape();
+        ov::Layout layout = ov::layout::get_layout(input);
+
+        // Batching on plugin is working only when batching is found on 0th dimension
+        if (shape[intel_npu::utils::BATCH_AXIS].is_dynamic() ||
+            (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS)) {
+            const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : input->get_shape();
+            batchedInputs.insert(params[input_id]->output(0));
+
+            if (shape.rank().is_dynamic()) {
+                OPENVINO_THROW("Shapes with dynamic rank are not supported.");
+            } else {
+                sBatchSize.insert(staticShape[intel_npu::utils::BATCH_AXIS]);
+            }
+        } else {
+            // gather some diagnostic info
+            std::optional<size_t> batch_dim_index_detected;
+            for (size_t i = 1; i < shape.size(); i++) {
+                if (shape[i].has_symbol()) {
+                    batch_dim_index_detected = i;
+                    break;
+                }
+            }
+            std::stringstream sstream;
+            sstream << "Only networks with inputs batched by 0th dimension are supported. ";
+            if (batch_dim_index_detected.has_value()) {
+                sstream << "The batch has been detected on: " << batch_dim_index_detected.value()
+                        << " dimension instead. ";
+            } else {
+                sstream << "The batch hasn't been detected at all. ";
+            }
+            sstream << "Please check input id: " << input_id << " by the name: " << input->get_friendly_name()
+                    << ", layout: " << layout.to_string() << ", is_dynamic: " << shape.is_dynamic();
+            logger.info("%s", sstream.str().c_str());
+            return false;
+        }
+    }
+    for (const auto& output : model->get_results()) {
+        const auto& shape = output->get_output_partial_shape(0);
+        ov::Layout layout = ov::layout::get_layout(output);
+
+        // Batching on plugin is working only when batching is found on 0th dimension
+        if (shape[intel_npu::utils::BATCH_AXIS].is_dynamic() ||
+            (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS)) {
+            const auto& node = output->input_value(0);
+            const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : output->get_shape();
+            batchedOutputs.insert(ov::Output<const ov::Node>(node.get_node(), node.get_index()));
+
+            if (shape.rank().is_dynamic()) {
+                OPENVINO_THROW("Shapes with dynamic rank are not supported.");
+            } else {
+                sBatchSize.insert(staticShape[intel_npu::utils::BATCH_AXIS]);
+            }
+        } else {
+            logger.info("Only networks with outputs batched by 0th dimension are supported. Please check an output by "
+                        "the name: %s, layout: %s",
+                        output->get_friendly_name().c_str(),
+                        layout.to_string().c_str());
+            return false;
+        }
+    }
+    if (!batchedInputs.size() || !batchedOutputs.size()) {
+        logger.info(
+            "Only networks with inputs/outputs featuring batched dim are supported! Got inputs: %ld, outputs: %ld",
+            batchedInputs.size(),
+            batchedOutputs.size());
+        return false;
+    }
+
+    if (sBatchSize.size() != 1) {
+        logger.info("Batching size shall have same value for all tensors! Got unique batch sizes number: %ld",
+                    sBatchSize.size());
+        return false;
+    }
+
+    if (*sBatchSize.begin() == intel_npu::utils::DEFAULT_BATCH_SIZE) {
+        logger.info("PLUGIN batch won't be applied, got default batch value : %ld", *sBatchSize.begin());
+        return false;
+    }
+
+    auto node_info_printer = [&logger](const auto& ov_node, std::string nodeType) {
+        logger.info("%s: %s has shape value: %s",
+                    nodeType.c_str(),
+                    ov_node.get_any_name().c_str(),
+                    ov_node.get_partial_shape().to_string().c_str());
+    };
+
+    for (const auto& ov_node : batchedInputs) {
+        node_info_printer(ov_node, "Input");
+    }
+    for (const auto& ov_node : batchedOutputs) {
+        node_info_printer(ov_node, "Output");
+    }
+
+    return true;
+}
+
+bool deBatchModel(std::shared_ptr<ov::Model>& model, ov::Dimension newBatch) {
+    try {
+        std::map<std::string, ov::PartialShape> newShapes;
+        for (auto&& item : model->get_parameters()) {
+            auto layout = item->get_layout();
+            auto partShape = item->get_partial_shape();
+            if (ov::layout::has_batch(layout)) {
+                partShape[ov::layout::batch_idx(layout)] = newBatch;
+            }
+            newShapes.emplace(item->get_friendly_name(), partShape);
+        }
+        model->reshape(newShapes);
+        return true;
+    } catch (const std::exception&) {
+        // Don't throw - let caller handle the failure
+        return false;
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -549,169 +712,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     auto npu_plugin_properties = arguments;
     exclude_model_ptr_from_map(npu_plugin_properties);
     return _properties->get_property(name, npu_plugin_properties);
-}
-
-// Helper function to detect if shape contains dynamic dimensions other than the batch dimension
-// Plugin-side batch handling can only be applied when batch is the sole dynamic dimension
-bool hasOtherDynamicDims(const ov::PartialShape& shape) {
-    for (size_t dim_idx = 1; dim_idx < shape.size(); dim_idx++) {
-        if (shape[dim_idx].is_dynamic()) {
-            return true;  // Found dynamic dimension other than batch
-        }
-    }
-    return false;
-}
-
-bool checkModelDynamicDims(const std::shared_ptr<const ov::Model>& model) {
-    // Check parameters (inputs)
-    const auto& params = model->get_parameters();
-    for (const auto& param : params) {
-        const auto& shape = param->get_partial_shape();
-        if (hasOtherDynamicDims(shape)) {
-            return true;
-        }
-    }
-
-    // Check results (outputs)
-    const auto& results = model->get_results();
-    for (const auto& result : results) {
-        const auto& shape = result->get_output_partial_shape(0);
-        if (hasOtherDynamicDims(shape)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger logger) {
-    std::set<ov::Output<const ov::Node>> batchedInputs;
-    std::set<ov::Output<const ov::Node>> batchedOutputs;
-    std::set<size_t> sBatchSize;
-
-    // Limitation: Plugin batching is not supported when there are dynamic
-    // dimensions other than the batch dimension.
-    if (checkModelDynamicDims(model)) {
-        return false;
-    }
-
-    const auto& params = model->get_parameters();
-    for (size_t input_id = 0; input_id < params.size(); input_id++) {
-        const auto& input = params[input_id];
-        const auto& shape = input->get_partial_shape();
-        ov::Layout layout = ov::layout::get_layout(input);
-
-        // Batching on plugin is working only when batching is found on 0th dimension
-        if (shape[intel_npu::utils::BATCH_AXIS].is_dynamic() ||
-            ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS) {
-            const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : input->get_shape();
-            batchedInputs.insert(params[input_id]->output(0));
-
-            if (shape.rank().is_dynamic()) {
-                OPENVINO_THROW("Shapes with dynamic rank are not supported.");
-            } else {
-                sBatchSize.insert(staticShape[intel_npu::utils::BATCH_AXIS]);
-            }
-        } else {
-            // gather some diagnostic info
-            std::optional<size_t> batch_dim_index_detected;
-            for (size_t i = 1; i < shape.size(); i++) {
-                if (shape[i].has_symbol()) {
-                    batch_dim_index_detected = i;
-                    break;
-                }
-            }
-            std::stringstream sstream;
-            sstream << "Only networks with inputs batched by 0th dimension are supported. ";
-            if (batch_dim_index_detected.has_value()) {
-                sstream << "The batch has been detected on: " << batch_dim_index_detected.value()
-                        << " dimension instead. ";
-            } else {
-                sstream << "The batch hasn't been detected at all. ";
-            }
-            sstream << "Please check input id: " << input_id << " by the name: " << input->get_friendly_name()
-                    << ", layout: " << layout.to_string() << ", is_dynamic: " << shape.is_dynamic();
-            logger.info("%s", sstream.str().c_str());
-            return false;
-        }
-    }
-    for (const auto& output : model->get_results()) {
-        const auto& shape = output->get_output_partial_shape(0);
-        ov::Layout layout = ov::layout::get_layout(output);
-
-        // Batching on plugin is working only when batching is found on 0th dimension
-        if (shape[intel_npu::utils::BATCH_AXIS].is_dynamic() ||
-            ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS) {
-            const auto& node = output->input_value(0);
-            const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : output->get_shape();
-            batchedOutputs.insert(ov::Output<const ov::Node>(node.get_node(), node.get_index()));
-
-            if (shape.rank().is_dynamic()) {
-                OPENVINO_THROW("Shapes with dynamic rank are not supported.");
-            } else {
-                sBatchSize.insert(staticShape[intel_npu::utils::BATCH_AXIS]);
-            }
-        } else {
-            logger.info("Only networks with outputs batched by 0th dimension are supported. Please check an output by "
-                        "the name: %s, layout: %s",
-                        output->get_friendly_name().c_str(),
-                        layout.to_string().c_str());
-            return false;
-        }
-    }
-    if (!batchedInputs.size() || !batchedOutputs.size()) {
-        logger.info(
-            "Only networks with inputs/outputs featuring batched dim are supported! Got inputs: %ld, outputs: %ld",
-            batchedInputs.size(),
-            batchedOutputs.size());
-        return false;
-    }
-
-    if (sBatchSize.size() != 1) {
-        logger.info("Batching size shall have same value for all tensors! Got unique batch sizes number: %ld",
-                    sBatchSize.size());
-        return false;
-    }
-
-    if (*sBatchSize.begin() == intel_npu::utils::DEFAULT_BATCH_SIZE) {
-        logger.info("PLUGIN batch won't be applied, got default batch value : %ld", *sBatchSize.begin());
-        return false;
-    }
-
-    auto node_info_printer = [&logger](const auto& ov_node, std::string nodeType) {
-        logger.info("%s: %s has shape value: %s",
-                    nodeType.c_str(),
-                    ov_node.get_any_name().c_str(),
-                    ov_node.get_partial_shape().to_string().c_str());
-    };
-
-    for (const auto& ov_node : batchedInputs) {
-        node_info_printer(ov_node, "Input");
-    }
-    for (const auto& ov_node : batchedOutputs) {
-        node_info_printer(ov_node, "Output");
-    }
-
-    return true;
-}
-
-bool deBatchModel(std::shared_ptr<ov::Model>& model, ov::Dimension newBatch) {
-    try {
-        std::map<std::string, ov::PartialShape> newShapes;
-        for (auto&& item : model->get_parameters()) {
-            auto layout = item->get_layout();
-            auto partShape = item->get_partial_shape();
-            if (ov::layout::has_batch(layout)) {
-                partShape[ov::layout::batch_idx(layout)] = newBatch;
-            }
-            newShapes.emplace(item->get_friendly_name(), partShape);
-        }
-        model->reshape(newShapes);
-        return true;
-    } catch (const std::exception&) {
-        // Don't throw - let caller handle the failure
-        return false;
-    }
 }
 
 void Plugin::encodeDynamicBatchInfo(std::shared_ptr<ov::Model> model) const {
