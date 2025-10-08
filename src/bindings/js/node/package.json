@@ -1,6 +1,6 @@
 {
   "name": "openvino-node",
-  "version": "2025.3.0",
+  "version": "2025.4.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "repository": {
     "url": "git+https://github.com/openvinotoolkit/openvino.git",
