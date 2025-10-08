@@ -38,6 +38,12 @@ public:
     AttentionBroadcast();
 };
 
+class AttentionBroadcast2 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::AttentionBroadcast2");
+    AttentionBroadcast2();
+};
+
 class ShapeOfParameter : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::ShapeOfParameter");

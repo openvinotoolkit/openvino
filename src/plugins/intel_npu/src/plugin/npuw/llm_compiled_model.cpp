@@ -1123,7 +1123,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
     LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
-
     apply_weights_bank_name(prefill_config, weights_bank_name);
     apply_weights_bank_name(generate_config, weights_bank_name);
 
@@ -1140,6 +1139,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     if (generate_attn_dyn) {
         merge_config_with(generate_config, dyn_attn_opts);
+    }
+
+    // Note: with dynamic attention in EITHER STAGE, we have to
+    // explicitly disable the run-time fallback to so extra ov::Model
+    // references won't be held by the npuw::CompiledModel, resulting
+    // in a higher memory consumption. This behavior should be reworked!
+    // The reason here is that NPUW_DEVICES may come as a global setting,
+    // impacting all the stages.
+    if (prefill_attn_dyn || generate_attn_dyn) {
+        const ov::AnyMap no_runtime_fallback = {{"NPUW_FALLBACK_EXEC", "NO"}};
+        merge_config_with(prefill_config, no_runtime_fallback);
+        merge_config_with(generate_config, no_runtime_fallback);
     }
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
@@ -1164,6 +1175,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     {
         ov::pass::GraphRewrite rewr;
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
         rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
         rewr.run_on_model(kvcache_model);
         rewr.run_on_model(prefill_model);

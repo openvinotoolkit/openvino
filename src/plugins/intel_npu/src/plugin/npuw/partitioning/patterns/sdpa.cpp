@@ -95,6 +95,7 @@ AttentionBroadcast::AttentionBroadcast() {
     // NB: It only works in static shape graphs
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({past_kv_cat});
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
+    // NB: THREE inputs is also a case (see below)
     auto concat = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input(), opp::any_input()});
 
     // Broadcast - the consumer
@@ -119,6 +120,40 @@ AttentionBroadcast::AttentionBroadcast() {
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(bcast_kv, "AttentionBroadcast"), std::move(callback));
+}
+
+// FIXME: Same as above but Concat has three inputs instead of four
+AttentionBroadcast2::AttentionBroadcast2() {
+    auto past_kv_in = opp::wrap_type<ov::op::v0::Parameter>();
+    auto past_kv_cvt = opp::optional<ov::op::v0::Convert>({past_kv_in->output(0)});
+    auto past_kv_cat = opp::wrap_type<ov::op::v0::Concat>({past_kv_cvt, opp::any_input()});
+
+    auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({past_kv_cat});
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
+    auto concat =
+        opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input()});  // THIS IS the difference
+
+    // FIXME: using past_kv_cat as a 0th argument to this Unsqueeze breaks the pattern
+    // for Phi-4
+    auto unsq_kv = opp::wrap_type<ov::op::v0::Unsqueeze>({opp::any_input(), opp::any_input()});
+    auto bcast_kv = opp::wrap_type<ov::op::v3::Broadcast>({unsq_kv, concat});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_concat_out = node_to_output.at(concat);
+        auto& matched_concat_tensor = matched_concat_out.get_tensor();
+        if (matched_concat_tensor.has_and_set_bound()) {
+            auto new_const = std::make_shared<ov::op::v0::Constant>(matched_concat_tensor.get_upper_value());
+            new_const->set_friendly_name("NPUW/Precalculated/" +
+                                         matched_concat_out.get_node_shared_ptr()->get_friendly_name());
+            for (auto&& input : matched_concat_out.get_target_inputs()) {
+                input.replace_source_output(new_const);
+            }
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(bcast_kv, "AttentionBroadcast2"), std::move(callback));
 }
 
 ShapeOfParameter::ShapeOfParameter() {
