@@ -916,6 +916,20 @@ ov::npuw::util::TensorPtr ov::npuw::util::allocMem(const ov::element::Type type,
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
 }
 
+std::string ov::npuw::util::generate_random_string(std::size_t size) {
+    static constexpr auto chars = "0123456789"
+                                  "abcdefghijklmnopqrstuvwxyz"
+                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution dist({}, std::strlen(chars) - 1);
+    std::string result(size, '\0');
+    std::generate_n(result.begin(), size, [&]() {
+        return chars[dist(gen)];
+    });
+    return result;
+}
+
 bool ov::npuw::util::matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix) {
     std::string pattern = "^lora_state.*" + pattern_suffix + "$";
     std::regex regex_pattern(pattern);
