@@ -5,14 +5,10 @@
 #include "mvn.h"
 
 #include <algorithm>
-#include <any>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
-#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
-#include <utility>
-#include <vector>
 
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -43,43 +39,7 @@
 
 namespace ov::intel_cpu::node {
 
-namespace {
-
-void append_parent_fake_quantize_post_op(MVN& node, PostOps& postOps) {
-    const bool hasFakeQuantize = std::any_of(postOps.begin(), postOps.end(), [](const std::any& postOp) {
-        return postOp.type() == typeid(FakeQuantizePostOp);
-    });
-    if (hasFakeQuantize) {
-        return;
-    }
-    if (node.getParentEdges().empty()) {
-        return;
-    }
-
-    const auto parent0 = node.getParentEdgeAt(0)->getParent();
-    if (!parent0 || parent0->getType() != Type::FakeQuantize) {
-        return;
-    }
-
-    auto fq = std::dynamic_pointer_cast<ov::intel_cpu::node::FakeQuantize>(parent0);
-    if (!fq) {
-        return;
-    }
-
-    const FakeQuantizePostOp::Type fqType = FakeQuantizePostOp::Type::quantization_dequantization;
-    postOps.push_back(std::make_any<FakeQuantizePostOp>(fqType,
-                                                        fq->getCropLow(),
-                                                        fq->getCropHigh(),
-                                                        fq->getInputScale(),
-                                                        fq->getInputShift(),
-                                                        fq->getOutputScale(),
-                                                        fq->getOutputShift(),
-                                                        fq->getLevels(),
-                                                        fq->isInputLowBroadcast(),
-                                                        fq->isOutputHighBroadcast()));
-}
-
-}  // namespace
+namespace {}  // namespace
 
 bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -273,8 +233,10 @@ void MVN::initSupportedPrimitiveDescriptors() {
         }
     }
 
+    // Align MVN post-ops handling with Convolution/Eltwise:
+    // rely on common fusion pipeline and getPostOps() result without
+    // explicitly injecting parent FakeQuantize here.
     mvnAttrs.postOps = getPostOps(fusedWith);
-    append_parent_fake_quantize_post_op(*this, mvnAttrs.postOps);
 
     // Create initial memory descriptors
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
@@ -355,29 +317,13 @@ void MVN::prepareParams() {
         mvnAttrs.layout = MVNLayoutType::mvn_block;
     }
 
-    // Determine actual channel size for post-ops based on mapping and layout
-    // Default channel index in 5D is 1 (N, C, D, H, W)
-    size_t chIndex5D = 1;
+    // Determine actual (logical) channel size for post-ops independent of memory layout
+    // Logical channel is dimension 1 for rank >= 2, and 0 for rank == 1.
     const size_t inRank = in_dims.size();
-    if (mvnAttrs.layout == MVNLayoutType::mvn_planar) {
-        // For planar layout, some transformed ranks shift channel position in 5D
-        if (inRank == 1 && mvnAttrs.initAcrossChannels_) {
-            chIndex5D = 4;  // {1,1,1,1,C}
-        } else if (inRank == 2 && mvnAttrs.initAcrossChannels_) {
-            chIndex5D = 3;  // {1,N,1,C,1}
-        } else {
-            chIndex5D = 1;  // {N,C,...}
-        }
-    } else if (mvnAttrs.layout == MVNLayoutType::mvn_by_channel) {
-        chIndex5D = 4;  // channels are the last dim in 5D (NHWC-like)
-    } else {            // mvn_block
-        chIndex5D = 1;  // block layout base channel dim
-    }
-    mvnAttrs.actualChannelSize = shape5D.size() > chIndex5D ? shape5D[chIndex5D] : 1;
+    mvnAttrs.actualChannelSize = (inRank >= 2 ? in_dims[1] : (inRank == 1 ? in_dims[0] : 1));
 
-    // Populate post-ops from fused nodes
+    // Populate post-ops from fused nodes in unified format
     mvnAttrs.postOps = getPostOps(fusedWith);
-    append_parent_fake_quantize_post_op(*this, mvnAttrs.postOps);
 
     // Update executor with memory arguments only (executor is created in createPrimitive)
     MemoryArgs memoryArgs;

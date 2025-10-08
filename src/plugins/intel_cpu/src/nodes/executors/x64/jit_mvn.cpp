@@ -6,15 +6,11 @@
 
 #include <oneapi/dnnl/dnnl_types.h>
 
-#include <any>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
-#include <utility>
-#include <vector>
 
 #include "common/primitive_attr.hpp"
 #include "cpu_memory.h"
@@ -210,32 +206,8 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
     // For post-ops, we need to use the actual channel size and proper channel axis
     VectorDims outputDims = shape5D;
 
-    // Derive logical channel axis (idxOC) consistent with MVN::prepareParams mapping
-    size_t idxOC = 1;  // default (N, C, D, H, W)
-    if (attrs.layout == MVNLayoutType::mvn_by_channel) {
-        idxOC = outputDims.size() - 1;  // NHWC-like
-    } else if (attrs.layout == MVNLayoutType::mvn_planar) {
-        if (!attrs.execAcrossChannels_) {
-            // Low-rank across-channels transformed cases
-            if (outputDims.size() == 5) {
-                // 1D across: {1,1,1,1,C}
-                if (outputDims[0] == 1 && outputDims[1] == 1 && outputDims[2] == 1 &&
-                    outputDims[4] == attrs.actualChannelSize) {
-                    idxOC = 4;
-                }
-                // 2D across: {1,N,1,C,1}
-                else if (outputDims[0] == 1 && outputDims[2] == 1 && outputDims[3] == attrs.actualChannelSize) {
-                    idxOC = 3;
-                } else {
-                    idxOC = 1;
-                }
-            }
-        } else {
-            idxOC = 1;
-        }
-    } else {  // mvn_block
-        idxOC = 1;
-    }
+    // Use logical channel axis (C) consistently for post-ops composer
+    size_t idxOC = 1;  // (N, C, D, H, W)
 
     // Override the channel dimension with the actual channel size to match composer expectations
     if (attrs.actualChannelSize > 0 && idxOC < outputDims.size()) {
