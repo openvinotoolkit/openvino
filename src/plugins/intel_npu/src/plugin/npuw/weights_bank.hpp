@@ -25,10 +25,7 @@ namespace weights {
 
 class Bank {
 public:
-    Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
-        : m_core(core),
-          m_alloc_device(alloc_device),
-          m_bank_name(bank_name) {}
+    Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name);
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
