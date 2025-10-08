@@ -507,14 +507,9 @@ TEST_P(ZeroTensorTests, UseRangeOutOfBoundsPointerFromAlreadyImportedStandardAll
         auto different_shape = Shape{1, 64, 64, 64};
         auto different_tensor = make_tensor(element_type, different_shape, data + 16);
         std::shared_ptr<::intel_npu::ZeroTensor> zero_tensor1;
-        if (init_struct->isExternalMemoryStandardAllocationSupported()) {
-            ASSERT_THROW(
-                zero_tensor1 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, different_tensor),
-                ::intel_npu::ZeroMemException);
-        } else {
-            OV_ASSERT_NO_THROW(
-                zero_tensor1 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, different_tensor));
-        }
+        ASSERT_THROW(
+            zero_tensor1 = std::make_shared<::intel_npu::ZeroTensor>(init_struct, npu_config, different_tensor),
+            ::intel_npu::ZeroMemException);
 
         ::operator delete(data, std::align_val_t(4096));
     }
@@ -545,7 +540,7 @@ TEST_P(ZeroTensorTests, UseBiggerMemoryFromAlreadyImportedStandardAllocation) {
     }
 }
 
-TEST_P(ZeroTensorTests, CopySmallerHostTensorFromBiggerOne) {
+TEST_P(ZeroTensorTests, CreateSmallerZeroTensorsFromLargerRemoteTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     std::shared_ptr<::intel_npu::IEngineBackend> engine_backend = std::make_shared<::intel_npu::ZeroEngineBackend>();

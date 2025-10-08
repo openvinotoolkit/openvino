@@ -17,7 +17,7 @@ namespace intel_npu {
  * @brief ZeroMemPool API used to keep track of all allocations and memory imports performed in the level zero context.
  * @details Provides methods to either allocate or import memory in the level zero context. Such method will also add an
  * entry into the pool for the tracking ID that corresponds to that allocation. Provides a method to check if a given
- * memory range was previously.
+ * memory range was previously allocated or imported.
  */
 class ZeroMemPool final {
 public:
@@ -33,7 +33,7 @@ public:
     static ZeroMemPool& get_instance();
 
     /**
-     * @brief Returns a new memory region allocated in the level zero and adds it to the pool.
+     * @brief Returns a new memory region allocated in the level zero context and adds it to the pool.
      * @param init_structs Holder for the level zero structures.
      * @param bytes Size in bytes of the memory that must be allocated.
      * @param alignment Alignment needed for the memory; it must be a multiple of the standard page size.

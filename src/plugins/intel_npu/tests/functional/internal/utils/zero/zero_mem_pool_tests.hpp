@@ -55,7 +55,7 @@ protected:
     ::intel_npu::Config npu_config = ::intel_npu::Config(options);
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string target_device;
         ov::AnyMap configuration;
         target_device = obj.param;
@@ -129,12 +129,12 @@ TEST_P(ZeroMemPoolTests, MultiThreadingReUseAlreadyAllocatedImportedMemory) {
         std::array<std::shared_ptr<::intel_npu::ZeroMem>, 5> zero_mem;
         std::array<void*, 3> data;
 
+        // Prep: add few entries in the pool
         for (int i = 0; i < 3; i++) {
             data[i] = ::operator new(4096, std::align_val_t(4096));
             zero_mem[i] =
                 ::intel_npu::ZeroMemPool::get_instance().import_standard_allocation_memory(init_struct, data[i], 4096);
         }
-
         zero_mem[3] = ::intel_npu::ZeroMemPool::get_instance().allocate_zero_memory(init_struct, 4096, 4096);
         zero_mem[4] = ::intel_npu::ZeroMemPool::get_instance().allocate_zero_memory(init_struct, 4096, 4096);
 

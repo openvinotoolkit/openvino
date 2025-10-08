@@ -1742,6 +1742,7 @@ TEST_P(CpuVaTensorsTests, SetAndDestroyDifferentAlignedTensors) {
 
     const auto input_byte_size = shape_size * sizeof(float);
     auto input_data = static_cast<float*>(::operator new(input_byte_size, std::align_val_t(4096)));
+    // Create two tensors for the same buffer to mimic weights/data sharing among multiple inference requests
     auto input_tensor0 = ov::Tensor{ov::element::f32, shape, input_data};
     auto input_tensor1 = ov::Tensor{ov::element::f32, shape, input_data};
 

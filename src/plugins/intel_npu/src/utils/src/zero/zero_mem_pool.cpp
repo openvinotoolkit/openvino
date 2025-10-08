@@ -73,7 +73,9 @@ std::shared_ptr<ZeroMem> ZeroMemPool::import_standard_allocation_memory(
         } else {
             // shared_ptr counter is 0, we can not lock memory; wait until the deleter frees the memory
             std::shared_future<void> done_future = _notify_pool[memory_id].get_future().share();
+            // allow (any) deleter to be executed. it will remove the pool entry and deallocate the level zero memory
             deleter_lock.unlock();
+            // waiting for the corresponding deleter to be executed
             done_future.wait();
             deleter_lock.lock();
             _notify_pool.erase(memory_id);
