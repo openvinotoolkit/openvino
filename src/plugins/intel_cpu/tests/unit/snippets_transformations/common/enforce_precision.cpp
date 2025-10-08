@@ -10,8 +10,8 @@
 #include <gtest/gtest.h>
 
 #include "openvino/core/type/element_type.hpp"
-#include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "transformations/snippets/common/pass/enforce_precision.hpp"
 #include "two_binary_ops.hpp"
 
 namespace ov {

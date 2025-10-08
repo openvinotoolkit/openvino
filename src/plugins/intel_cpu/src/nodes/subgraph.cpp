@@ -46,7 +46,9 @@
 
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
+#    include "snippets/op/brgemm.hpp"
 #    include "snippets/pass/matmul_to_brgemm.hpp"
+#    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #elif defined(OPENVINO_ARCH_ARM64)
 #    include <cpu/aarch64/cpu_isa_traits.hpp>
 
@@ -74,9 +76,9 @@
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_loops.hpp"
+#    include "transformations/snippets/common/pass/enforce_precision.hpp"
 #    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
-#    include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
@@ -551,7 +553,19 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                ov::snippets::pass::MatMulToBrgemm,
                                                pass::EnforcePrecision,
                                                element::f32,
-                                               context->getConfig().inferencePrecision);
+                                               context->getConfig().inferencePrecision,
+                                               [](const std::shared_ptr<ov::Node>& op) {
+                                                   std::set<std::vector<ov::element::Type>> types;
+                                                   if (ov::is_type<ov::snippets::op::Brgemm>(op)) {
+                                                       if (ov::intel_cpu::brgemm_utils::is_fp16_supported()) {
+                                                           types.insert({ov::element::f16, ov::element::f16});
+                                                       }
+                                                       if (ov::intel_cpu::brgemm_utils::is_bf16_supported()) {
+                                                           types.insert({ov::element::bf16, ov::element::bf16});
+                                                       }
+                                                   }
+                                                   return types;
+                                               });
     }
 
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
