@@ -4,19 +4,14 @@
 
 #include "transformations/common_optimizations/fuse_moe_experts.hpp"
 
-#include <chrono>
 #include <cstdint>
 #include <iostream>
 #include <limits>
-#include <tuple>
 #include <unordered_map>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/rank.hpp"
-#include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -28,34 +23,26 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/one_hot.hpp"
-#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
-#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/gen_pattern.hpp"
-#include "transformations/utils/print_model.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {

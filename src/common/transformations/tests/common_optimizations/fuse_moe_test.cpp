@@ -6,20 +6,17 @@
 
 #include <memory>
 
-#include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/node_vector.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset12.hpp"
-#include "openvino/opsets/opset13.hpp"
 #include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/fuse_moe_experts.hpp"
+#include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/gen_pattern.hpp"
-#include "transformations/utils/print_model.hpp"
 
 using namespace testing;
 using namespace ov::gen_pattern;
