@@ -33,19 +33,19 @@
 namespace {
 const std::filesystem::path valid_xml_path(const std::filesystem::path& path) {
     OPENVINO_ASSERT(path.extension() == ".xml",
-                    "Path for xml file doesn't contains file name with 'xml' extension: \"",
-                    path,
-                    "\"");
-    return path;
+                    "Path for xml file doesn't contains file name with 'xml' extension: ",
+                    path);
+
+    return ov::util::check_path_safety(std::filesystem::absolute(path));
 }
 
 std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path, const std::filesystem::path& bin_path) {
     if (bin_path.empty()) {
         auto path = xml_path;
         path.replace_extension(".bin");
-        return path;
+        return ov::util::check_path_safety(std::filesystem::absolute(path));
     } else {
-        return bin_path;
+        return ov::util::check_path_safety(std::filesystem::absolute(bin_path));
     }
 }
 
@@ -113,11 +113,11 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         ov::util::create_directory_recursive(m_xmlPath.parent_path());
 
         std::ofstream bin_file(m_binPath, std::ios::binary);
-        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"", m_binPath, "\"");
+        OPENVINO_ASSERT(bin_file, "Can't open bin file: ", m_binPath);
 
         // create xml file
         std::ofstream xml_file(m_xmlPath);
-        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"", m_xmlPath, "\"");
+        OPENVINO_ASSERT(xml_file, "Can't open xml file: ", m_xmlPath);
 
         try {
             serialize_func(xml_file, bin_file, model, m_version);

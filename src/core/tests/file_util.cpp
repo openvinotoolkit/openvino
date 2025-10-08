@@ -111,6 +111,10 @@ TEST(file_util, sanitize_path) {
         string path = "C:\\workspace\\tensor.data";
         EXPECT_STREQ("workspace\\tensor.data", ov::util::sanitize_path(path).c_str());
     }
+    {
+        string path = "a/b/../tensor.data";
+        EXPECT_STREQ("a/b/../tensor.data", ov::util::sanitize_path(path).c_str());
+    }
 }
 
 using namespace testing;
