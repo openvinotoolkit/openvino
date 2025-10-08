@@ -3,7 +3,7 @@
 //
 
 #include "ocl_stream.hpp"
-#include "cl.h"
+#include <CL/cl.h>
 #include "intel_gpu/runtime/stream.hpp"
 #include "ocl_event.hpp"
 #include "ocl_user_event.hpp"
