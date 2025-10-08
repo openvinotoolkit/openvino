@@ -1113,13 +1113,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // FIXME: Maybe it makes sense to make those mutually exclusive
     // with the precise configuration sections as well
 
-    const ov::AnyMap dyn_attn_opts = {
-        {"NPUW_ONLINE_PIPELINE", "REP"},
-        {"NPUW_ONLINE_ISOLATE", "ATTN"},
-        {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
-        {"NPUW_UNFOLD_IREQS", "NO"},
-        {"NPUW_FALLBACK_EXEC", "NO"}
-    };
+    const ov::AnyMap dyn_attn_opts = {{"NPUW_ONLINE_PIPELINE", "REP"},
+                                      {"NPUW_ONLINE_ISOLATE", "ATTN"},
+                                      {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+                                      {"NPUW_UNFOLD_IREQS", "NO"},
+                                      {"NPUW_FALLBACK_EXEC", "NO"}};
     if (prefill_attn_dyn) {
         merge_config_with(prefill_config, dyn_attn_opts);
     }
@@ -1134,9 +1132,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // The reason here is that NPUW_DEVICES may come as a global setting,
     // impacting all the stages.
     if (prefill_attn_dyn || generate_attn_dyn) {
-        const ov::AnyMap no_runtime_fallback = {
-            {"NPUW_FALLBACK_EXEC", "NO"}
-        };
+        const ov::AnyMap no_runtime_fallback = {{"NPUW_FALLBACK_EXEC", "NO"}};
         merge_config_with(prefill_config, no_runtime_fallback);
         merge_config_with(generate_config, no_runtime_fallback);
     }
