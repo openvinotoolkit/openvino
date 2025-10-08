@@ -12,7 +12,6 @@ size_t DEFAULT_BLOCK_SIZE = 2;
 size_t DEFAULT_START_SIZE = 2;
 size_t DEFAULT_EVICTION_SIZE = 10;
 
-
 TEST(AdaptiveRKVE2ESmokeTest, CalculatesDiversityWithoutThrowing) {
     ov::reference::AdaptiveRKVDiversityCalculator<double> calculator(DEFAULT_START_SIZE,
                                                                      DEFAULT_EVICTION_SIZE,
@@ -24,7 +23,6 @@ TEST(AdaptiveRKVE2ESmokeTest, CalculatesDiversityWithoutThrowing) {
     EXPECT_NO_THROW(calculator.calculate_block_diversity(mock_data.data(), mock_shape));
 };
 
-
 struct FillDiagonalTestData {
     ov::Shape in_shape;
     std::vector<double> in_data;
@@ -33,10 +31,9 @@ struct FillDiagonalTestData {
 
 using AdaptiveRKVDiversityFillDiagonalTest = ::testing::TestWithParam<FillDiagonalTestData>;
 
-std::vector<FillDiagonalTestData> FILL_DIAGONAL_TEST_CASES = {
-    {
-        {2, 4, 4},
-        // clang-format off
+std::vector<FillDiagonalTestData> FILL_DIAGONAL_TEST_CASES = {{
+    {2, 4, 4},
+    // clang-format off
         {
              3.144,  8.512,  8.518, -8.386,
              7.889, -5.721,  5.507,  4.295,
@@ -48,9 +45,9 @@ std::vector<FillDiagonalTestData> FILL_DIAGONAL_TEST_CASES = {
              3.469,  7.633,  7.244, -6.844,
             -7.173,  4.450,  6.705, -7.035
         },
-        // clang-format on
+    // clang-format on
 
-        // clang-format off
+    // clang-format off
         {
              42.00,  8.512,  8.518, -8.386,
              7.889,  42.00,  5.507,  4.295,
@@ -62,21 +59,20 @@ std::vector<FillDiagonalTestData> FILL_DIAGONAL_TEST_CASES = {
              3.469,  7.633,  42.00, -6.844,
             -7.173,  4.450,  6.705,  42.00
         },
-        // clang-format on
-    }
-};
+    // clang-format on
+}};
 
 TEST_P(AdaptiveRKVDiversityFillDiagonalTest, FillsDiagonal) {
     auto test_struct = GetParam();
     ASSERT_EQ(test_struct.in_data.size(), ov::shape_size(test_struct.in_shape));
     ASSERT_EQ(test_struct.ref_out_data.size(), ov::shape_size(test_struct.in_shape));
 
-    ov::reference::AdaptiveRKVDiversityCalculator<double> calculator(DEFAULT_START_SIZE, DEFAULT_EVICTION_SIZE, DEFAULT_BLOCK_SIZE);
+    ov::reference::AdaptiveRKVDiversityCalculator<double> calculator(DEFAULT_START_SIZE,
+                                                                     DEFAULT_EVICTION_SIZE,
+                                                                     DEFAULT_BLOCK_SIZE);
 
     std::vector<double> test_out_data = test_struct.in_data;
-    calculator.fill_diagonal_(test_out_data.data(),
-                              test_struct.in_shape,
-                              42.0);
+    calculator.fill_diagonal_(test_out_data.data(), test_struct.in_shape, 42.0);
     EXPECT_EQ(test_out_data, test_struct.ref_out_data);
 }
 
@@ -152,7 +148,10 @@ TEST_P(AdaptiveRKVFillLowValuesWithZerosTest, FillsLowValuesWithZero) {
                                                                      DEFAULT_EVICTION_SIZE,
                                                                      DEFAULT_BLOCK_SIZE);
     std::vector<double> test_out_data = test_struct.in_data;
-    calculator.fill_low_values_with_zeros_(test_out_data.data(), test_struct.in_shape, test_struct.means.data(), test_struct.means_shape);
+    calculator.fill_low_values_with_zeros_(test_out_data.data(),
+                                           test_struct.in_shape,
+                                           test_struct.means.data(),
+                                           test_struct.means_shape);
 
     EXPECT_THAT(test_out_data, ::testing::Pointwise(::testing::DoubleNear(1e-8), test_struct.ref_out_data));
 }
@@ -160,7 +159,6 @@ TEST_P(AdaptiveRKVFillLowValuesWithZerosTest, FillsLowValuesWithZero) {
 INSTANTIATE_TEST_SUITE_P(VariousInputs,
                          AdaptiveRKVFillLowValuesWithZerosTest,
                          ::testing::ValuesIn(FILL_LOW_VALUES_WITH_ZEROS_TEST_CASES));
-
 
 struct BlockSumTestData {
     ov::Shape in_shape;
@@ -409,17 +407,14 @@ std::vector<E2EDiversityTestData> E2E_DIVERSITY_TEST_CASES = {
              -9.120, -7.228, -9.186,  3.202,
              -9.304, -0.401, -5.287,  6.834
         },
-    // clang-format on
+        // clang-format on
 
         /* start_size = */ 2,
         /* eviction_size = */ 6,
-        {
-            {-0.237145, -0.237145, -0.352696, -0.487902, -0.072365, -0.707192},
-            {-0.334657, -0.505941, 0, 0.036135, -0.634881,-0.490221},
-            {-0.380811, -0.398746801, -0.432080003, -0.693021748, 0, 0.067216441}
-        },
-    }
-};
+        {{-0.237145, -0.237145, -0.352696, -0.487902, -0.072365, -0.707192},
+         {-0.334657, -0.505941, 0, 0.036135, -0.634881, -0.490221},
+         {-0.380811, -0.398746801, -0.432080003, -0.693021748, 0, 0.067216441}},
+    }};
 
 TEST_P(AdaptiveRKVE2EDiversityTest, CalculatesDiversityCorrectly) {
     auto test_struct = GetParam();
@@ -434,10 +429,10 @@ TEST_P(AdaptiveRKVE2EDiversityTest, CalculatesDiversityCorrectly) {
     }
 
     for (size_t i = 0; i < test_diversity.size(); i++) {
-        EXPECT_THAT(test_diversity[i], ::testing::Pointwise(::testing::DoubleNear(1e-6), test_struct.ref_diversity_data[i]));
+        EXPECT_THAT(test_diversity[i],
+                    ::testing::Pointwise(::testing::DoubleNear(1e-6), test_struct.ref_diversity_data[i]));
     }
-
 };
 
 INSTANTIATE_TEST_SUITE_P(VariousInputs, AdaptiveRKVE2EDiversityTest, ::testing::ValuesIn(E2E_DIVERSITY_TEST_CASES));
-}
+}  // namespace adaptive_rkv_test
