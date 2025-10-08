@@ -9,8 +9,6 @@
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 
-// using namespace ov::test::behavior;
-
 namespace {
 const std::vector<ov::AnyMap> configs = {{}};
 
