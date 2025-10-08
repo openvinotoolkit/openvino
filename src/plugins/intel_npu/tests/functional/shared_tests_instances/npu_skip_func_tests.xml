@@ -807,4 +807,13 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E###### -->
+    <skip_config>
+        <message>Tests skipped to reduce overall log length</message>
+        <filters>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*AUTO.*LOG_LEVEL.*</filter>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*MULTI.*LOG_LEVEL.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
