@@ -46,6 +46,10 @@ inputs:
     description: "Enables running workflows for a given organization; triggers from other orgs are skipped"
     required: false
     default: "openvinotoolkit"
+  wait_for_code_style:
+    description: "Wait for code style check to complete before running Smart CI"
+    required: false
+    default: false
 
 outputs:
   all_components:
@@ -76,7 +80,8 @@ runs:
       if: ${{ github.event_name == 'pull_request' }}
       with:
         ref: ${{ github.event.pull_request.head.sha }}
-        check-names: "${{ inputs.labeler_check_name }}"
+        # check-names: "${{ inputs.labeler_check_name }}"
+        check-names: "${{ inputs.labeler_check_name }},${{ inputs.wait_for_code_style == 'true' && 'Code Style' || '' }}"
         repo-token: ${{ inputs.repo_token }}
         wait-interval: 10
         timeout: 300
