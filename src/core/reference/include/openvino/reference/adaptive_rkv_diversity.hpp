@@ -19,26 +19,18 @@
 namespace ov::reference {
 
 
-/** @brief Reference implementation of the XAttention sparse attention prefill mechanism
- * (https://arxiv.org/abs/2503.16428) */
+/** @brief Reference implementation of the Adaptive R-KV token diversity calculation mechanism
+ * (https://arxiv.org/pdf/2505.24133v3) */
 template <typename T>
 class AdaptiveRKVDiversityCalculator {
 public:
-    /** @param threshold Defines a threshold for introduced block sparsity - XAttention attempts to preserve the
-     * smallest subset of attention score matrix blocks so that the ratio of the attention score sum to the total sum of
-     * attention score matrix elements is no less than `threshold`. In other words, `threshold` defines a fraction of
-     * the attention score mass which is to be preserved by most "important" blocks. Valid range is 0.0-1.0, with 0.0
-     * corresponding to 0% of the blocks retained, and 1.0 corresponding to 100% of the blocks retained.
-     * @param block_size The size of blocks into which the attention score matrix [num_heads, query_token_dimension,
-     * key_token_dimension] will be subdivided for purposes of determining the subset of the most important blocks
-     * according to `threshold`. This subdivision occurs on query and key dimensions of the attention score matrix with
-     * the same granularity, i.e. the resulting blocks have equal size on both dimensions. Essentially `block_size`
-     * defines the granularity of the eventual sparse attention computations. Must be a multiple of `stride`.
-     * @param stride The stride at which the full attention matrix is subsampled in a block-antidiagonal fashion to
-     * estimate the block importance. Note that the full attention matrix is not computed, instead the original query
-     * and key matrices are reshaped appropriately so that only the necessary elements are computed. Ideally, the
-     * computational complexity of the entire block estimation operation is `stride` times lower than the full attention
-     * matrix computation.
+    /** @param start_size Size, in tokens, of the key cache area that will be ignored for purposes of diversity
+     * calculation, starting from the beginning of the token dimension ("start area"). Must be a multiple of `block_size`.
+     * @param eviction_size Size, in tokens, from the beginning of the start area, the tokens in which will be
+     * considred for purposes of diversity calculation ("eviction area"). The rest of the tokens after the eviction area,
+     * if any, are ignored. Must be a multiple of `block_size`.
+     * @param block_size Block size of the underlying paged attention implementation. The diversity values will be sum-reduced
+     * from per-token values to per-block values based on this number of tokens in a block.
      * */
     AdaptiveRKVDiversityCalculator(size_t start_size, size_t eviction_size, size_t block_size)
         : m_start_size(start_size),
@@ -48,17 +40,11 @@ public:
         OPENVINO_ASSERT(eviction_size % block_size == 0);
     }
 
-    /** Divides the input rank-3 tensor into blocks along last two dimensions, performs the addition of the values
-     * inside each block and outputs each block sum into corresponding positions in the output tensor downsampled along
-     * the same dimensions. The output tensor dimensions are such that the query and key token dimensions are
-     * downsampled by `block_size` when compared to the *original* query and key tensors.
-     * @param attention_scores_data Pointer to the attention score input.
-     * @param attention_score_shape Shape of the attention score input tensor. Expected shape is [num_heads,
-     * num_query_tokens / stride, num_key_tokens / stride], where `num_query_tokens` and `num_key_tokens` must be
-     * multiples of `block_size`.
-     * @param out Pointer to the output tensor data (block sums)
-     * @param out_shape Shape of the output tensor data. Expected shape is [num_heads, num_query_tokens / block_size,
-     * num_key_tokens / block_size].
+    /** Fills the diagonal of each square matrix slice (at ranks 1 and 2, zero-based) of the input rank-3 tensor with
+     * a provided value. The operation is done in-place.
+     * @param in_out Pointer to the matrix data.
+     * @param in_out_shape Shape of the matrix data. Expected shape is [num_heads, token_dim, token_dim].
+     * @param val Value to fill in the diagonal positions.
      */
     void fill_diagonal_(T* in_out,
                         const Shape& in_out_shape,
@@ -77,6 +63,12 @@ public:
         }
     }
 
+    /** For a rank-3 tensor, zeroes out the values that are less than the mean of the values of the corresponding slice at rank 2 (zero-based). Ranks 1 and 2 of the input tensor must be equal. Mean values are computed and provided externally. The operation is done in-place.
+     * @param in_out Pointer to the tensor data.
+     * @param in_out_shape Shape of the tensor data. Expected shape is [num_heads, token_dim, token_dim].
+     * @param means Pointer to the tensor data containing the means of each slice of the `in_out` tensor along its rank 2 (zero-based).
+     * @param means_shape Shape of the means tensor. Expected shape is [num_heads, token_dim].
+     */
     void fill_low_values_with_zeros_(T* in_out,
                                      const Shape& in_out_shape,
                                      const T* means,
@@ -102,17 +94,23 @@ public:
         }
     }
 
-    void block_sum_diversity_values(const T* processed_similarity_token_data,
-                                    const Shape& processed_similarity_token_data_shape,
+    /** For a square matrix, sums each `block_size`-sized group of matrix rows to produce a row in the output matrix.
+     * @param in_data Pointer to the matrix data.
+     * @param in_shape Shape of the matrix data. Expected shape is [token_dim, token_dim], where token_dim must be a multiple of `block_size`.
+     * @param out Pointer to the output matrix data.
+     * @param out_shape Shape of the output matrix. Expected shape is [token_dim / block_size, token_dim].
+     */
+    void block_sum_diversity_values(const T* in_data,
+                                    const Shape& in_shape,
                                     T* out,
                                     const Shape& out_shape) {
-        OPENVINO_ASSERT(processed_similarity_token_data_shape.size() == 2);  // [token_dim, token_dim]
-        OPENVINO_ASSERT(processed_similarity_token_data_shape[0] == processed_similarity_token_data_shape[1]);
-        OPENVINO_ASSERT(processed_similarity_token_data_shape[0] % m_block_size == 0);
+        OPENVINO_ASSERT(in_shape.size() == 2);  // [token_dim, token_dim]
+        OPENVINO_ASSERT(in_shape[0] == in_shape[1]);
+        OPENVINO_ASSERT(in_shape[0] % m_block_size == 0);
 
         OPENVINO_ASSERT(out_shape.size() == 2);  // [block_dim, token_dim]
-        OPENVINO_ASSERT(out_shape[0] == processed_similarity_token_data_shape[0] / m_block_size);
-        OPENVINO_ASSERT(out_shape[1] == processed_similarity_token_data_shape[1]);
+        OPENVINO_ASSERT(out_shape[0] == in_shape[0] / m_block_size);
+        OPENVINO_ASSERT(out_shape[1] == in_shape[1]);
 
         std::memset(out, 0, out_shape[0] * out_shape[1] * sizeof(T));
 
@@ -121,28 +119,29 @@ public:
             for (size_t out_token_dim_idx = 0; out_token_dim_idx < out_shape[1]; out_token_dim_idx++) {
                size_t in_block_offset = (out_block_dim_idx * m_block_size) * out_shape[1];
                for (size_t in_token_in_block_idx = 0; in_token_in_block_idx < m_block_size; in_token_in_block_idx++) {
-                  size_t source_offset = in_block_offset + in_token_in_block_idx * processed_similarity_token_data_shape[1] + out_token_dim_idx;
-                  out[out_block_offset + out_token_dim_idx] -= processed_similarity_token_data[source_offset];
+                  size_t source_offset = in_block_offset + in_token_in_block_idx * in_shape[1] + out_token_dim_idx;
+                  out[out_block_offset + out_token_dim_idx] -= in_data[source_offset];
                }
             }
         }
     }
 
-    /** Applies XAttention to the provided query and key matrices, returning the subset of the most important blocks for
-     * each attention head, according to the configured block size and threshold, which are to be preserved in the
-     * subsequent sparse attention computation.
-     * @param query_data Pointer to the query input tensor data
-     * @param query_shape Shape of the query input tensor data. Expected shape is [num_heads, num_query_tokens,
-     * head_size], where `num_query_tokens` must be a multiple of both `block_size` and `stride`, padded with zeroes if
-     * necessary to do so in the real-world scenario.
-     * @param key_data Pointer to the key input tensor data
+    /** Calculates token diversity in the eviction area, partially aggregating the results per-block. The resulting
+     * diversity values have the shape of [num_eviction_blocks (== eviction_size / block_size), eviction_size]. Note
+     * that the 1-st rank is left unaggregated when compared to the full diversity calculation algorithm. The reason
+     * for this is as follows. The final per-block diversity value computation relies on knowing the subset of blocks
+     * in the eviction area that will be retained regardless of calculated diversity. This subset must be filtered out
+     * from the rank-1 dimension when performing reduce-mean in the original algorithm to get 1 diversity value per block
+     * in the eviction area. Due to implementation specifics the paged attention kernel does not know ahead of time which
+     * blocks will be "retained" - this information is only available on the openvino.genai level after the PA kernel has executed.
+     * Therefore the PA kernel will provide raw per-token values on the rank 1 of the returned diversity value matrix and delegatei
+     * the final reduce-mean and filtering to the openvino.genai level.
+     * @param key_data Pointer to the key cache tensor data
      * @param key_shape Shape of the key input tensor data. Expected shape is [num_heads, num_key_tokens, head_size],
-     * where `num_key_tokens` must be a multiple of both `block_size` and `stride`, padded with zeroes if necessary to
-     * do so in the real-world scenario.
-     * @return A vector of size `num_heads` of sets, each set containing pairs of block indices (.first is the block
-     * index along the query dimension, .second - along the key). Each set is the head-specific subset of blocks that
-     * must be preserved in the sparse attention computation. Indices are given in units of XAttention-specific
-     * `block_size` (as configured), which may differ from the block size in the paged attention implementation.
+     * where `num_key_tokens` must be no less than `start_size + eviction_size`.
+     * @return A rank-2 matrix in the std::vector representation with dimensions [eviction_size / block_size, eviction_size] containing
+     * the diversity values. The values are expected to be further mean-reduced along rank 1 (zero-based) at the point in time when the
+     * subset of blocks to be exclusively retained is known.
      */
     std::vector<std::vector<T>> calculate_block_diversity(const T* key_data,
                                                   const Shape& key_shape) {
