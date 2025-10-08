@@ -8,6 +8,7 @@
 
 #include "memory_desc/cpu_memory_desc.h"
 #include "mvn_config.hpp"
+#include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
