@@ -6,6 +6,7 @@
 
 #include "snippets/lowered/linear_ir_builder.hpp"
 #include "snippets/lowered/pass/split_loops.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 
 using namespace ov::snippets::lowered::pass;
@@ -50,6 +51,13 @@ void LoweredPassTestsF::assign_loop_ids(const std::map<ExpressionPtr, std::vecto
             reordered_loop_ids.push_back(loop_ids_mapper.at(original_id));
         }
         expr->set_loop_ids(reordered_loop_ids);
+    }
+    for (const auto& expr : *linear_ir_ref) {
+        if (auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(expr->get_node())) {
+            const auto original_id = loop_end->get_id();
+            const auto reordered_id = loop_ids_mapper.at(original_id);
+            loop_end->set_id(reordered_id);
+        }
     }
 }
 
