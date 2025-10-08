@@ -4,7 +4,6 @@
 
 #include "vcl_serializer.hpp"
 
-#include <chrono>
 #include <cstdint>
 #include <istream>
 #include <mutex>
@@ -427,11 +426,7 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
     if (!useBaseModelSerializer) {
         // non-constness required for adding & removing weights pointer attributes
         const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         storeWeightsPointerAttribute(nonConstantModel, weightsSizeThreshold);
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-        std::cout << "Time to store attributes: "
-                  << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
 
         SerializedIR serializedIR =
             VCLSerializerWithoutWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
