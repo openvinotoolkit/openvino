@@ -9,6 +9,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "mvn_config.hpp"
+// NOLINTNEXTLINE(misc-include-cleaner): required for VERIFY/MEMORY_FORMAT_MISMATCH/UNSUPPORTED_BY_EXECUTOR macros
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
