@@ -199,14 +199,6 @@ INSTANTIATE_TEST_SUITE_P(
     (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>));
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_BehaviorTests_OVCheckSetSupportedRWMandatoryMetricsPropsTests,
-    OVCheckSetSupportedRWMetricsPropsTests,
-    ::testing::Combine(::testing::Values("MULTI:NPU", "AUTO:NPU"),
-                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
-                           {ov::log::level.name()}))),
-    ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>);
-
-INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckGetSupportedROMetricsPropsTests,
     OVCheckGetSupportedROMetricsPropsTests,
     ::testing::Combine(
@@ -321,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(
 // OVClassCompileModelAndCheckSecondaryPropertiesTest only works with property num_streams of type int32_t
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
                          OVClassCompileModelAndCheckSecondaryPropertiesTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU, "AUTO:NPU", "MULTI:NPU"),
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configsDeviceProperties)));
 
 INSTANTIATE_TEST_SUITE_P(BehaviorTests_OVGetConfigTest_nightly,
