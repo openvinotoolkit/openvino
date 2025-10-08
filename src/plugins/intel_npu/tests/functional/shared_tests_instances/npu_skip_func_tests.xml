@@ -196,9 +196,29 @@ Example:
     <skip_config>
         <message>Tests with unsupported precision</message>
         <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=f64.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*device=MULTI.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*device=AUTO.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*device=MULTI.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*device=AUTO.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E###### -->
+    <skip_config>
+        <message>Data types not supported by NPU3720 PV Driver.</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=bf16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i64.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u64.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f64.*</filter>
         </filters>
     </skip_config>
 
@@ -582,9 +602,6 @@ Example:
             <device>3720</device>
         </enable_rules>
         <filters>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=i16.*</filter>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u16.*</filter>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u64.*</filter>
             <filter>.*smoke_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.*</filter>
         </filters>
     </skip_config>
@@ -782,12 +799,27 @@ Example:
 
     <!-- E#170977 -->
     <skip_config>
-        <message>Skip tests with u2 precision not supported on NPU3720.</message>
+        <message>Data type u1/u2 not supported by NPU3720.</message>
         <enable_rules>
             <device>3720</device>
         </enable_rules>
         <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E###### -->
+    <skip_config>
+        <message>Data type u1 not supported by NPU4000.</message>
+        <enable_rules>
+            <device>4000</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
         </filters>
     </skip_config>
 
