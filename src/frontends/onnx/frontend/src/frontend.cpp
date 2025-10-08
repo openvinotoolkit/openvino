@@ -20,8 +20,10 @@
 #include <fstream>
 #include <sstream>
 
+#include "core/graph_iterator_proto.hpp"
 #include "input_model.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
+#include "onnx_framework_node.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -30,8 +32,11 @@
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "ops_bridge.hpp"
 #include "transformations/resolve_names_collisions.hpp"
+#include "translate_session.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
 
@@ -41,6 +46,7 @@ using namespace ov::frontend::onnx::common;
 using ::ONNX_NAMESPACE::ModelProto;
 using ::ONNX_NAMESPACE::Version;
 
+bool ONNX_ITERATOR = std::getenv("ONNX_ITERATOR") != nullptr;
 namespace {
 // !!! Experimental feature, it may be changed or removed in the future !!!
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
@@ -77,7 +83,7 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
     return res;
 }
 
-InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     if (variants.empty()) {
         return nullptr;
     }
@@ -86,12 +92,28 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
-        return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
+        if (!ONNX_ITERATOR) {
+            return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
+        }
+        std::cout << "[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!\n";
+        GraphIteratorProto::Ptr graph_iterator =
+            std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
+        graph_iterator->initialize(path);
+        graph_iterator->reset();
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
-        return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
+        if (!ONNX_ITERATOR) {
+            return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
+        }
+        std::cout << "[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!\n";
+        GraphIteratorProto::Ptr graph_iterator =
+            std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
+        graph_iterator->initialize(path);
+        graph_iterator->reset();
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap);
     }
 #endif
     if (variants[0].is<std::istream*>()) {
@@ -119,10 +141,21 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         return std::make_shared<InputModel>(std::make_shared<ModelProto>(*model_proto_ptr), m_extensions);
     }
     // !!! End of Experimental feature
+    if (variants[0].is<GraphIterator::Ptr>()) {
+        auto graph_iterator = variants[0].as<GraphIterator::Ptr>();
+        return std::make_shared<unify::InputModel>(
+            graph_iterator,
+            enable_mmap);  // enable_mmap is a hint for a fallback in case external GraphIterator cannot work with
+                           // external data
+    }
     return nullptr;
 }
 
-std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& input_model) const {
+std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& input_model) const {
+    auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(input_model);
+    if (unify_model != nullptr) {
+        return convert_partially_unify(unify_model);
+    }
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
 
@@ -159,6 +192,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model) const {
+    auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(input_model);
+    if (unify_model != nullptr) {
+        return convert_unify(unify_model);
+    }
+
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
 
@@ -193,7 +231,11 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partially_converted) co
     normalize(partially_converted);
 }
 
-std::shared_ptr<ov::Model> FrontEnd::decode(const InputModel::Ptr& model) const {
+std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr& model) const {
+    auto unify_model = std::dynamic_pointer_cast<unify::InputModel>(model);
+    if (unify_model != nullptr) {
+        return decode_unify(unify_model);
+    }
     auto model_onnx = std::dynamic_pointer_cast<InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
     return model_onnx->decode();
@@ -270,7 +312,78 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         return true;
     }
     // !!! End of Experimental feature
+    if (variants[0].is<GraphIterator::Ptr>()) {
+        return true;
+    }
     return false;
+}
+
+std::shared_ptr<ov::Model> FrontEnd::convert_unify(const InputModel::Ptr& input_model) const {
+    std::shared_ptr<ov::Model> ov_model;
+    if (!m_transformation_extensions.empty()) {
+        auto ov_model = decode(input_model);
+
+        ov::pass::Manager manager("Frontend:TFLite:convert");
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(ov_model);
+        convert(ov_model);
+        return ov_model;
+    }
+
+    translate_graph(input_model, false, false, ov_model);
+
+    std::stringstream error_messages;
+    if (ov::frontend::onnx::common::collect_translation_exceptions(ov_model, m_extensions.telemetry, &error_messages)) {
+        FRONT_END_THROW(error_messages.str());
+    }
+
+    normalize(ov_model);
+    return ov_model;
+}
+
+std::shared_ptr<ov::Model> FrontEnd::convert_partially_unify(const InputModel::Ptr& input_model) const {
+    if (!m_transformation_extensions.empty()) {
+        auto function = decode_unify(input_model);
+        ov::pass::Manager manager("Frontend:ONNX:convert_partially");
+        for (const auto& transformation : m_transformation_extensions) {
+            transformation->register_pass(manager);
+        }
+        manager.run_passes(function);
+        convert(function);
+        return function;
+    }
+
+    std::shared_ptr<ov::Model> ov_model;
+    translate_graph(input_model, false, false, ov_model);
+
+    ov::frontend::onnx::common::collect_translation_exceptions(ov_model, m_extensions.telemetry);
+
+    normalize(ov_model);
+    return ov_model;
+}
+void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
+                               bool fail_fast,
+                               bool /* no_conversion */,
+                               std::shared_ptr<ov::Model>& ov_model) const {
+    auto model_onnx = std::dynamic_pointer_cast<unify::InputModel>(input_model);
+    FRONT_END_GENERAL_CHECK(model_onnx != nullptr, "Invalid input model");
+    auto translators_map = std::make_shared<OperatorsBridge>();
+    TranslateSession translate_session(input_model, translators_map, "MainGraph");
+    translate_session.set_fail_fast(fail_fast);
+    try {
+        ov_model = translate_session.get_converted_model();
+    } catch (const std::exception& e) {
+        throw e;
+    }
+    return;
+}
+
+std::shared_ptr<ov::Model> FrontEnd::decode_unify(const InputModel::Ptr& model) const {
+    std::shared_ptr<ov::Model> ov_model;
+    translate_graph(model, false, true, ov_model);
+    return ov_model;
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {

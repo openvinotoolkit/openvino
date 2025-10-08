@@ -11,6 +11,8 @@
 #include "core/sparse_tensor.hpp"
 #include "core/tensor.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/onnx/decoder.hpp"
+
 using namespace ov::op;
 using ov::Shape;
 
@@ -115,7 +117,8 @@ ONNX_OP("Constant", OPSET_RANGE(1, 12), ai_onnx::opset_1::constant);
 }  // namespace opset_1
 
 namespace opset_13 {
-ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
+namespace detail {
+ov::OutputVector constant_legacy(const ov::frontend::onnx::Node& node) {
     auto attributes_names = node.get_attribute_names();
     FRONT_END_GENERAL_CHECK(attributes_names.size() == 1,
                             "The Constant op expects exactly one attribute."
@@ -180,9 +183,80 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
         }
         return {get_dense_tensor_as_constant(absolute_indices, values_tensor, shape)};
     }
-    auto tensor = node.get_attribute_value<Tensor>(attributes_names[0]);
+    auto tensor = node.get_attribute_value<Tensor>("value");
     return {tensor.get_ov_constant()};
 }
+
+ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
+    if (node.has_attribute("value_float")) {
+        return {v0::Constant::create(ov::element::f32, ov::Shape{}, {node.get_attribute_value<float>("value_float")})};
+    } else if (node.has_attribute("value_floats")) {
+        auto values = node.get_attribute_value<std::vector<float>>("value_floats");
+        return {v0::Constant::create(ov::element::f32, ov::Shape{values.size()}, values)};
+    } else if (node.has_attribute("value_int")) {
+        return {v0::Constant::create(ov::element::i64, ov::Shape{}, {node.get_attribute_value<int64_t>("value_int")})};
+    } else if (node.has_attribute("value_ints")) {
+        auto values = node.get_attribute_value<std::vector<int64_t>>("value_ints");
+        return {v0::Constant::create(ov::element::i64, ov::Shape{values.size()}, values)};
+    } else if (node.has_attribute("sparse_value")) {
+        auto sparse_tensor = node.get_attribute_value<SparseTensor>("sparse_value");
+        const Tensor& values_tensor = sparse_tensor.get_values();
+        const Tensor& indices_tensor = sparse_tensor.get_indices();
+        const ov::Shape& shape = sparse_tensor.get_shape();
+        auto rank = shape.size();
+        // NNZ - the number of non-zero values in the sparse-tensor
+        auto nnz = values_tensor.get_shape().at(0);
+        std::vector<int64_t> absolute_indices{};
+
+        // Check if indices tensor with rank 2 has correct shape [NNZ, rank].
+        // [i,j]-th value corresponds to the j-th index of the i-th value (in the
+        // values tensor)
+        if (indices_tensor.get_shape().size() == 2) {
+            FRONT_END_GENERAL_CHECK(indices_tensor.get_shape().at(0) == nnz,
+                                    "The number of values and indices is not equal."
+                                    " Indices number: ",
+                                    indices_tensor.get_shape().at(0),
+                                    " Values number: ",
+                                    nnz);
+
+            FRONT_END_GENERAL_CHECK(indices_tensor.get_shape().at(1) == rank,
+                                    "The indices are incorrect. The second dimension of "
+                                    "indices is not equal to the rank of output."
+                                    " Second dimension of indices: ",
+                                    indices_tensor.get_shape().at(0),
+                                    " Rank of output: ",
+                                    rank);
+
+            absolute_indices = get_absolute_indices(indices_tensor, shape, nnz);
+        }
+        // Check if indices tensor with rank 1 has correct shape [NNZ].
+        // i-th value is the linearized-index of the i-th value (in the values
+        // tensor)
+        else {
+            FRONT_END_GENERAL_CHECK(indices_tensor.get_shape().at(0) == nnz,
+                                    "The number of values and indices is not equal."
+                                    " Indices number: ",
+                                    indices_tensor.get_shape().at(0),
+                                    " Values number: ",
+                                    nnz);
+
+            absolute_indices = indices_tensor.get_data<int64_t>();
+        }
+        return {get_dense_tensor_as_constant(absolute_indices, values_tensor, shape)};
+    }
+    FRONT_END_GENERAL_CHECK(node.has_attribute("value"), "Constant doesn't have a required attribute \"value\"");
+    auto tensor = node.get_attribute_value<Tensor>("value");
+    return {tensor.get_ov_constant()};
+}
+}  // namespace detail
+ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
+    if (!node.has_decoder()) {
+        return detail::constant_legacy(node);
+    } else {
+        return detail::constant(node);
+    }
+}
+
 ONNX_OP("Constant", OPSET_SINCE(13), ai_onnx::opset_13::constant);
 }  // namespace opset_13
 }  // namespace ai_onnx
