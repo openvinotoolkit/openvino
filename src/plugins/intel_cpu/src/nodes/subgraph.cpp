@@ -99,11 +99,7 @@
 #    include "transformations/tpp/common/pass/brgemm_to_brgemm_tpp.hpp"
 #    include "transformations/tpp/common/pass/lowered/brgemm_tpp_blocking.hpp"
 #    include "transformations/tpp/common/pass/lowered/set_tpp_leading_dim.hpp"
-#    if defined(OPENVINO_ARCH_X86_64)
-#        include "transformations/tpp/x64/pass/eltwise_to_eltwise_tpp.hpp"
-#        include "transformations/tpp/x64/pass/fuse_tpp_to_equations.hpp"
-#        include "transformations/tpp/x64/pass/scalar_to_scalar_tpp.hpp"
-#    elif defined(OPENVINO_ARCH_ARM64)
+#    if defined(OPENVINO_ARCH_ARM64)
 #        include "snippets/lowered/pass/insert_loops.hpp"
 #    endif
 #endif
@@ -602,14 +598,6 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                            ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
-    // Note: There could be several ConvertConstantsToScalars instances in the pipeline
-    SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::tpp::pass::ScalarToScalarTPP);
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                           ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP,
-                                           ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                           ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP,
-                                           ov::intel_cpu::tpp::pass::FuseTPPToEquations);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
                                           ov::intel_cpu::pass::BrgemmToGemmCPU,
                                           ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
