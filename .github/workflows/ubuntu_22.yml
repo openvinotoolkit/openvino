@@ -54,6 +54,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+          wait_for_code_style: true
 
       - name: Show affected components
         run: |
