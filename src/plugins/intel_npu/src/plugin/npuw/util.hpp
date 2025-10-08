@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <random>
 #include <string>
 
 #include "llm_compiled_model_utils.hpp"
@@ -170,6 +171,8 @@ struct Unique {
         return std::string(CountedType::name) + "_" + std::to_string(counter++);
     }
 };
+
+std::string generate_random_string(std::size_t size = 32);
 
 using TensorPtr = ov::SoPtr<ov::ITensor>;
 TensorPtr allocMem(const ov::element::Type type,
