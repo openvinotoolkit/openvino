@@ -125,6 +125,56 @@ float BrgemmKernelExecutorHelper::get_beta(const LoopManagerPtr& loop_manager,
     return 0;
 }
 
+bool BrgemmKernelExecutorHelper::is_out_buffer_inside_n_loop(const std::vector<LoopPort>& n_loop_out_ports,
+                                                             const ExpressionPort& cur_brgemm_out_port,
+                                                             const LoopManagerPtr& loop_manager,
+                                                             const std::optional<size_t>& inner_loop_idx) {
+    auto is_port_inside_n_loop = [&n_loop_out_ports](const ExpressionPort& port) {
+        auto found_n_loop_port =
+            std::find_if(n_loop_out_ports.cbegin(), n_loop_out_ports.cend(), [&port](const LoopPort& lp) {
+                return *lp.get_expr_port() == port;
+            });
+        return found_n_loop_port == n_loop_out_ports.cend();
+    };
+    if (!inner_loop_idx) {
+        return is_port_inside_n_loop(cur_brgemm_out_port);
+    }
+
+    // Note: if there is inner blocking loop, only brgemm from last inner loop iteration is connected
+    // to the output of N blocking loop. So we need to find the last inner loop info
+    const auto& cur_inner_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(*inner_loop_idx);
+    const auto last_inner_loop_info = [&]() {
+        auto last_iter_info = cur_inner_loop_info;
+        size_t next_loop_id = *inner_loop_idx + 1;
+        const auto& loops_map = loop_manager->get_map();
+        const auto unified_loop_info = cur_inner_loop_info->get_unified_loop_info();
+
+        while (loops_map.count(next_loop_id)) {
+            auto next_info = loop_manager->get_loop_info<ExpandedLoopInfo>(next_loop_id);
+            if (next_info->get_unified_loop_info() != unified_loop_info) {
+                return last_iter_info;
+            }
+            last_iter_info = next_info;
+            ++next_loop_id;
+        }
+        return last_iter_info;
+    }();
+
+    // Since all ExpandedLoopInfo represent the same loop, their output loop ports order is the same,
+    // so we can compute distance_till_needed_port for cur_inner_loop_info to use it for last_inner_loop_info ports
+    const auto& cur_inner_loop_out_ports = cur_inner_loop_info->get_output_ports();
+    const auto found_inner_loop_port_it = std::find_if(cur_inner_loop_out_ports.cbegin(),
+                                                       cur_inner_loop_out_ports.cend(),
+                                                       [&cur_brgemm_out_port](const LoopPort& lp) {
+                                                           return *lp.get_expr_port() == cur_brgemm_out_port;
+                                                       });
+
+    const auto& last_inner_loop_out_ports = last_inner_loop_info->get_output_ports();
+    const auto it_increment = std::distance(cur_inner_loop_out_ports.cbegin(), found_inner_loop_port_it);
+    const auto& last_brgemm_out_port = std::next(last_inner_loop_out_ports.cbegin(), it_increment)->get_expr_port();
+    return is_port_inside_n_loop(*last_brgemm_out_port);
+}
+
 std::tuple<int64_t, int64_t, int64_t, float, int64_t> BrgemmKernelExecutorHelper::get_runtime_brgemm_params(
     const ExpressionPtr& expr,
     const LinearIRCPtr& linear_ir) {
@@ -212,49 +262,9 @@ std::tuple<int64_t, int64_t, int64_t, float, int64_t> BrgemmKernelExecutorHelper
         output_pds[0]->set_subtensor_dim(0, N);
 
         const auto cur_out_port = expr->get_output_port(0);
-        auto it = [&, k_loop_idx]() {
-            // Note: if there are K blocking loop, only brgemm in last K loop iteration is connected
-            // to the output of N blocking loop. So we need to find the last K
-            if (k_loop_idx) {
-                const auto& k_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(*k_loop_idx);
-                const auto& k_loop_out_ports = k_loop_info->get_output_ports();
-                const auto distance_till_needed_port =
-                    std::distance(k_loop_out_ports.cbegin(),
-                                  std::find_if(k_loop_out_ports.cbegin(),
-                                               k_loop_out_ports.cend(),
-                                               [&cur_out_port](const LoopPort& lp) {
-                                                   return *lp.get_expr_port() == cur_out_port;
-                                               }));
-
-                const auto k_unified_loop_info = k_loop_info->get_unified_loop_info();
-                const auto& loops_map = loop_manager->get_map();
-
-                auto last_k_loop_iter_info = k_loop_info;
-                size_t next_loop_id = *k_loop_idx + 1;
-                while (loops_map.count(next_loop_id)) {
-                    auto next_info = loop_manager->get_loop_info<ExpandedLoopInfo>(next_loop_id);
-                    if (next_info->get_unified_loop_info() != k_unified_loop_info) {
-                        break;
-                    }
-                    last_k_loop_iter_info = next_info;
-                    ++next_loop_id;
-                }
-
-                const auto& last_k_iter_output_ports = last_k_loop_iter_info->get_output_ports();
-                // Since all ExpandedLoopInfo represent the same loop, their output loop ports order is the same
-                const auto& target_port =
-                    std::next(last_k_iter_output_ports.cbegin(), distance_till_needed_port)->get_expr_port();
-                return std::find_if(out_ports.cbegin(), out_ports.cend(), [&target_port](const LoopPort& lp) {
-                    return *lp.get_expr_port() == *target_port;
-                });
-            }
-            return std::find_if(out_ports.cbegin(), out_ports.cend(), [&cur_out_port](const LoopPort& lp) {
-                return *lp.get_expr_port() == cur_out_port;
-            });
-        }();
-        // Note: this means that brgemm output buffer is inside N blocking loop
-        // Output leading dimension equal to block size in this case
-        if (it == out_ports.cend()) {
+        // Note: if brgemm output buffer is inside N blocking loop,
+        // output leading dimension must be equal to block size
+        if (is_out_buffer_inside_n_loop(out_ports, cur_out_port, loop_manager, k_loop_idx)) {
             LDC = N;
         }
     }
