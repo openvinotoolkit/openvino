@@ -6,15 +6,20 @@
 
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <any>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
+#include <vector>
 
 #include "common/primitive_attr.hpp"
 #include "cpu_memory.h"
 #include "cpu_shape.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "dnnl_postops_composer.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
@@ -23,6 +28,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mvn_config.hpp"
 #include "nodes/kernels/x64/mlp_utils.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 
@@ -47,7 +53,7 @@ size_t hash_vector(const std::vector<float>& data) {
 }
 
 size_t hash_fake_quantize_post_op(const FakeQuantizePostOp& fq) {
-    size_t seed = static_cast<size_t>(fq.type());
+    auto seed = static_cast<size_t>(fq.type());
     seed = hash_combine(seed, fq.levels());
     seed = hash_combine(seed, fq.isInputLowBroadcast());
     seed = hash_combine(seed, fq.isOutputHighBroadcast());
@@ -61,14 +67,14 @@ size_t hash_fake_quantize_post_op(const FakeQuantizePostOp& fq) {
 }
 
 size_t hash_scale_shift_post_op(const ScaleShiftPostOp& ss) {
-    size_t seed = static_cast<size_t>(ss.type());
+    auto seed = static_cast<size_t>(ss.type());
     seed = hash_combine(seed, hash_vector(ss.scales()));
     seed = hash_combine(seed, hash_vector(ss.shifts()));
     return seed;
 }
 
 size_t hash_activation_post_op(const ActivationPostOp& act) {
-    size_t seed = static_cast<size_t>(act.type());
+    auto seed = static_cast<size_t>(act.type());
     seed = hash_combine(seed, act.alpha());
     seed = hash_combine(seed, act.beta());
     seed = hash_combine(seed, act.gamma());
@@ -341,16 +347,17 @@ void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool /*initWeights*/
                 OPENVINO_ASSERT(postOpMemory, "Quantization post-op memory is not set");
                 postOpsMemory.push_back(postOpMemory);
                 auto* base = postOpMemory->getDataAs<float>();
-                for (size_t offsetIdx = 0; offsetIdx < dnnl_post_ops::entry_t::quantization_t::fields_count;
-                     ++offsetIdx) {
-                    postOpsPtrArray.push_back(static_cast<void*>(base + entry.quantization.offset[offsetIdx]));
+                for (auto off : entry.quantization.offset) {
+                    postOpsPtrArray.push_back(static_cast<void*>(base + off));
                 }
             } else if (entry.is_depthwise()) {
                 OPENVINO_ASSERT(postOpMemory, "Depthwise post-op memory is not set");
                 postOpsMemory.push_back(postOpMemory);
                 auto* base = postOpMemory->getDataAs<float>();
-                postOpsPtrArray.push_back(static_cast<void*>(base + entry.depthwise.offset[entry.depthwise.scales]));
-                postOpsPtrArray.push_back(static_cast<void*>(base + entry.depthwise.offset[entry.depthwise.shifts]));
+                postOpsPtrArray.push_back(
+                    static_cast<void*>(base + entry.depthwise.offset[dnnl_post_ops::entry_t::depthwise_t::scales]));
+                postOpsPtrArray.push_back(
+                    static_cast<void*>(base + entry.depthwise.offset[dnnl_post_ops::entry_t::depthwise_t::shifts]));
             }
         }
     }
