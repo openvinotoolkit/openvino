@@ -32,8 +32,6 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
-        const auto& pattern_map = m.get_pattern_value_map();
-        const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
 
         auto m_fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
 
@@ -61,7 +59,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             config.zp_dt = element::u8; // it supports u8 only now
         }
 
-        auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);
+        auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_fc->input_value(0), config);
         auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto optional_a_zp = config.quantization_type == QuantizationType::Symmetric ?
                                 std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
