@@ -7,7 +7,7 @@
 #include <behavior/ov_infer_request/io_tensor.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
 
-#include "test_utils_npu.hpp"
+#include "common/utils.hpp"
 
 namespace ov {
 namespace test {

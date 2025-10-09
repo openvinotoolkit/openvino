@@ -20,7 +20,6 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "remote_context.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "test_utils_npu.hpp"
 #include "zero_backend.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name

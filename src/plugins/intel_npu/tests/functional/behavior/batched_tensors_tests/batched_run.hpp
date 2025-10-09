@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -16,7 +17,6 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "test_utils_npu.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config

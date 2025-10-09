@@ -26,7 +26,6 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "test_utils_npu.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config

@@ -6,8 +6,8 @@
 
 #include <future>
 
+#include "common/utils.hpp"
 #include "openvino/runtime/exception.hpp"
-#include "test_utils_npu.hpp"
 
 namespace ov {
 namespace test {
