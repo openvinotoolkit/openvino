@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "subgraphs_builders.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace {
 
@@ -65,4 +66,44 @@ TEST_F(LSTMSequenceTest, smoke_serialize) {
 TEST_F(GRUSequenceTest, smoke_serialize) {
     run();
 }
+
+class GpuCacheDirWithDotsParamTest : public ::testing::TestWithParam<std::string> {
+protected:
+    ov::Core core;
+    std::string cacheDir;
+
+    void SetUp() override {
+        std::stringstream ss;
+        ss << std::hex << std::hash<std::string>{}(std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+
+        // Base (no trailing slash first)
+        cacheDir = ss.str() + GetParam();
+
+        // Clean previous
+        ov::test::utils::removeFilesWithExt(cacheDir, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDir, "cl_cache");
+        ov::test::utils::removeDir(cacheDir);
+
+        core.set_property(ov::cache_dir(cacheDir));
+    }
+
+    void TearDown() override {
+        ov::test::utils::removeFilesWithExt(cacheDir, "blob");
+        ov::test::utils::removeFilesWithExt(cacheDir, "cl_cache");
+        ov::test::utils::removeDir(cacheDir);
+    }
+};
+
+TEST_P(GpuCacheDirWithDotsParamTest, smoke_PopulateAndReuseCache) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 8, 8});
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    auto res = std::make_shared<ov::op::v0::Result>(relu);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param}, "CacheDotsModel");
+    core.compile_model(model, "GPU");
+}
+
+INSTANTIATE_TEST_SUITE_P(CacheDirDotVariants,
+                         GpuCacheDirWithDotsParamTest,
+                         ::testing::Values("/test_encoder/test_encoder.encrypted/", "/test_encoder/test_encoder.encrypted"));
+
 }  // namespace

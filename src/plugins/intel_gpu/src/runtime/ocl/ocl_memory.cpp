@@ -499,19 +499,24 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     auto actual_bytes_count = _bytes_count;
     if (actual_bytes_count == 0)
         actual_bytes_count = 1;
+
+    std::vector<cl_mem_properties_intel> properties = {0};
+    if (engine->get_enable_large_allocations()) {
+        properties = {CL_MEM_FLAGS, CL_MEM_ALLOW_UNRESTRICTED_SIZE_INTEL, 0};
+    }
+
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
-        _buffer.allocateHost(actual_bytes_count);
+        _buffer.allocateHost(actual_bytes_count, &properties[0]);
         break;
     case allocation_type::usm_shared:
-        _buffer.allocateShared(actual_bytes_count);
+        _buffer.allocateShared(actual_bytes_count, &properties[0]);
         break;
     case allocation_type::usm_device:
-        _buffer.allocateDevice(actual_bytes_count);
+        _buffer.allocateDevice(actual_bytes_count, &properties[0]);
         break;
     default:
-        CLDNN_ERROR_MESSAGE("gpu_usm allocation type",
-            "Unknown unified shared memory type!");
+        OPENVINO_THROW("[GPU] gpu_usm allocation type: unknown unified shared memory type!");
     }
 
     m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), actual_bytes_count, type);
