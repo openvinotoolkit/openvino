@@ -23,9 +23,6 @@
 #include "softmax_kernel.hpp"
 #include "transpose_kernel.hpp"
 
-typedef std::chrono::high_resolution_clock Time;
-typedef std::chrono::nanoseconds ns;
-
 using namespace ov::intel_cpu;
 namespace ov::Extensions::Cpu::XARCH {
 
@@ -156,15 +153,6 @@ static void transpose_16NxK(T* dst,
 #endif
 
 #if defined(HAVE_AVX512F) || defined(HAVE_AVX2)
-static inline float hsum256_ps(__m256 v) {
-    __m256 t1 = _mm256_hadd_ps(v, v);
-    __m256 t2 = _mm256_hadd_ps(t1, t1);
-    __m128 lo = _mm256_castps256_ps128(t2);
-    __m128 hi = _mm256_extractf128_ps(t2, 1);
-    __m128 sum = _mm_add_ps(lo, hi);
-    return _mm_cvtss_f32(sum);
-}
-
 void sum_blocks8x8(const float* a, size_t M, size_t a_stride, float* out, size_t out_stride) {
     size_t block_num = (M + 7) / 8;
     size_t col_num = block_num * 8;
@@ -187,10 +175,11 @@ void sum_blocks8x8(const float* a, size_t M, size_t a_stride, float* out, size_t
             sum = _mm256_add_ps(sum, r5);
             sum = _mm256_add_ps(sum, r6);
             sum = _mm256_add_ps(sum, r7);
+            hsum(sum);
 
             const int ib = i >> 3;
             const int jb = j >> 3;
-            const float block_sum = hsum256_ps(sum);
+            const float block_sum = _mm256_cvtss_f32(sum);
             out[ib * out_stride + jb] = block_sum;
         }
     }
@@ -203,7 +192,8 @@ void sum_blocks8x8(const float* a, size_t M, size_t a_stride, float* out, size_t
                 __m256 r = _mm256_loadu_ps(a + row * a_stride + j);
                 sum = _mm256_add_ps(sum, r);
             }
-            const float block_sum = hsum256_ps(sum);
+            hsum(sum);
+            const float block_sum = _mm256_cvtss_f32(sum);
             const int jb = j >> 3;
             out[(block_num - 1) * out_stride + jb] = block_sum;
         }
@@ -218,24 +208,24 @@ PlainTensor xattn_estimate(PlainTensor& query,
                            int norm = 1,
                            float threshold = 0.9f,
                            bool causal = true) {
-    auto B = query.size(0);
-    auto H = query.size(1);
-    auto L = query.size(2);
-    auto S = query.size(3);
+    const auto B = query.size(0);
+    const auto H = query.size(1);
+    const auto L = query.size(2);
+    const auto S = query.size(3);
     OPENVINO_ASSERT(query.size(0) == key.size(0));
 
-    auto K_H = key.size(1);
-    auto groups = H / K_H;
+    const auto K_H = key.size(1);
+    const auto kv_head_groups = H / K_H;
 
     // Align k length to multiple of stride and multiple of 32, since block
     // size in brgemm computation is 32.
-    auto k_padded = rnd_up(B, stride * 32);
-    auto k_num_to_pad = k_padded - B;
-    auto k_num_strided = div_up(k_padded, stride);
-    auto q_num_strided = div_up(B, stride);
-    auto q_num_blocks = div_up(B, block_size);
-    auto k_num_blocks = div_up(B, block_size);
-    auto num_per_block = block_size / stride;
+    const auto k_padded = rnd_up(B, stride * 32);
+    const auto k_num_to_pad = k_padded - B;
+    const auto k_num_strided = div_up(k_padded, stride);
+    const auto q_num_strided = div_up(B, stride);
+    const auto q_num_blocks = div_up(B, block_size);
+    const auto k_num_blocks = div_up(B, block_size);
+    const auto num_per_block = block_size / stride;
     if (q_num_blocks == 0 || k_num_blocks == 0 || num_per_block == 0) {
         return {};
     }
@@ -246,10 +236,10 @@ PlainTensor xattn_estimate(PlainTensor& query,
         memset(attn_sum_temp.ptr<float>(h, l, b, 0), 0, k_num_strided * sizeof(float));
     });
 
-    size_t n_block_size = 32;
-    auto m_block_size = BrgemmKernel::get_mblk_size();
-    auto m_num_blocks = div_up(q_num_strided, m_block_size);
-    auto in_type = query.m_dt;
+    const size_t n_block_size = 32;
+    const auto m_block_size = BrgemmKernel::get_mblk_size();
+    const auto m_num_blocks = div_up(q_num_strided, m_block_size);
+    const auto in_type = query.m_dt;
 
     std::vector<std::shared_ptr<BrgemmKernel>> kernels(m_block_size);
     for (size_t i = 1; i < m_block_size + 1; i++) {
@@ -272,7 +262,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
     std::vector<uint8_t> scratch_a(scratch_a_size * max_threads_num, 0.0f);
     std::vector<uint8_t> scratch_b(scratch_b_size * max_threads_num, 0.0f);
     std::vector<uint8_t> wsp(wsp_size * max_threads_num, 0.0f);
-    auto n_num_blocks = k_num_strided / n_block_size;
+    const auto n_num_blocks = k_num_strided / n_block_size;
 
     // Repack key buffer to [H, L, S * n_num_block, n_block_size]
     PlainTensor key_repack;
@@ -340,7 +330,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
                 auto cur_k_block_num = m_blk + 1;
                 for (size_t n_blk = 0; n_blk < cur_k_block_num; n_blk++) {
                     auto n_start = n_blk * S;
-                    auto* k_ptr = key_repack.ptr_v(h / groups, 0, n_start, 0);
+                    auto* k_ptr = key_repack.ptr_v(h / kv_head_groups, 0, n_start, 0);
                     auto* c_ptr = &attn_sum_temp.at<float>({h, 0, m_start, n_blk * n_block_size});
                     kernels[m_cnt - 1]->executeGemm(m_cnt < m_block_size,
                                                     q_ptr,
@@ -395,17 +385,17 @@ PlainTensor xattn_estimate(PlainTensor& query,
     // Find blocks
     PlainTensor mask;
     mask.resize({H, q_num_blocks, k_num_blocks}, sizeof(bool), ov::element::Type_t::boolean);
-    parallel_for3d(q_num_blocks, H, L, [&](size_t b, size_t h, size_t l) {
-        auto* row = attn_sum.ptr<float>(h, l, b, 0);
+    parallel_for3d(q_num_blocks, H, L, [&](size_t b_n, size_t h, size_t l) {
+        auto* row = attn_sum.ptr<float>(h, l, b_n, 0);
         float required_sum = std::accumulate(row, row + k_num_blocks, 0.0f, std::plus<>()) * threshold;
 
-        std::vector<std::pair<float, int>> values_with_index(q_num_blocks);
+        std::vector<std::pair<float, int>> values_with_index(k_num_blocks);
         for (size_t k = 0; k < k_num_blocks; k++) {
             values_with_index[k] = std::make_pair(row[k], k);
         }
 
         if (causal) {
-            values_with_index[b].first += 100000.0f;
+            values_with_index[b_n].first += 100000.0f;
             values_with_index[0].first += 100000.0f;
         }
 
@@ -428,7 +418,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
         for (size_t i = 0; i < k_num_blocks; i++) {
             bool value = (cumsum_without_self[i] < required_sum);
 
-            if (causal && i > b) {
+            if (causal && i > b_n) {
                 value = false;
             }
 
@@ -436,7 +426,7 @@ PlainTensor xattn_estimate(PlainTensor& query,
                 value = true;
             }
 
-            *(mask.ptr<bool>(h, b, values_with_index[i].second)) = value;
+            *(mask.ptr<bool>(h, b_n, values_with_index[i].second)) = value;
         }
     });
 
