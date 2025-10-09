@@ -273,7 +273,7 @@ private:
     bool with_scale = false;
     bool with_sinks = false;
     SinksSliceType m_sinks_slice_type = SinksSliceType::None;
-  
+
     element::Type m_type = f32;
 
     float m_scale = 1.0f;
