@@ -30,6 +30,7 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
@@ -271,6 +272,7 @@ std::filesystem::path get_cache_model_path(const ov::AnyMap& config) {
     const auto it = config.find(ov::cache_model_path.name());
     return it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
 }
+
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -850,6 +852,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         const auto compiled_config = create_compile_config(plugin, parsed._config);
         cache_content.blobId = ModelCache::compute_hash(model, cache_content.modelPath, compiled_config);
         cache_content.model = model;
+
+        const auto& cache_mode_it = config.find(cache_mode.name());
+        if (cache_mode_it != config.end() && cache_mode_it->second == CacheMode::OPTIMIZE_SIZE) {
+            const auto& rt_info = model->get_rt_info();
+            auto weights_path = rt_info.find("__weights_path");
+            if (weights_path != rt_info.end()) {
+                parsed._config[ov::weights_path.name()] = weights_path->second;
+            }
+        }
+
         const auto lock = cacheGuard.get_hash_lock(cache_content.blobId);
         res = load_model_from_cache(cache_content, plugin, parsed._config, {}, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, {}, cache_content);
@@ -1506,9 +1518,17 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                     plugin.get_property(ov::internal::compiled_model_runtime_properties.name(), {}).as<std::string>();
             }
             cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
+                uint32_t header_size_alignment{};
+                if (device_supports_internal_property(plugin, ov::internal::cache_header_alignment.name())) {
+                    header_size_alignment =
+                        plugin.get_property(ov::internal::cache_header_alignment.name(), {}).as<uint32_t>();
+                }
+
                 networkStream << ov::CompiledBlobHeader(ov::get_openvino_version().buildNumber,
                                                         ov::ModelCache::calculate_file_info(cacheContent.modelPath),
-                                                        compiled_model_runtime_properties);
+                                                        compiled_model_runtime_properties,
+                                                        header_size_alignment);
+
                 compiled_model->export_model(networkStream);
             });
         } catch (...) {
@@ -1585,10 +1605,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     update_config[ov::hint::model.name()] = cacheContent.model;
                 }
 
-                if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) &&
-                    cacheContent.model) {
-                    update_config[ov::hint::model.name()] = cacheContent.model;
-                }
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
                     util::Path weights_path;
 
@@ -1597,7 +1613,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                         weights_path = path_hint->second.as<std::string>();
                     } else if (weights_path = extract_weight_path(header.get_runtime_info()); weights_path.empty()) {
                         weights_path = cacheContent.modelPath;
-                        weights_path.replace_extension(".bin");
                     }
                     weights_path.replace_extension(".bin");
 
@@ -1629,9 +1644,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
         // throw;
     }
 
-    // fallback scenario
-    if (!compiled_model)
+    // Fallback scenario
+    if (!compiled_model) {
+        OPENVINO_WARN("Could not load model from cache.");
         compiled_model = compile_model_lambda();
+    }
 
     return compiled_model;
 }

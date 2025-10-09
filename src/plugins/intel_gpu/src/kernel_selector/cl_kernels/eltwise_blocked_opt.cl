@@ -61,13 +61,16 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint f_block = (inner_f + outer_f * F_BLOCK_COUNT);
 
     // Feature axis of input tensor is smaller than inner block size : No need to calculate this block
-    if ((f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
+    if ((f_block*VEC_SIZE) > OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
         return;
     }
 
     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) res;
-
-    DO_ELTWISE
+    if ((OUT_F_BLOCK * 2 > OUT_F_BLOCK_VEC_SIZE) && (OUT_F_BLOCK_VEC_SIZE == f_block)) {
+        res = TO_OUTPUT_TYPE(0);
+    } else {
+        DO_ELTWISE
+    }
 
 #if HAS_FUSED_OPS
     FUSED_OPS;

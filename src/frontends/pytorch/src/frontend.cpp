@@ -32,7 +32,6 @@
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
-#include "transforms/prim_list_construct_pad.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_unpack_parameter_replacer.hpp"
@@ -317,7 +316,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
 
     // Check if model is symmetrically quantized

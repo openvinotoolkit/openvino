@@ -221,9 +221,11 @@ OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
 OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
+OP_CONVERTER(translate_reflection_pad_nd);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
+OP_CONVERTER(translate_replication_pad_nd);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
 OP_CONVERTER(translate_rms_norm);
@@ -329,7 +331,6 @@ OP_CONVERTER(translate_new_zeros_fx);
 OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
 OP_CONVERTER(translate_prod_fx);
-OP_CONVERTER(translate_reflection_pad_nd_fx);
 OP_CONVERTER(translate_repeat_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
@@ -670,13 +671,18 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::real", common_translators::translate_real},
         {"aten::reciprocal", op::optional_out<op::translate_reciprocal, 1>},
         {"aten::reciprocal_", op::inplace_op<op::translate_reciprocal>},
-        // aten::reflection_pad2d - Supported in limited set of patterns
+        {"aten::reflection_pad1d", op::translate_reflection_pad_nd},
+        {"aten::reflection_pad2d", op::translate_reflection_pad_nd},
+        {"aten::reflection_pad3d", op::translate_reflection_pad_nd},
         {"aten::relu", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Relu>, 1>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
         {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
+        {"aten::replication_pad1d", op::translate_replication_pad_nd},
+        {"aten::replication_pad2d", op::translate_replication_pad_nd},
+        {"aten::replication_pad3d", op::translate_replication_pad_nd},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
         // TO DO: enable behaviour for resolve_conj and resolve_neg complex tensors,
@@ -750,7 +756,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
         // aten::unsafe_chunk - Supported in limited set of patterns
-        {"aten::unsqueeze", op::quantizable_op<op::translate_1to1_match_2_inputs<opset10::Unsqueeze>>},
+        {"aten::unsqueeze", common_translators::translate_unsqueeze},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
         {"aten::upsample_linear1d", op::translate_upsample_linear1d},
@@ -1020,9 +1026,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.prod.dim_int", op::translate_prod_fx},
         {"aten.rand.default", op::translate_rand},
         {"aten.reciprocal.default", op::translate_reciprocal},
-        {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd_fx},
-        {"aten.reflection_pad2d.default", op::translate_reflection_pad_nd_fx},
-        {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd_fx},
+        {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd},
+        {"aten.reflection_pad2d.default", op::translate_reflection_pad_nd},
+        {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd},
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.repeat.default", op::translate_repeat_fx},
@@ -1073,7 +1079,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.triu.default", op::translate_triu},
         {"aten.unbind.int", op::translate_unbind_int_fx},
         {"aten.unfold.default", op::translate_unfold},
-        {"aten.unsqueeze.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
+        {"aten.unsqueeze.default", common_translators::translate_unsqueeze},
         {"aten.unsqueeze_copy.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
         {"aten.upsample_bicubic2d.vec", op::translate_upsample_bicubic2d},
         {"aten.upsample_bilinear2d.vec", op::translate_upsample_bilinear2d},
