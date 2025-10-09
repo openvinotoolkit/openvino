@@ -191,7 +191,8 @@ inline void scale_add2_reduce_max(float* a,
                                   bool select_nfltmax_at_0,  // true:  0 in mask set -FLT_MAX
                                   size_t size,
                                   float alibi_slope,
-                                  float& max) {
+                                  float& max,
+                                  float* sink = nullptr) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     auto v_max0 = _mm512_set1_ps(std::numeric_limits<float>::lowest());
@@ -288,6 +289,11 @@ inline void scale_add2_reduce_max(float* a,
         _mm512_mask_storeu_ps(a + i, mask, v_a);
 
         i += (size - i);
+    }
+    if (sink != nullptr) {
+        __mmask16 mask = 1;
+        v_a = _mm512_maskz_loadu_ps(mask, sink);
+        v_max0 = _mm512_mask_max_ps(v_max0, mask, v_a, v_max0);
     }
 
     v_max0 = _mm512_max_ps(v_max0, v_max1);
@@ -475,7 +481,8 @@ inline void scale_add2_reduce_max(ov::float16* a,
                                   bool select_nfltmax_at_0,  // true:  0 in mask set -FLT_MAX
                                   size_t size,
                                   float alibi_slope,
-                                  ov::float16& max) {
+                                  ov::float16& max,
+                                  float* sink = nullptr) {
     size_t i = 0;
 #    if defined(HAVE_SVE)
     svfloat16_t v_max = svdup_n_f16(static_cast<float16_t>(-FLT_MAX));
@@ -671,7 +678,7 @@ static inline void exp_ps_avx512(__m512& src) {
 }
 #endif
 
-inline void exp_reduce_sum(float* a, const float max, const size_t size, float& sum) {
+inline void exp_reduce_sum(float* a, const float max, const size_t size, float& sum, float* sink = nullptr) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     __m512 v_a;
@@ -695,6 +702,13 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
         _mm512_mask_storeu_ps(a + i, mask, v_a);
 
         i += (size - i);
+    }
+    if (sink != nullptr) {
+        __mmask16 mask = 1;
+        v_a = _mm512_maskz_loadu_ps(mask, sink);
+        v_a = _mm512_sub_ps(v_a, v_max);
+        exp_ps_avx512(v_a);
+        v_sum = _mm512_mask_add_ps(v_sum, mask, v_a, v_sum);
     }
     sum = _mm512_reduce_add_ps(v_sum);
 #elif defined(HAVE_AVX2)
@@ -720,6 +734,14 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
         _mm256_maskstore_ps(a + i, mask, v_a);
 
         i += (size - i);
+    }
+    if (sink != nullptr) {
+        auto mask = get_mask(1);
+        v_a = _mm256_maskload_ps(sink, mask);
+        v_a = _mm256_sub_ps(v_a, v_max);
+        exp_ps_avx2(v_a);
+        v_a = _mm256_blendv_ps(_mm256_setzero_ps(), v_a, _mm256_castsi256_ps(mask));
+        v_sum = _mm256_add_ps(v_a, v_sum);
     }
     hsum(v_sum);
     sum = _mm256_cvtss_f32(v_sum);
@@ -1068,7 +1090,8 @@ inline void attn_softmax_kernel(T* a,
                                 size_t total_size,
                                 ov::element::Type attn_mask_prec,
                                 ov::element::Type dst_precision,
-                                float alibi_slope = 0);
+                                float alibi_slope = 0,
+                                T* sink = nullptr);
 
 template <>
 inline void attn_softmax_kernel<float>(float* a,
@@ -1082,13 +1105,14 @@ inline void attn_softmax_kernel<float>(float* a,
                                        size_t total_size,
                                        ov::element::Type attn_mask_prec,
                                        ov::element::Type dst_precision,
-                                       float alibi_slope) {
+                                       float alibi_slope,
+                                       float* sink = nullptr) {
     using func_fp32_type =
-        void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float, float&);
+        void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float, float&, float*);
     using func_bf16_type =
-        void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float, float&);
+        void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float, float&, float*);
     using func_f16_type =
-        void (*)(float*, float, const float*, const ov::float16*, const uint8_t*, bool, size_t, float, float&);
+        void (*)(float*, float, const float*, const ov::float16*, const uint8_t*, bool, size_t, float, float&, float*);
     static constexpr func_fp32_type funcs_fp32[] = {scale_add2_reduce_max<false, false, false>,
                                                     scale_add2_reduce_max<false, false, true>,
                                                     scale_add2_reduce_max<false, true, false>,
@@ -1124,7 +1148,8 @@ inline void attn_softmax_kernel<float>(float* a,
                              select_nfltmax_at_0,
                              len,
                              alibi_slope,
-                             max);
+                             max,
+                             sink);
     } else if (attn_mask_prec == ov::element::bf16) {
         funcs_bf16[dispatch](a,
                              scale,
@@ -1134,7 +1159,8 @@ inline void attn_softmax_kernel<float>(float* a,
                              select_nfltmax_at_0,
                              len,
                              alibi_slope,
-                             max);
+                             max,
+                             sink);
     } else {
         funcs_f16[dispatch](a,
                             scale,
@@ -1144,12 +1170,13 @@ inline void attn_softmax_kernel<float>(float* a,
                             select_nfltmax_at_0,
                             len,
                             alibi_slope,
-                            max);
+                            max,
+                            sink);
     }
 
     float sum = 0.0f;
     // exp sum
-    exp_reduce_sum(a, max, len, sum);
+    exp_reduce_sum(a, max, len, sum, sink);
     // divide sum
     float scalar = 1.0f / sum;
     if (dst_precision == ov::element::f32) {
@@ -1185,7 +1212,8 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
                                              size_t total_size,
                                              ov::element::Type attn_mask_prec,
                                              ov::element::Type dst_precision,
-                                             float alibi_slope) {
+                                             float alibi_slope,
+                                             ov::float16* sink = nullptr) {
     using func_fp32_type = void (*)(ov::float16*,
                                     float,
                                     const ov::float16*,

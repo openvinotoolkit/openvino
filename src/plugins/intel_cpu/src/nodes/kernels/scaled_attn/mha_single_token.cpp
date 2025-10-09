@@ -1407,7 +1407,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                     ov::intel_cpu::PlainTensor& head_sum,
                                     size_t key_group_size,
                                     size_t value_group_size,
-                                    bool quant_key_by_channel) {
+                                    bool quant_key_by_channel,
+                                    const ov::intel_cpu::PlainTensor& sink_input) {
     ov::intel_cpu::PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;
     auto B = query.size(0);
@@ -1601,7 +1602,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 ncausal,
                                 cur_kv_len,
                                 attn_mask_prec,
-                                precision);
+                                precision,
+                                sink_input.safe_ptr<T3>(b, h, pq),
+                                );
     });
 
     // attn_w * V

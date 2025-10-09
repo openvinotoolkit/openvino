@@ -28,7 +28,8 @@ void attn_softmax(void* a,
                   size_t total_size,
                   [[maybe_unused]] ov::element::Type precision,
                   ov::element::Type attn_mask_prec,
-                  ov::element::Type dst_precision) {
+                  ov::element::Type dst_precision,
+                  void* sink) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
     if (precision == ov::element::f16) {
         auto _a = reinterpret_cast<ov::float16*>(a);
@@ -49,6 +50,7 @@ void attn_softmax(void* a,
 #endif
     auto* _a = reinterpret_cast<float*>(a);
     auto* _alibi = reinterpret_cast<float*>(alibi);
+    auto* _sink = reinterpret_cast<float*>(sink);
     attn_softmax_kernel<float>(_a,
                                a_dst,
                                scale,
@@ -59,7 +61,8 @@ void attn_softmax(void* a,
                                len,
                                total_size,
                                attn_mask_prec,
-                               dst_precision);
+                               dst_precision,
+                               _sink);
 }
 
 }  // namespace ov::Extensions::Cpu::XARCH

@@ -122,12 +122,18 @@ struct MHAKernel {
         return result;
     }
 
-    void softmax(float* a, int len) {
+    void softmax(float* a, int len, float* sink = nullptr) {
         float max = *std::max_element(a, a + len);
+        if (sink != nullptr) {
+           max = max > (*sink) ? max : (*sink);
+        }
         float sum = 0.0F;
         for (int i = 0; i < len; i++) {
             a[i] = exp(a[i] - max);
             sum += a[i];
+        }
+        if (sink != nullptr) {
+           sum += exp((*sink) - max);
         }
         float scale = 1.0F / sum;
         for (int i = 0; i < len; i++) {
@@ -164,6 +170,7 @@ struct MHAKernel {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
+                    PlainTensor& sink_input,
                     float d_scale = 0.0F) {
         auto B = query.size(0);
         auto H = query.size(1);
@@ -221,8 +228,9 @@ struct MHAKernel {
                     }
                 }
 
+                auto* sink = sink_input.safe_ptr<float>(b, h, m, 0);
                 // softmax
-                softmax(attn_score.data(), ncausal);
+                softmax(attn_score.data(), ncausal, sink);
 
                 // linearly combine value
                 word_vec.assign(head_size_v, 0.0F);
@@ -391,6 +399,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                         PlainTensor& output_emb,
                         bool has_out_transpose,
                         bool auto_causal,
+                        PlainTensor& sink_input,
                         float d_scale = 0.0F) {
         const auto B = query.size(0);
         const auto H = query.size(1);
@@ -458,6 +467,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                 auto* score = weight_score.ptr<float>(ithr, 0, m - m_start);
+                auto* sink = sink_input.safe_ptr<float>(ithr, 0, m - m_start);
                 attn_softmax(reinterpret_cast<void*>(score),
                              reinterpret_cast<T*>(score),
                              d_scale,
@@ -469,7 +479,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              kv_len,
                              precision_of<T>::value,
                              precision_of<T>::value,
-                             precision_of<T>::value);
+                             precision_of<T>::value,
+                             reinterpret_cast<void*>(sink));
             }
             auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, 0, 0, 0));
             float* fp32_out_ptr = nullptr;
@@ -542,6 +553,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
+                    PlainTensor& sink_input,
                     float d_scale = 0.0F) {
         auto head_size = query.size(3);
         if (d_scale == 0.0F) {
@@ -557,6 +569,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                        output_emb,
                        has_out_transpose,
                        auto_causal,
+                       sink_input,
                        d_scale);
     }
 };
@@ -758,6 +771,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
+                    PlainTensor& sink_input,
                     float d_scale = 0.0F) {
         auto B = query.size(0);
         auto H = query.size(1);
@@ -853,6 +867,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+
+                void* sink = reinterpret_cast<void*>(sink_input.safe_ptr<float>(b, h, m));
                 attn_softmax(reinterpret_cast<void*>(qk + (m - m_start) * qk_m_stride),
                              qk + (m - m_start) * qk_m_stride,
                              d_scale,
@@ -864,7 +880,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                              kv_len,
                              ov::element::f32,
                              ov::element::f32,
-                             ov::element::f32);
+                             ov::element::f32,
+                             sink);
             }
             mlas_sgemm("N",
                        "N",
@@ -922,7 +939,8 @@ struct MHASingleToken {
                     bool auto_causal,
                     float d_scale,
                     const PlainTensor& k_scale_zp,
-                    const PlainTensor& v_scale_zp) {
+                    const PlainTensor& v_scale_zp,
+                    const PlainTensor& sink_input) {
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
@@ -948,7 +966,8 @@ struct MHASingleToken {
                          m_head_sum,
                          m_key_group_size,
                          m_value_group_size,
-                         m_quant_key_by_channel);
+                         m_quant_key_by_channel,
+                         sink_input);
     }
 };
 
@@ -1003,6 +1022,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         PlainTensor beam_table;  // i32[B, max_kvLen]
         PlainTensor attn_mask;
         PlainTensor output_emb(output);
+        PlainTensor sink_input;
         float scale_input = 0.0F;
         size_t B = 0;
         size_t L1 = 0;
@@ -1065,6 +1085,17 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         SV = v_input.size(3);
         L0 = present_key.size(2) - L1;
         auto Hk = k_input.size(1);
+        if (input_num > 5) {
+            sink_input.reset(inputs[5]);
+            // reshape the shape to match q
+            if (sink_input.m_rank < q_input.m_rank) {
+                auto sink_shape = sink_input.shape();
+                for (size_t i = 0 ; i < q_input.m_rank - sink_input.m_rank; i++) {
+                    sink_shape.push_back(1);
+                }
+                sink_input.reshape(sink_shape);
+            }
+        }
 
         if (fuse_concat) {
             k_input.assert_dims({B, Hk, L1, S});
@@ -1123,6 +1154,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                    output_emb,
                    has_out_transpose,
                    auto_causal,
+                   sink_input,
                    scale_input);
         } else {
             // 1-token version
@@ -1141,7 +1173,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
                                 auto_causal,
                                 scale_input,
                                 k_scale_zp,
-                                v_scale_zp);
+                                v_scale_zp,
+                                sink_input);
         }
     }
 };
@@ -1214,6 +1247,12 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     if (orginSDPInputNumber > 4) {
         config.inConfs[nextPortIdx].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(nextPortIdx)));
+    }
+    // sink_input
+    if (orginSDPInputNumber > 5) {
+        config.inConfs[nextPortIdx].setMemDesc(
+            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(nextPortIdx)));
+        nextPortIdx++;
     }
 
     if (m_config.config.fuse_concat) {

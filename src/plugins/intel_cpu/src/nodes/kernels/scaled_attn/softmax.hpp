@@ -20,6 +20,8 @@ void attn_softmax(void* a,
                   size_t total_size,
                   ov::element::Type precision,
                   ov::element::Type attn_mask_prec,
-                  ov::element::Type dst_precision);
+                  ov::element::Type dst_precision,
+                  void* sink = nullptr
+                  );
 
 }  // namespace ov::Extensions::Cpu::XARCH

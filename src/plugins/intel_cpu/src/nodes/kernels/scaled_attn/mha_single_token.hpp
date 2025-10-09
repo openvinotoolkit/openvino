@@ -26,6 +26,7 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       ov::intel_cpu::PlainTensor& head_sum,
                       size_t key_group_size,
                       size_t value_group_size,
-                      bool quant_key_by_channel);
+                      bool quant_key_by_channel,
+                      const ov::intel_cpu::PlainTensor& sink_input);
 
 }  // namespace ov::Extensions::Cpu::XARCH
