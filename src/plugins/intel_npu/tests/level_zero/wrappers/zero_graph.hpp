@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,9 @@ using namespace intel_npu;
 
 namespace {
 const std::string BLOB_NAME = "blob_compatibility_dummy_model_MTL_ov_2025_1_0_driver_1003967.blob";
+
+const std::string BLOB_PATH = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
+
 size_t calculate_alignment_with_padding(size_t size, size_t alignment) {
     return size + alignment - (size % alignment);
 }
@@ -55,7 +58,6 @@ void deallocate_zero_memory(const std::shared_ptr<ZeroInitStructsHolder>& init_s
                        ze_result_to_description(result).c_str());
     }
 }
-
 }  // namespace
 
 namespace ov::test::behavior {
@@ -134,8 +136,7 @@ TEST_P(ZeroGraphTest, GetGraphInitIR) {
 }
 
 TEST_P(ZeroGraphTest, GetGraphInitBlob) {
-    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     auto size = blobStream.tellg();
     blobStream.seekg(0, std::ios::end);
@@ -169,8 +170,7 @@ TEST_P(ZeroGraphTest, QueryGraph) {
 }
 
 TEST_P(ZeroGraphTest, GetGraphBinary) {
-    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = blobStream.tellg();
     blobStream.seekg(0, std::ios::end);
@@ -216,8 +216,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryIR) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
-    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = blobStream.tellg();
     blobStream.seekg(0, std::ios::end);
@@ -239,8 +238,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryMallocBlob) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
-    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = blobStream.tellg();
     blobStream.seekg(0, std::ios::end);
@@ -263,8 +261,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphAlignedMemoryZeMemAllocBlob) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
-    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = blobStream.tellg();
     blobStream.seekg(0, std::ios::end);
@@ -285,8 +282,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryMallocBlob) {
 }
 
 TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryZeMemAllocBlob) {
-    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = blobStream.tellg();
     blobStream.seekg(0, std::ios::end);
@@ -308,8 +304,7 @@ TEST_P(ZeroGraphTest, GetInitSetArgsDestroyGraphNotAlignedMemoryZeMemAllocBlob) 
 }
 
 TEST_P(ZeroGraphTest, SetGraphArgsOnDestroyedBlob) {
-    const auto blobPath = ov::test::utils::NpuTestEnvConfig::getInstance().OV_NPU_TESTS_BLOBS_PATH + BLOB_NAME;
-    std::ifstream blobStream(blobPath, std::ios::binary | std::ios::in);
+    std::ifstream blobStream(BLOB_PATH, std::ios::binary | std::ios::in);
     ASSERT_TRUE(blobStream.is_open());
     size_t size = blobStream.tellg();
     blobStream.seekg(0, std::ios::end);
