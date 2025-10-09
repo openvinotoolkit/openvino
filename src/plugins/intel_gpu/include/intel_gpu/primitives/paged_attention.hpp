@@ -82,7 +82,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << sliding_window;
         ob << has_score_aggregation;
         ob << has_xattention;
-        ob << has_sinks;
+        ob << has_sink_input;
 
         if (scale_val.has_value()) {
             ob << true;
@@ -105,7 +105,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> sliding_window;
         ib >> has_score_aggregation;
         ib >> has_xattention;
-        ib >> has_sinks;
+        ib >> has_sink_input;
 
         bool has_scale;
         ib >> has_scale;
@@ -129,7 +129,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_rotated_blocks = false;
     bool has_score_aggregation = false;
     bool has_xattention = false;
-    bool has_sinks = false;
+    bool has_sink_input = false;
     bool is_key_by_channel = false;
 };
 }  // namespace cldnn
