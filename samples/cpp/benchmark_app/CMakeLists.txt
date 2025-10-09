@@ -40,7 +40,7 @@ if(DEFINED ENABLE_INTEL_GPU AND NOT ENABLE_INTEL_GPU)
     # Intel GPU plugin is turned off explicitly
     option(SAMPLES_ENABLE_OPENCL "Use OpenCL in benchmark_app" OFF)
 else()
-    option(SAMPLES_ENABLE_OPENCL "Use OpenCL in benchmark_app" ON)
+    option(SAMPLES_ENABLE_OPENCL "Use OpenCL in benchmark_app" OFF)
 endif()
 
 if(SAMPLES_ENABLE_OPENCL)
