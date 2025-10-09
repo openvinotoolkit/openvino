@@ -13,11 +13,13 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include "common/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_port.hpp"
