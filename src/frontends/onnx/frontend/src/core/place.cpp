@@ -54,13 +54,6 @@ const std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>>& OpPlace:
     return m_input_ports;
 }
 
-std::shared_ptr<InPortPlace> OpPlace::get_input_port_tf(const std::string& inputName, int inputPortIndex) const {
-    FRONT_END_GENERAL_CHECK(inputPortIndex >= 0, "inputPortIndex is negative.");
-    size_t input_port_index = static_cast<size_t>(inputPortIndex);
-    FRONT_END_GENERAL_CHECK(input_port_index < m_input_ports.at(inputName).size(), "inputPortIndex is out of bounds.");
-    return m_input_ports.at(inputName)[input_port_index];
-}
-
 std::shared_ptr<DecoderBase> OpPlace::get_decoder() const {
     return m_op_decoder;
 }
@@ -249,13 +242,6 @@ ov::frontend::Place::Ptr TensorPlace::get_producing_operation() const {
     return get_producing_port()->get_producing_operation();
 }
 
-std::shared_ptr<TensorPlace> InPortPlace::get_source_tensor_tf() const {
-    if (const auto& tensor = m_source_tensor.lock()) {
-        return tensor;
-    }
-    FRONT_END_THROW("Source Tensor has expired.");
-}
-
 std::shared_ptr<OpPlace> InPortPlace::get_op() {
     if (const auto& op = m_op.lock()) {
         return op;
@@ -291,13 +277,6 @@ bool InPortPlace::is_equal_data(const ov::frontend::Place::Ptr& another) const {
 
 ov::frontend::Place::Ptr InPortPlace::get_producing_operation() const {
     return get_producing_port()->get_producing_operation();
-}
-
-std::shared_ptr<TensorPlace> OutPortPlace::get_target_tensor_tf() const {
-    if (const auto& target_tensor = m_target_tensor.lock()) {
-        return target_tensor;
-    }
-    FRONT_END_THROW("Target Tensor has expired.");
 }
 
 std::vector<ov::frontend::Place::Ptr> OutPortPlace::get_consuming_operations() const {

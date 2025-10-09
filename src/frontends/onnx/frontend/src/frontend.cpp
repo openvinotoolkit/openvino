@@ -324,7 +324,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_unify(const InputModel::Ptr& input_
     if (!m_transformation_extensions.empty()) {
         auto ov_model = decode(input_model);
 
-        ov::pass::Manager manager("Frontend:TFLite:convert");
+        ov::pass::Manager manager("Frontend:onnx:transformation_extensions");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }

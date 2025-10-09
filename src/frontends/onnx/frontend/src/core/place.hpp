@@ -52,7 +52,6 @@ public:
     void set_source_tensor(const std::weak_ptr<TensorPlace>& source_tensor);
 
     // Internal usage
-    std::shared_ptr<TensorPlace> get_source_tensor_tf() const;
     std::shared_ptr<OpPlace> get_op();
 
     // External usage
@@ -77,8 +76,6 @@ public:
     }
     void set_target_tensor(const std::weak_ptr<TensorPlace>& target_tensor);
 
-    std::shared_ptr<TensorPlace> get_target_tensor_tf() const;
-
     // External usage
     std::vector<Ptr> get_consuming_operations() const override;
     ov::frontend::Place::Ptr get_producing_operation() const override;
@@ -101,7 +98,6 @@ public:
     // Internal usage
     const std::vector<std::shared_ptr<OutPortPlace>>& get_output_ports() const;
     const std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>>& get_input_ports() const;
-    std::shared_ptr<InPortPlace> get_input_port_tf(const std::string& inputName, int inputPortIndex) const;
     std::shared_ptr<DecoderBase> get_decoder() const;
 
     // External API methods
