@@ -13,6 +13,6 @@ ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
 RUN apt update && \
-    apt install wget git curl cmake build-essential && \
+    apt install wget git curl cmake build-essential python3-pip && \
     apt --assume-yes install shellcheck && \
     apt --assume-yes install clang-14 libclang-14-dev
