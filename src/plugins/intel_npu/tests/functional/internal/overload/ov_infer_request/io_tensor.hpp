@@ -226,16 +226,17 @@ TEST_P(OVInferRequestIOTensorTestNPU, InferStaticNetworkSetChangedOutputTensorTh
 
 struct OVInferRequestIOTensorSetPrecisionTestNPU : OVInferRequestIOTensorSetPrecisionTest {
     void SetUp() override {
+        const ov::Shape shape = {1, 2, 32, 32};
         std::tie(element_type, target_device, config) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         APIBaseTest::SetUp();
-        function = ov::test::utils::make_conv_pool_relu();
+        function = ov::test::utils::make_split_concat(shape, element_type);
         execNet = core->compile_model(function, target_device, config);
         req = execNet.create_infer_request();
     }
 };
 
-TEST_P(OVInferRequestIOTensorSetPrecisionTestNPU, CanSetInBlobWithDifferentPrecision) {
+TEST_P(OVInferRequestIOTensorSetPrecisionTestNPU, CanSetOutBlobWithDifferentPrecision) {
     for (auto&& output : execNet.outputs()) {
         auto output_tensor = utils::create_and_fill_tensor(element_type, output.get_shape());
         if (output.get_element_type() == element_type) {
@@ -246,7 +247,7 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTestNPU, CanSetInBlobWithDifferentPreci
     }
 }
 
-TEST_P(OVInferRequestIOTensorSetPrecisionTestNPU, CanSetOutBlobWithDifferentPrecision) {
+TEST_P(OVInferRequestIOTensorSetPrecisionTestNPU, CanSetInBlobWithDifferentPrecision) {
     for (auto&& input : execNet.inputs()) {
         auto input_tensor = utils::create_and_fill_tensor(element_type, input.get_shape());
         if (input.get_element_type() == element_type) {
