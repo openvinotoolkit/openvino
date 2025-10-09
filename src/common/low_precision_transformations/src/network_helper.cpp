@@ -487,13 +487,13 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
     const size_t branchIndex,
     const std::vector<ov::element::Type>& defaultPrecisions,
     const bool inPlace) {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, branchIndex, inPlace);
+    auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, branchIndex, inPlace);
     if (dequantization.empty() || (dequantization.multiply == nullptr)) {
         return dequantization;
     }
 
     if (dequantization.convert != nullptr) {
-        const std::shared_ptr<Node> result = foldConvert(dequantization.data, dequantization.convert->get_element_type());
+        const auto result = foldConvert(dequantization.data, dequantization.convert->get_element_type());
         if (ov::is_type<ov::opset1::Constant>(result)) {
             if (inPlace) {
                 copyInfo(dequantization.convert, result);
@@ -515,12 +515,13 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
             if (ov::is_type<ov::opset1::Constant>(convertionResult)) {
                 replace_node(dequantization.subtractConvert, convertionResult);
                 dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, branchIndex, inPlace);
+                OPENVINO_ASSERT(dequantization.subtract != nullptr,
+                                "dequantization subtract is missed after convert folding");
             }
         }
 
-        const std::shared_ptr<Node> result = fold<ov::opset1::Subtract>(
-            dequantization.subtract->input_value(0),
-            dequantization.subtract->input_value(1));
+        const auto result = fold<ov::opset1::Subtract>(dequantization.subtract->input_value(0),
+                                                       dequantization.subtract->input_value(1));
         if (ov::is_type<ov::opset1::Constant>(result)) {
             if (inPlace) {
                 copyInfo(dequantization.subtract, result);
@@ -537,9 +538,8 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
             return dequantization;
         }
 
-        std::shared_ptr<Node> result = fold<ov::opset1::Multiply>(
-                dequantization.multiply->input_value(0),
-                dequantization.multiply->input_value(1));
+        auto result = fold<ov::opset1::Multiply>(dequantization.multiply->input_value(0),
+                                                 dequantization.multiply->input_value(1));
         if (!ov::is_type<ov::opset1::Constant>(result)) {
             return dequantization;
         }
@@ -552,7 +552,6 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
         replace_node(dequantization.multiply, result);
         dequantization = NetworkHelper::getDequantization(node, defaultPrecisions, branchIndex, inPlace);
     }
-
 
     return dequantization;
 }

@@ -86,69 +86,6 @@ bool is_verbose_logging();
 // there's a set of macro for avoiding the additional clutter
 // of the matching code.
 
-// transformations/utils/gen_pattern.hpp
-#    define OPENVINO_LOG_GENPATTERN1(matcher, pattern_value, graph_value)      \
-        do {                                                                   \
-            OPENVINO_LOG_MATCHING(matcher,                                     \
-                                  ov::util::LevelString::get(),                \
-                                  OPENVINO_BLOCK_END,                          \
-                                  OPENVINO_RED,                                \
-                                  "  OUTPUT INDICES DIDN'T MATCH. EXPECTED: ", \
-                                  pattern_value.get_index(),                   \
-                                  ". OBSERVED: ",                              \
-                                  graph_value.get_index());                    \
-        } while (0)
-
-#    define OPENVINO_LOG_GENPATTERN2(matcher, pattern_value, graph_value)                                \
-        do {                                                                                             \
-            OPENVINO_LOG_MATCHING(matcher,                                                               \
-                                  ov::util::LevelString::get(),                                          \
-                                  OPENVINO_BLOCK_END,                                                    \
-                                  OPENVINO_RED,                                                          \
-                                  "  NODES' TYPE DIDN'T MATCH. EXPECTED: ",                              \
-                                  ov::util::node_version_type_str(*pattern_value.get_node_shared_ptr()), \
-                                  ". OBSERVED: ",                                                        \
-                                  ov::util::node_version_type_str(*graph_value.get_node_shared_ptr()));  \
-        } while (0)
-
-#    define OPENVINO_LOG_GENPATTERN3(matcher)                   \
-        do {                                                    \
-            OPENVINO_LOG_MATCHING(matcher,                      \
-                                  ov::util::LevelString::get(), \
-                                  OPENVINO_BLOCK_END,           \
-                                  OPENVINO_RED,                 \
-                                  "  PREDICATE DIDN'T MATCH."); \
-        } while (0)
-
-#    define OPENVINO_LOG_GENPATTERN4(matcher)                    \
-        do {                                                     \
-            OPENVINO_LOG_MATCHING(matcher,                       \
-                                  ov::util::LevelString::get(),  \
-                                  OPENVINO_BLOCK_END,            \
-                                  OPENVINO_RED,                  \
-                                  "  ATTRIBUTES DIDN'T MATCH."); \
-        } while (0)
-
-#    define OPENVINO_LOG_GENPATTERN5(matcher)                                   \
-        do {                                                                    \
-            OPENVINO_LOG_MATCHING(matcher,                                      \
-                                  ov::util::LevelString::get(),                 \
-                                  OPENVINO_BLOCK_BODY_RIGHT,                    \
-                                  " TYPE MATCHED. CHECKING PATTERN ARGUMENTS"); \
-        } while (0)
-
-#    define OPENVINO_LOG_GENPATTERN6(matcher, status)                                                 \
-        do {                                                                                          \
-            OPENVINO_LOG_MATCHING(matcher,                                                            \
-                                  ov::util::LevelString::get(),                                       \
-                                  OPENVINO_BLOCK_BODY,                                                \
-                                  '\n',                                                               \
-                                  ov::util::LevelString::get(),                                       \
-                                  OPENVINO_BLOCK_END,                                                 \
-                                  (status ? OPENVINO_GREEN : OPENVINO_RED),                           \
-                                  (status ? "  ALL ARGUMENTS MATCHED" : "  ARGUMENTS DIDN'T MATCH")); \
-        } while (0)
-
 // core/src/node.cpp
 #    define OPENVINO_LOG_NODE1(matcher, pattern_value, graph_value)                                         \
         do {                                                                                                \
@@ -708,25 +645,6 @@ bool is_verbose_logging();
         } while (0);
 
 #else  // ENABLE_OPENVINO_DEBUG
-
-#    define OPENVINO_LOG_GENPATTERN1(...) \
-        do {                              \
-        } while (0)
-#    define OPENVINO_LOG_GENPATTERN2(...) \
-        do {                              \
-        } while (0)
-#    define OPENVINO_LOG_GENPATTERN3(...) \
-        do {                              \
-        } while (0)
-#    define OPENVINO_LOG_GENPATTERN4(...) \
-        do {                              \
-        } while (0)
-#    define OPENVINO_LOG_GENPATTERN5(...) \
-        do {                              \
-        } while (0)
-#    define OPENVINO_LOG_GENPATTERN6(...) \
-        do {                              \
-        } while (0)
 
 #    define OPENVINO_LOG_NODE1(...) \
         do {                        \

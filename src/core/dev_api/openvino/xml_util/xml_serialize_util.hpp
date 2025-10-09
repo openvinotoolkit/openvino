@@ -76,9 +76,7 @@ protected:
     virtual void append_rt_info(pugi::xml_node& node, ov::RTMap& attributes);
     virtual bool append_rt_attribute(pugi::xml_node& node, const ov::RuntimeAttribute& attribute);
     virtual bool append_node_attributes(ov::Node& node);
-    virtual util::ConstantWriter& get_constant_write_handler() {
-        return m_constant_node_write_handler;
-    }
+    virtual util::ConstantWriter& get_constant_write_handler();
 
 public:
     XmlSerializer(pugi::xml_node& data,
