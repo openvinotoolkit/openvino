@@ -407,7 +407,7 @@ ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::P
     }
 }
 
-ocl_device::ocl_device(const ocl_device::ptr other, bool initialize)
+ocl_device::ocl_device(const ocl_device::ptr other)
 : _platform(other->_platform)
 , _info(other->_info)
 , _mem_caps(other->_mem_caps) {

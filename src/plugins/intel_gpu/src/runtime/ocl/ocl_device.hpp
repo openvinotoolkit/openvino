@@ -39,9 +39,8 @@ public:
      *                   before any use of the device.
      *
      * Copies platform, device info, and memory capabilities.
-     * If @p initialize is true, initializes the new ocl_device instance accordingly.
      */
-    ocl_device(const ocl_device::ptr other, bool initialize = true);
+    ocl_device(const ocl_device::ptr other);
 
     const device_info& get_info() const override { return _info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }

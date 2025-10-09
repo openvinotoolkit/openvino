@@ -176,9 +176,9 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
         OPENVINO_ASSERT(root_device != nullptr, "[GPU] Invalid device type created in ocl_device_detector");
 
         auto map_id = std::to_string(idx++);
-        ret[map_id] = std::make_shared<ocl_device>(root_device, initialize_device);
+        ret[map_id] = std::make_shared<ocl_device>(root_device);
 
-        OPENVINO_ASSERT(root_device->is_initialized() || dptr->get_info().dev_type == device_type::discrete_gpu, "[GPU] Device is not initialized");
+        OPENVINO_ASSERT(root_device->is_initialized() || !is_intel_igpu, "[GPU] Device is not initialized");
 
         auto sub_devices = getSubDevices(root_device->get_device());
         if (!sub_devices.empty()) {
