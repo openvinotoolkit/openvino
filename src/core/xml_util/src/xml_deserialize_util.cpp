@@ -43,25 +43,11 @@ bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::s
 }
 
 template <class T>
-void str_to_container(const std::string& value, T& res) {
-    std::stringstream ss(value);
-    std::string field;
-    while (getline(ss, field, ',')) {
-        if (field.empty())
-            OPENVINO_THROW("Cannot get vector of parameters! \"", value, "\" is incorrect");
-        std::stringstream fs(field);
-        typename T::value_type val;
-        fs >> val;
-        res.insert(res.end(), val);
-    }
-}
-
-template <class T>
 bool getParameters(const pugi::xml_node& node, const std::string& name, std::vector<T>& value) {
     std::string param;
     if (!getStrAttribute(node, name, param))
         return false;
-    str_to_container(param, value);
+    ov::util::str_to_container(param, value);
     return true;
 }
 

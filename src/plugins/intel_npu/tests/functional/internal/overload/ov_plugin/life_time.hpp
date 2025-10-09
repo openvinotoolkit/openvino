@@ -26,7 +26,7 @@ protected:
     std::shared_ptr<ov::Model> function;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string target_device;
         ov::AnyMap configuration;
         std::tie(target_device, configuration) = obj.param;
@@ -165,7 +165,7 @@ protected:
     std::shared_ptr<ov::Model> function;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string target_device;
         ov::AnyMap configuration;
         std::tie(target_device, configuration) = obj.param;
