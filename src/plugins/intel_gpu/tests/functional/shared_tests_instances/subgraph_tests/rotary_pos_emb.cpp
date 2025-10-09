@@ -14,14 +14,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_RoPETestFlux,
                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          RoPETestFlux::getTestCaseName);
 
+class GPURoPETestQwenVL : public RoPETestQwenVL {
+protected:
+    void SetUp() override {
+        RoPETestQwenVL::SetUp();
+        const auto& [element_type, _targetDevice, split_op_type] = this->GetParam();
+        if (element_type == ov::element::f16) {
+            abs_threshold = 0.015f;
+        }
+    }
+};
+
+TEST_P(GPURoPETestQwenVL, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
 const std::vector<std::string> vit_param = {"VariadicSplit", "Slice", "StridedSlice"};
 INSTANTIATE_TEST_SUITE_P(smoke_RoPEQwenVL,
-                         RoPETestQwenVL,
+                         GPURoPETestQwenVL,
                          ::testing::Combine(
                             ::testing::Values(ov::element::f16, ov::element::f32),
                             ::testing::Values(ov::test::utils::DEVICE_GPU),
                             ::testing::ValuesIn(vit_param)),
-                         RoPETestQwenVL::getTestCaseName);
+                         GPURoPETestQwenVL::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_RoPETestChatGLM,
                          RoPETestChatGLMStridedSlice,
