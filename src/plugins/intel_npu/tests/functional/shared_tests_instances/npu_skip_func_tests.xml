@@ -845,4 +845,15 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Cannot test different compiler type yet</message>
+        <filters>
+            <filter>.*OVSetRunTimePropertiesTestsNPU.SetRunTimePropertiesNoCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
+            <filter>.*OVSetCartesianProductPropertiesTestsNPU.SetCartesianProductPropertiesCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
+            <filter>.*OVPostponeCompilerLoadTestsNPU.CompileModelDoesCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
+            <filter>.*OVPostponeCompilerLoadTestsNPU.CompileModelWithCacheDoesNotCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
+            <filter>.*OVPostponeCompilerLoadTestsNPU.ImportModelDoesNotCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
+            <filter>.*OVPostponeCompilerLoadTestsNPU.QueryModelDoesCompilerLoad.*NPU_COMPILER_TYPE.*MLIR.*</filter>
+        </filters>
+    </skip>
 </skip_configs>

@@ -394,6 +394,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
 
     _globalConfig.enableRuntimeOptions();
+    _globalConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
