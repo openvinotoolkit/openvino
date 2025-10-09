@@ -172,6 +172,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
+    init_profiling();
+
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
@@ -368,6 +370,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                     m_compiled_submodels[id].spatial =
                         compiled::Spatial(fcn_template._spatial.value(), fcn_template._model);
                 }
+                // Does the same for dynamic. FIXME: This selection should be hidden here
+                // in the object semantics
+                if (fcn_template._attention) {
+                    m_compiled_submodels[id].attention =
+                        compiled::Attention(fcn_template._attention.value(), fcn_template._model);
+                }
                 LOG_INFO("Subgraph[" << id << "] is a function body for " << subgraph._funcall);
             } else {
                 // ...and refer to it in other calls
@@ -530,6 +538,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(serialized) {
     NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
+    init_profiling();
+
     ::intel_npu::registerNPUWOptions(*m_options_desc);
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
@@ -637,6 +647,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, quant_unpack_gather.idx_idx);
 
     write(stream, spatial);
+    write(stream, attention);
 
     write(stream, is_remote);
     write(stream, closure_uid);
@@ -711,6 +722,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, quant_unpack_gather.idx_idx);
 
     read(stream, spatial);
+    read(stream, attention);
 
     read(stream, is_remote);
     read(stream, closure_uid);
@@ -1306,13 +1318,16 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
 void ov::npuw::CompiledModel::detach_memory() {
     LOG_INFO("Detaching model & weight memory...");
     LOG_BLOCK();
+
+    const bool no_runtime_fallback = !m_cfg.get<::intel_npu::NPUW_FALLBACK_EXEC>();
+
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
         auto& proto_comp_model_desc = m_compiled_submodels[comp_model_desc.replaced_by.value_or(idx)];
         if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
             continue;  // optimized-out OR already cleared - skip
         }
-        if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
+        if ((proto_comp_model_desc.device_it + 1 == m_dev_list.end()) || no_runtime_fallback) {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
         }

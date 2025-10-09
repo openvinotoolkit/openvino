@@ -916,6 +916,20 @@ ov::npuw::util::TensorPtr ov::npuw::util::allocMem(const ov::element::Type type,
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
 }
 
+std::string ov::npuw::util::generate_random_string(std::size_t size) {
+    static constexpr auto chars = "0123456789"
+                                  "abcdefghijklmnopqrstuvwxyz"
+                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution dist({}, std::strlen(chars) - 1);
+    std::string result(size, '\0');
+    std::generate_n(result.begin(), size, [&]() {
+        return chars[dist(gen)];
+    });
+    return result;
+}
+
 bool ov::npuw::util::matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix) {
     std::string pattern = "^lora_state.*" + pattern_suffix + "$";
     std::regex regex_pattern(pattern);
@@ -933,4 +947,9 @@ bool ov::npuw::util::matchLoRAMatMulBString(const std::string& input) {
 
 bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
     return ov::npuw::util::matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
+}
+
+void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
+    auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
+    std::fill_n(tensor_data, tensor->get_byte_size(), fill_val);
 }
