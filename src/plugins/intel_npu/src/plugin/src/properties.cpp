@@ -382,6 +382,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_base_model_serializer, USE_BASE_MODEL_SERIALIZER);
 
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
         if (!config.has<STEPPING>()) {
@@ -449,6 +450,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::funcall_async, NPUW_FUNCALL_ASYNC);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::unfold_ireqs, NPUW_UNFOLD_IREQS);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::fallback_exec, NPUW_FALLBACK_EXEC);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::enabled, NPUW_LLM);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::batch_dim, NPUW_LLM_BATCH_DIM);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::seq_len_dim, NPUW_LLM_SEQ_LEN_DIM);
@@ -464,10 +466,12 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_config, NPUW_LLM_PREFILL_CONFIG);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::additional_prefill_config,
                                  NPUW_LLM_ADDITIONAL_PREFILL_CONFIG);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_config, NPUW_LLM_GENERATE_CONFIG);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::additional_generate_config,
                                  NPUW_LLM_ADDITIONAL_GENERATE_CONFIG);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::shared_lm_head_config, NPUW_LLM_SHARED_LM_HEAD_CONFIG);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::additional_shared_lm_head_config,
                                  NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);

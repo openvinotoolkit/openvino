@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "attention.hpp"
 #include "common.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
+#include "perf.hpp"
 #include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
@@ -146,6 +148,14 @@ private:
         std::size_t ops{};
     };
 
+    // Shouldn't this be counter instead? There's nothing much to
+    // average across compilation processes per model (it's a single
+    // process).
+    using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
+    ov::npuw::perf::Profile<MS> m_profile;
+
+    void init_profiling();
+
     struct CompiledModelDesc {
         DevList::const_iterator device_it;
         std::set<std::string> devices_to_avoid;
@@ -157,6 +167,7 @@ private:
         Subgraph::Gather host_gather;
         Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
+        std::optional<ov::npuw::compiled::Attention> attention;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
         // w.r.t. function calls

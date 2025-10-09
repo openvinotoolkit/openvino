@@ -25,7 +25,8 @@ public:
         uint32_t num_stored_tokens = 0u;
         uint32_t dim = 0u;
         uint32_t max_generation_token_len = 0u;
-        bool v_tensors_transposed = false;
+        bool v_tensors_transposed_pre = false;  // prefill
+        bool v_tensors_transposed_gen = false;  // generate
     };
 
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -79,6 +80,9 @@ private:
     // Support LoRA
     void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     uint32_t m_max_lora_rank = 32;
+
+    void gemma_transformations(const std::shared_ptr<ov::Model>& model);
+    int32_t m_gemma_sliding_window_size = 0;
 };
 
 }  // namespace npuw

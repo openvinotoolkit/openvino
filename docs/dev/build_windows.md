@@ -11,7 +11,7 @@ Supported configurations:
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - Microsoft Visual Studio 2019 or higher, version 16.3 or later
   > **NOTE**: Native Microsoft Visual Studio for WoA has been available since version 3.11.
-- Python 3.9 - 3.12 for OpenVINO Runtime Python API
+- Python 3.10 - 3.14 for OpenVINO Runtime Python API
   > **NOTE**: Python for ARM64 is available since [3.11](https://www.python.org/downloads/windows/) version.
 - [Git for Windows*]
 - (Windows on ARM only) [LLVM for Windows on ARM (WoA)](https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.6/LLVM-15.0.6-woa64.exe)
@@ -74,10 +74,11 @@ To pack PDB files, it's essential to run cmake command to create a dedicated arc
     set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/<platform>/tbb/bin
     set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc:%PATH%
     ```
-    or install the wheel with pip:
-    ```
-    pip install build/wheel/openvino-2023.0.0-9612-cp11-cp11-win_arm64.whl
-    ```
+  or install the wheel with pip:
+  ```
+  pip install build/wheels/openvino-2025.4.0-9612-cp313-cp313-win_arm64.whl
+  ```
+  > **NOTE**: Wheels are generated under the `<build>/wheels/` directory. Substitute the filename with the artifact that matches your Python version and target architecture.
 
 ### Building OpenVINO with Ninja* Build System
 
