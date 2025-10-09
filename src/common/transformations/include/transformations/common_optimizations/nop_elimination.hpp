@@ -277,4 +277,3 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateIdentity");
     EliminateIdentity();
 };
-
