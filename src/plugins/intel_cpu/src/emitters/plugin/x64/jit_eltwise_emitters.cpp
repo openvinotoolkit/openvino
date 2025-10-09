@@ -2959,8 +2959,18 @@ jit_clamp_emitter::jit_clamp_emitter(x64::jit_generator_t* host,
                                      double alpha,
                                      double beta)
     : jit_emitter(host, host_isa, exec_prc) {
-    minimum = x64::float2int(alpha);
-    maximum = x64::float2int(beta);
+    switch (exec_prc_) {
+    case element::i32:
+        minimum = static_cast<int>(std::max<int64_t>(static_cast<int64_t>(alpha), std::numeric_limits<int32_t>::min()));
+        maximum = static_cast<int>(std::min<int64_t>(static_cast<int64_t>(beta), std::numeric_limits<int32_t>::max()));
+        break;
+    case element::f32:
+        minimum = x64::float2int(alpha);
+        maximum = x64::float2int(beta);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+    }
     prepare_table();
 }
 
