@@ -11,7 +11,7 @@
  * @brief Defines visibility settings for OpenVINO Snippets library
  */
 
-#ifdef OPENVINO_STATIC_LIBRARY
+#if defined(OPENVINO_STATIC_LIBRARY) || defined(_WIN32)
 #    define SNIPPETS_API
 #else
 #    ifdef IMPLEMENT_OPENVINO_API

@@ -9,11 +9,6 @@ set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-# TODO: Fix MSVC inconsistent dll linkage warning suppression
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ov_add_compiler_flags(/wd4273)
-endif()
-
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
