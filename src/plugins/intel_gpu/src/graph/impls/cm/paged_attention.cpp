@@ -51,7 +51,7 @@ public:
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_multi_token, params);
         const size_t xattn_block_size = get_xattn_block_size(params);
-        if (xattn_block_size > 1) {
+        if (desc->has_xattention && xattn_block_size > 1) {
             add_stage(xattn_estimate_gemmqk, params);
             add_stage(xattn_estimate_find_block, params);
             add_stage(xattn_estimate_post_proc, params);
@@ -194,7 +194,7 @@ public:
             internal_buffers.emplace_back(count_kq_max_wg, ov::element::f32);                // 2: kq_max_wg
 
             const size_t block_size = get_xattn_block_size(params);
-            if (block_size > 1) {
+            if (desc->has_xattention && block_size > 1) {
                 OPENVINO_ASSERT(block_size % STRIDE == 0, "sparse block_size must be devidable by stride.");
                 const uint32_t q_block_pad = ceil_div(q_len, block_size);
                 const uint32_t sum_per_token_in_block = static_cast<uint32_t>(block_size / STRIDE);
