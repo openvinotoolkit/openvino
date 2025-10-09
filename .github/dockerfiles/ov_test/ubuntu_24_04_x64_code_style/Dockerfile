@@ -13,7 +13,7 @@ ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
 RUN apt update && \
-    apt install wget git curl cmake lsb-release software-properties-common gnupg build-essential clang-format-18 && \
+    apt install wget git curl cmake lsb-release software-properties-common gnupg build-essential clang-format-18 shellcheck && \
     wget https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \
     ./llvm.sh 18 && \
