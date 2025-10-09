@@ -169,5 +169,15 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
  */
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
+
+bool inline does_config_require_weightless_cache(const ov::AnyMap& config) {
+    auto weightless = false;
+    if (auto it = config.find(ov::enable_weightless.name()); it != config.end()) {
+        weightless = it->second.as<bool>();
+    } else if (auto cache_mode_it = config.find(ov::cache_mode.name()); cache_mode_it != config.end()) {
+        weightless = cache_mode_it->second.as<ov::CacheMode>() == ov::CacheMode::OPTIMIZE_SIZE;
+    }
+    return weightless;
+}
 }  // namespace internal
 }  // namespace ov
