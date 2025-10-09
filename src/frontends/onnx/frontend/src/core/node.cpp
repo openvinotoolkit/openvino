@@ -235,7 +235,7 @@ ov::OutputVector Node::Impl::get_ov_inputs() const {
         if (!name.empty()) {
             result.push_back(m_graph->get_ov_node_from_cache(name));
         } else {
-            result.push_back(std::make_shared<NullNode>()->get_default_output());
+            result.push_back(std::make_shared<NullNode>()->output(0));
         }
     }
     return result;
