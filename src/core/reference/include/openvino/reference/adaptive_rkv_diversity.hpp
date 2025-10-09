@@ -4,17 +4,11 @@
 
 #pragma once
 
-#include <cmath>
-#include <cstddef>
-#include <memory>
-#include <queue>
-
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/reference/matmul.hpp"
 #include "openvino/reference/normalize_l2.hpp"
 #include "openvino/reference/reduce_mean.hpp"
 #include "openvino/reference/slice.hpp"
-#include "openvino/runtime/tensor.hpp"
 
 namespace ov::reference {
 
@@ -27,7 +21,7 @@ public:
      * calculation, starting from the beginning of the token dimension ("start area"). Must be a multiple of
      * `block_size`.
      * @param eviction_size Size, in tokens, from the beginning of the start area, the tokens in which will be
-     * considred for purposes of diversity calculation ("eviction area"). The rest of the tokens after the eviction
+     * considered for purposes of diversity calculation ("eviction area"). The rest of the tokens after the eviction
      * area, if any, are ignored. Must be a multiple of `block_size`.
      * @param block_size Block size of the underlying paged attention implementation. The diversity values will be
      * sum-reduced from per-token values to per-block values based on this number of tokens in a block.
@@ -92,6 +86,8 @@ public:
     }
 
     /** For a square matrix, sums each `block_size`-sized group of matrix rows to produce a row in the output matrix.
+     * In the overall algorithm context, each summed value represents diversity (the negative of inter-token cosine
+     * similarity), where larger absolute values indicate greater diversity.
      * @param in_data Pointer to the matrix data.
      * @param in_shape Shape of the matrix data. Expected shape is [token_dim, token_dim], where token_dim must be a
      * multiple of `block_size`.
@@ -130,7 +126,7 @@ public:
      * block in the eviction area. Due to implementation specifics the paged attention kernel does not know ahead of
      * time which blocks will be "retained" - this information is only available on the openvino.genai level after the
      * PA kernel has executed. Therefore the PA kernel will provide raw per-token values on the rank 1 of the returned
-     * diversity value matrix and delegatei the final reduce-mean and filtering to the openvino.genai level.
+     * diversity value matrix and delegate the final reduce-mean and filtering to the openvino.genai level.
      * @param key_data Pointer to the key cache tensor data
      * @param key_shape Shape of the key input tensor data. Expected shape is [num_heads, num_key_tokens, head_size],
      * where `num_key_tokens` must be no less than `start_size + eviction_size`.
@@ -165,7 +161,6 @@ public:
 
         Shape evictable_subset_shape = {key_shape[0], m_eviction_size, m_eviction_size};
         auto evictable_subset_buf = allocate_buf(evictable_subset_shape);
-        // stops?
         ov::reference::slice(reinterpret_cast<char*>(cos_similar_buf.get()),
                              cos_similar_shape,
                              reinterpret_cast<char*>(evictable_subset_buf.get()),
@@ -173,7 +168,7 @@ public:
                              sizeof(T),
                              /* starts = */ {m_start_size, m_start_size},
                              /* steps = */ {1, 1},
-                             /* axes = */ {1, 2});
+                             /* axes = */ {1, 2}); // stops are defined by output shape
         cos_similar_buf.reset();
 
         fill_diagonal_(evictable_subset_buf.get(), evictable_subset_shape, 0.0);
