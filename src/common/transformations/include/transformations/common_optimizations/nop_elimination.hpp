@@ -266,3 +266,14 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("PrepareShapeOpsForEliminationAroundBE");
     PrepareShapeOpsForEliminationAroundBE();
 };
+
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief EliminateIdentity eliminates identity that does nothing
+ */
+class ov::pass::EliminateIdentity : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateIdentity");
+    EliminateIdentity();
+};
