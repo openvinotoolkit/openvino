@@ -251,6 +251,198 @@ describe("ov.Tensor tests", () => {
     });
   });
 
+  describe("Tensor.copyTo()", () => {
+    test("should copy data from source tensor to destination tensor with f32 type", () => {
+      const sourceData = new Float32Array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+      const sourceTensor = new ov.Tensor(ov.element.f32, [2, 3], sourceData);
+      const destTensor = new ov.Tensor(ov.element.f32, [2, 3]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+
+    test("should copy data with i32 type", () => {
+      const sourceData = new Int32Array([10, 20, 30, 40]);
+      const sourceTensor = new ov.Tensor(ov.element.i32, [2, 2], sourceData);
+      const destTensor = new ov.Tensor(ov.element.i32, [2, 2]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+
+    test("should copy data with u8 type", () => {
+      const sourceData = new Uint8Array([100, 150, 200, 250]);
+      const sourceTensor = new ov.Tensor(ov.element.u8, [4], sourceData);
+      const destTensor = new ov.Tensor(ov.element.u8, [4]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+
+    test("should copy data with i64 type", () => {
+      const sourceData = new BigInt64Array([1n, 2n, 3n, 4n]);
+      const sourceTensor = new ov.Tensor(ov.element.i64, [4], sourceData);
+      const destTensor = new ov.Tensor(ov.element.i64, [4]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+
+    test("should copy data with complex shapes", () => {
+      const sourceData = new Float32Array([
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+      ]);
+      const sourceTensor = new ov.Tensor(ov.element.f32, [3, 4], sourceData);
+      const destTensor = new ov.Tensor(ov.element.f32, [3, 4]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+
+    test("should copy data with 3D tensors", () => {
+      const sourceData = new Float32Array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+      const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2, 2], sourceData);
+      const destTensor = new ov.Tensor(ov.element.f32, [2, 2, 2]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+
+    test("should throw error when argument is missing", () => {
+      const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2]);
+
+      assert.throws(
+        () => {
+          sourceTensor.copyTo();
+        },
+        {
+          message: "copyTo() must receive one argument, which is the destination Tensor.",
+        },
+      );
+    });
+
+    test("should throw error when argument is not a Tensor", () => {
+      const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2]);
+
+      assert.throws(
+        () => {
+          sourceTensor.copyTo({});
+        },
+        {
+          message: "Invalid argument",
+        },
+      );
+    });
+
+    test("should throw error when destination tensor is null", () => {
+      const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2]);
+
+      assert.throws(
+        () => {
+          sourceTensor.copyTo(null);
+        },
+        {
+          message: "The argument must be a Tensor object.", // ← Correct message
+        },
+      );
+    });
+
+    test("should throw error for incompatible element types", () => {
+      const sourceData = new Float32Array([1.0, 2.0, 3.0, 4.0]);
+      const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2], sourceData);
+      const destTensor = new ov.Tensor(ov.element.i32, [2, 2]);
+
+      assert.throws(() => {
+        sourceTensor.copyTo(destTensor);
+      });
+    });
+
+    test("should copy when shapes differ but element count is same", () => {
+      const sourceData = new Float32Array([1.0, 2.0, 3.0, 4.0]);
+      const sourceTensor = new ov.Tensor(ov.element.f32, [2, 2], sourceData);
+      const destTensor = new ov.Tensor(ov.element.f32, [4, 1]);
+
+      assert.doesNotThrow(() => {
+        sourceTensor.copyTo(destTensor);
+      });
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+
+    test("should verify data independence after copy", () => {
+      const sourceData = new Float32Array([1.0, 2.0, 3.0, 4.0]);
+      const sourceTensor = new ov.Tensor(ov.element.f32, [4], sourceData);
+      const destTensor = new ov.Tensor(ov.element.f32, [4]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const modifiedSourceData = new Float32Array([10.0, 20.0, 30.0, 40.0]);
+      sourceTensor.data = modifiedSourceData;
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), [1.0, 2.0, 3.0, 4.0]);
+    });
+
+    test("should handle empty tensors", () => {
+      const sourceTensor = new ov.Tensor(ov.element.f32, [0]);
+      const destTensor = new ov.Tensor(ov.element.f32, [0]);
+
+      assert.doesNotThrow(() => {
+        sourceTensor.copyTo(destTensor);
+      });
+    });
+
+    test("should copy data with f64 type", () => {
+      const sourceData = new Float64Array([1.5, 2.5, 3.5, 4.5]);
+      const sourceTensor = new ov.Tensor(ov.element.f64, [2, 2], sourceData);
+      const destTensor = new ov.Tensor(ov.element.f64, [2, 2]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+
+    test("should copy data with u16 type", () => {
+      const sourceData = new Uint16Array([1000, 2000, 3000, 4000]);
+      const sourceTensor = new ov.Tensor(ov.element.u16, [4], sourceData);
+      const destTensor = new ov.Tensor(ov.element.u16, [4]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+
+    test("should handle large tensors", () => {
+      const size = 1000;
+      const sourceData = new Float32Array(size);
+      for (let i = 0; i < size; i++) {
+        sourceData[i] = i * 0.5;
+      }
+
+      const sourceTensor = new ov.Tensor(ov.element.f32, [size], sourceData);
+      const destTensor = new ov.Tensor(ov.element.f32, [size]);
+
+      sourceTensor.copyTo(destTensor);
+
+      const destData = destTensor.getData();
+      assert.deepStrictEqual(Array.from(destData), Array.from(sourceData));
+    });
+  });
   describe("Tensor element type", () => {
     it("comparisons of ov.element to string", () => {
       params.forEach(([elemType, val]) => {
