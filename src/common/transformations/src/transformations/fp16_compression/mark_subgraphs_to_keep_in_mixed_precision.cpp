@@ -50,7 +50,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
-#include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
@@ -283,8 +282,12 @@ public:
 
             disable_fp16_compression(node);
             for (const auto& output : node->outputs()) {
-                for (const auto& out_inputs : output.get_target_inputs()) {
-                    mark_as_precision_sensitive(out_inputs);
+                auto target_inputs = output.get_target_inputs();
+                for (const auto& input : target_inputs) {
+                    auto consumer_node = input.get_node();
+                    for (auto input : consumer_node->inputs()) {
+                        mark_as_precision_sensitive(input);
+                    }
                 }
             }
             return false;

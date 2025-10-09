@@ -67,16 +67,6 @@ std::vector<size_t> LoopManager::get_outer_expr_loops(const ExpressionPtr& expr,
     return {loop_ids.cbegin(), it};
 }
 
-std::vector<size_t> LoopManager::get_common_outer_loops(const ExpressionPtr& lhs, const ExpressionPtr& rhs) {
-    const auto& rhs_ids = rhs->get_loop_ids();
-    const auto& lhs_ids = lhs->get_loop_ids();
-    size_t idx = 0;
-    while (idx < std::min(rhs_ids.size(), lhs_ids.size()) && rhs_ids[idx] == lhs_ids[idx]) {
-        idx++;
-    }
-    return {rhs_ids.cbegin(), rhs_ids.cbegin() + idx};
-}
-
 std::vector<size_t> LoopManager::get_common_outer_loops(const std::vector<ExpressionPtr>& exprs) {
     OPENVINO_ASSERT(!exprs.empty(), "Failed to find common outer loops for set of expressions: there no expressions");
 
@@ -89,7 +79,7 @@ std::vector<size_t> LoopManager::get_common_outer_loops(const std::vector<Expres
     };
 
     const auto& first_loop_ids = exprs.front()->get_loop_ids();
-    size_t common_idx = 0;
+    size_t common_idx = first_loop_ids.size();
     for (size_t i = 1; i < exprs.size(); ++i) {
         common_idx = std::min(common_idx, get_first_diff_id_idx(first_loop_ids, exprs[i]->get_loop_ids()));
     }
@@ -245,8 +235,36 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
         const auto work_amount = *(loop_tensor.rbegin() + dim_idx);
         const auto increment = subtensor_value;
-        mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, dim_idx, loop_input_ports, loop_output_ports);
+        std::vector<LoopPort> entries, exits;
+        for (const auto& port : loop_input_ports) {
+            entries.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, dim_idx));
+        }
+        for (const auto& port : loop_output_ports) {
+            exits.push_back(LoopPort::create<LoopPort::Type::Incremented>(port, dim_idx));
+        }
+        mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits);
     }
+}
+
+size_t LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
+                              LinearIR::constExprIt loop_end_pos,
+                              size_t work_amount,
+                              size_t increment,
+                              const std::vector<LoopPort>& entries,
+                              const std::vector<LoopPort>& exits,
+                              bool set_default_handlers) {
+    const auto normalized_increment =
+        utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
+    const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits, false);
+    if (set_default_handlers) {
+        loop_info->set_handlers(SpecificIterationHandlers(work_amount, normalized_increment, loop_info->get_dim_idx()));
+    }
+
+    const auto loop_id = this->add_loop_info(loop_info);
+    for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
+        insert_loop_id(*expr_it, loop_id);
+    }
+    return loop_id;
 }
 
 size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
@@ -321,7 +339,12 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target,
     auto new_exits = std::move(output_ports_upper);
     new_exits.insert(new_exits.end(), output_ports_lower.begin(), output_ports_lower.end());
 
-    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers);
+    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount,
+                                                  increment,
+                                                  new_entries,
+                                                  new_exits,
+                                                  loop_info_lower->is_parallel(),
+                                                  handlers);
 
     // Need to handle InnerSplittedLoopInfo - update outer splitted loop info if it was fused
     for (const auto& p : m_map) {

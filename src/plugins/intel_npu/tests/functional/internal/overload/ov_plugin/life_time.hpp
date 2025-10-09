@@ -6,6 +6,7 @@
 
 #include "behavior/ov_plugin/life_time.hpp"
 #include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -25,7 +26,7 @@ protected:
     std::shared_ptr<ov::Model> function;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string target_device;
         ov::AnyMap configuration;
         std::tie(target_device, configuration) = obj.param;
@@ -164,7 +165,7 @@ protected:
     std::shared_ptr<ov::Model> function;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string target_device;
         ov::AnyMap configuration;
         std::tie(target_device, configuration) = obj.param;
@@ -236,11 +237,13 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, CanInferAfterTensorIsDestroyed) {
         {
             std::stringstream sstream;
             core.compile_model(function, target_device, configuration).export_model(sstream);
-            auto strSO = std::make_shared<std::string>(sstream.str());
-            auto tensor = ov::Tensor(ov::element::u8, ov::Shape{strSO->size()}, strSO->data());
-            auto impl = ov::get_tensor_impl(tensor);
-            impl._so = strSO;
-            tensor = ov::make_tensor(impl);
+
+            const std::string& str = sstream.str();
+            size_t size = str.size();
+            ov::test::utils::DefaultAllocatorNotAligned default_allocator_not_aligned;
+            auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, default_allocator_not_aligned);
+            std::memcpy(tensor.data(), str.data(), size);
+
             compiled_model = core.import_model(tensor, target_device, configuration);
         }
 

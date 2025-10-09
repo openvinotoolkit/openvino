@@ -261,7 +261,8 @@ ov_mark_target_as_cc(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              openvino::shape_inference
-                                             openvino::snippets)
+                                             openvino::snippets
+                                             openvino_xml_util)
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 if (ENABLE_MLAS_FOR_CPU)
@@ -363,6 +364,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 set(PCH_EXCLUDE_FILES
     src/emitters/plugin/x64/debug_capabilities.cpp
+    src/emitters/plugin/aarch64/debug_capabilities.cpp
     src/nodes/executors/printers.cpp
     src/emitters/snippets/x64/jit_debug_emitter.cpp
     src/emitters/snippets/x64/jit_debug_emitter.cpp
@@ -396,6 +398,7 @@ if(BUILD_SHARED_LIBS)
             $<TARGET_PROPERTY:openvino::shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::snippets,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::xml_util,INTERFACE_INCLUDE_DIRECTORIES>
         PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)

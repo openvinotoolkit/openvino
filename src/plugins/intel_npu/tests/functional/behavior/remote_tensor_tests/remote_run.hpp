@@ -8,9 +8,10 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/op.hpp"
@@ -18,7 +19,11 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "overload/overload_test_utils_npu.hpp"
+#include "remote_context.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "zero_backend.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -38,7 +43,7 @@ protected:
     std::string m_cache_dir;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompilationParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
         std::string targetDevice;
         ov::AnyMap configuration;
         std::tie(targetDevice, configuration) = obj.param;
@@ -623,6 +628,60 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRuns) {
         auto remote_tensor =
             context.create_l0_host_tensor(ov::element::f32, tensor.get_shape(), ov::intel_npu::TensorType::INPUT);
         memset(remote_tensor.get(), 1, tensor.get_byte_size());
+        OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
+        OV_ASSERT_NO_THROW(inference_request.infer());
+        first_output = inference_request.get_output_tensor(0);
+    }
+
+    compiled_model = {};
+    inference_request = {};
+
+    {
+        OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+        OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+        auto tensor = inference_request.get_input_tensor();
+        float* data = new float[tensor.get_byte_size() / sizeof(float)];
+        memset(data, 1, tensor.get_byte_size());
+        ov::Tensor input_data_tensor{ov::element::f32, tensor.get_shape(), data};
+        OV_ASSERT_NO_THROW(inference_request.set_input_tensor(input_data_tensor));
+        OV_ASSERT_NO_THROW(inference_request.infer());
+        second_output = inference_request.get_output_tensor(0);
+
+        delete[] data;
+    }
+
+    EXPECT_NE(first_output.data(), second_output.data());
+    EXPECT_EQ(memcmp(first_output.data(), second_output.data(), second_output.get_byte_size()), 0);
+}
+
+TEST_P(RemoteRunTests, CheckOutputDataFromRemoteTensorFromDifferentContext) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    ov::InferRequest inference_request;
+    ov::Tensor first_output;
+    ov::Tensor second_output;
+
+    {
+        auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+        OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+        OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+        auto tensor = inference_request.get_input_tensor();
+
+        ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
+                             {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+        auto init_struct = ::intel_npu::ZeroInitStructsHolder::getInstance();
+        std::shared_ptr<::intel_npu::IEngineBackend> engine_backend =
+            std::make_shared<::intel_npu::ZeroEngineBackend>();
+        auto zero_context = std::make_shared<::intel_npu::RemoteContextImpl>(engine_backend);
+        auto remote_tensor_impl = std::make_shared<::intel_npu::ZeroRemoteTensor>(zero_context,
+                                                                                  init_struct,
+                                                                                  ov::element::f32,
+                                                                                  tensor.get_shape());
+        ov::Tensor remote_tensor = make_tensor(remote_tensor_impl);
+
+        memset(remote_tensor_impl->get_original_memory(), 1, remote_tensor_impl->get_byte_size());
         OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
         OV_ASSERT_NO_THROW(inference_request.infer());
         first_output = inference_request.get_output_tensor(0);

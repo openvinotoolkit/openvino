@@ -196,9 +196,29 @@ Example:
     <skip_config>
         <message>Tests with unsupported precision</message>
         <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=f64.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*device=MULTI.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*device=AUTO.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*device=MULTI.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*device=AUTO.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E###### -->
+    <skip_config>
+        <message>Data types not supported by NPU3720 PV Driver.</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=bf16.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i64.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u64.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f64.*</filter>
         </filters>
     </skip_config>
 
@@ -469,15 +489,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#111455 -->
-    <skip_config>
-        <message>Failing properties tests for AUTO / MULTI</message>
-        <filters>
-            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*MULTI.*LOG_LEVEL.*</filter>
-            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*AUTO.*LOG_LEVEL.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#99817 -->
     <skip_config>
         <message>Disabled tests for NPU3720 and NPU4000</message>
@@ -584,14 +595,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#114624 -->
-    <skip_config>
-        <message>The tests are not actually running the compiler-in-driver module.</message>
-        <filters>
-            <filter>.*smoke_BehaviorTests_OVCheckSetSupportedRWMetricsPropsTests.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#109040 -->
     <skip_config>
         <message>Disabled tests for NPU3720</message>
@@ -599,9 +602,6 @@ Example:
             <device>3720</device>
         </enable_rules>
         <filters>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=i16.*</filter>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u16.*</filter>
-            <filter>.*smoke.*_BehaviorTests/OVInferRequestCheckTensorPrecision.*type=u64.*</filter>
             <filter>.*smoke_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.*</filter>
         </filters>
     </skip_config>
@@ -644,36 +644,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#118331 -->
-    <skip_config>
-        <message>platform and compiler_type are private</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestCallbackTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestCallbackTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestCallbackTestsNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestCallbackTestsNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTestNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTest.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestMultithreadingTests.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestMultithreadingTestsNPU.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersExceptionTest.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersTest.*</filter>
-            <filter>.*smoke_Multi_BehaviorTests/OVInferRequestWaitTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestMultithreadingTests.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestMultithreadingTestsNPU.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestPerfCountersExceptionTest.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestPerfCountersTest.*</filter>
-            <filter>.*smoke_Auto_BehaviorTests/OVInferRequestWaitTests.*</filter>
-            <filter>.*smoke_OVClassNetworkTestP/OVClassNetworkTestPNPU.*</filter>
-            <filter>.*smoke_OVClassLoadNetworkTest/OVClassLoadNetworkTestNPU.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests_VariableState/OVInferRequestVariableStateTest.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E####### -->
     <skip_config>
         <message>Test will set NPU_TILES to -1 which is an invalid value, in this case default values don't work</message>
@@ -682,19 +652,6 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#118331 -->
-    <skip_config>
-        <message>Private properties cannot be accessed by HETERO compiled model</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*smoke_Hetero_BehaviorTests.*OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests.*OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.*</filter>
-            <filter>.*smoke_Hetero_BehaviorTests.*OVCompileModelGetExecutionDeviceTests.*</filter>
         </filters>
     </skip_config>
 
@@ -842,12 +799,27 @@ Example:
 
     <!-- E#170977 -->
     <skip_config>
-        <message>Skip tests with u2 precision not supported on NPU3720.</message>
+        <message>Data type u1/u2 not supported by NPU3720.</message>
         <enable_rules>
             <device>3720</device>
         </enable_rules>
         <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E###### -->
+    <skip_config>
+        <message>Data type u1 not supported by NPU4000.</message>
+        <enable_rules>
+            <device>4000</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
         </filters>
     </skip_config>
 

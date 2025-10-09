@@ -63,6 +63,37 @@ void registerNPUWLLMOptions(OptionsDesc& desc);
         }                                                       \
     };
 
+#define DEFINE_ANYMAP_OPT(Name, PropertyKey)                         \
+    struct Name final : OptionBase<Name, ov::AnyMap> {               \
+        static std::string_view key() {                              \
+            return ov::intel_npu::PropertyKey.name();                \
+        }                                                            \
+                                                                     \
+        static constexpr std::string_view getTypeName() {            \
+            return "::intel_npu::" #PropertyKey;                     \
+        }                                                            \
+                                                                     \
+        static ov::AnyMap defaultValue() {                           \
+            return {};                                               \
+        }                                                            \
+                                                                     \
+        static ov::AnyMap parse(std::string_view val) {              \
+            return ov::npuw::s11n::stringToAnyMap(std::string(val)); \
+        }                                                            \
+                                                                     \
+        static std::string toString(const ov::AnyMap& val) {         \
+            return ov::npuw::s11n::anyMapToString(val);              \
+        }                                                            \
+                                                                     \
+        static OptionMode mode() {                                   \
+            return OptionMode::RunTime;                              \
+        }                                                            \
+                                                                     \
+        static bool isPublic() {                                     \
+            return false;                                            \
+        }                                                            \
+    };
+
 DEFINE_OPT(NPU_USE_NPUW, bool, false, use_npuw, RunTime);
 DEFINE_OPT(NPUW_DEVICES, std::string, "NPU,CPU", npuw::devices, RunTime);
 DEFINE_OPT(NPUW_SUBMODEL_DEVICE, std::string, "", npuw::submodel_device, RunTime);
@@ -86,6 +117,8 @@ DEFINE_OPT(NPUW_SPATIAL, bool, false, npuw::partitioning::spatial, RunTime);
 DEFINE_OPT(NPUW_F16IC, bool, true, npuw::partitioning::f16_interconnect, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_NWAY, std::size_t, 128, npuw::partitioning::spatial_nway, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_DYN, bool, true, npuw::partitioning::spatial_dyn, RunTime);
+DEFINE_OPT(NPUW_ATTN_DYN, bool, true, npuw::partitioning::attn_dyn, RunTime);
+DEFINE_OPT(NPUW_ATTN_NO_COPY, bool, false, npuw::partitioning::attn_no_copy, RunTime);
 DEFINE_OPT(NPUW_DCOFF_TYPE, std::string, "", npuw::partitioning::dcoff_type, RunTime);
 DEFINE_OPT(NPUW_DCOFF_SCALE, bool, false, npuw::partitioning::dcoff_with_scale, RunTime);
 DEFINE_OPT(NPUW_FUNCALL_FOR_ALL, bool, false, npuw::partitioning::funcall_for_all, RunTime);
@@ -95,6 +128,7 @@ DEFINE_OPT(NPUW_WEIGHTS_BANK_ALLOC, std::string, "", npuw::weights_bank_alloc, R
 DEFINE_OPT(NPUW_CACHE_DIR, std::string, "", npuw::cache_dir, RunTime);
 DEFINE_OPT(NPUW_FUNCALL_ASYNC, bool, false, npuw::funcall_async, RunTime);
 DEFINE_OPT(NPUW_UNFOLD_IREQS, bool, false, npuw::unfold_ireqs, RunTime);
+DEFINE_OPT(NPUW_FALLBACK_EXEC, bool, true, npuw::fallback_exec, RunTime);
 DEFINE_OPT(NPUW_ACC_CHECK, bool, false, npuw::accuracy::check, RunTime);
 DEFINE_OPT(NPUW_ACC_THRESH, double, 0.01, npuw::accuracy::threshold, RunTime);
 DEFINE_OPT(NPUW_ACC_DEVICE, std::string, "", npuw::accuracy::reference_device, RunTime);
@@ -107,17 +141,25 @@ DEFINE_OPT(NPUW_LLM, bool, false, npuw::llm::enabled, RunTime);
 DEFINE_OPT(NPUW_LLM_BATCH_DIM, uint32_t, 0, npuw::llm::batch_dim, RunTime);
 DEFINE_OPT(NPUW_LLM_SEQ_LEN_DIM, uint32_t, 2, npuw::llm::seq_len_dim, RunTime);
 DEFINE_OPT(NPUW_LLM_MAX_PROMPT_LEN, uint32_t, 1024, npuw::llm::max_prompt_len, RunTime);
+DEFINE_OPT(NPUW_LLM_MAX_GENERATION_TOKEN_LEN, uint32_t, 1, npuw::llm::max_generation_token_len, RunTime);
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, RunTime);
 DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensors, RunTime);
-DEFINE_OPT(NPUW_LLM_CACHE_ROPE, bool, true, npuw::llm::cache_rope, CompileTime);
+DEFINE_OPT(NPUW_LLM_CACHE_ROPE, bool, true, npuw::llm::cache_rope, RunTime);
 DEFINE_OPT(NPUW_LLM_PREFILL_CHUNK_SIZE, uint64_t, 1024, npuw::llm::prefill_chunk_size, RunTime);
-DEFINE_OPT(NPUW_LLM_SHARED_HEAD, bool, true, npuw::llm::shared_lm_head, CompileTime);
+DEFINE_OPT(NPUW_LLM_SHARED_HEAD, bool, true, npuw::llm::shared_lm_head, RunTime);
 DEFINE_OPT(NPUW_LLM_MAX_LORA_RANK, uint32_t, 32, npuw::llm::max_lora_rank, RunTime);
+DEFINE_ANYMAP_OPT(NPUW_LLM_PREFILL_CONFIG, npuw::llm::prefill_config);
+DEFINE_ANYMAP_OPT(NPUW_LLM_ADDITIONAL_PREFILL_CONFIG, npuw::llm::additional_prefill_config);
+DEFINE_ANYMAP_OPT(NPUW_LLM_GENERATE_CONFIG, npuw::llm::generate_config);
+DEFINE_ANYMAP_OPT(NPUW_LLM_ADDITIONAL_GENERATE_CONFIG, npuw::llm::additional_generate_config);
+DEFINE_ANYMAP_OPT(NPUW_LLM_SHARED_LM_HEAD_CONFIG, npuw::llm::shared_lm_head_config);
+DEFINE_ANYMAP_OPT(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG, npuw::llm::additional_shared_lm_head_config);
 
 namespace npuw {
 namespace llm {
 enum class PrefillHint { DYNAMIC, STATIC };
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
+enum class AttentionHint { DYNAMIC, STATIC };
 }  // namespace llm
 }  // namespace npuw
 
@@ -165,6 +207,58 @@ struct NPUW_LLM_PREFILL_HINT final : OptionBase<NPUW_LLM_PREFILL_HINT, ::intel_n
     }
 };
 
+struct ATTN_HINT_BASE : OptionBase<ATTN_HINT_BASE, ::intel_npu::npuw::llm::AttentionHint> {
+    static constexpr std::string_view getTypeName() {
+        return "::intel_npu::npuw::llm::AttentionHint";
+    }
+
+    static ::intel_npu::npuw::llm::AttentionHint defaultValue() {
+        return ::intel_npu::npuw::llm::AttentionHint::STATIC;
+    }
+
+    static ::intel_npu::npuw::llm::AttentionHint parse(std::string_view val) {
+        if (val == "DYNAMIC") {
+            return ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+        } else if (val == "STATIC") {
+            return ::intel_npu::npuw::llm::AttentionHint::STATIC;
+        }
+        OPENVINO_THROW("Unsupported attention hint provided: ", val);
+        return {};
+    }
+
+    static std::string toString(const ::intel_npu::npuw::llm::AttentionHint& val) {
+        switch (val) {
+        case ::intel_npu::npuw::llm::AttentionHint::DYNAMIC:
+            return "DYNAMIC";
+        case ::intel_npu::npuw::llm::AttentionHint::STATIC:
+            return "STATIC";
+        default:
+            OPENVINO_THROW("Can't convert provided attention hint : ", int(val), " to string.");
+        }
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
+
+struct NPUW_LLM_GENERATE_ATTENTION_HINT final : ATTN_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::generate_attn_hint.name();
+    }
+};
+
+struct NPUW_LLM_PREFILL_ATTENTION_HINT final : ATTN_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::prefill_attn_hint.name();
+    }
+};
+
 struct NPUW_LLM_GENERATE_HINT final : OptionBase<NPUW_LLM_GENERATE_HINT, ::intel_npu::npuw::llm::GenerateHint> {
     static std::string_view key() {
         return ov::intel_npu::npuw::llm::generate_hint.name();
@@ -206,66 +300,6 @@ struct NPUW_LLM_GENERATE_HINT final : OptionBase<NPUW_LLM_GENERATE_HINT, ::intel
             OPENVINO_THROW("Can't convert provided \"GENERATE_HINT\" : ", int(val), " to string.");
         }
         return res;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-
-    static bool isPublic() {
-        return false;
-    }
-};
-
-struct NPUW_LLM_PREFILL_CONFIG final : OptionBase<NPUW_LLM_PREFILL_CONFIG, ov::AnyMap> {
-    static std::string_view key() {
-        return ov::intel_npu::npuw::llm::prefill_config.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "::intel_npu::npuw::llm::prefill_config";
-    }
-
-    static ov::AnyMap defaultValue() {
-        return {};
-    }
-
-    static ov::AnyMap parse(std::string_view val) {
-        return ov::npuw::s11n::stringToAnyMap(std::string(val));
-    }
-
-    static std::string toString(const ov::AnyMap& val) {
-        return ov::npuw::s11n::anyMapToString(val);
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-
-    static bool isPublic() {
-        return false;
-    }
-};
-
-struct NPUW_LLM_GENERATE_CONFIG final : OptionBase<NPUW_LLM_GENERATE_CONFIG, ov::AnyMap> {
-    static std::string_view key() {
-        return ov::intel_npu::npuw::llm::generate_config.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "::intel_npu::npuw::llm::generate_config";
-    }
-
-    static ov::AnyMap defaultValue() {
-        return {};
-    }
-
-    static ov::AnyMap parse(std::string_view val) {
-        return ov::npuw::s11n::stringToAnyMap(std::string(val));
-    }
-
-    static std::string toString(const ov::AnyMap& val) {
-        return ov::npuw::s11n::anyMapToString(val);
     }
 
     static OptionMode mode() {

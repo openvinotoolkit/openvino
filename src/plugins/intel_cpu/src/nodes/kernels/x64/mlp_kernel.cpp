@@ -23,6 +23,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -316,9 +317,8 @@ public:
     }
 };
 
-template <typename Tdst>
-static std::enable_if_t<std::is_same_v<ov::bfloat16, Tdst> || std::is_same_v<ov::float16, Tdst>>
-repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
+template <typename Tdst, typename = std::enable_if_t<any_of_v<Tdst, ov::bfloat16, ov::float16>>>
+static void repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     static FP16ToBF16Kernel fp16_to_bf16;
     if (N == 16 && K == 32) {
         // SIMD optimized version

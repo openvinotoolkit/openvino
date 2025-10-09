@@ -83,10 +83,14 @@ public:
      * - Simple Executor, if there is only one available implementation
      *
      * @param memory memory arguments.
+     * @param initVariableExecutor whether to init first available implementation of variable executor or not.
+     *        This option is mostly a workaround at the moment.
+     *        In general it might be beneficial to initialize all the shape dependent implementations
+     *        of the variable executor in advance to avoid first-time call delays.
      *
      * @return A shared pointer to the created Executor.
      */
-    ExecutorPtr make(const MemoryArgs& memory) {
+    ExecutorPtr make(const MemoryArgs& memory, bool initVariableExecutor = true) {
         std::vector<ExecutorImplementationRef> implementations;
 
         auto acceptsConfig = [](const ExecutorImplementationRef& impl, const executor::Config<Attrs>& config) {
@@ -121,7 +125,11 @@ public:
             return theOnlyImplementation.create(m_attrs, memory, m_context);
         }
 
-        return std::make_shared<VariableExecutor<Attrs>>(memory, m_attrs, m_context, implementations);
+        return std::make_shared<VariableExecutor<Attrs>>(memory,
+                                                         m_attrs,
+                                                         m_context,
+                                                         implementations,
+                                                         initVariableExecutor);
     }
 
 private:

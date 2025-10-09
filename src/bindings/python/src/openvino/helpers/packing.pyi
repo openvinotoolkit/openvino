@@ -5,7 +5,7 @@ from openvino._pyopenvino import Type
 import numpy
 import numpy as np
 import openvino._pyopenvino
-__all__ = ['Shape', 'Type', 'np', 'pack_data', 'unpack_data']
+__all__: list[str] = ['Shape', 'Type', 'np', 'pack_data', 'unpack_data']
 def pack_data(array: numpy.ndarray, type: openvino._pyopenvino.Type) -> numpy.ndarray:
     """
     Represent array values as u1,u4 or i4 openvino element type and pack them into uint8 numpy array.

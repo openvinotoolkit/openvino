@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -25,7 +26,9 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/softmax.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
@@ -148,6 +151,27 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
         return 1;
     }
     return 0;
+}
+
+std::optional<int64_t> get_softmax_axis(const std::shared_ptr<const ov::Node>& node) {
+    if (!node) {
+        return {};
+    }
+    const auto rank = node->get_input_partial_shape(0).rank();
+    if (rank.is_dynamic()) {
+        return {};
+    }
+    if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(node)) {
+        return static_cast<int64_t>(ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *softmax_v8));
+    }
+    if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(node)) {
+        const auto axis = softmax_v1->get_axis();
+        if (static_cast<int64_t>(axis) >= rank.get_length()) {
+            return {};
+        }
+        return static_cast<int64_t>(axis);
+    }
+    return {};
 }
 
 bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
@@ -319,19 +343,17 @@ std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const 
     if (current_exp->get_input_count() == 0) {
         return shape_infer_exprs;
     }
-    auto input = current_exp->get_input_port_connector(0);
-    auto first_parent = input->get_source().get_expr();
+    auto first_parent = current_exp->get_input_expr_ptr(0);
     while (op::Subgraph::is_shape_infer_op(first_parent->get_node())) {
         shape_infer_exprs.push_back(first_parent);
         current_exp = first_parent;
         if (current_exp->get_input_count() == 0) {
             break;
         }
-        input = current_exp->get_input_port_connector(0);
-        first_parent = input->get_source().get_expr();
+        first_parent = current_exp->get_input_expr_ptr(0);
         if (!ov::is_type<snippets::op::Store>(first_parent->get_node())) {
             // there are maybe some loopEnd consumers of store as well for loop code gen purpose
-            OPENVINO_ASSERT(input->get_consumers().size() == 1,
+            OPENVINO_ASSERT(current_exp->get_input_port_connector(0)->get_consumers().size() == 1,
                             "Shape infer ops are supposed to be the only consumer if it doesn't consume a store ops.");
         }
     }

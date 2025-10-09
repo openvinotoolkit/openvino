@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,7 @@
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/x64/jit_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_memory_emitters.hpp"
+#include "emitters/snippets/x64/jit_parallel_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_reg_spill_emitters.hpp"
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
 #include "openvino/core/except.hpp"
@@ -121,15 +122,8 @@
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "emitters/tpp/x64/jit_brgemm_emitter.hpp"
 #    include "emitters/tpp/x64/jit_debug_emitter.hpp"
-#    include "emitters/tpp/x64/jit_eltwise_emitters.hpp"
-#    include "emitters/tpp/x64/jit_equation_emitter.hpp"
-#    include "emitters/tpp/x64/jit_scalar_emitter.hpp"
 #    include "transformations/tpp/common/op/brgemm.hpp"
 #    include "transformations/tpp/common/op/modifiers.hpp"
-#    include "transformations/tpp/x64/op/eltwise.hpp"
-#    include "transformations/tpp/x64/op/equation.hpp"
-#    include "transformations/tpp/x64/op/reduce.hpp"
-#    include "transformations/tpp/x64/op/scalar.hpp"
 // Note: for reference implementations
 #    include <cmath>
 #endif
@@ -195,6 +189,24 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
              return e_type::get_supported_precisions(n);                                              \
          }}
 #endif
+
+#define CREATE_LOOP_EMITTER(regular_emitter, parallel_emitter, ...)                               \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         auto loop_node = ov::as_type_ptr<snippets::op::LoopBase>(expr->get_node());              \
+         OPENVINO_ASSERT(loop_node, "Expected LoopBase node");                                    \
+         if (loop_node->get_is_parallel()) {                                                      \
+             return std::make_shared<parallel_emitter>(h.get(), isa, expr, ##__VA_ARGS__);        \
+         }                                                                                        \
+         return std::make_shared<regular_emitter>(h.get(), isa, expr);                            \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
+         auto loop_node = ov::as_type_ptr<snippets::op::LoopBase>(n);                             \
+         OPENVINO_ASSERT(loop_node, "Expected LoopBase node");                                    \
+         if (loop_node->get_is_parallel()) {                                                      \
+             return parallel_emitter::get_supported_precisions(n);                                \
+         }                                                                                        \
+         return regular_emitter::get_supported_precisions(n);                                     \
+     }}
 
 #define CREATE_DEBUG_TPP_EMITTER(e_type)                                                               \
     {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> {      \
@@ -344,8 +356,11 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::KernelDynamic::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_dynamic_emitter);
     jitters[snippets::op::LoopBegin::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_emitter);
-    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_emitter);
+        CREATE_LOOP_EMITTER(intel_cpu::jit_loop_begin_emitter,
+                            intel_cpu::jit_parallel_loop_begin_emitter,
+                            configurator->get_kernel_executor_table());
+    jitters[snippets::op::LoopEnd::get_type_info_static()] =
+        CREATE_LOOP_EMITTER(intel_cpu::jit_loop_end_emitter, intel_cpu::jit_parallel_loop_end_emitter);
     jitters[snippets::op::RegSpillBegin::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_reg_spill_begin_emitter);
     jitters[snippets::op::RegSpillEnd::get_type_info_static()] =
@@ -365,29 +380,6 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
 #ifdef SNIPPETS_LIBXSMM_TPP
     jitters[intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(BrgemmTppEmitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
-    jitters[intel_cpu::tpp::op::Add::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
-    jitters[intel_cpu::tpp::op::Subtract::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
-    jitters[intel_cpu::tpp::op::Multiply::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
-    jitters[intel_cpu::tpp::op::Divide::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
-
-    jitters[intel_cpu::tpp::op::Exp::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
-    // Note: you can register Debug emitter for Unary/Binary operations as shown below:
-    // jitters[intel_cpu::tpp::op::Add::get_type_info_static()] = CREATE_DEBUG_TPP_EMITTER(UnaryEltwiseTppEmitter);
-    //
-    // Note: you can register Reference emitter for Unary operations using std::function or lambda function as shown
-    // below: jitters[intel_cpu::tpp::op::Exp::get_type_info_static()] =
-    //        CREATE_SNIPPETS_EMITTER(ReferenceUnaryEltwiseTppEmitter, static_cast<float(*)(float)>(std::exp));
-    // jitters[intel_cpu::tpp::op::Reciprocal::get_type_info_static()] =
-    //         CREATE_SNIPPETS_EMITTER(ReferenceUnaryEltwiseTppEmitter, [](float x){ return 1.F/x; });
-    jitters[intel_cpu::tpp::op::Reciprocal::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
-
-    jitters[intel_cpu::tpp::op::Relu::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
-    jitters[intel_cpu::tpp::op::Square::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
-    jitters[intel_cpu::tpp::op::SquareRoot::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
-    jitters[intel_cpu::tpp::op::ReduceMax::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ReduceTppEmitter);
-    jitters[intel_cpu::tpp::op::ReduceSum::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ReduceTppEmitter);
-    jitters[intel_cpu::tpp::op::Scalar::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(ScalarTppEmitter);
-    jitters[intel_cpu::tpp::op::EquationTPP::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(EquationTppEmitter);
 #endif
 }
 
@@ -500,8 +492,7 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
     const auto op = out.get_node_shared_ptr();
     if (is_type_any_of<intel_cpu::BrgemmCPU, intel_cpu::BrgemmCopyB>(op)
 #ifdef SNIPPETS_LIBXSMM_TPP
-        || is_type<intel_cpu::tpp::op::Scalar>(op) ||
-        std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op)
+        || std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op)
 #endif
     ) {
         return ov::snippets::RegType::gpr;
@@ -514,7 +505,9 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
 
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
     bool need = std::dynamic_pointer_cast<intel_cpu::jit_brgemm_emitter>(e) ||
-                std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e);
+                std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e) ||
+                // Note: in static case, loop args, used in execute, are stored in the emitter
+                std::dynamic_pointer_cast<intel_cpu::jit_parallel_loop_begin_emitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<intel_cpu::CPUTargetMachine>(target);
     need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||
@@ -524,8 +517,7 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_end_emitter>(e);
 #endif
 #ifdef SNIPPETS_LIBXSMM_TPP
-    need |= std::dynamic_pointer_cast<intel_cpu::ReferenceUnaryEltwiseTppEmitter>(e) ||
-            std::dynamic_pointer_cast<intel_cpu::DebugTppEmitter>(e);
+    need = need || std::dynamic_pointer_cast<intel_cpu::DebugTppEmitter>(e);
 #endif
     return need;
 }
