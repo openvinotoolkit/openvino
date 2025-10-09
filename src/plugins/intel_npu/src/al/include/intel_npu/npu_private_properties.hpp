@@ -367,7 +367,7 @@ static constexpr ov::Property<bool> use_base_model_serializer{"NPU_USE_BASE_MODE
  * Type: size_t. Default is 0.
  *
  * Effective only if "use_base_model_serializer" is set to false. All "ov::Constant" buffers smaller than this value
- * (bytes size) will be copied in a separate buffer. The rest of the weights will be reconstructed at de-serialization
+ * (byte size) will be copied in a separate buffer. The rest of the weights will be reconstructed at deserialization
  * time using buffer pointers.
  */
 static constexpr ov::Property<size_t> serialization_weights_size_threshold{"NPU_SERIALIZATION_WEIGHTS_SIZE_THRESHOLD"};

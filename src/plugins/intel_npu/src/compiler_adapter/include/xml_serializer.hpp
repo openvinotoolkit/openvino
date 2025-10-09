@@ -24,7 +24,7 @@ public:
 /**
  * @brief Overriden in order to allow serializing models without copying weights.
  * @details Weights can be stored either as values (buffer copies, just like the parent algorithm), or as metadata
- * (memory location + buffer size in bytes). The amount of weights that are copied as values can be controled by
+ * (memory location + buffer size in bytes). The amount of weights that are copied as values can be controlled by
  * configuring the "intel_npu::serialization_weights_size_threshold" option.
  */
 class XmlSerializer : public ov::util::XmlSerializer {

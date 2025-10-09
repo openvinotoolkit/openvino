@@ -24,8 +24,8 @@ public:
           byte_size(size) {}
 
     /**
-     * @note The name of the attributes have been kept short in order to save some memory (there may be a lot of
-     * "ov::Constant" nodes in a model). Also, two characters should be sufficient to avoid collision. "np" stands for
+     * @note The names of the attributes have been kept short in order to save some memory (there may be a lot of
+     * "ov::Constant" nodes in a model). Also, two characters should be sufficient to avoid collisions. "np" stands for
      * "NPU pointer", "ns" for "NPU size".
      */
     bool visit_attributes(ov::AttributeVisitor& visitor) override {

@@ -84,9 +84,7 @@ TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
     auto model = createModelWithLargeSize();
     const ze_graph_compiler_version_info_t dummyCompilerVersion{0, 0};
     VCLSerializerWithWeightsCopy VCLSerializerWithWeightsCopy(model, dummyCompilerVersion, 11);
-    ::intel_npu::SerializedIR serializedIR = VCLSerializerWithWeightsCopy.serialize();
-    // TODO move the test in the compiler repo?
-    // EXPECT_NO_THROW(model = core.read_model(xmlFileName));
+    EXPECT_NO_THROW(VCLSerializerWithWeightsCopy.serialize());
 }
 
 const std::vector<ov::AnyMap> configs = {
