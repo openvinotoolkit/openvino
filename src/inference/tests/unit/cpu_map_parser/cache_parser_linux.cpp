@@ -1402,6 +1402,7 @@ LinuxCpuMapTestCase cache_1sockets_14cores_2 = {
     1,
     1,
     8,
+    0,
     {{8, 0, 8, 0, 0, 0, 0}},
     {
         {6, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1},
@@ -1695,6 +1696,7 @@ LinuxCpuMapTestCase cache_mock_0 = {
     1,
     1,
     8,
+    0,
     {{8, 0, 8, 0, 0, 0, 0}},
     {
         {6, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1},
@@ -1729,6 +1731,7 @@ LinuxCpuMapTestCase cache_mock_1 = {
     1,
     1,
     2,
+    0,
     {{2, 2, 0, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
