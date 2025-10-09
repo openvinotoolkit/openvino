@@ -168,7 +168,7 @@ public:
                              sizeof(T),
                              /* starts = */ {m_start_size, m_start_size},
                              /* steps = */ {1, 1},
-                             /* axes = */ {1, 2}); // stops are defined by output shape
+                             /* axes = */ {1, 2});  // stops are defined by output shape
         cos_similar_buf.reset();
 
         fill_diagonal_(evictable_subset_buf.get(), evictable_subset_shape, 0.0);
