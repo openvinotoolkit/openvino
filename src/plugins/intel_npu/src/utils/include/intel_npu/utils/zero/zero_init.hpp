@@ -72,6 +72,12 @@ public:
         }
         return false;
     }
+    inline bool isExternalMemoryStandardAllocationSupported() const {
+        return _external_memory_standard_allocation_supported;
+    }
+    inline bool isExternalMemoryFdWin32Supported() const {
+        return _external_memory_fd_win32_supported;
+    }
 
     static const std::shared_ptr<ZeroInitStructsHolder>& getInstance();
 
@@ -99,6 +105,9 @@ private:
     ze_api_version_t ze_drv_api_version = {};
 
     ze_device_graph_properties_t compiler_properties = {};
+
+    bool _external_memory_standard_allocation_supported = false;
+    bool _external_memory_fd_win32_supported = false;
 };
 
 }  // namespace intel_npu
