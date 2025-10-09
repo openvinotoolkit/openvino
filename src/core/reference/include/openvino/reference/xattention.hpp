@@ -240,6 +240,93 @@ public:
      * index along the query dimension, .second - along the key). Each set is the head-specific subset of blocks
      * corresponding to the property described above.
      */
+// template <typename T>
+// void print_blocked_attention_scores(const T* data,
+//                                     size_t num_heads,
+//                                     size_t num_q_blocks,
+//                                     size_t num_k_blocks) {
+//     std::cout << "blocked_attention_scores shape: ["
+//               << num_heads << ", " << num_q_blocks << ", " << num_k_blocks << "]\n";
+
+//     for (size_t h = 0; h < num_heads; ++h) {
+//         std::cout << "Head " << h << ":\n";
+//         std::cout << std::setw(8) << "";
+//         for (size_t k = 0; k < num_k_blocks; ++k) {
+//             std::cout << std::setw(12) << ("K" + std::to_string(k));
+//         }
+//         std::cout << "\n";
+
+//         for (size_t q = 0; q < num_q_blocks; ++q) {
+//             std::cout << std::setw(6) << ("Q" + std::to_string(q)) << " ";
+//             double row_sum = 0.0;
+//             for (size_t k = 0; k < num_k_blocks; ++k) {
+//                 size_t idx = h * (num_q_blocks * num_k_blocks) + q * num_k_blocks + k;
+//                 double v = static_cast<double>(static_cast<float>(*(data + idx)));
+//                 row_sum += v;
+//                 std::cout << std::setw(12) << std::fixed << std::setprecision(6) << v;
+//             }
+//             std::cout << "   sum=" << std::fixed << std::setprecision(6) << row_sum << "\n";
+//         }
+//         std::cout << std::flush;
+//     }
+// }
+// XAttentionRetainedBlockIndicesForAllHeads get_block_indices_to_keep(
+//         const T* blocked_attention_scores_data,
+//         const Shape& blocked_attention_scores_shape) {
+//     OPENVINO_ASSERT(blocked_attention_scores_shape.size() == 3);  
+//     // [num_heads, num_blocks_in_query, num_blocks_in_key]
+    
+//     auto retval = XAttentionRetainedBlockIndicesForAllHeads(blocked_attention_scores_shape[0]);
+    
+//     struct IndexAndScore {
+//         XAttentionBlockIndex idx;
+//         T score;
+//     };
+    
+//     const size_t num_heads   = blocked_attention_scores_shape[0];
+//     const size_t num_q_blocks = blocked_attention_scores_shape[1];
+//     const size_t num_k_blocks = blocked_attention_scores_shape[2];
+//     print_blocked_attention_scores(blocked_attention_scores_data, num_heads, num_q_blocks, num_k_blocks);
+
+//     for (size_t head_idx = 0; head_idx < num_heads; head_idx++) {
+//         size_t head_offset = head_idx * num_q_blocks * num_k_blocks;
+
+//         for (size_t q_block_idx = 0; q_block_idx < num_q_blocks; q_block_idx++) {
+//             std::vector<IndexAndScore> indices_and_scores;
+//             indices_and_scores.reserve(num_k_blocks);
+
+//             double total_sum = 0.0;
+
+//             for (size_t k_block_idx = 0; k_block_idx < num_k_blocks; k_block_idx++) {
+//                 size_t target_offset = head_offset + q_block_idx * num_k_blocks + k_block_idx;
+//                 T current_score = *(blocked_attention_scores_data + target_offset);
+//                 indices_and_scores.push_back({{q_block_idx, k_block_idx}, current_score});
+//                 total_sum += current_score;
+//             }
+
+//             double required_sum = m_threshold * total_sum;
+
+//             std::sort(indices_and_scores.begin(), indices_and_scores.end(),
+//                       [](const IndexAndScore& a, const IndexAndScore& b) {
+//                           return a.score > b.score;
+//                       });
+
+//             std::vector<double> shifted_cumsum(num_k_blocks, 0.0);
+//             for (size_t i = 1; i < num_k_blocks; i++) {
+//                 shifted_cumsum[i] = shifted_cumsum[i - 1] + indices_and_scores[i - 1].score;
+//             }
+
+//             for (size_t i = 0; i < num_k_blocks; i++) {
+//                 if (shifted_cumsum[i] < required_sum) {
+//                     retval[head_idx].insert(indices_and_scores[i].idx);
+//                 }
+//             }
+//         }
+//     }
+
+//     return retval;
+// }
+
     XAttentionRetainedBlockIndicesForAllHeads get_block_indices_to_keep(const T* blocked_attention_scores_data,
                                                                         const Shape& blocked_attention_scores_shape) {
         OPENVINO_ASSERT(blocked_attention_scores_shape.size() ==
