@@ -60,23 +60,30 @@ When determining if a skip filter is active, rules across different categories (
 ### Behavior
 The folder structure of the `behavior` directory follows the folder structure of the OpenVINO base tests.
 
-The OpenVINO convention requires the tests to be organized in at least three directories: `compiled_model`, `ov_infer_request`, and `ov_plugin`. If the scope of NPU plugin tests becomes broader, additional directories may be created.
+The OpenVINO convention requires the tests to be organized in at least three directories: `compiled_model`, `ov_infer_request`, and `ov_plugin`. If the scope of NPU Plugin tests becomes broader, additional directories may be created.
 
-Here, the E2E tests should reside.
+The E2E tests reside here.
 
 ### Common
-TODO
+The place of utility functions and `getTestCaseName` base implementations.
 
 ### Internal
-Here, the own implementation of test classes and their tests should reside.
-
 The folder structure is mirrored from the one in the `intel_npu/src` directory.
 
-### Shared tests instances
-Here are kept only the OpenVINO test instantiations with the NPU Plugin's own arguments.
+The NPU implementations of test classes and their corresponding tests are located here.
 
----
-TODO?: enforce test developing convention:
-- cpp: instantiate wrapped in anonymous namespace
-- hpp: class + test_p
-- other?
+### Shared tests instances
+OpenVINO test instantiations using NPU Plugin's own arguments.
+
+## Test developing convention
+
+Any test should be split into a `.hpp` and `.cpp` file, with the exception of the tests from `shared_tests_instances`, which don't need `.hpp` files. A test's `.hpp` file should be located in the same directory as its `.cpp` file.
+
+The `.hpp` file should have the entirety of its contents wrapped around the `ov::test::behavior` namespace.
+The contents are:
+- class declarations
+- methods/functions definitions
+- test definitions
+- aliases
+
+The `.cpp` file contains the test instantiations and the variables passed as arguments. The contents should be wrapped around an anonymous/unnamed namespace.
