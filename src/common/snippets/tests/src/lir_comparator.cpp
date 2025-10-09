@@ -92,7 +92,8 @@ LIRComparator::Result LIRComparator::compare(const LinearIRPtr& linear_ir,
         if (m_nodes_cmp_values != NodesCmpValues::NONE)
             PROPAGATE_ERROR("", Comparator(m_nodes_cmp_values).compare(node.get(), node_ref.get()));
 
-        const std::string err_prefix = "Comparison failed for nodes " + node->get_friendly_name() + ", " + node_ref->get_friendly_name() + ". ";
+        const std::string err_prefix = "Comparison failed for nodes " + node->get_friendly_name() + " (actual), " +
+                                       node_ref->get_friendly_name() + "(reference). ";
         if (should_compare(LIRCmpValues::LOOP_INDICES))
             COMPARE(err_prefix + "Loop indices", expr->get_loop_ids(), expr_ref->get_loop_ids());
 

@@ -309,6 +309,50 @@ bool is_exec_graph(const ov::Model& model) {
     return false;
 }
 
+constexpr std::string_view rt_info_user_data_tag{"user_data"};
+
+bool append_custom_rt_info(pugi::xml_node& node,
+                           const std::string& key,
+                           const ov::Any& data,
+                           bool prefix_needed = true) {
+    std::string name;
+    constexpr auto tag_sz = rt_info_user_data_tag.size();
+    if (key.compare(0, tag_sz, rt_info_user_data_tag) == 0) {
+        name = key.substr(tag_sz);
+    } else if (!prefix_needed) {
+        name = key;
+    }
+    if (name.empty()) {
+        return false;
+    }
+    auto custom_node = node.append_child(rt_info_user_data_tag.data());
+    custom_node.append_attribute("name").set_value(name.c_str());
+    bool appended = false;
+
+    if (data.is<ov::AnyMap>()) {
+        const auto& any_map = data.as<ov::AnyMap>();
+        for (const auto& it : any_map)
+            appended = append_custom_rt_info(custom_node, it.first, it.second, false) || appended;
+
+    } else if (!data.empty() && !data.is<ov::RuntimeAttribute>() && !data.is<std::shared_ptr<ov::RuntimeAttribute>>()) {
+        const auto& value = data.as<std::string>();
+        custom_node.append_attribute("value").set_value(value.c_str());
+        appended = true;
+    }
+
+    if (appended) {
+        // The 'version' attribute is added for backward compatibility only, it's not deserialized (not impact on
+        // rt_info entry). Older versions of IR deserializer require this attribute to be present in all tags contained
+        // within rt_info tag, despite of the tagname. Such tag to be ignored (without throwing) must have 'name' and
+        // 'version' values which are not present in predefined list of deserializable Runtime Attributes - to assure
+        // this 'version' value is empty (it must not be zero).
+        // https://github.com/openvinotoolkit/openvino/blob/dd16602824c66c53935a2d084ab4d7ace36a6414/src/frontends/ir/src/ir_deserializer.cpp#L976
+        custom_node.append_attribute("version").set_value("");
+    } else {
+        node.remove_child(custom_node);
+    }
+    return appended;
+}
 }  // namespace
 
 namespace rt_info {
@@ -540,6 +584,8 @@ void XmlSerializer::append_rt_info(pugi::xml_node& node, ov::RTMap& attributes) 
                     rt_node.remove_child(attribute_node);
                 }
             }
+        } else if (!m_deterministic) {
+            has_attrs = append_custom_rt_info(rt_node, item.first, item.second) || has_attrs;
         }
     }
     if (!has_attrs) {
@@ -1061,9 +1107,9 @@ bool XmlSerializer::append_node_attributes(ov::Node& node) {
     return node.visit_attributes(*this);
 }
 
-// util::ConstantWriter& XmlSerializer::get_constant_write_handler() {
-//     return m_constant_node_write_handler.get();
-// }
+util::ConstantWriter& XmlSerializer::get_constant_write_handler() {
+    return m_constant_node_write_handler.get();
+}
 
 std::string get_ir_precision_name(const element::Type& precision) {
     switch (precision) {
@@ -1084,5 +1130,21 @@ std::string get_ir_precision_name(const element::Type& precision) {
     default:
         return ov::util::to_upper(precision.get_type_name());
     }
+}
+
+std::string rt_info_get_user_name(const std::string& custom_name) {
+    return std::string{util::rt_info_user_data_tag} + custom_name;
+}
+
+Any& rt_info_get_user_data(AnyMap& rt_map, const std::string& custom_name) {
+    return rt_map.at(rt_info_get_user_name(custom_name));
+}
+
+const Any& rt_info_get_user_data(const AnyMap& rt_map, const std::string& custom_name) {
+    return rt_map.at(rt_info_get_user_name(custom_name));
+}
+
+void rt_info_set_user_data(AnyMap& rt_map, const std::string& custom_name, const Any& value) {
+    rt_map[rt_info_get_user_name(custom_name)] = value;
 }
 }  // namespace ov::util

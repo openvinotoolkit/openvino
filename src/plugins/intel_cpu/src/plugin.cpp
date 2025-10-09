@@ -49,14 +49,16 @@
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "sigstack_manager.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/codec_xor.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/denormals.hpp"
+#include "utils/graph_serializer/deserializer.hpp"
+#include "utils/graph_serializer/serializer.hpp"
 #include "utils/precision_support.h"
-#include "utils/serialize.hpp"
 #include "weights_cache.hpp"
 #include "xbyak/xbyak_util.h"
 
@@ -523,6 +525,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
     }
 
+    if (name == ov::weights_path) {
+        return decltype(ov::weights_path)::value_type(std::string(""));
+    }
+
     return get_ro_property(name, options);
 }
 
@@ -532,6 +538,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     };
     auto RW_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+    };
+    auto WO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::WO);
     };
 
     if (name == ov::supported_properties) {
@@ -547,37 +556,39 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
-        std::vector<ov::PropertyName> rwProperties{
-            RW_property(ov::num_streams.name()),
-            RW_property(ov::inference_num_threads.name()),
-            RW_property(ov::enable_profiling.name()),
-            RW_property(ov::hint::inference_precision.name()),
-            RW_property(ov::hint::performance_mode.name()),
-            RW_property(ov::hint::execution_mode.name()),
-            RW_property(ov::hint::num_requests.name()),
-            RW_property(ov::hint::enable_cpu_pinning.name()),
-            RW_property(ov::hint::enable_cpu_reservation.name()),
-            RW_property(ov::hint::scheduling_core_type.name()),
-            RW_property(ov::hint::model_distribution_policy.name()),
-            RW_property(ov::hint::enable_hyper_threading.name()),
-            RW_property(ov::device::id.name()),
-            RW_property(ov::intel_cpu::denormals_optimization.name()),
-            RW_property(ov::log::level.name()),
-            RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
-            RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
-            RW_property(ov::intel_cpu::tbb_partitioner.name()),
-            RW_property(ov::hint::dynamic_quantization_group_size.name()),
-            RW_property(ov::hint::kv_cache_precision.name()),
-            RW_property(ov::key_cache_precision.name()),
-            RW_property(ov::value_cache_precision.name()),
-            RW_property(ov::key_cache_group_size.name()),
-            RW_property(ov::value_cache_group_size.name()),
-        };
+
+        std::vector<ov::PropertyName> rwProperties{RW_property(ov::num_streams.name()),
+                                                   RW_property(ov::inference_num_threads.name()),
+                                                   RW_property(ov::enable_profiling.name()),
+                                                   RW_property(ov::hint::inference_precision.name()),
+                                                   RW_property(ov::hint::performance_mode.name()),
+                                                   RW_property(ov::hint::execution_mode.name()),
+                                                   RW_property(ov::hint::num_requests.name()),
+                                                   RW_property(ov::hint::enable_cpu_pinning.name()),
+                                                   RW_property(ov::hint::enable_cpu_reservation.name()),
+                                                   RW_property(ov::hint::scheduling_core_type.name()),
+                                                   RW_property(ov::hint::model_distribution_policy.name()),
+                                                   RW_property(ov::hint::enable_hyper_threading.name()),
+                                                   RW_property(ov::device::id.name()),
+                                                   RW_property(ov::intel_cpu::denormals_optimization.name()),
+                                                   RW_property(ov::log::level.name()),
+                                                   RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+                                                   RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
+                                                   RW_property(ov::intel_cpu::tbb_partitioner.name()),
+                                                   RW_property(ov::hint::dynamic_quantization_group_size.name()),
+                                                   RW_property(ov::hint::kv_cache_precision.name()),
+                                                   RW_property(ov::key_cache_precision.name()),
+                                                   RW_property(ov::value_cache_precision.name()),
+                                                   RW_property(ov::key_cache_group_size.name()),
+                                                   RW_property(ov::value_cache_group_size.name())};
+
+        std::vector<ov::PropertyName> wo_properties{WO_property(ov::weights_path.name())};
 
         std::vector<ov::PropertyName> supportedProperties;
-        supportedProperties.reserve(roProperties.size() + rwProperties.size());
+        supportedProperties.reserve(roProperties.size() + rwProperties.size() + wo_properties.size());
         supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
         supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
+        supportedProperties.insert(supportedProperties.end(), wo_properties.begin(), wo_properties.end());
 
         return decltype(ov::supported_properties)::value_type(std::move(supportedProperties));
     }
@@ -707,24 +718,42 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
+static std::string get_origin_weights_path(const ov::AnyMap& config) {
+    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
+    std::string origin_weights_path;
+
+    auto cm_it = config.find(ov::cache_mode.name());
+    if (cm_it != config.end()) {
+        cache_mode = cm_it->second.as<ov::CacheMode>();
+        if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
+            auto wp_it = config.find(ov::weights_path.name());
+            if (wp_it != config.end()) {
+                origin_weights_path = wp_it->second.as<std::string>();
+            }
+        }
+    }
+
+    return origin_weights_path;
+}
+
+static bool get_cache_decrypt_fn(const ov::AnyMap& config, CacheDecrypt& decrypt) {
+    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
+        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
+        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
-    bool decript_from_string = false;
-    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
-        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
-        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
-        decript_from_string = true;
-    }
+    auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
+    const auto origin_weights_path = get_origin_weights_path(config);
 
-    ModelDeserializer deserializer(
-        model_stream,
-        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
-            return get_core()->read_model(model, weights);
-        },
-        decrypt,
-        decript_from_string);
+    ModelDeserializer deserializer(model_stream, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 
     return deserialize_model(deserializer, config);
 }
@@ -734,25 +763,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
-    bool decript_from_string = false;
-    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
-        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
-        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
-        decript_from_string = true;
-    }
+    auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
+    const auto origin_weights_path = get_origin_weights_path(config);
 
     std::shared_ptr<ov::AlignedBuffer> model_buffer =
         std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
                                                        model_tensor.get_byte_size(),
                                                        model_tensor);
 
-    ModelDeserializer deserializer(
-        model_buffer,
-        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
-            return get_core()->read_model(model, weights);
-        },
-        decrypt,
-        decript_from_string);
+    ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 
     return deserialize_model(deserializer, config);
 }
