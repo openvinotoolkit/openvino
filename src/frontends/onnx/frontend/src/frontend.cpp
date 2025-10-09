@@ -39,6 +39,7 @@
 #include "translate_session.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
+#include "openvino/util/log.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
@@ -95,7 +96,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         if (!ONNX_ITERATOR) {
             return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
         }
-        std::cout << "[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!\n";
+        OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
         GraphIteratorProto::Ptr graph_iterator =
             std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->initialize(path);
@@ -108,7 +109,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         if (!ONNX_ITERATOR) {
             return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
         }
-        std::cout << "[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!\n";
+        OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
         GraphIteratorProto::Ptr graph_iterator =
             std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->initialize(path);

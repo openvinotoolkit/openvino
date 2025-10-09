@@ -881,16 +881,16 @@ void InputModel::InputModelONNXImpl::set_name_for_operation(const Place::Ptr& op
 }
 
 void InputModel::InputModelONNXImpl::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(override_all_inputs);
 }
 
 void InputModel::InputModelONNXImpl::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(override_all_outputs);
 }
 
 void InputModel::InputModelONNXImpl::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
                                                       const std::vector<ov::frontend::Place::Ptr>& outputs) {
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(extract_subgraph);
 }
 
 void InputModel::InputModelONNXImpl::clean_up() {

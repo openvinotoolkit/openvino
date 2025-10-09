@@ -83,26 +83,26 @@ public:
     }
 
     ov::Any get_attribute(const std::string& name) const override {
-        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_attribute");
+        FRONT_END_NOT_IMPLEMENTED(get_attribute);
     }
 
     size_t get_input_size() const override {
-        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_input_size");
+        FRONT_END_NOT_IMPLEMENTED(get_input_size);
     }
 
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
                         std::string& producer_output_port_name,
                         size_t& producer_output_port_index) const override {
-        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_input_node");
+        FRONT_END_NOT_IMPLEMENTED(get_input_node);
     }
 
     const std::string& get_op_type() const override {
-        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_op_type");
+        FRONT_END_NOT_IMPLEMENTED(get_op_type);
     }
 
     const std::string& get_op_name() const override {
-        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_op_name");
+        FRONT_END_NOT_IMPLEMENTED(get_op_name);
     }
 };
 

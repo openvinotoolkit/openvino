@@ -367,7 +367,7 @@ ov::OutputVector Node::get_ov_inputs() const {
         }
         return result;
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_ov_inputs);
 }
 
 const std::string& Node::domain() const {
@@ -377,7 +377,7 @@ const std::string& Node::domain() const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_domain();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(domain);
 }
 
 const std::string& Node::op_type() const {
@@ -387,7 +387,7 @@ const std::string& Node::op_type() const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_op_type();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(op_type);
 }
 
 const std::string& Node::get_description() const {
@@ -398,7 +398,7 @@ const std::string& Node::get_description() const {
         // Workaround
         return m_decoder->get_output_tensor_name(0);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_description);
 }
 
 const std::string& Node::get_name() const {
@@ -409,7 +409,7 @@ const std::string& Node::get_name() const {
         return m_decoder->get_op_name();
         // Add logic for m_decoder if applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_name);
 }
 
 const std::vector<std::reference_wrapper<const std::string>> Node::get_output_names() const {
@@ -424,7 +424,7 @@ const std::vector<std::reference_wrapper<const std::string>> Node::get_output_na
         }
         return {names.begin(), names.end()};
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_output_names);
 }
 
 const std::string& Node::input(int index) const {
@@ -434,7 +434,7 @@ const std::string& Node::input(int index) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_input_tensor_name(index);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(input);
 }
 
 std::size_t Node::get_inputs_size() const {
@@ -443,7 +443,7 @@ std::size_t Node::get_inputs_size() const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_input_size();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_inputs_size);
 }
 
 const std::string& Node::output(int index) const {
@@ -453,7 +453,7 @@ const std::string& Node::output(int index) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_output_tensor_name(index);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(output);
 }
 
 std::size_t Node::get_outputs_size() const {
@@ -462,7 +462,7 @@ std::size_t Node::get_outputs_size() const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_output_size();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_outputs_size);
 }
 
 bool Node::has_attribute(const std::string& name) const {
@@ -471,7 +471,7 @@ bool Node::has_attribute(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->has_attribute(name);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(has_attribute);
 }
 
 bool Node::has_subgraphs() const {
@@ -480,7 +480,7 @@ bool Node::has_subgraphs() const {
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(has_subgraphs);
 }
 
 const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::get_subgraphs() const {
@@ -490,7 +490,7 @@ const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::get_subg
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_subgraphs);
 }
 
 std::vector<std::string> Node::get_attribute_names() const {
@@ -508,7 +508,7 @@ std::vector<std::string> Node::get_attribute_names() const {
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_names);
 }
 
 const Attribute& Node::get_attribute(const std::string& name) const {
@@ -525,7 +525,7 @@ const Attribute& Node::get_attribute(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute);
 }
 
 ov::Any Node::get_attribute_any(const std::string& name) const {
@@ -533,7 +533,7 @@ ov::Any Node::get_attribute_any(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_any);
 }
 
 template <>
@@ -546,7 +546,7 @@ float Node::get_attribute_value(const std::string& name, float default_value) co
         else
             return default_value;
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -559,7 +559,7 @@ double Node::get_attribute_value(const std::string& name, double default_value) 
         else
             return default_value;
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -572,7 +572,7 @@ std::int64_t Node::get_attribute_value(const std::string& name, std::int64_t def
         else
             return default_value;
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -585,7 +585,7 @@ std::string Node::get_attribute_value(const std::string& name, std::string defau
         else
             return default_value;
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -595,7 +595,7 @@ Tensor Node::get_attribute_value(const std::string& name, Tensor default_value) 
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -605,7 +605,7 @@ SparseTensor Node::get_attribute_value(const std::string& name, SparseTensor def
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -615,7 +615,7 @@ Graph Node::get_attribute_value(const std::string& name, Graph default_value) co
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -628,7 +628,7 @@ std::vector<float> Node::get_attribute_value(const std::string& name, std::vecto
         else
             return default_value;
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -641,7 +641,7 @@ std::vector<double> Node::get_attribute_value(const std::string& name, std::vect
         else
             return default_value;
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -655,7 +655,7 @@ std::vector<std::int64_t> Node::get_attribute_value(const std::string& name,
         else
             return default_value;
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -671,7 +671,7 @@ std::vector<std::size_t> Node::get_attribute_value(const std::string& name,
             return default_value;
         }
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -685,7 +685,7 @@ std::vector<std::string> Node::get_attribute_value(const std::string& name,
         else
             return default_value;
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -695,7 +695,7 @@ std::vector<Tensor> Node::get_attribute_value(const std::string& name, std::vect
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -706,7 +706,7 @@ std::vector<SparseTensor> Node::get_attribute_value(const std::string& name,
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -716,7 +716,7 @@ std::vector<Graph> Node::get_attribute_value(const std::string& name, std::vecto
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -730,7 +730,7 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name,
         }
         return get_attribute_value<std::shared_ptr<ov::Model>>(name);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 // Repeat the same for the non-default_value overloads:
@@ -742,7 +742,7 @@ float Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<float>();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -752,7 +752,7 @@ double Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<double>();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -762,7 +762,7 @@ std::int64_t Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::int64_t>();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -772,7 +772,7 @@ std::size_t Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::size_t>();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -782,7 +782,7 @@ std::string Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::string>();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -804,7 +804,7 @@ Tensor Node::get_attribute_value(const std::string& name) const {
             tensor_meta_info.m_is_raw);
         return {tensor_place};
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -843,7 +843,7 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
             indices_meta_info.m_is_raw);
         return {values_place, indices_place, sparse_tensor_info.m_partial_shape};
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -853,7 +853,7 @@ Subgraph Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -863,7 +863,7 @@ std::vector<float> Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<float>>();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -873,7 +873,7 @@ std::vector<double> Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<double>>();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -883,7 +883,7 @@ std::vector<std::int64_t> Node::get_attribute_value(const std::string& name) con
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<std::int64_t>>();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -894,7 +894,7 @@ std::vector<std::size_t> Node::get_attribute_value(const std::string& name) cons
         auto ints = m_decoder->get_attribute(name).as<std::vector<std::int64_t>>();
         return {ints.begin(), ints.end()};
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -904,7 +904,7 @@ std::vector<std::string> Node::get_attribute_value(const std::string& name) cons
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<std::string>>();
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -914,7 +914,7 @@ std::vector<Tensor> Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -924,7 +924,7 @@ std::vector<SparseTensor> Node::get_attribute_value(const std::string& name) con
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -934,7 +934,7 @@ std::vector<Graph> Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 template <>
@@ -951,7 +951,7 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) co
         translate_session.translate_graph(input_model, ov_model);
         return ov_model;
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_value);
 }
 
 // get_attribute_as_constant specializations
@@ -995,7 +995,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(con
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<float>(name);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1010,7 +1010,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
         }
         return ov::op::v0::Constant::create(ov::element::f32, {}, {value});
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1026,7 +1026,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
         }
         return ov::op::v0::Constant::create(type == ov::element::dynamic ? ov::element::f32 : type, {}, {value});
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1037,7 +1037,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(con
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<float>(name);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1047,7 +1047,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(co
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<double>(name);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1058,7 +1058,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<double>(name, default_value);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1074,7 +1074,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
         }
         return ov::op::v0::Constant::create(type == ov::element::dynamic ? ov::element::f64 : type, {0}, {value});
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1085,7 +1085,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(co
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<double>(name);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1095,7 +1095,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(c
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<int64_t>(name);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1106,7 +1106,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<int64_t>(name, default_value);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1118,7 +1118,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<int64_t>(name, default_value);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1129,7 +1129,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(c
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<int64_t>(name);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1140,7 +1140,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vecto
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<std::vector<int64_t>>(name);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1155,7 +1155,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vecto
                                             {value.size()},
                                             value);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1166,7 +1166,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<std::vector<int64_t>>(name, default_value);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 template <>
@@ -1180,7 +1180,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<std::vector<int64_t>>(name, default_value);
     }
-    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+    FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
 }  // namespace onnx

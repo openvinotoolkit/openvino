@@ -367,7 +367,7 @@ std::vector<char> Tensor::get_data() const {
 template <>
 std::vector<std::string> Tensor::get_data() const {
     if (m_tensor_place != nullptr) {
-        FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+        FRONT_END_NOT_IMPLEMENTED(get_data);
     }
 
     if (has_external_data()) {

@@ -220,7 +220,7 @@ public:
 
     Type get_type() const {
         if (m_tensor_place != nullptr) {
-            FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
+            FRONT_END_NOT_IMPLEMENTED(get_type);
         }
         if (!m_tensor_proto->has_data_type()) {
             FRONT_END_THROW("Tensor has no specified data type");
