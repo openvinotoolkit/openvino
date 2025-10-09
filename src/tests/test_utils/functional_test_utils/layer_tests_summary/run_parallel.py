@@ -695,6 +695,7 @@ class TestParallelRunner:
             logger.info("Execute jobs taken from cache and runtime")
             worker_cnt += self.__execute_tests(test_filters, worker_cnt)
 
+        logger.info("Here we are")
         not_runned_tests, interapted_tests = self.__find_not_runned_tests()
         if self._repeat_failed:
             if len(not_runned_tests) > 0:
@@ -1005,6 +1006,9 @@ class TestParallelRunner:
 
         is_successfull_run = True
         test_cnt = 0
+        # for test_st, test_res in test_results.items():
+        #     if "{test_st}" == "failed":
+
         for test_st, test_res in test_results.items():
             logger.info(f"{test_st} test counter is: {test_res}")
             test_cnt += test_res
