@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "snippets/lowered/pass/iter_handler.hpp"
-#include "snippets/lowered/pass/propagate_subtensors.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered {
@@ -28,7 +27,6 @@ SpecificIterationHandlers::SpecificIterationHandlers(size_t loop_work_amount,
         }
         if (last_iter_increment != 0) {
             m_last_iter_handlers.register_pass<lowered::pass::UpdateMemoryAccessCounts>(last_iter_increment);
-            m_last_iter_handlers.register_pass<lowered::pass::UpdateSubtensors>(last_iter_increment);
             // Last Iterations of Loop processed last dimensions with Eltwise nodes inside should have increment = 1
             if (last_iter_increment == 1) {
                 m_last_iter_handlers.register_pass<lowered::pass::SetLoopIncrementOne>();
