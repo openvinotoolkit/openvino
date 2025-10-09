@@ -10,6 +10,7 @@
 #include "exceptions.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/identity.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -35,7 +36,7 @@ namespace {
 ///
 /// \return true if termination condition is not modified during loop iterations, false otherwise.
 bool is_termination_condition_always_true(const ov::Node* cond_in, const ov::Node* cond_out) {
-    if (auto identity = dynamic_cast<const op::v16::Identity*>(cond_out)) {
+    if (auto identity = dynamic_cast<const op::v0::Convert*>(cond_out)) {
         cond_out = identity->input_value(0).get_node();
     }
     return cond_in == cond_out;
