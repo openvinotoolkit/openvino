@@ -107,6 +107,7 @@ private:
         ov::intel_npu::npuw::partitioning::funcall_for_all.name(),
         ov::intel_npu::npuw::funcall_async.name(),
         ov::intel_npu::npuw::unfold_ireqs.name(),
+        ov::intel_npu::npuw::fallback_exec.name(),
         ov::intel_npu::npuw::llm::enabled.name(),
         ov::intel_npu::npuw::llm::batch_dim.name(),
         ov::intel_npu::npuw::llm::seq_len_dim.name(),
