@@ -19,7 +19,6 @@
 #include "common/utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset8.hpp"
