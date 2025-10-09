@@ -34,12 +34,12 @@
 #include "openvino/frontend/onnx/visibility.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "translate_session.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
-#include "openvino/util/log.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx;
