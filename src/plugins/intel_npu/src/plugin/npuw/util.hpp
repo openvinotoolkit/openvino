@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <random>
 #include <string>
 
 #include "llm_compiled_model_utils.hpp"
@@ -75,6 +76,8 @@ ov::Tensor to_f16(const ov::Tensor& t);
 ov::Tensor transpose(const ov::Tensor& t);
 ov::Tensor permute(const ov::Tensor& t, const std::vector<std::size_t>& axes);
 ov::Tensor concat(const std::vector<ov::Tensor>& tt, std::size_t axis);
+
+void permute_i4d(const ov::SoPtr<ov::ITensor>& src, ov::SoPtr<ov::ITensor>& dst, const std::array<int, 4> order);
 
 // Start is inclusive, end is exclusive
 using range_1d = std::pair<std::size_t, std::size_t>;
@@ -168,6 +171,8 @@ struct Unique {
         return std::string(CountedType::name) + "_" + std::to_string(counter++);
     }
 };
+
+std::string generate_random_string(std::size_t size = 32);
 
 using TensorPtr = ov::SoPtr<ov::ITensor>;
 TensorPtr allocMem(const ov::element::Type type,

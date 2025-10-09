@@ -8,6 +8,7 @@
 #include "../../util.hpp"
 #include "../patterns/avoid.hpp"
 #include "../patterns/compute.hpp"
+#include "../patterns/sdpa.hpp"
 #include "group.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -450,10 +451,11 @@ void Snapshot::earlyAvoids() {
         }
         case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
-            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos") {
-                LOG_WARN(
-                    "OPENVINO_NPUW_AVOID only supports RMSNorm and SinCos as patterns (don't confuse with operations)."
-                    << " Avoid pattern " << avoid.pattern << " is skipped!");
+            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos" && avoid.pattern != "GemmaRoPE") {
+                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm, SinCos and GemmaRoPE as patterns "
+                         "(don't confuse with operations). "
+                         "Avoid pattern "
+                         << avoid.pattern << " is skipped!");
                 break;
             }
             handle_patterns = true;
@@ -461,7 +463,10 @@ void Snapshot::earlyAvoids() {
                 rewr.add_matcher<ov::npuw::patterns::avoid::RMSNorm>(shared_from_this(), avoid.device);
             } else if (avoid.pattern == "SinCos") {
                 rewr.add_matcher<ov::npuw::patterns::avoid::SinCos>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "GemmaRoPE") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::GemmaRoPE>(shared_from_this(), avoid.device);
             }
+
             break;
         }
         }
@@ -507,6 +512,11 @@ void Snapshot::earlyRegroup() {
         rewr_fake.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
         handle_patterns = true;                                                                 \
     }
+#define HNDL_ATTN(p)                                                                    \
+    if (isolate.pattern == #p) {                                                        \
+        rewr.add_matcher<ov::npuw::patterns::attn::p>(shared_from_this(), isolate.tag); \
+        handle_patterns = true;                                                         \
+    }
             HNDL(RMSNorm);
             HNDL(RMSNorm2);
             HNDL(RMSNorm3);
@@ -520,11 +530,16 @@ void Snapshot::earlyRegroup() {
             HNDL(VariadicSplit);
             HNDL_FAKE(FakeConvert);
             HNDL_FAKE(FakeQuantize);
+            HNDL_ATTN(SDPA);
+#undef HNDL_SPDA
 #undef HNDL_FAKE
 #undef HNDL
         }
         }
     }
+    // FIXME: No warning here if the pattern is unknown?
+    // FIXME: High coupling, known patterns mnemonics are listed in utils
+    // (see ISOL_PRESETS), but actual passes handled here!
 
     if (handle_patterns) {
         // Check the model for all specified patterns
