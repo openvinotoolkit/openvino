@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/compiled_model.hpp"
