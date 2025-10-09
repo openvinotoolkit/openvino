@@ -239,6 +239,11 @@ interface Model {
    */
   getName(): string;
   /**
+   * It returns the operators(nodes) in the model.
+   * @returns An array of Node objects.
+   */
+  getOps(): Node[];
+  /**
    * It returns the shape of the element at the specified index.
    * @param index The index of the element.
    */
@@ -323,6 +328,18 @@ interface Model {
    * It gets all the model outputs as an array
    */
   outputs: Output[];
+}
+
+interface Node {
+  /**
+   * It constructs a default Node object.
+   */
+  new(): Node;
+  /**
+   * It gets the unique name of the node.
+   * @returns A string with the name of the node.
+   */
+  getName(): string;
 }
 
 /**

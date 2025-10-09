@@ -19,6 +19,7 @@ struct AddonData {
     Napi::FunctionReference partial_shape;
     Napi::FunctionReference ppp;
     Napi::FunctionReference tensor;
+    Napi::FunctionReference node;
 };
 
 void init_class(Napi::Env env,
