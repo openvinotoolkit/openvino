@@ -4,6 +4,7 @@
 
 #include "ref_mvn.hpp"
 
+#include <algorithm>
 #include <any>
 #include <cmath>
 #include <cstddef>
@@ -20,6 +21,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/reference/mvn.hpp"
 #include "post_ops.hpp"
 
 namespace ov::intel_cpu {
@@ -101,7 +103,107 @@ static void mvn_ref_impl(const MVNAttrs& attrs,
         dst_data_ptr = dst_float.data();
     }
 
-    if (attrs.execAcrossChannels_) {
+    // If reduction includes batch or deviates from canonical patterns,
+    // use a generic reduction path over arbitrary axes.
+    bool generic_reduction = true;  // always use precise reference path for correctness
+
+    auto offset = [&](size_t n, size_t c, size_t d, size_t h, size_t w) -> size_t {
+        if (attrs.layout == mvn_planar) {
+            return ((((n * C + c) * D + d) * H + h) * W + w);
+        } else if (attrs.layout == mvn_by_channel) {
+            return ((((n * D + d) * H + h) * W + w) * C + c);
+        } else {  // mvn_block
+            const size_t blk_size =
+                (memoryArgs.at(ARG_SRC_0)->getDescPtr()->hasLayoutType(LayoutType::nCsp16c)) ? 16 : 8;
+            const size_t CB = div_up(C, blk_size);
+            const size_t cb = c / blk_size;
+            const size_t c_in_blk = c % blk_size;
+            return n * CB * D * H * W * blk_size + cb * D * H * W * blk_size + d * H * W * blk_size + h * W * blk_size +
+                   w * blk_size + c_in_blk;
+        }
+    };
+
+    if (generic_reduction) {
+        // Use reference MVN implementation to match interpreter semantics precisely.
+        using ov::reference::mvn_6;
+        const auto srcDescPtr = memoryArgs.at(ARG_SRC_0)->getDescPtr();
+        const bool is_nspc = srcDescPtr->hasLayoutType(LayoutType::nspc);
+        const bool is_blocked =
+            srcDescPtr->hasLayoutType(LayoutType::nCsp8c) || srcDescPtr->hasLayoutType(LayoutType::nCsp16c);
+
+        // Model-order shape [N, C, D, H, W]
+        ov::Shape model_shape{shape5d.begin(), shape5d.end()};
+
+        // Pack from memory to model order and compute in f32
+        auto mem_off = [&](size_t n, size_t c, size_t d, size_t h, size_t w) -> size_t {
+            if (is_blocked) {
+                const size_t blk = srcDescPtr->hasLayoutType(LayoutType::nCsp16c) ? 16 : 8;
+                const size_t CB = div_up(C, blk);
+                const size_t cb = c / blk;
+                const size_t c_in_blk = c % blk;
+                return n * CB * D * H * W * blk + cb * D * H * W * blk + d * H * W * blk + h * W * blk + w * blk +
+                       c_in_blk;
+            } else if (is_nspc) {
+                // Generic NDHWC memory offset derived from 5D shape
+                return ((((n * D + d) * H + h) * W + w) * C + c);
+            } else {
+                // Planar NCDHW memory offset
+                return ((((n * C + c) * D + d) * H + h) * W + w);
+            }
+        };
+
+        auto mdl_off = [&](size_t n, size_t c, size_t d, size_t h, size_t w) -> size_t {
+            return ((((n * model_shape[1] + c) * model_shape[2] + d) * model_shape[3] + h) * model_shape[4] + w);
+        };
+
+        std::vector<float> in_model(shape_size(model_shape));
+        std::vector<float> out_model(shape_size(model_shape));
+        for (size_t n = 0; n < N; ++n)
+            for (size_t c = 0; c < C; ++c)
+                for (size_t d = 0; d < D; ++d)
+                    for (size_t h = 0; h < H; ++h)
+                        for (size_t w = 0; w < W; ++w)
+                            in_model[mdl_off(n, c, d, h, w)] = src_data_ptr[mem_off(n, c, d, h, w)];
+
+        ov::AxisSet axes;
+        for (size_t i = 0; i < attrs.reduce5D.size(); ++i) {
+            if (attrs.reduce5D[i])
+                axes.insert(i);
+        }
+
+        mvn_6<float>(
+            in_model.data(),
+            out_model.data(),
+            model_shape,
+            axes,
+            attrs.normalizeVariance_,
+            attrs.epsValue_,
+            attrs.epsMode_ == INSIDE_SQRT ? ov::op::MVNEpsMode::INSIDE_SQRT : ov::op::MVNEpsMode::OUTSIDE_SQRT);
+        if (std::getenv("CPU_MVN_DEBUG")) {
+            std::cerr << "[CPU_MVN_DEBUG] model_shape=";
+            for (size_t i = 0; i < model_shape.size(); ++i)
+                std::cerr << model_shape[i] << (i + 1 < model_shape.size() ? "," : "\n");
+            std::cerr << "[CPU_MVN_DEBUG] axes={";
+            bool f = true;
+            for (auto a : axes) {
+                if (!f)
+                    std::cerr << ",";
+                std::cerr << a;
+                f = false;
+            }
+            std::cerr << "}\n";
+            std::cerr << "[CPU_MVN_DEBUG] out_model[0..7]=";
+            for (size_t i = 0; i < std::min<size_t>(8, out_model.size()); ++i)
+                std::cerr << out_model[i] << (i + 1 < 8 ? "," : "\n");
+        }
+
+        for (size_t n = 0; n < N; ++n)
+            for (size_t c = 0; c < C; ++c)
+                for (size_t d = 0; d < D; ++d)
+                    for (size_t h = 0; h < H; ++h)
+                        for (size_t w = 0; w < W; ++w)
+                            dst_data_ptr[mem_off(n, c, d, h, w)] = out_model[mdl_off(n, c, d, h, w)];
+    } else if (attrs.execAcrossChannels_) {
         parallel_for(N, [&](int b) {
             const size_t data_size = C * D * H * W;
 

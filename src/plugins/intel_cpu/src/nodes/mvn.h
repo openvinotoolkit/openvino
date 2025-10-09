@@ -55,6 +55,8 @@ private:
     VectorDims shape5D = {0, 0, 0, 0, 0};
     bool onlyUnaryPostOps = true;
     std::shared_ptr<Executor> executorPtr = nullptr;
+    // Normalized source axes for MVN-6 / derived for MVN-0 (values in original rank space)
+    std::vector<int> reductionAxesOrig;
 };
 
 }  // namespace ov::intel_cpu::node

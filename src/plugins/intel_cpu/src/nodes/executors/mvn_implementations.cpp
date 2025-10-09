@@ -243,8 +243,33 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             "mvn_ref",
             ExecutorType::Common,
             OperationType::MVN,
-            // supports - always returns true as fallback
-            [](const executor::Config<MVNAttrs>& /*config*/) -> bool {
+            // supports - avoid blocked layouts for non-canonical axis sets
+            [](const executor::Config<MVNAttrs>& config) -> bool {
+                auto srcDesc = config.descs.at(ARG_SRC_0);
+                auto dstDesc = config.descs.at(ARG_DST);
+                const auto& inDims = srcDesc->getShape().getDims();
+                const size_t rank = inDims.size();
+                std::vector<size_t> expected;
+                if (rank >= 3) {
+                    if (config.attrs.initAcrossChannels_) {
+                        for (size_t a = 1; a < rank; ++a) expected.push_back(a);
+                    } else {
+                        for (size_t a = 2; a < rank; ++a) expected.push_back(a);
+                    }
+                } else if (rank == 2) {
+                    if (config.attrs.initAcrossChannels_) expected = {1};
+                } else if (rank == 1) {
+                    expected = {0};
+                }
+                auto axes = config.attrs.reductionAxes;
+                std::sort(axes.begin(), axes.end());
+                std::sort(expected.begin(), expected.end());
+                const bool nonCanonical = axes != expected;
+                const bool srcBlocked = srcDesc->hasLayoutType(LayoutType::nCsp8c) || srcDesc->hasLayoutType(LayoutType::nCsp16c);
+                const bool dstBlocked = dstDesc->hasLayoutType(LayoutType::nCsp8c) || dstDesc->hasLayoutType(LayoutType::nCsp16c);
+                if (nonCanonical && (srcBlocked || dstBlocked)) {
+                    return false;
+                }
                 return true;
             },
             // createOptimalConfig

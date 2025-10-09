@@ -385,6 +385,39 @@ bool MVNJitExecutor::supports(const MVNConfig& config) {
     VERIFY(!srcDesc->empty(), UNSUPPORTED_BY_EXECUTOR);
     VERIFY(!dstDesc->empty(), UNSUPPORTED_BY_EXECUTOR);
 
+    // JIT path supports canonical patterns only. If batch is in reduction axes,
+    // fallback to reference executor.
+    if (config.attrs.reduce5D[0]) {
+        return false;
+    }
+    // Allow JIT for canonical axis patterns; relax for rank==1 since both
+    // "across" and "per-channel" degenerate cases are valid and covered by kernels.
+    const auto& inDims = srcDesc->getShape().getDims();
+    const size_t rank = inDims.size();
+    if (rank > 1) {
+        std::vector<size_t> expected;
+        if (rank >= 3) {
+            if (config.attrs.initAcrossChannels_) {
+                for (size_t a = 1; a < rank; ++a)
+                    expected.push_back(a);
+            } else {
+                for (size_t a = 2; a < rank; ++a)
+                    expected.push_back(a);
+            }
+        } else if (rank == 2) {
+            if (config.attrs.initAcrossChannels_)
+                expected = {1};
+            else
+                expected.clear();
+        }
+        auto axes = config.attrs.reductionAxes;
+        std::sort(axes.begin(), axes.end());
+        std::sort(expected.begin(), expected.end());
+        if (axes != expected) {
+            return false;
+        }
+    }  // rank==1: accept both empty and {0} axes
+
     return true;
 }
 

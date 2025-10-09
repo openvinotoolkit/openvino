@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -47,6 +48,12 @@ struct MVNAttrs {
     VectorDims shape5D;
     size_t actualChannelSize = 0;  // Actual channel size for post-ops
     PostOps postOps;               // Post-operations configuration
+    // Reduction mask in canonical 5D order [N, C, D, H, W]
+    std::array<uint8_t, 5> reduce5D{0, 0, 0, 0, 0};
+    bool hasBatchInReduction = false;
+    bool hasChannelInReduction = false;
+    // Original reduction axes in input rank space
+    std::vector<size_t> reductionAxes;
 };
 
 using MVNConfig = executor::Config<MVNAttrs>;

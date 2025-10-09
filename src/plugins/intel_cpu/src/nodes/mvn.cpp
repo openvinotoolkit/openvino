@@ -68,38 +68,14 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                                std::to_string(static_cast<int>(epsMode));
                 return false;
             }
-            // Validates MVN node axes to check whether it can be executed on the current CPU implementation.
-            // Supported cases:
-            // 1D: axes: [0]
-            // 2D: axes: [1]
-            // 3D: axes: [1,2], [2]
-            // 4D: axes: [1,2,3], [2,3]
-            // 5D: axes: [1,2,3,4], [2,3,4]
-            auto axesVal = axesOp->cast_vector<int>();
-            for (int& axe : axesVal) {
-                axe = axe < 0 ? axe + inDataRank : axe;
-            }
-            std::sort(axesVal.begin(), axesVal.end());
-            if (inDataRank == 1) {
-                if (axesVal.size() != 1 || axesVal[0] != 0) {
-                    errorMessage = "Unsupported axes.";
-                    return false;
-                }
-            } else {
-                const bool rank_too_large = inDataRank > 5;
-                const bool invalid_axes_size = static_cast<size_t>(inDataRank) != axesVal.size() + 1 &&
-                                               static_cast<size_t>(inDataRank) != axesVal.size() + 2;
-                if (rank_too_large || invalid_axes_size) {
-                    errorMessage = "Unsupported axes.";
-                    return false;
-                }
-                int value = inDataRank - 1;
-                for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
-                    if (axesVal[i] != value) {
-                        errorMessage = "Unsupported axes.";
-                        return false;
-                    }
-                }
+
+            // Note: Do not over-restrict axes here. More complex patterns (e.g. including batch)
+            // will be handled either by frontend decomposition (ONNX importer) or by the
+            // reference executor fallback. We only validate rank and type here.
+            const bool rank_too_large = inDataRank > 5;
+            if (rank_too_large) {
+                errorMessage = "Unsupported input rank (must be <= 5).";
+                return false;
             }
         } else if (auto mvnOp = ov::as_type_ptr<const ov::op::v0::MVN>(op)) {
         } else {
@@ -132,6 +108,26 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1) {
             mvnAttrs.initAcrossChannels_ = true;
         }
+
+        // Capture and normalize reduction axes to the original rank space
+        if (auto axesOp = ov::as_type_ptr<ov::op::v0::Constant>(mvnOp->get_input_node_shared_ptr(1))) {
+            auto axesVec64 = axesOp->cast_vector<int64_t>();
+            const int rank = static_cast<int>(getInputShapeAtPort(0).getRank());
+            reductionAxesOrig.clear();
+            reductionAxesOrig.reserve(axesVec64.size());
+            for (auto a : axesVec64) {
+                int ax = static_cast<int>(a);
+                if (ax < 0)
+                    ax += rank;
+                reductionAxesOrig.push_back(ax);
+            }
+            std::sort(reductionAxesOrig.begin(), reductionAxesOrig.end());
+            reductionAxesOrig.erase(std::unique(reductionAxesOrig.begin(), reductionAxesOrig.end()),
+                                    reductionAxesOrig.end());
+            mvnAttrs.reductionAxes.clear();
+            for (int ax : reductionAxesOrig)
+                mvnAttrs.reductionAxes.push_back(static_cast<size_t>(ax));
+        }
     } else if (auto mvnOp = ov::as_type_ptr<ov::op::v0::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
         mvnAttrs.epsValue_ = static_cast<float>(mvnOp->get_eps());
@@ -149,13 +145,71 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
             const size_t chAxis = inDataRank >= 2 ? 1 : 0;
             // Across-channels when channel axis is included in reduction axes
             mvnAttrs.initAcrossChannels_ = axes.count(chAxis) > 0;
+
+            // Save original axes
+            reductionAxesOrig.clear();
+            reductionAxesOrig.reserve(axes.size());
+            for (auto a : axes)
+                reductionAxesOrig.push_back(static_cast<int>(a));
+            std::sort(reductionAxesOrig.begin(), reductionAxesOrig.end());
+            mvnAttrs.reductionAxes.clear();
+            for (auto a : axes)
+                mvnAttrs.reductionAxes.push_back(static_cast<size_t>(a));
         } else {
             mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
+            // Derive axes as in core op for static rank
+            const auto rank = static_cast<int>(getInputShapeAtPort(0).getRank());
+            if (rank > 0) {
+                const int start_axis = mvnAttrs.initAcrossChannels_ ? 1 : 2;
+                reductionAxesOrig.clear();
+                for (int i = start_axis; i < rank; ++i)
+                    reductionAxesOrig.push_back(i);
+                mvnAttrs.reductionAxes.clear();
+                for (int i = start_axis; i < rank; ++i)
+                    mvnAttrs.reductionAxes.push_back(static_cast<size_t>(i));
+            }
         }
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED("Node is not an instance of MVN from the operation set v0 or v6");
     }
     mvnAttrs.execAcrossChannels_ = mvnAttrs.initAcrossChannels_;
+
+    // Precompute reduction mask in canonical 5D order based on original axes and current rank.
+    // This must happen before executor creation so that executors receive correct attributes.
+    {
+        std::array<uint8_t, 5> reduce5D{0, 0, 0, 0, 0};
+        const auto rank = static_cast<int>(getInputShapeAtPort(0).getRank());
+        auto mapAxisTo5D = [&](int axisOrig) -> int {
+            switch (rank) {
+            case 1:
+                return mvnAttrs.initAcrossChannels_ ? 4 : 1;
+            case 2:
+                if (mvnAttrs.initAcrossChannels_) {
+                    return axisOrig == 0 ? 1 : 3;
+                } else {
+                    return axisOrig;  // 0->0, 1->1
+                }
+            case 3:
+                return axisOrig == 2 ? 3 : axisOrig;  // 0->0,1->1,2->3
+            case 4:
+                if (axisOrig == 2)
+                    return 3;  // H
+                if (axisOrig == 3)
+                    return 4;     // W
+                return axisOrig;  // N,C remain
+            default:
+                return axisOrig;  // 5D mapping is identity
+            }
+        };
+        for (int ax : reductionAxesOrig) {
+            const int a5 = mapAxisTo5D(ax);
+            if (a5 >= 0 && a5 < 5)
+                reduce5D[a5] = 1;
+        }
+        mvnAttrs.reduce5D = reduce5D;
+        mvnAttrs.hasBatchInReduction = reduce5D[0] != 0;
+        mvnAttrs.hasChannelInReduction = reduce5D[1] != 0;
+    }
 }
 
 void MVN::getSupportedDescriptors() {}
@@ -251,6 +305,9 @@ void MVN::initSupportedPrimitiveDescriptors() {
 
     // Init factory and preconfigure memory descriptors
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority());
+    // Do not enforce memoryFormatFilter here. Let the layout be chosen by the
+    // generic descriptor/executor pipeline and any external test-provided
+    // filters. Enforcing tags here may cause rank-tag mismatch for some cases.
     // Respect externally enforced memory formats (e.g., from tests) via memoryFormatFilter
     auto factory = std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs, executionContext, descs, memoryFormatFilter);
     const std::vector<MemoryDescArgs> nodeDescriptorsList = factory->getProperMemoryDescriptors(descs);

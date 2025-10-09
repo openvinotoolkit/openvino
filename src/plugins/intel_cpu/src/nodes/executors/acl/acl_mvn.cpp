@@ -67,8 +67,28 @@ bool ACLMVNExecutor::supports(const MVNConfig& config) {
     VERIFY(srcPlanar == dstPlanar && srcChannelLast == dstChannelLast, MEMORY_FORMAT_MISMATCH);
     VERIFY(srcPlanar || srcChannelLast, MEMORY_FORMAT_MISMATCH);
 
-    // Original conditions from master: NHWC with initAcrossChannels=false is not supported
-    VERIFY(config.attrs.initAcrossChannels_ || !srcChannelLast, UNSUPPORTED_ATTRIBUTE);
+    // Axes must be canonical; ACL supports normalization along channels or across-channels, not arbitrary axes
+    const auto& inDims = srcDesc->getShape().getDims();
+    const size_t rank = inDims.size();
+    std::vector<size_t> expected;
+    if (rank >= 3) {
+        if (config.attrs.initAcrossChannels_) {
+            for (size_t a = 1; a < rank; ++a)
+                expected.push_back(a);
+        } else {
+            for (size_t a = 2; a < rank; ++a)
+                expected.push_back(a);
+        }
+    } else if (rank == 2) {
+        if (config.attrs.initAcrossChannels_)
+            expected = {1};
+    } else if (rank == 1) {
+        expected = {0};
+    }
+    auto axes = config.attrs.reductionAxes;
+    std::sort(axes.begin(), axes.end());
+    std::sort(expected.begin(), expected.end());
+    VERIFY(axes == expected, UNSUPPORTED_ATTRIBUTE);
 
     return true;
 }
