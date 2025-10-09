@@ -8,28 +8,79 @@ concurrency:
 permissions: read-all
 
 jobs:
+  Smart_CI:
+      runs-on: ubuntu-latest
+      outputs:
+        affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+        changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+        skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+      steps:
+        - name: checkout action
+          uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+          timeout-minutes: 15
+          with:
+            sparse-checkout: .github/actions/smart-ci
+
+        - name: Get affected components
+          id: smart_ci
+          uses: ./.github/actions/smart-ci
+          with:
+            repository: ${{ github.repository }}
+            pr: ${{ github.event.number }}
+            commit_sha: ${{ github.sha }}
+            ref_name: ${{ github.ref_name }}
+            component_pattern: "category: (.*)"
+            repo_token: ${{ secrets.GITHUB_TOKEN }}
+            skip_when_only_listed_labels_set: 'docs'
+            skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+
+        - name: Show affected components
+          run: |
+            echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
+          shell: bash
+
+  Docker:
+    needs: Smart_CI
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_test/ubuntu_24_04_x64_code_style
+            ov_test/ubuntu_22_04_x64_code_style
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
   clang-format:
-    runs-on: ubuntu-24.04
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
-    permissions:
-      pull-requests: write
+    needs: Docker
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
+      volumes:
+        - /mount:/mount
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           submodules: 'true'
 
-      - name: Install clang-format-18
-        run: |
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 18
-
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
       # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
       - name: CMake configure
-        run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
+        run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DENABLE_SNIPPETS_LIBXSMM_TPP=ON -B build
 
       - name: Create code style diff
         run: cmake --build build --target clang_format_fix_all -j8
@@ -44,22 +95,17 @@ jobs:
           filter_mode: nofilter
 
   clang-format-aarch64:
-    runs-on: ubuntu-24.04
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
-    permissions:
-      pull-requests: write
+    needs: Docker
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
+      volumes:
+        - /mount:/mount
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           submodules: 'true'
-
-      - name: Install clang-format-18 and cross-compilation dependencies
-        run: |
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 18
-          sudo apt update
-          sudo apt --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons
 
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
@@ -80,25 +126,17 @@ jobs:
           filter_mode: nofilter
 
   clang-format-riscv64:
-    runs-on: ubuntu-24.04
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
-    permissions:
-      pull-requests: write
+    needs: Docker
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
+      volumes:
+        - /mount:/mount
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           submodules: 'true'
-
-      - name: Install clang-format-18 and cross-compilation dependencies
-        run: |
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 18
-          sudo apt update
-          sudo apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu
-
-      # Run cmake with extra options to cover as much source code as possible:
-      # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
       - name: CMake configure
         run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
 
@@ -115,20 +153,17 @@ jobs:
           filter_mode: nofilter
 
   ShellCheck:
-    runs-on: ubuntu-22.04
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
-    permissions:
-      pull-requests: write
+    needs: Docker
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
+      volumes:
+        - /mount:/mount
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           submodules: 'true'
-
-      - name: Install ShellCheck
-        run: |
-          sudo apt update
-          sudo apt --assume-yes install shellcheck
 
       - name: CMake configure
         run: cmake -B build
@@ -150,19 +185,17 @@ jobs:
               "./temp/*"
 
   NamingConventionCheck:
-    runs-on: ubuntu-22.04
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    needs: Docker
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
+      volumes:
+        - /mount:/mount
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           submodules: 'true'
-
-      - name: Install Clang dependency
-        run: |
-          sudo apt update
-          sudo apt --assume-yes remove clang-7 clang-8 clang-9 clang-10 clang-11 clang-12 clang-13 clang-15
-          sudo apt --assume-yes install clang-14 libclang-14-dev
 
       - name: Install Python-based dependencies
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
