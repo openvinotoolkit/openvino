@@ -9,9 +9,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 
-#include "ze_event_manager.hpp"
-#include "ze_cb_event_manager.hpp"
-#include "ze_event_pool_manager.hpp"
+#include "ze_cb_event_factory.hpp"
+#include "ze_event_factory.hpp"
+#include "ze_events.hpp"
+#include "ze_empty_event.hpp"
 
 #include "ze_event.hpp"
 #include "ze_kernel.hpp"
@@ -204,16 +205,18 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
     command_queue_desc.ordinal = info.copy_queue_group_ordinal;
     ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_copy_command_list));
-    if (m_queue_type == QueueTypes::in_order) {
-        m_ev_manager = std::make_unique<ze_cb_event_manager>(engine, m_command_list, config.get_enable_profiling());
+    if (false/*m_queue_type == QueueTypes::in_order && info.supports_cb_events*/) {
+        m_ev_factory = std::make_unique<ze_cb_event_factory>(engine, config.get_enable_profiling());
     } else {
-        m_ev_manager = std::make_unique<ze_event_pool_manager>(engine, m_command_list, config.get_enable_profiling());
+        m_ev_factory = std::make_unique<ze_event_factory>(engine, config.get_enable_profiling());
     }
 }
 
 ze_stream::~ze_stream() {
+#ifdef ENABLE_ONEDNN_FOR_GPU
     // Destroy OneDNN stream before destroying command list
     _onednn_stream.reset();
+#endif
     if (m_command_list != nullptr)
         zeCommandListDestroy(m_command_list);
     if (m_copy_command_list != nullptr)
@@ -243,8 +246,8 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     if (m_sync_method == SyncMethods::events) {
         for (auto& dep : deps) {
             if (auto ze_base_ev = std::dynamic_pointer_cast<ze_base_event>(dep)) {
-                if (ze_base_ev->get() != nullptr)
-                    dep_events.push_back(ze_base_ev->get());
+                if (ze_base_ev->get_handle() != nullptr)
+                    dep_events.push_back(ze_base_ev->get_handle());
             }
         }
         dep_events_ptr = &dep_events;
@@ -253,7 +256,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     }
     bool set_output_event = m_sync_method == SyncMethods::events || is_output;
 
-    auto ev = set_output_event ? create_base_event() : std::make_shared<ze_event>(nullptr, nullptr, ++m_queue_counter);
+    auto ev = set_output_event ? create_base_event() : std::make_shared<ze_empty_event>(++m_queue_counter);
     auto global = to_group_count(args_desc.workGroups.global);
     auto local = to_group_count(args_desc.workGroups.local);
     ze_group_count_t args = { global.groupCountX / local.groupCountX, global.groupCountY / local.groupCountY, global.groupCountZ / local.groupCountZ };
@@ -261,7 +264,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     ZE_CHECK(zeCommandListAppendLaunchKernel(m_command_list,
                                              kern,
                                              &args,
-                                             set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get() : nullptr,
+                                             set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle() : nullptr,
                                              dep_events_ptr == nullptr ? 0 : static_cast<uint32_t>(dep_events_ptr->size()),
                                              dep_events_ptr == nullptr ? 0 : &dep_events_ptr->front()));
 
@@ -275,7 +278,7 @@ void ze_stream::enqueue_barrier() {
 event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, bool is_output) {
     if (deps.empty()) {
         auto ev = create_base_event();
-        ZE_CHECK(zeCommandListAppendBarrier(m_command_list, std::dynamic_pointer_cast<ze_base_event>(ev)->get(), 0, nullptr));
+        ZE_CHECK(zeCommandListAppendBarrier(m_command_list, std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(), 0, nullptr));
         return ev;
     }
 
@@ -283,8 +286,8 @@ event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, boo
         std::vector<ze_event_handle_t> dep_events;
         for (auto& dep : deps) {
             if (auto ze_base_ev = std::dynamic_pointer_cast<ze_base_event>(dep)) {
-                if (ze_base_ev->get() != nullptr)
-                    dep_events.push_back(ze_base_ev->get());
+                if (ze_base_ev->get_handle() != nullptr)
+                    dep_events.push_back(ze_base_ev->get_handle());
             }
         }
         if (dep_events.empty())
@@ -292,7 +295,7 @@ event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, boo
 
         auto ev = create_base_event();
         ZE_CHECK(zeCommandListAppendBarrier(m_command_list,
-                                            std::dynamic_pointer_cast<ze_base_event>(ev)->get(),
+                                            std::dynamic_pointer_cast<ze_base_event>(ev)->get_handle(),
                                             static_cast<uint32_t>(dep_events.size()),
                                             &dep_events.front()));
         return ev;
@@ -305,8 +308,8 @@ event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, boo
     }
 }
 
-ze_event::ptr ze_stream::group_events(std::vector<ze_events::ptr> const& deps) {
-    return std::make_shared<ze_events>(deps);
+ze_event::ptr ze_stream::group_events(std::vector<ze_event::ptr> const& deps) {
+    return std::make_shared<ze_events>(deps, _engine);
 }
 
 void ze_stream::wait() {
@@ -314,8 +317,7 @@ void ze_stream::wait() {
 }
 
 event::ptr ze_stream::create_user_event(bool set) {
-    // user event should use different api
-    auto ev = m_ev_manager->create_event(++m_queue_counter);
+    auto ev = m_ev_factory->create_event(++m_queue_counter);
     if (set)
         ev->set();
 
@@ -323,7 +325,7 @@ event::ptr ze_stream::create_user_event(bool set) {
 }
 
 event::ptr ze_stream::create_base_event() {
-    return m_ev_manager->create_event(++m_queue_counter);
+    return m_ev_factory->create_event(++m_queue_counter);
 }
 
 void ze_stream::flush() const {
@@ -338,7 +340,7 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
     bool needs_sync = false;
     for (auto& ev : events) {
         auto* ze_base_ev = dynamic_cast<ze_base_event*>(ev.get());
-        if (ze_base_ev->get() != nullptr) {
+        if (ze_base_ev->get_handle() != nullptr) {
             ze_base_ev->wait();
         } else {
             needs_sync = true;
@@ -366,7 +368,7 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
         if (is_output) {
             m_last_barrier_ev = std::dynamic_pointer_cast<ze_event>(create_base_event());
             m_last_barrier_ev->set_queue_stamp(m_queue_counter.load());
-            ZE_CHECK(zeCommandListAppendBarrier(m_command_list, m_last_barrier_ev->get(), 0, nullptr));
+            ZE_CHECK(zeCommandListAppendBarrier(m_command_list, m_last_barrier_ev->get_handle(), 0, nullptr));
         } else {
             ZE_CHECK(zeCommandListAppendBarrier(m_command_list, nullptr, 0, nullptr));
         }

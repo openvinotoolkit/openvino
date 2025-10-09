@@ -15,6 +15,13 @@
         } \
     } while (false)
 
+#define ZE_WARN(f) \
+    do { \
+        ze_result_t res_ = (f); \
+        if (res_ != ZE_RESULT_SUCCESS) { \
+            GPU_DEBUG_COUT << ("[Warning] [GPU] " #f " command failed with code " + std::to_string(res_)); \
+        } \
+    } while (false)
 
 namespace cldnn {
 namespace ze {

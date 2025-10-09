@@ -115,12 +115,13 @@ struct device_info {
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
 
-    bool supports_mutable_command_list;         ///< Does the target runtime/device support mutable command list feature
+    bool supports_mutable_command_list;         ///< [L0] Does the target runtime/device support mutable command list feature
 
     bool supports_usm;                          ///< Does engine support unified shared memory.
     bool has_separate_cache;                    ///< Does the target hardware has separate cache for usm_device and usm_host
 
     bool supports_cp_offload;                   ///< [L0] Does the command queue support copy offload
+    bool supports_cb_events;                    ///< [L0] Does the target runtime support counter based events
 
     std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 

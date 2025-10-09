@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ze_cb_event_manager.hpp"
+#include "ze_cb_event_factory.hpp"
 #include "ze_common.hpp"
-#include "ze_event.hpp"
+#include "ze_cb_event.hpp"
 
 #include "zex_event.h"
 
@@ -19,25 +19,20 @@ namespace {
     }
 }
 
-ze_cb_event_manager::ze_cb_event_manager(const ze_engine &engine, ze_command_list_handle_t cmd_list, bool enable_profiling)
-    : ze_event_manager(engine, cmd_list, enable_profiling) {
+ze_cb_event_factory::ze_cb_event_factory(const ze_engine &engine, bool enable_profiling)
+    : ze_base_event_factory(engine, enable_profiling) {
     if (func_zexCounterBasedEventCreate2 == nullptr) {
         find_function_address(engine.get_driver());
     }
 }
 
-ze_cb_event_manager::~ze_cb_event_manager() {}
-
-std::shared_ptr<ze_event> ze_cb_event_manager::create_event(uint64_t queue_stamp) {
+event::ptr ze_cb_event_factory::create_event(uint64_t queue_stamp) {
     ze_event_handle_t event;
     auto desc = defaultIntelCounterBasedEventDesc;
-    if (m_enable_profiling) {
+    if (is_profiling_enabled()) {
         desc.flags |= ZEX_COUNTER_BASED_EVENT_FLAG_KERNEL_TIMESTAMP;
     }
     ZE_CHECK(func_zexCounterBasedEventCreate2(m_engine.get_context(), m_engine.get_device(), &desc, &event));
-    return std::make_shared<ze_event>(this, event, queue_stamp);
-}
-
-void ze_cb_event_manager::destroy_event(ze_event *event) {
-    zeEventDestroy(event->get());
+    auto cb_event = std::make_shared<ze_cb_event>(queue_stamp, *this, event);
+    return cb_event;
 }

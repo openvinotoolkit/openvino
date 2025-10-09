@@ -31,7 +31,7 @@ std::vector<ze_event_handle_t> get_ze_events(const std::vector<event::ptr>& even
     std::vector<ze_event_handle_t> ze_events;
     ze_events.reserve(events.size());
      for (const auto& ev : events) {
-        auto ze_event = downcast<ze::ze_base_event>(ev.get())->get();
+        auto ze_event = downcast<ze::ze_base_event>(ev.get())->get_handle();
         if (ze_event != nullptr) {
             ze_events.push_back(ze_event);
         }
@@ -142,7 +142,7 @@ void gpu_usm::unlock(const stream& /* stream */) {
 event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
     auto& _ze_stream = downcast<ze_stream>(stream);
     auto ev = _ze_stream.create_base_event();
-    auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get();
+    auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get_handle();
     std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
     auto ze_dep_events = get_ze_events(dep_events);
     ZE_CHECK(zeCommandListAppendMemoryFill(_ze_stream.get_queue(),
@@ -170,7 +170,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
         return result_event;
 
     auto _ze_stream = downcast<ze_stream>(&stream);
-    auto _ze_event = downcast<ze_base_event>(result_event.get())->get();
+    auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
     auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
     auto dst_ptr = reinterpret_cast<char*>(buffer_ptr()) + dst_offset;
 
@@ -195,7 +195,7 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
         return result_event;
 
     auto _ze_stream = downcast<ze_stream>(&stream);
-    auto _ze_event = downcast<ze_base_event>(result_event.get())->get();
+    auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
     OPENVINO_ASSERT(memory_capabilities::is_usm_type(src_mem.get_allocation_type()));
 
     auto usm_mem = downcast<const gpu_usm>(&src_mem);
@@ -222,7 +222,7 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
         return result_event;
 
     auto _ze_stream = downcast<ze_stream>(&stream);
-    auto _ze_event = downcast<ze_base_event>(result_event.get())->get();
+    auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
     auto src_ptr = reinterpret_cast<const char*>(buffer_ptr()) + src_offset;
     auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
 

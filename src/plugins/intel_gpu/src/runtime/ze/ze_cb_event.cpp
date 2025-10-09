@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ze_event.hpp"
+#include "ze_cb_event.hpp"
 #include "ze/ze_common.hpp"
 
 #include <cassert>
@@ -12,20 +12,15 @@
 using namespace cldnn;
 using namespace ze;
 
-void ze_event::reset() {
-    event::reset();
-    ZE_CHECK(zeEventHostReset(m_event));
-}
-
-void ze_event::wait_impl() {
+void ze_cb_event::wait_impl() {
     ZE_CHECK(zeEventHostSynchronize(m_event, default_timeout));
 }
 
-void ze_event::set_impl() {
-    ZE_CHECK(zeEventHostSignal(m_event));
+void ze_cb_event::set_impl() {
+    // Counter based events start in signaled state and can not be signaled from host
 }
 
-bool ze_event::is_set_impl() {
+bool ze_cb_event::is_set_impl() {
     auto ret = zeEventQueryStatus(m_event);
     switch (ret) {
     case ZE_RESULT_SUCCESS:
@@ -40,7 +35,11 @@ bool ze_event::is_set_impl() {
     }
 }
 
-std::optional<ze_kernel_timestamp_result_t> ze_event::query_timestamp() {
+ze_event_handle_t ze_cb_event::get_handle() const {
+    return m_event;
+}
+
+std::optional<ze_kernel_timestamp_result_t> ze_cb_event::query_timestamp() {
     if (!m_factory.is_profiling_enabled()) {
         return std::nullopt;
     }
@@ -49,11 +48,7 @@ std::optional<ze_kernel_timestamp_result_t> ze_event::query_timestamp() {
     return timestamp;
 }
 
-ze_event_handle_t ze_event::get_handle() const {
-    return m_event;
-}
-
-bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
+bool ze_cb_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
     auto opt_timestamp = query_timestamp();
     if (!opt_timestamp.has_value()) {
         return true;
@@ -72,6 +67,6 @@ bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_inte
     return true;
 }
 
-ze_event::~ze_event() {
+ze_cb_event::~ze_cb_event() {
     ZE_WARN(zeEventDestroy(m_event));
 }
