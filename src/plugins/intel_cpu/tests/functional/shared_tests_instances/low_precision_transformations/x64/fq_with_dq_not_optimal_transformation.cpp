@@ -91,7 +91,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             { {0.3f}, ov::element::f32, {}, false }
         },
         {},
-        "i8"
+        "f32"
     }
 };
 
