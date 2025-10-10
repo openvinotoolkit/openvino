@@ -311,9 +311,6 @@ void Plugin::init_options() {
     // parse again env_variables to update registered configs which have env vars set
     _globalConfig.parseEnvVars();
 
-    // filter out unsupported options
-    filter_config_by_compiler_support(_globalConfig);
-
     // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
     // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
     REGISTER_OPTION(NPU_USE_NPUW);
@@ -366,6 +363,12 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_GENERATE_ATTENTION_HINT);
     REGISTER_OPTION(NPUW_LLM_SHARED_LM_HEAD_CONFIG);
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
+
+    _globalConfig.enableRuntimeOptions();
+
+    // Special cases
+    _globalConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
+    _globalConfig.enable(ov::device::id.name(), true);  // ov queries this for caching
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -452,6 +455,7 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     if (_backend && _backend->isCommandQueueExtSupported()) {
         cfg.enable(ov::intel_npu::turbo.name(), true);
     }
+    cfg.setFiltered();
 }
 
 FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,
@@ -475,6 +479,13 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
             compiler_changed = true;
         }
     }
+
+    // If localConfig was not filtered not even by compiler type change, then _globalConfig needs also initialization
+    if (!localConfig.wasFiltered()) {
+        filter_config_by_compiler_support(localConfig);
+        _globalConfig = localConfig;
+    }
+
     // 2. Revalidate unknown internal configs
     // look for unsupported internals
     // first in what we inherited from globalconfig by forking it - ONLY if compiler has changed
@@ -506,6 +517,10 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
+    if (properties.empty()) {
+        return;
+    }
+
     // 1. Check for compiler change
     if (properties.count(std::string(COMPILER_TYPE::key())) != 0) {
         // Compiler change detected
@@ -520,10 +535,23 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         }
     }
 
-    // 2. Set the property via Properties interface
+    // 2. Check if configs have been filtered
+    if (!_globalConfig.wasFiltered()) {
+        for (const auto& prop : properties) {
+            if (!_properties->isPropertyRegistered(prop.first)) {
+                // filter out unsupported options
+                filter_config_by_compiler_support(_globalConfig);
+                // 2. Reset properties for the new options
+                _properties->registerProperties();
+                break;
+            }
+        }
+    }
+
+    // 3. Set the property via Properties interface
     _properties->set_property(properties);
 
-    // 3. Extra hooks
+    // 4. Extra hooks
     // Update log level if it was provided
     if (properties.count(std::string(LOG_LEVEL::key())) != 0) {
         Logger::global().setLevel(_globalConfig.get<LOG_LEVEL>());
@@ -537,6 +565,14 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     auto npu_plugin_properties = arguments;
     exclude_model_ptr_from_map(npu_plugin_properties);
+
+    if (!_globalConfig.wasFiltered() &&
+        (!_properties->isPropertyRegistered(name) || name == ov::supported_properties.name())) {
+        // filter out unsupported options
+        filter_config_by_compiler_support(_globalConfig);
+        // 2. Reset properties for the new options
+        _properties->registerProperties();
+    }
     return _properties->get_property(name, npu_plugin_properties);
 }
 
