@@ -59,10 +59,8 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
                     new Date(b.started_at) - new Date(a.started_at)
                 )[0];
 
-                core.info(`Check "${checkName}" status: ${latestCheckRun.status}, conclusion: ${latestCheckRun.conclusion || 'N/A'}`);
-
                 if (latestCheckRun.status === 'completed') {
-                    core.info(`Check "${checkName}" completed with conclusion: ${latestCheckRun.conclusion}`);
+                    core.info(`Check "${checkName}" with URL: "${latestCheckRun.html_url}" completed with conclusion: ${latestCheckRun.conclusion}`);
                     checkResults[checkName] = {
                         status: latestCheckRun.status,
                         conclusion: latestCheckRun.conclusion,
@@ -70,9 +68,9 @@ async function waitForChecks(octokit, owner, repo, ref, checkNames, waitInterval
                     };
                     pendingChecks.delete(checkName);
                 } else if (latestCheckRun.status === 'in_progress') {
-                    core.info(`Check "${checkName}" is still in progress...`);
+                    core.info(`Check "${checkName}" with URL: "${latestCheckRun.html_url}" is still in progress...`);
                 } else if (latestCheckRun.status === 'queued') {
-                    core.info(`Check "${checkName}" is queued...`);
+                    core.info(`Check "${checkName}" with URL: "${latestCheckRun.html_url}" is queued...`);
                 }
             }
             
