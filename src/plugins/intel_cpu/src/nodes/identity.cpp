@@ -4,8 +4,15 @@
 
 #include "identity.hpp"
 
+#include <functional>
+#include <numeric>
+#include <string>
+
+#include "cpu_types.h"
 #include "nodes/common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/identity.hpp"
 
@@ -66,10 +73,7 @@ void Identity::initSupportedPrimitiveDescriptors() {
 }
 
 bool Identity::needPrepareParams() const {
-    if (m_out_shape != getDstMemoryAtPort(0)->getShape().getStaticDims()) {
-        return true;
-    }
-    return false;
+    return (m_out_shape != getDstMemoryAtPort(0)->getShape().getStaticDims());
 }
 
 void Identity::prepareParams() {
@@ -101,12 +105,13 @@ std::string Identity::getPrimitiveDescriptorType() const {
     }
 
     std::string str_type;
-    if (type == impl_desc_type::unknown)
+    if (type == impl_desc_type::unknown) {
         str_type = "unknown";
-    else if (type == impl_desc_type::ref_any)
+    } else if (type == impl_desc_type::ref_any) {
         str_type = "ref_any";
-    else
+    } else {
         str_type = "undef";
+    }
 
     if (selectedPrimitiveDesc) {
         if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
@@ -121,12 +126,12 @@ std::string Identity::getPrimitiveDescriptorType() const {
     return str_type;
 }
 
-void Identity::execute(const dnnl::stream& strm) {
-    const auto out_el_num = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<Dim>());
+void Identity::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto out_el_num = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1LU, std::multiplies<Dim>());
 
     if (!canBeInPlace()) {
-        auto input = getSrcDataAtPort(0);
-        auto output = getDstDataAtPort(0);
+        auto* input = getSrcDataAtPort(0);
+        auto* output = getDstDataAtPort(0);
 
         cpu_parallel_memcpy(output, input, m_out_prc.size() * out_el_num);
     }
