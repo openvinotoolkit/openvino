@@ -104,8 +104,10 @@ protected:
     mutable std::map<ov::Output<const ov::Node>, TensorStorage>
         m_port_to_tensor;  // mutable due to lazy I/O allocation in get_tensor()
 
-    // Check to verify that m_port_to_tensor doesn't have anything stored at the port and it's I/O
-    bool is_not_stored_io(const ov::Output<const ov::Node>& port) const;
+    // Check that m_port_to_tensor does have a tensor stored at the port
+    bool is_stored(const ov::Output<const ov::Node>& port) const;
+    // Check the port is I/O
+    bool is_io(const ov::Output<const ov::Node>& port) const;
 
     struct QuantGatherTensors {
         ov::Tensor w, z, s;
