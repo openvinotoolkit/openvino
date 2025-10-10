@@ -76,6 +76,10 @@ jobs:
         with:
           submodules: 'true'
 
+      - name: Fix git config safe directory
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
       # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
@@ -107,6 +111,10 @@ jobs:
         with:
           submodules: 'true'
 
+      - name: Fix git config safe directory
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
       # - -DENABLE_SNIPPETS_LIBXSMM_TPP to cover snippets TPP adaptation
@@ -137,6 +145,10 @@ jobs:
         timeout-minutes: 15
         with:
           submodules: 'true'
+
+      - name: Fix git config safe directory
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
 
       - name: CMake configure
         run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
