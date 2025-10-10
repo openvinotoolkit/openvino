@@ -208,7 +208,7 @@ std::vector<std::size_t> PagedCacheManager::insert(size_t node_id,
 
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    auto block_idxs = acquire_blocks_unlocked(node, block_count);
+    auto block_idxs = acquire_blocks_unlocked(node_id, block_count);
 
     const void* kbytes = static_cast<const void*>(key_src);
     const void* vbytes = static_cast<const void*>(value_src);
@@ -219,7 +219,7 @@ std::vector<std::size_t> PagedCacheManager::insert(size_t node_id,
         for (std::size_t i = 0; i < block_count; ++i) {
             fs[i] = cast_score_to_float(m_elem_type, static_cast<const void*>(&scores[i]));
         }
-        set_scores_for_blocks_unlocked(node, block_idxs, fs.data());
+        set_scores_for_blocks_unlocked(node_id, block_idxs, fs.data());
     }
 
     return block_idxs;
@@ -241,7 +241,7 @@ void PagedCacheManager::set_block_scores(size_t node_id,
     for (std::size_t i = 0; i < block_indices.size(); ++i) {
         fs[i] = cast_score_to_float(m_elem_type, static_cast<const void*>(&scores[i]));
     }
-    set_scores_for_blocks_unlocked(node, block_indices, fs.data());
+    set_scores_for_blocks_unlocked(node_id, block_indices, fs.data());
 }
 
 }  // namespace internal
