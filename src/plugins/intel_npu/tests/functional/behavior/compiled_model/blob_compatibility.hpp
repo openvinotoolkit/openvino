@@ -7,22 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "common/npu_test_env_cfg.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/core/version.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-
-// models generation
-#include "openvino/op/abs.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/max_pool.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/split.hpp"
 
 namespace {
 

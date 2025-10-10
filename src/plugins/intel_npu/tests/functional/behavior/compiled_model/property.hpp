@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <openvino/runtime/intel_npu/properties.hpp>
 #include <vector>
 
 #include "behavior/compiled_model/properties.hpp"
 #include "common/npu_test_env_cfg.hpp"
-#include "common/utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-#include "intel_npu/config/options.hpp"
-#include "openvino/util/log.hpp"
 
 using namespace ov::test::behavior;
 

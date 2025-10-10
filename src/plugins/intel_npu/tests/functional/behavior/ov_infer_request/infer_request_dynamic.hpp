@@ -6,21 +6,18 @@
 
 #include <gtest/gtest.h>
 
-#include <chrono>
-#include <future>
 #include <memory>
 #include <string>
-#include <thread>
 #include <tuple>
 #include <vector>
 
-#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/relu.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {

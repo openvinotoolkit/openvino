@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <sstream>
 #include <string>
-#include <vector>
 
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+
 namespace ov {
 namespace test {
 namespace behavior {
@@ -43,8 +43,7 @@ public:
     }
 
     void SetUp() {
-        // Skip test according to plugin specific disabledTestPatterns() (if any)
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(target_device, configuration) = this->GetParam();
         APIBaseTest::SetUp();
@@ -87,8 +86,7 @@ bool InferRequestElementTypeTests::compareTensorOutputs(const ov::Tensor& dynami
 // Test whether the serialization and inference results of the dynamic type model and the undefined type model are the
 // same
 TEST_P(InferRequestElementTypeTests, CompareDynamicAndUndefinedTypeNetwork) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     // Customize a model with a dynamic type
     std::string dynamicTypeModelXmlString = R"V0G0N(<?xml version="1.0"?>

@@ -15,11 +15,9 @@
 #include <openvino/runtime/compiled_model.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
-#include "intel_npu/config/options.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -112,7 +110,7 @@ private:
     }
 };
 
-TEST_P(FailGracefullyTest, OnUnsupprotedOperator) {
+TEST_P(FailGracefullyTest, OnUnsupportedOperator) {
     auto compilerType = configuration[ov::intel_npu::compiler_type.name()].as<std::string>();
     try {
         core->compile_model(ov_model, target_device, configuration);

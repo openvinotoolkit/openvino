@@ -12,24 +12,18 @@
 #include <cstddef>
 #include <exception>
 #include <memory>
-#include <random>
 #include <thread>
 
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/op/op.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
-#include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
-#include "overload/overload_test_utils_npu.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -75,9 +69,9 @@ public:
     }
 
     void SetUp() override {
-        std::tie(target_device, configuration) = this->GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        std::tie(target_device, configuration) = this->GetParam();
         OVPluginTestBase::SetUp();
         ov_model = getDefaultNGraphFunctionForTheDeviceNPU();  // FIXME: E#80555
     }
@@ -89,8 +83,7 @@ public:
         auto hash = std::to_string(std::hash<std::string>()(test_name));
         std::stringstream ss;
         auto ts = duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch());
-        ss << hash << "_"
-           << "_" << ts.count();
+        ss << hash << "_" << "_" << ts.count();
         return ss.str();
     }
 
@@ -132,7 +125,6 @@ public:
 };
 
 TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScope) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
         ov::InferRequest req;
         ov::Tensor outputTensor;
@@ -144,14 +136,12 @@ TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScop
 }
 
 TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsSyncInfers) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // Load CNNNetwork to target plugins
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(input = compiled_model.input());
     OV_ASSERT_NO_THROW(output = compiled_model.output());
 
-    // Create InferRequests
     const int inferReqNumber = 256;
     std::array<ov::InferRequest, inferReqNumber> inferReqs;
     std::array<std::thread, inferReqNumber> inferReqsThreads;
@@ -174,14 +164,12 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsSyncInfers) {
 }
 
 TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // Load CNNNetwork to target plugins
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(input = compiled_model.input());
     OV_ASSERT_NO_THROW(output = compiled_model.output());
 
-    // Create InferRequests
     const int inferReqNumber = 256;
     std::array<ov::InferRequest, inferReqNumber> inferReqs;
     for (int i = 0; i < inferReqNumber; ++i) {
@@ -200,14 +188,12 @@ TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsAsyncInfers) {
 }
 
 TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // Load CNNNetwork to target plugins
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
     OV_ASSERT_NO_THROW(input = compiled_model.input());
     OV_ASSERT_NO_THROW(output = compiled_model.output());
 
-    // Create InferRequests
     const int inferReqNumber = 256;
     ov::InferRequest inferReq;
     ov::Tensor input_tensor;
@@ -221,8 +207,7 @@ TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {
 }
 
 TEST_P(InferRequestRunTests, CheckOutputDataFromTwoRuns) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     ov::InferRequest inference_request;
     ov::Tensor first_output;
@@ -266,8 +251,7 @@ TEST_P(InferRequestRunTests, CheckOutputDataFromTwoRuns) {
 }
 
 TEST_P(InferRequestRunTests, CheckOutputDataFromMultipleRunsUsingSameL0Tensor) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     ov::InferRequest inference_request;
     ov::Tensor first_output;
@@ -302,8 +286,7 @@ TEST_P(InferRequestRunTests, CheckOutputDataFromMultipleRunsUsingSameL0Tensor) {
 }
 
 TEST_P(InferRequestRunTests, RecreateL0TensorIfNeeded) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     ov::InferRequest inference_request;
     ov::Tensor first_output;
@@ -351,8 +334,7 @@ TEST_P(InferRequestRunTests, RecreateL0TensorIfNeeded) {
 using RandomTensorOverZeroTensorRunTests = InferRequestRunTests;
 
 TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto shape = Shape{1, 2, 2, 2};
     auto shape_size = ov::shape_size(shape);
@@ -397,8 +379,7 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor0) {
 }
 
 TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto shape = Shape{1, 2, 2, 2};
     auto shape_size = ov::shape_size(shape);
@@ -460,8 +441,7 @@ TEST_P(RandomTensorOverZeroTensorRunTests, SetRandomTensorOverZeroTensor1) {
 using BatchingRunTests = InferRequestRunTests;
 
 TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     ov::InferRequest inference_request;
     auto batch_shape = Shape{4, 2, 32, 32};
@@ -473,8 +453,7 @@ TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {
 }
 
 TEST_P(BatchingRunTests, CheckBatchingSupportAsync) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     ov::InferRequest inference_request;
     auto batch_shape = Shape{4, 2, 32, 32};
@@ -487,8 +466,7 @@ TEST_P(BatchingRunTests, CheckBatchingSupportAsync) {
 }
 
 TEST_P(BatchingRunTests, UseCompilerBatchingErrorPluginBatching) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     ov::InferRequest inference_request;
     std::shared_ptr<ov::Model> ov_model_batch = getDefaultNGraphFunctionForTheDeviceNPU({4, 2, 32, 32});
@@ -1284,7 +1262,7 @@ using ROITensorInference = OVInferRequestInferenceTests;
 TEST_P(ROITensorInference, InferenceROITensor) {
     auto model = OVInferRequestInferenceTests::create_n_inputs(1, ov::element::f32, m_param.m_shape);
     auto compiled_model = ie->compile_model(model, target_device);
-    // Create InferRequest
+
     ov::InferRequest req;
     req = compiled_model.create_infer_request();
     const std::string tensor_name = "tensor_input0";
@@ -1297,8 +1275,7 @@ TEST_P(ROITensorInference, InferenceROITensor) {
 using SetShapeInferRunTests = InferRequestRunTests;
 
 TEST_P(SetShapeInferRunTests, checkResultsAfterIOBlobReallocation) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto original_shape = Shape{1, 10, 10, 10};
     auto dummy_shape = Shape{1, 50, 100, 100};
@@ -1365,8 +1342,7 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterIOBlobReallocation) {
 }
 
 TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     testing::internal::Random random(1);
     ov::Tensor input_tensor;
@@ -1465,8 +1441,7 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
 using CpuVaTensorsTests = InferRequestRunTests;
 
 TEST_P(CpuVaTensorsTests, DontDestroyImportedMemory) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     ov::InferRequest inference_request;
     ov::Tensor first_output;
@@ -1513,7 +1488,7 @@ TEST_P(CpuVaTensorsTests, DontDestroyImportedMemory) {
 }
 
 TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto shape = Shape{1, 16, 16, 16};
     auto shape_size = ov::shape_size(shape);
@@ -1578,7 +1553,7 @@ TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
 }
 
 TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto shape = Shape{1, 16, 16, 16};
     auto shape_size = ov::shape_size(shape);
@@ -1650,7 +1625,7 @@ TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
 }
 
 TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     auto shape = Shape{1, 16, 16, 16};
     auto shape_size = ov::shape_size(shape);
@@ -1787,7 +1762,7 @@ TEST_P(CpuVaTensorsTests, SetAndDestroyDifferentAlignedTensors) {
 }
 
 TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     testing::internal::Random random(1);
     ov::Tensor input_tensor;
@@ -1878,7 +1853,7 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
 }
 
 TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
     testing::internal::Random random(1);
     ov::Tensor input_tensor;

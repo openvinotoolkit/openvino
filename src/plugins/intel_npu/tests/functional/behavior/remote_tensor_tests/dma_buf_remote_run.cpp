@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/remote_tensor_tests/dma_buf_remote_run.hpp"
+#include "dma_buf_remote_run.hpp"
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"

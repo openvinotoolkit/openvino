@@ -13,14 +13,11 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "openvino/core/any.hpp"
-#include "openvino/core/type/element_iterator.hpp"
-#include "openvino/op/op.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "overload/overload_test_utils_npu.hpp"
 #include "remote_context.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "zero_backend.hpp"
@@ -78,8 +75,7 @@ public:
         auto hash = std::to_string(std::hash<std::string>()(test_name));
         std::stringstream ss;
         auto ts = duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch());
-        ss << hash << "_"
-           << "_" << ts.count();
+        ss << hash << "_" << "_" << ts.count();
         return ss.str();
     }
 

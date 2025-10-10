@@ -4,7 +4,7 @@
 
 #include "behavior/compiled_model/properties.hpp"
 
-#include "common/functions.h"
+#include "common/functions.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"

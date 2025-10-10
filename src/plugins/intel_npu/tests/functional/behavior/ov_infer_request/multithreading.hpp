@@ -6,7 +6,7 @@
 
 #include <future>
 
-#include "overload/overload_test_utils_npu.hpp"
+#include "common/utils.hpp"
 
 namespace ov {
 namespace test {
