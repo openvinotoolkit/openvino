@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include "irgraph.hpp"
 
 #include <iostream>
@@ -251,8 +249,8 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                     // We need to kepp batch dimension dynamic
                     shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
                 } else {
-                    // shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
-                    shapeFromIRModel.push_back(-1);
+                    shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
+                    // shapeFromIRModel.push_back(-1);
                 }
             }
         }
