@@ -48,16 +48,20 @@ function(_generate_dispatcher)
 
     foreach(_func_name IN LISTS XARCH_FUNC_NAMES)
         _find_signature_in_file(${XARCH_API_HEADER} ${_func_name} SIGNATURE)
+        #message(INFO "!!!!${SIGNATURE}")
         _generate_call_line_from_signature("${SIGNATURE}" CALL_LINE)
+        #message(INFO "====${CALL_LINE}")
 
         foreach(_arch IN LISTS XARCH_SET)
             string(APPEND DISP_CONTENT
                 "namespace ${_arch} {\n    ${SIGNATURE}\; \n}\n")
         endforeach()
-
+        ## remove default value in SIGNATURE
+        string(REGEX REPLACE "[ ]*=[ ]*[a-zA-Z0-9_]+[ ]*" "" SIGNATURE_NO_DEFAULT ${SIGNATURE})   
+        message(INFO "!!!!${SIGNATURE_NO_DEFAULT}")
         string(APPEND DISP_CONTENT
-                "namespace ${XARCH_CURRENT_NAMESPACE} {\n\n${SIGNATURE} {\n")
-
+                "namespace ${XARCH_CURRENT_NAMESPACE} {\n\n${SIGNATURE_NO_DEFAULT} {\n")
+        
         foreach(_arch IN LISTS XARCH_SET)
             string(APPEND DISP_CONTENT
                 "    if (${_CPU_CHECK_${_arch}}) {\n        return ${_arch}::${CALL_LINE}\;\n    }\n")
@@ -98,6 +102,9 @@ function(_generate_call_line_from_signature SIGNATURE RESULT_NAME)
     string(REPLACE ")" "" _args ${_args})
     string(REPLACE "," ";" _args ${_args})   # now it's list
     foreach(_arg_elem ${_args})
+        string(STRIP ${_arg_elem} _arg_elem)
+        ## remove default value 
+        string(REGEX REPLACE "=.*$" "" _arg_elem ${_arg_elem})   
         string(REGEX MATCH "[a-zA-Z0-9_]*[ ]*$" _arg_elem "${_arg_elem}")
         list(APPEND _arg_names ${_arg_elem})
     endforeach()
