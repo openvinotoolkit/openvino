@@ -4,8 +4,8 @@
 
 #include "identity.hpp"
 
-#include "openvino/core/parallel.hpp"
 #include "nodes/common/cpu_memcpy.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/identity.hpp"
 
@@ -26,7 +26,7 @@ bool Identity::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
 }
 
 Identity::Identity(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-        : Node(op, context, NgraphShapeInferFactory(op)) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -36,10 +36,10 @@ Identity::Identity(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 
     if (is_type<op::v0::Constant>(identity_op->get_input_node_ptr(0))) {
         m_const_input = true;
-        constant = ConstantType::Const; // Node always produces the same output
+        constant = ConstantType::Const;  // Node always produces the same output
     } else {
         m_const_input = false;
-        constant = ConstantType::NoConst; // Node produces output based on input
+        constant = ConstantType::NoConst;  // Node produces output based on input
     }
 }
 
@@ -62,9 +62,7 @@ void Identity::initSupportedPrimitiveDescriptors() {
 
     m_out_prc = out_prc;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, shape_prc, m_const_input}},
-                         {{LayoutType::ncsp, out_prc}},
-                         ref_any);
+    addSupportedPrimDesc({{LayoutType::ncsp, shape_prc, m_const_input}}, {{LayoutType::ncsp, out_prc}}, ref_any);
 }
 
 bool Identity::needPrepareParams() const {
@@ -90,8 +88,8 @@ bool Identity::created() const {
     return getType() == Type::Identity;
 }
 
-bool Identity::canBeInPlace() const { 
-    return getSrcMemoryAtPort(0) == getDstMemoryAtPort(0); 
+bool Identity::canBeInPlace() const {
+    return getSrcMemoryAtPort(0) == getDstMemoryAtPort(0);
 }
 
 std::string Identity::getPrimitiveDescriptorType() const {
@@ -112,7 +110,9 @@ std::string Identity::getPrimitiveDescriptorType() const {
 
     if (selectedPrimitiveDesc) {
         if (selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision() != ov::element::u8) {
-            str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().get_type_name());
+            str_type +=
+                "_" + std::string(
+                          selectedPrimitiveDesc->getConfig().outConfs[0].getMemDesc()->getPrecision().get_type_name());
         } else {
             str_type += "_I8";
         }
@@ -136,6 +136,6 @@ void Identity::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
