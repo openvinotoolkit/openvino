@@ -341,7 +341,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
                                                  memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
-                VERIFY(AclEltwiseExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                VERIFY(ACLEltwiseExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
                 return true;
             },
@@ -353,7 +353,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                   eltwiseMappingNotation);
             },
             AcceptsAnyShape<EltwiseAttrs>,
-            CreateDefault<AclEltwiseExecutor, EltwiseAttrs>{}
+            CreateDefault<ACLEltwiseExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_ACL(
             "eltwise_acl_nspc", ExecutorType::Acl, OperationType::Eltwise,
@@ -362,7 +362,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
                 VERIFY(isChannelFirstApplicable(config), HEURISTICS_MISMATCH);
-                VERIFY(AclEltwiseExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                VERIFY(ACLEltwiseExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
                 return true;
             },
@@ -374,7 +374,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                   eltwiseMappingNotation);
             },
             AcceptsAnyShape<EltwiseAttrs>,
-            CreateDefault<AclEltwiseExecutor, EltwiseAttrs>{}
+            CreateDefault<ACLEltwiseExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_SHL(
             "eltwise_shl_ncsp", ExecutorType::Shl, OperationType::Eltwise,
