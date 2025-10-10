@@ -12,7 +12,6 @@ namespace node {
 
 class Identity : public Node {
 public:
-
     Identity(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
@@ -43,9 +42,9 @@ protected:
 private:
     element::Type m_out_prc;
     bool m_const_input = false;
-    VectorDims m_out_shape = {};
+    VectorDims m_out_shape;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

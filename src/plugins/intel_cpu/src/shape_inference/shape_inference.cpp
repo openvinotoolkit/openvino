@@ -9,18 +9,6 @@
 #include <functional>
 #include <memory>
 #include <openvino/core/node.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/opsets/opset12.hpp>
-#include <openvino/opsets/opset13.hpp>
-#include <openvino/opsets/opset14.hpp>
-#include <openvino/opsets/opset15.hpp>
-#include <openvino/opsets/opset16.hpp>
-#include <openvino/opsets/opset2.hpp>
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/opsets/opset6.hpp>
-#include <openvino/opsets/opset7.hpp>
-#include <openvino/opsets/opset8.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <optional>
 #include <type_traits>
 #include <unordered_map>
@@ -146,6 +134,7 @@
 #include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/i420_to_bgr.hpp"
 #include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/idft.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/inverse.hpp"
