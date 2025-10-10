@@ -66,10 +66,6 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         auto shape = inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
                                                                   : inputDescriptor.shapeFromCompiler;
 
-        if (intel_npu::utils::wasOriginallyDynamic(inputDescriptor.outputTensorNames)) {
-            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(-1);
-        }
-
         std::shared_ptr<ov::op::v0::Parameter> parameter =
             std::make_shared<ov::op::v0::Parameter>(inputDescriptor.precision, shape);
 
@@ -93,10 +89,6 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
         auto shape = outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
                                                                    : outputDescriptor.shapeFromCompiler;
-
-        if (intel_npu::utils::wasOriginallyDynamic(outputDescriptor.outputTensorNames)) {
-            shape[intel_npu::utils::BATCH_AXIS] = ov::Dimension(-1);
-        }
 
         const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
             std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
@@ -256,7 +248,7 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
 
     // Limitation: Plugin batching is not supported when there are dynamic
     // dimensions other than the batch dimension.
-    if (checkModelDynamicDims(model)) {
+    if (checkModelDynamicDims(model) && model->is_dynamic()) {
         return false;
     }
 
@@ -267,7 +259,7 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
         ov::Layout layout = ov::layout::get_layout(input);
 
         // Batching on plugin is working only when batching is found on 0th dimension
-        if (shape[intel_npu::utils::BATCH_AXIS].is_dynamic() ||
+        if (shape[intel_npu::utils::BATCH_AXIS].get_max_length() != intel_npu::utils::DEFAULT_BATCH_SIZE ||
             (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS)) {
             const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : input->get_shape();
             batchedInputs.insert(params[input_id]->output(0));
@@ -305,7 +297,7 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
         ov::Layout layout = ov::layout::get_layout(output);
 
         // Batching on plugin is working only when batching is found on 0th dimension
-        if (shape[intel_npu::utils::BATCH_AXIS].is_dynamic() ||
+        if (shape[intel_npu::utils::BATCH_AXIS].get_max_length() != intel_npu::utils::DEFAULT_BATCH_SIZE ||
             (ov::layout::has_batch(layout) && ov::layout::batch_idx(layout) == intel_npu::utils::BATCH_AXIS)) {
             const auto& node = output->input_value(0);
             const auto& staticShape = shape.is_dynamic() ? shape.get_max_shape() : output->get_shape();
@@ -360,14 +352,18 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
     return true;
 }
 
-bool deBatchModel(std::shared_ptr<ov::Model>& model, ov::Dimension newBatch) {
+bool deBatchModel(std::shared_ptr<ov::Model>& model, ov::Dimension newBatch, std::optional<ov::Dimension>& originalBatch) {
     try {
         std::map<std::string, ov::PartialShape> newShapes;
         for (auto&& item : model->get_parameters()) {
             auto layout = item->get_layout();
             auto partShape = item->get_partial_shape();
             if (ov::layout::has_batch(layout)) {
+                originalBatch = partShape[ov::layout::batch_idx(layout)];
                 partShape[ov::layout::batch_idx(layout)] = newBatch;
+            } else {
+                originalBatch = partShape[intel_npu::utils::BATCH_AXIS];
+                partShape[intel_npu::utils::BATCH_AXIS] = newBatch;
             }
             newShapes.emplace(item->get_friendly_name(), partShape);
         }
@@ -718,35 +714,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     return _properties->get_property(name, npu_plugin_properties);
 }
 
-void Plugin::encodeDynamicBatchInfo(std::shared_ptr<ov::Model> model) const {
-    const std::string suffix = intel_npu::utils::DYNBATCH_SUFFIX;
-
-    // Sanity check: ensure we don't transform static models
-    if (!model->is_dynamic()) {
-        _logger.debug("Attempting to encode dynamic batch info on a static model. Skipping encoding.");
-        return;
-    }
-
-    // Encode info in input tensor names
-    for (auto& input : model->inputs()) {
-        const std::string originalName = input.get_any_name();
-        input.get_tensor().set_names({originalName, originalName + suffix});
-    }
-    // Encode info in output tensor names
-    for (auto& output : model->outputs()) {
-        const std::string originalName = output.get_any_name();
-        output.get_tensor().set_names({originalName, originalName + suffix});
-    }
-}
-
 void Plugin::handleDynamicBatching(std::shared_ptr<ov::Model>& modelForCompilation,
                                    Config& localConfig,
-                                   const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode) const {
-    // Avoiding risks with static models. TODO: common solution.
-    if (!modelForCompilation->is_dynamic()) {
-        return;
-    }
-
+                                   const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
+                                   std::optional<ov::Dimension>& originalBatch) const {
     const auto batchMode = localConfig.get<BATCH_MODE>();
     const bool isAutoOrPluginBatch =
         (batchMode == ov::intel_npu::BatchMode::PLUGIN || batchMode == ov::intel_npu::BatchMode::AUTO);
@@ -762,18 +733,15 @@ void Plugin::handleDynamicBatching(std::shared_ptr<ov::Model>& modelForCompilati
 
         _logger.info("Attempting to handle batching on the plugin side.");
 
-        // Preserve dynamic batch metadata by encoding it in tensor names
-        // Avoids introducing new metadata fields by leveraging existing naming system
-        encodeDynamicBatchInfo(modelForCompilation);
-
         try {
+            originalBatch = ov::get_batch(modelForCompilation);
             ov::set_batch(modelForCompilation, ov::Dimension(1));
         } catch (const std::exception& ex) {
             _logger.warning("The plugin couldn't resize a batched model due to exception: %s.\n"
                             "Trying to debatch it...",
                             ex.what());
 
-            if (!deBatchModel(modelForCompilation, ov::Dimension(1))) {
+            if (!deBatchModel(modelForCompilation, ov::Dimension(1), originalBatch)) {
                 OPENVINO_THROW("Cannot debatch a model");
             }
             _logger.info("The model has been debatched successfully");
@@ -849,6 +817,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     };
 
     // Handle batch mode configuration
+    std::optional<ov::Dimension> originalBatch = std::nullopt;
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name())) {
         // Set default batch mode if not configured
         if (!localConfig.has(ov::intel_npu::batch_mode.name())) {
@@ -863,7 +832,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             }
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         } else {
-            handleDynamicBatching(modelForCompilation, localConfig, updateBatchMode);
+            handleDynamicBatching(modelForCompilation, localConfig, updateBatchMode, originalBatch);
         }
     }
 
@@ -925,6 +894,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     } catch (...) {
         _logger.error("Unexpected exception");
         OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
+    }
+
+    if (originalBatch.has_value()) {
+        int64_t batch = originalBatch.value().is_static()? originalBatch.value().get_length() : -1;
+        auto metadata = graph->get_metadata();
+        for (auto& in : metadata.inputs) {
+            if (in.shapeFromIRModel.has_value() && in.shapeFromCompiler[intel_npu::utils::BATCH_AXIS] == 1) {
+                in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] =
+                    ov::Dimension(batch);
+            }
+        }
+        graph->set_metadata(metadata);
+        graph->set_batch_size(batch);
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
@@ -1134,6 +1116,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     uint64_t mainSize = tensorBig.get_byte_size();
     std::optional<std::vector<uint64_t>> initSizes;
+    std::optional<int64_t> batchSize = std::nullopt;
 
     if (metadata) {
         size_t accumulator = 0;
@@ -1141,6 +1124,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         mainSize = initSizes.has_value()
                        ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
                        : metadata->get_blob_size();
+        batchSize = metadata->get_batch_size();
     } else {
         _logger.info("Blob compatibility check skipped.");
     }
@@ -1196,7 +1180,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
     auto graph = compiler->parse(std::move(tensorMain),
                                  localConfig,
                                  weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
-                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
+                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt,
+                                 batchSize);
+
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     const std::shared_ptr<ov::Model> modelDummy =
         create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);

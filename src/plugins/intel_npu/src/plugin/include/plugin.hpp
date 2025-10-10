@@ -65,9 +65,8 @@ public:
 
     void handleDynamicBatching(std::shared_ptr<ov::Model>& modelForCompilation,
                                Config& localConfig,
-                               const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode) const;
-
-    void encodeDynamicBatchInfo(std::shared_ptr<ov::Model> model) const;
+                               const std::function<void(ov::intel_npu::BatchMode)>& updateBatchMode,
+                               std::optional<ov::Dimension>& originalBatch) const;
 
 private:
     void init_options();

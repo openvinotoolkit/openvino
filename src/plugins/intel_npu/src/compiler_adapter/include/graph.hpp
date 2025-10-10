@@ -35,6 +35,8 @@ public:
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 
+    void set_metadata(NetworkMetadata metadata) override;
+
     void initialize(const Config& config) override;
 
     const NetworkMetadata& get_metadata() const override;
