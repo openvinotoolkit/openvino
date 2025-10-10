@@ -59,7 +59,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-32-cores-128gb'
+      runner: 'aks-win-32-cores-128gb-st'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
@@ -77,7 +77,7 @@ jobs:
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
-      runner: 'aks-win-4-cores-8gb'
+      runner: 'aks-win-4-cores-8gb-st'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'windows_2022'
       build-type: 'Debug'
