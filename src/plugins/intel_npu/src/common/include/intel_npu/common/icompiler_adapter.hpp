@@ -42,12 +42,11 @@ public:
      * @return A wrapper over the corresponding L0 graph handles (multiple only if "initBlobs" has been provided). This
      * wrapper further details the compiled model and brings it in a state closer to execution.
      */
-    virtual std::shared_ptr<IGraph> parse(
-        ov::Tensor mainBlob,
-        const Config& config,
-        std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
-        const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt,
-        std::optional<int64_t> batchSize = std::nullopt) const = 0;
+    virtual std::shared_ptr<IGraph> parse(ov::Tensor mainBlob,
+                                          const Config& config,
+                                          std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
+                                          const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt,
+                                          std::optional<int64_t> batchSize = std::nullopt) const = 0;
 
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
     virtual uint32_t get_version() const = 0;
