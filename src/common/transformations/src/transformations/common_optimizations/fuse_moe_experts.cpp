@@ -389,48 +389,45 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
             auto view_reshape_node = last_add_match.at(view_Reshape).get_node_shared_ptr();
             auto residual_input_node = last_add_match.at(residual_input).get_node_shared_ptr();
 
-            // Find the shape constant - should be [-1, 64]
-            auto shape_const_node = shape_const;
-
             // Extract dynamic values from the collected experts
-            size_t num_experts = experts.size();
+            const size_t num_experts = experts.size();
 
-            // Use OpenVINO ops to extract dimensions dynamically
+            auto axis0_scalar = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
+            auto axis1_scalar = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
+            auto axis0_vector = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
+            auto axis1_vector = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+            auto axis_minus_one_vector = ov::op::v0::Constant::create(element::i64, Shape{1}, {-1});
+            auto transpose_perm = ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
+
+            // Hidden dimension from gate weight
             auto gate_weight_shape_op =
                 std::make_shared<ov::op::v3::ShapeOf>(experts[0].gate_proj_weight, element::i64);
             auto hidden_dim_scalar =
-                std::make_shared<ov::op::v8::Gather>(gate_weight_shape_op,
-                                                     ov::op::v0::Constant::create(element::i64, {}, {1}),
-                                                     ov::op::v0::Constant::create(element::i64, {}, {0}));
-            auto hidden_dim =
-                std::make_shared<ov::op::v0::Unsqueeze>(hidden_dim_scalar,
-                                                        ov::op::v0::Constant::create(element::i64, {}, {0}));
-            auto intermediate_dim =
-                std::make_shared<ov::op::v8::Gather>(gate_weight_shape_op,
-                                                     ov::op::v0::Constant::create(element::i64, {}, {0}),
-                                                     ov::op::v0::Constant::create(element::i64, {}, {0}));
+                std::make_shared<ov::op::v8::Gather>(gate_weight_shape_op, axis1_scalar, axis0_scalar);
+            auto hidden_dim = std::make_shared<ov::op::v0::Unsqueeze>(hidden_dim_scalar, axis0_vector);
 
-            // Create the fused MoE computation following the target pattern
-            // 1. Tile the input to replicate for all experts
+            // Batch dimension derived from router TopK indices shape
+            auto topk = last_add_match.at(topk_TopK).get_node_shared_ptr();
+            auto topk_indices_output = topk->output(1);
+            auto topk_indices_shape = std::make_shared<ov::op::v3::ShapeOf>(topk_indices_output, element::i64);
+            auto batch_dim_scalar =
+                std::make_shared<ov::op::v8::Gather>(topk_indices_shape, axis0_scalar, axis0_scalar);
+            auto batch_dim = std::make_shared<ov::op::v0::Unsqueeze>(batch_dim_scalar, axis0_vector);
+
             auto num_experts_const =
-                ov::op::v0::Constant::create(element::i64, {}, {static_cast<int64_t>(num_experts)});
-            auto tile_shape =
-                ov::op::v0::Constant::create(element::i64,
-                                             {2},
-                                             {static_cast<int64_t>(num_experts), static_cast<int64_t>(1)});
+                ov::op::v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(num_experts)});
+            auto num_experts_dim = std::make_shared<ov::op::v0::Unsqueeze>(num_experts_const, axis0_vector);
+
+            // Create the fused MoE computation following the 3-GEMM pattern
+            auto tile_shape = ov::op::v0::Constant::create(element::i64,
+                                                           Shape{2},
+                                                           {static_cast<int64_t>(num_experts), static_cast<int64_t>(1)});
             auto repeated_input = std::make_shared<ov::op::v0::Tile>(view_reshape_node, tile_shape);
 
-            // 2. Reshape to [num_experts, -1, hidden_dim] for batched computation
-            auto batched_shape = std::make_shared<ov::op::v0::Concat>(
-                OutputVector{
-                    std::make_shared<ov::op::v0::Unsqueeze>(num_experts_const,
-                                                            ov::op::v0::Constant::create(element::i64, {}, {0})),
-                    ov::op::v0::Constant::create(element::i64, {1}, {-1}),
-                    hidden_dim},
-                0);
-            auto batched_input = std::make_shared<ov::op::v1::Reshape>(repeated_input, batched_shape, true);
+            auto batched_shape =
+                std::make_shared<ov::op::v0::Concat>(OutputVector{num_experts_dim, batch_dim, hidden_dim}, 0);
+            auto batched_input = std::make_shared<ov::op::v1::Reshape>(repeated_input, batched_shape, false);
 
-            // 3. Perform batched matrix multiplications with fused weights
             auto gate_bmm = std::make_shared<ov::op::v0::MatMul>(batched_input, fused_gate_weights, false, false);
             auto gate_swish = std::make_shared<ov::op::v4::Swish>(gate_bmm);
 
@@ -439,65 +436,45 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
 
             auto down_bmm = std::make_shared<ov::op::v0::MatMul>(swiglu_mul, fused_down_weights, false, false);
 
-            // 4. Create shape constants for proper reshaping back
-            auto axis0_const = ov::op::v0::Constant::create(element::i64, {1}, {0});
-            auto minus_one_const = ov::op::v0::Constant::create(element::i64, {1}, {-1});
-
+            auto minus_one_vec = ov::op::v0::Constant::create(element::i64, Shape{1}, {-1});
             auto expert_output_shape = std::make_shared<ov::op::v0::Concat>(
-                OutputVector{std::make_shared<ov::op::v0::Unsqueeze>(num_experts_const, axis0_const),
-                             minus_one_const,
-                             hidden_dim},
+                OutputVector{num_experts_dim, batch_dim, minus_one_vec, hidden_dim},
                 0);
-
             auto expert_outputs = std::make_shared<ov::op::v1::Reshape>(down_bmm, expert_output_shape, false);
 
-            // 5. Extract router information from existing pattern and create routing logic
-            auto topk = last_add_match.at(topk_TopK).get_node_shared_ptr();
-
-            // Convert TopK indices to i64 for consistency
-            auto topk_indices = std::make_shared<ov::op::v0::Convert>(topk->output(1), element::i64);
-
-            // Normalize the routing weights (sum to 1)
+            // Routing tensor built via ScatterElementsUpdate to match MOE fusion pattern
+            auto topk_values = topk->output(0);
             auto sum_reduce =
-                std::make_shared<ov::op::v1::ReduceSum>(topk->output(0),
-                                                        ov::op::v0::Constant::create(element::i64, {1}, {-1}),
+                std::make_shared<ov::op::v1::ReduceSum>(topk_values,
+                                                        ov::op::v0::Constant::create(element::i64, Shape{1}, {-1}),
                                                         true);
-            auto div_normalize = std::make_shared<ov::op::v1::Divide>(topk->output(0), sum_reduce);
+            auto normalized_topk = std::make_shared<ov::op::v1::Divide>(topk_values, sum_reduce);
 
-            // Build routing weights tensor without scatter by combining one-hot expert mask with normalized values
-            auto routing_one_hot_raw =
-                std::make_shared<ov::op::v1::OneHot>(topk_indices,
-                                                     num_experts_const,
-                                                     ov::op::v0::Constant::create(element::f32, {}, {1.0f}),
-                                                     ov::op::v0::Constant::create(element::f32, {}, {0.0f}),
-                                                     2);
-            std::shared_ptr<Node> routing_one_hot = routing_one_hot_raw;
-            if (routing_one_hot_raw->get_output_element_type(0) != element::f32) {
-                routing_one_hot = std::make_shared<ov::op::v0::Convert>(routing_one_hot_raw, element::f32);
-            }
-            auto routing_unsqueeze_topk =
-                std::make_shared<ov::op::v0::Unsqueeze>(div_normalize,
-                                                        ov::op::v0::Constant::create(element::i64, {1}, {2}));
-            auto weighted_one_hot = std::make_shared<ov::op::v1::Multiply>(routing_unsqueeze_topk, routing_one_hot);
-            auto routing_reduce =
-                std::make_shared<ov::op::v1::ReduceSum>(weighted_one_hot,
-                                                        ov::op::v0::Constant::create(element::i64, {1}, {1}),
-                                                        false);
-            auto routing_transpose =
-                std::make_shared<ov::op::v1::Transpose>(routing_reduce,
-                                                        ov::op::v0::Constant::create(element::i64, {2}, {1, 0}));
-            auto routing_unsqueeze =
-                std::make_shared<ov::op::v0::Unsqueeze>(routing_transpose,
-                                                        ov::op::v0::Constant::create(element::i64, {1}, {2}));
+            auto scatter_shape =
+                std::make_shared<ov::op::v0::Concat>(OutputVector{batch_dim, num_experts_dim}, 0);
+            auto zeros_scalar = ov::op::v0::Constant::create(normalized_topk->get_element_type(), Shape{}, {0});
+            auto zeros_tensor = std::make_shared<ov::op::v3::Broadcast>(zeros_scalar, scatter_shape);
 
-            // 6. Apply routing weights and sum across experts following the target pattern
-            auto weighted_outputs = std::make_shared<ov::op::v1::Multiply>(expert_outputs, routing_unsqueeze);
+            auto scatter = std::make_shared<ov::op::v12::ScatterElementsUpdate>(zeros_tensor,
+                                                                                topk_indices_output,
+                                                                                normalized_topk,
+                                                                                axis1_vector);
+            scatter->set_reduction(ov::op::v12::ScatterElementsUpdate::Reduction::SUM);
+            scatter->set_use_init_val(true);
+            auto router_transpose = std::make_shared<ov::op::v1::Transpose>(scatter, transpose_perm);
+            auto router_shape =
+                std::make_shared<ov::op::v0::Concat>(OutputVector{num_experts_dim, batch_dim, minus_one_vec}, 0);
+            auto router_reshape =
+                std::make_shared<ov::op::v1::Reshape>(router_transpose, router_shape, true);
+            auto routing_weights =
+                std::make_shared<ov::op::v0::Unsqueeze>(router_reshape, axis_minus_one_vector);
+
+            auto weighted_outputs =
+                std::make_shared<ov::op::v1::Multiply>(expert_outputs, routing_weights);
             auto final_output =
-                std::make_shared<ov::op::v1::ReduceSum>(weighted_outputs,
-                                                        ov::op::v0::Constant::create(element::i64, {}, {0}),
-                                                        false);
+                std::make_shared<ov::op::v1::ReduceSum>(weighted_outputs, axis0_vector, false);
 
-            // 7. Reshape back to original shape and add residual connection
+            // Reshape back to original shape and add residual connection
             auto target_shape = std::make_shared<ov::op::v3::ShapeOf>(view_reshape_node, element::i64);
             auto final_reshape = std::make_shared<ov::op::v1::Reshape>(final_output, target_shape, false);
             auto final_add = std::make_shared<ov::op::v1::Add>(residual_input_node, final_reshape);
