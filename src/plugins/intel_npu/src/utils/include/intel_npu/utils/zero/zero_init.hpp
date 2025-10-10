@@ -52,14 +52,21 @@ public:
         return driver_properties.driverVersion;
     }
     inline uint32_t getCompilerVersion() const {
-        return ZE_MAKE_VERSION(compiler_properties.compilerVersion.major, compiler_properties.compilerVersion.minor);
+        if (!compiler_properties) {
+            OPENVINO_THROW("Compiler properties were not initialized!");
+        }
+        return ZE_MAKE_VERSION(compiler_properties->compilerVersion.major, compiler_properties->compilerVersion.minor);
     }
     inline ze_device_graph_properties_t getCompilerProperties() const {
-        // Obtain compiler-in-driver properties
-        compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
-        auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &compiler_properties);
-        THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
-        return compiler_properties;
+        if (!compiler_properties) {
+            // Obtain compiler-in-driver properties
+            compiler_properties = std::make_unique<ze_device_graph_properties_t>();
+            compiler_properties->stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+            auto result =
+                graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, compiler_properties.get());
+            THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+        }
+        return *compiler_properties;
     }
     inline uint32_t getMutableCommandListExtVersion() const {
         return mutable_command_list_ext_version;
@@ -109,7 +116,7 @@ private:
 
     ze_api_version_t ze_drv_api_version = {};
 
-    mutable ze_device_graph_properties_t compiler_properties = {};
+    mutable std::unique_ptr<ze_device_graph_properties_t> compiler_properties = nullptr;
 
     bool _external_memory_standard_allocation_supported = false;
     bool _external_memory_fd_win32_supported = false;
