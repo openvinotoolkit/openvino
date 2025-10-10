@@ -170,7 +170,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/ngen"
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/config"
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/gemm/jit/include"
-                             "${ONEDNN_GPU_DIR}/third_party"
                              "${ONEDNN_GPU_DIR}/third_party/ngen")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_GPU_RUNTIME={$DNNL_GPU_RUNTIME_VALUE}
