@@ -239,12 +239,6 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto fused_down_weights = fused_down_weights_convert;
 
     // Create simple batched computation
-    auto num_experts_const = makeConst(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(expert_num)});
-    auto tile_shape_vec = std::vector<int64_t>{static_cast<int64_t>(expert_num), 1};
-    auto tile_shape = makeConst(ov::element::i64, ov::Shape{2}, tile_shape_vec);
-    auto repeated_input = makeOP<opset6::Tile>({hidden_states_, tile_shape});
-
-    // Reshape for batched computation
     auto axis0_scalar = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
     auto axis1_scalar = makeConst(ov::element::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto axis0_vector = makeConst(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
@@ -262,7 +256,14 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     auto batch_dim_scalar =
         makeOP<opset8::Gather>({topk_indices_shape, axis0_scalar, axis0_scalar}, {{"batch_dims", 0}});
     auto batch_dim_unsqueeze = makeOP<opset1::Unsqueeze>({batch_dim_scalar, axis0_vector});
+
+    auto num_experts_const = makeConst(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(expert_num)});
     auto num_experts_unsqueeze = makeOP<opset1::Unsqueeze>({num_experts_const, axis0_vector});
+    auto tile_shape_vec = std::vector<int64_t>{static_cast<int64_t>(expert_num), 1};
+    auto tile_shape = makeConst(ov::element::i64, ov::Shape{2}, tile_shape_vec);
+    auto view_reshape_shape = makeOP<opset1::Concat>({axis_minus_one_vector, hidden_dim_unsqueeze}, {{"axis", 0}});
+    auto view_reshape = makeOP<opset1::Reshape>({hidden_states_, view_reshape_shape}, {{"special_zero", false}});
+    auto repeated_input = makeOP<opset6::Tile>({view_reshape, tile_shape});
     auto batched_shape =
         makeOP<opset1::Concat>({num_experts_unsqueeze, batch_dim_unsqueeze, hidden_dim_unsqueeze}, {{"axis", 0}});
     auto batched_input = makeOP<opset1::Reshape>({repeated_input, batched_shape}, {{"special_zero", false}});

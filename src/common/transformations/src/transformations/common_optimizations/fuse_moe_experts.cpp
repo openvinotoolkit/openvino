@@ -48,7 +48,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
-
 namespace ov {
 namespace pass {
 
@@ -420,7 +419,11 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                 ov::op::v0::Constant::create(element::i64,
                                              Shape{2},
                                              {static_cast<int64_t>(num_experts), static_cast<int64_t>(1)});
-            auto repeated_input = std::make_shared<ov::op::v0::Tile>(view_reshape_node, tile_shape);
+
+            auto view_reshape_shape =
+                std::make_shared<ov::op::v0::Concat>(OutputVector{axis_minus_one_vector, hidden_dim}, 0);
+            auto view_reshape = std::make_shared<ov::op::v1::Reshape>(view_reshape_node, view_reshape_shape, false);
+            auto repeated_input = std::make_shared<ov::op::v0::Tile>(view_reshape, tile_shape);
 
             auto batched_shape =
                 std::make_shared<ov::op::v0::Concat>(OutputVector{num_experts_dim, batch_dim, hidden_dim}, 0);
@@ -489,7 +492,6 @@ bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     // Use the unified FuseMOE transformation
     manager.register_pass<ov::pass::FuseMOEExperts>();
-
     manager.run_passes(model);
     return false;
 }
