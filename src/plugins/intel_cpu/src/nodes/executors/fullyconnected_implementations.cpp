@@ -424,7 +424,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 MatMulAttrs matMulAttrs{false,
                                         false};
                 matMulAttrs.postOps = attrs.postOps;
-                matMulAttrs.transposeB = attrs.weightsNonTransposed;
+                matMulAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
                 matMulAttrs.constantWeights = true;
                 matMulAttrs.fcSemantic = true;
                 
