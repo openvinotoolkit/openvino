@@ -19,7 +19,7 @@ std::pair<std::string, std::string> plugins[] = {
 };
 
 namespace OVClassBasicTestName {
-static std::string getTestCaseName(testing::TestParamInfo<std::pair<std::string, std::string>> obj) {
+static std::string getTestCaseName(const testing::TestParamInfo<std::pair<std::string, std::string>>& obj) {
     std::ostringstream result;
     result << "OVClassBasicTestName_" << obj.param.first << "_" << obj.param.second;
     result << "_targetDevice=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
@@ -29,7 +29,7 @@ static std::string getTestCaseName(testing::TestParamInfo<std::pair<std::string,
 }  // namespace OVClassBasicTestName
 
 namespace OVClassNetworkTestName {
-static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
+static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
     std::ostringstream result;
     result << "OVClassNetworkTestName_" << obj.param;
     result << "_targetDevice=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);

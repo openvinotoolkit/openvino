@@ -19,7 +19,7 @@ using PropertiesParamsNPU = std::tuple<std::string, AnyMap>;
 
 class OVPropertiesTestsNPU : public testing::WithParamInterface<PropertiesParamsNPU>, public OVPropertiesBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PropertiesParamsNPU> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<PropertiesParamsNPU>& obj);
 
     void SetUp() override;
 
@@ -33,7 +33,7 @@ using CompileModelPropertiesParamsNPU = std::tuple<std::string, AnyMap>;
 class OVPropertiesTestsWithCompileModelPropsNPU : public testing::WithParamInterface<PropertiesParamsNPU>,
                                                   public OVPropertiesBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PropertiesParamsNPU> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<PropertiesParamsNPU>& obj);
 
     void SetUp() override;
 

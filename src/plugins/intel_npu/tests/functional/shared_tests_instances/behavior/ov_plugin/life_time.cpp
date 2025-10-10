@@ -12,7 +12,7 @@ using namespace ov::test::behavior;
 
 namespace {
 
-static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
+static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
     std::string target_device = obj.param;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     return "target_device=" + target_device +

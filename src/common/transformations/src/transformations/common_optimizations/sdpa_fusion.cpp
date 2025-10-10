@@ -14,6 +14,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -29,7 +30,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -379,19 +379,19 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
 
         ov::OutputVector vec = {q_node, k_node, v_node};
         // 3 is the min supported rank according to the SDPA spec
-        int64_t supported_rank = std::max(mask_input.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
+        size_t supported_rank = std::max(mask_input.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
         for (size_t i = 0; i < vec.size(); ++i) {
             auto pshape = vec[i].get_partial_shape();
             if (pshape.rank().is_dynamic()) {
                 return false;
             }
             // align all inputs
-            supported_rank = std::max(static_cast<int64_t>(pshape.size()), supported_rank);
+            supported_rank = std::max(pshape.size(), supported_rank);
         }
 
         for (size_t i = 0; i < vec.size(); ++i) {
             auto pshape = vec[i].get_partial_shape();
-            int diff = supported_rank - static_cast<int>(pshape.size());
+            int diff = static_cast<int>(supported_rank - pshape.size());
             if (diff > 0) {
                 std::vector<size_t> axes(diff, 0);
                 std::iota(axes.begin(), axes.end(), 0);
@@ -564,19 +564,19 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
 
         ov::OutputVector vec = {q_node, k_node, v_node};
         // 3 is the min supported rank according to the SDPA spec
-        int64_t supported_rank = std::max(mask_input.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
+        size_t supported_rank = std::max(mask_input.get_partial_shape().rank().get_length(), static_cast<int64_t>(3));
         for (size_t i = 0; i < vec.size(); ++i) {
             auto pshape = vec[i].get_partial_shape();
             if (pshape.rank().is_dynamic()) {
                 return false;
             }
             // align all inputs
-            supported_rank = std::max(static_cast<int64_t>(pshape.size()), supported_rank);
+            supported_rank = std::max(pshape.size(), supported_rank);
         }
 
         for (size_t i = 0; i < vec.size(); ++i) {
             auto pshape = vec[i].get_partial_shape();
-            int diff = supported_rank - static_cast<int>(pshape.size());
+            int diff = static_cast<int>(supported_rank - pshape.size());
             if (diff > 0) {
                 std::vector<size_t> axes(diff, 0);
                 std::iota(axes.begin(), axes.end(), 0);
