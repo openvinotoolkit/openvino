@@ -70,7 +70,6 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
         - /mount:/mount
-        - ${{ github.workspace }}:${{ github.workspace }}
       env:
         OPENVINO_REPO: ${{ github.workspace }}/openvino
     steps:
@@ -105,7 +104,6 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
         - /mount:/mount
-        - ${{ github.workspace }}:${{ github.workspace }}
       env:
         OPENVINO_REPO: ${{ github.workspace }}/openvino
     steps:
@@ -140,7 +138,6 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_code_style }}
       volumes:
         - /mount:/mount
-        - ${{ github.workspace }}:${{ github.workspace }}
       env:
         OPENVINO_REPO: ${{ github.workspace }}/openvino
     steps:
@@ -172,7 +169,6 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
       volumes:
         - /mount:/mount
-        - ${{ github.workspace }}:${{ github.workspace }}
       env:
         OPENVINO_REPO: ${{ github.workspace }}/openvino
     steps:
@@ -208,7 +204,6 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_code_style }}
       volumes:
         - /mount:/mount
-        - ${{ github.workspace }}:${{ github.workspace }}
       env:
         OPENVINO_REPO: ${{ github.workspace }}/openvino
     steps:
