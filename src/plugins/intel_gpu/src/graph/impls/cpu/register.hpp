@@ -23,6 +23,7 @@
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/reduce.hpp"
+#include "intel_gpu/primitives/moe_gather.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -57,6 +58,7 @@ REGISTER_CPU(tile);
 REGISTER_CPU(select);
 REGISTER_CPU(reduce);
 REGISTER_CPU(fake_convert);
+REGISTER_CPU(moe_gather);
 
 #undef REGISTER_CPU
 
