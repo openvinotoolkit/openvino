@@ -405,6 +405,9 @@ struct PlainTensor {
         if (any_of(m_dt, ov::element::i4, ov::element::u4)) {
             return 2;
         }
+        if (m_dt == ov::element::u2) {
+            return 4;
+        }
         return 1;
     }
 
@@ -423,7 +426,15 @@ struct PlainTensor {
 
     template <typename DT, ov::element::Type_t SRC_PREC = ov::element::u8, typename... Is>
     [[nodiscard]] DT* ptr(Is... indices) const {
-        constexpr size_t stride_div = SRC_PREC == ov::element::u4 ? 2 : 1;
+        constexpr size_t stride_div = [] {
+            if (SRC_PREC == ov::element::u2) {
+                return 4;
+            }
+            if (SRC_PREC == ov::element::u4) {
+                return 2;
+            }
+            return 1;
+        }();
         const size_t off = offset<0>(indices...) / stride_div;
         return reinterpret_cast<DT*>(m_ptr.get()) + off;
     }

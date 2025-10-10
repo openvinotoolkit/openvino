@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "overload/ov_plugin/internal_properties_tests.hpp"
+#include "internal_properties_tests.hpp"
 
 #include "common/utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 
 namespace ov::test::behavior {
 
-std::string OVPropertiesTestsNPU::getTestCaseName(testing::TestParamInfo<PropertiesParamsNPU> obj) {
+std::string OVPropertiesTestsNPU::getTestCaseName(const testing::TestParamInfo<PropertiesParamsNPU>& obj) {
     std::string target_device;
     AnyMap properties;
     std::tie(target_device, properties) = obj.param;
@@ -38,7 +38,7 @@ void OVPropertiesTestsNPU::TearDown() {
 }
 
 std::string OVPropertiesTestsWithCompileModelPropsNPU::getTestCaseName(
-    testing::TestParamInfo<PropertiesParamsNPU> obj) {
+    const testing::TestParamInfo<PropertiesParamsNPU>& obj) {
     std::string target_device;
     AnyMap properties;
     std::tie(target_device, properties) = obj.param;
