@@ -190,3 +190,24 @@ TEST_F(TransformationTestsF, PReluFusionNegReluMulAdd) {
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
+
+TEST_F(TransformationTestsF, PReluFusionGreaterMultiplySelect) {
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 128});
+        auto greater = std::make_shared<opset8::Greater>(data);
+        auto mul_const = opset8::Constant::create(element::f32, Shape{1}, {-0.001});
+        auto mul = std::make_shared<opset8::Multiply>(data, mul_const);
+        auto select = std::make_shared<opset8::Select>(greater, data, mul);
+
+        model = std::make_shared<Model>(OutputVector{add}, ParameterVector{data});
+
+        manager.register_pass<ov::pass::PReluFusion>();
+    }
+
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 128});
+        auto prelu_const = opset8::Constant::create(element::f32, Shape{1}, {-0.001});
+        auto prelu = std::make_shared<opset8::PRelu>(data, prelu_const);
+        model_ref = std::make_shared<Model>(OutputVector{prelu}, ParameterVector{data});
+    }
+}
