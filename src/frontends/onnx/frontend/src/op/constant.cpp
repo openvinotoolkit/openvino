@@ -183,7 +183,7 @@ ov::OutputVector constant_legacy(const ov::frontend::onnx::Node& node) {
         }
         return {get_dense_tensor_as_constant(absolute_indices, values_tensor, shape)};
     }
-    auto tensor = node.get_attribute_value<Tensor>("value");
+    auto tensor = node.get_attribute_value<Tensor>(attributes_names[0]);
     return {tensor.get_ov_constant()};
 }
 
