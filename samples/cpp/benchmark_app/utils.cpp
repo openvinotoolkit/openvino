@@ -877,6 +877,20 @@ std::vector<std::string> filter_files_by_extensions(const std::vector<std::strin
 std::string parameter_name_to_tensor_name(const std::string& name,
                                           const std::vector<ov::Output<const ov::Node>>& inputs_info,
                                           const std::vector<ov::Output<const ov::Node>>& outputs_info) {
+    
+    if (name.find("past_keys") != std::string::npos) {
+        return name;
+    }
+    if (name.find("past_values") != std::string::npos) {
+        return name;
+    }
+    if (name.find("past_key_values") != std::string::npos && name.find(".key") != std::string::npos) {
+        return name;
+    }
+    if (name.find("past_key_values") != std::string::npos && name.find(".value") != std::string::npos) {
+        return name;
+    }
+    
     // Looking for a tensor name match
     for (const auto& port : inputs_info) {
         if (port.get_names().count(name) > 0) {
