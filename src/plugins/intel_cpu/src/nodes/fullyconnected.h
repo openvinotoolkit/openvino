@@ -91,9 +91,6 @@ public:
         this->attrs.weightsNonTransposed = weightsNonTransposed;
     }
 
-    void fuseDecompressionMultiply(const MemoryCPtr& memory);
-    void fuseDecompressionSubtract(const MemoryCPtr& memory);
-
 protected:
     void toNumaNodeImpl(int numaID) override;
 
