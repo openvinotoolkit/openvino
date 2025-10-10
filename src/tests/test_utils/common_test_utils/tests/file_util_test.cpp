@@ -636,14 +636,13 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
 }
 #endif
 
-using StringPathVariantP = std::variant<std::string, std::u16string, std::u32string, std::wstring>;
-
-class FileUtilTestP : public FileUtilTest, public ::testing::WithParamInterface<StringPathVariantP> {
+class FileUtilTestP : public FileUtilTest, public ::testing::WithParamInterface<utils::StringPathVariant> {
 protected:
     std::filesystem::path get_path_param() const {
         return std::visit(
-            [](auto&& p) {
-                return std::filesystem::path(p);
+            [](const auto& p) {
+                // Use OV util to hide some platform details with path creation
+                return ov::util::make_path(p);
             },
             GetParam());
     }
@@ -674,12 +673,16 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 
 TEST_P(FileUtilTestP, create_directories) {
-    const auto path = std::filesystem::path(utils::generateTestFilePrefix()) / get_path_param();
+    const auto test_dir = utils::generateTestFilePrefix();
+    const auto path = std::filesystem::path(test_dir) / get_path_param();
+    const auto exp_path = std::filesystem::path(test_dir) / utils::to_fs_path(GetParam());
 
     ov::util::create_directory_recursive(path);
 
-    EXPECT_TRUE(utils::fileExists(path.string()));
-    EXPECT_EQ(utils::removeDir(path.string()), 0);
-    EXPECT_FALSE(utils::fileExists(path.string()));
+    EXPECT_EQ(path, exp_path);
+    ASSERT_TRUE(std::filesystem::exists(path));
+    ASSERT_TRUE(std::filesystem::exists(exp_path));
+
+    std::filesystem::remove_all(test_dir);
 }
 }  // namespace ov::test
