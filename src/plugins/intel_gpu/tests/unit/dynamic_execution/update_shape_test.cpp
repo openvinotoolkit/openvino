@@ -160,6 +160,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     auto xattention_stride_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};;
     auto xattention_stride_mem = engine.allocate_memory(xattention_stride_layout);
 
+    auto sinks_layout = layout{ov::PartialShape{0, 0, 0, 0}, data_types::f32, format::bfyx};;
+    auto sinks_mem = engine.allocate_memory(sinks_layout);
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -180,7 +182,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
                                          input_info("rotation_trig_lut"),
                                          input_info("xattention_threshold"),
                                          input_info("xattention_block_size"),
-                                         input_info("xattention_stride")};
+                                         input_info("xattention_stride"),
+                                         input_info("sinks")};
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
     pa_prim.k_head_size = 64;
@@ -215,6 +218,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     topology.add(input_layout("xattention_threshold", xattention_threshold_layout));
     topology.add(input_layout("xattention_block_size", xattention_block_size_layout));
     topology.add(input_layout("xattention_stride", xattention_stride_layout));
+    topology.add(input_layout("sinks", sinks_layout));
     topology.add(data("const_one", const_one_mem));
     topology.add(shape_of("shape_of", input_info("input_data"), data_types::i32));
     topology.add(gather("gather", input_info("shape_of"), input_info("const_one"), 0, 1, ov::Shape{}));
@@ -246,6 +250,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("xattention_threshold", xattention_threshold_mem);
     network.set_input_data("xattention_block_size", xattention_block_size_mem);
     network.set_input_data("xattention_stride", xattention_stride_mem);
+    network.set_input_data("sinks", sinks_mem);
 
     // Set original max_context_len value
     auto max_context_len_mem_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
@@ -284,6 +289,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     network.set_input_data("xattention_threshold", xattention_threshold_mem);
     network.set_input_data("xattention_block_size", xattention_block_size_mem);
     network.set_input_data("xattention_stride", xattention_stride_mem);
+    network.set_input_data("sinks", sinks_mem);
 
     // Update max_context_len value, which should be taken into account in shape recalculation for broadcast
     set_values(max_context_len_mem, {8});

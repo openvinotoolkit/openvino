@@ -110,6 +110,8 @@ struct PagedAttentionManager {
     std::vector<int> xattention_block_size;
     std::vector<int> xattention_stride;
 
+    std::vector<ov::float16> sinks;
+
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
     tests::random_generator& rg;
@@ -460,6 +462,20 @@ struct PagedAttentionManager {
 
     memory::ptr get_xattention_stride_memory() {
         return get_memory_from_vec(xattention_stride);
+    }
+
+    memory::ptr get_sinks_memory() {
+        auto mem = get_memory_from_vec(sinks);
+        auto layout = mem->get_layout();
+        layout.set_partial_shape(ov::PartialShape{ 1, num_heads, 1, 1 });
+
+        if (sinks.empty()) {
+            auto empty_layout = mem->get_layout();
+            empty_layout.set_partial_shape(ov::PartialShape{ 0, 0, 0, 0 });
+            return test_engine.reinterpret_buffer(*mem, empty_layout);
+        }
+
+        return test_engine.reinterpret_buffer(*mem, layout);
     }
 
     float get_default_scale() {
@@ -940,6 +956,7 @@ public:
         auto xattention_threshold_mem = pam.get_xattention_threshold_memory();
         auto xattention_block_size_mem = pam.get_xattention_block_size_memory();
         auto xattention_stride_mem = pam.get_xattention_stride_memory();
+        auto sinks_mem = pam.get_sinks_memory();
 
         auto query_layout = query_mem->get_layout();
         auto key_layout = key_mem->get_layout();
@@ -961,6 +978,7 @@ public:
         auto xattention_threshold_layout = xattention_threshold_mem->get_layout();
         auto xattention_block_size_layout = xattention_block_size_mem->get_layout();
         auto xattention_stride_layout = xattention_stride_mem->get_layout();
+        auto sinks_layout = sinks_mem->get_layout();
 
         // make layouts dynamic
         query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
@@ -1030,6 +1048,7 @@ public:
             input_info("xattention_threshold"),
             input_info("xattention_block_size"),
             input_info("xattention_stride"),
+            input_info("sinks"),
         };
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
@@ -1082,6 +1101,7 @@ public:
             topology.add(input_layout("xattention_threshold", xattention_threshold_layout));
             topology.add(input_layout("xattention_block_size", xattention_block_size_layout));
             topology.add(input_layout("xattention_stride", xattention_stride_layout));
+            topology.add(input_layout("sinks", sinks_layout));
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
@@ -1111,6 +1131,7 @@ public:
         network->set_input_data("xattention_threshold", xattention_threshold_mem);
         network->set_input_data("xattention_block_size", xattention_block_size_mem);
         network->set_input_data("xattention_stride", xattention_stride_mem);
+        network->set_input_data("sinks", sinks_mem);
 
         auto outputs = network->execute();
 
