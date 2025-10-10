@@ -5,20 +5,25 @@
 #include "identity.hpp"
 
 #include <functional>
+#include <memory>
 #include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 
 #include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/identity.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Identity::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -97,7 +102,7 @@ bool Identity::canBeInPlace() const {
 }
 
 std::string Identity::getPrimitiveDescriptorType() const {
-    auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
+    const auto* selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
 
     impl_desc_type type = impl_desc_type::undef;
     if (selectedPrimitiveDesc) {
@@ -141,6 +146,4 @@ void Identity::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
