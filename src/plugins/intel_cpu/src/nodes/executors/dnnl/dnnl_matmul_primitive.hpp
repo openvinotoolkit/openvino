@@ -73,11 +73,6 @@ public:
                                                             const ExecutorContext::CPtr& context,
                                                             bool cacheWeights);
 
-    static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& fcAttrs,
-                                                            const MemoryArgs& memory,
-                                                            const ExecutorContext::CPtr& context,
-                                                            bool cacheWeights);
-
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
                                                             const MatMulAttrs& attrs);

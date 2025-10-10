@@ -422,11 +422,18 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                MatMulAttrs matMulAttrs{false,
-                                        false};
-                matMulAttrs.postOps = attrs.postOps;
-                matMulAttrs.transposeB = attrs.weightsNonTransposed;
-                matMulAttrs.constantWeights = true;
+                MatMulAttrs matMulAttrs {
+                    false,
+                    false,
+                    attrs.withBias,
+                    attrs.weightsNonTransposed,
+                    attrs.sparseWeights,
+                    true,
+                    true,
+                    attrs.dynamicQuantizationGroupSize,
+                    {},
+                    attrs.postOps
+                };
                 
                 return std::make_shared<
                     DnnlExecutor<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData,
