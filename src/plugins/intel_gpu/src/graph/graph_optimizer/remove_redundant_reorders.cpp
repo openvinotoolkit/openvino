@@ -446,6 +446,7 @@ void remove_redundant_reorders::run(program& p) {
 
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
+            auto input_layout = input.get_output_layout();
 
             if (!node.is_simple_reorder())
                 continue;
@@ -456,13 +457,28 @@ void remove_redundant_reorders::run(program& p) {
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
             bool allowed_dt_conversion_fuse =
                 (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() ||
+                 input.is_type<fully_connected>() ||
                  input.is_type<concatenation>() || input.is_type<depth_to_space>() || input.is_type<region_yolo>() ||
                  input.is_type<detection_output>() || input.is_type<gather>() || input.is_type<broadcast>() ||
                  input.is_type<select>() || input.is_type<eltwise>() || input.is_type<rms>()) && !input.is_constant();
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
-            if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format))
+            // Optimize out Reorder of converting data-type at the result layer which is not set by truncate mode.
+            // some opt-kernels do not support mixed data-type, 'EnableDifferentTypes'.
+            bool is_opt_out_result =
+                (input.is_type<mvn>() || input.is_type<broadcast>() || input.is_type<fully_connected>() ||
+                input.is_type<select>() || input.is_type<rms>()) &&
+                node.is_type_conversion_only(true) && format::is_simple_data_format(output_layout.format) && node.is_output() &&
+                !node.get_primitive()->truncate && !output_layout.data_padding &&
+                !data_type_traits::is_i8_u8(input_layout.data_type) && !data_type_traits::is_i8_u8(output_layout.data_type);
+            if (is_opt_out_result) {
+                GPU_DEBUG_TRACE_DETAIL << "Optimize out Reorder " << node.id() << " to input " << input.id() <<
+                    " converting data-type from " << input_layout.data_type << " to " << output_layout.data_type << std::endl;
+            }
+
+            if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format) &&
+                !is_opt_out_result)
                 continue;
 
             // Do not opt out result reorder of Loop body network
@@ -475,10 +491,11 @@ void remove_redundant_reorders::run(program& p) {
             if (input.type()->has_impl_for(input)) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout
                 // during shape inference
-                if (input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
+                if ((input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
                     input.is_type<broadcast>() || input.is_type<select>() || input.is_type<eltwise>() ||
-                    input.is_type<rms>() || (input.is_dynamic() &&
-                    (input.is_type<group_normalization>() || input.is_type<permute>()))) {
+                    input.is_type<rms>() ||
+                    (input.is_dynamic() && (input.is_type<group_normalization>() || input.is_type<permute>()))) &&
+                    !is_opt_out_result) {
                     fused_primitive_desc local_desc(node.get_primitive());
                     local_desc.f_param = node.get_fuse_params();
                     local_desc.total_num_deps = node.get_dependencies().size();
@@ -492,6 +509,10 @@ void remove_redundant_reorders::run(program& p) {
 
                 LOG_NODE_REMOVAL(node.id());
                 p.extract_and_remove(node);
+                if (is_opt_out_result) {
+                    auto dep_prim = std::const_pointer_cast<primitive>(input.get_primitive());
+                    dep_prim->output_data_types = {input.get_output_layout().data_type};
+                }
             } else {
                 input.set_output_layout(old_output_layout_of_input, false);
             }
