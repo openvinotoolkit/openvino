@@ -23,27 +23,10 @@ namespace ov::test::behavior {
 class DriverCompilerAdapterCustomStreamTestNPU : public ov::test::behavior::OVPluginTestBase,
                                                  public testing::WithParamInterface<CompilationParams> {
 public:
-    std::string generateRandomFileName() {
-        std::stringstream ss;
-        auto now = std::chrono::high_resolution_clock::now();
-        auto seed = now.time_since_epoch().count();
-        std::mt19937 mt_rand(static_cast<unsigned int>(seed));
-        std::uniform_int_distribution<int> dist(0, 15);
-
-        for (unsigned int i = 0; i < 16; ++i) {
-            int random_number = dist(mt_rand);
-            ss << std::hex << random_number;
-        }
-        return ss.str();
-    }
-
     void SetUp() override {
         std::tie(target_device, configuration) = this->GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
-        std::string fileName = generateRandomFileName();
-        xmlFileName = fileName + ".xml";
-        binFileName = fileName + ".bin";
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
@@ -68,16 +51,11 @@ public:
         if (!configuration.empty()) {
             utils::PluginCache::get().reset();
         }
-        if (std::remove(xmlFileName.c_str()) != 0 || std::remove(binFileName.c_str()) != 0) {
-            ADD_FAILURE() << "Failed to remove serialized files, xml: " << xmlFileName << " bin: " << binFileName;
-        }
         APIBaseTest::TearDown();
     }
 
 protected:
     ov::AnyMap configuration;
-    std::string xmlFileName;
-    std::string binFileName;
 };
 
 TEST_P(DriverCompilerAdapterCustomStreamTestNPU, TestLargeModel) {
