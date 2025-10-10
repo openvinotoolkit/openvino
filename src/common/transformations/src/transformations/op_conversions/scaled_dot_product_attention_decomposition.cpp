@@ -124,7 +124,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         scale = register_new_node<v1::ConvertLike>(scale, query);
         auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
         scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
-    } else if (node->get_input_size() < 7) {
+    } else {
         scale = node->input_value(4);
         if (node->get_input_size() == 6) {
             sink = node->input_value(5);
