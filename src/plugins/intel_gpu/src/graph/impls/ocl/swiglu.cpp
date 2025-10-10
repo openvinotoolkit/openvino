@@ -41,7 +41,8 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
         params.split_length = primitive->split_lengths;
         params.glu_type = primitive->glu_type;
         params.split_to_glu_idx = static_cast<int32_t>(primitive->split_to_glu_idx);
-
+        params.clamp_min = primitive->clamp_min;
+        params.clamp_max = primitive->clamp_max;
         return params;
     }
 
