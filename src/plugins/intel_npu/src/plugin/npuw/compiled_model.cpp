@@ -1467,15 +1467,31 @@ bool ov::npuw::CompiledModel::compile_for_device(std::size_t id, const std::stri
     // compile_for_device() behavior is not specified for funcalls.
     NPUW_ASSERT(m_compiled_submodels[id].replaced_by.value_or(id) == id);
 
-    // NPU plugin is known to crash when model has no inputs, so even
-    // try..catch doesn't work. Ideally such models should be
-    // eliminated with constant folding, but with offline partitioning
-    // it is not possible + not clear what to do with dynamic shapes.
-    // So for now, skip this case explicitly.
-    if (npuw::util::starts_with(device_to_try, "NPU") && m_compiled_submodels[id].model->inputs().empty()) {
-        LOG_INFO("Avoid compilation for " << device_to_try << " as the model should be constant-folded");
-        dump_on_fail(id, device_to_try, "Avoided due to workaround");
-        return false;
+    // Early exit conditions for NPU devices where try..catch doesn't work
+    // These are workarounds for known compilation issues that cause crashes
+    if (npuw::util::starts_with(device_to_try, "NPU")) {
+        // Check for empty input models - NPU plugin crashes on models without inputs
+        // Note: Ideally these should be eliminated via constant folding, but with offline partitioning
+        // it is not possible + not clear what to do with dynamic shapes.
+        // So for now, skip this case explicitly.
+        if (m_compiled_submodels[id].model->inputs().empty()) {
+            LOG_INFO("Avoid compilation for " << device_to_try << " as the model should be constant-folded");
+            dump_on_fail(id, device_to_try, "Avoided due to workaround");
+            return false;
+        }
+
+        // Check for dynamic shapes in attention models
+        // Skip this case explicitly because dynamic shapes in attention models trigger LLVM abort and try..catch
+        // doesn't work.
+        if (m_compiled_submodels[id].attention.has_value()) {
+            for (const auto& input : m_compiled_submodels[id].model->inputs()) {
+                if (input.get_partial_shape().is_dynamic()) {
+                    LOG_INFO("Avoid compilation for " << device_to_try << " as attention model has dynamic shapes");
+                    dump_on_fail(id, device_to_try, "Avoided due to dynamic shapes");
+                    return false;
+                }
+            }
+        }
     }
 
     try {
