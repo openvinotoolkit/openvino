@@ -30,7 +30,10 @@ endif()
 set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 add_subdirectory(level-zero EXCLUDE_FROM_ALL)
 
-set_property(TARGET ze_loader APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include ${CMAKE_CURRENT_SOURCE_DIR}>)
+set_property(TARGET ze_loader APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include>)
+
+add_library(ze_compute_runtime_headers INTERFACE)
+target_include_directories(ze_compute_runtime_headers INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/compute-runtime>)
 
 # This VERSION file created by L0 may cause compilation issue of oneTBB headers, so remove it
 file(REMOVE "${CMAKE_BINARY_DIR}/VERSION")
