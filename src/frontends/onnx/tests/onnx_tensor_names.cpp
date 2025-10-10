@@ -59,8 +59,7 @@ OPENVINO_TEST(onnx_tensor_names, simple_model) {
     const auto model = convert_model("tensor_names.onnx");
 
     const auto ops = model->get_ordered_ops();
-    EXPECT_TRUE(
-        matching_node_found_in_graph<op::v0::Parameter>(ops, "input", {"input"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Parameter>(ops, "input", {"input"}));
     EXPECT_TRUE(matching_node_found_in_graph<op::v16::Identity>(ops, "identity_node_on_input", {"identity_on_input"}));
     EXPECT_TRUE(matching_node_found_in_graph<op::v0::Relu>(ops, "relu", {"relu_t"}));
     EXPECT_TRUE(matching_node_found_in_graph<op::v0::Abs>(ops, "abs", {"abs_t"}));
