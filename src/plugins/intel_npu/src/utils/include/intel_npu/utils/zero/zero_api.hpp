@@ -80,6 +80,8 @@ public:
 
     static const std::shared_ptr<ZeroApi>& getInstance();
 
+    const uint32_t getVersion();
+
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
     symbols_list();
     weak_symbols_list();
@@ -87,6 +89,8 @@ public:
 
 private:
     std::shared_ptr<void> lib;
+
+    uint32_t version = 0;
 };
 
 #define symbol_statement(symbol)                                                                            \
