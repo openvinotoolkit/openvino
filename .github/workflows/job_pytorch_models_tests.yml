@@ -128,6 +128,7 @@ jobs:
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -vvv -s --tb=short -n 2
         env:
           TEST_DEVICE: CPU
+          HF_HUB_OFFLINE: 0
 
       - name: RoPE Test
         if: ${{ inputs.model_scope == 'precommit' }}
