@@ -1,13 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <behavior/ov_infer_request/multithreading.hpp>
-#include <vector>
+#include "multithreading.hpp"
 
 #include "common/npu_test_env_cfg.hpp"
-
-using namespace ov::test::behavior;
 
 namespace {
 const std::vector<ov::AnyMap> configs = {{}};
@@ -19,21 +16,20 @@ const std::vector<ov::AnyMap> autoConfigs = {
     {ov::device::priorities(ov::test::utils::DEVICE_NPU), ov::device::properties(ov::test::utils::DEVICE_NPU, {})}};
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVInferRequestMultithreadingTests,
+                         OVInferRequestMultithreadingTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests,
-                         OVInferRequestMultithreadingTests,
+                         OVInferRequestMultithreadingTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Auto_BehaviorTests,
-                         OVInferRequestMultithreadingTests,
+                         OVInferRequestMultithreadingTestsNPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
                          InferRequestParamsAnyMapTestName::getTestCaseName);
-
 }  // namespace
