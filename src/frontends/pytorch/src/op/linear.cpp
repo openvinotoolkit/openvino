@@ -166,7 +166,8 @@ OutputVector translate_linear_bitnet(const NodeContext& context) {
     const uint8_t values_per_pack = 4;  // Number of 2-bit values packed into a byte
     const size_t rows = initial_shape[0];
     const size_t cols = initial_shape[1];
-    FRONT_END_OP_CONVERSION_CHECK(cols % values_per_pack == 0, "The second dimension of weight must be divisible by 4.");
+    FRONT_END_OP_CONVERSION_CHECK(cols % values_per_pack == 0,
+                                  "The second dimension of weight must be divisible by 4.");
     const auto new_shape = Shape{rows * values_per_pack, cols};
     auto new_weight = std::make_shared<v0::Constant>(element::u2, new_shape, 0);
     auto dst = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(new_weight->get_data_ptr()));
@@ -176,8 +177,8 @@ OutputVector translate_linear_bitnet(const NodeContext& context) {
     const auto reorder_bitnet_2bit_values =
         [](const uint8_t* const src, const size_t src_idx, const size_t pos) -> uint8_t {
         const uint8_t value_mask = 0x3;
-        const uint8_t value_size = 2;       // Size of each value is 2 bits
-        uint8_t value{};                    // Should be zeroed
+        const uint8_t value_size = 2;  // Size of each value is 2 bits
+        uint8_t value{};               // Should be zeroed
 
         for (size_t value_idx = 0; value_idx != values_per_pack; ++value_idx) {
             value |= ((src[src_idx + value_idx] >> pos) & value_mask) << value_idx * value_size;
