@@ -106,10 +106,12 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
     const auto& cond_in = body_inputs[1];
     const auto& cond_out = body_outputs[0];
     ov::ParameterVector body_params(body_inputs.begin(), body_inputs.end());
+    bool needs_condition_param = true;
     // optimization allow to improve nG Loop shape inference
     if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
         body_outputs[0] = v0::Constant::create(ov::element::boolean, {1}, {true});
         body_params.erase(body_params.begin() + 1);
+        needs_condition_param = false;
     }
 
     CHECK_VALID_NODE(node,
@@ -134,7 +136,10 @@ ov::OutputVector loop_legacy(const ov::frontend::onnx::Node& node) {
     v5::Loop::SpecialBodyPorts spec_ports{0, 0};
     loop->set_special_body_ports(spec_ports);
     loop->set_function(body);
-
+    // Add condition
+    if (needs_condition_param) {
+        loop->set_merged_input(*std::next(body_inputs.begin(), 1), ng_inputs.at(1), *body_outputs.begin());
+    }
     // Setting up other Loop body inputs.
     // body_inputs[0] is iteration number, body_inputs[1] is termination condition
     auto body_inputs_it = std::next(body_inputs.begin(), 2);
