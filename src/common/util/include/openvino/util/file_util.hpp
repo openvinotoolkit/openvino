@@ -359,13 +359,10 @@ template <class Source>
 std::filesystem::path make_path(const Source& source) {
     if constexpr (std::is_same_v<std::decay_t<Source>, wchar_t*>) {
         return {std::wstring(source)};
-    }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    else if constexpr (std::is_same_v<Source, std::string>) {
+    } else if constexpr (std::is_same_v<std::filesystem::path::value_type, std::wstring::value_type> &&
+                         std::is_same_v<Source, std::string>) {
         return {ov::util::string_to_wstring(source)};
-    }
-#endif
-    else {
+    } else {
         return {source};
     }
 }
