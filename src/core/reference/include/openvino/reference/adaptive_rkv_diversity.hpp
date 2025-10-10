@@ -166,7 +166,7 @@ public:
                              reinterpret_cast<char*>(evictable_subset_buf.get()),
                              evictable_subset_shape,
                              sizeof(T),
-                             /* starts = */ {m_start_size, m_start_size},
+                             /* starts = */ {static_cast<int64_t>(m_start_size), static_cast<int64_t>(m_start_size)},
                              /* steps = */ {1, 1},
                              /* axes = */ {1, 2});  // stops are defined by output shape
         cos_similar_buf.reset();
