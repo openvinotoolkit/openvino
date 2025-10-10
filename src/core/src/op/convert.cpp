@@ -36,7 +36,7 @@ struct Evaluate : public element::NoAction<bool> {
               typename std::enable_if<ET_IN != element::f16 && ET_IN != element::bf16 && ET_IN != element::f32 &&
                                       ET_IN != element::nf4 && ET_IN != element::f4e2m1 &&
                                       ET_IN != element::f8e8m0>::type* = nullptr>
-    static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
+    static result_type visit(const Tensor& arg, Tensor& out, const size_t count, bool cast) {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
                           CONVERT_TO_ANY_NO_F4,
@@ -44,14 +44,15 @@ struct Evaluate : public element::NoAction<bool> {
                           out.get_element_type(),
                           iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
                           out,
-                          count);
+                          count,
+                          cast);
     }
 
     // convert from F16 to any
     template <element::Type_t ET_IN,
               class TI = fundamental_type_for<ET_IN>,
               typename std::enable_if<ET_IN == element::f16>::type* = nullptr>
-    static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
+    static result_type visit(const Tensor& arg, Tensor& out, const size_t count, bool cast) {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
                           CONVERT_ET_LIST,
@@ -59,14 +60,15 @@ struct Evaluate : public element::NoAction<bool> {
                           out.get_element_type(),
                           iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
                           out,
-                          count);
+                          count,
+                          cast);
     }
 
     // convert from bF16, f32 to any except NF4
     template <element::Type_t ET_IN,
               class TI = fundamental_type_for<ET_IN>,
               typename std::enable_if<ET_IN == element::bf16 || ET_IN == element::f32>::type* = nullptr>
-    static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
+    static result_type visit(const Tensor& arg, Tensor& out, const size_t count, bool cast) {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
                           CONVERT_TO_ANY_NO_NF4,
@@ -74,14 +76,15 @@ struct Evaluate : public element::NoAction<bool> {
                           out.get_element_type(),
                           iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
                           out,
-                          count);
+                          count,
+                          cast);
     }
 
     // convert form NF4
     template <element::Type_t ET_IN,
               class TI = fundamental_type_for<ET_IN>,
               typename std::enable_if<ET_IN == element::nf4>::type* = nullptr>
-    static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
+    static result_type visit(const Tensor& arg, Tensor& out, const size_t count, bool cast) {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
                           OV_PP_ET_LIST(f16, bf16, f32, nf4),
@@ -89,14 +92,15 @@ struct Evaluate : public element::NoAction<bool> {
                           out.get_element_type(),
                           iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
                           out,
-                          count);
+                          count,
+                          cast);
     }
 
     // convert from F4E2M1
     template <element::Type_t ET_IN,
               class TI = fundamental_type_for<ET_IN>,
               typename std::enable_if<ET_IN == element::f4e2m1>::type* = nullptr>
-    static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
+    static result_type visit(const Tensor& arg, Tensor& out, const size_t count, bool cast) {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
                           OV_PP_ET_LIST(f16, bf16, f32, f4e2m1),
@@ -104,14 +108,15 @@ struct Evaluate : public element::NoAction<bool> {
                           out.get_element_type(),
                           iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
                           out,
-                          count);
+                          count,
+                          cast);
     }
 
     // convert from F8E8M0
     template <element::Type_t ET_IN,
               class TI = fundamental_type_for<ET_IN>,
               typename std::enable_if<ET_IN == element::f8e8m0>::type* = nullptr>
-    static result_type visit(const Tensor& arg, Tensor& out, const size_t count) {
+    static result_type visit(const Tensor& arg, Tensor& out, const size_t count, bool cast) {
         using namespace ov::element;
         return IF_TYPE_OF(Convert_out,
                           OV_PP_ET_LIST(f16, bf16, f32, f8e8m0),
@@ -119,7 +124,8 @@ struct Evaluate : public element::NoAction<bool> {
                           out.get_element_type(),
                           iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
                           out,
-                          count);
+                          count,
+                          cast);
     }
 
 private:
@@ -127,8 +133,8 @@ private:
         using element::NoAction<bool>::visit;
 
         template <element::Type_t ET_OUT, class InputIter, class TO = ov::fundamental_type_for<ET_OUT>>
-        static result_type visit(InputIter arg, Tensor& out, const size_t count) {
-            reference::convert(arg, element::iterator<ET_OUT>(out.data()), count);
+        static result_type visit(InputIter arg, Tensor& out, const size_t count, bool cast) {
+            reference::convert(arg, element::iterator<ET_OUT>(out.data()), count, cast);
             return true;
         }
     };
@@ -212,7 +218,14 @@ bool Convert::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
         out.set_shape(in_shape);
 
         using namespace ov::element;
-        return IF_TYPE_OF(v0_Convert_in_et, CONVERT_ET_LIST, convert::Evaluate, in.get_element_type(), in, out, count);
+        return IF_TYPE_OF(v0_Convert_in_et,
+                          CONVERT_ET_LIST,
+                          convert::Evaluate,
+                          in.get_element_type(),
+                          in,
+                          out,
+                          count,
+                          false);
     } else {
         return false;
     }
@@ -337,7 +350,14 @@ bool Convert::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
         out.set_shape(in_shape);
 
         using namespace ov::element;
-        return IF_TYPE_OF(v16_Convert_in_et, CONVERT_ET_LIST, convert::Evaluate, in.get_element_type(), in, out, count);
+        return IF_TYPE_OF(v16_Convert_in_et,
+                          CONVERT_ET_LIST,
+                          convert::Evaluate,
+                          in.get_element_type(),
+                          in,
+                          out,
+                          count,
+                          m_cast);
     } else {
         return false;
     }

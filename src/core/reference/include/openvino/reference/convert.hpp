@@ -35,18 +35,29 @@ namespace reference {
 namespace detail {
 
 template <typename TI, typename TO>
-constexpr typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+constexpr typename std::enable_if<std::is_floating_point<TI>::value && std::is_integral<TO>::value &&
+                                      !std::is_same<TO, char>::value,
+                                  TO>::type
+convert(const TI v, bool cast = false) {
+    return cast ? static_cast<TO>(std::round(v)) : static_cast<TO>(v);
+}
+
+template <typename TI, typename TO>
+constexpr typename std::enable_if<!(std::is_floating_point<TI>::value && std::is_integral<TO>::value) &&
+                                      !std::is_same<TO, char>::value,
+                                  TO>::type
+convert(const TI v, bool cast = false) {
     return static_cast<TO>(v);
 }
 
 template <typename TI, typename TO>
-constexpr typename std::enable_if<std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+constexpr typename std::enable_if<std::is_same<TO, char>::value, TO>::type convert(const TI v, bool cast = false) {
     return static_cast<char>(static_cast<bool>(v));
 }
 }  // namespace detail
 
 template <typename InputIt, typename OutputIt>
-void convert(InputIt arg, OutputIt out, const size_t count) {
+void convert(InputIt arg, OutputIt out, const size_t count, bool cast = false) {
     using IN_T = typename std::iterator_traits<InputIt>::value_type;
     using OUT_T = typename std::iterator_traits<OutputIt>::value_type;
 
@@ -56,31 +67,35 @@ void convert(InputIt arg, OutputIt out, const size_t count) {
     using To =
         typename std::conditional<is_nf4_iterator<OutputIt>() && !std::is_integral<IN_T>::value, float, OUT_T>::type;
 
-    std::transform(arg, arg + count, out, detail::convert<From, To>);
+    std::transform(arg, arg + count, out, [cast](const From& v) {
+        return detail::convert<From, To>(v, cast);
+    });
 }
 
 template <typename TI, typename TO>
-void convert(const TI* arg, TO* out, const size_t count) {
-    std::transform(arg, arg + count, out, detail::convert<TI, TO>);
+void convert(const TI* arg, TO* out, const size_t count, bool cast = false) {
+    std::transform(arg, arg + count, out, [cast](const TI& v) {
+        return detail::convert<TI, TO>(v, cast);
+    });
 }
 
 template <>
-void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count);
+void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count, bool cast);
 template <>
-void convert<float16, float>(const float16* arg, float* out, size_t count);
+void convert<float16, float>(const float16* arg, float* out, size_t count, bool cast);
 template <>
-void convert<float, float16>(const float* arg, float16* out, size_t count);
+void convert<float, float16>(const float* arg, float16* out, size_t count, bool cast);
 template <>
-void convert<float, int8_t>(const float* arg, int8_t* out, size_t count);
+void convert<float, int8_t>(const float* arg, int8_t* out, size_t count, bool cast);
 template <>
-void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count);
+void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count, bool cast);
 template <>
-void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count);
+void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count, bool cast);
 template <>
-void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count);
+void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count, bool cast);
 
 template <>
-void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count, bool cast);
 
 // Count how many f32 values is out of normal finite numbers range when converted to f16
 size_t count_out_of_f16_range(const float* arg, size_t count);
