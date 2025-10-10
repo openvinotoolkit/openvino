@@ -131,7 +131,7 @@ ov::OutputVector import_onnx_scan(const ov::frontend::onnx::Node& node,
                                   int64_t in_offset,
                                   std::string&& in_directions_attr_name) {
     const auto& node_inputs = node.get_ov_inputs();
-    
+
     ParameterVector body_inputs;
     OutputVector body_outputs;
     if (!node.has_decoder()) {
