@@ -15,8 +15,6 @@ ov::intel_cpu::PlainTensor xattn_estimate(ov::intel_cpu::PlainTensor& query,
                                           ov::intel_cpu::PlainTensor& key,
                                           size_t block_size,
                                           size_t stride,
-                                          int norm,
-                                          float threshold,
-                                          bool causal);
+                                          float threshold);
 
 }  // namespace ov::Extensions::Cpu::XARCH
