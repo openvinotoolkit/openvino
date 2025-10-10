@@ -234,7 +234,7 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
 
 std::filesystem::path to_fs_path(const StringPathVariant& param) {
     return std::visit(ov::util::VariantVisitor{
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)  // && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                           [](const std::string& p) {
                               if (std::any_of(p.begin(), p.end(), [](unsigned char c) {
                                       return c > 127;
