@@ -23,11 +23,15 @@ struct Repeated {
         bool operator==(const Archetype& other) const;
     };
 
+    Repeated(size_t id) : m_id(id) {}
+
     void exclude();
     void resetExclude();
     bool openForMerge() const;
+    std::string id() const;
 
     bool m_excluded = false;
+    size_t m_id;
 };
 
 struct Interconnect {
