@@ -14,17 +14,7 @@
 
 namespace {
 
-template <typename T>
-void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
-    T* tensor_data = tensor->data<T>();
-    std::fill(tensor_data + offset, tensor_data + tensor->get_size(), fill_val);
-}
-
-void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
-    auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
-    std::fill_n(tensor_data, tensor->get_byte_size(), fill_val);
-}
-
+// FIXME: Use ov::npuw::util::view instead
 ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
                                          uint32_t dim,
                                          uint32_t start_pos,
@@ -396,7 +386,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
                 continue;
             }
             auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-            fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+            ov::npuw::util::fill_tensor<ov::float16>(kvcache_in_tensor, 0);
         }
     }
 
@@ -461,8 +451,8 @@ void ov::npuw::LLMInferRequest::apply_lora() {
 
             // Disable adapter by setting alpha to 0
             if (ov::npuw::util::matchLoRAMatMulAlphaString(state_name)) {
-                fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
-                fill_tensor<float>(kvcach_lora_in_tensor, 0.0f);
+                ov::npuw::util::fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
+                ov::npuw::util::fill_tensor<float>(kvcach_lora_in_tensor, 0.0f);
             }
         } else {
             // Generate with LoRA
@@ -489,7 +479,7 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             bool has_padding = state_tensor_rank != target_lora_rank;
             if (has_padding) {
                 // Clear padding tensor in infer request
-                fill_tensor<float>(new_infer_tensor, 0.0f);
+                ov::npuw::util::fill_tensor<float>(new_infer_tensor, 0.0f);
             }
 
             // Fill LoRA into infer request
@@ -519,13 +509,14 @@ void ov::npuw::LLMInferRequest::apply_lora() {
 }
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
-    fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
+    namespace uu = ov::npuw::util;
+    uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
     if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
         type_ids_port != m_prefill_in_ports.end()) {
-        fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
+        uu::fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
     }
-    fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
-    fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
+    uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
+    uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
     apply_lora();
@@ -679,7 +670,7 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 
         auto chunk_prefill_kvcache_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
 
-        fill_tensor<ov::float16>(chunk_prefill_kvcache_in_tensor, 0);
+        ov::npuw::util::fill_tensor<ov::float16>(chunk_prefill_kvcache_in_tensor, 0);
     }
 }
 
@@ -718,7 +709,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // We will populate current_prompts_len on the right side of attention mask for the processing tokens
             // If the current prompt length is smaller than the chunk prompt length,
             // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
-            fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
+            ov::npuw::util::fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
         }
         std::copy_n(attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
                     current_prompts_len,
@@ -870,11 +861,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         copy_kvcache();
 
         LOG_DEBUG("Prepare inputs.");
-        fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
-        fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)), 0);
-        fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)), 0);
+        namespace uu = ov::npuw::util;
+        uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
+        uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)), 0);
+        uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)), 0);
         if (token_type_ids) {
-            fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)), 0);
+            uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)),
+                                     0);
         }
         m_generate_initialized = true;
     }
