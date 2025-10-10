@@ -368,6 +368,8 @@ bool deBatchModel(std::shared_ptr<ov::Model>& model, ov::Dimension newBatch) {
             auto partShape = item->get_partial_shape();
             if (ov::layout::has_batch(layout)) {
                 partShape[ov::layout::batch_idx(layout)] = newBatch;
+            } else {
+                partShape[intel_npu::utils::BATCH_AXIS] = newBatch;
             }
             newShapes.emplace(item->get_friendly_name(), partShape);
         }
@@ -719,7 +721,7 @@ void Plugin::encodeDynamicBatchInfo(std::shared_ptr<ov::Model> model) const {
 
     // Sanity check: ensure we don't transform static models
     if (!model->is_dynamic()) {
-        _logger.warning("Attempting to encode dynamic batch info on a static model. Skipping encoding.");
+        _logger.debug("Attempting to encode dynamic batch info on a static model. Skipping encoding.");
         return;
     }
 
