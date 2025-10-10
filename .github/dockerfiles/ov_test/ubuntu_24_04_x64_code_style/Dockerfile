@@ -12,9 +12,24 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
-RUN apt update && \
-    apt install wget git curl cmake lsb-release software-properties-common gnupg build-essential clang-format-18 shellcheck && \
+RUN apt-get update && \
+    apt-get install software-properties-common && \
+    add-apt-repository --yes --no-update ppa:git-core/ppa && \
+    apt-get update && \
+    apt-get install \
+        curl \
+        git \
+        ca-certificates \
+        wget \
+        cmake \
+        lsb-release \
+        gnupg \
+        build-essential \
+        clang-format-18 \
+        shellcheck \
+        && \
     wget https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \
     ./llvm.sh 18 && \
-    apt --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu
+    apt-get --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
+    rm -rf /var/lib/apt/lists/*
