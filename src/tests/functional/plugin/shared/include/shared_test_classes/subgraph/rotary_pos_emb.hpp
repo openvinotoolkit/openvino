@@ -11,6 +11,7 @@ namespace test {
 
 using rope_params = std::tuple<ov::element::Type, std::string>;
 using rope_params_2 = std::tuple<bool, ov::element::Type, std::string>;
+using rope_params_qwenvit = std::tuple<ov::element::Type, std::string, std::string>;
 
 class RoPETestFlux : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
@@ -19,12 +20,28 @@ private:
                                                int num_head,
                                                int ndims,
                                                ov::element::Type element_type);
+
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
+};
+
+class RoPETestQwenVL : public SubgraphBaseTest, public testing::WithParamInterface<rope_params_qwenvit> {
+private:
+    std::shared_ptr<ov::Model> buildROPE_QwenVL(ov::element::Type element_type,
+                                                ov::PartialShape input_shape,
+                                                ov::PartialShape cos_shape,
+                                                ov::PartialShape sin_shape,
+                                                std::string split_op_type);
+
+protected:
+    void SetUp() override;
+
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<rope_params_qwenvit>& obj);
 };
 
 class RoPETestLlama2StridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
@@ -34,6 +51,7 @@ private:
                                                 int max_position_embeddings,
                                                 int num_head,
                                                 int ndims);
+
 protected:
     ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_ndims);
@@ -46,7 +64,11 @@ public:
 
 class RoPETestChatGLMStridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
-    std::shared_ptr<ov::Model> buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims, ov::element::Type element_type);
+    std::shared_ptr<ov::Model> buildROPE_ChatGLM(int batch,
+                                                 int head_cnt,
+                                                 int rotary_dims,
+                                                 ov::element::Type element_type);
+
 protected:
     ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
@@ -59,6 +81,7 @@ public:
 class RoPETestQwen7bStridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<rope_params_2> {
 private:
     std::shared_ptr<ov::Model> buildROPE_QWen7b(bool specialReshape, ov::element::Type element_type);
+
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
@@ -74,6 +97,7 @@ private:
                                               int rotary_dims,
                                               bool hasShapeOf,
                                               ov::element::Type element_type);
+
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
@@ -91,6 +115,7 @@ private:
                                                                     int max_position_embeddings,
                                                                     int num_head,
                                                                     int ndims);
+
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
@@ -106,13 +131,18 @@ private:
                                                 int max_position_embeddings,
                                                 int num_head,
                                                 int ndims);
+
 protected:
     void SetUp() override;
 };
 
 class RoPETestChatGLMSlice : public RoPETestChatGLMStridedSlice {
 private:
-    std::shared_ptr<ov::Model> buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims, ov::element::Type element_type);
+    std::shared_ptr<ov::Model> buildROPE_ChatGLM(int batch,
+                                                 int head_cnt,
+                                                 int rotary_dims,
+                                                 ov::element::Type element_type);
+
 protected:
     void SetUp() override;
 };
@@ -120,6 +150,7 @@ protected:
 class RoPETestQwen7bSlice : public RoPETestQwen7bStridedSlice {
 private:
     std::shared_ptr<ov::Model> buildROPE_Qwen7b(bool specialReshape, ov::element::Type element_type);
+
 protected:
     void SetUp() override;
 };
@@ -127,17 +158,22 @@ protected:
 class RoPETestGPTJSlice : public RoPETestGPTJStridedSlice {
 private:
     std::shared_ptr<ov::Model> buildROPE_GPTJ(int num_head,
-                                                int hidden_dims,
-                                                int rotary_dims,
-                                                bool hasShapeOf,
-                                                ov::element::Type element_type);
+                                              int hidden_dims,
+                                              int rotary_dims,
+                                              bool hasShapeOf,
+                                              ov::element::Type element_type);
+
 protected:
     void SetUp() override;
 };
 
 class RoPETestChatGLM2DRoPEStridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
 private:
-    std::shared_ptr<ov::Model> buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims, ov::element::Type element_type);
+    std::shared_ptr<ov::Model> buildROPE_ChatGLM(int batch,
+                                                 int head_cnt,
+                                                 int rotary_dims,
+                                                 ov::element::Type element_type);
+
 protected:
     ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
@@ -153,6 +189,7 @@ private:
                                                    int num_heads,
                                                    int rotary_ndims,
                                                    ov::element::Type element_type);
+
 protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
