@@ -16,8 +16,10 @@ namespace {
 
 #ifdef _WIN32
 #    include <ShlObj.h>
-#    include <ntdef.h>
-#    include <windows.h>
+#    pragma warning(push)            // Save the current warning state
+#    pragma warning(disable : 4005)  // Disable warning C4005 (macro redefinition)
+#    include <ntdef.h>    // Generates warning 4005 with redefinitions from winnt.h, but needed for PCUNICODE_STRING
+#    pragma warning(pop)  // Restore the previous warning state
 
 typedef struct _LDR_DLL_LOADED_NOTIFICATION_DATA {
     ULONG Flags;                   // Reserved.
@@ -47,48 +49,6 @@ using LdrUnregisterDllNotification_Fnc = NTSTATUS (*)(PVOID Cookie);
 
 CONST ULONG LDR_DLL_NOTIFICATION_REASON_LOADED = 1;
 CONST ULONG LDR_DLL_NOTIFICATION_REASON_UNLOADED = 2;
-
-void register_Dll_notification_with_callback(LdrRegisterDllNotification_Fnc LdrRegisterDllNotification,
-                                             const std::function<void(void)>& cb,
-                                             LdrUnregisterDllNotification_Fnc LdrUnregisterDllNotification) {
-    PVOID Cookie;
-    static bool cidLibraryWasLoaded;
-    static bool cipLibraryWasLoaded;
-    static bool cipLibraryWasUnloaded;
-    cidLibraryWasLoaded = cipLibraryWasLoaded = cipLibraryWasUnloaded = false;
-    LdrRegisterDllNotification(
-        0,
-        [](ULONG NotificationReason, PCLDR_DLL_NOTIFICATION_DATA NotificationData, PVOID /* unusedContext */) {
-            if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_LOADED) {
-                std::wstring_view wstr(NotificationData->Loaded.FullDllName->Buffer);
-                if (wstr.find(L"npu_driver_compiler") != std::wstring_view::npos) {
-                    cidLibraryWasLoaded = true;
-                } else if (wstr.find(L"npu_mlir_compiler") != std::wstring_view::npos) {
-                    cipLibraryWasLoaded = true;
-                }
-            } else if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_UNLOADED) {
-                std::wstring_view wstr(NotificationData->Unloaded.FullDllName->Buffer);
-                if (wstr.find(L"npu_mlir_compiler") != std::wstring_view::npos) {
-                    cipLibraryWasUnloaded = true;
-                }
-            }
-        },
-        NULL,
-        &Cookie);
-    cb();
-    LdrUnregisterDllNotification(Cookie);
-}
-
-bool was_cid_loaded() {
-    static bool cidLibraryWasLoaded;
-    return cidLibraryWasLoaded;
-}
-
-bool was_cip_loaded() {
-    static bool cipLibraryWasLoaded;
-    static bool cipLibraryWasUnloaded;
-    return cipLibraryWasLoaded && cipLibraryWasUnloaded;
-}
 
 void invalidate_umd_caching() {
     HMODULE _shell32 = LoadLibraryExW(L"shell32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
@@ -148,6 +108,8 @@ public:
         std::tie(target_device, properties) = this->GetParam();
         APIBaseTest::SetUp();
         function = ov::test::utils::make_conv_pool_relu();
+        core = ov::test::utils::PluginCache::get().core(target_device);
+        was_cid_loaded = was_cip_loaded = was_cip_unloaded = false;
 #ifdef _WIN32
         HMODULE hNtdll;
         ASSERT_TRUE(GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, L"ntdll.dll", &hNtdll));
@@ -160,12 +122,50 @@ public:
 #endif
     }
 
-#ifdef _WIN32
+    void TearDown() override {
+        ov::test::utils::PluginCache::get().reset();
+    }
+
+#ifdef __linux__
+    void check_loaded_compiler_lib(const std::function<void(void)>& cb) {
+        cb();
+        std::make_tuple(false, false, false);
+    }
+#elif defined(_WIN32)
+    void check_loaded_compiler_lib(const std::function<void(void)>& cb) {
+        PVOID Cookie;
+        LdrRegisterDllNotification(
+            0,
+            [](ULONG NotificationReason, PCLDR_DLL_NOTIFICATION_DATA NotificationData, PVOID /* unusedContext */) {
+                if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_LOADED) {
+                    std::wstring_view wstr(NotificationData->Loaded.FullDllName->Buffer);
+                    if (wstr.find(L"npu_driver_compiler") != std::wstring_view::npos) {
+                        was_cid_loaded = true;
+                    } else if (wstr.find(L"npu_mlir_compiler") != std::wstring_view::npos) {
+                        was_cip_loaded = true;
+                    }
+                } else if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_UNLOADED) {
+                    std::wstring_view wstr(NotificationData->Unloaded.FullDllName->Buffer);
+                    if (wstr.find(L"npu_mlir_compiler") != std::wstring_view::npos) {
+                        was_cip_unloaded = true;
+                    }
+                }
+            },
+            NULL,
+            &Cookie);
+        cb();
+        LdrUnregisterDllNotification(Cookie);
+    }
+
     LdrRegisterDllNotification_Fnc LdrRegisterDllNotification;
     LdrUnregisterDllNotification_Fnc LdrUnregisterDllNotification;
 #endif
+    static inline bool was_cid_loaded;
+    static inline bool was_cip_loaded;
+    static inline bool was_cip_unloaded;
     ov::AnyMap properties;
     std::shared_ptr<ov::Model> function;
+    std::shared_ptr<ov::Core> core;
 };
 
 using PropertiesWithArgumentsParamsNPU =
@@ -180,6 +180,8 @@ public:
         std::tie(target_device, property_name, arguments) = this->GetParam();
         APIBaseTest::SetUp();
         function = ov::test::utils::make_conv_pool_relu();
+        core = ov::test::utils::PluginCache::get().core(target_device);
+        was_cid_loaded = was_cip_loaded = was_cip_unloaded = false;
 #ifdef _WIN32
         HMODULE hNtdll;
         ASSERT_TRUE(GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, L"ntdll.dll", &hNtdll));
@@ -192,13 +194,51 @@ public:
 #endif
     }
 
-#ifdef _WIN32
+    void TearDown() override {
+        ov::test::utils::PluginCache::get().reset();
+    }
+
+#ifdef __linux__
+    void check_loaded_compiler_lib(const std::function<void(void)>& cb) {
+        cb();
+        std::make_tuple(false, false, false);
+    }
+#elif defined(_WIN32)
+    void check_loaded_compiler_lib(const std::function<void(void)>& cb) {
+        PVOID Cookie;
+        LdrRegisterDllNotification(
+            0,
+            [](ULONG NotificationReason, PCLDR_DLL_NOTIFICATION_DATA NotificationData, PVOID /* unusedContext */) {
+                if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_LOADED) {
+                    std::wstring_view wstr(NotificationData->Loaded.FullDllName->Buffer);
+                    if (wstr.find(L"npu_driver_compiler") != std::wstring_view::npos) {
+                        was_cid_loaded = true;
+                    } else if (wstr.find(L"npu_mlir_compiler") != std::wstring_view::npos) {
+                        was_cip_loaded = true;
+                    }
+                } else if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_UNLOADED) {
+                    std::wstring_view wstr(NotificationData->Unloaded.FullDllName->Buffer);
+                    if (wstr.find(L"npu_mlir_compiler") != std::wstring_view::npos) {
+                        was_cip_unloaded = true;
+                    }
+                }
+            },
+            NULL,
+            &Cookie);
+        cb();
+        LdrUnregisterDllNotification(Cookie);
+    }
+
     LdrRegisterDllNotification_Fnc LdrRegisterDllNotification;
     LdrUnregisterDllNotification_Fnc LdrUnregisterDllNotification;
 #endif
+    static inline bool was_cid_loaded;
+    static inline bool was_cip_loaded;
+    static inline bool was_cip_unloaded;
     std::string property_name;
     ov::AnyMap arguments;
     std::shared_ptr<ov::Model> function;
+    std::shared_ptr<ov::Core> core;
 };
 
 using OVSetRunTimePropertiesTestsNPU = OVPostponeCompilerLoadTestsNPU;
@@ -211,156 +251,114 @@ using OVBothPropertiesArgumentsTestsNPU = OVPostponeCompilerLoadWithArgumentsTes
 
 TEST_P(OVRunTimePropertiesArgumentsTestsNPU, GetRunTimePropertiesNoCompilerLoad) {
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.get_property(target_device, property_name, arguments));
-        },
-        this->LdrUnregisterDllNotification);
-    ASSERT_TRUE(!was_cid_loaded() && !was_cip_loaded());
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(core->get_property(target_device, property_name, arguments));
+    });
+    ASSERT_TRUE(!was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
 }
 
 TEST_P(OVSetRunTimePropertiesTestsNPU, SetRunTimePropertiesNoCompilerLoad) {
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
-    core.get_property(target_device, ov::available_devices);
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.set_property(target_device, properties));
-        },
-        this->LdrUnregisterDllNotification);
-    ASSERT_TRUE(!was_cid_loaded() && !was_cip_loaded());
+    core->get_property(target_device, ov::available_devices);
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    });
+    if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {  // special case
+        ASSERT_TRUE(!was_cid_loaded && was_cip_loaded && was_cip_loaded);
+    } else {
+        ASSERT_TRUE(!was_cid_loaded && !was_cip_loaded && !was_cip_loaded);
+    }
 }
 
 TEST_P(OVCompileTimePropertiesArgumentsTestsNPU, GetCompileTimePropertiesCompilerLoad) {
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.get_property(target_device, property_name, arguments));
-        },
-        this->LdrUnregisterDllNotification);
-    if (arguments.find(ov::intel_npu::compiler_type.name()) != arguments.end()) {
-        ASSERT_TRUE(!was_cid_loaded() && was_cip_loaded());
-    } else {
-        ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
-    }
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(core->get_property(target_device, property_name, arguments));
+    });
+    ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
 }
 
 TEST_P(OVSetCompileTimePropertiesTestsNPU, SetCompileTimePropertiesCompilerLoad) {
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
-    core.get_property(target_device, ov::available_devices);
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.set_property(target_device, properties));
-        },
-        this->LdrUnregisterDllNotification);
-    ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
+    core->get_property(target_device, ov::available_devices);
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    });
+    ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
 }
 
 TEST_P(OVBothPropertiesArgumentsTestsNPU, GetBothPropertiesCompilerLoad) {
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.get_property(target_device, property_name, arguments));
-        },
-        this->LdrUnregisterDllNotification);
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(core->get_property(target_device, property_name, arguments));
+    });
     if (property_name == ov::log::level.name()) {  // special case
-        ASSERT_TRUE(!was_cid_loaded() && !was_cip_loaded());
-    } else if (arguments.find(ov::intel_npu::compiler_type.name()) != arguments.end()) {
-        ASSERT_TRUE(!was_cid_loaded() && was_cip_loaded());
+        ASSERT_TRUE(!was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
     } else {
-        ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
+        ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
     }
 }
 
 TEST_P(OVSetBothPropertiesTestsNPU, SetBothPropertiesCompilerLoad) {
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
-    core.get_property(target_device, ov::available_devices);
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.set_property(target_device, properties));
-        },
-        this->LdrUnregisterDllNotification);
+    core->get_property(target_device, ov::available_devices);
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    });
     if (properties.find(ov::log::level.name()) != properties.end()) {  // special case
-        ASSERT_TRUE(!was_cid_loaded() && !was_cip_loaded());
+        ASSERT_TRUE(!was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
     } else {
-        ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
+        ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
     }
 }
 
 TEST_P(OVSetCartesianProductPropertiesTestsNPU, SetCartesianProductPropertiesCompilerLoad) {
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
-    core.get_property(target_device, ov::available_devices);
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.set_property(target_device, properties));
-        },
-        this->LdrUnregisterDllNotification);
+    core->get_property(target_device, ov::available_devices);
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    });
     if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
-        ASSERT_TRUE(!was_cid_loaded() && was_cip_loaded());
+        ASSERT_TRUE(!was_cid_loaded && was_cip_loaded && was_cip_unloaded);
     } else {
-        ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
+        ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
     }
 }
 
 TEST_P(OVPostponeCompilerLoadTestsNPU, CompileModelDoesCompilerLoad) {
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.compile_model(function, target_device, properties));
-        },
-        this->LdrUnregisterDllNotification);
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(core->compile_model(function, target_device, properties));
+    });
     if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
-        ASSERT_TRUE(!was_cid_loaded() && was_cip_loaded());
+        ASSERT_TRUE(!was_cid_loaded && was_cip_loaded && was_cip_unloaded);
     } else {
-        ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
+        ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
     }
 }
 
 TEST_P(OVPostponeCompilerLoadTestsNPU, CompileModelWithCacheDoesNotCompilerLoad) {
+    if (auto it = properties.find(ov::intel_npu::compiler_type.name());
+        it != properties.end() && it->second.as<ov::intel_npu::CompilerType>() == ov::intel_npu::CompilerType::MLIR) {
+        GTEST_SKIP() << "Cannot use MLIR with CACHE_DIR prop";
+    }
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
     const std::string cache_dir_name = "cache_dir";
     properties[ov::cache_dir.name()] = cache_dir_name;
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.compile_model(function, target_device, properties));
-        },
-        this->LdrUnregisterDllNotification);
-    if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
-        ASSERT_TRUE(!was_cid_loaded() && was_cip_loaded());
-    } else {
-        ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
+    {
+        check_loaded_compiler_lib([&, this]() {
+            OV_ASSERT_NO_THROW(core->compile_model(function, target_device, properties));
+        });
+        ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
     }
 
-    core = ov::test::utils::create_core();
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.compile_model(function, target_device, properties));
-        },
-        this->LdrUnregisterDllNotification);
+    ov::test::utils::PluginCache::get().reset();
+    core = ov::test::utils::PluginCache::get().core(target_device);
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(core->compile_model(function, target_device, properties));
+    });
     // ASSERT_TRUE(!was_cid_loaded() && !was_cip_loaded());  // further optimization in other PR
-    if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
-        ASSERT_TRUE(!was_cid_loaded() && was_cip_loaded());
-    } else {
-        ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
-    }
+    ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
 
     ov::util::iterate_files(
         cache_dir_name,
@@ -376,50 +374,43 @@ TEST_P(OVPostponeCompilerLoadTestsNPU, CompileModelWithCacheDoesNotCompilerLoad)
 
 TEST_P(OVPostponeCompilerLoadTestsNPU, ImportModelDoesNotCompilerLoad) {
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
     std::stringstream ss;
-    ov::CompiledModel compiled_model;
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(compiled_model = core.compile_model(function, target_device, properties));
-        },
-        this->LdrUnregisterDllNotification);
-    if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
-        ASSERT_TRUE(!was_cid_loaded() && was_cip_loaded());
-    } else {
-        ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
+    {
+        check_loaded_compiler_lib([&, this]() {
+            ov::CompiledModel
+                compiled_model;  // compiled_model keeps compiler loaded, ensure it gets destroyed before checks
+            OV_ASSERT_NO_THROW(compiled_model = core->compile_model(function, target_device, properties));
+            compiled_model.export_model(ss);
+        });
+        if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
+            ASSERT_TRUE(!was_cid_loaded && was_cip_loaded && was_cip_unloaded);
+        } else {
+            ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
+        }
     }
-    compiled_model.export_model(ss);
 
-    compiled_model = core.import_model(ss, target_device, properties);
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(compiled_model = core.import_model(ss, target_device, properties));
-        },
-        this->LdrUnregisterDllNotification);
+    ov::test::utils::PluginCache::get().reset();
+    core = ov::test::utils::PluginCache::get().core(target_device);
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(auto compiled_model = core->import_model(ss, target_device, properties));
+    });
     // ASSERT_TRUE(!is_cid_loaded() && !is_cip_loaded());  // further optimization in other PR
     if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
-        ASSERT_TRUE(!was_cid_loaded() && was_cip_loaded());
+        ASSERT_TRUE(!was_cid_loaded && was_cip_loaded && was_cip_unloaded);
     } else {
-        ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
+        ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
     }
 }
 
 TEST_P(OVPostponeCompilerLoadTestsNPU, QueryModelDoesCompilerLoad) {
     invalidate_umd_caching();
-    ov::Core core = ov::test::utils::create_core();
-    register_Dll_notification_with_callback(
-        this->LdrRegisterDllNotification,
-        [&, this]() {
-            OV_ASSERT_NO_THROW(core.query_model(function, target_device, properties));
-        },
-        this->LdrUnregisterDllNotification);
+    check_loaded_compiler_lib([&, this]() {
+        OV_ASSERT_NO_THROW(core->query_model(function, target_device, properties));
+    });
     if (properties.find(ov::intel_npu::compiler_type.name()) != properties.end()) {
-        ASSERT_TRUE(!was_cid_loaded() && was_cip_loaded());
+        ASSERT_TRUE(!was_cid_loaded && was_cip_loaded && was_cip_unloaded);
     } else {
-        ASSERT_TRUE(was_cid_loaded() && !was_cip_loaded());
+        ASSERT_TRUE(was_cid_loaded && !was_cip_loaded && !was_cip_unloaded);
     }
 }
 
