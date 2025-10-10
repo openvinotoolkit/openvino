@@ -13,8 +13,7 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/log.hpp"
 
-using namespace std;
-using namespace ov;
+namespace ov::test {
 
 template <typename T>
 std::string to_hex(T value) {
@@ -125,18 +124,18 @@ TEST(bfloat16, to_float) {
 }
 
 TEST(bfloat16, numeric_limits) {
-    bfloat16 infinity = numeric_limits<bfloat16>::infinity();
-    bfloat16 neg_infinity = -numeric_limits<bfloat16>::infinity();
-    bfloat16 quiet_nan = numeric_limits<bfloat16>::quiet_NaN();
-    bfloat16 signaling_nan = numeric_limits<bfloat16>::signaling_NaN();
+    bfloat16 infinity = std::numeric_limits<bfloat16>::infinity();
+    bfloat16 neg_infinity = -std::numeric_limits<bfloat16>::infinity();
+    bfloat16 quiet_nan = std::numeric_limits<bfloat16>::quiet_NaN();
+    bfloat16 signaling_nan = std::numeric_limits<bfloat16>::signaling_NaN();
 
     // Would be nice if we could have bfloat16 overloads for these, but it would require adding
     // overloads into ::std. So we just cast to float here. We can't rely on an implicit cast
     // because it fails with some versions of AppleClang.
-    EXPECT_TRUE(isinf(static_cast<float>(infinity)));
-    EXPECT_TRUE(isinf(static_cast<float>(neg_infinity)));
-    EXPECT_TRUE(isnan(static_cast<float>(quiet_nan)));
-    EXPECT_TRUE(isnan(static_cast<float>(signaling_nan)));
+    EXPECT_TRUE(std::isinf(static_cast<float>(infinity)));
+    EXPECT_TRUE(std::isinf(static_cast<float>(neg_infinity)));
+    EXPECT_TRUE(std::isnan(static_cast<float>(quiet_nan)));
+    EXPECT_TRUE(std::isnan(static_cast<float>(signaling_nan)));
 }
 
 TEST(benchmark, bfloat16) {
@@ -222,3 +221,14 @@ TEST(bfloat16, operators) {
     ASSERT_TRUE(a * b == d);
     ASSERT_TRUE(a == d / b);
 }
+
+TEST(bfloat16, to_string) {
+    const bfloat16 bf16{1.5f};
+    EXPECT_EQ(std::to_string(bf16), std::to_string(1.5f));
+}
+
+TEST(bfloat16, size) {
+    const bfloat16 bf16{10.12f};
+    EXPECT_EQ(sizeof(bf16), 2);
+}
+}  // namespace ov::test
