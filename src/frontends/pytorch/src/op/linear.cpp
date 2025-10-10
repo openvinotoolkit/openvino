@@ -175,7 +175,7 @@ OutputVector translate_linear_bitnet(const NodeContext& context) {
     // This lambda extracts 2 bits from each of 4 consecutive bytes at a given bit position,
     // then packs them into a single byte, placing each 2-bit value in its respective position (6, 4, 2, 0).
     const auto reorder_bitnet_2bit_values =
-        [](const uint8_t* const src, const size_t src_idx, const size_t pos) -> uint8_t {
+        [values_per_pack](const uint8_t* const src, const size_t src_idx, const size_t pos) -> uint8_t {
         const uint8_t value_mask = 0x3;
         const uint8_t value_size = 2;  // Size of each value is 2 bits
         uint8_t value{};               // Should be zeroed
