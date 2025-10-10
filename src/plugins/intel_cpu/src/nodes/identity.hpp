@@ -6,9 +6,7 @@
 
 #include <node.h>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Identity : public Node {
 public:
@@ -45,6 +43,4 @@ private:
     VectorDims m_out_shape;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
