@@ -2,20 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ir_serializer.hpp"
+#include "vcl_serializer.hpp"
 
 #include <cstdint>
+#include <istream>
 #include <mutex>
 #include <regex>
+#include <streambuf>
 
 #include "custom_stream_buffer.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/weights_pointer_attribute.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+#include "xml_serializer.hpp"
 
 namespace {
+
 constexpr std::string_view INPUTS_PRECISIONS_KEY = "--inputs_precisions";
 constexpr std::string_view INPUTS_LAYOUTS_KEY = "--inputs_layouts";
 constexpr std::string_view OUTPUTS_PRECISIONS_KEY = "--outputs_precisions";
@@ -136,12 +141,63 @@ std::string rankToLegacyLayoutString(const size_t rank) {
     }
 }
 
+/**
+ * @brief Stores weights metadata (memory location & buffer size in bytes) as runtime attributes of "ov::Constant"
+ * nodes.
+ * @details The presence of these attrbutes determines which weights are copied in a separate buffer by the
+ * serialization algorithm. If the attribute is found, the metadata required to reconstruct the weights buffer is
+ * present, therefore copying the buffer is omitted.
+ *
+ * @param model The target model, the attributes will be stored within it.
+ * @param weightSizeThreshold Determines which constant nodes will have this attribute stored within them. Implicitly,
+ * this determines which weights will be copied at serialization time. The weights smaller than this value will not get
+ * this attribute.
+ */
+void storeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model, const size_t weightSizeThreshold) {
+    for (auto&& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+            continue;
+        }
+
+        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        if (constantNode->get_byte_size() < weightSizeThreshold) {
+            continue;
+        }
+
+        ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
+        runtimeInfoMap[intel_npu::WeightsPointerAttribute::get_type_info_static()] =
+            intel_npu::WeightsPointerAttribute(constantNode->get_data_ptr(), constantNode->get_byte_size());
+    }
+}
+
+/**
+ * @brief Removes the attributes stored by "storeWeightsPointerAttribute" in order to restore the model to its original
+ * state.
+ * @see storeWeightsPointerAttribute for details.
+ */
+void removeWeightsPointerAttribute(const std::shared_ptr<ov::Model>& model) {
+    for (auto&& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+            continue;
+        }
+
+        ov::RTMap& runtimeInfoMap = node->get_rt_info();
+        const auto& resultIt = runtimeInfoMap.find(intel_npu::WeightsPointerAttribute::get_type_info_static());
+        if (resultIt != runtimeInfoMap.end()) {
+            runtimeInfoMap.erase(resultIt);
+        }
+    }
+}
+
 }  // namespace
 
 namespace intel_npu::driver_compiler_utils {
 
-IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset)
-    : _logger("IRSerializer", Logger::global().level()),
+VCLSerializerBase::VCLSerializerBase(const std::shared_ptr<const ov::Model>& origModel,
+                                     const ze_graph_compiler_version_info_t compilerVersion,
+                                     const uint32_t supportedOpset)
+    : _logger("VCLSerializerBase", Logger::global().level()),
+      _compilerVersion(compilerVersion),
       _supportedOpset(supportedOpset) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
@@ -152,11 +208,42 @@ IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, co
         _model = _model->clone();
         _logger.info("Clone model for offset smaller than 11");
     }
-
-    countModelSize();
 }
 
-void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
+void VCLSerializerBase::set_model_runtime_information() {
+    // Depending on the driver version, the compiler attached to it may request this information as an indicator of
+    // the
+    // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
+    // longer a cause for altering the metadata. This is due to the preprocessing performed in the OpenVINO
+    // framework's implementaion, the "ov::Model" object is preprocessed before reaching the NPU plugin.
+    _model->set_rt_info(true, "is_new_api");
+    // Flag used for indicating an NPU plugin version which switched the I/O identification convention from names to
+    // indices. The flag is required in order to inform the driver-compiler adapter to expect indices when
+    // attempting to deserialize the I/O metadata.
+    _model->set_rt_info(true, "use_indices_for_io_metadata");
+}
+
+void VCLSerializerBase::remove_model_runtime_information() {
+    auto& rtInfo = _model->get_rt_info();
+    rtInfo.erase("is_new_api");
+    rtInfo.erase("use_indices_for_io_metadata");
+}
+
+VCLSerializerWithWeightsCopy::VCLSerializerWithWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                                           const ze_graph_compiler_version_info_t compilerVersion,
+                                                           const uint32_t supportedOpset)
+    : VCLSerializerBase(origModel, compilerVersion, supportedOpset) {
+    _logger.setName("VCLSerializerWithWeightsCopy");
+};
+
+VCLSerializerWithoutWeightsCopy::VCLSerializerWithoutWeightsCopy(const std::shared_ptr<const ov::Model>& origModel,
+                                                                 const ze_graph_compiler_version_info_t compilerVersion,
+                                                                 const uint32_t supportedOpset)
+    : VCLSerializerBase(origModel, compilerVersion, supportedOpset) {
+    _logger.setName("VCLSerializerWithoutWeightsCopy");
+};
+
+void VCLSerializerWithWeightsCopy::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
     ov::pass::Manager manager(std::move(passConfig), "NPU:serializeModelToStream");
@@ -169,36 +256,45 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
 
     manager.register_pass<ov::pass::Serialize>(xml, weights);
 
-    // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
-    // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
-    // longer a cause for altering the metadata. This is due to the preprocessing performed in the OpenVINO framework's
-    // implementaion, the "ov::Model" object is preprocessed before reaching the NPU plugin.
-    const auto newAPIKey = "is_new_api";
-
-    // Flag used for indicating an NPU plugin version which switched the I/O identification convention from names to
-    // indices. The flag is required in order to inform the driver-compiler adapter to expect indices when attempting to
-    // deserialize the I/O metadata.
-    const auto useIndicesForIOMetadata = "use_indices_for_io_metadata";
-
     // We modify the original model object here therefore a mutex is required
-    static std::mutex rtInfoMutex;
-
     {
         std::lock_guard<std::mutex> lock(rtInfoMutex);
 
-        _model->set_rt_info(true, newAPIKey);
-        _model->set_rt_info(true, useIndicesForIOMetadata);
-
+        set_model_runtime_information();
         manager.run_passes(_model);
-
-        auto& rtInfo = _model->get_rt_info();
-        rtInfo.erase(newAPIKey);
-        rtInfo.erase(useIndicesForIOMetadata);
+        remove_model_runtime_information();
     }
     _logger.debug("serializeModelToStream end");
 }
 
-void IRSerializer::countModelSize() {
+void VCLSerializerWithoutWeightsCopy::serializeModelToStream(std::ostream& stream) {
+    _logger.debug("serializeModelToStream");
+    const auto passConfig = std::make_shared<ov::pass::PassConfig>();
+    ov::pass::Manager manager(std::move(passConfig), "NPU:serializeModelToStream");
+
+    if (_supportedOpset < 11) {
+        // Downgrade to opset10
+        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+        _logger.info("Downgrade op for opset smaller than 11");
+    }
+
+    const std::function<void(std::ostream&)>& compiler_version_serializer = [&](std::ostream& stream) {
+        stream.write(reinterpret_cast<const char*>(&_compilerVersion), sizeof(_compilerVersion));
+    };
+    manager.register_pass<StreamSerialize>(stream, compiler_version_serializer);
+
+    // We modify the original model object here therefore a mutex is required
+    {
+        std::lock_guard<std::mutex> lock(rtInfoMutex);
+
+        set_model_runtime_information();
+        manager.run_passes(_model);
+        remove_model_runtime_information();
+    }
+    _logger.debug("serializeModelToStream end");
+}
+
+void VCLSerializerWithWeightsCopy::countModelSize() {
     _logger.debug("countModelSize");
 
     counter_streambuf xmlStreamBuf;
@@ -214,7 +310,20 @@ void IRSerializer::countModelSize() {
     _logger.debug("countModelSize completed, xml size: %d, weights size: %d", _xmlSize, _weightsSize);
 }
 
-void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
+void VCLSerializerWithoutWeightsCopy::countModelSize() {
+    _logger.debug("countModelSize");
+
+    counter_streambuf streamBuf;
+    std::ostream stream(&streamBuf);
+
+    serializeModelToStream(stream);
+
+    _serializedModelSize = streamBuf.size();
+
+    _logger.debug("countModelSize completed, serialized model size: %d", _serializedModelSize);
+}
+
+void VCLSerializerWithWeightsCopy::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
     _logger.debug("serializeModelToBuffer");
 
     writer_streambuf xmlStreamBuf(xml);
@@ -227,17 +336,28 @@ void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
     _logger.debug("serializeModelToBuffer end");
 }
 
-SerializedIR IRSerializer::serializeIR(const std::shared_ptr<const ov::Model>& model,
-                                       ze_graph_compiler_version_info_t compilerVersion,
-                                       const uint32_t supportedOpsetVersion) {
+void VCLSerializerWithoutWeightsCopy::serializeModelToBuffer(uint8_t* buffer) {
+    _logger.debug("serializeModelToBuffer");
+
+    writer_streambuf streamBuf(buffer);
+    std::ostream stream(&streamBuf);
+
+    serializeModelToStream(stream);
+
+    _logger.debug("serializeModelToBuffer end");
+}
+
+SerializedIR VCLSerializerWithWeightsCopy::serialize() {
+    countModelSize();
+
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;
     const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
     const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
 
     const uint32_t numberOfInputData = 2;
-    const uint64_t xmlSize = static_cast<uint64_t>(getXmlSize());
-    const uint64_t weightsSize = static_cast<uint64_t>(getWeightsSize());
+    const uint64_t xmlSize = static_cast<uint64_t>(_xmlSize);
+    const uint64_t weightsSize = static_cast<uint64_t>(_weightsSize);
 
     OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
     if (xmlSize >= maxSizeOfXML) {
@@ -250,7 +370,7 @@ SerializedIR IRSerializer::serializeIR(const std::shared_ptr<const ov::Model>& m
                        maxSizeOfWeights);
     }
 
-    const uint64_t sizeOfSerializedIR = sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) +
+    const uint64_t sizeOfSerializedIR = sizeof(_compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) +
                                         xmlSize + sizeof(weightsSize) + weightsSize;
 
     // use array to avoid vector's memory zeroing overhead
@@ -258,8 +378,8 @@ SerializedIR IRSerializer::serializeIR(const std::shared_ptr<const ov::Model>& m
     uint8_t* serializedIR = buffer.get();
 
     uint64_t offset = 0;
-    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &compilerVersion, sizeof(compilerVersion));
-    offset += sizeof(compilerVersion);
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &_compilerVersion, sizeof(_compilerVersion));
+    offset += sizeof(_compilerVersion);
 
     checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
     offset += sizeof(numberOfInputData);
@@ -281,7 +401,42 @@ SerializedIR IRSerializer::serializeIR(const std::shared_ptr<const ov::Model>& m
     return std::make_pair(sizeOfSerializedIR, buffer);
 }
 
-std::string IRSerializer::serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
+SerializedIR VCLSerializerWithoutWeightsCopy::serialize() {
+    countModelSize();
+
+    if (_serializedModelSize >= std::numeric_limits<uint64_t>::max()) {
+        OPENVINO_THROW("The serialized model is too big to process. Size: ",
+                       _serializedModelSize,
+                       " >= ",
+                       std::numeric_limits<uint64_t>::max());
+    }
+
+    // use array to avoid vector's memory zero-ing overhead
+    std::shared_ptr<uint8_t> buffer(new uint8_t[_serializedModelSize], std::default_delete<uint8_t[]>());
+    serializeModelToBuffer(buffer.get());
+
+    return SerializedIR(_serializedModelSize, buffer);
+}
+
+SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                         const ze_graph_compiler_version_info_t compilerVersion,
+                         const uint32_t supportedOpsetVersion,
+                         const bool useBaseModelSerializer,
+                         const size_t weightsSizeThreshold) {
+    if (!useBaseModelSerializer) {
+        // non-constness required for adding & removing weights pointer attributes
+        const std::shared_ptr<ov::Model> nonConstantModel = std::const_pointer_cast<ov::Model>(model);
+        storeWeightsPointerAttribute(nonConstantModel, weightsSizeThreshold);
+
+        SerializedIR serializedIR =
+            VCLSerializerWithoutWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
+        removeWeightsPointerAttribute(nonConstantModel);
+        return serializedIR;
+    }
+    return VCLSerializerWithWeightsCopy(model, compilerVersion, supportedOpsetVersion).serialize();
+}
+
+std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices) {
     const ov::ParameterVector& parameters = model->get_parameters();
     const ov::ResultVector& results = model->get_results();
 
@@ -369,9 +524,9 @@ std::string IRSerializer::serializeIOInfo(const std::shared_ptr<const ov::Model>
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
 }
 
-std::string IRSerializer::serializeConfig(const Config& config,
-                                          ze_graph_compiler_version_info_t compilerVersion,
-                                          bool turboSupported) {
+std::string serializeConfig(const Config& config,
+                            ze_graph_compiler_version_info_t compilerVersion,
+                            bool turboSupported) {
     Logger logger("serializeConfig", Logger::global().level());
 
     std::string content = {};
