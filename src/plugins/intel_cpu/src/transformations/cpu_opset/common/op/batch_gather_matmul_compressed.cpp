@@ -1,0 +1,84 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "batch_gather_matmul_compressed.hpp"
+
+#include <memory>
+
+#include "batch_gather_matmul.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "transformations/itt.hpp"
+
+namespace ov::intel_cpu {
+
+BatchGatherMatmulCompressed::BatchGatherMatmulCompressed(const ov::Output<Node>& A,
+                                                         const ov::Output<Node>& B,
+                                                         const ov::Output<Node>& indices,
+                                                         const ov::Output<Node>& bias,
+                                                         const ov::Output<Node>& weight_scales,
+                                                         const ov::Output<Node>& weight_zero_points)
+    : BatchGatherMatmul(A, B, indices, bias) {
+    set_argument(3, weight_scales);
+    set_argument(4, weight_zero_points);
+    validate_and_infer_types();
+}
+
+BatchGatherMatmulCompressed::BatchGatherMatmulCompressed(const ov::Output<Node>& A,
+                                                         const ov::Output<Node>& B,
+                                                         const ov::Output<Node>& indices,
+                                                         const ov::Output<Node>& weight_scales,
+                                                         const ov::Output<Node>& weight_zero_points)
+    : BatchGatherMatmulCompressed(A,
+                                  B,
+                                  indices,
+                                  std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0}),
+                                  weight_scales,
+                                  weight_zero_points) {}
+
+std::shared_ptr<ov::Node> BatchGatherMatmulCompressed::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    check_new_args_count(this, new_args);
+
+    return std::make_shared<BatchGatherMatmulCompressed>(new_args.at(0),
+                                                         new_args.at(1),
+                                                         new_args.at(2),
+                                                         new_args.at(3),
+                                                         new_args.at(4));
+}
+void BatchGatherMatmulCompressed::validate_and_infer_types() {
+    const auto input_size = get_input_size();
+
+    NODE_VALIDATION_CHECK(this, input_size == 5, "Number of inputs is incorrect. Current value is: ", input_size);
+
+    // check weight_scales and weight_zero_points are Const
+    auto weight_scales = get_input_node_shared_ptr(3);
+    NODE_VALIDATION_CHECK(this,
+                          ov::is_type<ov::op::v0::Constant>(weight_scales),
+                          "Input weight_scales must be a Constant node.");
+    auto weight_zero_points = get_input_node_shared_ptr(4);
+    NODE_VALIDATION_CHECK(this,
+                          ov::is_type<ov::op::v0::Constant>(weight_zero_points),
+                          "Input weight_zero_points must be a Constant node.");
+
+    // check wight_scales and weight_zero_points are either per channel or per tensor
+    const auto& weight_scales_shape = weight_scales->get_output_partial_shape(0);
+    const auto& weight_zero_points_shape = weight_zero_points->get_output_partial_shape(0);
+    auto weight_shape = get_input_partial_shape(1);
+
+    using ov::op::AutoBroadcastType;
+    NODE_VALIDATION_CHECK(
+        this,
+        PartialShape::broadcast_merge_into(weight_shape, weight_scales_shape, AutoBroadcastType::NUMPY) &&
+            PartialShape::broadcast_merge_into(weight_shape, weight_zero_points_shape, AutoBroadcastType::NUMPY),
+        "Input weight_scales and weight_zero_points shapes are not compatible with weight shape.");
+
+    BatchGatherMatmul::validate_and_infer_types();
+}
+}  // namespace ov::intel_cpu
