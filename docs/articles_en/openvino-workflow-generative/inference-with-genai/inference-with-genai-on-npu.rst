@@ -22,7 +22,7 @@ Install required dependencies:
 
          python3 -m venv npu-env
          npu-env/bin/activate
-         pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.22.0
+         pip install nncf==2.18.0 onnx==1.18.0 optimum-intel==1.25.2 transformers==4.51.3
          pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
 
 
@@ -39,7 +39,7 @@ Install required dependencies:
 
          python -m venv npu-env
          npu-env\Scripts\activate
-         pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.22.0
+         pip install nncf==2.18.0 onnx==1.18.0 optimum-intel==1.25.2 transformers==4.51.3
          pip install openvino==2025.3 openvino-tokenizers==2025.3 openvino-genai==2025.3
 
 
@@ -49,6 +49,9 @@ Install required dependencies:
 
          pip install --pre openvino openvino-tokenizers openvino-genai --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
 
+Note: with OpenVINO 2025.3, it is highly recommended to use ``transformers==4.51.3`` to
+generate models for Intel NPU. Please expect support for newer transformer versions in
+the future releases.
 
 Note that for systems based on Intel® Core™ Ultra Processors Series 2, more than 16GB of RAM
 may be required to run prompts over 1024 tokens on models exceeding 7B parameters,
@@ -149,7 +152,7 @@ which do not require specifying quantization parameters:
 .. note::
 
    Pre-converted models optimized for NPU are available on `Hugging Face <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__
-     
+
 
 Run generation using OpenVINO GenAI
 ###############################################################################################
@@ -313,7 +316,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 
                ov::AnyMap pipeline_config = { { "EXPORT_BLOB", "YES" }, { "BLOB_PATH", ".npucache\\compiled_model.blob" } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
-   
+
    .. tab-item:: Import weightless example
 
       .. tab-set::
@@ -334,7 +337,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 
                ov::AnyMap pipeline_config = { { "BLOB_PATH", ".npucache\\compiled_model.blob" }, { "WEIGHTS_PATH", "path\\to\\original\\model.bin" } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
-   
+
    .. tab-item:: Export with weights example
 
       .. tab-set::
@@ -355,7 +358,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 
                ov::AnyMap pipeline_config = { { "EXPORT_BLOB", "YES" }, { "BLOB_PATH", ".npucache\\compiled_model.blob" }, { "CACHE_MODE", "OPTIMIZE_SPEED" } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
-   
+
    .. tab-item:: Import with weights example
 
       .. tab-set::
@@ -400,7 +403,7 @@ model weights is encrypted.
                encryption_callbacks.encrypt = [](const std::string& s) { return s; };
                ov::AnyMap pipeline_config = { { "EXPORT_BLOB", "YES" }, { "BLOB_PATH", ".npucache\\compiled_model.blob" }, { "CACHE_ENCRYPTION_CALLBACKS", encryption_callbacks } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
-   
+
    .. tab-item:: Import example
 
       .. tab-set::
