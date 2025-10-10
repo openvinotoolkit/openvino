@@ -399,10 +399,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     ov::CacheMode cache_mode = config.get_cache_mode();
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
-    const bool encryption_enabled = encryption_callbacks.decrypt && cache_mode == ov::CacheMode::OPTIMIZE_SIZE;
 
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
-        encryption_enabled ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model,
+        encryption_callbacks.decrypt ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model,
                                                                                  context_impl->get_engine(),
                                                                                  encryption_callbacks.decrypt)
                            : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine());
