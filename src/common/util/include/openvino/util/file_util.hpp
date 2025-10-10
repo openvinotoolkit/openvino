@@ -356,7 +356,7 @@ inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const 
  * @return std::filesystem::path object.
  */
 template <class Source>
-constexpr std::filesystem::path make_path(const Source& source) {
+std::filesystem::path make_path(const Source& source) {
     if constexpr (std::is_same_v<std::decay_t<Source>, wchar_t*>) {
         return {std::wstring(source)};
     }
