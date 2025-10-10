@@ -18,7 +18,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
-#include "utils/serialize.hpp"
+#include "utils/graph_serializer/deserializer.hpp"
 
 namespace ov::intel_cpu {
 
