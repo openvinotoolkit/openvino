@@ -119,9 +119,13 @@ std::string KernelGenerator::get_entry_point(const RuntimeParams& params) const 
 
 std::string KernelGenerator::get_build_options(const RuntimeParams& params) const {
     std::string options;
-    const auto& device_info = params.get_program().get_engine().get_device_info();
+    const auto& prog = params.get_program();
+    const auto& device_info = prog.get_engine().get_device_info();
     if (device_info.vendor_id == cldnn::INTEL_VENDOR_ID) {
         options = " -cl-mad-enable";
+
+        if (prog.get_config().get_enable_large_allocations())
+            options += " -cl-intel-greater-than-4GB-buffer-required";
     }
 
     if (device_info.supports_work_group_collective_functions)

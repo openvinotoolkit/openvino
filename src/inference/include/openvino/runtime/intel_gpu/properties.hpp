@@ -158,6 +158,15 @@ static constexpr Property<bool> enable_kernels_reuse{"GPU_ENABLE_KERNELS_REUSE"}
 static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{
     "GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
 
+/**
+ * @brief Turning on this key switches addressing mode to allow allocations larger than 4GB
+ * as described here:
+ * https://github.com/intel/compute-runtime/blob/master/programmers-guide/ALLOCATIONS_GREATER_THAN_4GB.md#creating-allocations-greater-than-4GB
+ * Note: Performance may be lower with this option enabled.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOCATIONS"};
+
 }  // namespace hint
 
 /**
