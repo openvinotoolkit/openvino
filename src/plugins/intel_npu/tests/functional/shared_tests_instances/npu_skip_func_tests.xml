@@ -838,4 +838,14 @@ Example:
             <filter>.*WeightsSeparationOneShotTests.*</filter>
         </filters>
     </skip_config>
+
+    <skip_config>
+        <message>Tests skipped to reduce overall log length</message>
+        <filters>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_INFO.*</filter>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_DEBUG.*</filter>
+            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.*LOG_TRACE.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
