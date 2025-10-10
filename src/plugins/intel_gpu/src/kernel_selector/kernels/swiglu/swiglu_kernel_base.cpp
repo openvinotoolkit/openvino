@@ -37,6 +37,12 @@ JitConstants SwiGLUKernelBase::GetJitConstants(const swiglu_params& params, cons
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
+    if ((params.clamp_max != params.clamp_min) && (params.glu_type ==
+        ov::op::internal::GLU::GluType::Swish)) {
+        jit.AddConstants({MakeJitConstant("CLAMP_MAX", static_cast<float>(params.clamp_max))});
+        jit.AddConstants({MakeJitConstant("CLAMP_MIN", static_cast<float>(params.clamp_min))});
+    }
+
     return jit;
 }
 

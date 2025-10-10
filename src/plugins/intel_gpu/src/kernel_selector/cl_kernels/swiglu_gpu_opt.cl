@@ -69,5 +69,9 @@ KERNEL(swiglu_gpu_opt)(
     #endif
 
     value *= gate;
+
+    #if GLU_TYPE == 0 && defined(CLAMP_MIN) && defined(CLAMP_MAX) // For Swish only
+        value = ACCUMULATOR_MAX_FUNC(TO_OUTPUT_TYPE(CLAMP_MIN), ACCUMULATOR_MIN_FUNC(value, TO_OUTPUT_TYPE(CLAMP_MAX)));
+    #endif
     output[x] = TO_OUTPUT_TYPE(value);
 }
