@@ -333,13 +333,6 @@ ref_diff_map = {
 		"Parameter" : 11,
 		"Assign" : -8,
     },
-	#"tiny-random/gpt-oss" : {
-	#	"Assign" : -4,
-	#	"PagedAttentionExtension" : 2,
-	#	"Parameter" : 7,
-	#	"ReadValue" : -4,
-	#	"ScaledDotProductAttention" : -2,
-	#},
 }
 
 ref_diff_map_optimizations = {
