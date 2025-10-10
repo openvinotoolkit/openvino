@@ -83,8 +83,12 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
+    auto originalBatchSize = _graph->get_batch_size();
 
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning, CURRENT_OPENVINO_VERSION, initBlobSizes)
+    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
+                                       CURRENT_OPENVINO_VERSION,
+                                       initBlobSizes,
+                                       originalBatchSize)
         .write(stream);
 }
 

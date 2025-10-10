@@ -51,14 +51,6 @@ static inline size_t align_size_to_standard_page_size(size_t size) {
     return (size + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
 }
 
-// Check if tensor was originally dynamic by looking for encoded markers
-// This information is needed to restore the original dynamic batching behavior
-static inline bool wasOriginallyDynamic(const std::unordered_set<std::string>& tensorNames) {
-    return std::any_of(tensorNames.begin(), tensorNames.end(), [](const std::string& name) {
-        return name.find(DYNBATCH_SUFFIX) != std::string::npos;
-    });
-}
-
 }  // namespace utils
 
 }  // namespace intel_npu
