@@ -24,14 +24,14 @@ public:
 
     /// \brief      Creates ArgMax ONNX operation.
     /// \return     Sub-graph representing ArgMax op.
-    std::shared_ptr<ov::Node> make_arg_max() const;
+    ov::Output<ov::Node> make_arg_max() const;
 
     /// \brief      Creates ArgMin ONNX operation.
     /// \return     Sub-graph representing ArgMin op.
-    std::shared_ptr<ov::Node> make_arg_min() const;
+    ov::Output<ov::Node> make_arg_min() const;
 
 private:
-    std::shared_ptr<ov::Node> make_topk_subgraph(ov::op::v11::TopK::Mode mode) const;
+    ov::Output<ov::Node> make_topk_subgraph(ov::op::v11::TopK::Mode mode) const;
 
     const std::int64_t m_keep_dims;
     ov::Output<ov::Node> m_input_node;
