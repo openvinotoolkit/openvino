@@ -36,6 +36,8 @@ public:
 
     virtual void set_argument_value(uint32_t argi, const void* argv) const = 0;
 
+    virtual void set_metadata(NetworkMetadata metadata) = 0;
+
     virtual void initialize(const Config& config) = 0;
 
     virtual ~IGraph() = default;

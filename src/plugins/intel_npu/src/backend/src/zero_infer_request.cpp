@@ -78,10 +78,9 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
         return std::nullopt;
     }
 
-    auto wasDynamic = intel_npu::utils::wasOriginallyDynamic(desc.outputTensorNames);
     auto dynamicBatchFromIR = desc.shapeFromIRModel.has_value() && (*desc.shapeFromIRModel).size() &&
                               (*desc.shapeFromIRModel)[intel_npu::utils::BATCH_AXIS].is_dynamic();
-    if (!wasDynamic && !dynamicBatchFromIR) {
+    if (!dynamicBatchFromIR) {
         return std::nullopt;
     }
 
