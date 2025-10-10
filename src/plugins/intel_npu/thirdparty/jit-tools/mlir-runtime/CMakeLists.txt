@@ -23,7 +23,7 @@ else()
     message(STATUS "MLIRExecutionEngine does not exist")
 endif()
 
-set(TARGET_NAME "openvino_npu_mlir_runtime")
+set(TARGET_NAME "npu_mlir_runtime")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 

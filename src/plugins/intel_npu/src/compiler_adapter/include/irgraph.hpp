@@ -11,7 +11,7 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "npu_mlir_runtime.hpp"
+#include "npu_mlir_runtime_api.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {

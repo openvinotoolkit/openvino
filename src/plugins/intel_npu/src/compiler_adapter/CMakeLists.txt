@@ -36,17 +36,17 @@ target_link_libraries(${TARGET_NAME}
 )
 
 if(ENABLE_LLVM_BACKEND)
-    target_link_libraries(${TARGET_NAME}
-        PUBLIC
-            openvino_npu_mlir_runtime
-    )
+    #target_link_libraries(${TARGET_NAME}
+    #    PUBLIC
+    #        openvino_npu_mlir_runtime
+    #)
 
     target_include_directories(${TARGET_NAME}
         PUBLIC
             $<BUILD_INTERFACE:${NPU_PLUGIN_SOURCE_DIR}/thirdparty/jit-tools/mlir-runtime>
     )
 
-    add_dependencies(${TARGET_NAME} openvino_npu_mlir_runtime)
+    #add_dependencies(${TARGET_NAME} openvino_npu_mlir_runtime)
 endif()
 
 #

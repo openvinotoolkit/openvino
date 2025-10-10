@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 // #include "intel_npu/config/options.hpp"
 // #include "intel_npu/utils/utils.hpp"
 // #include "intel_npu/utils/zero/zero_api.hpp"
@@ -13,8 +11,10 @@
 #include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
-#pragma warning(push)
-#pragma warning(disable : 4244 4267 4146 4996)
+#if defined(_WIN32)
+#    pragma warning(push)
+#    pragma warning(disable : 4244 4267 4146 4996)
+#endif
 #include <llvm/Support/Error.h>
 #include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/SourceMgr.h>
@@ -27,17 +27,19 @@
 #include <mlir/Parser/Parser.h>
 #include <mlir/Support/LLVM.h>
 #include <mlir/Target/LLVMIR/Dialect/All.h>
-#pragma warning(pop)
+#if defined(_WIN32)
+#    pragma warning(pop)
+#endif
 
 using namespace intel_npu;
 
 #if defined(_WIN32)
-#    define MLIR_RUNNER_UTILS_FILE_NAME   "mlir_runner_utils.dll"
-#    define MLIR_C_RUNNER_UTILS_FILE_NAME "mlir_c_runner_utils.dll"
-#    define MLIR_ZERO_WRAPPER_FILE_NAME   "level_zero_wrapper.dll"
+//#    define MLIR_RUNNER_UTILS_FILE_NAME   "mlir_runner_utils.dll"
+//#    define MLIR_C_RUNNER_UTILS_FILE_NAME "mlir_c_runner_utils.dll"
+#    define MLIR_ZERO_WRAPPER_FILE_NAME "level_zero_wrapper.dll"
 #else
-#    define MLIR_RUNNER_UTILS_FILE_NAME   "libmlir_runner_utils.so"
-#    define MLIR_C_RUNNER_UTILS_FILE_NAME "libmlir_c_runner_utils.so"
+//#    define MLIR_RUNNER_UTILS_FILE_NAME   "libmlir_runner_utils.so"
+//#    define MLIR_C_RUNNER_UTILS_FILE_NAME "libmlir_c_runner_utils.so"
 #    define MLIR_ZERO_WRAPPER_FILE_NAME   "liblevel_zero_wrapper.so"
 #endif
 
@@ -46,7 +48,7 @@ public:
     NPUMLIRRuntime(const npu_mlir_runtime_blob_desc_t* desc, npu_mlir_runtime_properties_t* pProperties);
     ~NPUMLIRRuntime();
 
-    bool createExecutionEngine(const npu_mlir_runtime_blob_desc_t* blob);
+    void createExecutionEngine(const npu_mlir_runtime_blob_desc_t* blob);
 
     void parseMetadata();
 
@@ -69,7 +71,7 @@ private:
     Logger _logger = Logger("NPUMLIRRuntime", Logger::global().level());
 };
 
-bool NPUMLIRRuntime::createExecutionEngine(const npu_mlir_runtime_blob_desc_t* desc) {
+void NPUMLIRRuntime::createExecutionEngine(const npu_mlir_runtime_blob_desc_t* desc) {
     _logger.debug("Creating execution engine from blob at %p of size %zu", desc->pInput, desc->inputSize);
     const std::string adapterPrefix = std::string("_mlir_ciface_");
     const std::string entryName = "main";
@@ -120,11 +122,10 @@ bool NPUMLIRRuntime::createExecutionEngine(const npu_mlir_runtime_blob_desc_t* d
     engineOptions.jitCodeGenOptLevel = llvm::CodeGenOptLevel::None;
 
     llvm::SmallVector<mlir::StringRef, 4> sharedLibs;
-    sharedLibs.push_back(MLIR_RUNNER_UTILS_FILE_NAME);
-    sharedLibs.push_back(MLIR_C_RUNNER_UTILS_FILE_NAME);
+    // sharedLibs.push_back(MLIR_RUNNER_UTILS_FILE_NAME);
+    // sharedLibs.push_back(MLIR_C_RUNNER_UTILS_FILE_NAME);
     sharedLibs.push_back(MLIR_ZERO_WRAPPER_FILE_NAME);
     engineOptions.sharedLibPaths = sharedLibs;
-    engineOptions.enableObjectDump = true;
     // std::cout << "Creating engine" << std::endl;
     auto expectedEngine = mlir::ExecutionEngine::create(*module, engineOptions, std::move(tmOrError.get()));
     if (!expectedEngine) {
@@ -137,8 +138,6 @@ bool NPUMLIRRuntime::createExecutionEngine(const npu_mlir_runtime_blob_desc_t* d
     if (!expectedFPtr) {
         OPENVINO_THROW("Failed to lookup main function");
     }
-
-    return true;
 }
 
 void NPUMLIRRuntime::parseMetadata() {
@@ -207,7 +206,7 @@ void NPUMLIRRuntime::getArgumentProperties(uint32_t argIndex,
 
     if (desc.shapeFromIRModel.has_value()) {
         // Only care about shape, this is shapeFromIRModel
-        for (int i = 0; i < desc.shapeFromIRModel->size() && i < ZE_MAX_GRAPH_TENSOR_REF_DIMS; ++i) {
+        for (size_t i = 0; i < desc.shapeFromIRModel->size() && i < ZE_MAX_GRAPH_TENSOR_REF_DIMS; ++i) {
             auto val = desc.shapeFromIRModel.value()[i];
             pGraphArgumentMetadata->shape[i] =
                 val.is_dynamic() ? std::numeric_limits<uint64_t>::max() : val.get_length();
