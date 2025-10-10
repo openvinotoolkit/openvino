@@ -78,7 +78,7 @@ runs:
         ref: ${{ github.event.pull_request.head.sha }}
         check-names: ${{ inputs.check_names_to_wait }}
         repo-token: ${{ inputs.repo_token }}
-        wait-interval: 10
+        wait-interval: 20
         timeout: 600
 
     - name: checkout components file
