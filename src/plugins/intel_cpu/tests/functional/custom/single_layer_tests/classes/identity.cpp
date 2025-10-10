@@ -3,6 +3,7 @@
 //
 
 #include "identity.hpp"
+#include "openvino/op/identity.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
 using namespace CPUTestUtils;
