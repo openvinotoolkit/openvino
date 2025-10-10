@@ -268,7 +268,6 @@ public:
     PrepareShapeOpsForEliminationAroundBE();
 };
 
-
 /**
  * @ingroup ov_transformation_common_api
  * @brief EliminateIdentity eliminates identity that does nothing
