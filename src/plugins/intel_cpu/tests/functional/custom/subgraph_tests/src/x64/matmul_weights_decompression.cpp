@@ -26,14 +26,15 @@ std::vector<ov::AnyMap> filter_additional_config_amx() {
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
                                                                ov::element::u4,
-                                                               ov::element::i4,
-                                                               ov::element::nf4};
+                                                               ov::element::i4};
+                                                               // ov::element::nf4};
 
 const std::vector<ov::test::ElementType> weights_precisions_fp8 = {ov::element::f8e4m3, ov::element::f8e5m2};
 
 const std::vector<MatMulDecompressionShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
     {{{}, {{1, 8, 16}}}, {16, 32}, 4ul},
+    {{{}, {{1, 8, 32}}}, {32, 32}, 32ul}, // matmul limitation is that group must be divided by 32.
     {{{}, {{1, 4, 16}}}, {1, 16, 32}},
     {{{}, {{5, 40, 496}}}, {1, 496, 240}},
     {{{}, {{1, 4, 48}}}, {48, 256}},

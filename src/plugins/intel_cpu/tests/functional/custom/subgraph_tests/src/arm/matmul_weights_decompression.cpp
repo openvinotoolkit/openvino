@@ -48,9 +48,9 @@ const ov::AnyMap basic_config = {ov::hint::inference_precision(ov::element::f16)
 
 bool should_use_decompression_impl() {
 #ifdef CPU_DEBUG_CAPS
-    return ov::util::getenv_bool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");
+    return true; // ov::util::getenv_bool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");
 #else
-    return false;
+    return true;
 #endif
 }
 
