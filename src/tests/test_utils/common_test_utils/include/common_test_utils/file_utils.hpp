@@ -6,9 +6,11 @@
 
 #include <sys/stat.h>
 
+#include <filesystem>
 #include <fstream>
 #include <regex>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
@@ -258,6 +260,10 @@ class MockPlugin : public ov::IPlugin {
 private:
     int32_t num_streams{0};
 };
+
+using StringPathVariant = std::variant<std::string, std::u16string, std::u32string, std::wstring>;
+
+std::filesystem::path to_fs_path(const StringPathVariant& param);
 
 }  // namespace utils
 }  // namespace test
