@@ -394,7 +394,10 @@ void Plugin::init_options() {
     REGISTER_OPTION(NPUW_LLM_ADDITIONAL_SHARED_LM_HEAD_CONFIG);
 
     _globalConfig.enableRuntimeOptions();
+
+    // Special cases
     _globalConfig.enable(ov::log::level.name(), true);  // needed also by runtime options
+    _globalConfig.enable(ov::device::id.name(), true);  // ov queries this for caching
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -547,20 +550,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         return;
     }
 
-    // 1. Check if configs have been filtered
-    if (!_globalConfig.wasFiltered()) {
-        for (const auto& prop : properties) {
-            if (!_properties->isPropertyRegistered(prop.first)) {
-                // filter out unsupported options
-                filter_config_by_compiler_support(_globalConfig);
-                // 2. Reset properties for the new options
-                _properties->registerProperties();
-                break;
-            }
-        }
-    }
-
-    // 2. Check for compiler change
+    // 1. Check for compiler change
     if (properties.count(std::string(COMPILER_TYPE::key())) != 0) {
         // Compiler change detected
         // Set new compiler in _globalConfig
@@ -571,6 +561,19 @@ void Plugin::set_property(const ov::AnyMap& properties) {
             filter_config_by_compiler_support(_globalConfig);
             // 2. Reset properties for the new options
             _properties->registerProperties();
+        }
+    }
+
+    // 2. Check if configs have been filtered
+    if (!_globalConfig.wasFiltered()) {
+        for (const auto& prop : properties) {
+            if (!_properties->isPropertyRegistered(prop.first)) {
+                // filter out unsupported options
+                filter_config_by_compiler_support(_globalConfig);
+                // 2. Reset properties for the new options
+                _properties->registerProperties();
+                break;
+            }
         }
     }
 

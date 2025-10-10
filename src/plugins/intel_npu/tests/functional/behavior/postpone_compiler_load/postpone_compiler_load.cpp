@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "compiler_load.hpp"
+#include "postpone_compiler_load.hpp"
 
 #include "common/utils.hpp"
 
