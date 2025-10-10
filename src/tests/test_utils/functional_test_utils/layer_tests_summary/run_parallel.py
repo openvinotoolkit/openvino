@@ -699,7 +699,7 @@ class TestParallelRunner:
         not_runned_tests, interapted_tests = self.__find_not_runned_tests()
         logger.info(f"Here are {len(interapted_tests)} bad tests")
         for bad in interapted_tests:
-            logger.info(f"Bad test: {bad}")
+            logger.info(f"Bad test : {bad}")
         if self._repeat_failed:
             if len(not_runned_tests) > 0:
                 logger.info(f"Execute not runned {len(not_runned_tests)} tests")
