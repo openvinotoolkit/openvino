@@ -111,6 +111,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     auto q = any_input(shape_matches("Batches..., S_q, D"));
     auto k = any_input(shape_matches("AnyLayout...") && rank_more_than(2));
     auto v = any_input(shape_matches("Batches..., S_kv, D") && check_layout("AnyLayout"));
+    auto mask = any_input(has_static_rank());
 
     // these Reshape/Unsqueeze may already exist in the graph
     auto unsq_q = wrap_type<v1::Reshape, v0::Unsqueeze>({q, any_input()});
@@ -132,7 +133,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         opt_unsq_q,
         opt_transpose_k,
         opt_unsq_v,
-        any_input(),
+        mask,
         any_input(),
     });
 
@@ -146,6 +147,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         auto q_node = pm.at(q);
         auto k_node = pm.at(k);
         auto v_node = pm.at(v);
+        auto mask_node = pm.at(mask);
         auto post_sdpa_node = pm.at(post_sdpa).get_node_shared_ptr();
 
         auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(pm.at(sdpa_pattern).get_node_shared_ptr());
@@ -153,7 +155,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         // The mask will be ignored if causal is true; otherwise, the mask rank should be less than or equal to the SDPA
         // input rank.
         if (sdpa && !sdpa->get_causal() &&
-            sdpa->get_input_partial_shape(3).rank().get_length() > q_node.get_partial_shape().rank().get_length()) {
+            mask_node.get_partial_shape().rank().get_length() > q_node.get_partial_shape().rank().get_length()) {
             return false;
         }
 
