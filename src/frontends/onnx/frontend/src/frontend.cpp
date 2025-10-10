@@ -47,7 +47,6 @@ using namespace ov::frontend::onnx::common;
 using ::ONNX_NAMESPACE::ModelProto;
 using ::ONNX_NAMESPACE::Version;
 
-bool ONNX_ITERATOR = std::getenv("ONNX_ITERATOR") != nullptr;
 namespace {
 // !!! Experimental feature, it may be changed or removed in the future !!!
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
@@ -85,6 +84,7 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
+    bool gi_enabled = std::getenv("ONNX_ITERATOR") != nullptr;
     if (variants.empty()) {
         return nullptr;
     }
@@ -93,7 +93,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
-        if (!ONNX_ITERATOR) {
+        if (!gi_enabled) {
             return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
         }
         OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
@@ -106,7 +106,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
-        if (!ONNX_ITERATOR) {
+        if (!gi_enabled) {
             return std::make_shared<InputModel>(path, enable_mmap, m_extensions);
         }
         OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");

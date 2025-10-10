@@ -728,17 +728,17 @@ void InputModel::InputModelONNXImpl::load_model() {
     auto sorting_places_by_idx = [](bool are_input_places) {
         return
             [are_input_places](const ov::frontend::Place::Ptr& lhs_place, const ov::frontend::Place::Ptr& rhs_place) {
-                auto tflite_lhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(lhs_place);
-                auto tflite_rhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(rhs_place);
-                FRONT_END_GENERAL_CHECK(tflite_lhs_place != nullptr && tflite_rhs_place != nullptr,
-                                        "TFLite Frontend works with TensorONNXPlaces only");
+                auto onnx_lhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(lhs_place);
+                auto onnx_rhs_place = std::dynamic_pointer_cast<ov::frontend::onnx::TensorONNXPlace>(rhs_place);
+                FRONT_END_GENERAL_CHECK(onnx_lhs_place != nullptr && onnx_rhs_place != nullptr,
+                                        "ONNX Frontend works with TensorONNXPlaces only");
                 size_t rhs_idx, lhs_idx;
                 if (are_input_places) {
-                    lhs_idx = tflite_lhs_place->get_input_index();
-                    rhs_idx = tflite_rhs_place->get_input_index();
+                    lhs_idx = onnx_lhs_place->get_input_index();
+                    rhs_idx = onnx_rhs_place->get_input_index();
                 } else {
-                    lhs_idx = tflite_lhs_place->get_output_index();
-                    rhs_idx = tflite_rhs_place->get_output_index();
+                    lhs_idx = onnx_lhs_place->get_output_index();
+                    rhs_idx = onnx_rhs_place->get_output_index();
                 }
                 return lhs_idx < rhs_idx;
             };
@@ -848,18 +848,7 @@ ov::element::Type InputModel::InputModelONNXImpl::get_element_type(ov::frontend:
 }
 
 void InputModel::InputModelONNXImpl::set_tensor_value(ov::frontend::Place::Ptr place, const void* value) {
-    auto tensor_place = castToTensorPlace(place);
-    auto p_shape = tensor_place->get_partial_shape();
-    auto type = tensor_place->get_element_type();
-    FRONT_END_GENERAL_CHECK(tensor_place->get_names().size() > 0,
-                            "ONNX Frontend: place to be frozen must have the name.");
-    auto name = tensor_place->get_names()[0];
-    FRONT_END_GENERAL_CHECK(p_shape.is_static(), "ONNX: specify static shape for " + name + " to be frozen.");
-    FRONT_END_GENERAL_CHECK(type.is_static(), "ONNX Frontend: define static size type for " + name + " to be frozen.");
-    auto constant = ov::op::v0::Constant::create(type, p_shape.to_shape(), value);
-    constant->set_friendly_name(name);
-    // Possible issue
-    // m_tensor_values[name] = constant;
+    FRONT_END_NOT_IMPLEMENTED(set_tensor_value);
 }
 
 void InputModel::InputModelONNXImpl::set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) {
@@ -867,10 +856,10 @@ void InputModel::InputModelONNXImpl::set_name_for_tensor(const Place::Ptr& tenso
 }
 
 void InputModel::InputModelONNXImpl::add_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) {
-    auto tf_tensor = castToTensorPlace(tensor);
-    auto names = tf_tensor->get_names();
+    auto onnx_tensor = castToTensorPlace(tensor);
+    auto names = onnx_tensor->get_names();
     names.push_back(new_name);
-    tf_tensor->set_names(names);
+    onnx_tensor->set_names(names);
 }
 
 void InputModel::InputModelONNXImpl::set_name_for_operation(const Place::Ptr& operation, const std::string& new_name) {
@@ -893,9 +882,7 @@ void InputModel::InputModelONNXImpl::extract_subgraph(const std::vector<ov::fron
     FRONT_END_NOT_IMPLEMENTED(extract_subgraph);
 }
 
-void InputModel::InputModelONNXImpl::clean_up() {
-    // TODO: remove all the unnecessary tensors and operations. Could be postponed as TF Lite is OOB type of FrontEnd
-}
+void InputModel::InputModelONNXImpl::clean_up() {}
 
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const bool enable_mmap,
