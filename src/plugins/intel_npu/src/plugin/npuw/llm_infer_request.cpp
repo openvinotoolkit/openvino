@@ -10,7 +10,8 @@
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "util_xarch.hpp"
+#include "util_infer_request.hpp"
+#include "util.hpp"
 
 namespace {
 
@@ -312,12 +313,14 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         init_tensor(output_port);
     }
 
-    auto input_ids_port = find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::input_ids);
+    auto input_ids_port =
+        ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::input_ids);
     if (input_ids_port.has_value()) {
         m_input_ids_name = layer_names::input_ids;
     } else {
         OPENVINO_ASSERT(
-            find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::inputs_embeds).has_value());
+            ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::inputs_embeds)
+                .has_value());
         m_input_ids_name = layer_names::inputs_embeds;
     }
 
@@ -491,7 +494,7 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                     return;
                 }
 
-                auto new_tensor_slice = make_tensor_slice(infer_tensor, low_rank_dim, 0u, state_tensor_rank);
+                auto new_tensor_slice = ov::npuw::util::make_tensor_slice(infer_tensor, low_rank_dim, 0u, state_tensor_rank);
                 if (low_rank_dim == 1) {
                     copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
                 } else {
@@ -731,11 +734,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // SEQ_LEN]
         // Copy postion ids with considering the 3D position_ids
         auto last_dim = position_ids->get_shape().size() - 1;
-        auto actual_position_ids_slice =
-            make_tensor_slice(position_ids,
-                              static_cast<uint32_t>(last_dim),
-                              kvcache_desc.num_stored_tokens,
-                              kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
+        auto actual_position_ids_slice = ov::npuw::util::make_tensor_slice(
+            position_ids,
+            static_cast<uint32_t>(last_dim),
+            kvcache_desc.num_stored_tokens,
+            kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
         pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
 
         m_prefill_request->infer();
@@ -957,10 +960,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 void ov::npuw::LLMInferRequest::infer() {
     const auto& inputs = get_inputs();
 
-    auto input_ids = get_tensor(find_port_by_name(inputs, m_input_ids_name).value());
-    auto attention_mask = get_tensor(find_port_by_name(inputs, layer_names::attention_mask).value());
+    auto input_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, m_input_ids_name).value());
+    auto attention_mask = get_tensor(ov::npuw::util::find_port_by_name(inputs, layer_names::attention_mask).value());
     // FIXME: position_ids might be optional for some models!
-    auto position_ids = get_tensor(find_port_by_name(inputs, layer_names::position_ids).value());
+    auto position_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, layer_names::position_ids).value());
 
     auto token_type_ids = ov::npuw::util::TensorPtr();
 
