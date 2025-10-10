@@ -28,58 +28,7 @@
 #define VNNI_WIDTH 2
 #define REG_K (SystolicDepth * VNNI_WIDTH)
 #define REG_M RepeatCount
-
-#if 0
-#define HEADS_NUM
-#define KV_HEADS_NUM
-#define HEAD_SIZE
-#define SCALE_FACTOR
-#define KV_BLOCK_SIZE
-#define KV_PARTITION_SIZE
-#define Q_STEP
-#define KV_STEP
-#define WG_SIZE
-#define XE_ARCH
-#define KV_CACHE_COMPRESSION
-#endif
-
 #define KV_PARTITION_STEP_NUM  (KV_PARTITION_SIZE / KV_STEP)
-
-#define DEBUG_ENABLE 0
-#if DEBUG_ENABLE
-template<typename T, int M, int N>
-void show(matrix<T, M, N> mat) {
-    for(int m = 0; m < M; m ++) {
-        printf("\t[");
-        for(int n = 0; n < N; n ++) {
-            printf("%8.4f,", mat[m][n]);
-        }
-        printf("],\n");
-    }
-    printf("]\n");
-}
-
-template<typename T, int M, int N>
-void show_u8(matrix<T, M, N> mat) {
-    for(int m = 0; m < M; m ++) {
-        printf("\t[");
-        for(int n = 0; n < N; n ++) {
-            printf("%4d", mat[m][n]);
-        }
-        printf("],\n");
-    }
-    printf("]\n");
-}
-
-template<typename T, int N>
-void show(vector<T, N> vec) {
-    printf("\t[");
-    for(int n = 0; n < N; n ++) {
-        printf("%8.4f,", vec[n]);
-    }
-    printf("]\n");
-}
-#endif
 
 
 #define Q_SLICE_NUM (HEADS_NUM / KV_HEADS_NUM)
@@ -151,7 +100,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint start_block_idx = block_indices_begins[seq_idx] + kv_partition_idx * (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
 
     if(kv_partition_idx * KV_PARTITION_SIZE > kv_len) {
-        // printf("WG exit: kv_partition_idx=%d, KV_PARTITION_SIZE=%d, kv_len=%d\n", kv_partition_idx, KV_PARTITION_SIZE, kv_len);
         return;
     }
     const uint total_blocks_num = (kv_len + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE;
@@ -168,11 +116,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         cm_svm_block_read<half, Q_SLICE_NUM * HEAD_SIZE>((svmptr_t)(query + qo_offset), Qmat.format<half>());
     #endif
 
-    //if(kv_head_num_idx==0 && kv_partition_idx == 0) {
-    //    printf("Qmat loaded, kv_head_num_idx=%d\n", kv_head_num_idx);
-    //    show(Qmat);
-    //}
-    
     constexpr uint per_kv_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + KV_SCALE_ZP_SIZE / sizeof(KV_ELEMENT_TYPE)); // 4 bytes: scale/zp
     uint block_num = KV_PARTITION_SIZE / KV_BLOCK_SIZE;
 
@@ -197,9 +140,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         uint blk_indices = block_indices[start_block_idx + block_idx];
         uint kv_base_offset = blk_indices * per_kv_block_element_num + kv_head_num_idx * (per_kv_block_element_num / KV_HEADS_NUM);
         uint kv_scale_zp_offset = kv_base_offset + KV_BLOCK_SIZE * HEAD_SIZE; // scale/zp offset
-
-        // printf("seq_idx = %d, head_num_idx = %d, kv_partition_idx = %d,  start_block_idx = %d, block_idx = %d, blk_indices = %d, KV_PARTITION_SIZE = %d, KV_BLOCK_SIZE = %d, total_blocks_num = %d, kv_pitch = %d, kv_base_offset = %d\n",
-        //        seq_idx, head_num_idx, kv_partition_idx, start_block_idx, block_idx, blk_indices, KV_PARTITION_SIZE, KV_BLOCK_SIZE, total_blocks_num, kv_pitch, kv_base_offset);
 
     #if USE_LSC_BLOCK_2D_DESC
         #if KV_CACHE_COMPRESSION
@@ -239,9 +179,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         #endif
 
         for(int kv_pos = 0; kv_pos < kv_pos_end; kv_pos += KV_STEP, ki++) {
-            // auto rSvec = rS[ki].format<float>();
-            // uint kv_offset_y = kv_pos;
-            
             #if KV_CACHE_COMPRESSION
                 vector<half, REG_N * 2> temp_scale, temp_zp;
                 temp_scale.select<REG_N,2>(0) = scale_vec.select<REG_N,1>(kv_pos);
@@ -275,13 +212,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                         quant_dst.row(r+1) = quant_src.select<2,1,8,2>(r,1);
                     }
 
-                    #if DEBUG_ENABLE
-                    printf("Kt_quant_temp: k = %d\n", k);
-                    show_u8(Kt_quant_temp.format<uint8_t, REG_K, REG_N>());
-                    printf("Kt_quant_vnni: k = %d\n", k);
-                    show_u8(Kt_quant.format<uint8_t, REG_K, REG_N>());
-                    #endif
-
                     #pragma unroll
                     for(int r = 0; r < REG_K; r++) {
                         Kt[r] = Kt_quant[r] - temp_zp.format<half, 2, REG_N>()[r%2]; //vector - vector
@@ -290,10 +220,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                 #else
                     cm_load<lsc::Transpose>(Kt.format<uint>(), b2dK.set_block_y(kv_pos));
                 #endif
-                //if(kv_partition_idx==kv_partition_num - 1 && kv_head_num_idx == KV_HEADS_NUM - 1) {
-                //    printf("Kt: k = %d\n", k);
-                //    show(Kt.format<half, REG_K, REG_N>());
-                //}
             #else
                 matrix<uint, REG_N, REG_K/2> temp;
                 uint cur_kv_offset = kv_offset + kv_pos * kv_stride + k * 2;// uint --> half
@@ -319,10 +245,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             Kt.format<int32_t>(),
                             Qmat_data.format<int32_t>());
                 rS.select<Q_RepeatCount,1,REG_N,1>(0, ki*REG_N) += rS_data;
-
-                //if(kv_partition_idx==kv_partition_num - 1 && kv_head_num_idx == KV_HEADS_NUM - 1) {
-                //    show(rS_data);
-                //}
             #else
                 #pragma unroll
                 for(int qi = 0; qi < Q_SLICE_NUM; qi ++) {
@@ -337,11 +259,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             }
         }
     }
-
-    //if(kv_partition_idx==kv_partition_num - 1 && kv_head_num_idx == KV_HEADS_NUM - 1) {
-    //    printf("rS:\n");
-    //    show(rS);
-    //}
 
     // online softmax
     vector<float, Q_SLICE_NUM> cur_sum = 0.0f;
@@ -399,11 +316,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         cur_sum[qi] = cm_sum<float>(rPv[0]);
     }
 
-    //if(kv_partition_idx==kv_partition_num - 1 && kv_head_num_idx == KV_HEADS_NUM - 1) {
-    //    printf("Pmat:\n");
-    //    show(Pmat);
-    //}
-
     //# rO = P * V
     #if Q_RepeatCount != 1
     matrix <float, Q_RepeatCount, HEAD_SIZE/REG_N * REG_M*REG_N> Omat = 0;
@@ -431,10 +343,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
         uint kv_x1 = HEAD_SIZE*sizeof(half);
         uint kv_y1 = KV_BLOCK_SIZE;
     #endif
-    
-        //if(kv_partition_idx==kv_partition_num - 1 && head_num_idx == HEADS_NUM - 1) {
-        //    printf("leftover_size = %d, leftover_aligned_size = %d, XE_ARCH = %d, KV_BLOCK_SIZE = %d\n", leftover_size, leftover_aligned_size, XE_ARCH, KV_BLOCK_SIZE);
-        //} 
+
         uint kv_pos_end = KV_BLOCK_SIZE;
         if(block_idx == block_num - 1 && leftover_size > 0) {
             kv_pos_end = leftover_size % KV_BLOCK_SIZE;
@@ -474,20 +383,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     matrix<uint8_t, REG_K, REG_N> Vt_quant;
                     cm_load<lsc::Normal>(Vt_quant.format<uint8_t>(), b2dV.set_block_y(kv_pos));
 
-                    #if DEBUG_ENABLE
-                        //printf("Vt_quant: k = %d\n", k);
-                        //show_u8(Vt_quant.format<uint8_t, REG_K, REG_N>());
-                        //show(temp_scale);
-                        //show(temp_zp);
-                        //printf("\n");
-                    #endif
-
                     #pragma unroll
                     for(int r = 0; r < REG_K; r++) {
                         VmatNormal[r] = Vt_quant[r] - temp_zp[r]; // vector - scalar
                         VmatNormal[r] = cm_mul<half>(VmatNormal[r], temp_scale[r]); // vector * scalar
                     }
-                    // show(VmatNormal.format<half, REG_K, REG_N>());
 
                     if(kv_pos_end - kv_pos < KV_STEP) {
                         #pragma unroll
@@ -498,10 +398,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                     prepack_to_VNNI_W2(VmatNormal, Vmat.format<half, REG_K/2, REG_N*2>());
                 #else
                     cm_load<lsc::VNNI>(Vmat[0].format<half>(), b2dV.set_block_y(kv_pos));
-                #endif
-                #if DEBUG_ENABLE
-                    //printf("Vmat: k = %d\n", k);
-                    //show(Vmat.format<half, REG_K, REG_N>());
                 #endif
             #else
                 matrix<half, REG_K, REG_N> temp;
@@ -532,18 +428,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                             Pmat_slice[ki].format<int32_t>());
                 }
                 #endif
-                //if(kv_partition_idx==kv_partition_num - 1 && head_num_idx == 27) {
-                //    printf("Omat[%d][%d]:\n",kv_pos, k);
-                //    show(Omat);
-                //}
             }
         }
     }
-
-    //if(kv_partition_idx==kv_partition_num - 1 && kv_head_num_idx == KV_HEADS_NUM - 1) {
-    //    printf("Omat:\n");
-    //    show(Omat);
-    //}
 
     //# save Output
     for (int qi = 0; qi < Q_SLICE_NUM; qi++) {
