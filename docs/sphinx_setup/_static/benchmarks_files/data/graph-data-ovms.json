@@ -9,10 +9,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 161.664,
-                        "fp32_ovms": 158.519,
-                        "int8_ov": 427.264,
-                        "int8_ovms": 416.94
+                        "fp32_ov": 161.753,
+                        "fp32_ovms": 159.282,
+                        "int8_ov": 411.774,
+                        "int8_ovms": 406.262
                     }
                 ],
                 "Unit": "FPS",
@@ -30,10 +30,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 14.684,
-                        "fp32_ovms": 14.646,
-                        "int8_ov": 42.128,
-                        "int8_ovms": 41.015
+                        "fp32_ov": 14.741,
+                        "fp32_ovms": 14.687,
+                        "int8_ov": 42.481,
+                        "int8_ovms": 41.398
                     }
                 ],
                 "Unit": "FPS",
@@ -51,10 +51,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 367.884,
-                        "fp32_ovms": 255.16,
-                        "int8_ov": 748.407,
-                        "int8_ovms": 505.145
+                        "fp32_ov": 368.973,
+                        "fp32_ovms": 253.242,
+                        "int8_ov": 778.246,
+                        "int8_ovms": 506.974
                     }
                 ],
                 "Unit": "FPS",
@@ -72,10 +72,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 3324.713,
-                        "fp32_ovms": 2838.003,
-                        "int8_ov": 10223.347,
-                        "int8_ovms": 7372.192
+                        "fp32_ov": 3275.067,
+                        "fp32_ovms": 2816.773,
+                        "int8_ov": 10250.761,
+                        "int8_ovms": 7413.038
                     }
                 ],
                 "Unit": "FPS",
@@ -93,10 +93,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 578.53,
-                        "fp32_ovms": 569.294,
-                        "int8_ov": 2170.574,
-                        "int8_ovms": 2047.551
+                        "fp32_ov": 575.657,
+                        "fp32_ovms": 566.718,
+                        "int8_ov": 2133.572,
+                        "int8_ovms": 2033.518
                     }
                 ],
                 "Unit": "FPS",
@@ -114,10 +114,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 10.624,
-                        "fp32_ovms": 10.447,
-                        "int8_ov": 40.433,
-                        "int8_ovms": 38.372
+                        "fp32_ov": 10.601,
+                        "fp32_ovms": 10.439,
+                        "int8_ov": 40.444,
+                        "int8_ovms": 38.375
                     }
                 ],
                 "Unit": "FPS",
@@ -135,10 +135,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 183.399,
-                        "fp32_ovms": 181.63,
-                        "int8_ov": 479.948,
-                        "int8_ovms": 470.011
+                        "fp32_ov": 182.13,
+                        "fp32_ovms": 182.49,
+                        "int8_ov": 467.737,
+                        "int8_ovms": 460.009
                     }
                 ],
                 "Unit": "FPS",
@@ -156,10 +156,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 16.884,
-                        "fp32_ovms": 16.805,
-                        "int8_ov": 48.217,
-                        "int8_ovms": 46.704
+                        "fp32_ov": 16.853,
+                        "fp32_ovms": 16.814,
+                        "int8_ov": 48.434,
+                        "int8_ovms": 47.129
                     }
                 ],
                 "Unit": "FPS",
@@ -177,10 +177,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 414.491,
-                        "fp32_ovms": 291.334,
-                        "int8_ov": 850.647,
-                        "int8_ovms": 547.512
+                        "fp32_ov": 416.429,
+                        "fp32_ovms": 287.978,
+                        "int8_ov": 856.243,
+                        "int8_ovms": 541.99
                     }
                 ],
                 "Unit": "FPS",
@@ -198,10 +198,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 3855.324,
-                        "fp32_ovms": 3264.69,
-                        "int8_ov": 12211.012,
-                        "int8_ovms": 7612.95
+                        "fp32_ov": 3778.861,
+                        "fp32_ovms": 3214.536,
+                        "int8_ov": 12084.817,
+                        "int8_ovms": 7584.17
                     }
                 ],
                 "Unit": "FPS",
@@ -219,10 +219,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 641.666,
-                        "fp32_ovms": 639.09,
-                        "int8_ov": 2468.34,
-                        "int8_ovms": 2335.361
+                        "fp32_ov": 638.215,
+                        "fp32_ovms": 637.338,
+                        "int8_ov": 2421.012,
+                        "int8_ovms": 2323.254
                     }
                 ],
                 "Unit": "FPS",
@@ -240,10 +240,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 12.18,
-                        "fp32_ovms": 11.973,
-                        "int8_ov": 46.957,
-                        "int8_ovms": 43.684
+                        "fp32_ov": 12.094,
+                        "fp32_ovms": 11.884,
+                        "int8_ov": 46.873,
+                        "int8_ovms": 43.57
                     }
                 ],
                 "Unit": "FPS",
@@ -261,10 +261,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 35.794,
-                        "fp32_ovms": 35.31,
-                        "int8_ov": 100.766,
-                        "int8_ovms": 99.81
+                        "fp32_ov": 35.668,
+                        "fp32_ovms": 34.549,
+                        "int8_ov": 100.71,
+                        "int8_ovms": 99.968
                     }
                 ],
                 "Unit": "FPS",
@@ -282,10 +282,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 3.102,
-                        "fp32_ovms": 3.116,
-                        "int8_ov": 10.439,
-                        "int8_ovms": 10.39
+                        "fp32_ov": 3.097,
+                        "fp32_ovms": 3.106,
+                        "int8_ov": 10.316,
+                        "int8_ovms": 10.186
                     }
                 ],
                 "Unit": "FPS",
@@ -303,10 +303,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 81.149,
-                        "fp32_ovms": 68.349,
-                        "int8_ov": 195.69,
-                        "int8_ovms": 128.246
+                        "fp32_ov": 83.783,
+                        "fp32_ovms": 70.678,
+                        "int8_ov": 210.296,
+                        "int8_ovms": 134.698
                     }
                 ],
                 "Unit": "FPS",
@@ -324,10 +324,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 869.827,
-                        "fp32_ovms": 737.461,
-                        "int8_ov": 2687.402,
-                        "int8_ovms": 2125.56
+                        "fp32_ov": 867.169,
+                        "fp32_ovms": 737.016,
+                        "int8_ov": 2680.265,
+                        "int8_ovms": 2139.983
                     }
                 ],
                 "Unit": "FPS",
@@ -345,10 +345,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 116.316,
-                        "fp32_ovms": 113.418,
-                        "int8_ov": 453.477,
-                        "int8_ovms": 437.309
+                        "fp32_ov": 116.026,
+                        "fp32_ovms": 113.814,
+                        "int8_ov": 455.32,
+                        "int8_ovms": 439.632
                     }
                 ],
                 "Unit": "FPS",
@@ -366,10 +366,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 2.0,
-                        "fp32_ovms": 2.026,
-                        "int8_ov": 7.802,
-                        "int8_ovms": 7.756
+                        "fp32_ov": 2.004,
+                        "fp32_ovms": 2.03,
+                        "int8_ov": 7.829,
+                        "int8_ovms": 7.8
                     }
                 ],
                 "Unit": "FPS",
@@ -387,10 +387,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 16.34,
-                        "fp32_ovms": 16.534,
-                        "int8_ov": 14.241,
-                        "int8_ovms": 14.165
+                        "fp32_ov": 16.841,
+                        "fp32_ovms": 16.644,
+                        "int8_ov": 14.296,
+                        "int8_ovms": 14.218
                     }
                 ],
                 "Unit": "FPS",
@@ -408,10 +408,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 1.437,
-                        "fp32_ovms": 1.454,
-                        "int8_ov": 2.544,
-                        "int8_ovms": 2.555
+                        "fp32_ov": 1.396,
+                        "fp32_ovms": 1.447,
+                        "int8_ov": 2.535,
+                        "int8_ovms": 2.564
                     }
                 ],
                 "Unit": "FPS",
@@ -429,10 +429,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 40.565,
-                        "fp32_ovms": 35.522,
-                        "int8_ov": 72.872,
-                        "int8_ovms": 55.591
+                        "fp32_ov": 40.77,
+                        "fp32_ovms": 35.227,
+                        "int8_ov": 72.885,
+                        "int8_ovms": 55.94
                     }
                 ],
                 "Unit": "FPS",
@@ -450,10 +450,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 434.652,
-                        "fp32_ovms": 370.494,
-                        "int8_ov": 709.443,
-                        "int8_ovms": 611.223
+                        "fp32_ov": 436.567,
+                        "fp32_ovms": 372.626,
+                        "int8_ov": 711.324,
+                        "int8_ovms": 612.642
                     }
                 ],
                 "Unit": "FPS",
@@ -471,10 +471,10 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 57.37,
-                        "fp32_ovms": 56.358,
-                        "int8_ov": 117.483,
-                        "int8_ovms": 113.548
+                        "fp32_ov": 55.271,
+                        "fp32_ovms": 54.504,
+                        "int8_ov": 117.911,
+                        "int8_ovms": 113.747
                     }
                 ],
                 "Unit": "FPS",
@@ -492,9 +492,9 @@
             "throughput": {
                 "Precisions": [
                     {
-                        "fp32_ov": 0.95,
-                        "fp32_ovms": 0.983,
-                        "int8_ov": 1.938,
+                        "fp32_ov": 0.99,
+                        "fp32_ovms": 1.015,
+                        "int8_ov": 1.947,
                         "int8_ovms": 1.951
                     }
                 ],
