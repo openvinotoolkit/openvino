@@ -6,7 +6,8 @@ src
 tests
 thirdparty
 
-.eslintrc.js
+eslint.config.js
+.prettierrc
 CMakeLists.txt
 tsconfig.json
 

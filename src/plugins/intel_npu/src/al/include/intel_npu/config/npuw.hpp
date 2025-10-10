@@ -117,6 +117,8 @@ DEFINE_OPT(NPUW_SPATIAL, bool, false, npuw::partitioning::spatial, RunTime);
 DEFINE_OPT(NPUW_F16IC, bool, true, npuw::partitioning::f16_interconnect, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_NWAY, std::size_t, 128, npuw::partitioning::spatial_nway, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_DYN, bool, true, npuw::partitioning::spatial_dyn, RunTime);
+DEFINE_OPT(NPUW_ATTN_DYN, bool, true, npuw::partitioning::attn_dyn, RunTime);
+DEFINE_OPT(NPUW_ATTN_NO_COPY, bool, false, npuw::partitioning::attn_no_copy, RunTime);
 DEFINE_OPT(NPUW_DCOFF_TYPE, std::string, "", npuw::partitioning::dcoff_type, RunTime);
 DEFINE_OPT(NPUW_DCOFF_SCALE, bool, false, npuw::partitioning::dcoff_with_scale, RunTime);
 DEFINE_OPT(NPUW_FUNCALL_FOR_ALL, bool, false, npuw::partitioning::funcall_for_all, RunTime);
@@ -126,6 +128,7 @@ DEFINE_OPT(NPUW_WEIGHTS_BANK_ALLOC, std::string, "", npuw::weights_bank_alloc, R
 DEFINE_OPT(NPUW_CACHE_DIR, std::string, "", npuw::cache_dir, RunTime);
 DEFINE_OPT(NPUW_FUNCALL_ASYNC, bool, false, npuw::funcall_async, RunTime);
 DEFINE_OPT(NPUW_UNFOLD_IREQS, bool, false, npuw::unfold_ireqs, RunTime);
+DEFINE_OPT(NPUW_FALLBACK_EXEC, bool, true, npuw::fallback_exec, RunTime);
 DEFINE_OPT(NPUW_ACC_CHECK, bool, false, npuw::accuracy::check, RunTime);
 DEFINE_OPT(NPUW_ACC_THRESH, double, 0.01, npuw::accuracy::threshold, RunTime);
 DEFINE_OPT(NPUW_ACC_DEVICE, std::string, "", npuw::accuracy::reference_device, RunTime);
@@ -156,6 +159,7 @@ namespace npuw {
 namespace llm {
 enum class PrefillHint { DYNAMIC, STATIC };
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
+enum class AttentionHint { DYNAMIC, STATIC };
 }  // namespace llm
 }  // namespace npuw
 
@@ -200,6 +204,58 @@ struct NPUW_LLM_PREFILL_HINT final : OptionBase<NPUW_LLM_PREFILL_HINT, ::intel_n
 
     static bool isPublic() {
         return false;
+    }
+};
+
+struct ATTN_HINT_BASE : OptionBase<ATTN_HINT_BASE, ::intel_npu::npuw::llm::AttentionHint> {
+    static constexpr std::string_view getTypeName() {
+        return "::intel_npu::npuw::llm::AttentionHint";
+    }
+
+    static ::intel_npu::npuw::llm::AttentionHint defaultValue() {
+        return ::intel_npu::npuw::llm::AttentionHint::STATIC;
+    }
+
+    static ::intel_npu::npuw::llm::AttentionHint parse(std::string_view val) {
+        if (val == "DYNAMIC") {
+            return ::intel_npu::npuw::llm::AttentionHint::DYNAMIC;
+        } else if (val == "STATIC") {
+            return ::intel_npu::npuw::llm::AttentionHint::STATIC;
+        }
+        OPENVINO_THROW("Unsupported attention hint provided: ", val);
+        return {};
+    }
+
+    static std::string toString(const ::intel_npu::npuw::llm::AttentionHint& val) {
+        switch (val) {
+        case ::intel_npu::npuw::llm::AttentionHint::DYNAMIC:
+            return "DYNAMIC";
+        case ::intel_npu::npuw::llm::AttentionHint::STATIC:
+            return "STATIC";
+        default:
+            OPENVINO_THROW("Can't convert provided attention hint : ", int(val), " to string.");
+        }
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+};
+
+struct NPUW_LLM_GENERATE_ATTENTION_HINT final : ATTN_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::generate_attn_hint.name();
+    }
+};
+
+struct NPUW_LLM_PREFILL_ATTENTION_HINT final : ATTN_HINT_BASE {
+    static std::string_view key() {
+        return ov::intel_npu::npuw::llm::prefill_attn_hint.name();
     }
 };
 
